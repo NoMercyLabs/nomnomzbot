@@ -82,7 +82,7 @@ public sealed class HttpMarketplaceClient : IMarketplaceClient
                     "the marketplace answered with a malformed page"
                 );
 
-            List<MarketplaceItemDto> items = wire.Items.Select(ToDto).ToList();
+            List<MarketplaceItemDto> items = [.. wire.Items.Select(ToDto)];
             return Result.Success(
                 new PagedList<MarketplaceItemDto>(items, wire.Page, wire.PageSize, wire.TotalCount)
             );

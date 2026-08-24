@@ -140,7 +140,7 @@ public sealed partial class NamedCounterService : INamedCounterService
                 new Dictionary<string, long>()
             );
 
-        List<string> wanted = keys.Select(k => k.Trim().ToLowerInvariant()).Distinct().ToList();
+        List<string> wanted = [.. keys.Select(k => k.Trim().ToLowerInvariant()).Distinct()];
         Dictionary<string, long> map = await _db
             .NamedCounters.AsNoTracking()
             .Where(c => c.BroadcasterId == broadcasterId && wanted.Contains(c.Key))

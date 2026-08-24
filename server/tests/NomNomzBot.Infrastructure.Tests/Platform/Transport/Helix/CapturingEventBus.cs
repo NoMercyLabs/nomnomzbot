@@ -19,7 +19,7 @@ public sealed class CapturingEventBus : IEventBus
 {
     private readonly ConcurrentQueue<IDomainEvent> _events = new();
 
-    public IReadOnlyList<IDomainEvent> Published => _events.ToList();
+    public IReadOnlyList<IDomainEvent> Published => [.. _events];
 
     public IEnumerable<T> EventsOf<T>()
         where T : IDomainEvent => _events.OfType<T>();

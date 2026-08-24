@@ -137,8 +137,9 @@ public class MusicController : BaseController
                 queue.CurrentTrack.CanResume
             );
 
-        List<QueueItemDto> items = queue
-            .Queue.Select(
+        List<QueueItemDto> items =
+        [
+            .. queue.Queue.Select(
                 (item, index) =>
                     new QueueItemDto(
                         index,
@@ -148,8 +149,8 @@ public class MusicController : BaseController
                         item.DurationMs,
                         item.RequestedBy
                     )
-            )
-            .ToList();
+            ),
+        ];
 
         MusicQueueDto dto = new(nowPlaying, items);
         return Ok(new StatusResponseDto<MusicQueueDto> { Data = dto });

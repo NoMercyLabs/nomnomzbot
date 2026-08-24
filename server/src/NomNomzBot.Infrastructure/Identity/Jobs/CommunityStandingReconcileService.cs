@@ -95,9 +95,8 @@ public sealed class CommunityStandingReconcileService : BackgroundService
                 // Nothing readable this run (both the subscriber and VIP reads failed) — skip rather than reconcile
                 // against an empty, non-authoritative snapshot.
                 if (
-                    !snapshot.SubscribersAuthoritative
-                    && !snapshot.VipsAuthoritative
-                    && snapshot.Members.Count == 0
+                    snapshot is
+                    { SubscribersAuthoritative: false, VipsAuthoritative: false, Members.Count: 0 }
                 )
                     continue;
 

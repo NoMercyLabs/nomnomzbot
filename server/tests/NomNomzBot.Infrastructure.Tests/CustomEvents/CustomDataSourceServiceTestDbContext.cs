@@ -75,15 +75,17 @@ internal sealed class CustomDataSourceServiceTestDbContext : DbContext, IApplica
 
     private static readonly HashSet<Type> Mapped = [typeof(CustomDataSource)];
 
-    private static readonly IReadOnlyList<Type> UnmappedEntities = typeof(IApplicationDbContext)
-        .GetProperties()
-        .Where(p =>
-            p.PropertyType.IsGenericType
-            && p.PropertyType.GetGenericTypeDefinition() == typeof(DbSet<>)
-        )
-        .Select(p => p.PropertyType.GetGenericArguments()[0])
-        .Where(t => !Mapped.Contains(t))
-        .ToList();
+    private static readonly IReadOnlyList<Type> UnmappedEntities =
+    [
+        .. typeof(IApplicationDbContext)
+            .GetProperties()
+            .Where(p =>
+                p.PropertyType.IsGenericType
+                && p.PropertyType.GetGenericTypeDefinition() == typeof(DbSet<>)
+            )
+            .Select(p => p.PropertyType.GetGenericArguments()[0])
+            .Where(t => !Mapped.Contains(t)),
+    ];
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
     public DbSet<ChatMessage> ChatMessages => throw new NotSupportedException();

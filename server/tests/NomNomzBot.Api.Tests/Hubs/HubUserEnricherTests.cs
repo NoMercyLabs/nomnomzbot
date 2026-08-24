@@ -37,7 +37,7 @@ public sealed class HubUserEnricherTests
 
         store.CallCount.Should().Be(1, "the second call within the TTL must be served from cache");
         first.Should().BeSameAs(second);
-        first!.AvatarUrl.Should().Be("https://cdn/avatar.png");
+        first.AvatarUrl.Should().Be("https://cdn/avatar.png");
         first.Pronouns.Should().Be("they/them");
         first.CommunityStanding.Should().Be("Subscriber");
     }

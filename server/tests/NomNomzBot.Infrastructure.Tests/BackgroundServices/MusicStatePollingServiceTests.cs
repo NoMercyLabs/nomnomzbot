@@ -65,9 +65,10 @@ public sealed class MusicStatePollingServiceTests
         music.SetResponse(ChannelA, NowPlayingState("Song B", isPlaying: true, progressMs: 500));
         await sut.PollAllChannelsOnceAsync(CancellationToken.None);
 
-        List<PlaybackStateChangedEvent> published = bus
-            .Published.OfType<PlaybackStateChangedEvent>()
-            .ToList();
+        List<PlaybackStateChangedEvent> published =
+        [
+            .. bus.Published.OfType<PlaybackStateChangedEvent>(),
+        ];
         published.Should().HaveCount(2);
         published[1].TrackName.Should().Be("Song B");
     }
@@ -83,9 +84,10 @@ public sealed class MusicStatePollingServiceTests
         music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: false, progressMs: 1_000));
         await sut.PollAllChannelsOnceAsync(CancellationToken.None);
 
-        List<PlaybackStateChangedEvent> published = bus
-            .Published.OfType<PlaybackStateChangedEvent>()
-            .ToList();
+        List<PlaybackStateChangedEvent> published =
+        [
+            .. bus.Published.OfType<PlaybackStateChangedEvent>(),
+        ];
         published.Should().HaveCount(2);
         published[1].IsPlaying.Should().BeFalse();
         published[1].TrackName.Should().Be("Song A");
@@ -155,9 +157,10 @@ public sealed class MusicStatePollingServiceTests
         );
         await sut.PollAllChannelsOnceAsync(CancellationToken.None);
 
-        List<PlaybackStateChangedEvent> published = bus
-            .Published.OfType<PlaybackStateChangedEvent>()
-            .ToList();
+        List<PlaybackStateChangedEvent> published =
+        [
+            .. bus.Published.OfType<PlaybackStateChangedEvent>(),
+        ];
         published.Should().HaveCount(2);
         published[1].VolumePercent.Should().Be(35);
     }
@@ -179,9 +182,10 @@ public sealed class MusicStatePollingServiceTests
         );
         await sut.PollAllChannelsOnceAsync(CancellationToken.None);
 
-        List<PlaybackStateChangedEvent> published = bus
-            .Published.OfType<PlaybackStateChangedEvent>()
-            .ToList();
+        List<PlaybackStateChangedEvent> published =
+        [
+            .. bus.Published.OfType<PlaybackStateChangedEvent>(),
+        ];
         published.Should().HaveCount(2);
         published[1].CanSkipNext.Should().BeFalse();
     }

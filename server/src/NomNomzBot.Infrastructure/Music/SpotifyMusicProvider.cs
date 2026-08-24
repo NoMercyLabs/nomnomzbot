@@ -16,7 +16,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Interfaces;
-using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Identity.Dtos;
@@ -267,7 +266,7 @@ public sealed class SpotifyMusicProvider
             // Repeat is a single cycling toggle (Off→Track→Context→Off) here, so it's blocked only when
             // Spotify disallows moving to BOTH repeat targets — one still-open target keeps cycling usable.
             canSetRepeat: !(
-                disallows?.TogglingRepeatTrack == true && disallows?.TogglingRepeatContext == true
+                disallows is { TogglingRepeatTrack: true, TogglingRepeatContext: true }
             ),
             canSkipNext: disallows?.SkippingNext != true,
             canSkipPrevious: disallows?.SkippingPrev != true,
@@ -320,7 +319,7 @@ public sealed class SpotifyMusicProvider
         if (json?.Tracks?.Items is null)
             return [];
 
-        return json.Tracks.Items.Where(t => t is not null).Select(t => MapToTrackInfo(t)).ToList();
+        return [.. json.Tracks.Items.Where(t => t is not null).Select(t => MapToTrackInfo(t))];
     }
 
     public async Task<TrackInfo?> ResolveTrackAsync(
@@ -888,7 +887,7 @@ public sealed class SpotifyMusicProvider
         await SendLibraryWriteAsync(
             broadcasterId,
             HttpMethod.Put,
-            trackUris.Select(NormalizeTrackUri).ToList(),
+            [.. trackUris.Select(NormalizeTrackUri)],
             cancellationToken
         );
 
@@ -901,7 +900,7 @@ public sealed class SpotifyMusicProvider
         await SendLibraryWriteAsync(
             broadcasterId,
             HttpMethod.Delete,
-            trackUris.Select(NormalizeTrackUri).ToList(),
+            [.. trackUris.Select(NormalizeTrackUri)],
             cancellationToken
         );
 
@@ -1035,7 +1034,7 @@ public sealed class SpotifyMusicProvider
 
         for (int offset = 0; offset < uris.Count; offset += LibraryUrisPerRequest)
         {
-            List<string> chunk = uris.Skip(offset).Take(LibraryUrisPerRequest).ToList();
+            List<string> chunk = [.. uris.Skip(offset).Take(LibraryUrisPerRequest)];
             string url =
                 $"{SpotifyApiBase}/me/library?uris={Uri.EscapeDataString(string.Join(",", chunk))}";
             HttpResponseMessage? response = await SendManageAsync(
@@ -1119,11 +1118,13 @@ public sealed class SpotifyMusicProvider
         List<bool> flags = [];
         for (int offset = 0; offset < trackUris.Count; offset += ContainsIdsPerRequest)
         {
-            List<string> chunk = trackUris
-                .Skip(offset)
-                .Take(ContainsIdsPerRequest)
-                .Select(uri => ExtractId(uri, "track") ?? uri)
-                .ToList();
+            List<string> chunk =
+            [
+                .. trackUris
+                    .Skip(offset)
+                    .Take(ContainsIdsPerRequest)
+                    .Select(uri => ExtractId(uri, "track") ?? uri),
+            ];
             string url =
                 $"{SpotifyApiBase}/me/tracks/contains?ids={Uri.EscapeDataString(string.Join(",", chunk))}";
 
@@ -1349,9 +1350,8 @@ public sealed class SpotifyMusicProvider
             cancellationToken
         );
         if (
-            current.IsSuccess
-            && !current.Value.IsExpired
-            && current.Value.ExpiresAt is { } currentExpiresAt
+            current
+                is { IsSuccess: true, Value: { IsExpired: false, ExpiresAt: { } currentExpiresAt } }
             && currentExpiresAt > _timeProvider.GetUtcNow().UtcDateTime.AddMinutes(5)
         )
             return current.Value.Value;

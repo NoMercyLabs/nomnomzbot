@@ -92,18 +92,15 @@ public sealed class FirstPartyWidgetCatalogueSeederTests
         // The item's declared config keys are all present in its DefaultSettings.
         alerts
             .DefaultSettings.Keys.Should()
-            .Contain(
-                new[]
-                {
-                    "events",
-                    "textTemplate",
-                    "durationMs",
-                    "minBits",
-                    "minGiftCount",
-                    "minAmount",
-                    "accentColor",
-                }
-            );
+            .Contain([
+                "events",
+                "textTemplate",
+                "durationMs",
+                "minBits",
+                "minGiftCount",
+                "minAmount",
+                "accentColor",
+            ]);
 
         // The default event subscriptions carry the alert types the widget renders.
         alerts
@@ -181,7 +178,7 @@ public sealed class FirstPartyWidgetCatalogueSeederTests
             .SingleOrDefaultAsync(i => i.Id == staleId);
 
         afterSeed.Should().NotBeNull("the row must still exist — soft-deleted, not hard-deleted");
-        afterSeed!
+        afterSeed
             .DeletedAt.Should()
             .NotBeNull("a retired first-party key is pruned from the gallery");
         (await read.WidgetGalleryItems.AnyAsync(i => i.Id == staleId))

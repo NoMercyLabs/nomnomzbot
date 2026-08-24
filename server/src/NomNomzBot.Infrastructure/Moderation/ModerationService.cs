@@ -325,7 +325,7 @@ public class ModerationService : IModerationService
         // once the Record row is gone. Kept as its own record type so this rule-authoring event is never mixed
         // with ActionRecordType's Twitch-target (viewer ban/timeout) assumptions.
         _db.Records.Add(
-            new Record
+            new()
             {
                 BroadcasterId = tenantId,
                 RecordType = RuleAuditRecordType,
@@ -470,8 +470,9 @@ public class ModerationService : IModerationService
             .Take(pagination.PageSize)
             .ToListAsync(cancellationToken);
 
-        List<ModerationRuleListItem> items = records
-            .Select(r =>
+        List<ModerationRuleListItem> items =
+        [
+            .. records.Select(r =>
             {
                 ModerationRuleData data =
                     JsonSerializer.Deserialize<ModerationRuleData>(r.Data)
@@ -485,8 +486,8 @@ public class ModerationService : IModerationService
                     data.DurationSeconds,
                     r.CreatedAt
                 );
-            })
-            .ToList();
+            }),
+        ];
 
         return Result.Success(
             new PagedList<ModerationRuleListItem>(
@@ -525,8 +526,9 @@ public class ModerationService : IModerationService
             cancellationToken
         );
 
-        List<ModerationActionLog> items = records
-            .Select(r =>
+        List<ModerationActionLog> items =
+        [
+            .. records.Select(r =>
             {
                 ModerationActionData data =
                     JsonSerializer.Deserialize<ModerationActionData>(r.Data)
@@ -542,8 +544,8 @@ public class ModerationService : IModerationService
                     data.DurationSeconds,
                     r.CreatedAt
                 );
-            })
-            .ToList();
+            }),
+        ];
 
         return Result.Success(
             new PagedList<ModerationActionLog>(items, pagination.Page, pagination.PageSize, total)
@@ -734,8 +736,7 @@ public class ModerationService : IModerationService
     /// </summary>
     private static int ReadInt(Dictionary<string, object?> settings, string key, int fallback) =>
         settings.TryGetValue(key, out object? value)
-        && value is JsonElement el
-        && el.ValueKind == JsonValueKind.Number
+        && value is JsonElement { ValueKind: JsonValueKind.Number } el
         && el.TryGetInt32(out int parsed)
             ? parsed
             : fallback;
@@ -746,13 +747,14 @@ public class ModerationService : IModerationService
     /// </summary>
     private static List<string> ReadStringList(Dictionary<string, object?> settings, string key) =>
         settings.TryGetValue(key, out object? value)
-        && value is JsonElement el
-        && el.ValueKind == JsonValueKind.Array
-            ? el.EnumerateArray()
-                .Where(e => e.ValueKind == JsonValueKind.String)
-                .Select(e => e.GetString() ?? "")
-                .Where(s => s != "")
-                .ToList()
+        && value is JsonElement { ValueKind: JsonValueKind.Array } el
+            ?
+            [
+                .. el.EnumerateArray()
+                    .Where(e => e.ValueKind == JsonValueKind.String)
+                    .Select(e => e.GetString() ?? "")
+                    .Where(s => s != ""),
+            ]
             : [];
 
     public async Task<Result<AutomodConfigDto>> SaveAutomodConfigAsync(
@@ -1002,9 +1004,12 @@ public class ModerationService : IModerationService
         if (current.IsFailure)
             return Result.Failure<List<string>>(current.ErrorMessage!, current.ErrorCode!);
 
-        List<TwitchBlockedTerm> matches = current
-            .Value.Where(term => string.Equals(term.Text, text, StringComparison.OrdinalIgnoreCase))
-            .ToList();
+        List<TwitchBlockedTerm> matches =
+        [
+            .. current.Value.Where(term =>
+                string.Equals(term.Text, text, StringComparison.OrdinalIgnoreCase)
+            ),
+        ];
 
         // Already absent → idempotent success returning the unchanged list (no needless Helix round-trip).
         if (matches.Count == 0)
@@ -1384,22 +1389,24 @@ public class ModerationService : IModerationService
 
         // Filter (in memory) to the actions whose recorded target is this viewer. These are the bot's OWN recorded
         // actions — not Twitch's complete history — and the DTO's doc is explicit about that distinction.
-        List<(Record Record, ModerationActionData Data)> forTarget = records
-            .Select(r =>
-                (
-                    Record: r,
-                    Data: JsonSerializer.Deserialize<ModerationActionData>(r.Data)
-                        ?? new ModerationActionData()
+        List<(Record Record, ModerationActionData Data)> forTarget =
+        [
+            .. records
+                .Select(r =>
+                    (
+                        Record: r,
+                        Data: JsonSerializer.Deserialize<ModerationActionData>(r.Data)
+                            ?? new ModerationActionData()
+                    )
                 )
-            )
-            .Where(entry =>
-                string.Equals(
-                    entry.Data.TargetUserId,
-                    targetTwitchUserId,
-                    StringComparison.OrdinalIgnoreCase
-                )
-            )
-            .ToList();
+                .Where(entry =>
+                    string.Equals(
+                        entry.Data.TargetUserId,
+                        targetTwitchUserId,
+                        StringComparison.OrdinalIgnoreCase
+                    )
+                ),
+        ];
 
         Dictionary<string, string> moderatorNames = await ResolveUsernamesAsync(
             forTarget.Select(entry => entry.Record.UserId),
@@ -1418,20 +1425,22 @@ public class ModerationService : IModerationService
 
         int Count(string action) => forTarget.Count(entry => entry.Data.Action == action);
 
-        List<ModerationActionLog> recent = forTarget
-            .Take(20)
-            .Select(entry => new ModerationActionLog(
-                entry.Record.Id.ToString(),
-                entry.Data.Action,
-                entry.Record.UserId,
-                moderatorNames.GetValueOrDefault(entry.Record.UserId, entry.Record.UserId),
-                entry.Data.TargetUserId,
-                entry.Data.TargetUsername,
-                entry.Data.Reason,
-                entry.Data.DurationSeconds,
-                entry.Record.CreatedAt
-            ))
-            .ToList();
+        List<ModerationActionLog> recent =
+        [
+            .. forTarget
+                .Take(20)
+                .Select(entry => new ModerationActionLog(
+                    entry.Record.Id.ToString(),
+                    entry.Data.Action,
+                    entry.Record.UserId,
+                    moderatorNames.GetValueOrDefault(entry.Record.UserId, entry.Record.UserId),
+                    entry.Data.TargetUserId,
+                    entry.Data.TargetUsername,
+                    entry.Data.Reason,
+                    entry.Data.DurationSeconds,
+                    entry.Record.CreatedAt
+                )),
+        ];
 
         // The viewer's bot-side standings (J.12) — the panel shows muted/shadowbanned/blacklisted inline.
         List<ModerationStandingDto> standings = await _db
@@ -1652,32 +1661,36 @@ public class ModerationService : IModerationService
             .Records.Where(r => r.BroadcasterId == tenantId && r.RecordType == NoteRecordType)
             .ToListAsync(cancellationToken);
 
-        List<(Record Record, UserNoteData Data)> notes = records
-            .Select(r =>
-                (
-                    Record: r,
-                    Data: JsonSerializer.Deserialize<UserNoteData>(r.Data) ?? new UserNoteData()
+        List<(Record Record, UserNoteData Data)> notes =
+        [
+            .. records
+                .Select(r =>
+                    (
+                        Record: r,
+                        Data: JsonSerializer.Deserialize<UserNoteData>(r.Data) ?? new UserNoteData()
+                    )
                 )
-            )
-            .Where(entry =>
-                string.Equals(
-                    entry.Data.SubjectTwitchUserId,
-                    subjectTwitchUserId,
-                    StringComparison.OrdinalIgnoreCase
-                )
-            )
-            .ToList();
+                .Where(entry =>
+                    string.Equals(
+                        entry.Data.SubjectTwitchUserId,
+                        subjectTwitchUserId,
+                        StringComparison.OrdinalIgnoreCase
+                    )
+                ),
+        ];
 
         Dictionary<string, string> authorNames = await ResolveUsernamesAsync(
             notes.Select(entry => entry.Record.UserId),
             cancellationToken
         );
 
-        List<UserNoteDto> dtos = notes
-            .OrderByDescending(entry => entry.Data.Pinned)
-            .ThenByDescending(entry => entry.Record.CreatedAt)
-            .Select(entry => ToDto(entry.Record, entry.Data, authorNames))
-            .ToList();
+        List<UserNoteDto> dtos =
+        [
+            .. notes
+                .OrderByDescending(entry => entry.Data.Pinned)
+                .ThenByDescending(entry => entry.Record.CreatedAt)
+                .Select(entry => ToDto(entry.Record, entry.Data, authorNames)),
+        ];
 
         return Result.Success(dtos);
     }
@@ -1880,19 +1893,21 @@ public class ModerationService : IModerationService
         CancellationToken cancellationToken
     )
     {
-        List<string> distinct = actorIds
-            .Where(id => !string.IsNullOrEmpty(id))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        List<string> distinct =
+        [
+            .. actorIds
+                .Where(id => !string.IsNullOrEmpty(id))
+                .Distinct(StringComparer.OrdinalIgnoreCase),
+        ];
         if (distinct.Count == 0)
             return new(StringComparer.OrdinalIgnoreCase);
 
         // Split into UUID-shaped ids (stored by dashboard actions) and plain Twitch user ids.
-        List<Guid> internalIds = distinct
-            .Where(id => Guid.TryParse(id, out _))
-            .Select(Guid.Parse)
-            .ToList();
-        List<string> twitchIds = distinct.Where(id => !Guid.TryParse(id, out _)).ToList();
+        List<Guid> internalIds =
+        [
+            .. distinct.Where(id => Guid.TryParse(id, out _)).Select(Guid.Parse),
+        ];
+        List<string> twitchIds = [.. distinct.Where(id => !Guid.TryParse(id, out _))];
 
         Dictionary<string, string> result = new(StringComparer.OrdinalIgnoreCase);
 

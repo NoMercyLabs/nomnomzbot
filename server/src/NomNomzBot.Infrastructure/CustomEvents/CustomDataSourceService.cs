@@ -58,7 +58,7 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
             .Take(pagination.PageSize)
             .ToListAsync(ct);
 
-        List<CustomDataSourceDto> dtos = rows.Select(ToDto).ToList();
+        List<CustomDataSourceDto> dtos = [.. rows.Select(ToDto)];
 
         return Result<PagedList<CustomDataSourceDto>>.Success(
             new(dtos, total, pagination.Page, pagination.PageSize)
@@ -268,10 +268,16 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
         CancellationToken ct = default
     )
     {
-        IReadOnlyList<CustomDataSourcePresetDto> dtos = _presets
-            .Select(p => new CustomDataSourcePresetDto(p.Key, p.DisplayName, p.Template.SourceKind))
-            .OrderBy(p => p.DisplayName)
-            .ToList();
+        IReadOnlyList<CustomDataSourcePresetDto> dtos =
+        [
+            .. _presets
+                .Select(p => new CustomDataSourcePresetDto(
+                    p.Key,
+                    p.DisplayName,
+                    p.Template.SourceKind
+                ))
+                .OrderBy(p => p.DisplayName),
+        ];
 
         return Task.FromResult(Result<IReadOnlyList<CustomDataSourcePresetDto>>.Success(dtos));
     }

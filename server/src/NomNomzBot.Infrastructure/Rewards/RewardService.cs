@@ -151,7 +151,7 @@ public class RewardService : IRewardService
         // Helix first, then the local copy — so a Twitch refusal never leaves the dashboard showing state
         // that is not live on Twitch. IsPaused syncs locally too, so the paused/resumed transition source
         // (RewardLifecycleHandler) and a dashboard patch can never disagree about the last-known state.
-        if (patchesTwitchFacing && reward.IsManageable && reward.TwitchRewardId is not null)
+        if (patchesTwitchFacing && reward is { IsManageable: true, TwitchRewardId: not null })
         {
             Result<TwitchCustomReward> pushed = await _channelPoints.UpdateCustomRewardAsync(
                 broadcaster,
@@ -255,7 +255,7 @@ public class RewardService : IRewardService
         // carries the SAME shape as get/create, including the viewer-facing Prompt (Reward.Description). The old
         // RewardListItem projection silently dropped Prompt (and the other detail fields) from the list JSON, so
         // the dashboard never saw the prompt an operator set on Twitch.
-        List<RewardDetail> items = rewards.Select(ToDetail).ToList();
+        List<RewardDetail> items = [.. rewards.Select(ToDetail)];
 
         return Result.Success(
             new PagedList<RewardDetail>(items, pagination.Page, pagination.PageSize, total)
@@ -705,7 +705,7 @@ public class RewardService : IRewardService
 
     /// <summary>Clamps a requested countdown to sane bounds: 0/negative clears it; the ceiling is 24h.</summary>
     private static int? NormalizeTimerDuration(int? requested) =>
-        requested is { } seconds && seconds > 0 ? Math.Min(seconds, 86_400) : null;
+        requested is { } seconds and > 0 ? Math.Min(seconds, 86_400) : null;
 
     private static RewardDetail ToDetail(Reward r) =>
         new(

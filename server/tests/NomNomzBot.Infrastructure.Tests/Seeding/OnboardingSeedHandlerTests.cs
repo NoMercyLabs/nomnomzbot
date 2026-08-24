@@ -889,7 +889,7 @@ public sealed class OnboardingSeedHandlerTests
         Channel? updated = await db.Channels.FindAsync(Broadcaster);
 
         updated.Should().NotBeNull();
-        updated!.Title.Should().Be("Hello stream");
+        updated.Title.Should().Be("Hello stream");
         updated.GameName.Should().Be("Just Chatting");
         updated.Tags.Should().BeEquivalentTo(["gaming", "english"]);
         updated.ContentLabels.Should().BeEquivalentTo(["DrugsIntoxication", "Gambling"]);
@@ -1054,7 +1054,7 @@ public sealed class OnboardingSeedHandlerTests
         );
 
         row.Should().NotBeNull();
-        row!.Value.Should().Contain("\"slowMode\":true");
+        row.Value.Should().Contain("\"slowMode\":true");
         row.Value.Should().Contain("\"slowModeDelay\":30");
         row.Value.Should().Contain("\"subscriberOnly\":false");
         row.Value.Should().Contain("\"emotesOnly\":true");

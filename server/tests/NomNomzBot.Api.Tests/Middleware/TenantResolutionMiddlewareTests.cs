@@ -14,7 +14,6 @@ using NomNomzBot.Api.Middleware;
 using NomNomzBot.Api.Tests.Controllers;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Identity.Services;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NSubstitute;
 
@@ -61,7 +60,7 @@ public class TenantResolutionMiddlewareTests
     {
         ApiTestDbContext db = ApiTestDbContext.New();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = channelId,
                 Name = "test-channel",
@@ -77,7 +76,7 @@ public class TenantResolutionMiddlewareTests
     {
         context.User = new(
             new ClaimsIdentity(
-                new[] { new Claim(ClaimTypes.NameIdentifier, userId.ToString()) },
+                [new Claim(ClaimTypes.NameIdentifier, userId.ToString())],
                 "TestAuth"
             )
         );

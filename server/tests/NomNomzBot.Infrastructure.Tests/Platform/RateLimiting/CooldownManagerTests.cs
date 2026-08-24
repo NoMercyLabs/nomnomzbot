@@ -104,7 +104,7 @@ public class CooldownManagerTests
 
         TimeSpan? remaining = mgr.GetRemainingCooldown("chan", "!cmd");
         remaining.Should().NotBeNull();
-        remaining!.Value.Should().BePositive();
+        remaining.Value.Should().BePositive();
         remaining.Value.Should().BeLessThanOrEqualTo(TimeSpan.FromSeconds(60));
     }
 
@@ -135,7 +135,7 @@ public class CooldownManagerTests
 
         TimeSpan? remaining = mgr.GetRemainingCooldown("chan", "!cmd");
         remaining.Should().NotBeNull();
-        remaining!.Value.Should().BeGreaterThan(TimeSpan.FromSeconds(30));
+        remaining.Value.Should().BeGreaterThan(TimeSpan.FromSeconds(30));
     }
 
     // ─── ClearCooldown ────────────────────────────────────────────────────────

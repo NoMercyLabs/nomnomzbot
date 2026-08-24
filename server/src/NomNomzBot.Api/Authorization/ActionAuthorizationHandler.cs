@@ -43,7 +43,7 @@ public sealed class ActionAuthorizationHandler(
             broadcasterId,
             requirement.ActionKey
         );
-        if (result.IsSuccess && result.Value)
+        if (result is { IsSuccess: true, Value: true })
             context.Succeed(requirement);
     }
 }

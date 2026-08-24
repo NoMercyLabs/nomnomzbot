@@ -215,10 +215,16 @@ public sealed class ModerationEscalationServiceTests
                     IsEnabled: true,
                     // One rung per offense up to 20, so OffenseCount N maps 1:1 to rung N — makes the
                     // post-batch escalation assertion unambiguous.
-                    Ladder: Enumerable
-                        .Range(1, 20)
-                        .Select(n => new EscalationLadderStep(n, n == 20 ? "ban" : "warn", null))
-                        .ToList(),
+                    Ladder:
+                    [
+                        .. Enumerable
+                            .Range(1, 20)
+                            .Select(n => new EscalationLadderStep(
+                                n,
+                                n == 20 ? "ban" : "warn",
+                                null
+                            )),
+                    ],
                     OffenseWindowHours: 168,
                     CountAutoModViolations: false
                 )
@@ -228,22 +234,24 @@ public sealed class ModerationEscalationServiceTests
 
         // Every task gets its OWN DbContext + service instance (mirrors independent concurrent request
         // handling) but targets the SAME (Channel, Subject) — the exact race the fix closes.
-        Task[] tasks = Enumerable
-            .Range(0, concurrency)
-            .Select(_ =>
-                Task.Run(async () =>
-                {
-                    using EventStoreTestDbContext db = database.NewContext();
-                    ModerationEscalationService sut = new(db, new FakeTimeProvider(T0));
-                    Result<EscalationDecision> result = await sut.ResolveAndRecordAsync(
-                        Channel,
-                        Subject,
-                        "v-1"
-                    );
-                    result.IsSuccess.Should().BeTrue();
-                })
-            )
-            .ToArray();
+        Task[] tasks =
+        [
+            .. Enumerable
+                .Range(0, concurrency)
+                .Select(_ =>
+                    Task.Run(async () =>
+                    {
+                        using EventStoreTestDbContext db = database.NewContext();
+                        ModerationEscalationService sut = new(db, new FakeTimeProvider(T0));
+                        Result<EscalationDecision> result = await sut.ResolveAndRecordAsync(
+                            Channel,
+                            Subject,
+                            "v-1"
+                        );
+                        result.IsSuccess.Should().BeTrue();
+                    })
+                ),
+        ];
 
         await Task.WhenAll(tasks);
 

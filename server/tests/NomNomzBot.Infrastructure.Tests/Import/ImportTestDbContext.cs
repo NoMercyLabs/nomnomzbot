@@ -72,7 +72,7 @@ internal sealed class ImportTestDbContext : DbContext, IApplicationDbContext
             e.Property(c => c.TemplateResponses)
                 .HasConversion(
                     JsonValueConverter.Converter<List<string>>()!,
-                    JsonValueConverter.Comparer<List<string>>()!
+                    JsonValueConverter.Comparer<List<string>>()
                 );
         });
 
@@ -110,15 +110,17 @@ internal sealed class ImportTestDbContext : DbContext, IApplicationDbContext
         typeof(Channel),
     ];
 
-    private static readonly IReadOnlyList<Type> UnmappedEntities = typeof(IApplicationDbContext)
-        .GetProperties()
-        .Where(p =>
-            p.PropertyType.IsGenericType
-            && p.PropertyType.GetGenericTypeDefinition() == typeof(DbSet<>)
-        )
-        .Select(p => p.PropertyType.GetGenericArguments()[0])
-        .Where(t => !Mapped.Contains(t))
-        .ToList();
+    private static readonly IReadOnlyList<Type> UnmappedEntities =
+    [
+        .. typeof(IApplicationDbContext)
+            .GetProperties()
+            .Where(p =>
+                p.PropertyType.IsGenericType
+                && p.PropertyType.GetGenericTypeDefinition() == typeof(DbSet<>)
+            )
+            .Select(p => p.PropertyType.GetGenericArguments()[0])
+            .Where(t => !Mapped.Contains(t)),
+    ];
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
     public DbSet<User> Users => throw new NotSupportedException();

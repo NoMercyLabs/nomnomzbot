@@ -157,7 +157,7 @@ public sealed class TimerServiceTests
             .ExecuteAsync(
                 Arg.Is<PipelineRequest>(r =>
                     r.BroadcasterId == Channel
-                    && r.PipelineJson!.Contains("shoutout")
+                    && r.PipelineJson.Contains("shoutout")
                     && r.InitialVariables["timer.message"] == "alice"
                     && r.InitialVariables["timer.name"] == "auto-shoutout"
                 ),

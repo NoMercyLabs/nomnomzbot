@@ -147,8 +147,9 @@ public class IntegrationsController : BaseController
         if (statuses.IsFailure)
             return ResultResponse(statuses);
 
-        List<IntegrationDto> result = statuses
-            .Value.Select(s => new IntegrationDto(
+        List<IntegrationDto> result =
+        [
+            .. statuses.Value.Select(s => new IntegrationDto(
                 s.Id,
                 s.Name,
                 s.Category,
@@ -157,8 +158,8 @@ public class IntegrationsController : BaseController
                 s.ConnectedAs,
                 BuildOauthUrl(s.Id, channelId),
                 null
-            ))
-            .ToList();
+            )),
+        ];
 
         return Ok(new StatusResponseDto<IntegrationsResponse> { Data = new(result) });
     }

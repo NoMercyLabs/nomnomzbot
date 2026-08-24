@@ -74,7 +74,7 @@ public sealed class IpcDevModeServiceTests
         );
 
         created.IsSuccess.Should().BeTrue(created.ErrorMessage);
-        string plaintext = created.Value!.PlaintextKey!;
+        string plaintext = created.Value.PlaintextKey!;
         plaintext.Should().StartWith("nnzb_ipc_", "the marker makes a leaked key recognizable");
         created.Value.Label.Should().Be("dev laptop");
         created.Value.IsEnabled.Should().BeTrue();
@@ -87,7 +87,7 @@ public sealed class IpcDevModeServiceTests
 
         Result<IReadOnlyList<IpcDevModeKeyDto>> listed = await service.ListKeysAsync();
         listed.IsSuccess.Should().BeTrue();
-        listed.Value!.Single().Id.Should().Be(created.Value.Id);
+        listed.Value.Single().Id.Should().Be(created.Value.Id);
         listed
             .Value.Single()
             .PlaintextKey.Should()
@@ -118,7 +118,7 @@ public sealed class IpcDevModeServiceTests
         IpcDevModeService service = NewService(db, DeploymentMode.SelfHostLite, clock);
         Result<IpcDevModeKeyDto> created = await service.CreateKeyAsync(Actor, new(null, null));
 
-        Result accepted = await service.AuthenticateConnectionAsync(created.Value!.PlaintextKey!);
+        Result accepted = await service.AuthenticateConnectionAsync(created.Value.PlaintextKey!);
         accepted.IsSuccess.Should().BeTrue(accepted.ErrorMessage);
 
         Result rejected = await service.AuthenticateConnectionAsync(
@@ -139,7 +139,7 @@ public sealed class IpcDevModeServiceTests
             new("to revoke", null)
         );
 
-        Result revoked = await service.RevokeKeyAsync(created.Value!.Id);
+        Result revoked = await service.RevokeKeyAsync(created.Value.Id);
         revoked.IsSuccess.Should().BeTrue(revoked.ErrorMessage);
 
         // Soft delete: the row survives as a tombstone, disabled and stamped — never hard-deleted.
@@ -184,7 +184,7 @@ public sealed class IpcDevModeServiceTests
         );
 
         (await service.IsEnabledAsync()).Value.Should().BeTrue("the key is still live");
-        (await service.AuthenticateConnectionAsync(created.Value!.PlaintextKey!))
+        (await service.AuthenticateConnectionAsync(created.Value.PlaintextKey!))
             .IsSuccess.Should()
             .BeTrue();
 
@@ -224,7 +224,7 @@ public sealed class IpcDevModeServiceTests
 
         (await saas.IsEnabledAsync()).Value.Should().BeFalse("dev mode is never on for SaaS");
 
-        Result rejected = await saas.AuthenticateConnectionAsync(created.Value!.PlaintextKey!);
+        Result rejected = await saas.AuthenticateConnectionAsync(created.Value.PlaintextKey!);
         rejected.IsFailure.Should().BeTrue("a valid key must not authenticate on SaaS");
         rejected.ErrorCode.Should().Be("FORBIDDEN");
 

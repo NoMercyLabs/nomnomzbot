@@ -51,7 +51,7 @@ public sealed class LegacyChannelEventMapperTests
         );
 
         request.Should().NotBeNull();
-        request!.EventType.Should().Be("FollowEvent");
+        request.EventType.Should().Be("FollowEvent");
         request.Source.Should().Be("import");
         request.BroadcasterId.Should().Be(Tenant);
         request
@@ -265,7 +265,7 @@ public sealed class LegacyChannelEventMapperTests
         );
 
         update.Should().NotBeNull();
-        update!.EventType.Should().Be("RewardRedemptionUpdatedEvent");
+        update.EventType.Should().Be("RewardRedemptionUpdatedEvent");
         JObject payload = JObject.Parse(update.PayloadJson);
         payload["Status"]!.Value<string>().Should().Be("fulfilled");
         payload["RedemptionId"]!
@@ -300,7 +300,7 @@ public sealed class LegacyChannelEventMapperTests
         );
 
         request.Should().NotBeNull();
-        request!.EventType.Should().Be("ChannelUpdatedEvent");
+        request.EventType.Should().Be("ChannelUpdatedEvent");
         request.BroadcasterId.Should().Be(Tenant);
 
         JObject payload = JObject.Parse(request.PayloadJson);
@@ -421,7 +421,7 @@ public sealed class LegacyChannelEventMapperTests
         );
 
         request.Should().NotBeNull();
-        request!.EventType.Should().Be("ChatMessageReceivedEvent");
+        request.EventType.Should().Be("ChatMessageReceivedEvent");
         request.Source.Should().Be("import");
         request
             .EventId.Should()
@@ -484,7 +484,7 @@ public sealed class LegacyChannelEventMapperTests
         );
 
         request.Should().NotBeNull();
-        request!.EventType.Should().Be("ChatMessageReceivedEvent");
+        request.EventType.Should().Be("ChatMessageReceivedEvent");
         request.EventId.Should().Be(Guid.Parse("2bf63cf6-33aa-4b20-a303-dd3016acf792"));
         JObject payload = JObject.Parse(request.PayloadJson);
         payload["UserId"]!.Value<string>().Should().Be("39863651");
@@ -577,7 +577,7 @@ public sealed class LegacyChannelEventMapperTests
         );
 
         request.Should().NotBeNull();
-        request!.EventType.Should().Be("PollBeganEvent");
+        request.EventType.Should().Be("PollBeganEvent");
         JObject payload = JObject.Parse(request.PayloadJson);
         payload["PollId"]!.Value<string>().Should().Be("poll-abc");
         payload["Title"]!.Value<string>().Should().Be("Best stack?");
@@ -600,7 +600,7 @@ public sealed class LegacyChannelEventMapperTests
         );
 
         request.Should().NotBeNull();
-        request!.EventType.Should().Be("PollProgressEvent");
+        request.EventType.Should().Be("PollProgressEvent");
         JObject payload = JObject.Parse(request.PayloadJson);
         payload["PollId"]!.Value<string>().Should().Be("poll-abc");
         JArray choices = (JArray)payload["Choices"]!;
@@ -619,7 +619,7 @@ public sealed class LegacyChannelEventMapperTests
         );
 
         request.Should().NotBeNull();
-        request!.EventType.Should().Be("PollEndedEvent");
+        request.EventType.Should().Be("PollEndedEvent");
         JObject payload = JObject.Parse(request.PayloadJson);
         payload["Status"]!.Value<string>().Should().Be("completed");
         payload["WinningChoiceId"]!.Value<string>().Should().Be("c1", "Kotlin had the most votes");
@@ -637,7 +637,7 @@ public sealed class LegacyChannelEventMapperTests
         );
 
         request.Should().NotBeNull();
-        request!.EventType.Should().Be("HypeTrainBeganEvent");
+        request.EventType.Should().Be("HypeTrainBeganEvent");
         JObject payload = JObject.Parse(request.PayloadJson);
         payload["HypeTrainId"]!.Value<string>().Should().Be("ht-001");
         payload["Level"]!.Value<int>().Should().Be(1);
@@ -661,7 +661,7 @@ public sealed class LegacyChannelEventMapperTests
         );
 
         request.Should().NotBeNull();
-        request!.EventType.Should().Be("HypeTrainEndedEvent");
+        request.EventType.Should().Be("HypeTrainEndedEvent");
         request
             .OccurredAt.Should()
             .Be(
@@ -687,7 +687,7 @@ public sealed class LegacyChannelEventMapperTests
         );
 
         request.Should().NotBeNull();
-        request!.EventType.Should().Be("PredictionBeganEvent");
+        request.EventType.Should().Be("PredictionBeganEvent");
         request
             .OccurredAt.Should()
             .Be(
@@ -719,7 +719,7 @@ public sealed class LegacyChannelEventMapperTests
         );
 
         request.Should().NotBeNull();
-        request!.EventType.Should().Be("PredictionEndedEvent");
+        request.EventType.Should().Be("PredictionEndedEvent");
         request
             .OccurredAt.Should()
             .Be(
@@ -748,7 +748,7 @@ public sealed class LegacyChannelEventMapperTests
         );
 
         request.Should().NotBeNull();
-        request!.EventType.Should().Be("PredictionLockedEvent");
+        request.EventType.Should().Be("PredictionLockedEvent");
         JObject.Parse(request.PayloadJson)["PredictionId"]!.Value<string>().Should().Be("pred-001");
     }
 

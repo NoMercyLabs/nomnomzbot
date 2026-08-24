@@ -169,7 +169,7 @@ public sealed class MembershipService(
             )
             .ToListAsync(cancellationToken);
         Dictionary<Guid, ChannelMembership> byUser = existingSynced.ToDictionary(m => m.UserId);
-        HashSet<Guid> snapshotUsers = snapshot.Select(m => m.UserId).ToHashSet();
+        HashSet<Guid> snapshotUsers = [.. snapshot.Select(m => m.UserId)];
 
         List<(
             Guid UserId,
@@ -263,7 +263,7 @@ public sealed class MembershipService(
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        List<Guid> userIds = rows.Select(m => m.UserId).ToList();
+        List<Guid> userIds = [.. rows.Select(m => m.UserId)];
         Dictionary<Guid, string> usernames = await db
             .Users.Where(u => userIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id, u => u.Username, cancellationToken);

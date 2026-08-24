@@ -153,7 +153,7 @@ public sealed class EventResponseExecutorTests
                     && r.PipelineJson == """{"steps":[]}"""
                     && r.TriggeredByUserId == "42"
                     && r.TriggeredByDisplayName == "Streamer"
-                    && r.InitialVariables!["title"] == "Birds"
+                    && r.InitialVariables["title"] == "Birds"
                 ),
                 Arg.Any<CancellationToken>()
             );

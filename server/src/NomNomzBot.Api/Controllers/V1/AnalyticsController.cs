@@ -206,7 +206,7 @@ public class AnalyticsController(
             "analytics:viewer:read",
             ct
         );
-        return authorized.IsSuccess && authorized.Value;
+        return authorized is { IsSuccess: true, Value: true };
     }
 
     private bool TryGetCaller(out Guid caller) => Guid.TryParse(currentUser.UserId, out caller);

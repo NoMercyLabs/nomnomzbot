@@ -111,7 +111,7 @@ public sealed class TimerService : BackgroundService
             scope.ServiceProvider.GetRequiredService<IPipelineEngine>();
 
         DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
-        List<Guid> broadcasterIds = liveChannels.Select(c => c.BroadcasterId).ToList();
+        List<Guid> broadcasterIds = [.. liveChannels.Select(c => c.BroadcasterId)];
 
         List<Timer> timers = await db
             .Timers.Where(t =>

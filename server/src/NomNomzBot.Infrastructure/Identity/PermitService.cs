@@ -234,9 +234,10 @@ public sealed class PermitService(
             return active;
 
         if (Enum.TryParse(actionKeyOrRole, ignoreCase: true, out ManagementRole role))
-            return active
-                .Where(p => p.GrantType == PermitGrantType.Role && p.GrantedRole == role)
-                .ToList();
+            return
+            [
+                .. active.Where(p => p.GrantType == PermitGrantType.Role && p.GrantedRole == role),
+            ];
 
         Guid? actionId = await db
             .ActionDefinitions.Where(a => a.ActionKey == actionKeyOrRole)
@@ -244,11 +245,12 @@ public sealed class PermitService(
             .FirstOrDefaultAsync(ct);
         return actionId is null
             ? []
-            : active
-                .Where(p =>
+            :
+            [
+                .. active.Where(p =>
                     p.GrantType == PermitGrantType.Capability && p.ActionDefinitionId == actionId
-                )
-                .ToList();
+                ),
+            ];
     }
 
     private async Task<Dictionary<Guid, string>> ResolveUsernamesAsync(
@@ -256,7 +258,7 @@ public sealed class PermitService(
         CancellationToken ct
     )
     {
-        List<Guid> userIds = grants.Select(g => g.UserId).Distinct().ToList();
+        List<Guid> userIds = [.. grants.Select(g => g.UserId).Distinct()];
         return await db
             .Users.Where(u => userIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id, u => u.Username, ct);
@@ -267,11 +269,13 @@ public sealed class PermitService(
         CancellationToken ct
     )
     {
-        List<Guid> actionIds = grants
-            .Where(g => g.ActionDefinitionId != null)
-            .Select(g => g.ActionDefinitionId!.Value)
-            .Distinct()
-            .ToList();
+        List<Guid> actionIds =
+        [
+            .. grants
+                .Where(g => g.ActionDefinitionId != null)
+                .Select(g => g.ActionDefinitionId!.Value)
+                .Distinct(),
+        ];
         return actionIds.Count == 0
             ? []
             : await db

@@ -51,7 +51,7 @@ public sealed class ConnectionRefreshGate : IConnectionRefreshGate
         CancellationToken cancellationToken = default
     )
     {
-        SemaphoreSlim semaphore = _semaphores.GetOrAdd(key, static _ => new SemaphoreSlim(1, 1));
+        SemaphoreSlim semaphore = _semaphores.GetOrAdd(key, static _ => new(1, 1));
         await semaphore.WaitAsync(cancellationToken);
         return new Releaser(semaphore);
     }

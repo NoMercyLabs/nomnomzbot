@@ -14,7 +14,6 @@ using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.Controllers;
 using NomNomzBot.Api.RateLimiting;
-using Xunit;
 
 namespace NomNomzBot.Api.Tests.RateLimiting;
 
@@ -84,13 +83,15 @@ public sealed class RateLimitTierClassificationTests
 
     private static IEnumerable<ActionRecord> AllActions()
     {
-        List<Type> controllerTypes = typeof(BaseController)
-            .Assembly.GetTypes()
-            .Where(type =>
-                type is { IsClass: true, IsAbstract: false }
-                && typeof(BaseController).IsAssignableFrom(type)
-            )
-            .ToList();
+        List<Type> controllerTypes =
+        [
+            .. typeof(BaseController)
+                .Assembly.GetTypes()
+                .Where(type =>
+                    type is { IsClass: true, IsAbstract: false }
+                    && typeof(BaseController).IsAssignableFrom(type)
+                ),
+        ];
 
         foreach (Type controllerType in controllerTypes)
         {
@@ -140,7 +141,7 @@ public sealed class RateLimitTierClassificationTests
                         : RateLimitPolicyNames.WriteCheap;
                 }
 
-                yield return new ActionRecord(controllerType, method, effectiveTier);
+                yield return new(controllerType, method, effectiveTier);
             }
         }
     }
@@ -148,23 +149,25 @@ public sealed class RateLimitTierClassificationTests
     [Fact]
     public void Every_expensive_named_action_is_on_write_expensive_or_stricter()
     {
-        List<string> violations = AllActions()
-            // GETs are judged by the separate read-tier rule below — a heavy read (GdprController.ExportData,
-            // BundlesController.ListInstalled) stays on the generous per-user "read" tier by design; it is
-            // not required to also earn the per-channel "write-expensive" partition.
-            .Where(action => !IsGetOrHead(action.Method))
-            .Where(action => !ExemptFromExpensiveNameCheck.Contains(action.EffectiveTier))
-            .Where(action => ExpensiveActionNamePattern.IsMatch(action.Method.Name))
-            .Where(action =>
-                !PermitLimitByPolicy.TryGetValue(action.EffectiveTier, out int limit)
-                || limit > WriteExpensiveRateLimitPolicy.PermitLimit
-            )
-            .Select(action =>
-                $"{action.Controller.Name}.{action.Method.Name} is on '{action.EffectiveTier}' "
-                + $"but its name indicates expensive work (synthesis/execution/upload/install/publish/import/export/bulk)"
-            )
-            .OrderBy(message => message, StringComparer.Ordinal)
-            .ToList();
+        List<string> violations =
+        [
+            .. AllActions()
+                // GETs are judged by the separate read-tier rule below — a heavy read (GdprController.ExportData,
+                // BundlesController.ListInstalled) stays on the generous per-user "read" tier by design; it is
+                // not required to also earn the per-channel "write-expensive" partition.
+                .Where(action => !IsGetOrHead(action.Method))
+                .Where(action => !ExemptFromExpensiveNameCheck.Contains(action.EffectiveTier))
+                .Where(action => ExpensiveActionNamePattern.IsMatch(action.Method.Name))
+                .Where(action =>
+                    !PermitLimitByPolicy.TryGetValue(action.EffectiveTier, out int limit)
+                    || limit > WriteExpensiveRateLimitPolicy.PermitLimit
+                )
+                .Select(action =>
+                    $"{action.Controller.Name}.{action.Method.Name} is on '{action.EffectiveTier}' "
+                    + $"but its name indicates expensive work (synthesis/execution/upload/install/publish/import/export/bulk)"
+                )
+                .OrderBy(message => message, StringComparer.Ordinal),
+        ];
 
         Assert.True(
             violations.Count == 0,
@@ -176,18 +179,20 @@ public sealed class RateLimitTierClassificationTests
     [Fact]
     public void Every_plain_get_is_off_the_admin_and_write_cheap_tiers()
     {
-        List<string> violations = AllActions()
-            .Where(action => IsGetOrHead(action.Method))
-            .Where(action =>
-                action.EffectiveTier == RateLimitPolicyNames.Admin
-                || action.EffectiveTier == RateLimitPolicyNames.WriteCheap
-            )
-            .Select(action =>
-                $"{action.Controller.Name}.{action.Method.Name} is a GET/HEAD stuck on '{action.EffectiveTier}' "
-                + $"— it belongs on '{RateLimitPolicyNames.Read}'"
-            )
-            .OrderBy(message => message, StringComparer.Ordinal)
-            .ToList();
+        List<string> violations =
+        [
+            .. AllActions()
+                .Where(action => IsGetOrHead(action.Method))
+                .Where(action =>
+                    action.EffectiveTier == RateLimitPolicyNames.Admin
+                    || action.EffectiveTier == RateLimitPolicyNames.WriteCheap
+                )
+                .Select(action =>
+                    $"{action.Controller.Name}.{action.Method.Name} is a GET/HEAD stuck on '{action.EffectiveTier}' "
+                    + $"— it belongs on '{RateLimitPolicyNames.Read}'"
+                )
+                .OrderBy(message => message, StringComparer.Ordinal),
+        ];
 
         Assert.True(
             violations.Count == 0,

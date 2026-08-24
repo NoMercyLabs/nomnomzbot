@@ -48,7 +48,7 @@ internal sealed class SongRequestQueuePersistenceTestDbContext : IDisposable
         AppDbContext db = new(options);
         db.Database.EnsureCreated();
 
-        return new SongRequestQueuePersistenceTestDbContext(connection, db);
+        return new(connection, db);
     }
 
     /// <summary>Opens a second <see cref="AppDbContext"/> over the SAME connection — simulating the next
@@ -58,7 +58,7 @@ internal sealed class SongRequestQueuePersistenceTestDbContext : IDisposable
         DbContextOptions<AppDbContext> options = new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlite(_connection)
             .Options;
-        return new AppDbContext(options);
+        return new(options);
     }
 
     public void Dispose()

@@ -108,7 +108,7 @@ public sealed class SystemCredentialsProviderTests
         SystemAppCredentials? creds = await provider.GetAsync("twitch");
 
         creds.Should().NotBeNull();
-        creds!.ClientId.Should().Be("db-client-id");
+        creds.ClientId.Should().Be("db-client-id");
         creds.ClientSecret.Should().Be("db-secret");
     }
 
@@ -124,7 +124,7 @@ public sealed class SystemCredentialsProviderTests
         SystemAppCredentials? creds = await provider.GetAsync("spotify");
 
         creds.Should().NotBeNull();
-        creds!.ClientId.Should().Be("env-spotify-id");
+        creds.ClientId.Should().Be("env-spotify-id");
         creds.ClientSecret.Should().Be("env-spotify-secret");
     }
 
@@ -150,7 +150,7 @@ public sealed class SystemCredentialsProviderTests
         SystemAppCredentials? creds = await provider.GetAsync("youtube");
 
         creds.Should().NotBeNull();
-        creds!.ClientId.Should().Be("yt-id");
+        creds.ClientId.Should().Be("yt-id");
     }
 
     [Fact]

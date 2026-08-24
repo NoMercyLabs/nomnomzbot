@@ -690,8 +690,7 @@ public class AuthController : BaseController
         DeviceLoginPollDto poll = result.Value;
         if (
             string.Equals(client, "web", StringComparison.OrdinalIgnoreCase)
-            && poll.Status == DeviceLoginStatus.Authorized
-            && poll.Auth is not null
+            && poll is { Status: DeviceLoginStatus.Authorized, Auth: not null }
         )
         {
             SetRefreshTokenCookie(poll.Auth.RefreshToken);
@@ -721,16 +720,17 @@ public class AuthController : BaseController
     public async Task<IActionResult> GetLoginProviders(CancellationToken ct)
     {
         IReadOnlyList<LoginProviderDescriptor> enabled = await _loginProviders.EnabledAsync(ct);
-        HashSet<string> enabledKeys = enabled.Select(d => d.Key).ToHashSet();
+        HashSet<string> enabledKeys = [.. enabled.Select(d => d.Key)];
 
-        List<LoginProviderDto> providers = _loginProviders
-            .All.Select(d => new LoginProviderDto(
+        List<LoginProviderDto> providers =
+        [
+            .. _loginProviders.All.Select(d => new LoginProviderDto(
                 d.Key,
                 d.DisplayName,
                 FlowTokens(d.SupportedFlows),
                 enabledKeys.Contains(d.Key)
-            ))
-            .ToList();
+            )),
+        ];
 
         return Ok(new StatusResponseDto<IReadOnlyList<LoginProviderDto>> { Data = providers });
     }

@@ -13,7 +13,6 @@ using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Infrastructure.Commands;
-using Xunit;
 
 namespace NomNomzBot.Infrastructure.Tests.Commands;
 
@@ -91,17 +90,17 @@ public class PipelineExecutionQueryServiceTests
 
         Result<PagedList<PipelineExecutionSummaryDto>> page1Result = await service.ListAsync(
             tenantA.ToString(),
-            new PaginationParams(Page: 1, PageSize: 1),
+            new(Page: 1, PageSize: 1),
             failuresOnly: false
         );
         Result<PagedList<PipelineExecutionSummaryDto>> page2Result = await service.ListAsync(
             tenantA.ToString(),
-            new PaginationParams(Page: 2, PageSize: 1),
+            new(Page: 2, PageSize: 1),
             failuresOnly: false
         );
         Result<PagedList<PipelineExecutionSummaryDto>> page3Result = await service.ListAsync(
             tenantA.ToString(),
-            new PaginationParams(Page: 3, PageSize: 1),
+            new(Page: 3, PageSize: 1),
             failuresOnly: false
         );
 
@@ -181,7 +180,7 @@ public class PipelineExecutionQueryServiceTests
         // failuresOnly filter: returns the partially-failed run, excludes the fully-successful one.
         Result<PagedList<PipelineExecutionSummaryDto>> filteredResult = await service.ListAsync(
             tenant.ToString(),
-            new PaginationParams(Page: 1, PageSize: 25),
+            new(Page: 1, PageSize: 25),
             failuresOnly: true
         );
         Assert.True(filteredResult.IsSuccess);

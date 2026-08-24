@@ -94,8 +94,9 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             cancellationToken
         );
 
-        return results
-            .Select(t => new MusicTrack(
+        return
+        [
+            .. results.Select(t => new MusicTrack(
                 t.TrackUri,
                 t.TrackName,
                 t.Artist,
@@ -103,8 +104,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                 t.AlbumArtUrl,
                 t.DurationMs,
                 t.Provider
-            ))
-            .ToList();
+            )),
+        ];
     }
 
     public async Task<Result> PlayAsync(

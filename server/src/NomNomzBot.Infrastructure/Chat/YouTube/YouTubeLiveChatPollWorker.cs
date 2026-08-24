@@ -363,7 +363,7 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
             ?.ModerationStandings;
 
         // Safety net against page overlap: anything already persisted has already been broadcast.
-        List<string> pageIds = messages.Select(m => m.Id).ToList();
+        List<string> pageIds = [.. messages.Select(m => m.Id)];
         List<string> existing = await db
             .ChatMessages.Where(m => pageIds.Contains(m.Id))
             .Select(m => m.Id)

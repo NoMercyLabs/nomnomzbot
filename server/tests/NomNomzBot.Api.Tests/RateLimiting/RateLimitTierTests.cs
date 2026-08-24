@@ -11,10 +11,8 @@
 using System.Security.Claims;
 using System.Threading.RateLimiting;
 using FluentAssertions;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.RateLimiting;
-using Xunit;
 
 namespace NomNomzBot.Api.Tests.RateLimiting;
 
@@ -30,9 +28,7 @@ public sealed class RateLimitTierTests
     private static HttpContext ContextForUser(string userId)
     {
         DefaultHttpContext context = new();
-        context.User = new ClaimsPrincipal(
-            new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, userId)], "test")
-        );
+        context.User = new(new ClaimsIdentity([new(ClaimTypes.NameIdentifier, userId)], "test"));
         return context;
     }
 
@@ -173,9 +169,9 @@ public sealed class RateLimitTierTests
         HttpContext ContextForChannel(string channelId)
         {
             DefaultHttpContext context = new();
-            context.User = new ClaimsPrincipal(
+            context.User = new(
                 new ClaimsIdentity(
-                    [new Claim(ClaimTypes.NameIdentifier, "moderator-of-two-channels")],
+                    [new(ClaimTypes.NameIdentifier, "moderator-of-two-channels")],
                     "test"
                 )
             );

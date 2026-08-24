@@ -563,5 +563,5 @@ public class ObsControlService : IObsControlService
     }
 
     private static bool GetBool(ObsResponse? response, string key) =>
-        response?.ResponseData?.GetValueOrDefault(key) is bool value && value;
+        response?.ResponseData?.GetValueOrDefault(key) is bool and true;
 }

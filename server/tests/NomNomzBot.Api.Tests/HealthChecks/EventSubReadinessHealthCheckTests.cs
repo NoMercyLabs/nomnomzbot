@@ -36,9 +36,9 @@ public sealed class EventSubReadinessHealthCheckTests
         ITwitchEventSubService eventSub = Substitute.For<ITwitchEventSubService>();
         eventSub.Health.Returns(HealthOf(connected: true));
         FakeTimeProvider clock = new();
-        EventSubReadinessHealthCheck check = new(eventSub, new EventSubDisconnectTracker(clock));
+        EventSubReadinessHealthCheck check = new(eventSub, new(clock));
 
-        HealthCheckResult result = await check.CheckHealthAsync(new HealthCheckContext());
+        HealthCheckResult result = await check.CheckHealthAsync(new());
 
         result.Status.Should().Be(HealthStatus.Healthy);
     }
@@ -53,11 +53,11 @@ public sealed class EventSubReadinessHealthCheckTests
         EventSubReadinessHealthCheck check = new(eventSub, tracker);
 
         // First observation of the disconnect.
-        HealthCheckResult first = await check.CheckHealthAsync(new HealthCheckContext());
+        HealthCheckResult first = await check.CheckHealthAsync(new());
         // Advance well within the normal reconnect-swap window (a graceful handover is sub-second to a
         // few seconds — nowhere near the 45s grace period, and far short of the ~5 minute reconnect cadence).
         clock.Advance(TimeSpan.FromSeconds(10));
-        HealthCheckResult second = await check.CheckHealthAsync(new HealthCheckContext());
+        HealthCheckResult second = await check.CheckHealthAsync(new());
 
         first.Status.Should().Be(HealthStatus.Healthy);
         second.Status.Should().Be(HealthStatus.Healthy);
@@ -72,9 +72,9 @@ public sealed class EventSubReadinessHealthCheckTests
         EventSubDisconnectTracker tracker = new(clock);
         EventSubReadinessHealthCheck check = new(eventSub, tracker);
 
-        await check.CheckHealthAsync(new HealthCheckContext());
+        await check.CheckHealthAsync(new());
         clock.Advance(EventSubDisconnectTracker.GracePeriod + TimeSpan.FromSeconds(1));
-        HealthCheckResult result = await check.CheckHealthAsync(new HealthCheckContext());
+        HealthCheckResult result = await check.CheckHealthAsync(new());
 
         result.Status.Should().Be(HealthStatus.Degraded);
     }
@@ -88,14 +88,12 @@ public sealed class EventSubReadinessHealthCheckTests
         EventSubReadinessHealthCheck check = new(eventSub, tracker);
 
         eventSub.Health.Returns(HealthOf(connected: false));
-        await check.CheckHealthAsync(new HealthCheckContext());
+        await check.CheckHealthAsync(new());
         clock.Advance(EventSubDisconnectTracker.GracePeriod + TimeSpan.FromSeconds(1));
-        (await check.CheckHealthAsync(new HealthCheckContext()))
-            .Status.Should()
-            .Be(HealthStatus.Degraded);
+        (await check.CheckHealthAsync(new())).Status.Should().Be(HealthStatus.Degraded);
 
         eventSub.Health.Returns(HealthOf(connected: true));
-        HealthCheckResult reconnected = await check.CheckHealthAsync(new HealthCheckContext());
+        HealthCheckResult reconnected = await check.CheckHealthAsync(new());
 
         reconnected.Status.Should().Be(HealthStatus.Healthy);
     }

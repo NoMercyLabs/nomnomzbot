@@ -71,14 +71,15 @@ public sealed class EarningRuleSeedOnOnboardingHandler(
             IApplicationDbContext db =
                 scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-            HashSet<EarningSource> existing = (
-                await db
+            HashSet<EarningSource> existing =
+            [
+                .. await db
                     .EarningRules.Where(r =>
                         r.BroadcasterId == @event.BroadcasterId && r.DeletedAt == null
                     )
                     .Select(r => r.Source)
-                    .ToListAsync(ct)
-            ).ToHashSet();
+                    .ToListAsync(ct),
+            ];
 
             foreach ((EarningSource source, long rate, string _) in Defaults)
             {

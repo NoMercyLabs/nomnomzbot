@@ -93,10 +93,7 @@ public sealed class DekRotationService : IDekRotationService
             if (underPrevious.IsFailure)
             {
                 failures.Add(
-                    new DekRotationFailure(
-                        record.Id,
-                        "Unwraps under neither the previous nor the current root key."
-                    )
+                    new(record.Id, "Unwraps under neither the previous nor the current root key.")
                 );
                 _logger.LogError(
                     "DEK {KeyId} could not be re-wrapped: unwraps under neither root key.",
@@ -114,12 +111,7 @@ public sealed class DekRotationService : IDekRotationService
                 );
                 if (rewrappedKey.IsFailure)
                 {
-                    failures.Add(
-                        new DekRotationFailure(
-                            record.Id,
-                            rewrappedKey.ErrorMessage ?? "Wrap failed."
-                        )
-                    );
+                    failures.Add(new(record.Id, rewrappedKey.ErrorMessage ?? "Wrap failed."));
                     continue;
                 }
 

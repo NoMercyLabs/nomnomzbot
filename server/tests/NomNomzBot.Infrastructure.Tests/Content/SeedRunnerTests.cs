@@ -83,13 +83,15 @@ public sealed class SeedRunnerTests
     public void Scan_discovers_every_ISeeder_in_the_assembly()
     {
         // Expected set computed by reflection — add a seeder and this stays honest.
-        List<Type> seederTypes = InfrastructureAssembly
-            .GetTypes()
-            .Where(t =>
-                t is { IsAbstract: false, IsInterface: false, IsGenericTypeDefinition: false }
-                && typeof(ISeeder).IsAssignableFrom(t)
-            )
-            .ToList();
+        List<Type> seederTypes =
+        [
+            .. InfrastructureAssembly
+                .GetTypes()
+                .Where(t =>
+                    t is { IsAbstract: false, IsInterface: false, IsGenericTypeDefinition: false }
+                    && typeof(ISeeder).IsAssignableFrom(t)
+                ),
+        ];
 
         seederTypes.Should().HaveCountGreaterThanOrEqualTo(4, "the four content seeders exist");
         seederTypes

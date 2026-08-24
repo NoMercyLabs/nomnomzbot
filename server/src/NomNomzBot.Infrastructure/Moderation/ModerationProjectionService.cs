@@ -316,11 +316,10 @@ public sealed class ModerationProjectionService(
         score.TrustScore = Math.Clamp((decimal)trust, 0m, 100m);
 
         // Heat: exponential decay since the last heat event, then the delta, clamped to [0, 100].
-        decimal decayed =
-            score.LastHeatEventAt is { } last && score.HeatScore > 0m
-                ? score.HeatScore
-                    * (decimal)Math.Pow(0.5, (nowUtc - last).TotalHours / HeatHalfLifeHours)
-                : 0m;
+        decimal decayed = score is { LastHeatEventAt: { } last, HeatScore: > 0m }
+            ? score.HeatScore
+                * (decimal)Math.Pow(0.5, (nowUtc - last).TotalHours / HeatHalfLifeHours)
+            : 0m;
         decimal before = decayed;
         decimal after = Math.Clamp(decayed + heatDelta, 0m, 100m);
         score.HeatScore = after;

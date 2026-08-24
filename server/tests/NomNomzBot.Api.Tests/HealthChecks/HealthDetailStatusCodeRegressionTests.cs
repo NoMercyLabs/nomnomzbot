@@ -10,7 +10,6 @@
 
 using System.Reflection;
 using FluentAssertions;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace NomNomzBot.Api.Tests.HealthChecks;
 
@@ -74,6 +73,6 @@ public sealed class HealthDetailStatusCodeRegressionTests
             .NotBeNull(
                 "must locate the repo's server/src/NomNomzBot.Api/Program.cs from the test assembly location"
             );
-        return found!;
+        return found;
     }
 }

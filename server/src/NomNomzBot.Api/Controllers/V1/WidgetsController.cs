@@ -103,7 +103,7 @@ public class WidgetsController : BaseController
 
         PagedList<WidgetDetail> page = result.Value;
         PagedList<WidgetDetail> withOrigin = new(
-            page.Items.Select(WithOverlayOrigin).ToList(),
+            [.. page.Items.Select(WithOverlayOrigin)],
             page.Page,
             page.PageSize,
             page.TotalCount

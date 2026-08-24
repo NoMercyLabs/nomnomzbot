@@ -192,7 +192,7 @@ public sealed class TwitchAuthService : ITwitchAuthService
                     afterWait.Id,
                     ct
                 );
-                return new TokenResult(
+                return new(
                     winnerAccess.Value.Value,
                     winnerRefresh.IsSuccess ? winnerRefresh.Value.Value : string.Empty,
                     winnerAccess.Value.ExpiresAt ?? refreshedAt,

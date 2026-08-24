@@ -219,7 +219,7 @@ public sealed class SqliteMigrationService
             LIMIT 10000";
 
         await using SqliteDataReader reader = await cmd.ExecuteReaderAsync(ct);
-        List<ChatMessage> batch = new();
+        List<ChatMessage> batch = [];
 
         while (await reader.ReadAsync(ct))
         {

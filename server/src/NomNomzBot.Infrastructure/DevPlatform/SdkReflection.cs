@@ -131,7 +131,7 @@ public static class SdkReflection
         if (TryGetEnumerableElementType(t, out Type? elementType))
             return new(TypeCategory.Collection, t, elementType, null);
 
-        if (t.IsClass || (t.IsValueType && !t.IsPrimitive))
+        if (t.IsClass || t is { IsValueType: true, IsPrimitive: false })
             return new(TypeCategory.Object, t, null, null);
 
         return new(TypeCategory.Unknown, t, null, null);

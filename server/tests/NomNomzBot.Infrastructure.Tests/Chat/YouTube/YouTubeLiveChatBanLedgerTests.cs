@@ -74,7 +74,7 @@ public sealed class YouTubeLiveChatBanLedgerTests
 
         YouTubeConsumedBan? first = await ledger.ConsumeLatestAsync(Tenant, "UCbad");
         first.Should().NotBeNull();
-        first!.BanId.Should().Be("ban-new");
+        first.BanId.Should().Be("ban-new");
         first.PrimaryBroadcasterId.Should().Be(Primary);
 
         // The consumed row is soft-deleted — auditable, never hard-deleted — and the next consume moves on

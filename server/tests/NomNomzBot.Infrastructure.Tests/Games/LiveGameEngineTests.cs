@@ -26,7 +26,6 @@ using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Economy.Entities;
 using NomNomzBot.Domain.Economy.Enums;
 using NomNomzBot.Domain.Economy.Events;
-using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Economy;
 using NomNomzBot.Infrastructure.EventStore;
 using NomNomzBot.Infrastructure.Games;

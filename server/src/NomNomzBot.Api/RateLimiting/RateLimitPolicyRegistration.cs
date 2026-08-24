@@ -9,7 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using System.Threading.RateLimiting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.RateLimiting;
 
 namespace NomNomzBot.Api.RateLimiting;

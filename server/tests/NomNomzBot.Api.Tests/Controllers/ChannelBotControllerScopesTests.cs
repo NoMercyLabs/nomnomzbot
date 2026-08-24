@@ -203,7 +203,7 @@ public sealed class ChannelBotControllerScopesTests
         IIntegrationTokenVault vault = Substitute.For<IIntegrationTokenVault>();
         vault
             .ListConnectionsAsync(Arg.Any<Guid?>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IReadOnlyList<IntegrationConnectionDto>>(connections.ToList()));
+            .Returns(Result.Success<IReadOnlyList<IntegrationConnectionDto>>([.. connections]));
 
         IConfiguration config = new ConfigurationBuilder().Build();
 

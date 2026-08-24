@@ -265,7 +265,7 @@ public class CommunityController : BaseController
             int total = followerPage.IsSuccess ? followerPage.Value.Total : 0;
 
             // Follower ids are Twitch user string ids — join on User.TwitchUserId.
-            List<string> followerIds = followers.Select(f => f.UserId).ToList();
+            List<string> followerIds = [.. followers.Select(f => f.UserId)];
 
             Dictionary<string, User> users = await _db
                 .Users.Where(u => followerIds.Contains(u.TwitchUserId!))
@@ -291,8 +291,9 @@ public class CommunityController : BaseController
                 ct
             );
 
-            List<CommunityUserDto> followerItems = followers
-                .Select(f =>
+            List<CommunityUserDto> followerItems =
+            [
+                .. followers.Select(f =>
                 {
                     users.TryGetValue(f.UserId, out User? user);
                     chatStats.TryGetValue(f.UserId, out var stats);
@@ -312,8 +313,8 @@ public class CommunityController : BaseController
                         f.FollowedAt.UtcDateTime,
                         stats?.LastSeen ?? f.FollowedAt.UtcDateTime
                     );
-                })
-                .ToList();
+                }),
+            ];
 
             return Ok(
                 new PaginatedResponse<CommunityUserDto>
@@ -339,10 +340,10 @@ public class CommunityController : BaseController
             IReadOnlyList<TwitchVip> vips = vipPage.IsSuccess ? vipPage.Value.Items : [];
             int vipTotal = vips.Count;
 
-            List<TwitchVip> pagedVips = vips.Skip(skip).Take(request.Take + 1).ToList();
+            List<TwitchVip> pagedVips = [.. vips.Skip(skip).Take(request.Take + 1)];
 
             // VIP ids are Twitch user string ids — join on User.TwitchUserId.
-            List<string> vipIds = pagedVips.Select(v => v.UserId).ToList();
+            List<string> vipIds = [.. pagedVips.Select(v => v.UserId)];
 
             Dictionary<string, User> vipUsers = await _db
                 .Users.Where(u => vipIds.Contains(u.TwitchUserId!))
@@ -370,31 +371,35 @@ public class CommunityController : BaseController
 
             bool vipHasMore = pagedVips.Count > request.Take;
 
-            List<CommunityUserDto> vipItems = pagedVips
-                .Take(request.Take)
-                .Select(v =>
-                {
-                    vipUsers.TryGetValue(v.UserId, out User? user);
-                    vipChatStats.TryGetValue(v.UserId, out var stats);
-                    vipProfiles.TryGetValue(v.UserId, out ViewerProfile? profile);
-                    return new CommunityUserDto(
-                        v.UserId,
-                        user?.Id,
-                        user?.Username ?? v.UserLogin,
-                        user?.DisplayName ?? v.UserName,
-                        user?.ProfileImageUrl,
-                        stats?.MessageCount ?? 0,
-                        profile is null ? 0 : (int)(profile.TotalWatchSeconds / 3600),
-                        profile is null ? 0 : (int)profile.TotalCommandsUsed,
-                        "vip",
-                        false,
-                        stats?.FirstSeen
-                            ?? user?.CreatedAt
-                            ?? _timeProvider.GetUtcNow().UtcDateTime,
-                        stats?.LastSeen ?? user?.CreatedAt ?? _timeProvider.GetUtcNow().UtcDateTime
-                    );
-                })
-                .ToList();
+            List<CommunityUserDto> vipItems =
+            [
+                .. pagedVips
+                    .Take(request.Take)
+                    .Select(v =>
+                    {
+                        vipUsers.TryGetValue(v.UserId, out User? user);
+                        vipChatStats.TryGetValue(v.UserId, out var stats);
+                        vipProfiles.TryGetValue(v.UserId, out ViewerProfile? profile);
+                        return new CommunityUserDto(
+                            v.UserId,
+                            user?.Id,
+                            user?.Username ?? v.UserLogin,
+                            user?.DisplayName ?? v.UserName,
+                            user?.ProfileImageUrl,
+                            stats?.MessageCount ?? 0,
+                            profile is null ? 0 : (int)(profile.TotalWatchSeconds / 3600),
+                            profile is null ? 0 : (int)profile.TotalCommandsUsed,
+                            "vip",
+                            false,
+                            stats?.FirstSeen
+                                ?? user?.CreatedAt
+                                ?? _timeProvider.GetUtcNow().UtcDateTime,
+                            stats?.LastSeen
+                                ?? user?.CreatedAt
+                                ?? _timeProvider.GetUtcNow().UtcDateTime
+                        );
+                    }),
+            ];
 
             return Ok(
                 new PaginatedResponse<CommunityUserDto>
@@ -432,7 +437,7 @@ public class CommunityController : BaseController
                 .Select(cm => cm.User.TwitchUserId!)
                 .ToListAsync(ct);
 
-            candidateUserIds = chattedIds.Union(modIds).Distinct().ToList();
+            candidateUserIds = [.. chattedIds.Union(modIds).Distinct()];
         }
 
         int totalCount = candidateUserIds.Count;
@@ -453,11 +458,10 @@ public class CommunityController : BaseController
             .ToDictionaryAsync(c => c.UserId, ct);
 
         // Paginate the candidate list
-        List<string> pagedIds = candidateUserIds
-            .OrderBy(id => id)
-            .Skip(skip)
-            .Take(request.Take + 1)
-            .ToList();
+        List<string> pagedIds =
+        [
+            .. candidateUserIds.OrderBy(id => id).Skip(skip).Take(request.Take + 1),
+        ];
 
         Dictionary<string, User> users2 = await _db
             .Users.Where(u => pagedIds.Contains(u.TwitchUserId!))
@@ -487,37 +491,41 @@ public class CommunityController : BaseController
             ct
         );
 
-        List<CommunityUserDto> items = pagedIds
-            .Take(request.Take)
-            .Select(userId =>
-            {
-                users2.TryGetValue(userId, out User? user);
-                chatStats2.TryGetValue(userId, out var stats);
-                viewerProfiles.TryGetValue(userId, out ViewerProfile? profile);
+        List<CommunityUserDto> items =
+        [
+            .. pagedIds
+                .Take(request.Take)
+                .Select(userId =>
+                {
+                    users2.TryGetValue(userId, out User? user);
+                    chatStats2.TryGetValue(userId, out var stats);
+                    viewerProfiles.TryGetValue(userId, out ViewerProfile? profile);
 
-                string trustLevel =
-                    trustConfigs.TryGetValue($"trust:{userId}", out string? t) ? t
-                    : moderatorIds.Contains(userId) ? "moderator"
-                    : "viewer";
+                    string trustLevel =
+                        trustConfigs.TryGetValue($"trust:{userId}", out string? t) ? t
+                        : moderatorIds.Contains(userId) ? "moderator"
+                        : "viewer";
 
-                bool isBanned = bannedIds.Contains(userId);
+                    bool isBanned = bannedIds.Contains(userId);
 
-                return new CommunityUserDto(
-                    userId,
-                    user?.Id,
-                    user?.Username ?? "",
-                    user?.DisplayName ?? "",
-                    user?.ProfileImageUrl,
-                    stats?.MessageCount ?? 0,
-                    profile is null ? 0 : (int)(profile.TotalWatchSeconds / 3600),
-                    profile is null ? 0 : (int)profile.TotalCommandsUsed,
-                    trustLevel,
-                    isBanned,
-                    stats?.FirstSeen ?? user?.CreatedAt ?? _timeProvider.GetUtcNow().UtcDateTime,
-                    stats?.LastSeen ?? user?.CreatedAt ?? _timeProvider.GetUtcNow().UtcDateTime
-                );
-            })
-            .ToList();
+                    return new CommunityUserDto(
+                        userId,
+                        user?.Id,
+                        user?.Username ?? "",
+                        user?.DisplayName ?? "",
+                        user?.ProfileImageUrl,
+                        stats?.MessageCount ?? 0,
+                        profile is null ? 0 : (int)(profile.TotalWatchSeconds / 3600),
+                        profile is null ? 0 : (int)profile.TotalCommandsUsed,
+                        trustLevel,
+                        isBanned,
+                        stats?.FirstSeen
+                            ?? user?.CreatedAt
+                            ?? _timeProvider.GetUtcNow().UtcDateTime,
+                        stats?.LastSeen ?? user?.CreatedAt ?? _timeProvider.GetUtcNow().UtcDateTime
+                    );
+                }),
+        ];
 
         bool hasMore = pagedIds.Count > request.Take;
 
@@ -604,19 +612,23 @@ public class CommunityController : BaseController
             .ToListAsync(ct);
 
         // Collect any UUIDs stored as BannedBy (legacy records written before the display-name fix).
-        List<BanEntry?> entries = banConfigs
-            .Take(request.Take)
-            .Select(c =>
-                c.Value is not null
-                    ? JsonSerializer.Deserialize<BanEntry>(c.Value, JsonOptions)
-                    : null
-            )
-            .ToList();
+        List<BanEntry?> entries =
+        [
+            .. banConfigs
+                .Take(request.Take)
+                .Select(c =>
+                    c.Value is not null
+                        ? JsonSerializer.Deserialize<BanEntry>(c.Value, JsonOptions)
+                        : null
+                ),
+        ];
 
-        HashSet<Guid> legacyModGuids = entries
-            .Where(e => e is not null && Guid.TryParse(e.BannedBy, out _))
-            .Select(e => Guid.Parse(e!.BannedBy))
-            .ToHashSet();
+        HashSet<Guid> legacyModGuids =
+        [
+            .. entries
+                .Where(e => e is not null && Guid.TryParse(e.BannedBy, out _))
+                .Select(e => Guid.Parse(e!.BannedBy)),
+        ];
 
         Dictionary<Guid, string> moderatorNames =
             legacyModGuids.Count > 0
@@ -625,8 +637,9 @@ public class CommunityController : BaseController
                     .ToDictionaryAsync(u => u.Id, u => u.DisplayName ?? u.Username, ct)
                 : [];
 
-        List<BannedUserDto> items = entries
-            .Select(
+        List<BannedUserDto> items =
+        [
+            .. entries.Select(
                 (entry, idx) =>
                 {
                     string bannedBy = entry?.BannedBy ?? "";
@@ -647,8 +660,8 @@ public class CommunityController : BaseController
                         entry?.BannedAt ?? cfg.CreatedAt
                     );
                 }
-            )
-            .ToList();
+            ),
+        ];
 
         bool hasMore = banConfigs.Count > request.Take;
 

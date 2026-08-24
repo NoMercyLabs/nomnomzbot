@@ -21,9 +21,15 @@ internal static class PredictionAlertMapper
     public static IReadOnlyList<PredictionOutcomeDto> MapOutcomes(
         IReadOnlyList<PredictionOutcome> outcomes
     ) =>
-        outcomes
-            .Select(o => new PredictionOutcomeDto(o.Id, o.Title, o.ChannelPoints, o.Users, o.Color))
-            .ToList();
+        [
+            .. outcomes.Select(o => new PredictionOutcomeDto(
+                o.Id,
+                o.Title,
+                o.ChannelPoints,
+                o.Users,
+                o.Color
+            )),
+        ];
 }
 
 /// <summary>Broadcasts a prediction opening (<c>channel.prediction.begin</c>) to dashboard clients AND,

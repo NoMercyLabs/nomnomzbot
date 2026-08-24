@@ -265,7 +265,7 @@ public sealed class ScheduledPipelineService : IScheduledPipelineService
             )
             .OrderBy(t => t.DueAt)
             .ToListAsync(cancellationToken);
-        return pending.Select(ToDto).ToList();
+        return [.. pending.Select(ToDto)];
     }
 
     public async Task<int> FireDueAsync(CancellationToken cancellationToken = default)

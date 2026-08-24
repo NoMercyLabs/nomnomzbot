@@ -374,7 +374,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
                     channelCtx.WentLiveAt?.ToString("O") ?? string.Empty
                 );
 
-                if (channelCtx.IsLive && channelCtx.WentLiveAt.HasValue)
+                if (channelCtx is { IsLive: true, WentLiveAt: not null })
                 {
                     TimeSpan uptime = now - channelCtx.WentLiveAt.Value;
                     vars.TryAdd("stream.uptime", FormatUptime(uptime));
@@ -413,7 +413,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
 
                 if (key.Equals("random.user", StringComparison.OrdinalIgnoreCase))
                 {
-                    List<string> chatters = channelCtx.SessionChatters.Values.ToList();
+                    List<string> chatters = [.. channelCtx.SessionChatters.Values];
                     vars[key] =
                         chatters.Count > 0
                             ? chatters[Random.Shared.Next(chatters.Count)]
@@ -548,13 +548,14 @@ public sealed partial class TemplateResolver : ITemplateResolver
         }
 
         // ── Named counters {count.<key>} ───────────────────────────────────
-        List<string> countKeys = needed
-            .Where(n =>
+        List<string> countKeys =
+        [
+            .. needed.Where(n =>
                 n.StartsWith("count.", StringComparison.OrdinalIgnoreCase)
                 && n.Length > "count.".Length
                 && !vars.ContainsKey(n)
-            )
-            .ToList();
+            ),
+        ];
         if (countKeys.Count > 0 && broadcasterId is not null)
         {
             await ResolveCountersAsync(vars, countKeys, broadcasterId.Value, ct);
@@ -744,7 +745,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
             INamedCounterService counters =
                 scope.ServiceProvider.GetRequiredService<INamedCounterService>();
 
-            List<string> bare = countKeys.Select(k => k["count.".Length..]).ToList();
+            List<string> bare = [.. countKeys.Select(k => k["count.".Length..])];
             Result<IReadOnlyDictionary<string, long>> loaded = await counters.LoadKeysAsync(
                 broadcasterId,
                 bare,
@@ -782,20 +783,22 @@ public sealed partial class TemplateResolver : ITemplateResolver
         CancellationToken ct
     )
     {
-        List<string> viewerDataKeys = needed
-            .Where(n =>
+        List<string> viewerDataKeys =
+        [
+            .. needed.Where(n =>
                 n.StartsWith("viewer.data.", StringComparison.OrdinalIgnoreCase)
                 && n.Length > "viewer.data.".Length
                 && !vars.ContainsKey(n)
-            )
-            .ToList();
-        List<string> targetDataKeys = needed
-            .Where(n =>
+            ),
+        ];
+        List<string> targetDataKeys =
+        [
+            .. needed.Where(n =>
                 n.StartsWith("target.data.", StringComparison.OrdinalIgnoreCase)
                 && n.Length > "target.data.".Length
                 && !vars.ContainsKey(n)
-            )
-            .ToList();
+            ),
+        ];
         bool viewerStats = NeedsAny(
             needed,
             "viewer.messages",
@@ -892,7 +895,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
                 Result<IReadOnlyDictionary<string, string>> loaded = await viewerData.LoadKeysAsync(
                     broadcasterId,
                     viewerId.Value,
-                    dataKeys.Select(k => k[(prefix.Length + ".data.".Length)..]).ToList(),
+                    [.. dataKeys.Select(k => k[(prefix.Length + ".data.".Length)..])],
                     ct
                 );
                 if (loaded.IsSuccess)

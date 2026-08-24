@@ -13,7 +13,6 @@ using FluentAssertions;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Common.Models;
-using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Platform.Pipeline;
@@ -138,18 +137,14 @@ public sealed class PipelineServiceCacheInvalidationTests
 
         Result<PipelineDto> created = await service.CreateAsync(
             ChannelA.ToString(),
-            new CreatePipelineDto
-            {
-                Name = "shoutout-flow",
-                GraphJsonCache = GraphWith(ValidStep()),
-            }
+            new() { Name = "shoutout-flow", GraphJsonCache = GraphWith(ValidStep()) }
         );
         created.IsSuccess.Should().BeTrue();
 
         Result<PipelineDto> updated = await service.UpdateAsync(
             ChannelA.ToString(),
             created.Value.Id,
-            new UpdatePipelineDto { GraphJsonCache = GraphWith(ValidStep(), ValidStep()) }
+            new() { GraphJsonCache = GraphWith(ValidStep(), ValidStep()) }
         );
 
         updated.IsSuccess.Should().BeTrue();
@@ -184,7 +179,7 @@ public sealed class PipelineServiceCacheInvalidationTests
 
         Result<PipelineDto> created = await service.CreateAsync(
             ChannelA.ToString(),
-            new CreatePipelineDto { Name = "temp-flow", GraphJsonCache = GraphWith(ValidStep()) }
+            new() { Name = "temp-flow", GraphJsonCache = GraphWith(ValidStep()) }
         );
         ctx.Commands["shoutout"] = StaleCommand(created.Value.GraphJsonCache.ToString()!);
 
@@ -217,7 +212,7 @@ public sealed class PipelineServiceCacheInvalidationTests
 
         Result<PipelineDto> result = await service.CreateAsync(
             ChannelA.ToString(),
-            new CreatePipelineDto { Name = "new-flow", GraphJsonCache = GraphWith(ValidStep()) }
+            new() { Name = "new-flow", GraphJsonCache = GraphWith(ValidStep()) }
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -260,12 +255,12 @@ public sealed class PipelineServiceCacheInvalidationTests
         PipelineService service = BuildService(db, registry);
         Result<PipelineDto> created = await service.CreateAsync(
             ChannelA.ToString(),
-            new CreatePipelineDto { Name = "a-flow", GraphJsonCache = GraphWith(ValidStep()) }
+            new() { Name = "a-flow", GraphJsonCache = GraphWith(ValidStep()) }
         );
         await service.UpdateAsync(
             ChannelA.ToString(),
             created.Value.Id,
-            new UpdatePipelineDto { GraphJsonCache = GraphWith(ValidStep(), ValidStep()) }
+            new() { GraphJsonCache = GraphWith(ValidStep(), ValidStep()) }
         );
 
         // Channel A's own cache changed...

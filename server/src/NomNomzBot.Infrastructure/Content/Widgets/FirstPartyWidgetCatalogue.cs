@@ -64,7 +64,7 @@ public static class FirstPartyWidgetCatalogue
                 ["minAmount"] = 0,
                 ["accentColor"] = "#9146ff",
             },
-            DefaultEventSubscriptions: new(SupporterAndTwitchEvents)
+            DefaultEventSubscriptions: [.. SupporterAndTwitchEvents]
         ),
         new(
             Key: "goal_bar",
@@ -139,7 +139,7 @@ public static class FirstPartyWidgetCatalogue
                 ["count"] = 20,
                 ["accentColor"] = "#9146ff",
             },
-            DefaultEventSubscriptions: new(SupporterAndTwitchEvents)
+            DefaultEventSubscriptions: [.. SupporterAndTwitchEvents]
         ),
         new(
             Key: "chat_box",

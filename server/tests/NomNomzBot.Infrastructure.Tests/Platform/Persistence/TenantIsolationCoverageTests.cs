@@ -28,14 +28,16 @@ public sealed class TenantIsolationCoverageTests
     [Fact]
     public void Every_mapped_entity_with_a_non_nullable_BroadcasterId_implements_ITenantScoped()
     {
-        IReadOnlyList<Type> mappedEntities = typeof(AppDbContext)
-            .GetProperties()
-            .Where(p =>
-                p.PropertyType.IsGenericType
-                && p.PropertyType.GetGenericTypeDefinition() == typeof(DbSet<>)
-            )
-            .Select(p => p.PropertyType.GetGenericArguments()[0])
-            .ToList();
+        IReadOnlyList<Type> mappedEntities =
+        [
+            .. typeof(AppDbContext)
+                .GetProperties()
+                .Where(p =>
+                    p.PropertyType.IsGenericType
+                    && p.PropertyType.GetGenericTypeDefinition() == typeof(DbSet<>)
+                )
+                .Select(p => p.PropertyType.GetGenericArguments()[0]),
+        ];
 
         // Sanity: the reflection actually found the entity set (guards against a silently-empty assertion).
         mappedEntities.Should().HaveCountGreaterThan(50);

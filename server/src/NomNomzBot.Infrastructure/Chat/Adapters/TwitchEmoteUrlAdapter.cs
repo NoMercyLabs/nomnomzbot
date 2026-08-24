@@ -47,9 +47,7 @@ public sealed class TwitchEmoteUrlAdapter : IChatDecorationAdapter
     }
 
     private static bool IsUnresolvedTwitchEmote(ChatMessageFragment fragment) =>
-        fragment.Type == "emote"
-        && fragment.Emote is null
-        && !string.IsNullOrEmpty(fragment.EmoteId);
+        fragment is { Type: "emote", Emote: null } && !string.IsNullOrEmpty(fragment.EmoteId);
 
     private static ChatEmote BuildTwitchEmote(ChatMessageFragment fragment)
     {

@@ -25,7 +25,7 @@ public sealed class ExplodeTextAdapter : IChatDecorationAdapter
     public int Order => 10;
 
     public bool AppliesTo(ChatDecorationContext context) =>
-        context.Fragments.Any(fragment => fragment.Type == "text" && fragment.Text.Length > 0);
+        context.Fragments.Any(fragment => fragment is { Type: "text", Text.Length: > 0 });
 
     public Task DecorateAsync(ChatDecorationContext context, CancellationToken ct = default)
     {

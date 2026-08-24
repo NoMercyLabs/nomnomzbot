@@ -9,15 +9,12 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Infrastructure.Identity.Jobs;
-using NomNomzBot.Infrastructure.Tests.Identity;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity.Jobs;
 

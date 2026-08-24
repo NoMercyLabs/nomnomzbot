@@ -223,7 +223,7 @@ public class CommandService : ICommandService
         // Record the deletion to the channel's audit trail BEFORE the row is removed — a destructive, no-undo
         // action with nothing else naming who did it once the Command row is gone.
         _db.Records.Add(
-            new Domain.Platform.Entities.Record
+            new()
             {
                 BroadcasterId = broadcaster,
                 RecordType = AuditRecordType,
@@ -339,7 +339,7 @@ public class CommandService : ICommandService
         if (command is null)
             return Errors.NotFound<string>("Command", commandName);
 
-        if (command.Tier == "pipeline" && command.PipelineId.HasValue)
+        if (command is { Tier: "pipeline", PipelineId: not null })
         {
             // Load the pipeline's graph cache to drive the engine (steps-first engine is Slice 4).
             Pipeline? pipeline = await _db.Pipelines.FirstOrDefaultAsync(

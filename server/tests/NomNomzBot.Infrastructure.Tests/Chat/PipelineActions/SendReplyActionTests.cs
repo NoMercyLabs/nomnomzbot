@@ -39,7 +39,7 @@ public sealed class SendReplyActionTests
             )
             .Returns(ci => Task.FromResult((string)ci[0]));
 
-        return (new SendReplyAction(chat, resolver), chat);
+        return (new(chat, resolver), chat);
     }
 
     private static PipelineExecutionContext BuildContext() =>

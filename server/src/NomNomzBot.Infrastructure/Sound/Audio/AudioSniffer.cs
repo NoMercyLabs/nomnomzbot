@@ -18,9 +18,9 @@ namespace NomNomzBot.Infrastructure.Sound.Audio;
 internal static class AudioSniffer
 {
     // Known magic bytes for the three accepted formats.
-    private static readonly byte[] OggMagic = { 0x4F, 0x67, 0x67, 0x53 }; // OggS
-    private static readonly byte[] WavMagic = { 0x52, 0x49, 0x46, 0x46 }; // RIFF
-    private static readonly byte[] FlacMagic = { 0x66, 0x4C, 0x61, 0x43 }; // fLaC (rejected)
+    private static readonly byte[] OggMagic = [0x4F, 0x67, 0x67, 0x53]; // OggS
+    private static readonly byte[] WavMagic = [0x52, 0x49, 0x46, 0x46]; // RIFF
+    private static readonly byte[] FlacMagic = [0x66, 0x4C, 0x61, 0x43]; // fLaC (rejected)
 
     public static string? Sniff(byte[] header)
     {

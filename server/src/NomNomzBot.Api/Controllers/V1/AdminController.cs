@@ -128,9 +128,10 @@ public class AdminController : BaseController
         if (result.IsFailure)
             return ResultResponse(result);
 
-        List<ServiceHealthResponseDto> services = result
-            .Value.Services.Select(s => new ServiceHealthResponseDto(s.Name, s.Status))
-            .ToList();
+        List<ServiceHealthResponseDto> services =
+        [
+            .. result.Value.Services.Select(s => new ServiceHealthResponseDto(s.Name, s.Status)),
+        ];
 
         return Ok(new StatusResponseDto<List<ServiceHealthResponseDto>> { Data = services });
     }
@@ -152,8 +153,9 @@ public class AdminController : BaseController
             })
             .ToListAsync(ct);
 
-        List<PlatformEventDto> dtos = events
-            .Select(e =>
+        List<PlatformEventDto> dtos =
+        [
+            .. events.Select(e =>
             {
                 string message = e.Username is not null ? $"{e.Username}: {e.Type}" : e.Type;
 
@@ -163,8 +165,8 @@ public class AdminController : BaseController
                     : "info";
 
                 return new PlatformEventDto(message, e.CreatedAt.ToString("HH:mm"), eventType);
-            })
-            .ToList();
+            }),
+        ];
 
         return Ok(new StatusResponseDto<List<PlatformEventDto>> { Data = dtos });
     }

@@ -261,7 +261,7 @@ public sealed class StreamStatusPollingServiceTests
             );
 
         sample.Should().NotBeNull("every live poll is a viewer-count fact for the analytics fold");
-        sample!.BroadcasterId.Should().Be(broadcaster);
+        sample.BroadcasterId.Should().Be(broadcaster);
         sample.ViewerCount.Should().Be(152);
         sample.StreamId.Should().Be("stream-1");
     }

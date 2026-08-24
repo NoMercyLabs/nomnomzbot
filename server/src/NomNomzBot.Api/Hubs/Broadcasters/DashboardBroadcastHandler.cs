@@ -84,14 +84,14 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
         {
             DecoratedChatMessage decorated = await _decorator.DecorateAsync(evt, ct);
             enrichment = await _enricher.EnrichAsync(evt.BroadcasterId, evt.UserId, ct);
-            fragments = decorated.Fragments.Select(ChatFragmentMapper.MapFragment).ToList();
-            badges = decorated.Badges.Select(ChatFragmentMapper.MapBadge).ToList();
+            fragments = [.. decorated.Fragments.Select(ChatFragmentMapper.MapFragment)];
+            badges = [.. decorated.Badges.Select(ChatFragmentMapper.MapBadge)];
         }
         else
         {
             // Badge images resolve from the cached Helix badge sets — no non-Twitch source exists, and the
             // role flags below already carry the chatter's standing (owner/mod/member) to the UI.
-            fragments = evt.Fragments.Select(ChatFragmentMapper.MapFragment).ToList();
+            fragments = [.. evt.Fragments.Select(ChatFragmentMapper.MapFragment)];
             badges = [];
         }
 

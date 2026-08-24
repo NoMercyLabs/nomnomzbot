@@ -735,17 +735,19 @@ public sealed class YouTubeMusicProvider : IMusicProvider, IMusicProviderManageA
 
         // Map each requested uri to its video id (null → never saved), batch getRating in ≤50-id calls,
         // then read back positionally: saved ≙ rating "like".
-        List<string?> videoIds = trackUris.Select(ExtractVideoId).ToList();
-        List<string> distinctIds = videoIds
-            .Where(id => id is not null)
-            .Select(id => id!)
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
+        List<string?> videoIds = [.. trackUris.Select(ExtractVideoId)];
+        List<string> distinctIds =
+        [
+            .. videoIds
+                .Where(id => id is not null)
+                .Select(id => id!)
+                .Distinct(StringComparer.Ordinal),
+        ];
 
         Dictionary<string, string> ratingById = new(StringComparer.Ordinal);
         for (int offset = 0; offset < distinctIds.Count; offset += RatingIdsPerRequest)
         {
-            List<string> chunk = distinctIds.Skip(offset).Take(RatingIdsPerRequest).ToList();
+            List<string> chunk = [.. distinctIds.Skip(offset).Take(RatingIdsPerRequest)];
             string url =
                 $"{YouTubeApiBase}/videos/getRating?id={Uri.EscapeDataString(string.Join(",", chunk))}";
             (HttpStatusCode? status, YouTubeRatingListResponse? response) =

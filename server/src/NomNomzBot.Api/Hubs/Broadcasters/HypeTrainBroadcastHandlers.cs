@@ -25,15 +25,15 @@ internal static class HypeTrainAlertMapper
     public static IReadOnlyList<HypeTrainContributionDto> MapContributions(
         IReadOnlyList<HypeTrainContribution> contributions
     ) =>
-        contributions
-            .Select(c => new HypeTrainContributionDto(
+        [
+            .. contributions.Select(c => new HypeTrainContributionDto(
                 c.UserId,
                 c.UserLogin,
                 c.UserDisplayName,
                 c.Type,
                 c.Total
-            ))
-            .ToList();
+            )),
+        ];
 }
 
 /// <summary>Broadcasts a hype train starting (<c>channel.hype_train.begin</c>) to the dashboard AND the overlay meter.</summary>

@@ -124,11 +124,11 @@ public sealed class StartRaidAction : ICommandAction
         // offline channel page with nothing to watch). Best-effort — a failed live check never blocks the
         // raid outright, only a confirmed-offline target does.
         Result<TwitchPage<TwitchStream>> liveCheck = await _streams.GetStreamsAsync(
-            new TwitchStreamsFilter(UserIds: [targetId]),
-            new TwitchPageRequest(PageSize: 1),
+            new(UserIds: [targetId]),
+            new(PageSize: 1),
             ctx.CancellationToken
         );
-        if (liveCheck.IsSuccess && liveCheck.Value.Items.Count == 0)
+        if (liveCheck is { IsSuccess: true, Value.Items.Count: 0 })
             return ActionResult.Failure(
                 $"start_raid target '{rawTarget}' is not currently live — raid not started"
             );
@@ -143,7 +143,7 @@ public sealed class StartRaidAction : ICommandAction
 
         // "Already raiding" (Twitch 409 — a raid to this or another target is already in flight) is not a
         // failure: the desired end state — a raid under way — already holds, so the step tolerates it.
-        bool alreadyRaiding = raid.IsFailure && raid.ErrorCode == TwitchErrorCodes.Conflict;
+        bool alreadyRaiding = raid is { IsFailure: true, ErrorCode: TwitchErrorCodes.Conflict };
 
         if (raid.IsFailure && !alreadyRaiding)
         {

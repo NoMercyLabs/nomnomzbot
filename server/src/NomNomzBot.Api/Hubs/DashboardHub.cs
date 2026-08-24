@@ -108,7 +108,7 @@ public class DashboardHub : Hub<IDashboardClient>
 
         return await JoinChannelCoreAsync(
             broadcasterId,
-            eventClasses.Distinct(StringComparer.Ordinal).ToArray()
+            [.. eventClasses.Distinct(StringComparer.Ordinal)]
         );
     }
 

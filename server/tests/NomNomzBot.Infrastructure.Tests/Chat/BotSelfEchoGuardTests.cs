@@ -38,7 +38,7 @@ public sealed class BotSelfEchoGuardTests : IDisposable
 
     public BotSelfEchoGuardTests()
     {
-        _connection = new SqliteConnection("DataSource=:memory:");
+        _connection = new("DataSource=:memory:");
         _connection.Open();
 
         ServiceCollection services = new();

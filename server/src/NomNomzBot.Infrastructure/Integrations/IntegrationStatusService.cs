@@ -112,7 +112,9 @@ public sealed class IntegrationStatusService : IIntegrationStatusService
             )
             : null;
 
-        List<ChannelIntegrationDto> result = Meta.Select(kvp =>
+        List<ChannelIntegrationDto> result =
+        [
+            .. Meta.Select(kvp =>
             {
                 string id = kvp.Key;
                 (string Name, string Category, string Description) = kvp.Value;
@@ -142,8 +144,8 @@ public sealed class IntegrationStatusService : IIntegrationStatusService
                     connectedAs,
                     authStatus
                 );
-            })
-            .ToList();
+            }),
+        ];
 
         return Result.Success(result);
     }

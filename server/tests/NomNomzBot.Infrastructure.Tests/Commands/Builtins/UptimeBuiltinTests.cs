@@ -96,14 +96,16 @@ public sealed class UptimeBuiltinTests
         result.Value.Should().Contain("2h 5m");
         result.Value.Should().NotContain("dashboard");
 
-        HashSet<string> expected = ToneTemplateCatalog
-            .Get(
-                PersonalityTone.Informative,
-                BuiltinResponseSlots.Uptime.Key,
-                BuiltinResponseSlots.Uptime.Live
-            )
-            .Select(t => t.Replace("{uptime}", "2h 5m"))
-            .ToHashSet();
+        HashSet<string> expected =
+        [
+            .. ToneTemplateCatalog
+                .Get(
+                    PersonalityTone.Informative,
+                    BuiltinResponseSlots.Uptime.Key,
+                    BuiltinResponseSlots.Uptime.Live
+                )
+                .Select(t => t.Replace("{uptime}", "2h 5m")),
+        ];
         expected.Should().Contain(result.Value);
     }
 
@@ -139,13 +141,14 @@ public sealed class UptimeBuiltinTests
         Result<string> result = await Sut(offlineCtx)
             .ExecuteAsync(Ctx(PersonalityTone.Informative));
 
-        HashSet<string> offline = ToneTemplateCatalog
-            .Get(
+        HashSet<string> offline =
+        [
+            .. ToneTemplateCatalog.Get(
                 PersonalityTone.Informative,
                 BuiltinResponseSlots.Uptime.Key,
                 BuiltinResponseSlots.Uptime.Offline
-            )
-            .ToHashSet();
+            ),
+        ];
         offline.Should().Contain(result.Value);
     }
 
@@ -154,13 +157,14 @@ public sealed class UptimeBuiltinTests
     {
         Result<string> result = await Sut(ctx: null).ExecuteAsync(Ctx(PersonalityTone.Chill));
 
-        HashSet<string> offline = ToneTemplateCatalog
-            .Get(
+        HashSet<string> offline =
+        [
+            .. ToneTemplateCatalog.Get(
                 PersonalityTone.Chill,
                 BuiltinResponseSlots.Uptime.Key,
                 BuiltinResponseSlots.Uptime.Offline
-            )
-            .ToHashSet();
+            ),
+        ];
         offline.Should().Contain(result.Value);
     }
 }

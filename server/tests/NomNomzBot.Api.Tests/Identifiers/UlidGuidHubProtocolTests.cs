@@ -36,10 +36,7 @@ public sealed class UlidGuidHubProtocolTests
         hubOptions.PayloadSerializerOptions.Converters.Add(new UlidGuidJsonConverter());
         JsonHubProtocol protocol = new(Options.Create(hubOptions));
 
-        InvocationMessage message = new(
-            "ConfigChanged",
-            new object?[] { new HubIdPayload(KnownId, "timers") }
-        );
+        InvocationMessage message = new("ConfigChanged", [new HubIdPayload(KnownId, "timers")]);
         string json = Encoding.UTF8.GetString(protocol.GetMessageBytes(message).ToArray());
 
         json.Should().Contain(GuidUlidCodec.Encode(KnownId));

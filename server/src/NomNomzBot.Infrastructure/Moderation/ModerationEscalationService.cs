@@ -223,7 +223,7 @@ public sealed class ModerationEscalationService(IApplicationDbContext db, TimePr
                     $"Unknown ladder action '{step.Action}' — warn, timeout, or ban.",
                     "VALIDATION_FAILED"
                 );
-            if (step.Action == "timeout" && step.TimeoutSeconds is not > 0)
+            if (step is { Action: "timeout", TimeoutSeconds: not > 0 })
                 return Result.Failure<ModerationEscalationPolicyDto>(
                     "A timeout step needs a positive duration.",
                     "VALIDATION_FAILED"

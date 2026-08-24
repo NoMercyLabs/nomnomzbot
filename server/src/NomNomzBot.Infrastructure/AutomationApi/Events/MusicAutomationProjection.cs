@@ -40,7 +40,7 @@ public static class MusicAutomationProjection
         {
             Application.Common.Models.Result<IReadOnlyList<bool>> savedCheck =
                 await manageApi.AreTracksSavedAsync(broadcasterId, provider, [trackUri], ct);
-            if (savedCheck.IsSuccess && savedCheck.Value.Count > 0)
+            if (savedCheck is { IsSuccess: true, Value.Count: > 0 })
                 isSaved = savedCheck.Value[0];
         }
 

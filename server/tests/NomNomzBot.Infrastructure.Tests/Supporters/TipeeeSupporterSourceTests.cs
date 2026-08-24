@@ -82,7 +82,7 @@ public sealed class TipeeeSupporterSourceTests
         SocketIoEmit? emit = _profile.BuildConnectEmit("api-key");
 
         emit.Should().NotBeNull();
-        emit!.EventName.Should().Be("join-room");
+        emit.EventName.Should().Be("join-room");
         emit.Payload.Should().BeEquivalentTo(new { room = "api-key", username = "nomnomzbot" });
     }
 

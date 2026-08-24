@@ -139,7 +139,7 @@ public sealed class SupporterPollHostedServiceTests
         // The second request carried the ETag from the first response.
         http.Requests[1].Headers.TryGetValues("If-None-Match", out IEnumerable<string>? etags);
         etags.Should().NotBeNull();
-        etags!.Single().Should().Be("\"v7\"");
+        etags.Single().Should().Be("\"v7\"");
         (await db.SupporterEvents.CountAsync()).Should().Be(0);
     }
 

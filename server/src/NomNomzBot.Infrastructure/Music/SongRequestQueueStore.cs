@@ -88,7 +88,7 @@ public sealed class SongRequestQueueStore : ISongRequestQueueStore
     private readonly ConcurrentDictionary<string, SongRequestEntry> _inFlight = new();
 
     public FairQueue<SongRequestEntry> GetOrCreate(string broadcasterId) =>
-        _queues.GetOrAdd(broadcasterId, static _ => new FairQueue<SongRequestEntry>());
+        _queues.GetOrAdd(broadcasterId, static _ => new());
 
     public FairQueue<SongRequestEntry>? TryGet(string broadcasterId) =>
         _queues.TryGetValue(broadcasterId, out FairQueue<SongRequestEntry>? queue) ? queue : null;

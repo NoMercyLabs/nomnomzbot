@@ -217,7 +217,7 @@ public sealed class DekRotationServiceTests
         SubjectKeyRecord? orphan = await store.GetAsync(orphanKeyId.Value, CancellationToken.None);
         orphan.Should().NotBeNull();
         await store.UpdateAsync(
-            orphan! with
+            orphan with
             {
                 WrappedKeyMaterial = Convert.ToBase64String(new byte[60]), // well-formed length, garbage tag
             },

@@ -69,18 +69,18 @@ public class PermissionsController : BaseController
             .ToListAsync(ct);
 
         // Permission.SubjectId holds the Twitch user string id — join on User.TwitchUserId.
-        List<string> userIds = permissions
-            .Where(p => p.SubjectType == "user")
-            .Select(p => p.SubjectId)
-            .Distinct()
-            .ToList();
+        List<string> userIds =
+        [
+            .. permissions.Where(p => p.SubjectType == "user").Select(p => p.SubjectId).Distinct(),
+        ];
 
         Dictionary<string, User> users = await _db
             .Users.Where(u => userIds.Contains(u.TwitchUserId!))
             .ToDictionaryAsync(u => u.TwitchUserId!, ct);
 
-        List<PermissionDto> result = permissions
-            .Select(p =>
+        List<PermissionDto> result =
+        [
+            .. permissions.Select(p =>
             {
                 string? subjectName = null;
                 if (p.SubjectType == "user" && users.TryGetValue(p.SubjectId, out User? user))
@@ -96,8 +96,8 @@ public class PermissionsController : BaseController
                     p.PermissionValue,
                     p.CreatedAt
                 );
-            })
-            .ToList();
+            }),
+        ];
 
         return Ok(new StatusResponseDto<List<PermissionDto>> { Data = result });
     }

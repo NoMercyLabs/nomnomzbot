@@ -188,13 +188,13 @@ public class ModerationController : BaseController
         new(
             result.Attempted,
             result.Succeeded,
-            result
-                .Channels.Select(channel => new ChannelBanOutcomeDto(
+            [
+                .. result.Channels.Select(channel => new ChannelBanOutcomeDto(
                     channel.BroadcasterLogin,
                     channel.Succeeded,
                     channel.Error
-                ))
-                .ToList()
+                )),
+            ]
         );
 
     private async Task<string> ResolveChannelLoginAsync(string channelId, CancellationToken ct)
@@ -389,8 +389,8 @@ public class ModerationController : BaseController
             return ResultResponse(result);
 
         PagedList<ModLogEntryDto> mapped = new(
-            result
-                .Value.Items.Select(a => new ModLogEntryDto(
+            [
+                .. result.Value.Items.Select(a => new ModLogEntryDto(
                     a.Id,
                     a.Action,
                     a.ModeratorUsername,
@@ -398,8 +398,8 @@ public class ModerationController : BaseController
                     a.Reason,
                     a.Timestamp,
                     a.DurationSeconds
-                ))
-                .ToList(),
+                )),
+            ],
             result.Value.TotalCount,
             result.Value.Page,
             result.Value.PageSize

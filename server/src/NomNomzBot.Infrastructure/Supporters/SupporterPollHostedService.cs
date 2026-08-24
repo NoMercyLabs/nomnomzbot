@@ -219,6 +219,6 @@ public sealed class SupporterPollHostedService : BackgroundService
             foreach (JProperty property in obj.Properties())
                 if (property.Value is JArray nested)
                     return nested;
-        return new();
+        return [];
     }
 }

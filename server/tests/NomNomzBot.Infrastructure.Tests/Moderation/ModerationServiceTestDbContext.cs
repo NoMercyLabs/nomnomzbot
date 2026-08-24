@@ -180,15 +180,17 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
         typeof(NomNomzBot.Domain.Moderation.Entities.ChatFilter),
     ];
 
-    private static readonly IReadOnlyList<Type> UnmappedEntities = typeof(IApplicationDbContext)
-        .GetProperties()
-        .Where(p =>
-            p.PropertyType.IsGenericType
-            && p.PropertyType.GetGenericTypeDefinition() == typeof(DbSet<>)
-        )
-        .Select(p => p.PropertyType.GetGenericArguments()[0])
-        .Where(t => !Mapped.Contains(t))
-        .ToList();
+    private static readonly IReadOnlyList<Type> UnmappedEntities =
+    [
+        .. typeof(IApplicationDbContext)
+            .GetProperties()
+            .Where(p =>
+                p.PropertyType.IsGenericType
+                && p.PropertyType.GetGenericTypeDefinition() == typeof(DbSet<>)
+            )
+            .Select(p => p.PropertyType.GetGenericArguments()[0])
+            .Where(t => !Mapped.Contains(t)),
+    ];
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
     public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();

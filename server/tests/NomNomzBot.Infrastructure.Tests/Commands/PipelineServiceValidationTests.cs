@@ -48,12 +48,7 @@ public sealed class PipelineServiceValidationTests
         AuthDbContext db = AuthTestBuilder.NewContext();
         CommandConfigValidator validator = new([new FakeAction { ActionType = "send_message" }]);
         return (
-            new PipelineService(
-                db,
-                Substitute.For<IEventBus>(),
-                validator,
-                Substitute.For<IChannelRegistry>()
-            ),
+            new(db, Substitute.For<IEventBus>(), validator, Substitute.For<IChannelRegistry>()),
             db
         );
     }
@@ -71,11 +66,7 @@ public sealed class PipelineServiceValidationTests
 
         Result<PipelineDto> result = await service.CreateAsync(
             Broadcaster.ToString(),
-            new CreatePipelineDto
-            {
-                Name = "evil",
-                GraphJsonCache = GraphWith(ValidStep("does_not_exist")),
-            }
+            new() { Name = "evil", GraphJsonCache = GraphWith(ValidStep("does_not_exist")) }
         );
 
         result.IsSuccess.Should().BeFalse();
@@ -90,7 +81,7 @@ public sealed class PipelineServiceValidationTests
 
         Result<PipelineDto> result = await service.CreateAsync(
             Broadcaster.ToString(),
-            new CreatePipelineDto { Name = "good", GraphJsonCache = GraphWith(ValidStep()) }
+            new() { Name = "good", GraphJsonCache = GraphWith(ValidStep()) }
         );
 
         result.IsSuccess.Should().BeTrue();
@@ -112,11 +103,11 @@ public sealed class PipelineServiceValidationTests
     {
         (PipelineService service, AuthDbContext db) = Build();
 
-        object[] tooManySteps = Enumerable.Range(0, 101).Select(_ => ValidStep()).ToArray();
+        object[] tooManySteps = [.. Enumerable.Range(0, 101).Select(_ => ValidStep())];
 
         Result<PipelineDto> result = await service.CreateAsync(
             Broadcaster.ToString(),
-            new CreatePipelineDto { Name = "huge", GraphJsonCache = GraphWith(tooManySteps) }
+            new() { Name = "huge", GraphJsonCache = GraphWith(tooManySteps) }
         );
 
         result.IsSuccess.Should().BeFalse();
@@ -133,7 +124,7 @@ public sealed class PipelineServiceValidationTests
 
         Result<PipelineDto> result = await service.CreateAsync(
             Broadcaster.ToString(),
-            new CreatePipelineDto { Name = "leaky", GraphJsonCache = GraphWith(step) }
+            new() { Name = "leaky", GraphJsonCache = GraphWith(step) }
         );
 
         result.IsSuccess.Should().BeFalse();
@@ -148,7 +139,7 @@ public sealed class PipelineServiceValidationTests
 
         Result<PipelineDto> created = await service.CreateAsync(
             Broadcaster.ToString(),
-            new CreatePipelineDto { Name = "keep-me", GraphJsonCache = GraphWith(ValidStep()) }
+            new() { Name = "keep-me", GraphJsonCache = GraphWith(ValidStep()) }
         );
         created.IsSuccess.Should().BeTrue();
         string originalGraph = (await db.Pipelines.SingleAsync()).GraphJsonCache!;
@@ -156,7 +147,7 @@ public sealed class PipelineServiceValidationTests
         Result<PipelineDto> updateResult = await service.UpdateAsync(
             Broadcaster.ToString(),
             created.Value.Id,
-            new UpdatePipelineDto { GraphJsonCache = GraphWith(ValidStep("does_not_exist")) }
+            new() { GraphJsonCache = GraphWith(ValidStep("does_not_exist")) }
         );
 
         updateResult.IsSuccess.Should().BeFalse();
@@ -173,13 +164,13 @@ public sealed class PipelineServiceValidationTests
 
         Result<PipelineDto> created = await service.CreateAsync(
             Broadcaster.ToString(),
-            new CreatePipelineDto { Name = "swap-me", GraphJsonCache = GraphWith(ValidStep()) }
+            new() { Name = "swap-me", GraphJsonCache = GraphWith(ValidStep()) }
         );
 
         Result<PipelineDto> updateResult = await service.UpdateAsync(
             Broadcaster.ToString(),
             created.Value.Id,
-            new UpdatePipelineDto { GraphJsonCache = GraphWith(ValidStep(), ValidStep()) }
+            new() { GraphJsonCache = GraphWith(ValidStep(), ValidStep()) }
         );
 
         updateResult.IsSuccess.Should().BeTrue();

@@ -55,25 +55,27 @@ public sealed class BuiltinCommandService : IBuiltinCommandService
             .ChannelBuiltinCommands.Where(c => c.BroadcasterId == broadcaster)
             .ToDictionaryAsync(c => c.BuiltinKey, c => c, StringComparer.OrdinalIgnoreCase, ct);
 
-        List<BuiltinCommandDto> dtos = _catalog
-            .GetAll()
-            .Select(cmd =>
-            {
-                // A reserved built-in (gdpr-crypto.md §9) is always on — any stray toggle row is ignored.
-                bool isEnabled =
-                    cmd.IsReserved
-                    || !toggles.TryGetValue(cmd.BuiltinKey, out ChannelBuiltinCommand? toggle)
-                    || toggle.IsEnabled;
+        List<BuiltinCommandDto> dtos =
+        [
+            .. _catalog
+                .GetAll()
+                .Select(cmd =>
+                {
+                    // A reserved built-in (gdpr-crypto.md §9) is always on — any stray toggle row is ignored.
+                    bool isEnabled =
+                        cmd.IsReserved
+                        || !toggles.TryGetValue(cmd.BuiltinKey, out ChannelBuiltinCommand? toggle)
+                        || toggle.IsEnabled;
 
-                return new BuiltinCommandDto(
-                    cmd.BuiltinKey,
-                    "!" + cmd.BuiltinKey,
-                    isEnabled,
-                    cmd.DefaultCooldownSeconds,
-                    cmd.DefaultMinPermissionLevel
-                );
-            })
-            .ToList();
+                    return new BuiltinCommandDto(
+                        cmd.BuiltinKey,
+                        "!" + cmd.BuiltinKey,
+                        isEnabled,
+                        cmd.DefaultCooldownSeconds,
+                        cmd.DefaultMinPermissionLevel
+                    );
+                }),
+        ];
 
         return Result.Success<IReadOnlyList<BuiltinCommandDto>>(dtos);
     }

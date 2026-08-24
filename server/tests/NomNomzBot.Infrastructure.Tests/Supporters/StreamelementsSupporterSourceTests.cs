@@ -56,7 +56,7 @@ public sealed class StreamelementsSupporterSourceTests
 
         SocketIoEmit? emit = _profile.BuildConnectEmit("jwt-token");
         emit.Should().NotBeNull();
-        emit!.EventName.Should().Be("authenticate");
+        emit.EventName.Should().Be("authenticate");
         emit.Payload.Should().BeEquivalentTo(new { method = "jwt", token = "jwt-token" });
     }
 

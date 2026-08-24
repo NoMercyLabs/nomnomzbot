@@ -113,7 +113,7 @@ public sealed class TwitchEventSubDormancyTests
             get
             {
                 lock (_messages)
-                    return _messages.ToList();
+                    return [.. _messages];
             }
         }
 

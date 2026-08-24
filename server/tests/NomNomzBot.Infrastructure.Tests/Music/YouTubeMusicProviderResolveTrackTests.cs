@@ -48,7 +48,7 @@ public sealed class YouTubeMusicProviderResolveTrackTests
         TrackInfo? track = await provider.ResolveTrackAsync(ChannelId, input);
 
         track.Should().NotBeNull();
-        track!.ProviderTrackId.Should().Be(VideoId);
+        track.ProviderTrackId.Should().Be(VideoId);
         handler
             .RequestUrls.Should()
             .ContainSingle(url =>
@@ -81,7 +81,7 @@ public sealed class YouTubeMusicProviderResolveTrackTests
         );
 
         track.Should().NotBeNull();
-        track!.TrackName.Should().Be("Never Gonna Give You Up");
+        track.TrackName.Should().Be("Never Gonna Give You Up");
         track.Artist.Should().Be("Rick Astley");
         track.Album.Should().BeEmpty();
         track.TrackUri.Should().Be("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
@@ -112,7 +112,7 @@ public sealed class YouTubeMusicProviderResolveTrackTests
             .NotBeNull(
                 "resolve returns the flags so the SR pipeline rejects with the precise reason, not a bare not-found"
             );
-        track!.IsEmbeddable.Should().BeFalse();
+        track.IsEmbeddable.Should().BeFalse();
     }
 
     [Fact]
@@ -129,7 +129,7 @@ public sealed class YouTubeMusicProviderResolveTrackTests
         TrackInfo? track = await provider.ResolveTrackAsync(ChannelId, VideoId);
 
         track.Should().NotBeNull();
-        track!.IsAgeRestricted.Should().BeTrue();
+        track.IsAgeRestricted.Should().BeTrue();
     }
 
     [Fact]
@@ -202,7 +202,7 @@ public sealed class YouTubeMusicProviderResolveTrackTests
         TrackInfo? track = await provider.ResolveTrackAsync(ChannelId, VideoId);
 
         track.Should().NotBeNull();
-        track!.DurationMs.Should().Be(expectedMs);
+        track.DurationMs.Should().Be(expectedMs);
     }
 
     [Fact]
@@ -214,7 +214,7 @@ public sealed class YouTubeMusicProviderResolveTrackTests
         TrackInfo? track = await provider.ResolveTrackAsync(ChannelId, VideoId);
 
         track.Should().NotBeNull();
-        track!.DurationMs.Should().Be(0);
+        track.DurationMs.Should().Be(0);
     }
 
     // ─── Harness ──────────────────────────────────────────────────────────────

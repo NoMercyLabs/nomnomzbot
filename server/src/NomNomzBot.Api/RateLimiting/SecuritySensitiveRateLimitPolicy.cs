@@ -10,7 +10,6 @@
 
 using System.Security.Claims;
 using System.Threading.RateLimiting;
-using Microsoft.AspNetCore.Http;
 
 namespace NomNomzBot.Api.RateLimiting;
 
@@ -36,12 +35,13 @@ public static class SecuritySensitiveRateLimitPolicy
             ?? "anonymous";
         return RateLimitPartition.GetFixedWindowLimiter(
             $"{PolicyName}:{key}",
-            _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = PermitLimit,
-                Window = Window,
-                QueueLimit = 0,
-            }
+            _ =>
+                new()
+                {
+                    PermitLimit = PermitLimit,
+                    Window = Window,
+                    QueueLimit = 0,
+                }
         );
     }
 }

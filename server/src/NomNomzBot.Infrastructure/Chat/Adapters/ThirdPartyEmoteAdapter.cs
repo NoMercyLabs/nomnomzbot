@@ -47,7 +47,7 @@ public sealed class ThirdPartyEmoteAdapter : IChatDecorationAdapter
 
     public bool AppliesTo(ChatDecorationContext context) =>
         Providers.Any(provider => context.EnabledFeatures.Contains(provider.FeatureKey))
-        && context.Fragments.Any(fragment => fragment.Type == "text" && fragment.Text.Length > 0);
+        && context.Fragments.Any(fragment => fragment is { Type: "text", Text.Length: > 0 });
 
     public async Task DecorateAsync(ChatDecorationContext context, CancellationToken ct = default)
     {

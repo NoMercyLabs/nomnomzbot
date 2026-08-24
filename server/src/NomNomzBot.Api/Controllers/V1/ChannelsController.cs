@@ -185,20 +185,21 @@ public class ChannelsController : BaseController
 
         // Find which ones are already onboarded in our DB. moderated ids are Twitch channel
         // string ids — match on Channel.TwitchChannelId, not the internal Guid key.
-        List<string> allIds = moderated.Select(m => m.BroadcasterId).ToList();
+        List<string> allIds = [.. moderated.Select(m => m.BroadcasterId)];
         HashSet<string> onboardedIds = await _db
             .Channels.Where(c => allIds.Contains(c.TwitchChannelId!) && c.IsOnboarded)
             .Select(c => c.TwitchChannelId!)
             .ToHashSetAsync(ct);
 
-        List<ModeratedChannelDto> dtos = moderated
-            .Select(m => new ModeratedChannelDto(
+        List<ModeratedChannelDto> dtos =
+        [
+            .. moderated.Select(m => new ModeratedChannelDto(
                 m.BroadcasterId,
                 m.BroadcasterLogin,
                 m.BroadcasterName,
                 onboardedIds.Contains(m.BroadcasterId)
-            ))
-            .ToList();
+            )),
+        ];
 
         return Ok(new StatusResponseDto<List<ModeratedChannelDto>> { Data = dtos });
     }

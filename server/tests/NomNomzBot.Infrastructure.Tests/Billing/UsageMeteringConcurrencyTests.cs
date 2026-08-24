@@ -95,17 +95,19 @@ public sealed class UsageMeteringConcurrencyTests : IDisposable
         // Pre-fix (a plain `record.Quantity += quantity` load-then-save with no row lock), running these 10
         // concurrent calls against a brand-new period loses units to the race — observed on the pre-fix code:
         // final Quantity was 4, not 10.
-        Task<Result>[] tasks = Enumerable
-            .Range(0, concurrency)
-            .Select(_ =>
-                Task.Run(async () =>
-                {
-                    await using EventStoreTestDbContext db = NewContext();
-                    UsageMeteringService sut = NewService(db);
-                    return await sut.RecordAsync(Channel, MetricKey, quantity: 1);
-                })
-            )
-            .ToArray();
+        Task<Result>[] tasks =
+        [
+            .. Enumerable
+                .Range(0, concurrency)
+                .Select(_ =>
+                    Task.Run(async () =>
+                    {
+                        await using EventStoreTestDbContext db = NewContext();
+                        UsageMeteringService sut = NewService(db);
+                        return await sut.RecordAsync(Channel, MetricKey, quantity: 1);
+                    })
+                ),
+        ];
 
         Result[] results = await Task.WhenAll(tasks);
         results.Should().OnlyContain(r => r.IsSuccess);
@@ -148,17 +150,19 @@ public sealed class UsageMeteringConcurrencyTests : IDisposable
         }
 
         const int concurrency = 20;
-        Task<Result>[] tasks = Enumerable
-            .Range(0, concurrency)
-            .Select(_ =>
-                Task.Run(async () =>
-                {
-                    await using EventStoreTestDbContext db = NewContext();
-                    UsageMeteringService sut = NewService(db);
-                    return await sut.RecordAsync(Channel, MetricKey, quantity: 1);
-                })
-            )
-            .ToArray();
+        Task<Result>[] tasks =
+        [
+            .. Enumerable
+                .Range(0, concurrency)
+                .Select(_ =>
+                    Task.Run(async () =>
+                    {
+                        await using EventStoreTestDbContext db = NewContext();
+                        UsageMeteringService sut = NewService(db);
+                        return await sut.RecordAsync(Channel, MetricKey, quantity: 1);
+                    })
+                ),
+        ];
 
         Result[] results = await Task.WhenAll(tasks);
         results.Should().OnlyContain(r => r.IsSuccess);

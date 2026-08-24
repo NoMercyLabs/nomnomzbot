@@ -14,7 +14,6 @@ using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Domain.Analytics.Entities;
 using NomNomzBot.Domain.Enums.Deployment;
 using NomNomzBot.Domain.Identity.Enums;
-using NomNomzBot.Infrastructure.Platform.Deployment;
 using NomNomzBot.Infrastructure.Services.Analytics;
 using NomNomzBot.Infrastructure.Tests.Identity;
 

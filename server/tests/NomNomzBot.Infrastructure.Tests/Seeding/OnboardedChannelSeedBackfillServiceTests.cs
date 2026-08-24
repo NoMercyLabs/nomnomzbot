@@ -52,9 +52,7 @@ public sealed class OnboardedChannelSeedBackfillServiceTests
             await sut.ExecuteTask;
         await sut.StopAsync(CancellationToken.None);
 
-        List<ChannelOnboardedEvent> published = bus
-            .Published.OfType<ChannelOnboardedEvent>()
-            .ToList();
+        List<ChannelOnboardedEvent> published = [.. bus.Published.OfType<ChannelOnboardedEvent>()];
 
         published.Should().HaveCount(2);
         published.Select(e => e.BroadcasterId).Should().BeEquivalentTo([onboardedA, onboardedB]);

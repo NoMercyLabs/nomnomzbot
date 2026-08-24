@@ -83,7 +83,7 @@ public sealed class SpotifyMusicProviderManageWriteTests
     {
         (MusicProviderManageApi api, RecordingHttpHandler handler) = Build();
         handler.RespondWhen(IsLibrary, HttpStatusCode.OK);
-        List<string> uris = Enumerable.Range(0, 85).Select(i => $"spotify:track:t{i}").ToList();
+        List<string> uris = [.. Enumerable.Range(0, 85).Select(i => $"spotify:track:t{i}")];
 
         Result result = await api.SaveTracksAsync(ChannelId, "spotify", uris);
 

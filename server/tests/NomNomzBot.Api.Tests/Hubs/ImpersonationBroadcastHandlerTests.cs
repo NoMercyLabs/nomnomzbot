@@ -14,7 +14,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Events;
 using NSubstitute;
 
@@ -49,7 +48,7 @@ public sealed class ImpersonationBroadcastHandlerTests
     {
         ImpersonationTestDbContext db = ImpersonationTestDbContext.New();
         db.IamRoleAssignments.Add(
-            new IamRoleAssignment
+            new()
             {
                 Id = GrantId,
                 PrincipalId = Operator,
@@ -239,7 +238,7 @@ public sealed class ImpersonationBroadcastHandlerTests
                 OperatorPrincipalId = Operator,
                 TargetUserId = TargetUser,
                 AccessGrantId = GrantId,
-                ExpiresAt = new DateTime(2026, 8, 24, 0, 0, 0, DateTimeKind.Utc),
+                ExpiresAt = new(2026, 8, 24, 0, 0, 0, DateTimeKind.Utc),
             }
         );
 

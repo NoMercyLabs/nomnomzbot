@@ -93,7 +93,7 @@ public sealed class CrossTenantMembershipFilterTests
             );
 
         found.Should().NotBeNull();
-        found!.ManagementRole.Should().Be(ManagementRole.Moderator);
+        found.ManagementRole.Should().Be(ManagementRole.Moderator);
     }
 
     [Fact]

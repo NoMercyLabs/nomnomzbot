@@ -9,7 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using System.Security.Claims;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Primitives;
 
 namespace NomNomzBot.Api.RateLimiting;

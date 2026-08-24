@@ -300,17 +300,15 @@ public class PipelineService : IPipelineService
 
     /// <summary>Maps the engine's action/condition graph shape onto the validator's input contract.</summary>
     private static PipelineGraphInput ToValidatorInput(PipelineDefinition definition) =>
-        new(
-            definition
-                .Steps.Select(step => new PipelineStepInput(
-                    step.Action.Type,
-                    step.Action.Parameters?.ToDictionary(kv => kv.Key, kv => (object?)kv.Value)
-                        ?? new Dictionary<string, object?>(),
-                    step.Condition?.Type,
-                    step.Condition?.Parameters?.ToDictionary(kv => kv.Key, kv => (object?)kv.Value)
-                ))
-                .ToList()
-        );
+        new([
+            .. definition.Steps.Select(step => new PipelineStepInput(
+                step.Action.Type,
+                step.Action.Parameters?.ToDictionary(kv => kv.Key, kv => (object?)kv.Value)
+                    ?? new Dictionary<string, object?>(),
+                step.Condition?.Type,
+                step.Condition?.Parameters?.ToDictionary(kv => kv.Key, kv => (object?)kv.Value)
+            )),
+        ]);
 
     private static PipelineDto ToDto(PipelineEntity p)
     {

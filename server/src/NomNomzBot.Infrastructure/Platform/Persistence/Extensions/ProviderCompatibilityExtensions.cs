@@ -205,7 +205,7 @@ public static class ProviderCompatibilityExtensions
     private sealed class DateTimeOffsetTicksConverter : ValueConverter<DateTimeOffset, long>
     {
         public DateTimeOffsetTicksConverter()
-            : base(v => v.UtcTicks, v => new DateTimeOffset(v, TimeSpan.Zero)) { }
+            : base(v => v.UtcTicks, v => new(v, TimeSpan.Zero)) { }
     }
 
     /// <summary>Nullable counterpart of <see cref="DateTimeOffsetTicksConverter"/>.</summary>

@@ -55,7 +55,7 @@ public sealed class CustomDataSourceServiceSearchTests
         );
 
         result.IsSuccess.Should().BeTrue();
-        List<CustomDataSourceOptionDto> options = result.Value.ToList();
+        List<CustomDataSourceOptionDto> options = [.. result.Value];
 
         // Exactly the two in-channel rows that match on either field — no cross-tenant leak, no non-match.
         options.Select(o => o.Id).Should().BeEquivalentTo([displayMatch.Id, nameMatch.Id]);

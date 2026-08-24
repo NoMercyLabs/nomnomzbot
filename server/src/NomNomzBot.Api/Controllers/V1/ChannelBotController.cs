@@ -155,23 +155,24 @@ public class ChannelBotController : BaseController
             botConnection?.Scopes.ToHashSet(StringComparer.OrdinalIgnoreCase)
             ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        List<ScopeDto> permissions = KnownScopes
-            .Select(s => new ScopeDto(
+        List<ScopeDto> permissions =
+        [
+            .. KnownScopes.Select(s => new ScopeDto(
                 s.Scope,
                 s.Name,
                 s.Description,
                 s.Category,
                 grantedScopes.Contains(s.Scope),
                 s.Required
-            ))
-            .ToList();
+            )),
+        ];
 
         // Only the required scopes decide the "action required" prompt. The legacy IRC scopes are informational
         // (Required=false) and the Helix chat path never exercises them, so their absence must never keep the
         // prompt open — a completed bot grant (or a self-host streamer token carrying the Helix chat scopes)
         // reads 100%.
         int totalCount = permissions.Count(p => p.Required);
-        int grantedCount = permissions.Count(p => p.Required && p.Granted);
+        int grantedCount = permissions.Count(p => p is { Required: true, Granted: true });
 
         return Ok(
             new StatusResponseDto<ScopesResponseDto>

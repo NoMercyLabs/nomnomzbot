@@ -50,9 +50,10 @@ public sealed class EventBus : IEventBus
         // Scope lives for the full duration of handler execution so that scoped
         // services (DbContext, IPipelineEngine, IChatProvider, …) remain valid.
         await using AsyncServiceScope scope = _serviceProvider.CreateAsyncScope();
-        List<IEventHandler<TEvent>> handlers = scope
-            .ServiceProvider.GetServices<IEventHandler<TEvent>>()
-            .ToList();
+        List<IEventHandler<TEvent>> handlers =
+        [
+            .. scope.ServiceProvider.GetServices<IEventHandler<TEvent>>(),
+        ];
 
         if (handlers.Count == 0)
         {
@@ -85,9 +86,10 @@ public sealed class EventBus : IEventBus
         _ = Task.Run(async () =>
         {
             await using AsyncServiceScope scope = _serviceProvider.CreateAsyncScope();
-            List<IEventHandler<TEvent>> handlers = scope
-                .ServiceProvider.GetServices<IEventHandler<TEvent>>()
-                .ToList();
+            List<IEventHandler<TEvent>> handlers =
+            [
+                .. scope.ServiceProvider.GetServices<IEventHandler<TEvent>>(),
+            ];
 
             if (handlers.Count == 0)
                 return;

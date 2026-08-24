@@ -31,7 +31,7 @@ public sealed class TwitchOAuthStateServiceTests
         nonce.Should().NotBeNullOrWhiteSpace();
         TwitchOAuthFlowState? consumed = await svc.ConsumeAsync(nonce);
         consumed.Should().NotBeNull();
-        consumed!.Flow.Should().Be("channel_bot");
+        consumed.Flow.Should().Be("channel_bot");
         consumed.ChannelId.Should().Be("abc");
     }
 

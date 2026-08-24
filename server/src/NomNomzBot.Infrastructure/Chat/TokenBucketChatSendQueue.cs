@@ -79,7 +79,7 @@ public sealed class TokenBucketChatSendQueue : IChatSendQueue
 
     private async Task AcquireTokenAsync(string queueKey, CancellationToken cancellationToken)
     {
-        SemaphoreSlim gate = _bucketLocks.GetOrAdd(queueKey, _ => new SemaphoreSlim(1, 1));
+        SemaphoreSlim gate = _bucketLocks.GetOrAdd(queueKey, _ => new(1, 1));
         double msPerToken = _refillPeriod.TotalMilliseconds / _capacity;
 
         while (true)
@@ -90,7 +90,7 @@ public sealed class TokenBucketChatSendQueue : IChatSendQueue
             {
                 Bucket bucket = _buckets.GetOrAdd(
                     queueKey,
-                    _ => new Bucket { Tokens = _capacity, LastRefillTicks = DateTime.UtcNow.Ticks }
+                    _ => new() { Tokens = _capacity, LastRefillTicks = DateTime.UtcNow.Ticks }
                 );
 
                 long nowTicks = DateTime.UtcNow.Ticks;

@@ -70,7 +70,7 @@ public sealed class HtmlFragmentAdapter : IChatDecorationAdapter
 
             (List<ChatMessageFragment> span, int nextIndex) = CollectHtmlSpan(fragments, i);
 
-            if (!span.Any(candidate => candidate.Type == "emote" && candidate.Emote is not null))
+            if (!span.Any(candidate => candidate is { Type: "emote", Emote: not null }))
             {
                 rebuilt.Add(fragment);
                 i++;

@@ -227,7 +227,7 @@ public sealed class ChatTriggerMatchingTests
                     r.BroadcasterId == Broadcaster
                     && r.PipelineJson == """{"steps":[]}"""
                     && r.TriggeredByUserId == "tw-viewer-1"
-                    && r.InitialVariables!["user"] == "Viewer"
+                    && r.InitialVariables["user"] == "Viewer"
                 ),
                 Arg.Any<CancellationToken>()
             );

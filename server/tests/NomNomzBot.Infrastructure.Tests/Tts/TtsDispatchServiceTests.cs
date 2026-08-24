@@ -93,9 +93,7 @@ public sealed class TtsDispatchServiceTests
         ITtsService tts = Substitute.For<ITtsService>();
         tts.SynthesizeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(ci =>
-                Task.FromResult(
-                    new TtsResult(new byte[] { 1, 2, 3, 4 }, 1200, ci.ArgAt<string>(1), "edge")
-                )
+                Task.FromResult(new TtsResult([1, 2, 3, 4], 1200, ci.ArgAt<string>(1), "edge"))
             );
         tts.GetAvailableVoicesAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<IReadOnlyList<TtsVoiceInfo>>([]));

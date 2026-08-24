@@ -415,7 +415,7 @@ public class SystemController : BaseController
         if (await GetSystemConfig("system.setup_complete", ct) == "true")
             return true;
         SetupState st = await ComputeSetupStateAsync(ct);
-        return st.HasTwitchClientId && st.HasPlatformBot;
+        return st is { HasTwitchClientId: true, HasPlatformBot: true };
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

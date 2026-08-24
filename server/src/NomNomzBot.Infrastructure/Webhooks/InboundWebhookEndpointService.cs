@@ -87,7 +87,7 @@ public sealed class InboundWebhookEndpointService(
         CancellationToken ct = default
     )
     {
-        if (request.Adapter == WebhookAdapterKind.Generic && request.GenericConfig is null)
+        if (request is { Adapter: WebhookAdapterKind.Generic, GenericConfig: null })
             return Result.Failure<InboundWebhookEndpointDto>(
                 "A generic adapter requires a generic config.",
                 "VALIDATION_FAILED"

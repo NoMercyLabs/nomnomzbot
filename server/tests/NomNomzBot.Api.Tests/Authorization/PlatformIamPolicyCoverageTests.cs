@@ -44,7 +44,7 @@ public sealed class PlatformIamPolicyCoverageTests
         attribute
             .Should()
             .NotBeNull($"{controllerType.Name}.{methodName} must carry a Plane-C policy gate");
-        return attribute!.Policy!;
+        return attribute.Policy!;
     }
 
     [Theory]

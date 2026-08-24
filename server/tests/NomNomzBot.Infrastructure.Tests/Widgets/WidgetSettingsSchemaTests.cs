@@ -50,8 +50,8 @@ public sealed class WidgetSettingsSchemaTests
     [Fact]
     public void Every_first_party_widget_type_has_a_schema()
     {
-        HashSet<string> schematised = Provider.GetAll().Select(s => s.WidgetKey).ToHashSet();
-        HashSet<string> catalogue = FirstPartyWidgetCatalogue.All.Select(w => w.Key).ToHashSet();
+        HashSet<string> schematised = [.. Provider.GetAll().Select(s => s.WidgetKey)];
+        HashSet<string> catalogue = [.. FirstPartyWidgetCatalogue.All.Select(w => w.Key)];
 
         schematised
             .Should()
@@ -72,7 +72,7 @@ public sealed class WidgetSettingsSchemaTests
 
             // The set of field keys must equal the set of settings keys the widget honours — no key unconfigurable,
             // no field for a key the widget does not read.
-            HashSet<string> fieldKeys = schema!.Fields.Select(f => f.Key).ToHashSet();
+            HashSet<string> fieldKeys = [.. schema.Fields.Select(f => f.Key)];
             fieldKeys
                 .Should()
                 .BeEquivalentTo(
@@ -154,7 +154,7 @@ public sealed class WidgetSettingsSchemaTests
                     );
 
                 // A single-choice field's default value must be one of the offered options.
-                if (field.Type == "select" && field.Default is string defaultValue)
+                if (field is { Type: "select", Default: string defaultValue })
                     field
                         .Options!.Select(o => o.Value)
                         .Should()
@@ -215,7 +215,7 @@ public sealed class WidgetSettingsSchemaTests
             result
                 .Value.Fields.Select(f => f.Key)
                 .Should()
-                .Contain(new[] { "theme", "fontSize", "showTimestamps", "accentColor" });
+                .Contain(["theme", "fontSize", "showTimestamps", "accentColor"]);
             result.Value.Fields.Single(f => f.Key == "theme").Type.Should().Be("select");
             result.Value.Fields.Single(f => f.Key == "accentColor").Type.Should().Be("color");
         }

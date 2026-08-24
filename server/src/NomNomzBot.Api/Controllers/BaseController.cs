@@ -91,9 +91,9 @@ public abstract class BaseController : ControllerBase
 
     protected IActionResult GetPaginatedResponse<T>(IEnumerable<T> data, PageRequestDto request)
     {
-        List<T> items = data.ToList();
+        List<T> items = [.. data];
         bool hasMore = items.Count >= request.Take;
-        items = items.Take(request.Take).ToList();
+        items = [.. items.Take(request.Take)];
 
         return Ok(
             new PaginatedResponse<T>

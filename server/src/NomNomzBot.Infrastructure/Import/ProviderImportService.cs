@@ -166,14 +166,15 @@ public sealed class ProviderImportService : IProviderImportService
         // owns text de-duplication: seed the "seen" set from the channel's existing quotes, then add each new
         // text as it lands. This dedupes both against what is already stored and within the payload itself,
         // keeping a re-import idempotent.
-        HashSet<string> seen = (
-            await _db
-                .Quotes.Where(q => q.BroadcasterId == broadcasterId)
-                .Select(q => q.Text)
-                .ToListAsync(ct)
-        )
-            .Select(NormalizeQuoteText)
-            .ToHashSet();
+        HashSet<string> seen =
+        [
+            .. (
+                await _db
+                    .Quotes.Where(q => q.BroadcasterId == broadcasterId)
+                    .Select(q => q.Text)
+                    .ToListAsync(ct)
+            ).Select(NormalizeQuoteText),
+        ];
 
         foreach (SeQuote source in quotes)
         {
@@ -283,7 +284,7 @@ public sealed class ProviderImportService : IProviderImportService
             messages.AddRange(source.Messages);
         if (!string.IsNullOrWhiteSpace(source.Message))
             messages.Add(source.Message);
-        return messages.Select(m => m.Trim()).Where(m => m.Length > 0).ToList();
+        return [.. messages.Select(m => m.Trim()).Where(m => m.Length > 0)];
     }
 
     private static int SecondsToMinutes(int? seconds) =>

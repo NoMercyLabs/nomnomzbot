@@ -339,7 +339,7 @@ public sealed class IpcDevModeListenerService : IHostedService, IDisposable
                     {
                         ok = true,
                         type = "status",
-                        enabled = enabled.IsSuccess && enabled.Value,
+                        enabled = enabled is { IsSuccess: true, Value: true },
                     },
                     ct
                 );

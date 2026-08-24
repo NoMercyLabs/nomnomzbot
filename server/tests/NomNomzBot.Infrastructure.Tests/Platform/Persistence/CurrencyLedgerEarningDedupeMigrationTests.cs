@@ -217,7 +217,7 @@ public sealed class CurrencyLedgerEarningDedupeMigrationTests : IDisposable
         remaining
             .Select(e => e.Id)
             .Should()
-            .Contain(new[] { adjustEntryId, firstCreditEntryId, spendEntryId });
+            .Contain([adjustEntryId, firstCreditEntryId, spendEntryId]);
 
         CurrencyLedgerEntry survivingAdjust = remaining.Single(e => e.Id == adjustEntryId);
         CurrencyLedgerEntry survivingFirstCredit = remaining.Single(e =>
@@ -263,7 +263,7 @@ public sealed class CurrencyLedgerEarningDedupeMigrationTests : IDisposable
             BalanceAfter = 220,
             EntryType = CurrencyEntryType.EarnCheer,
             EventId = DuplicatedEventId,
-            CreatedAt = new DateTime(2026, 8, 20, 0, 4, 0, DateTimeKind.Utc),
+            CreatedAt = new(2026, 8, 20, 0, 4, 0, DateTimeKind.Utc),
         };
         assertContext.Set<CurrencyLedgerEntry>().Add(freshDuplicate);
         Func<Task> insertDuplicate = () => assertContext.SaveChangesAsync();

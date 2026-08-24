@@ -8,7 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using System.Threading;
 using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Auth;
@@ -180,7 +179,7 @@ public sealed class ProjectionRunnerLeaseTests
             return true;
         }
 
-        Task<bool>[] attempts = Enumerable.Range(0, 8).Select(_ => TryHoldBrieflyAsync()).ToArray();
+        Task<bool>[] attempts = [.. Enumerable.Range(0, 8).Select(_ => TryHoldBrieflyAsync())];
         bool[] results = await Task.WhenAll(attempts);
 
         maxObservedConcurrency

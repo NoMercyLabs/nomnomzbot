@@ -132,15 +132,17 @@ internal sealed class DiscordTestDbContext : DbContext, IApplicationDbContext
     ];
 
     /// <summary>Every <see cref="IApplicationDbContext"/> entity NOT in the Discord slice — derived by reflection.</summary>
-    private static readonly IReadOnlyList<Type> UnmappedEntities = typeof(IApplicationDbContext)
-        .GetProperties()
-        .Where(p =>
-            p.PropertyType.IsGenericType
-            && p.PropertyType.GetGenericTypeDefinition() == typeof(DbSet<>)
-        )
-        .Select(p => p.PropertyType.GetGenericArguments()[0])
-        .Where(t => !Mapped.Contains(t))
-        .ToList();
+    private static readonly IReadOnlyList<Type> UnmappedEntities =
+    [
+        .. typeof(IApplicationDbContext)
+            .GetProperties()
+            .Where(p =>
+                p.PropertyType.IsGenericType
+                && p.PropertyType.GetGenericTypeDefinition() == typeof(DbSet<>)
+            )
+            .Select(p => p.PropertyType.GetGenericArguments()[0])
+            .Where(t => !Mapped.Contains(t)),
+    ];
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
     public DbSet<User> Users => throw new NotSupportedException();

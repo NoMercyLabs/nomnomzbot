@@ -103,7 +103,7 @@ public sealed class TtsSynthesizeActionTests
         ) = Build("BSOD detected, rebooting.");
 
         tts.SynthesizeAsync("BSOD detected, rebooting.", "en-US-Guy", Arg.Any<CancellationToken>())
-            .Returns(new TtsResult(new byte[] { 1, 2, 3 }, 4200, "en-US-Guy", "azure"));
+            .Returns(new TtsResult([1, 2, 3], 4200, "en-US-Guy", "azure"));
 
         store
             .PutAsync(
@@ -145,7 +145,7 @@ public sealed class TtsSynthesizeActionTests
             .GetConfigAsync(Channel, Arg.Any<CancellationToken>())
             .Returns(Result.Success(DefaultConfig("nl-NL-Colette")));
         tts.SynthesizeAsync("hi there", "nl-NL-Colette", Arg.Any<CancellationToken>())
-            .Returns(new TtsResult(new byte[] { 9 }, 900, "nl-NL-Colette", "azure"));
+            .Returns(new TtsResult([9], 900, "nl-NL-Colette", "azure"));
         store
             .PutAsync(
                 Channel,
@@ -202,7 +202,7 @@ public sealed class TtsSynthesizeActionTests
         (TtsSynthesizeAction action, ITtsService tts, _, ISoundClipStore store) = Build("hi there");
 
         tts.SynthesizeAsync("hi there", "en-US-Guy", Arg.Any<CancellationToken>())
-            .Returns(new TtsResult(Array.Empty<byte>(), 0, "en-US-Guy", "azure"));
+            .Returns(new TtsResult([], 0, "en-US-Guy", "azure"));
 
         ActionResult result = await action.ExecuteAsync(
             Context(),
@@ -227,7 +227,7 @@ public sealed class TtsSynthesizeActionTests
         (TtsSynthesizeAction action, ITtsService tts, _, ISoundClipStore store) = Build("hi there");
 
         tts.SynthesizeAsync("hi there", "en-US-Guy", Arg.Any<CancellationToken>())
-            .Returns(new TtsResult(new byte[] { 1 }, 500, "en-US-Guy", "azure"));
+            .Returns(new TtsResult([1], 500, "en-US-Guy", "azure"));
         store
             .PutAsync(
                 Channel,
@@ -253,7 +253,7 @@ public sealed class TtsSynthesizeActionTests
         (TtsSynthesizeAction action, ITtsService tts, _, ISoundClipStore store) = Build("hi there");
 
         tts.SynthesizeAsync("hi there", "en-US-Guy", Arg.Any<CancellationToken>())
-            .Returns(new TtsResult(new byte[] { 1 }, 500, "en-US-Guy", "azure"));
+            .Returns(new TtsResult([1], 500, "en-US-Guy", "azure"));
         store
             .PutAsync(
                 Channel,

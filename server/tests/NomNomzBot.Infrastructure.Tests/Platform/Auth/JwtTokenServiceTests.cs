@@ -163,7 +163,7 @@ public class JwtTokenServiceTests
 
         // The role claims are the TARGET's — the operator's `admin` role never leaks onto the token.
         ClaimsPrincipal principal = svc.ValidateAccessToken(token)!;
-        List<string> roles = principal.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+        List<string> roles = [.. principal.FindAll(ClaimTypes.Role).Select(c => c.Value)];
         roles.Should().ContainSingle().Which.Should().Be("user");
         roles.Should().NotContain("admin");
     }
@@ -309,7 +309,7 @@ public class JwtTokenServiceTests
         System.IdentityModel.Tokens.Jwt.JwtSecurityToken hs384Token = new(
             issuer: "TestIssuer",
             audience: "TestAudience",
-            claims: [new Claim(ClaimTypes.NameIdentifier, UserId.ToString())],
+            claims: [new(ClaimTypes.NameIdentifier, UserId.ToString())],
             expires: DateTime.UtcNow.AddMinutes(60),
             signingCredentials: hs384Credentials
         );

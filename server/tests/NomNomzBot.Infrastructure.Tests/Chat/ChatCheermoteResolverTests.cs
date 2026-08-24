@@ -74,7 +74,7 @@ public sealed class ChatCheermoteResolverTests
         CheermoteImage? image = await resolver.ResolveAsync(Broadcaster, "Cheer", 150, 2);
 
         image.Should().NotBeNull();
-        image!.ColorHex.Should().Be("#00aa00"); // tier MinBits 100 is the highest not exceeding 150
+        image.ColorHex.Should().Be("#00aa00"); // tier MinBits 100 is the highest not exceeding 150
         image.Animated.Should().BeTrue();
         image.Urls["1"].Should().Be("https://cdn/100/dark-anim");
     }
@@ -89,7 +89,7 @@ public sealed class ChatCheermoteResolverTests
         CheermoteImage? image = await resolver.ResolveAsync(Broadcaster, "cheer", 5, 1);
 
         image.Should().NotBeNull();
-        image!.ColorHex.Should().Be("#00aa00"); // only tier — used even though 5 < 100, and prefix match is case-insensitive
+        image.ColorHex.Should().Be("#00aa00"); // only tier — used even though 5 < 100, and prefix match is case-insensitive
     }
 
     [Fact]

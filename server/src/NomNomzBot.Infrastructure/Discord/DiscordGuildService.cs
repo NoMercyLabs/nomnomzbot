@@ -326,7 +326,7 @@ public sealed class DiscordGuildService : IDiscordGuildService
         );
 
     private static bool IsActive(DiscordGuildConnection c) =>
-        c.ServerConsentStatus == Approved && c.StreamerEnabled && c.DeletedAt == null;
+        c is { ServerConsentStatus: Approved, StreamerEnabled: true, DeletedAt: null };
 
     private Task PublishLinkedAsync(DiscordGuildConnection c, CancellationToken ct) =>
         _eventBus.PublishAsync(

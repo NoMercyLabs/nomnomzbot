@@ -154,7 +154,7 @@ public sealed class SongRequestQueuePersistenceTests
                 .Db.SongRequestQueueItems.Where(r => r.BroadcasterId == ChannelA)
                 .ExecuteDeleteAsync();
             fixture.Db.SongRequestQueueItems.Add(
-                new NomNomzBot.Domain.Music.Entities.SongRequestQueueItem
+                new()
                 {
                     BroadcasterId = ChannelA,
                     Sequence = 0,
@@ -195,7 +195,7 @@ public sealed class SongRequestQueuePersistenceTests
             SongRequestQueuePersistenceTestDbContext.Create();
 
         fixture.Db.SongRequestQueueItems.Add(
-            new NomNomzBot.Domain.Music.Entities.SongRequestQueueItem
+            new()
             {
                 BroadcasterId = ChannelA,
                 Sequence = 0,
@@ -233,7 +233,7 @@ public sealed class SongRequestQueuePersistenceTests
             SongRequestQueuePersistenceTestDbContext.Create();
 
         fixture.Db.SongRequestQueueItems.Add(
-            new NomNomzBot.Domain.Music.Entities.SongRequestQueueItem
+            new()
             {
                 BroadcasterId = Guid.Parse("0192a000-0000-7000-8000-0000000f2003").ToString(),
                 Sequence = 0,
@@ -277,6 +277,6 @@ public sealed class SongRequestQueuePersistenceTests
     ) =>
         queue.Enqueue(
             ownerKey,
-            new SongRequestEntry(trackUri, $"Track {trackUri}", "Artist", null, 200000, ownerKey)
+            new(trackUri, $"Track {trackUri}", "Artist", null, 200000, ownerKey)
         );
 }

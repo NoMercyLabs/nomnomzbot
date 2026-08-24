@@ -27,7 +27,7 @@ namespace NomNomzBot.Api.Tests.Authentication;
 public class SessionRevocationCheckTests
 {
     private static ClaimsPrincipal PrincipalWithSid(Guid sessionId) =>
-        new(new ClaimsIdentity([new Claim(JwtTokenService.SessionClaim, sessionId.ToString())]));
+        new(new ClaimsIdentity([new(JwtTokenService.SessionClaim, sessionId.ToString())]));
 
     private static SessionRevocationService CreateRevocationService()
     {

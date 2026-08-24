@@ -406,7 +406,7 @@ public sealed class ChatEmoteCatalogueTests
             ChatEmoteCacheKeys.TwitchUser(OperatorTwitchId)
         );
         operatorCached.Should().NotBeNull();
-        operatorCached!
+        operatorCached
             .Select(e => e.Code)
             .Should()
             .BeEquivalentTo(["subFromFriendA", "subFromFriendB"]);
@@ -463,7 +463,7 @@ public sealed class ChatEmoteCatalogueTests
             .GetForChannelAsync(Broadcaster, Operator);
 
         result.IsSuccess.Should().BeTrue();
-        List<string> codes = result.Value.Select(e => e.Code).ToList();
+        List<string> codes = [.. result.Value.Select(e => e.Code)];
 
         // The operator's own sub emotes (home + cross-channel) still come through the base walk.
         codes.Should().Contain(["homeSub", "verosSub"]);

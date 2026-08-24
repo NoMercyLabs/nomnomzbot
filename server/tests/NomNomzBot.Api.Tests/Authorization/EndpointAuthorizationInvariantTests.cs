@@ -159,7 +159,8 @@ public sealed class EndpointAuthorizationInvariantTests
             .. typeof(BaseController)
                 .Assembly.GetTypes()
                 .Where(t =>
-                    !t.IsAbstract && t.IsPublic && typeof(ControllerBase).IsAssignableFrom(t)
+                    t is { IsAbstract: false, IsPublic: true }
+                    && typeof(ControllerBase).IsAssignableFrom(t)
                 ),
         ];
 

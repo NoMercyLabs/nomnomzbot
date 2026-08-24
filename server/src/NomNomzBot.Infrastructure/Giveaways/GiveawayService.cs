@@ -150,15 +150,14 @@ public sealed class GiveawayService : IGiveawayService
             .Take(pagination.PageSize)
             .ToListAsync(ct);
 
-        List<Guid> ids = rows.Select(g => g.Id).ToList();
+        List<Guid> ids = [.. rows.Select(g => g.Id)];
         Dictionary<Guid, int> counts = await _db
             .GiveawayEntries.Where(e => ids.Contains(e.GiveawayId))
             .GroupBy(e => e.GiveawayId)
             .Select(g => new { g.Key, Count = g.Count() })
             .ToDictionaryAsync(g => g.Key, g => g.Count, ct);
 
-        List<GiveawayDto> dtos = rows.Select(g => ToDto(g, counts.GetValueOrDefault(g.Id)))
-            .ToList();
+        List<GiveawayDto> dtos = [.. rows.Select(g => ToDto(g, counts.GetValueOrDefault(g.Id)))];
         return Result.Success(
             new PagedList<GiveawayDto>(dtos, pagination.Page, pagination.PageSize, total)
         );
@@ -427,7 +426,7 @@ public sealed class GiveawayService : IGiveawayService
                 BroadcasterId = broadcasterId,
                 OccurredAt = _clock.GetUtcNow(),
                 GiveawayId = giveawayId,
-                WinnerUserIds = winners.Select(w => w.ViewerUserId).ToList(),
+                WinnerUserIds = [.. winners.Select(w => w.ViewerUserId)],
                 EntryCount = entryCount,
                 PrizeMode = giveaway.PrizeMode,
             },
@@ -632,7 +631,7 @@ public sealed class GiveawayService : IGiveawayService
                 excluded.Add(modId);
         }
 
-        return candidates.Where(c => !excluded.Contains(c.UserId) && c.Tickets > 0).ToList();
+        return [.. candidates.Where(c => !excluded.Contains(c.UserId) && c.Tickets > 0)];
     }
 
     /// <summary>CSPRNG pick over the cumulative ticket weights — auditable fairness (D4).</summary>
@@ -846,17 +845,20 @@ public sealed class GiveawayService : IGiveawayService
         )
             return Result.Failure("Unknown prize mode.", "VALIDATION_FAILED");
         if (
-            request.PrizeMode == GiveawayPrizeMode.Currency
-            && request.PrizeCurrencyAmount is not > 0
-            && !request.PrizeFromPot
+            request is
+            {
+                PrizeMode: GiveawayPrizeMode.Currency,
+                PrizeCurrencyAmount: not > 0,
+                PrizeFromPot: false
+            }
         )
             return Result.Failure(
                 "Currency mode needs a prize amount or the pot flag.",
                 "VALIDATION_FAILED"
             );
-        if (request.PrizeMode == GiveawayPrizeMode.Pipeline && request.PrizePipelineId is null)
+        if (request is { PrizeMode: GiveawayPrizeMode.Pipeline, PrizePipelineId: null })
             return Result.Failure("Pipeline mode needs a pipeline.", "VALIDATION_FAILED");
-        if (request.PrizeMode == GiveawayPrizeMode.CodePool && request.PrizeCodePoolId is null)
+        if (request is { PrizeMode: GiveawayPrizeMode.CodePool, PrizeCodePoolId: null })
             return Result.Failure("Code-pool mode needs a code pool.", "VALIDATION_FAILED");
 
         // require_follower cannot be verified truthfully yet (no follower standing and no single-user
@@ -910,14 +912,15 @@ public sealed class GiveawayService : IGiveawayService
         CancellationToken ct
     )
     {
-        List<Guid> userIds = winners.Select(w => w.ViewerUserId).Distinct().ToList();
+        List<Guid> userIds = [.. winners.Select(w => w.ViewerUserId).Distinct()];
         Dictionary<Guid, string> names = await _db
             .Users.AsNoTracking()
             .Where(u => userIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id, u => u.DisplayName ?? u.Username ?? "unknown", ct);
 
-        return winners
-            .Select(w => new GiveawayWinnerDto(
+        return
+        [
+            .. winners.Select(w => new GiveawayWinnerDto(
                 w.Id,
                 w.GiveawayId,
                 w.ViewerUserId,
@@ -927,8 +930,8 @@ public sealed class GiveawayService : IGiveawayService
                 w.IsRedraw,
                 w.AssignedCodeId,
                 w.WhisperDelivered
-            ))
-            .ToList();
+            )),
+        ];
     }
 
     private static GiveawayDto ToDto(Giveaway g, int entryCount) =>

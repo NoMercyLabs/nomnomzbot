@@ -74,7 +74,7 @@ public sealed partial class PickListService : IPickListService
             .Take(pagination.PageSize)
             .ToListAsync(ct);
 
-        List<PickListDto> items = rows.Select(ToDto).ToList();
+        List<PickListDto> items = [.. rows.Select(ToDto)];
         return Result.Success(
             new PagedList<PickListDto>(items, pagination.Page, pagination.PageSize, total)
         );
@@ -307,7 +307,7 @@ public sealed partial class PickListService : IPickListService
         );
 
     private static PickListDto ToDto(PickList p) =>
-        new(p.Id, p.Name, p.Description, p.Items.ToList(), p.CreatedAt, p.UpdatedAt);
+        new(p.Id, p.Name, p.Description, [.. p.Items], p.CreatedAt, p.UpdatedAt);
 
     /// <summary>Normalises and range-checks a create/update payload before it touches the database.</summary>
     private static Result<ValidatedInput> Validate(

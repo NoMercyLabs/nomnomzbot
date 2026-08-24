@@ -51,7 +51,7 @@ public sealed class AuthControllerDeviceLoginTests
             registry,
             Substitute.For<IUserIdentityService>(),
             [impl],
-            Array.Empty<IAuthCodeLoginProvider>(),
+            [],
             ext,
             Substitute.For<ISessionService>()
         )

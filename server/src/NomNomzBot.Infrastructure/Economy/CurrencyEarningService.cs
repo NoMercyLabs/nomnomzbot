@@ -85,7 +85,7 @@ public sealed class CurrencyEarningService(
             return Result.Success(0L);
 
         bool capped = false;
-        if (rule.PerWindowCap is { } windowCap && rule.UnitWindowSeconds is { } windowSeconds)
+        if (rule is { PerWindowCap: { } windowCap, UnitWindowSeconds: { } windowSeconds })
         {
             DateTime since = clock.GetUtcNow().UtcDateTime.AddSeconds(-windowSeconds);
             long earnedInWindow = await db

@@ -64,7 +64,7 @@ public sealed class VoiceBuiltin : IBuiltinCommand
     )
     {
         Result<UserTtsVoiceDto?> own = await _tts.GetOwnVoiceAsync(broadcasterId, viewerId, ct);
-        if (own.IsSuccess && own.Value is { } voice)
+        if (own is { IsSuccess: true, Value: { } voice })
             return Result.Success(
                 $"Your TTS voice is {voice.VoiceId}. Change it with !voice <search>, or !voice clear to use the channel default."
             );

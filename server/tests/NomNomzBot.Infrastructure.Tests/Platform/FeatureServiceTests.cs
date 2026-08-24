@@ -168,7 +168,7 @@ public sealed class FeatureServiceTests
             f.BroadcasterId == Channel && f.FeatureKey == "use_7tv"
         );
         row.Should().NotBeNull();
-        row!.IsEnabled.Should().BeFalse();
+        row.IsEnabled.Should().BeFalse();
         row.EnabledAt.Should().BeNull();
     }
 
@@ -190,7 +190,7 @@ public sealed class FeatureServiceTests
             f.BroadcasterId == Channel && f.FeatureKey == "use_link_preview"
         );
         row.Should().NotBeNull();
-        row!.IsEnabled.Should().BeTrue();
+        row.IsEnabled.Should().BeTrue();
         row.EnabledAt.Should().Be(Now.UtcDateTime);
     }
 

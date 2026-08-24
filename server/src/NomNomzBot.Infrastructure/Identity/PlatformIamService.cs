@@ -125,7 +125,7 @@ public sealed class PlatformIamService(
         )
             return Result.Failure<IamPrincipalDto>("Requires iam:principal:create.", "FORBIDDEN");
 
-        if (request.PrincipalType == IamPrincipalType.Employee && request.UserId is null)
+        if (request is { PrincipalType: IamPrincipalType.Employee, UserId: null })
             return Result.Failure<IamPrincipalDto>(
                 "An employee principal requires a user id.",
                 "VALIDATION_FAILED"
@@ -342,18 +342,19 @@ public sealed class PlatformIamService(
         List<IamRole> roles = await db.IamRoles.OrderBy(r => r.Name).ToListAsync(cancellationToken);
 
         // Role → permission-key bundle, resolved in two set queries (never per role).
-        List<(Guid RoleId, string Key)> rolePermissionKeys = (
-            await db
-                .IamRolePermissions.Join(
-                    db.IamPermissions,
-                    rp => rp.PermissionId,
-                    p => p.Id,
-                    (rp, p) => new { rp.RoleId, p.Key }
-                )
-                .ToListAsync(cancellationToken)
-        )
-            .Select(x => (x.RoleId, x.Key))
-            .ToList();
+        List<(Guid RoleId, string Key)> rolePermissionKeys =
+        [
+            .. (
+                await db
+                    .IamRolePermissions.Join(
+                        db.IamPermissions,
+                        rp => rp.PermissionId,
+                        p => p.Id,
+                        (rp, p) => new { rp.RoleId, p.Key }
+                    )
+                    .ToListAsync(cancellationToken)
+            ).Select(x => (x.RoleId, x.Key)),
+        ];
 
         IReadOnlyList<IamRoleDto> dtos =
         [
@@ -377,21 +378,22 @@ public sealed class PlatformIamService(
             .IamPrincipals.OrderBy(p => p.Name)
             .ToListAsync(cancellationToken);
 
-        List<(IamRoleAssignment Assignment, string RoleName)> active = (
-            await db
-                .IamRoleAssignments.Where(a =>
-                    a.RevokedAt == null && (a.ExpiresAt == null || a.ExpiresAt > now)
-                )
-                .Join(
-                    db.IamRoles,
-                    a => a.RoleId,
-                    r => r.Id,
-                    (a, r) => new { Assignment = a, RoleName = r.Name }
-                )
-                .ToListAsync(cancellationToken)
-        )
-            .Select(x => (x.Assignment, x.RoleName))
-            .ToList();
+        List<(IamRoleAssignment Assignment, string RoleName)> active =
+        [
+            .. (
+                await db
+                    .IamRoleAssignments.Where(a =>
+                        a.RevokedAt == null && (a.ExpiresAt == null || a.ExpiresAt > now)
+                    )
+                    .Join(
+                        db.IamRoles,
+                        a => a.RoleId,
+                        r => r.Id,
+                        (a, r) => new { Assignment = a, RoleName = r.Name }
+                    )
+                    .ToListAsync(cancellationToken)
+            ).Select(x => (x.Assignment, x.RoleName)),
+        ];
 
         IReadOnlyList<IamPrincipalSummaryDto> dtos =
         [

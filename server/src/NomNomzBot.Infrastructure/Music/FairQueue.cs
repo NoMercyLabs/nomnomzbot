@@ -112,7 +112,7 @@ public sealed class FairQueue<T> : IFairQueue<T>
             int removed = _queue.RemoveAll(e => e.OwnerKey == ownerKey);
 
             // Recalculate ranks for all remaining owners after removal
-            List<string> owners = _queue.Select(e => e.OwnerKey).Distinct().ToList();
+            List<string> owners = [.. _queue.Select(e => e.OwnerKey).Distinct()];
             foreach (string owner in owners)
             {
                 int rank = 1;
@@ -185,7 +185,7 @@ public sealed class FairQueue<T> : IFairQueue<T>
     {
         lock (_lock)
         {
-            return _queue.Select(e => (e.Item, e.Rank, e.OwnerKey)).ToList();
+            return [.. _queue.Select(e => (e.Item, e.Rank, e.OwnerKey))];
         }
     }
 

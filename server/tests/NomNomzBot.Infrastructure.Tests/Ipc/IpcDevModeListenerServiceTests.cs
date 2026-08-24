@@ -97,7 +97,7 @@ public sealed class IpcDevModeListenerServiceTests : IAsyncDisposable
             new("listener test", ExpiresAt: null)
         );
         created.IsSuccess.Should().BeTrue(created.ErrorMessage);
-        return created.Value!.PlaintextKey!;
+        return created.Value.PlaintextKey!;
     }
 
     /// <summary>Connects and completes the auth handshake, asserting the ok frame.</summary>
@@ -194,7 +194,7 @@ public sealed class IpcDevModeListenerServiceTests : IAsyncDisposable
 
         InMemoryIpcConnection established = await ConnectAuthenticatedAsync(key);
 
-        Guid keyId = (await _registry.ListKeysAsync()).Value!.Single().Id;
+        Guid keyId = (await _registry.ListKeysAsync()).Value.Single().Id;
         (await _registry.RevokeKeyAsync(keyId)).IsSuccess.Should().BeTrue();
 
         InMemoryIpcConnection late = new();

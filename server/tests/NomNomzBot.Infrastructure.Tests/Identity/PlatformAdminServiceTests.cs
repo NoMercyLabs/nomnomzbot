@@ -23,7 +23,6 @@ using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Platform.Auth;
-using NomNomzBot.Infrastructure.Platform.Deployment;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity;
@@ -463,7 +462,7 @@ public sealed class PlatformAdminServiceTests
         JwtTokenService verifier = Jwt();
         ClaimsPrincipal token = verifier.ValidateAccessToken(result.Value.AccessToken)!;
         token.FindFirstValue(ClaimTypes.NameIdentifier).Should().Be(targetUserId.ToString());
-        List<string> roles = token.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+        List<string> roles = [.. token.FindAll(ClaimTypes.Role).Select(c => c.Value)];
         roles.Should().ContainSingle().Which.Should().Be("user");
         roles
             .Should()

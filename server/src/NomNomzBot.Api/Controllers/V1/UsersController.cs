@@ -71,7 +71,7 @@ public class UsersController : BaseController
             "community:read",
             ct
         );
-        return authorized.IsSuccess && authorized.Value;
+        return authorized is { IsSuccess: true, Value: true };
     }
 
     /// <summary>Search for users by name or username.</summary>

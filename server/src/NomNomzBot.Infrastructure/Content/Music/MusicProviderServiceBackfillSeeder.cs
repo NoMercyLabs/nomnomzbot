@@ -90,19 +90,20 @@ public sealed class MusicProviderServiceBackfillSeeder : ISeeder
 
         // Anti-join: the (tenant, provider) pairs that already have a usable Service row (what the providers
         // require — enabled + an access token). Skipping these makes an already-backfilled boot a fast no-op.
-        HashSet<string> alreadyMirrored = (
-            await _db
-                .Services.Where(s =>
-                    s.Enabled
-                    && s.AccessToken != null
-                    && s.BroadcasterId != null
-                    && MusicProviders.Contains(s.Name)
-                )
-                .Select(s => new { s.BroadcasterId, s.Name })
-                .ToListAsync(ct)
-        )
-            .Select(s => Key(s.BroadcasterId!.Value, s.Name))
-            .ToHashSet();
+        HashSet<string> alreadyMirrored =
+        [
+            .. (
+                await _db
+                    .Services.Where(s =>
+                        s.Enabled
+                        && s.AccessToken != null
+                        && s.BroadcasterId != null
+                        && MusicProviders.Contains(s.Name)
+                    )
+                    .Select(s => new { s.BroadcasterId, s.Name })
+                    .ToListAsync(ct)
+            ).Select(s => Key(s.BroadcasterId!.Value, s.Name)),
+        ];
 
         int backfilled = 0;
         foreach (IntegrationConnection connection in connections)

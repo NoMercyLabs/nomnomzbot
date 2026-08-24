@@ -212,10 +212,10 @@ public sealed class TtsVoiceAssignmentImportTests
     public async Task Import_Over500Rows_IsRejectedWholesale()
     {
         Harness h = Build(knownUserIds: ["100"], catalogueVoiceIds: ["voice-a"]);
-        List<TtsVoiceAssignmentRowDto> rows = Enumerable
-            .Range(0, 501)
-            .Select(i => Row($"u{i}", "voice-a"))
-            .ToList();
+        List<TtsVoiceAssignmentRowDto> rows =
+        [
+            .. Enumerable.Range(0, 501).Select(i => Row($"u{i}", "voice-a")),
+        ];
 
         Result<TtsVoiceImportResultDto> result = await h.Service.ImportUserVoiceAssignmentsAsync(
             Tenant,

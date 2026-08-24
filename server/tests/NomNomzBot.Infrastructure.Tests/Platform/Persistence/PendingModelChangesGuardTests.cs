@@ -10,7 +10,6 @@
 
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
 using NomNomzBot.Infrastructure.Platform.Persistence;
 
 namespace NomNomzBot.Infrastructure.Tests.Platform.Persistence;

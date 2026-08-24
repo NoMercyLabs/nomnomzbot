@@ -50,7 +50,7 @@ internal sealed class EventResponseOverlayNotifierAdapter : IEventResponseOverla
 
         return _notifier.BroadcastOverlayEventAsync(
             broadcasterId.ToString(),
-            new OverlayEventDto("event_response", payload),
+            new("event_response", payload),
             ct
         );
     }

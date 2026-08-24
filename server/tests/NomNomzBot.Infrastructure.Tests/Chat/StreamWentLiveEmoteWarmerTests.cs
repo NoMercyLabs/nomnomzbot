@@ -93,7 +93,7 @@ public sealed class StreamWentLiveEmoteWarmerTests
 
         IThirdPartyEmoteProviderRegistry registry =
             Substitute.For<IThirdPartyEmoteProviderRegistry>();
-        registry.All.Returns(new[] { provider });
+        registry.All.Returns([provider]);
 
         return new(registry, cache, NullLogger<ChatEmoteCacheWarmer>.Instance);
     }

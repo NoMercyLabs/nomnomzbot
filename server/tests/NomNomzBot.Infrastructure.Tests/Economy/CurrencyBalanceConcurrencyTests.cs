@@ -14,8 +14,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Economy;
-using NomNomzBot.Domain.Platform;
-using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Economy;
 using NomNomzBot.Infrastructure.EventStore;
 using NomNomzBot.Infrastructure.Tests.EventStore;
@@ -122,30 +120,32 @@ public sealed class CurrencyBalanceConcurrencyTests : IDisposable
         const int concurrency = 10;
         const long debitAmount = 100; // only enough balance for exactly one of these to succeed
 
-        Task<Result<CurrencyLedgerEntryDto>>[] tasks = Enumerable
-            .Range(0, concurrency)
-            .Select(_ =>
-                Task.Run(async () =>
-                {
-                    await using EventStoreTestDbContext db = NewContext();
-                    CurrencyAccountService sut = NewAccountService(db);
-                    return await sut.PostLedgerEntryAsync(
-                        Channel,
-                        new(
-                            Viewer,
-                            -debitAmount,
-                            "SpendCatalog",
-                            null,
-                            null,
-                            null,
-                            null,
-                            null,
-                            null
-                        )
-                    );
-                })
-            )
-            .ToArray();
+        Task<Result<CurrencyLedgerEntryDto>>[] tasks =
+        [
+            .. Enumerable
+                .Range(0, concurrency)
+                .Select(_ =>
+                    Task.Run(async () =>
+                    {
+                        await using EventStoreTestDbContext db = NewContext();
+                        CurrencyAccountService sut = NewAccountService(db);
+                        return await sut.PostLedgerEntryAsync(
+                            Channel,
+                            new(
+                                Viewer,
+                                -debitAmount,
+                                "SpendCatalog",
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null
+                            )
+                        );
+                    })
+                ),
+        ];
 
         Result<CurrencyLedgerEntryDto>[] results = await Task.WhenAll(tasks);
 
@@ -205,20 +205,32 @@ public sealed class CurrencyBalanceConcurrencyTests : IDisposable
         const int concurrency = 12;
         const long creditAmount = 10;
 
-        Task<Result<CurrencyLedgerEntryDto>>[] tasks = Enumerable
-            .Range(0, concurrency)
-            .Select(_ =>
-                Task.Run(async () =>
-                {
-                    await using EventStoreTestDbContext db = NewContext();
-                    CurrencyAccountService sut = NewAccountService(db);
-                    return await sut.PostLedgerEntryAsync(
-                        Channel,
-                        new(Viewer, creditAmount, "EarnChat", null, null, null, null, null, null)
-                    );
-                })
-            )
-            .ToArray();
+        Task<Result<CurrencyLedgerEntryDto>>[] tasks =
+        [
+            .. Enumerable
+                .Range(0, concurrency)
+                .Select(_ =>
+                    Task.Run(async () =>
+                    {
+                        await using EventStoreTestDbContext db = NewContext();
+                        CurrencyAccountService sut = NewAccountService(db);
+                        return await sut.PostLedgerEntryAsync(
+                            Channel,
+                            new(
+                                Viewer,
+                                creditAmount,
+                                "EarnChat",
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null
+                            )
+                        );
+                    })
+                ),
+        ];
 
         Result<CurrencyLedgerEntryDto>[] results = await Task.WhenAll(tasks);
 
@@ -280,26 +292,28 @@ public sealed class CurrencyBalanceConcurrencyTests : IDisposable
         const int concurrency = 10;
         const long withdrawAmount = 100;
 
-        Task<Result<JarMovementDto>>[] tasks = Enumerable
-            .Range(0, concurrency)
-            .Select(i =>
-                Task.Run(async () =>
-                {
-                    await using EventStoreTestDbContext db = NewContext();
-                    CurrencyAccountService accounts = NewAccountService(db);
-                    SavingsJarService sut = new(db, accounts, new NoOpEventBus(), Clock);
-                    return await sut.WithdrawAsync(
-                        Owner,
-                        new(
-                            jarId,
-                            Guid.Parse($"0192a000-0000-7000-8000-0000000{i:D5}"),
-                            withdrawAmount,
-                            Owner
-                        )
-                    );
-                })
-            )
-            .ToArray();
+        Task<Result<JarMovementDto>>[] tasks =
+        [
+            .. Enumerable
+                .Range(0, concurrency)
+                .Select(i =>
+                    Task.Run(async () =>
+                    {
+                        await using EventStoreTestDbContext db = NewContext();
+                        CurrencyAccountService accounts = NewAccountService(db);
+                        SavingsJarService sut = new(db, accounts, new NoOpEventBus(), Clock);
+                        return await sut.WithdrawAsync(
+                            Owner,
+                            new(
+                                jarId,
+                                Guid.Parse($"0192a000-0000-7000-8000-0000000{i:D5}"),
+                                withdrawAmount,
+                                Owner
+                            )
+                        );
+                    })
+                ),
+        ];
 
         Result<JarMovementDto>[] results = await Task.WhenAll(tasks);
 
@@ -376,25 +390,27 @@ public sealed class CurrencyBalanceConcurrencyTests : IDisposable
         // Distinct contributors — many different viewers contributing to one jar, which is the real usage
         // shape and also isolates the race under test to the jar's own Balance column (each contributor's
         // own CurrencyAccount row has no contention from the others).
-        Task<Result<JarMovementDto>>[] tasks = Enumerable
-            .Range(0, concurrency)
-            .Select(i =>
-                Task.Run(async () =>
-                {
-                    await using EventStoreTestDbContext db = NewContext();
-                    CurrencyAccountService accounts = NewAccountService(db);
-                    SavingsJarService sut = new(db, accounts, new NoOpEventBus(), Clock);
-                    return await sut.ContributeAsync(
-                        Owner,
-                        new(
-                            jarId,
-                            Guid.Parse($"0192a000-0000-7000-8000-0000000{i:D5}"),
-                            contributeAmount
-                        )
-                    );
-                })
-            )
-            .ToArray();
+        Task<Result<JarMovementDto>>[] tasks =
+        [
+            .. Enumerable
+                .Range(0, concurrency)
+                .Select(i =>
+                    Task.Run(async () =>
+                    {
+                        await using EventStoreTestDbContext db = NewContext();
+                        CurrencyAccountService accounts = NewAccountService(db);
+                        SavingsJarService sut = new(db, accounts, new NoOpEventBus(), Clock);
+                        return await sut.ContributeAsync(
+                            Owner,
+                            new(
+                                jarId,
+                                Guid.Parse($"0192a000-0000-7000-8000-0000000{i:D5}"),
+                                contributeAmount
+                            )
+                        );
+                    })
+                ),
+        ];
 
         Result<JarMovementDto>[] results = await Task.WhenAll(tasks);
 

@@ -95,11 +95,7 @@ public sealed class UsageMeteringServiceTests : IDisposable
     public async Task Check_reports_remaining_without_incrementing()
     {
         EventStoreTestDbContext db = await NewContextAsync();
-        UsageMeteringService sut = NewService(
-            db,
-            TestTiers.WithLimit(Metric, 100),
-            new RecordingEventBus()
-        );
+        UsageMeteringService sut = NewService(db, TestTiers.WithLimit(Metric, 100), new());
         await sut.RecordAsync(Channel, Metric, 30);
 
         QuotaCheckDto within = (await sut.CheckAsync(Channel, Metric, 10)).Value;
@@ -118,7 +114,7 @@ public sealed class UsageMeteringServiceTests : IDisposable
     public async Task Record_is_a_noop_on_self_host()
     {
         EventStoreTestDbContext db = await NewContextAsync();
-        UsageMeteringService sut = NewService(db, TestTiers.Unlimited(), new RecordingEventBus());
+        UsageMeteringService sut = NewService(db, TestTiers.Unlimited(), new());
 
         (await sut.RecordAsync(Channel, Metric, 999)).IsSuccess.Should().BeTrue();
 
@@ -129,11 +125,7 @@ public sealed class UsageMeteringServiceTests : IDisposable
     public async Task Record_rejects_a_non_positive_quantity()
     {
         EventStoreTestDbContext db = await NewContextAsync();
-        UsageMeteringService sut = NewService(
-            db,
-            TestTiers.WithLimit(Metric, 100),
-            new RecordingEventBus()
-        );
+        UsageMeteringService sut = NewService(db, TestTiers.WithLimit(Metric, 100), new());
 
         (await sut.RecordAsync(Channel, Metric, 0)).ErrorCode.Should().Be("VALIDATION_FAILED");
     }

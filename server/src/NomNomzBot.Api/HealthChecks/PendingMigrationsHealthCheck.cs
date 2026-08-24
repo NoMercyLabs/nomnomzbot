@@ -33,7 +33,7 @@ public sealed class PendingMigrationsHealthCheck(AppDbContext dbContext) : IHeal
             IEnumerable<string> pending = await dbContext.Database.GetPendingMigrationsAsync(
                 cancellationToken
             );
-            List<string> pendingList = pending.ToList();
+            List<string> pendingList = [.. pending];
             return pendingList.Count == 0
                 ? HealthCheckResult.Healthy("No pending migrations.")
                 : HealthCheckResult.Unhealthy(

@@ -58,7 +58,7 @@ public sealed class ChatMessageDecorator : IChatMessageDecorator
         ILogger<ChatMessageDecorator> logger
     )
     {
-        _adapters = adapters.OrderBy(adapter => adapter.Order).ToList();
+        _adapters = [.. adapters.OrderBy(adapter => adapter.Order)];
         _features = features;
         _cache = cache;
         _logger = logger;
@@ -74,7 +74,7 @@ public sealed class ChatMessageDecorator : IChatMessageDecorator
             BroadcasterId = message.BroadcasterId,
             TwitchBroadcasterId = message.TwitchBroadcasterId,
             EnabledFeatures = await ResolveEnabledFeaturesAsync(message.BroadcasterId, ct),
-            Fragments = message.Fragments.Select(Clone).ToList(),
+            Fragments = [.. message.Fragments.Select(Clone)],
             Badges = message.Badges,
             SenderHasPreviewStanding =
                 message.IsSubscriber

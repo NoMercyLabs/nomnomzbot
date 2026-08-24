@@ -44,34 +44,38 @@ public sealed class ChannelAnalyticsDailyConcurrencyTests
         string dbName = $"analytics-race-{Guid.NewGuid():N}";
         const int concurrency = 8;
 
-        Task[] tasks = Enumerable
-            .Range(0, concurrency)
-            .Select(i =>
-                Task.Run(async () =>
-                {
-                    using AuthDbContext db = AuthTestBuilder.NewContext(dbName);
-                    ILiveWindowResolver live = Substitute.For<ILiveWindowResolver>();
-                    live.GetCoveringStreamIdAsync(
-                            Arg.Any<Guid>(),
-                            Arg.Any<DateTime>(),
-                            Arg.Any<CancellationToken>()
-                        )
-                        .Returns((string?)null);
-                    ChannelAnalyticsDailyProjection sut = new(db, live);
+        Task[] tasks =
+        [
+            .. Enumerable
+                .Range(0, concurrency)
+                .Select(i =>
+                    Task.Run(async () =>
+                    {
+                        using AuthDbContext db = AuthTestBuilder.NewContext(dbName);
+                        ILiveWindowResolver live = Substitute.For<ILiveWindowResolver>();
+                        live.GetCoveringStreamIdAsync(
+                                Arg.Any<Guid>(),
+                                Arg.Any<DateTime>(),
+                                Arg.Any<CancellationToken>()
+                            )
+                            .Returns((string?)null);
+                        ChannelAnalyticsDailyProjection sut = new(db, live);
 
-                    Result result = await sut.ApplyAsync(ChatEvent($"viewer-{i}"));
-                    result.IsSuccess.Should().BeTrue();
-                })
-            )
-            .ToArray();
+                        Result result = await sut.ApplyAsync(ChatEvent($"viewer-{i}"));
+                        result.IsSuccess.Should().BeTrue();
+                    })
+                ),
+        ];
 
         await Task.WhenAll(tasks);
 
         using AuthDbContext verify = AuthTestBuilder.NewContext(dbName);
-        List<ChannelAnalyticsDaily> rows = verify
-            .ChannelAnalyticsDailies.IgnoreQueryFilters()
-            .Where(r => r.BroadcasterId == Channel)
-            .ToList();
+        List<ChannelAnalyticsDaily> rows =
+        [
+            .. verify
+                .ChannelAnalyticsDailies.IgnoreQueryFilters()
+                .Where(r => r.BroadcasterId == Channel),
+        ];
 
         rows.Should()
             .ContainSingle(
@@ -106,28 +110,30 @@ public sealed class ChannelAnalyticsDailyConcurrencyTests
         }
 
         const int concurrency = 20;
-        Task[] tasks = Enumerable
-            .Range(0, concurrency)
-            .Select(i =>
-                Task.Run(async () =>
-                {
-                    using AuthDbContext db = AuthTestBuilder.NewContext(dbName);
-                    ILiveWindowResolver live = Substitute.For<ILiveWindowResolver>();
-                    live.GetCoveringStreamIdAsync(
-                            Arg.Any<Guid>(),
-                            Arg.Any<DateTime>(),
-                            Arg.Any<CancellationToken>()
-                        )
-                        .Returns((string?)null);
-                    ChannelAnalyticsDailyProjection sut = new(db, live);
+        Task[] tasks =
+        [
+            .. Enumerable
+                .Range(0, concurrency)
+                .Select(i =>
+                    Task.Run(async () =>
+                    {
+                        using AuthDbContext db = AuthTestBuilder.NewContext(dbName);
+                        ILiveWindowResolver live = Substitute.For<ILiveWindowResolver>();
+                        live.GetCoveringStreamIdAsync(
+                                Arg.Any<Guid>(),
+                                Arg.Any<DateTime>(),
+                                Arg.Any<CancellationToken>()
+                            )
+                            .Returns((string?)null);
+                        ChannelAnalyticsDailyProjection sut = new(db, live);
 
-                    // Every writer folds a message for the SAME single viewer, so UniqueChatters must stay
-                    // exactly 1 (only the flip counts) while TotalMessages accumulates every one of them.
-                    Result result = await sut.ApplyAsync(ChatEvent("shared-viewer"));
-                    result.IsSuccess.Should().BeTrue();
-                })
-            )
-            .ToArray();
+                        // Every writer folds a message for the SAME single viewer, so UniqueChatters must stay
+                        // exactly 1 (only the flip counts) while TotalMessages accumulates every one of them.
+                        Result result = await sut.ApplyAsync(ChatEvent("shared-viewer"));
+                        result.IsSuccess.Should().BeTrue();
+                    })
+                ),
+        ];
 
         await Task.WhenAll(tasks);
 
@@ -178,20 +184,22 @@ public sealed class ChannelAnalyticsDailyConcurrencyTests
             seedResult.IsSuccess.Should().BeTrue();
         }
 
-        Task[] tasks = Enumerable
-            .Range(1, concurrency)
-            .Select(i =>
-                Task.Run(async () =>
-                {
-                    using AuthDbContext db = AuthTestBuilder.NewContext(dbName);
-                    ChannelAnalyticsDailyProjection sut = new(db, live);
-                    Result result = await sut.ApplyAsync(
-                        PresenceEvent("viewer-1", Day.AddSeconds(i * stepSeconds))
-                    );
-                    result.IsSuccess.Should().BeTrue();
-                })
-            )
-            .ToArray();
+        Task[] tasks =
+        [
+            .. Enumerable
+                .Range(1, concurrency)
+                .Select(i =>
+                    Task.Run(async () =>
+                    {
+                        using AuthDbContext db = AuthTestBuilder.NewContext(dbName);
+                        ChannelAnalyticsDailyProjection sut = new(db, live);
+                        Result result = await sut.ApplyAsync(
+                            PresenceEvent("viewer-1", Day.AddSeconds(i * stepSeconds))
+                        );
+                        result.IsSuccess.Should().BeTrue();
+                    })
+                ),
+        ];
 
         await Task.WhenAll(tasks);
 

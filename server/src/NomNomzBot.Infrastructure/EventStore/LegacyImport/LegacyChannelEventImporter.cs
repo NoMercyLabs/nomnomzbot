@@ -87,7 +87,7 @@ public sealed class LegacyChannelEventImporter
 
         // One bulk existence check across all mapped ids → an honest duplicate count and a re-run that writes nothing.
         Result<IReadOnlySet<Guid>> existingResult = await _journal.GetExistingEventIdsAsync(
-            mapped.Select(r => r.EventId).ToList(),
+            [.. mapped.Select(r => r.EventId)],
             cancellationToken
         );
         if (existingResult.IsFailure)

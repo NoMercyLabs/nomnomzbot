@@ -75,15 +75,17 @@ internal sealed class PickListTestDbContext : DbContext, IApplicationDbContext
     /// the interface's <c>DbSet&lt;T&gt;</c> members so it never silently drifts when the contract grows — only
     /// <see cref="PickList"/> and <see cref="Channel"/> are mapped.
     /// </summary>
-    private static readonly IReadOnlyList<Type> UnmappedEntities = typeof(IApplicationDbContext)
-        .GetProperties()
-        .Where(p =>
-            p.PropertyType.IsGenericType
-            && p.PropertyType.GetGenericTypeDefinition() == typeof(DbSet<>)
-        )
-        .Select(p => p.PropertyType.GetGenericArguments()[0])
-        .Where(t => t != typeof(PickList) && t != typeof(Channel))
-        .ToList();
+    private static readonly IReadOnlyList<Type> UnmappedEntities =
+    [
+        .. typeof(IApplicationDbContext)
+            .GetProperties()
+            .Where(p =>
+                p.PropertyType.IsGenericType
+                && p.PropertyType.GetGenericTypeDefinition() == typeof(DbSet<>)
+            )
+            .Select(p => p.PropertyType.GetGenericArguments()[0])
+            .Where(t => t != typeof(PickList) && t != typeof(Channel)),
+    ];
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
     public DbSet<User> Users => throw new NotSupportedException();

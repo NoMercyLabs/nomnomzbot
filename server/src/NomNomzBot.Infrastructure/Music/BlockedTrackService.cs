@@ -101,7 +101,7 @@ public sealed class BlockedTrackService(IApplicationDbContext db) : IBlockedTrac
             .Take(pagination.PageSize)
             .ToListAsync(ct);
 
-        List<BlockedTrackDto> items = page.Select(ToDto).ToList();
+        List<BlockedTrackDto> items = [.. page.Select(ToDto)];
         return Result.Success(
             new PagedList<BlockedTrackDto>(items, pagination.Page, pagination.PageSize, total)
         );

@@ -9,8 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Events;
@@ -47,7 +45,7 @@ public sealed class ImpersonationStartedBroadcastHandler(
 
         await notifier.SendAlertAsync(
             grant.ScopeChannelId.ToString(),
-            new AlertDto(
+            new(
                 "impersonation_started",
                 "A NomNomzBot operator started acting as a user on your channel.",
                 new
@@ -93,7 +91,7 @@ public sealed class ImpersonationEndedBroadcastHandler(
 
         await notifier.SendAlertAsync(
             grant.ScopeChannelId.ToString(),
-            new AlertDto(
+            new(
                 "impersonation_ended",
                 "A NomNomzBot operator stopped acting as a user on your channel.",
                 new
@@ -148,6 +146,6 @@ internal static class ImpersonationGrantLookup
         if (row.ScopeChannelId is null || row.ScopeChannelId == Guid.Empty)
             return null;
 
-        return new Grant(row.ScopeChannelId.Value, row.Reason);
+        return new(row.ScopeChannelId.Value, row.Reason);
     }
 }

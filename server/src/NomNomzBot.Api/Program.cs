@@ -9,8 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using System.Reflection;
-using System.Text;
-using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.StaticFiles;
@@ -349,16 +347,20 @@ try
 
         // Blank entries (e.g. an unset docker env var that expands to "") are dropped so they cannot wipe the
         // safe loopback default by making the trust list non-empty.
-        string[] knownProxies = (
-            builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>() ?? []
-        )
-            .Where(value => !string.IsNullOrWhiteSpace(value))
-            .ToArray();
-        string[] knownNetworks = (
-            builder.Configuration.GetSection("ForwardedHeaders:KnownNetworks").Get<string[]>() ?? []
-        )
-            .Where(value => !string.IsNullOrWhiteSpace(value))
-            .ToArray();
+        string[] knownProxies =
+        [
+            .. (
+                builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>()
+                ?? []
+            ).Where(value => !string.IsNullOrWhiteSpace(value)),
+        ];
+        string[] knownNetworks =
+        [
+            .. (
+                builder.Configuration.GetSection("ForwardedHeaders:KnownNetworks").Get<string[]>()
+                ?? []
+            ).Where(value => !string.IsNullOrWhiteSpace(value)),
+        ];
 
         if (knownProxies.Length > 0 || knownNetworks.Length > 0)
         {

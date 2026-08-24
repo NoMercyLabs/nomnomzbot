@@ -133,16 +133,17 @@ public sealed class ChatMessageDecoratorTests
     )
     {
         IFeatureService features = Substitute.For<IFeatureService>();
-        List<FeatureStatusDto> dtos = toggles
-            .Select(toggle => new FeatureStatusDto(
+        List<FeatureStatusDto> dtos =
+        [
+            .. toggles.Select(toggle => new FeatureStatusDto(
                 toggle.Key,
                 toggle.Key,
                 string.Empty,
                 toggle.Enabled,
                 null,
                 []
-            ))
-            .ToList();
+            )),
+        ];
         features
             .GetFeaturesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(Result.Success(dtos)));

@@ -331,7 +331,7 @@ public sealed class IdentityRekeyBehaviorTests
                 .Commands.IgnoreQueryFilters()
                 .SingleOrDefaultAsync(c => c.BroadcasterId == TenantA);
             raw.Should().NotBeNull();
-            raw!.DeletedAt.Should().NotBeNull();
+            raw.DeletedAt.Should().NotBeNull();
         }
     }
 
@@ -347,14 +347,14 @@ public sealed class IdentityRekeyBehaviorTests
 
         Channel? byId = await db.Channels.FirstOrDefaultAsync(c => c.Id == TenantA);
         byId.Should().NotBeNull();
-        byId!.Id.Should().Be(TenantA);
+        byId.Id.Should().Be(TenantA);
         byId.TwitchChannelId.Should().Be(TwitchChannelA);
 
         Channel? byTwitchId = await db.Channels.FirstOrDefaultAsync(c =>
             c.TwitchChannelId == TwitchChannelB
         );
         byTwitchId.Should().NotBeNull();
-        byTwitchId!.Id.Should().Be(TenantB);
+        byTwitchId.Id.Should().Be(TenantB);
     }
 
     private static async Task<Guid> OwnerOf(RekeyTestContext ctx, Guid channelId) =>

@@ -8,11 +8,9 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using System.Reflection;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.Controllers;
-using Xunit;
 
 namespace NomNomzBot.Api.Tests.Configuration;
 
@@ -27,27 +25,33 @@ public sealed class ControllerSecurityBaselineTests
     [Fact]
     public void Every_controller_has_ApiController_and_an_effective_rate_limit_policy()
     {
-        List<Type> controllerTypes = typeof(BaseController)
-            .Assembly.GetTypes()
-            .Where(type =>
-                type is { IsClass: true, IsAbstract: false }
-                && typeof(ControllerBase).IsAssignableFrom(type)
-            )
-            .ToList();
+        List<Type> controllerTypes =
+        [
+            .. typeof(BaseController)
+                .Assembly.GetTypes()
+                .Where(type =>
+                    type is { IsClass: true, IsAbstract: false }
+                    && typeof(ControllerBase).IsAssignableFrom(type)
+                ),
+        ];
 
         Assert.NotEmpty(controllerTypes);
 
-        List<string> missingApiController = controllerTypes
-            .Where(type => !HasAttributeOnTypeOrBase<ApiControllerAttribute>(type))
-            .Select(type => type.FullName ?? type.Name)
-            .OrderBy(name => name, StringComparer.Ordinal)
-            .ToList();
+        List<string> missingApiController =
+        [
+            .. controllerTypes
+                .Where(type => !HasAttributeOnTypeOrBase<ApiControllerAttribute>(type))
+                .Select(type => type.FullName ?? type.Name)
+                .OrderBy(name => name, StringComparer.Ordinal),
+        ];
 
-        List<string> missingRateLimit = controllerTypes
-            .Where(type => !HasEffectiveRateLimitPolicy(type))
-            .Select(type => type.FullName ?? type.Name)
-            .OrderBy(name => name, StringComparer.Ordinal)
-            .ToList();
+        List<string> missingRateLimit =
+        [
+            .. controllerTypes
+                .Where(type => !HasEffectiveRateLimitPolicy(type))
+                .Select(type => type.FullName ?? type.Name)
+                .OrderBy(name => name, StringComparer.Ordinal),
+        ];
 
         bool allPass = missingApiController.Count == 0 && missingRateLimit.Count == 0;
 

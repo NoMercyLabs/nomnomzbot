@@ -317,11 +317,10 @@ public class UserService : IUserService
             .Select(cm => cm.ChannelId)
             .ToListAsync(cancellationToken);
 
-        List<Guid> allChannelIds = messageData
-            .Select(c => c.ChannelId)
-            .Union(modChannelIds)
-            .Distinct()
-            .ToList();
+        List<Guid> allChannelIds =
+        [
+            .. messageData.Select(c => c.ChannelId).Union(modChannelIds).Distinct(),
+        ];
 
         if (allChannelIds.Count == 0)
             return Result.Success(new List<UserChannelAppearanceDto>());
@@ -336,8 +335,9 @@ public class UserService : IUserService
             .Select(w => new { w.BroadcasterId, w.CurrentStreak })
             .ToListAsync(cancellationToken);
 
-        List<UserChannelAppearanceDto> result = channelNames
-            .Select(ch =>
+        List<UserChannelAppearanceDto> result =
+        [
+            .. channelNames.Select(ch =>
             {
                 var msgs = messageData.FirstOrDefault(m => m.ChannelId == ch.Id);
                 var streak = watchStreaks.FirstOrDefault(w => w.BroadcasterId == ch.Id);
@@ -358,8 +358,8 @@ public class UserService : IUserService
                     msgs is not null ? msgs.MessageCount : 0,
                     watchTime
                 );
-            })
-            .ToList();
+            }),
+        ];
 
         return Result.Success(result);
     }

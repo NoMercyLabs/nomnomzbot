@@ -169,9 +169,10 @@ public class BundleImportService : IBundleImportService
                     JsonConvert.DeserializeObject<Dictionary<string, List<Guid>>>(
                         existingInstall.InstalledEntityIdsJson
                     ) ?? [];
-                List<(string Type, Guid Id, string Name)> previousTargets = previous
-                    .SelectMany(kv => kv.Value.Select(id => (kv.Key, id, string.Empty)))
-                    .ToList();
+                List<(string Type, Guid Id, string Name)> previousTargets =
+                [
+                    .. previous.SelectMany(kv => kv.Value.Select(id => (kv.Key, id, string.Empty))),
+                ];
                 await DeleteCreatedAsync(broadcasterId, actorUserId, previousTargets, ct);
             }
         }
@@ -479,7 +480,7 @@ public class BundleImportService : IBundleImportService
                     CooldownSeconds = export.CooldownSeconds,
                     CooldownPerUser = export.CooldownPerUser,
                     Description = export.Description,
-                    Aliases = export.Aliases.ToList(),
+                    Aliases = [.. export.Aliases],
                 };
                 Result<CommandDto> createdCommand = await _commands.CreateAsync(
                     channelId,
@@ -687,7 +688,7 @@ public class BundleImportService : IBundleImportService
                     new()
                     {
                         Name = name,
-                        Messages = export.Messages.ToList(),
+                        Messages = [.. export.Messages],
                         PipelineId = export.PipelineName is not null
                             ? pipelineIdsByName.GetValueOrDefault(export.PipelineName)
                             : null,
@@ -836,7 +837,7 @@ public class BundleImportService : IBundleImportService
 
                 Result<PickListDto> createdList = await _pickLists.CreateAsync(
                     broadcasterId,
-                    new(name, export.Description, export.Items.ToList()),
+                    new(name, export.Description, [.. export.Items]),
                     ct
                 );
                 if (createdList.IsFailure)
@@ -900,7 +901,7 @@ public class BundleImportService : IBundleImportService
                     Framework = export.Framework,
                     Description = export.Description,
                     Settings = export.Settings.ToDictionary(kv => kv.Key, kv => kv.Value),
-                    EventSubscriptions = export.EventSubscriptions.ToList(),
+                    EventSubscriptions = [.. export.EventSubscriptions],
                 };
                 Result<WidgetDetail> createdWidget = await _widgets.CreateAsync(
                     channelId,
@@ -1242,7 +1243,7 @@ public class BundleImportService : IBundleImportService
             .InstalledBundles.Where(b => b.BroadcasterId == broadcasterId)
             .OrderByDescending(b => b.CreatedAt)
             .ToListAsync(ct);
-        return Result.Success<IReadOnlyList<InstalledBundleDto>>(rows.Select(ToDto).ToList());
+        return Result.Success<IReadOnlyList<InstalledBundleDto>>([.. rows.Select(ToDto)]);
     }
 
     public async Task<Result> UninstallAsync(
@@ -1267,9 +1268,10 @@ public class BundleImportService : IBundleImportService
                 row.InstalledEntityIdsJson
             ) ?? [];
 
-        List<(string Type, Guid Id, string Name)> targets = installedIds
-            .SelectMany(kv => kv.Value.Select(id => (kv.Key, id, string.Empty)))
-            .ToList();
+        List<(string Type, Guid Id, string Name)> targets =
+        [
+            .. installedIds.SelectMany(kv => kv.Value.Select(id => (kv.Key, id, string.Empty))),
+        ];
         await DeleteCreatedAsync(broadcasterId, actorUserId, targets, ct);
 
         _db.InstalledBundles.Remove(row);
@@ -1302,7 +1304,7 @@ public class BundleImportService : IBundleImportService
         CancellationToken ct
     )
     {
-        if (zip.CanSeek && zip.Length > BundleFormat.MaxBundleBytes)
+        if (zip is { CanSeek: true, Length: > BundleFormat.MaxBundleBytes })
             return TooLarge();
 
         // Buffer with a hard cap so a non-seekable upload can never balloon memory past the limit.

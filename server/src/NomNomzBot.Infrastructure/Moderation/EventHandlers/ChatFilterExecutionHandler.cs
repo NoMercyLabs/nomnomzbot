@@ -25,7 +25,6 @@ using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
-using NomNomzBot.Infrastructure.Moderation;
 
 namespace NomNomzBot.Infrastructure.Moderation.EventHandlers;
 

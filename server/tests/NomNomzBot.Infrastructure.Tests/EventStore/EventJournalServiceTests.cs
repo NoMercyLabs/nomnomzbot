@@ -176,13 +176,10 @@ public sealed class EventJournalServiceTests
             read.IsSuccess.Should().BeTrue();
             read.Value.Select(e => e.StreamPosition)
                 .Should()
-                .Equal(new[] { 1L, 2L, 3L }, "positions are per-tenant monotonic starting at 1");
+                .Equal([1L, 2L, 3L], "positions are per-tenant monotonic starting at 1");
             read.Value.Select(e => e.PayloadJson)
                 .Should()
-                .Equal(
-                    new[] { "{\"n\":1}", "{\"n\":2}", "{\"n\":3}" },
-                    "read-back is in append order"
-                );
+                .Equal(["{\"n\":1}", "{\"n\":2}", "{\"n\":3}"], "read-back is in append order");
             read.Value.Select(e => e.Id)
                 .Should()
                 .BeInAscendingOrder("the bigint id is the global append order");
@@ -455,7 +452,7 @@ public sealed class EventJournalServiceTests
         // One audit query returns operator + subject + session together for the impersonated write —
         // the plan's literal done-when.
         Result<PagedList<EventRecord>> queried = await journal.QueryAsync(
-            new EventJournalQuery(tenant, null, null, null, operatorUserId, 1, 25)
+            new(tenant, null, null, null, operatorUserId, 1, 25)
         );
         queried.IsSuccess.Should().BeTrue(queried.ErrorMessage);
         EventRecord row = queried.Value.Items.Should().ContainSingle().Subject;

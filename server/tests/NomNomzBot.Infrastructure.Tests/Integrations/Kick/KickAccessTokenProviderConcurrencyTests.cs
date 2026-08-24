@@ -22,8 +22,6 @@ using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Domain.Identity.Enums;
-using NomNomzBot.Domain.Integrations.Entities;
-using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations.Kick;
 using NomNomzBot.Infrastructure.Platform.Configuration;
@@ -147,7 +145,7 @@ public sealed class KickAccessTokenProviderConcurrencyTests
         )
         {
             Result<IntegrationConnectionDto> upsert = await vault.UpsertConnectionAsync(
-                new UpsertConnectionDto(
+                new(
                     BroadcasterId: Broadcaster,
                     Provider: AuthEnums.IntegrationProvider.Kick,
                     ProviderAccountId: ExternalId,
@@ -162,12 +160,7 @@ public sealed class KickAccessTokenProviderConcurrencyTests
             // Already expired — GetAsync must refresh on the first call.
             await vault.StoreTokensAsync(
                 upsert.Value.Id,
-                new StoreTokensDto(
-                    "old-access",
-                    "old-refresh",
-                    null,
-                    DateTime.UtcNow.AddMinutes(-10)
-                )
+                new("old-access", "old-refresh", null, DateTime.UtcNow.AddMinutes(-10))
             );
         }
 
@@ -177,7 +170,7 @@ public sealed class KickAccessTokenProviderConcurrencyTests
             new ConfigurationBuilder().Build()
         );
 
-        return new KickAccessTokenProvider(
+        return new(
             db,
             vault,
             credentials,

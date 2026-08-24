@@ -240,7 +240,7 @@ public sealed partial class ViewerDataService : IViewerDataService
                 new Dictionary<string, string>()
             );
 
-        List<string> wanted = keys.Select(k => k.Trim().ToLowerInvariant()).Distinct().ToList();
+        List<string> wanted = [.. keys.Select(k => k.Trim().ToLowerInvariant()).Distinct()];
         Dictionary<string, string> map = await _db
             .ViewerData.AsNoTracking()
             .Where(d =>

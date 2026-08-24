@@ -75,7 +75,7 @@ public sealed class ChannelEventActorBackfill(IApplicationDbContext db)
             if (!twitchToUserId.TryGetValue(group.Key, out Guid userId))
                 continue;
 
-            List<string> eventIds = group.Select(g => g.EventId).ToList();
+            List<string> eventIds = [.. group.Select(g => g.EventId)];
             linked += await db
                 .ChannelEvents.Where(e => eventIds.Contains(e.Id))
                 .ExecuteUpdateAsync(s => s.SetProperty(e => e.UserId, userId), cancellationToken);
@@ -89,7 +89,7 @@ public sealed class ChannelEventActorBackfill(IApplicationDbContext db)
         CancellationToken cancellationToken
     )
     {
-        List<string> twitchIds = actors.Keys.ToList();
+        List<string> twitchIds = [.. actors.Keys];
         Dictionary<string, Guid> map = await db
             .Users.Where(u => twitchIds.Contains(u.TwitchUserId!))
             .Select(u => new { TwitchUserId = u.TwitchUserId!, u.Id })

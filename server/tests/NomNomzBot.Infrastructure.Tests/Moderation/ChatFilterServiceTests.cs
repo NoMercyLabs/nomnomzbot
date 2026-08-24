@@ -39,7 +39,7 @@ public sealed class ChatFilterServiceTests
 
         Result<ChatFilterDto> result = await service.CreateAsync(
             Broadcaster,
-            new CreateChatFilterRequest
+            new()
             {
                 FilterType = ChatFilterType.Regex,
                 Name = "unbalanced-paren",
@@ -64,7 +64,7 @@ public sealed class ChatFilterServiceTests
 
         Result<ChatFilterDto> result = await service.CreateAsync(
             Broadcaster,
-            new CreateChatFilterRequest
+            new()
             {
                 FilterType = ChatFilterType.Regex,
                 Name = "shouty-spam",
@@ -79,7 +79,7 @@ public sealed class ChatFilterServiceTests
 
         // The tester seam, run against the SAME persisted pattern, proves it actually matches.
         Result<ChatFilterTestResult> matchTest = service.TestPattern(
-            new TestChatFilterRequest
+            new()
             {
                 FilterType = ChatFilterType.Regex,
                 Pattern = persisted.Pattern,
@@ -99,7 +99,7 @@ public sealed class ChatFilterServiceTests
 
         Result<ChatFilterDto> created = await service.CreateAsync(
             Broadcaster,
-            new CreateChatFilterRequest
+            new()
             {
                 FilterType = ChatFilterType.Regex,
                 Name = "original",
@@ -111,7 +111,7 @@ public sealed class ChatFilterServiceTests
         Result<ChatFilterDto> updated = await service.UpdateAsync(
             Broadcaster,
             created.Value.Id,
-            new UpdateChatFilterRequest { Pattern = "[unterminated" }
+            new() { Pattern = "[unterminated" }
         );
 
         updated.IsFailure.Should().BeTrue();
@@ -128,7 +128,7 @@ public sealed class ChatFilterServiceTests
         ChatFilterService service = new(db);
 
         Result<ChatFilterTestResult> result = service.TestPattern(
-            new TestChatFilterRequest
+            new()
             {
                 FilterType = ChatFilterType.Regex,
                 Pattern = "[a-z", // unterminated character class
@@ -148,7 +148,7 @@ public sealed class ChatFilterServiceTests
         ChatFilterService service = new(db);
 
         Result<ChatFilterTestResult> result = service.TestPattern(
-            new TestChatFilterRequest
+            new()
             {
                 FilterType = ChatFilterType.Regex,
                 Pattern = @"^giveaway$",
@@ -169,7 +169,7 @@ public sealed class ChatFilterServiceTests
 
         // Classic catastrophic-backtracking shape: (a+)+ against a long near-miss string with no trailing 'b'.
         Result<ChatFilterTestResult> result = service.TestPattern(
-            new TestChatFilterRequest
+            new()
             {
                 FilterType = ChatFilterType.Regex,
                 Pattern = "^(a+)+$",
@@ -193,7 +193,7 @@ public sealed class ChatFilterServiceTests
         // If this pattern were ever treated as a literal string, it would match itself verbatim.
         const string invalidPattern = "(unterminated";
         Result<ChatFilterTestResult> result = service.TestPattern(
-            new TestChatFilterRequest
+            new()
             {
                 FilterType = ChatFilterType.Regex,
                 Pattern = invalidPattern,

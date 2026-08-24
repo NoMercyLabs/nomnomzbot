@@ -150,9 +150,10 @@ public sealed class ViewerReportService : IViewerReportService
             cancellationToken
         );
 
-        List<ViewerReportDto> dtos = reports
-            .Select(r => ToDto(r, names.GetValueOrDefault(r.ReportedUserId), names))
-            .ToList();
+        List<ViewerReportDto> dtos =
+        [
+            .. reports.Select(r => ToDto(r, names.GetValueOrDefault(r.ReportedUserId), names)),
+        ];
         return Result.Success(dtos);
     }
 
@@ -206,10 +207,7 @@ public sealed class ViewerReportService : IViewerReportService
         CancellationToken cancellationToken
     )
     {
-        List<Guid> distinct = ids.Where(id => id.HasValue)
-            .Select(id => id!.Value)
-            .Distinct()
-            .ToList();
+        List<Guid> distinct = [.. ids.Where(id => id.HasValue).Select(id => id!.Value).Distinct()];
         if (distinct.Count == 0)
             return new();
 

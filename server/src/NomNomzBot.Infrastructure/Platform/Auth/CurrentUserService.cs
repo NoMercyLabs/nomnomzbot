@@ -65,7 +65,7 @@ public sealed class CurrentUserService : ICurrentUserService
             )
                 return null;
 
-            return new ImpersonationContext(operatorUserId, subjectUserId, sessionId);
+            return new(operatorUserId, subjectUserId, sessionId);
         }
     }
 }

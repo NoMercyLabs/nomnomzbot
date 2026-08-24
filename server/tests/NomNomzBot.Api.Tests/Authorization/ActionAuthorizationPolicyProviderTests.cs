@@ -34,7 +34,7 @@ public sealed class ActionAuthorizationPolicyProviderTests
             .GetPolicyAsync(ActionAuthorizationPolicy.For("economy:config:write"));
 
         policy.Should().NotBeNull();
-        policy!
+        policy
             .Requirements.OfType<ActionAuthorizationRequirement>()
             .Single()
             .ActionKey.Should()
@@ -55,7 +55,7 @@ public sealed class ActionAuthorizationPolicyProviderTests
         AuthorizationPolicy? policy = await Provider().GetPolicyAsync(permissionKey);
 
         policy.Should().NotBeNull();
-        policy!
+        policy
             .Requirements.OfType<PlatformIamRequirement>()
             .Single()
             .PermissionKey.Should()
@@ -70,7 +70,7 @@ public sealed class ActionAuthorizationPolicyProviderTests
         AuthorizationPolicy? policy = await Provider().GetPolicyAsync("rbac:iam:manage");
 
         policy.Should().NotBeNull();
-        policy!.Requirements.OfType<ActionAuthorizationRequirement>().Should().ContainSingle();
+        policy.Requirements.OfType<ActionAuthorizationRequirement>().Should().ContainSingle();
         policy.Requirements.OfType<PlatformIamRequirement>().Should().BeEmpty();
     }
 

@@ -138,7 +138,7 @@ public sealed class CustomDataSourcesController : BaseController
             ? Ok(
                 new StatusResponseDto<IReadOnlyList<CustomDataSourcePresetDto>>
                 {
-                    Data = result.Value!,
+                    Data = result.Value,
                 }
             )
             : Problem(result.ErrorMessage ?? "Failed to list presets", statusCode: 500);
@@ -187,7 +187,7 @@ public sealed class CustomDataSourcesController : BaseController
         return result.IsSuccess
             ? CreatedAtAction(
                 nameof(Get),
-                new { id = result.Value!.Id },
+                new { id = result.Value.Id },
                 new StatusResponseDto<CustomDataSourceDto> { Data = result.Value }
             )
             : BadRequest(new StatusResponseDto<object> { Message = result.ErrorMessage });

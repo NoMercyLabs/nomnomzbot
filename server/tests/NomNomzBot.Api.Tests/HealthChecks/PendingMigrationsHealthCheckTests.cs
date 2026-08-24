@@ -52,7 +52,7 @@ public sealed class PendingMigrationsHealthCheckTests : IDisposable
         // A fresh :memory: connection has no schema at all — every migration is pending.
         PendingMigrationsHealthCheck check = new(dbContext);
 
-        HealthCheckResult result = await check.CheckHealthAsync(new HealthCheckContext());
+        HealthCheckResult result = await check.CheckHealthAsync(new());
 
         result.Status.Should().Be(HealthStatus.Unhealthy);
         result.Description.Should().Contain("pending migration");
@@ -65,7 +65,7 @@ public sealed class PendingMigrationsHealthCheckTests : IDisposable
         await dbContext.Database.MigrateAsync();
         PendingMigrationsHealthCheck check = new(dbContext);
 
-        HealthCheckResult result = await check.CheckHealthAsync(new HealthCheckContext());
+        HealthCheckResult result = await check.CheckHealthAsync(new());
 
         result.Status.Should().Be(HealthStatus.Healthy);
     }

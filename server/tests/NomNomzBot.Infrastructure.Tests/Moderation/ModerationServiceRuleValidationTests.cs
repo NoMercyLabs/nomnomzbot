@@ -77,7 +77,7 @@ public sealed class ModerationServiceRuleValidationTests
         Result<ModerationRuleDetail> result = await NewService(db)
             .CreateRuleAsync(
                 BroadcasterId,
-                new CreateModerationRuleRequest
+                new()
                 {
                     Name = "spam-timeout",
                     Type = "banned_phrase",
@@ -107,7 +107,7 @@ public sealed class ModerationServiceRuleValidationTests
         Result<ModerationRuleDetail> result = await NewService(db)
             .CreateRuleAsync(
                 BroadcasterId,
-                new CreateModerationRuleRequest
+                new()
                 {
                     Name = "typo-rule",
                     Type = "banned_phrase",
@@ -129,7 +129,7 @@ public sealed class ModerationServiceRuleValidationTests
         Result<ModerationRuleDetail> result = await NewService(db)
             .CreateRuleAsync(
                 BroadcasterId,
-                new CreateModerationRuleRequest
+                new()
                 {
                     Name = "spam-timeout",
                     Type = "banned_phrase",
@@ -153,7 +153,7 @@ public sealed class ModerationServiceRuleValidationTests
         Result<ModerationRuleDetail> result = await NewService(db)
             .CreateRuleAsync(
                 BroadcasterId,
-                new CreateModerationRuleRequest
+                new()
                 {
                     Name = "repeat-offender-ban",
                     Type = "banned_phrase",
@@ -177,7 +177,7 @@ public sealed class ModerationServiceRuleValidationTests
 
         Result<ModerationRuleDetail> created = await service.CreateRuleAsync(
             BroadcasterId,
-            new CreateModerationRuleRequest
+            new()
             {
                 Name = "repeat-offender-ban",
                 Type = "banned_phrase",
@@ -191,7 +191,7 @@ public sealed class ModerationServiceRuleValidationTests
         Result<ModerationRuleDetail> updated = await service.UpdateRuleAsync(
             BroadcasterId,
             created.Value.Id,
-            new UpdateModerationRuleRequest { Action = "timeout" }
+            new() { Action = "timeout" }
         );
 
         updated.IsFailure.Should().BeTrue();
@@ -211,7 +211,7 @@ public sealed class ModerationServiceRuleValidationTests
 
         Result<ModerationRuleDetail> created = await service.CreateRuleAsync(
             BroadcasterId,
-            new CreateModerationRuleRequest
+            new()
             {
                 Name = "spam-timeout",
                 Type = "banned_phrase",
@@ -224,7 +224,7 @@ public sealed class ModerationServiceRuleValidationTests
         Result<ModerationRuleDetail> updated = await service.UpdateRuleAsync(
             BroadcasterId,
             created.Value.Id,
-            new UpdateModerationRuleRequest { DurationSeconds = 0 }
+            new() { DurationSeconds = 0 }
         );
 
         updated.IsFailure.Should().BeTrue();

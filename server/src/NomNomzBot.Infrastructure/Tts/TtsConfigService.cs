@@ -312,7 +312,7 @@ public class TtsConfigService : ITtsConfigService
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        IReadOnlyList<TtsVoiceDto> dtos = pageRows.Select(ToDto).ToList();
+        IReadOnlyList<TtsVoiceDto> dtos = [.. pageRows.Select(ToDto)];
         return Result.Success(new PagedList<TtsVoiceDto>(dtos, page, pageSize, total));
     }
 
@@ -328,15 +328,17 @@ public class TtsConfigService : ITtsConfigService
         IReadOnlyList<TtsVoiceInfo> providerVoices = await _ttsService.GetAvailableVoicesAsync(
             cancellationToken
         );
-        List<TtsVoiceDto> ordered = ApplyInMemoryFilter(providerVoices.Select(ToDto), query)
-            .OrderBy(v => v.Provider)
-            .ThenBy(v => v.Locale)
-            .ThenBy(v => v.Name)
-            .ToList();
-        IReadOnlyList<TtsVoiceDto> pageItems = ordered
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToList();
+        List<TtsVoiceDto> ordered =
+        [
+            .. ApplyInMemoryFilter(providerVoices.Select(ToDto), query)
+                .OrderBy(v => v.Provider)
+                .ThenBy(v => v.Locale)
+                .ThenBy(v => v.Name),
+        ];
+        IReadOnlyList<TtsVoiceDto> pageItems =
+        [
+            .. ordered.Skip((page - 1) * pageSize).Take(pageSize),
+        ];
         return new(pageItems, page, pageSize, ordered.Count);
     }
 
@@ -540,7 +542,7 @@ public class TtsConfigService : ITtsConfigService
         // One query per lookup table, not per row: known Twitch users (only created per-row when the caller
         // opted into createMissing), the voice ids the channel can actually synthesize, and the viewer
         // assignments that already exist.
-        List<string> userIds = rows.Select(r => r.TwitchUserId).Distinct().ToList();
+        List<string> userIds = [.. rows.Select(r => r.TwitchUserId).Distinct()];
         HashSet<string> knownUsers = (
             await _db
                 .UserIdentities.Where(i =>
@@ -551,7 +553,7 @@ public class TtsConfigService : ITtsConfigService
                 .ToListAsync(cancellationToken)
         ).ToHashSet(StringComparer.Ordinal);
 
-        List<string> voiceIds = rows.Select(r => r.VoiceId).Distinct().ToList();
+        List<string> voiceIds = [.. rows.Select(r => r.VoiceId).Distinct()];
         HashSet<string> knownVoices = (
             await _db
                 .TtsVoices.Where(v => voiceIds.Contains(v.Id))

@@ -183,9 +183,7 @@ public sealed class QuoteServiceTests
             }
         }
 
-        numbers
-            .Should()
-            .Equal(new[] { 1, 2, 3 }, "numbers are per-channel monotonic starting at 1 (D1)");
+        numbers.Should().Equal([1, 2, 3], "numbers are per-channel monotonic starting at 1 (D1)");
     }
 
     [Fact]

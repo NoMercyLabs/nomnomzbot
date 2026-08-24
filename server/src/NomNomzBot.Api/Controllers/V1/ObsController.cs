@@ -116,8 +116,7 @@ public class ObsController(
     private IActionResult ObsReadResponse<T>(Result<T> result, T disconnectedFallback)
     {
         if (
-            result.IsFailure
-            && result.ErrorCode is not null
+            result is { IsFailure: true, ErrorCode: not null }
             && ObsUnavailableCodes.Contains(result.ErrorCode)
         )
             return Ok(new StatusResponseDto<T> { Data = disconnectedFallback });

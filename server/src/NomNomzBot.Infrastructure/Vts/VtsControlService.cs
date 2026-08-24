@@ -44,7 +44,7 @@ public class VtsControlService : IVtsControlService
             payloadJson,
             ct
         );
-        if (response.IsFailure && response.ErrorCode == "VTS_ERROR")
+        if (response is { IsFailure: true, ErrorCode: "VTS_ERROR" })
             return Result.Success(new VtsRequestResult(false, null, response.ErrorMessage));
         if (response.IsFailure)
             return Result.Failure<VtsRequestResult>(response.ErrorMessage!, response.ErrorCode!);

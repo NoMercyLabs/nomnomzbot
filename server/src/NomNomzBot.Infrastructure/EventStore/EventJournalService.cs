@@ -117,7 +117,7 @@ public sealed class EventJournalService : IEventJournal
         // rows are loaded (not just their ids) so a duplicate returns the already-stored record — the journal's
         // idempotency contract — without re-reading per row.
         Dictionary<Guid, EventJournal> stored = await LoadStoredByEventIdAsync(
-            requests.Select(r => r.EventId).Distinct().ToList(),
+            [.. requests.Select(r => r.EventId).Distinct()],
             cancellationToken
         );
 
@@ -347,7 +347,7 @@ public sealed class EventJournalService : IEventJournal
             .OrderBy(e => e.StreamPosition)
             .Take(limit)
             .ToListAsync(cancellationToken);
-        return Result.Success<IReadOnlyList<EventRecord>>(rows.Select(Map).ToList());
+        return Result.Success<IReadOnlyList<EventRecord>>([.. rows.Select(Map)]);
     }
 
     public async Task<Result<IReadOnlyList<EventRecord>>> ReadAllAsync(
@@ -362,7 +362,7 @@ public sealed class EventJournalService : IEventJournal
             .OrderBy(e => e.Id)
             .Take(limit)
             .ToListAsync(cancellationToken);
-        return Result.Success<IReadOnlyList<EventRecord>>(rows.Select(Map).ToList());
+        return Result.Success<IReadOnlyList<EventRecord>>([.. rows.Select(Map)]);
     }
 
     public async Task<Result<EventRecord>> GetByEventIdAsync(
@@ -386,9 +386,9 @@ public sealed class EventJournalService : IEventJournal
 
         // Chunk the IN-list so a very large candidate set never blows the provider's parameter limit; each chunk is
         // one indexed query on EventId. The union is the set of ids already journaled.
-        HashSet<Guid> existing = new();
+        HashSet<Guid> existing = [];
         const int chunkSize = 1000;
-        Guid[] candidates = candidateEventIds.ToArray();
+        Guid[] candidates = [.. candidateEventIds];
         for (int offset = 0; offset < candidates.Length; offset += chunkSize)
         {
             Guid[] chunk = candidates[offset..Math.Min(offset + chunkSize, candidates.Length)];
@@ -441,7 +441,7 @@ public sealed class EventJournalService : IEventJournal
             .ToListAsync(cancellationToken);
 
         return Result.Success(
-            new PagedList<EventRecord>(page.Select(Map).ToList(), query.Page, query.PageSize, total)
+            new PagedList<EventRecord>([.. page.Select(Map)], query.Page, query.PageSize, total)
         );
     }
 

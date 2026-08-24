@@ -404,9 +404,10 @@ public class WidgetService : IWidgetService
             .Take(pagination.PageSize)
             .ToListAsync(cancellationToken);
 
-        List<WidgetDetail> items = widgets
-            .Select(w => ToDetail(w, w.Channel.OverlayToken, _overlayBaseUrl))
-            .ToList();
+        List<WidgetDetail> items =
+        [
+            .. widgets.Select(w => ToDetail(w, w.Channel.OverlayToken, _overlayBaseUrl)),
+        ];
 
         return Result.Success(
             new PagedList<WidgetDetail>(items, pagination.Page, pagination.PageSize, total)
@@ -762,7 +763,7 @@ public class WidgetService : IWidgetService
             .Take(pagination.PageSize)
             .ToListAsync(cancellationToken);
 
-        List<WidgetVersionSummary> items = versions.Select(ToVersionSummary).ToList();
+        List<WidgetVersionSummary> items = [.. versions.Select(ToVersionSummary)];
         return Result.Success(
             new PagedList<WidgetVersionSummary>(items, pagination.Page, pagination.PageSize, total)
         );
@@ -908,7 +909,7 @@ public class WidgetService : IWidgetService
             .OrderBy(w => w.Name)
             .ToListAsync(cancellationToken);
 
-        List<Guid> activeVersionIds = widgets.Select(w => w.ActiveVersionId!.Value).ToList();
+        List<Guid> activeVersionIds = [.. widgets.Select(w => w.ActiveVersionId!.Value)];
         Dictionary<Guid, WidgetVersion> versions = await _db
             .WidgetVersions.IgnoreQueryFilters()
             .Where(v => activeVersionIds.Contains(v.Id))

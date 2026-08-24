@@ -79,10 +79,9 @@ internal sealed class ClientWebSocketFrameSource : ISocketFrameSource
         // in flight, which is exactly this shape.
         using CancellationTokenSource keepaliveCts =
             CancellationTokenSource.CreateLinkedTokenSource(ct);
-        Task keepalive =
-            raw.KeepaliveInterval is { } interval && raw.KeepalivePayload is { } payload
-                ? SendKeepalivesAsync(socket, interval, payload, keepaliveCts.Token)
-                : Task.CompletedTask;
+        Task keepalive = raw is { KeepaliveInterval: { } interval, KeepalivePayload: { } payload }
+            ? SendKeepalivesAsync(socket, interval, payload, keepaliveCts.Token)
+            : Task.CompletedTask;
 
         try
         {

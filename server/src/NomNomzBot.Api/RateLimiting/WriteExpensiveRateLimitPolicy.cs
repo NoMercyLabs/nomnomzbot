@@ -9,7 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using System.Threading.RateLimiting;
-using Microsoft.AspNetCore.Http;
 
 namespace NomNomzBot.Api.RateLimiting;
 
@@ -28,12 +27,13 @@ public static class WriteExpensiveRateLimitPolicy
     public static RateLimitPartition<string> Partition(HttpContext context) =>
         RateLimitPartition.GetSlidingWindowLimiter(
             $"{PolicyName}:{RateLimitPartitionKeys.ChannelOrCaller(context)}",
-            _ => new SlidingWindowRateLimiterOptions
-            {
-                PermitLimit = PermitLimit,
-                Window = Window,
-                SegmentsPerWindow = 4,
-                QueueLimit = 0,
-            }
+            _ =>
+                new()
+                {
+                    PermitLimit = PermitLimit,
+                    Window = Window,
+                    SegmentsPerWindow = 4,
+                    QueueLimit = 0,
+                }
         );
 }

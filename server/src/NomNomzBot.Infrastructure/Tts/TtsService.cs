@@ -106,7 +106,7 @@ public sealed class TtsService : ITtsService
         CancellationToken ct = default
     )
     {
-        List<TtsVoiceInfo> allVoices = new();
+        List<TtsVoiceInfo> allVoices = [];
 
         foreach (ITtsProvider provider in _providers)
         {

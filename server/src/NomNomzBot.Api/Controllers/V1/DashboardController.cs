@@ -141,16 +141,17 @@ public class DashboardController : BaseController
             c => c.BroadcasterId == tenantId && c.ActivityDate == today,
             ct
         );
-        List<(long? Amount, string? Currency)> supporterToday = (
-            await _db
-                .SupporterEvents.Where(e =>
-                    e.BroadcasterId == tenantId && e.ReceivedAt >= todayStart
-                )
-                .Select(e => new { e.AmountMinor, e.Currency })
-                .ToListAsync(ct)
-        )
-            .Select(e => (e.AmountMinor, e.Currency))
-            .ToList();
+        List<(long? Amount, string? Currency)> supporterToday =
+        [
+            .. (
+                await _db
+                    .SupporterEvents.Where(e =>
+                        e.BroadcasterId == tenantId && e.ReceivedAt >= todayStart
+                    )
+                    .Select(e => new { e.AmountMinor, e.Currency })
+                    .ToListAsync(ct)
+            ).Select(e => (e.AmountMinor, e.Currency)),
+        ];
         int supporterEventsToday = supporterToday.Count;
         (long? supporterAmountToday, string? supporterCurrency) = AggregateSupporterAmounts(
             supporterToday
@@ -162,10 +163,9 @@ public class DashboardController : BaseController
 
         if (ctx is not null)
         {
-            long? uptime =
-                ctx.IsLive && ctx.WentLiveAt.HasValue
-                    ? (long)(_timeProvider.GetUtcNow() - ctx.WentLiveAt.Value).TotalSeconds
-                    : null;
+            long? uptime = ctx is { IsLive: true, WentLiveAt: not null }
+                ? (long)(_timeProvider.GetUtcNow() - ctx.WentLiveAt.Value).TotalSeconds
+                : null;
 
             // Live viewer count is kept fresh in the registry by StreamStatusPollingService — populated at startup
             // and refreshed every couple of minutes — so no per-request Helix call is needed here (0 when offline).
@@ -255,18 +255,18 @@ public class DashboardController : BaseController
                 break;
         }
 
-        List<Guid> userIds = events
-            .Where(e => e.UserId is not null)
-            .Select(e => e.UserId!.Value)
-            .Distinct()
-            .ToList();
+        List<Guid> userIds =
+        [
+            .. events.Where(e => e.UserId is not null).Select(e => e.UserId!.Value).Distinct(),
+        ];
 
         Dictionary<Guid, User> users = await _db
             .Users.Where(u => userIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id, ct);
 
-        List<ActivityEventDto> result = events
-            .Select(e =>
+        List<ActivityEventDto> result =
+        [
+            .. events.Select(e =>
             {
                 string? username = null;
                 if (e.UserId is not null && users.TryGetValue(e.UserId.Value, out User? user))
@@ -296,8 +296,8 @@ public class DashboardController : BaseController
                     e.Data,
                     e.CreatedAt
                 );
-            })
-            .ToList();
+            }),
+        ];
 
         return Ok(new StatusResponseDto<List<ActivityEventDto>> { Data = result });
     }

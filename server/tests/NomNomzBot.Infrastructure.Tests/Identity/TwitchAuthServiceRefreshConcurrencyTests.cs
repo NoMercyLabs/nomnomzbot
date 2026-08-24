@@ -179,7 +179,7 @@ public sealed class TwitchAuthServiceRefreshConcurrencyTests
         if (existing is null)
         {
             Result<IntegrationConnectionDto> upsert = await vault.UpsertConnectionAsync(
-                new UpsertConnectionDto(
+                new(
                     BroadcasterId: broadcasterId,
                     Provider: AuthEnums.IntegrationProvider.Twitch,
                     ProviderAccountId: $"twitch-{broadcasterId}",
@@ -193,12 +193,7 @@ public sealed class TwitchAuthServiceRefreshConcurrencyTests
             );
             await vault.StoreTokensAsync(
                 upsert.Value.Id,
-                new StoreTokensDto(
-                    "old-access",
-                    "old-refresh",
-                    null,
-                    DateTime.UtcNow.AddMinutes(-1)
-                ),
+                new("old-access", "old-refresh", null, DateTime.UtcNow.AddMinutes(-1)),
                 grantedScopes: null
             );
         }

@@ -181,13 +181,14 @@ public sealed class ChannelAnalyticsService(IApplicationDbContext db, TimeProvid
             .OrderByDescending(s => s.StartedAt);
 
         int total = await query.CountAsync(ct);
-        List<StreamListItemDto> items = (
-            await query
-                .Skip((pagination.Page - 1) * pagination.PageSize)
-                .Take(pagination.PageSize)
-                .ToListAsync(ct)
-        )
-            .Select(s => new StreamListItemDto(
+        List<StreamListItemDto> items =
+        [
+            .. (
+                await query
+                    .Skip((pagination.Page - 1) * pagination.PageSize)
+                    .Take(pagination.PageSize)
+                    .ToListAsync(ct)
+            ).Select(s => new StreamListItemDto(
                 s.Id,
                 s.Title,
                 s.GameName,
@@ -195,8 +196,8 @@ public sealed class ChannelAnalyticsService(IApplicationDbContext db, TimeProvid
                 s.EndedAt,
                 DurationSeconds(s),
                 s.PeakViewers
-            ))
-            .ToList();
+            )),
+        ];
 
         return Result.Success(
             new PagedList<StreamListItemDto>(items, pagination.Page, pagination.PageSize, total)
@@ -278,7 +279,7 @@ public sealed class ChannelAnalyticsService(IApplicationDbContext db, TimeProvid
 
     /// <summary>Whole seconds from start to end — null while the stream is live or never stamped.</summary>
     private static long? DurationSeconds(Domain.Stream.Entities.Stream s) =>
-        s.StartedAt is { } started && s.EndedAt is { } ended
+        s is { StartedAt: { } started, EndedAt: { } ended }
             ? (long)(ended - started).TotalSeconds
             : null;
 

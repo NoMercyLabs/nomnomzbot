@@ -96,7 +96,7 @@ public sealed class CurrencyBalanceProjectionConcurrencyTests : IDisposable
                 BalanceAfter = balanceAfter,
             }
         );
-        return new EventRecord(
+        return new(
             Id: position,
             EventId: Guid.NewGuid(),
             BroadcasterId: Channel,
@@ -113,8 +113,8 @@ public sealed class CurrencyBalanceProjectionConcurrencyTests : IDisposable
             ActorExternalUserId: null,
             ActorProvider: null,
             MetadataJson: "{}",
-            OccurredAt: new DateTime(2026, 8, 23, 0, 0, 0, DateTimeKind.Utc),
-            RecordedAt: new DateTime(2026, 8, 23, 0, 0, 0, DateTimeKind.Utc)
+            OccurredAt: new(2026, 8, 23, 0, 0, 0, DateTimeKind.Utc),
+            RecordedAt: new(2026, 8, 23, 0, 0, 0, DateTimeKind.Utc)
         );
     }
 
@@ -124,7 +124,7 @@ public sealed class CurrencyBalanceProjectionConcurrencyTests : IDisposable
         await schema.Database.EnsureCreatedAsync();
         await schema.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;");
         schema.CurrencyAccounts.Add(
-            new CurrencyAccount
+            new()
             {
                 Id = Account,
                 BroadcasterId = Channel,
@@ -156,20 +156,22 @@ public sealed class CurrencyBalanceProjectionConcurrencyTests : IDisposable
         // Each event carries its own absolute BalanceAfter as the real service layer would (running totals
         // don't need to be mutually consistent across these concurrent tasks for THIS assertion — only the
         // LifetimeEarned accumulation, which is a pure per-event delta, is under test).
-        Task[] tasks = Enumerable
-            .Range(0, concurrency)
-            .Select(i =>
-                Task.Run(async () =>
-                {
-                    await using EventStoreTestDbContext db = NewContext();
-                    CurrencyBalanceProjection sut = new(db);
-                    Result apply = await sut.ApplyAsync(
-                        CreditEvent(i + 1, creditAmount, creditAmount * (i + 1))
-                    );
-                    apply.IsSuccess.Should().BeTrue();
-                })
-            )
-            .ToArray();
+        Task[] tasks =
+        [
+            .. Enumerable
+                .Range(0, concurrency)
+                .Select(i =>
+                    Task.Run(async () =>
+                    {
+                        await using EventStoreTestDbContext db = NewContext();
+                        CurrencyBalanceProjection sut = new(db);
+                        Result apply = await sut.ApplyAsync(
+                            CreditEvent(i + 1, creditAmount, creditAmount * (i + 1))
+                        );
+                        apply.IsSuccess.Should().BeTrue();
+                    })
+                ),
+        ];
 
         await Task.WhenAll(tasks);
 

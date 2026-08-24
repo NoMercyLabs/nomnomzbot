@@ -40,10 +40,10 @@ public sealed class WidgetAlertRoutingTests
             Widget("c", enabled: false, "subscription"), // disabled
         ];
 
-        List<string> selected = WidgetAlertRouting
-            .Subscribers(widgets, "subscription")
-            .Select(w => w.Name)
-            .ToList();
+        List<string> selected =
+        [
+            .. WidgetAlertRouting.Subscribers(widgets, "subscription").Select(w => w.Name),
+        ];
 
         selected.Should().Equal("a");
     }

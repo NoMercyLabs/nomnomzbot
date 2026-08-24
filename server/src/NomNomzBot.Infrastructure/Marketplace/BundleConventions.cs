@@ -89,10 +89,12 @@ internal static class BundleConventions
     /// <summary>Filesystem/ZIP-safe slug of an item name: lowercase, <c>[a-z0-9-_]</c> only.</summary>
     public static string Slug(string name)
     {
-        char[] safe = name.Trim()
-            .ToLowerInvariant()
-            .Select(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_' ? c : '-')
-            .ToArray();
+        char[] safe =
+        [
+            .. name.Trim()
+                .ToLowerInvariant()
+                .Select(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_' ? c : '-'),
+        ];
         string slug = new(safe);
         return slug.Length == 0 ? "item" : slug;
     }

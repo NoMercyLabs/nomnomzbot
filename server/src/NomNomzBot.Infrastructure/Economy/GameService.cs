@@ -99,8 +99,8 @@ public sealed class GameService(
     }
 
     private static List<GameConfig> SeedDefaultGames(Guid broadcasterId) =>
-        DefaultGames
-            .Select(g => new GameConfig
+        [
+            .. DefaultGames.Select(g => new GameConfig
             {
                 BroadcasterId = broadcasterId,
                 GameType = g.GameType,
@@ -114,8 +114,8 @@ public sealed class GameService(
                 CooldownSeconds =
                     g.Category == GameCategory.Gambling ? GamblingCooldownFloorSeconds : 0,
                 Permission = "Everyone",
-            })
-            .ToList();
+            }),
+        ];
 
     public async Task<Result<GameConfigDto>> UpsertGameAsync(
         Guid broadcasterId,
@@ -130,7 +130,7 @@ public sealed class GameService(
                 "Category must be minigame or gambling.",
                 "VALIDATION_FAILED"
             );
-        if (request.MinBet is { } min && request.MaxBet is { } max && min > max)
+        if (request is { MinBet: { } min, MaxBet: { } max } && min > max)
             return Result.Failure<GameConfigDto>(
                 "MinBet cannot exceed MaxBet.",
                 "VALIDATION_FAILED"

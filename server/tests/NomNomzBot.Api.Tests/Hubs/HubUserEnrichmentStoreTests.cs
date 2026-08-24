@@ -81,7 +81,7 @@ public sealed class HubUserEnrichmentStoreTests
         HubUserEnrichment? result = await store.LoadAsync(broadcasterId, "u1");
 
         result.Should().NotBeNull();
-        result!.DisplayName.Should().Be("Stoney");
+        result.DisplayName.Should().Be("Stoney");
         result.AvatarUrl.Should().Be("https://cdn/avatar.png");
         result
             .Pronouns.Should()
@@ -110,7 +110,7 @@ public sealed class HubUserEnrichmentStoreTests
         HubUserEnrichment? result = await store.LoadAsync(Guid.CreateVersion7(), "u2");
 
         result.Should().NotBeNull();
-        result!
+        result
             .CommunityStanding.Should()
             .BeNull("no ChannelCommunityStanding row exists for this pair");
         result.Pronouns.Should().BeNull("the viewer has no primary pronoun resolved yet");

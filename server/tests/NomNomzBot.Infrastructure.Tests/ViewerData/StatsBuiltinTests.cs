@@ -284,22 +284,24 @@ public sealed class StatsBuiltinTests
 
         Result<string> reply = await Sut().ExecuteAsync(ctx);
 
-        HashSet<string> expected = ToneTemplateCatalog
-            .Get(
-                PersonalityTone.Sassy,
-                BuiltinResponseSlots.Stats.Key,
-                BuiltinResponseSlots.Stats.Profile
-            )
-            .Select(t =>
-                t.Replace("{stats.user}", "Alice")
-                    .Replace("{stats.messages}", "42")
-                    .Replace("{stats.watchtime}", "2h 1m")
-                    .Replace("{stats.points}", "500")
-                    .Replace("{stats.rank}", "3")
-                    .Replace("{stats.streak}", "3")
-                    .Replace("{stats.firstseen}", "2026-01-05")
-            )
-            .ToHashSet();
+        HashSet<string> expected =
+        [
+            .. ToneTemplateCatalog
+                .Get(
+                    PersonalityTone.Sassy,
+                    BuiltinResponseSlots.Stats.Key,
+                    BuiltinResponseSlots.Stats.Profile
+                )
+                .Select(t =>
+                    t.Replace("{stats.user}", "Alice")
+                        .Replace("{stats.messages}", "42")
+                        .Replace("{stats.watchtime}", "2h 1m")
+                        .Replace("{stats.points}", "500")
+                        .Replace("{stats.rank}", "3")
+                        .Replace("{stats.streak}", "3")
+                        .Replace("{stats.firstseen}", "2026-01-05")
+                ),
+        ];
 
         expected.Should().Contain(reply.Value);
         // The neutral composed line uses " · " separators — a tone template must not be that line.

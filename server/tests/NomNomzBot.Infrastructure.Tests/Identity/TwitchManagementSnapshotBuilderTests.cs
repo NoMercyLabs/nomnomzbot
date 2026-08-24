@@ -101,23 +101,20 @@ public sealed class TwitchManagementSnapshotBuilderTests
 
         snapshot
             .Members.Should()
-            .BeEquivalentTo(
-                new[]
-                {
-                    new TwitchManagementMember(
-                        ModGuid,
-                        "tw-mod",
-                        ManagementRole.Moderator,
-                        MembershipSource.TwitchBadge
-                    ),
-                    new TwitchManagementMember(
-                        EditorGuid,
-                        "tw-editor",
-                        ManagementRole.Editor,
-                        MembershipSource.HelixEditors
-                    ),
-                }
-            );
+            .BeEquivalentTo([
+                new TwitchManagementMember(
+                    ModGuid,
+                    "tw-mod",
+                    ManagementRole.Moderator,
+                    MembershipSource.TwitchBadge
+                ),
+                new TwitchManagementMember(
+                    EditorGuid,
+                    "tw-editor",
+                    ManagementRole.Editor,
+                    MembershipSource.HelixEditors
+                ),
+            ]);
         snapshot
             .AuthoritativeSources.Should()
             .BeEquivalentTo([MembershipSource.TwitchBadge, MembershipSource.HelixEditors]);

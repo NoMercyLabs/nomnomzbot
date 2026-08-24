@@ -15,7 +15,6 @@ using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Services;
-using NomNomzBot.Domain.Platform.Entities;
 
 namespace NomNomzBot.Infrastructure.Moderation;
 
@@ -93,7 +92,7 @@ public sealed class OperatorMessageDeleter : IOperatorMessageDeleter
         // enforce-then-record discipline ModerationService's ban/timeout/warn follow, so a rejected delete never
         // shows up as if it had happened.
         _db.Records.Add(
-            new Record
+            new()
             {
                 BroadcasterId = broadcasterId,
                 RecordType = AuditRecordType,

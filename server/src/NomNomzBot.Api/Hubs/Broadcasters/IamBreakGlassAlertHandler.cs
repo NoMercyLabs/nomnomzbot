@@ -30,7 +30,7 @@ public sealed class IamBreakGlassAlertHandler(IHubContext<AdminHub, IAdminClient
     {
         bool breakGlassWorthy =
             @event.Outcome == IamOutcome.Denied
-            || (@event.Outcome == IamOutcome.Allowed && @event.BreakGlass);
+            || @event is { Outcome: IamOutcome.Allowed, BreakGlass: true };
         if (!breakGlassWorthy)
             return Task.CompletedTask;
 

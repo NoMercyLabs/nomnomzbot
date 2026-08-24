@@ -95,9 +95,7 @@ public sealed class WidgetGalleryInstallConcurrencyTests : IDisposable
         IWidgetBuildService buildService = Substitute.For<IWidgetBuildService>();
         buildService
             .BuildAsync(Arg.Any<WidgetBuildInput>(), Arg.Any<CancellationToken>())
-            .Returns(
-                Result.Success(new WidgetBuildOutput("compiled-bundle", new string('a', 64), "ok"))
-            );
+            .Returns(Result.Success(new WidgetBuildOutput("compiled-bundle", new('a', 64), "ok")));
         IWidgetSettingsSchemaProvider settingsSchemas =
             Substitute.For<IWidgetSettingsSchemaProvider>();
         IMusicService musicService = Substitute.For<IMusicService>();
@@ -161,20 +159,22 @@ public sealed class WidgetGalleryInstallConcurrencyTests : IDisposable
             await seed.SaveChangesAsync();
         }
 
-        Task<Result<WidgetDetail>>[] tasks = Enumerable
-            .Range(0, concurrency)
-            .Select(i =>
-                Task.Run(async () =>
-                {
-                    await using WidgetTestDbContext db = NewContext();
-                    WidgetService sut = NewWidgetService(db);
-                    return await sut.InstallFromGalleryAsync(
-                        channelIds[i].ToString(),
-                        galleryItemId.ToString()
-                    );
-                })
-            )
-            .ToArray();
+        Task<Result<WidgetDetail>>[] tasks =
+        [
+            .. Enumerable
+                .Range(0, concurrency)
+                .Select(i =>
+                    Task.Run(async () =>
+                    {
+                        await using WidgetTestDbContext db = NewContext();
+                        WidgetService sut = NewWidgetService(db);
+                        return await sut.InstallFromGalleryAsync(
+                            channelIds[i].ToString(),
+                            galleryItemId.ToString()
+                        );
+                    })
+                ),
+        ];
 
         Result<WidgetDetail>[] results = await Task.WhenAll(tasks);
 

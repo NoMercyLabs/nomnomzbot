@@ -68,7 +68,7 @@ public sealed class MdnsServiceProfileFactoryTests
     {
         ServiceProfile profile = MdnsServiceProfileFactory.Build(InstanceId, "Stoney's Bot", 5080);
 
-        string[] txt = profile.Resources.OfType<TXTRecord>().SelectMany(r => r.Strings).ToArray();
+        string[] txt = [.. profile.Resources.OfType<TXTRecord>().SelectMany(r => r.Strings)];
 
         txt.Should().Contain($"instance={InstanceId}");
         txt.Should().Contain("scheme=http");

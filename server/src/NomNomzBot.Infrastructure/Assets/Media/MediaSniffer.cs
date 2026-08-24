@@ -25,10 +25,10 @@ internal static class MediaSniffer
 
     private static readonly byte[] PngMagic = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
     private static readonly byte[] JpegMagic = [0xFF, 0xD8, 0xFF];
-    private static readonly byte[] Gif87Magic = "GIF87a"u8.ToArray();
-    private static readonly byte[] Gif89Magic = "GIF89a"u8.ToArray();
-    private static readonly byte[] RiffMagic = "RIFF"u8.ToArray();
-    private static readonly byte[] WebpTag = "WEBP"u8.ToArray();
+    private static readonly byte[] Gif87Magic = [.. "GIF87a"u8];
+    private static readonly byte[] Gif89Magic = [.. "GIF89a"u8];
+    private static readonly byte[] RiffMagic = [.. "RIFF"u8];
+    private static readonly byte[] WebpTag = [.. "WEBP"u8];
 
     /// <summary>The sniffed MIME type, or null when the content matches no allowlisted format.</summary>
     public static string? Sniff(byte[] sample, int length)

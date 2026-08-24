@@ -54,7 +54,7 @@ public sealed class DashboardAccessibilityTests
             {
                 // Force the engine to compute the accessibility tree — the trigger that makes a
                 // canvas-based UI publish its semantics. Without it Chromium builds the AX tree lazily.
-                Args = new[] { "--force-renderer-accessibility" },
+                Args = ["--force-renderer-accessibility"],
             }
         );
         IPage page = await browser.NewPageAsync();

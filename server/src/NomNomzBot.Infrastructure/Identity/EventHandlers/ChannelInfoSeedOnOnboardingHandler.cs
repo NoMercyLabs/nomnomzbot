@@ -91,8 +91,8 @@ public sealed class ChannelInfoSeedOnOnboardingHandler(
 
             if (info.Tags.Count > 0)
             {
-                List<string> incoming = info.Tags.OrderBy(t => t).ToList();
-                List<string> existing = channel.Tags.OrderBy(t => t).ToList();
+                List<string> incoming = [.. info.Tags.OrderBy(t => t)];
+                List<string> existing = [.. channel.Tags.OrderBy(t => t)];
                 if (!incoming.SequenceEqual(existing))
                 {
                     channel.Tags = [.. info.Tags];
@@ -102,10 +102,8 @@ public sealed class ChannelInfoSeedOnOnboardingHandler(
 
             if (info.ContentClassificationLabels.Count > 0)
             {
-                List<string> incomingLabels = info
-                    .ContentClassificationLabels.OrderBy(l => l)
-                    .ToList();
-                List<string> existingLabels = channel.ContentLabels.OrderBy(l => l).ToList();
+                List<string> incomingLabels = [.. info.ContentClassificationLabels.OrderBy(l => l)];
+                List<string> existingLabels = [.. channel.ContentLabels.OrderBy(l => l)];
                 if (!incomingLabels.SequenceEqual(existingLabels))
                 {
                     channel.ContentLabels = [.. info.ContentClassificationLabels];

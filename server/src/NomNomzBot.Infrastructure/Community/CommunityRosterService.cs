@@ -92,10 +92,10 @@ public sealed class CommunityRosterService(
             return Result.Success(0);
 
         // mod/VIP .UserId are Twitch user string ids; the moderator FK target is the internal User.Id Guid.
-        List<string> allTwitchUserIds = mods.Select(m => m.UserId)
-            .Concat(vips.Select(v => v.UserId))
-            .Distinct()
-            .ToList();
+        List<string> allTwitchUserIds =
+        [
+            .. mods.Select(m => m.UserId).Concat(vips.Select(v => v.UserId)).Distinct(),
+        ];
 
         List<string> existingTwitchUserIds = await db
             .Users.Where(u => allTwitchUserIds.Contains(u.TwitchUserId!))

@@ -28,7 +28,7 @@ public sealed class BuiltinCommandCatalog : IBuiltinCommandCatalog
         _commands = map;
     }
 
-    public IReadOnlyCollection<IBuiltinCommand> GetAll() => _commands.Values.ToList();
+    public IReadOnlyCollection<IBuiltinCommand> GetAll() => [.. _commands.Values];
 
     public IBuiltinCommand? Get(string builtinKey) =>
         _commands.TryGetValue(builtinKey, out IBuiltinCommand? cmd) ? cmd : null;

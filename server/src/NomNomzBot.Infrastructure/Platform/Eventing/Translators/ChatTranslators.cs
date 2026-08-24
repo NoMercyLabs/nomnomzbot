@@ -30,7 +30,7 @@ internal static class ChatPayload
     /// <summary>Builds the structured fragment list from a <c>message.fragments</c> array (empty when absent).</summary>
     public static IReadOnlyList<ChatMessageFragment> ReadFragments(JsonElement? messageObject)
     {
-        List<ChatMessageFragment> fragments = new();
+        List<ChatMessageFragment> fragments = [];
         if (
             messageObject is not { } message
             || !message.TryGetProperty("fragments", out JsonElement array)
@@ -83,7 +83,7 @@ internal static class ChatPayload
             return [];
         }
 
-        List<string> values = new();
+        List<string> values = [];
         foreach (JsonElement item in array.EnumerateArray())
         {
             if (item.ValueKind == JsonValueKind.String)
@@ -92,13 +92,13 @@ internal static class ChatPayload
             }
         }
 
-        return values.ToArray();
+        return [.. values];
     }
 
     /// <summary>Builds the badge list from a <c>badges</c> array (empty when absent).</summary>
     public static IReadOnlyList<ChatBadge> ReadBadges(JsonElement payload)
     {
-        List<ChatBadge> badges = new();
+        List<ChatBadge> badges = [];
         if (
             !payload.TryGetProperty("badges", out JsonElement array)
             || array.ValueKind != JsonValueKind.Array

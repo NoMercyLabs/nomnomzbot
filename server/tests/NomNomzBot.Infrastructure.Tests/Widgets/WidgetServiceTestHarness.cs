@@ -86,22 +86,24 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
     /// interface's <c>DbSet&lt;T&gt;</c> members so it never silently drifts when the contract grows — only
     /// <see cref="Widget"/>, <see cref="WidgetVersion"/>, and <see cref="Channel"/> are mapped.
     /// </summary>
-    private static readonly IReadOnlyList<Type> UnmappedEntities = typeof(IApplicationDbContext)
-        .GetProperties()
-        .Where(p =>
-            p.PropertyType.IsGenericType
-            && p.PropertyType.GetGenericTypeDefinition() == typeof(DbSet<>)
-        )
-        .Select(p => p.PropertyType.GetGenericArguments()[0])
-        .Where(t =>
-            t != typeof(Widget)
-            && t != typeof(WidgetVersion)
-            && t != typeof(Channel)
-            && t != typeof(User)
-            && t != typeof(WidgetGalleryItem)
-            && t != typeof(WidgetGallerySubmissionEvent)
-        )
-        .ToList();
+    private static readonly IReadOnlyList<Type> UnmappedEntities =
+    [
+        .. typeof(IApplicationDbContext)
+            .GetProperties()
+            .Where(p =>
+                p.PropertyType.IsGenericType
+                && p.PropertyType.GetGenericTypeDefinition() == typeof(DbSet<>)
+            )
+            .Select(p => p.PropertyType.GetGenericArguments()[0])
+            .Where(t =>
+                t != typeof(Widget)
+                && t != typeof(WidgetVersion)
+                && t != typeof(Channel)
+                && t != typeof(User)
+                && t != typeof(WidgetGalleryItem)
+                && t != typeof(WidgetGallerySubmissionEvent)
+            ),
+    ];
 
     // ── Mapped widget slice ──
     public DbSet<Widget> Widgets => Set<Widget>();

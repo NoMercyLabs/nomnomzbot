@@ -83,7 +83,7 @@ public class RenderManifestServiceTests
                 "Viewers request songs",
                 IsEnabled: true,
                 DateTime.UnixEpoch,
-                new[] { "channel:read:redemptions" }
+                ["channel:read:redemptions"]
             ),
         ];
 

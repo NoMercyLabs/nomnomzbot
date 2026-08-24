@@ -50,7 +50,7 @@ public sealed class TwitchDeviceCodeServiceTests
 
         // The parsed code carries exactly what the operator/app need to drive the flow.
         result.Should().NotBeNull();
-        result!.DeviceCode.Should().Be("DEV-ABC-123");
+        result.DeviceCode.Should().Be("DEV-ABC-123");
         result.UserCode.Should().Be("WXYZ-7890");
         result.VerificationUri.Should().Be("https://www.twitch.tv/activate");
         result.Interval.Should().Be(5);

@@ -92,15 +92,23 @@ public class PipelinesController : BaseController
     [ProducesResponseType<StatusResponseDto<PipelineCatalogueDto>>(StatusCodes.Status200OK)]
     public IActionResult ListActionCatalogue(string channelId)
     {
-        List<PipelineActionDescriptorDto> actions = _actions
-            .Select(a => new PipelineActionDescriptorDto(a.ActionType, a.Category, a.Description))
-            .OrderBy(a => a.Category, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(a => a.Type, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-        List<PipelineConditionDescriptorDto> conditions = _conditions
-            .Select(c => new PipelineConditionDescriptorDto(c.ConditionType))
-            .OrderBy(c => c.Type, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        List<PipelineActionDescriptorDto> actions =
+        [
+            .. _actions
+                .Select(a => new PipelineActionDescriptorDto(
+                    a.ActionType,
+                    a.Category,
+                    a.Description
+                ))
+                .OrderBy(a => a.Category, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(a => a.Type, StringComparer.OrdinalIgnoreCase),
+        ];
+        List<PipelineConditionDescriptorDto> conditions =
+        [
+            .. _conditions
+                .Select(c => new PipelineConditionDescriptorDto(c.ConditionType))
+                .OrderBy(c => c.Type, StringComparer.OrdinalIgnoreCase),
+        ];
         return Ok(new StatusResponseDto<PipelineCatalogueDto> { Data = new(actions, conditions) });
     }
 

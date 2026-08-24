@@ -70,7 +70,7 @@ public sealed class PlatformIamAuthorizationHandler(
             breakGlass: false,
             justification: null
         );
-        if (allowed.IsSuccess && allowed.Value)
+        if (allowed is { IsSuccess: true, Value: true })
             context.Succeed(requirement);
     }
 }

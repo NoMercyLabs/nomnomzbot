@@ -61,7 +61,7 @@ public sealed class UlidGuidJsonConverterTests
         IdCarrier? back = JsonSerializer.Deserialize<IdCarrier>(json, options);
 
         back.Should().NotBeNull();
-        back!.Id.Should().Be(KnownId);
+        back.Id.Should().Be(KnownId);
         back.OptionalId.Should().Be(KnownId);
     }
 
@@ -73,7 +73,7 @@ public sealed class UlidGuidJsonConverterTests
         IdCarrier? back = JsonSerializer.Deserialize<IdCarrier>(json, Options());
 
         back.Should().NotBeNull();
-        back!.Id.Should().Be(KnownId);
+        back.Id.Should().Be(KnownId);
         back.OptionalId.Should().BeNull();
     }
 

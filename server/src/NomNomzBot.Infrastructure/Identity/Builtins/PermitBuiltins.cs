@@ -56,7 +56,7 @@ internal static class PermitBuiltinSupport
             PermitIssueActionKey,
             ct
         );
-        return mayIssue.IsSuccess && mayIssue.Value
+        return mayIssue is { IsSuccess: true, Value: true }
             ? Result.Success(invokerId)
             : Result.Failure<Guid>(
                 $"{verb}: you are not allowed to manage permits (needs {PermitIssueActionKey})",

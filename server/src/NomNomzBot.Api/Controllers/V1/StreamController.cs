@@ -171,7 +171,7 @@ public class StreamController : BaseController
         // SQLite cannot ORDER BY a DateTimeOffset; materialize the ended-at values and take the latest
         // client-side so the query is provider-agnostic (Postgres + SQLite).
         List<DateTimeOffset> endedAtValues = channel.IsLive
-            ? new()
+            ? []
             : await _db
                 .Streams.Where(s => s.ChannelId == tenantId && s.EndedAt != null)
                 .Select(s => s.EndedAt!.Value)

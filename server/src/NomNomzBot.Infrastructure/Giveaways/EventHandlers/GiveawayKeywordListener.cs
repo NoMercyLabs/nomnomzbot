@@ -73,12 +73,15 @@ public sealed class GiveawayKeywordListener(
             return;
 
         bool isKeywordEntry =
-            active.Status == GiveawayStatus.Open
-            && active.EntryMode == GiveawayEntryMode.Keyword
-            && active.Keyword is { Length: > 0 } keyword
+            active
+                is {
+                    Status: GiveawayStatus.Open,
+                    EntryMode: GiveawayEntryMode.Keyword,
+                    Keyword: { Length: > 0 } keyword
+                }
             && string.Equals(@event.Message.Trim(), keyword, StringComparison.OrdinalIgnoreCase);
         bool claimWindowArmed =
-            active.Status == GiveawayStatus.Drawn && active.ClaimWindowMinutes is not null;
+            active is { Status: GiveawayStatus.Drawn, ClaimWindowMinutes: not null };
         if (!isKeywordEntry && !claimWindowArmed)
             return;
 
@@ -104,7 +107,9 @@ public sealed class GiveawayKeywordListener(
             );
             // A rejected entry (ineligible / duplicate / broke) is deliberately silent in chat —
             // spamming per-viewer rejections would drown the room while a giveaway runs.
-            if (entered.IsFailure && entered.ErrorCode is not ("ALREADY_ENTERED" or "NOT_ELIGIBLE"))
+            if (
+                entered is { IsFailure: true, ErrorCode: not ("ALREADY_ENTERED" or "NOT_ELIGIBLE") }
+            )
                 logger.LogDebug(
                     "Giveaway keyword entry failed for {UserId}: {Error} ({Code})",
                     viewerUserId,

@@ -137,26 +137,28 @@ public sealed class CatalogStockConcurrencyTests : IDisposable
             await seed.SaveChangesAsync();
         }
 
-        Task<Result<CatalogPurchaseDto>>[] tasks = Enumerable
-            .Range(0, concurrency)
-            .Select(i =>
-                Task.Run(async () =>
-                {
-                    await using EventStoreTestDbContext db = NewContext();
-                    CatalogService sut = NewCatalogService(db);
-                    return await sut.PurchaseAsync(
-                        Channel,
-                        new(
-                            itemId,
-                            Guid.Parse($"0192b000-0000-7000-8000-0000000{i:D5}"),
-                            InputArgs: null,
-                            RoleLevel: 100,
-                            IdempotencyKey: null
-                        )
-                    );
-                })
-            )
-            .ToArray();
+        Task<Result<CatalogPurchaseDto>>[] tasks =
+        [
+            .. Enumerable
+                .Range(0, concurrency)
+                .Select(i =>
+                    Task.Run(async () =>
+                    {
+                        await using EventStoreTestDbContext db = NewContext();
+                        CatalogService sut = NewCatalogService(db);
+                        return await sut.PurchaseAsync(
+                            Channel,
+                            new(
+                                itemId,
+                                Guid.Parse($"0192b000-0000-7000-8000-0000000{i:D5}"),
+                                InputArgs: null,
+                                RoleLevel: 100,
+                                IdempotencyKey: null
+                            )
+                        );
+                    })
+                ),
+        ];
 
         Result<CatalogPurchaseDto>[] results = await Task.WhenAll(tasks);
 

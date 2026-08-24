@@ -21,7 +21,6 @@ using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Integrations.Entities;
-using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
@@ -134,7 +133,7 @@ public sealed class SpotifyMusicProviderRefreshConcurrencyTests
         )
         {
             Result<IntegrationConnectionDto> upsert = await vault.UpsertConnectionAsync(
-                new UpsertConnectionDto(
+                new(
                     BroadcasterId: Broadcaster,
                     Provider: AuthEnums.IntegrationProvider.Spotify,
                     ProviderAccountId: ExternalId,
@@ -149,16 +148,11 @@ public sealed class SpotifyMusicProviderRefreshConcurrencyTests
             // Already expired — the first call must refresh.
             await vault.StoreTokensAsync(
                 upsert.Value.Id,
-                new StoreTokensDto(
-                    "old-access",
-                    "old-refresh",
-                    null,
-                    DateTime.UtcNow.AddMinutes(-10)
-                )
+                new("old-access", "old-refresh", null, DateTime.UtcNow.AddMinutes(-10))
             );
         }
 
-        return new SpotifyMusicProvider(
+        return new(
             db,
             vault,
             new InMemoryIntegrationCapabilityStore(),
@@ -195,10 +189,7 @@ public sealed class SpotifyMusicProviderRefreshConcurrencyTests
         public Task<SystemAppCredentials?> GetAsync(
             string provider,
             CancellationToken cancellationToken = default
-        ) =>
-            Task.FromResult<SystemAppCredentials?>(
-                new SystemAppCredentials("spotify-app-id", "spotify-app-secret")
-            );
+        ) => Task.FromResult<SystemAppCredentials?>(new("spotify-app-id", "spotify-app-secret"));
 
         public Task<string?> GetClientIdAsync(
             string provider,

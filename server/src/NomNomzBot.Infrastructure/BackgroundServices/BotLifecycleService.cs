@@ -199,15 +199,15 @@ public sealed class BotLifecycleService : BackgroundService
             .Select(c => new { c.Id, c.Name })
             .ToListAsync(ct);
 
-        HashSet<Guid> activeIds = activeChannels.Select(c => c.Id).ToHashSet();
+        HashSet<Guid> activeIds = [.. activeChannels.Select(c => c.Id)];
 
         HashSet<Guid> toSubscribe;
         HashSet<Guid> toUnsubscribe;
 
         lock (_channelLock)
         {
-            toSubscribe = activeIds.Except(_joinedChannels).ToHashSet();
-            toUnsubscribe = _joinedChannels.Except(activeIds).ToHashSet();
+            toSubscribe = [.. activeIds.Except(_joinedChannels)];
+            toUnsubscribe = [.. _joinedChannels.Except(activeIds)];
         }
 
         // The bot identity's own platform-plane topics (whisper inbox) — reconciled once per tick, not per

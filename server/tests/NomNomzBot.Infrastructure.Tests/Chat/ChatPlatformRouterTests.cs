@@ -275,7 +275,7 @@ public sealed class ChatPlatformRouterBotLinePrefixTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Channels.Add(
-            new Channel
+            new()
             {
                 Id = tenantId,
                 OwnerUserId = Owner,

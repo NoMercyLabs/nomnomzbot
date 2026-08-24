@@ -71,12 +71,7 @@ public sealed class PermissionService : IPermissionService
         if (isModerator)
         {
             // Moderators can manage most features except broadcaster-only ones
-            string[] broadcasterOnly = new[]
-            {
-                "channel.delete",
-                "channel.transfer",
-                "bot.configure",
-            };
+            string[] broadcasterOnly = ["channel.delete", "channel.transfer", "bot.configure"];
             return Result.Success(!broadcasterOnly.Contains(permission));
         }
 
@@ -203,7 +198,7 @@ public sealed class PermissionService : IPermissionService
             ]);
         }
 
-        return Result.Success<IReadOnlyList<string>>(permissions.Distinct().ToList());
+        return Result.Success<IReadOnlyList<string>>([.. permissions.Distinct()]);
     }
 
     public async Task<bool> HasChannelAccessAsync(

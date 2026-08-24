@@ -91,15 +91,17 @@ public sealed class SongRequestQueueReconciler : IEventHandler<PlaybackStateChan
             new SongRequestQueueChangedEvent
             {
                 BroadcasterId = @event.BroadcasterId,
-                Items = queue
-                    .GetSnapshot()
-                    .Take(QueueSnapshotSize)
-                    .Select(e => new SongRequestQueueSnapshotItem(
-                        e.Item.TrackName,
-                        e.Item.RequestedBy,
-                        e.Item.DurationMs / 1000
-                    ))
-                    .ToList(),
+                Items =
+                [
+                    .. queue
+                        .GetSnapshot()
+                        .Take(QueueSnapshotSize)
+                        .Select(e => new SongRequestQueueSnapshotItem(
+                            e.Item.TrackName,
+                            e.Item.RequestedBy,
+                            e.Item.DurationMs / 1000
+                        )),
+                ],
             },
             cancellationToken
         );

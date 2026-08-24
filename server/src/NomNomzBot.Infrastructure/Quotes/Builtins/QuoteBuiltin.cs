@@ -220,7 +220,7 @@ public sealed class QuoteBuiltin : IBuiltinCommand
             capability,
             ct
         );
-        return allowed.IsSuccess && allowed.Value
+        return allowed is { IsSuccess: true, Value: true }
             ? Result.Success(invokerId)
             : Result.Failure<Guid>($"You don't have permission to {verb}.", "FORBIDDEN");
     }

@@ -138,15 +138,13 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
 
         double threshold =
             rule.Settings.TryGetValue("threshold", out object? t)
-            && t is JsonElement te
-            && te.ValueKind == JsonValueKind.Number
+            && t is JsonElement { ValueKind: JsonValueKind.Number } te
                 ? te.GetDouble()
                 : 0.7; // Default: 70% caps
 
         int minLength =
             rule.Settings.TryGetValue("min_length", out object? ml)
-            && ml is JsonElement mle
-            && mle.ValueKind == JsonValueKind.Number
+            && ml is JsonElement { ValueKind: JsonValueKind.Number } mle
                 ? mle.GetInt32()
                 : 10;
 
@@ -183,8 +181,7 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
     {
         int maxEmotes =
             rule.Settings.TryGetValue("max_emotes", out object? maxObj)
-            && maxObj is JsonElement maxElem
-            && maxElem.ValueKind == JsonValueKind.Number
+            && maxObj is JsonElement { ValueKind: JsonValueKind.Number } maxElem
                 ? maxElem.GetInt32()
                 : 10; // Default: 10 emotes max
 
@@ -315,21 +312,23 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
                 )
                 .ToListAsync(ct);
 
-            return records
-                .Select(r =>
-                {
-                    try
+            return
+            [
+                .. records
+                    .Select(r =>
                     {
-                        return ParseRule(r.Data);
-                    }
-                    catch
-                    {
-                        return null;
-                    }
-                })
-                .Where(r => r is not null)
-                .Select(r => r!)
-                .ToList();
+                        try
+                        {
+                            return ParseRule(r.Data);
+                        }
+                        catch
+                        {
+                            return null;
+                        }
+                    })
+                    .Where(r => r is not null)
+                    .Select(r => r!),
+            ];
         }
         catch (Exception ex)
         {
@@ -373,10 +372,12 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
             ExemptRoles =
                 root.TryGetProperty("ExemptRoles", out JsonElement er)
                 && er.ValueKind == JsonValueKind.Array
-                    ? er.EnumerateArray()
-                        .Select(x => x.GetString() ?? string.Empty)
-                        .Where(x => x.Length > 0)
-                        .ToList()
+                    ?
+                    [
+                        .. er.EnumerateArray()
+                            .Select(x => x.GetString() ?? string.Empty)
+                            .Where(x => x.Length > 0),
+                    ]
                     : [],
         };
     }

@@ -65,9 +65,7 @@ public sealed class ChannelServiceOnboardingEventTests
 
         result.IsSuccess.Should().BeTrue();
 
-        List<ChannelOnboardedEvent> published = bus
-            .Published.OfType<ChannelOnboardedEvent>()
-            .ToList();
+        List<ChannelOnboardedEvent> published = [.. bus.Published.OfType<ChannelOnboardedEvent>()];
         published.Should().HaveCount(1);
         published[0].BroadcasterId.Should().Be(Guid.Parse(result.Value.Id));
         published[0].OwnerUserId.Should().Be(ownerId);
@@ -122,9 +120,7 @@ public sealed class ChannelServiceOnboardingEventTests
         result.IsSuccess.Should().BeTrue();
         result.Value.Id.Should().Be(channelId.ToString());
 
-        List<ChannelOnboardedEvent> published = bus
-            .Published.OfType<ChannelOnboardedEvent>()
-            .ToList();
+        List<ChannelOnboardedEvent> published = [.. bus.Published.OfType<ChannelOnboardedEvent>()];
         published.Should().HaveCount(1);
         published[0].BroadcasterId.Should().Be(channelId);
 

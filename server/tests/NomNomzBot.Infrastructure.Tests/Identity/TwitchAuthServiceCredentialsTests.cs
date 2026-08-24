@@ -129,7 +129,7 @@ public sealed class TwitchAuthServiceCredentialsTests
         );
 
         result.Should().NotBeNull();
-        result!.AccessToken.Should().Be("issued-access");
+        result.AccessToken.Should().Be("issued-access");
 
         // The wire carries the WIZARD-VAULTED credentials and the auth code — not the config decoy.
         wire.LastBody.Should().Contain("client_id=wizard-client-id");

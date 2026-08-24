@@ -87,7 +87,7 @@ public sealed class SpotifyMusicProviderCompositionTests
             .Should()
             .NotBeNull("SpotifyMusicProvider must keep its resolver in this backing field");
 
-        object? wiredResolver = field!.GetValue(spotify);
+        object? wiredResolver = field.GetValue(spotify);
 
         wiredResolver
             .Should()

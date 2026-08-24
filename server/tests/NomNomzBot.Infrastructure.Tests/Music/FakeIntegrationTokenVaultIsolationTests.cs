@@ -59,9 +59,9 @@ public sealed class FakeIntegrationTokenVaultIsolationTests
         Result<DecryptedTokenDto> ownLookupOne = await vaultOne.GetAccessTokenAsync(connectionOne);
         Result<DecryptedTokenDto> ownLookupTwo = await vaultTwo.GetAccessTokenAsync(connectionTwo);
         ownLookupOne.IsSuccess.Should().BeTrue();
-        ownLookupOne.Value!.Value.Should().Be("vault-one-token");
+        ownLookupOne.Value.Value.Should().Be("vault-one-token");
         ownLookupTwo.IsSuccess.Should().BeTrue();
-        ownLookupTwo.Value!.Value.Should().Be("vault-two-token");
+        ownLookupTwo.Value.Value.Should().Be("vault-two-token");
 
         // Neither vault can see the OTHER db's connection id at all — proving there is no shared,
         // process-global backing store left for a parallel test class to corrupt.
@@ -97,6 +97,6 @@ public sealed class FakeIntegrationTokenVaultIsolationTests
         Result<DecryptedTokenDto> lookup = await scopeTwo.GetAccessTokenAsync(connectionId);
 
         lookup.IsSuccess.Should().BeTrue();
-        lookup.Value!.Value.Should().Be("shared-token");
+        lookup.Value.Value.Should().Be("shared-token");
     }
 }

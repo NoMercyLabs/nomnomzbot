@@ -63,7 +63,7 @@ public sealed class ModerationServiceRuleDeletionAuditTests
     {
         Result<ModerationRuleDetail> created = await service.CreateRuleAsync(
             BroadcasterId,
-            new CreateModerationRuleRequest
+            new()
             {
                 Name = "spam-timeout",
                 Type = "banned_phrase",

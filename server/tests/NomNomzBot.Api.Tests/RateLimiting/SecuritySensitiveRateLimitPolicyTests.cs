@@ -12,7 +12,6 @@ using System.Reflection;
 using System.Security.Claims;
 using System.Threading.RateLimiting;
 using FluentAssertions;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.RateLimiting;
@@ -40,7 +39,7 @@ public sealed class SecuritySensitiveRateLimitPolicyTests
             action.GetCustomAttribute<EnableRateLimitingAttribute>(inherit: false);
 
         attribute.Should().NotBeNull("a KEK-material action must declare its own, tighter policy");
-        attribute!.PolicyName.Should().Be(SecuritySensitiveRateLimitPolicy.PolicyName);
+        attribute.PolicyName.Should().Be(SecuritySensitiveRateLimitPolicy.PolicyName);
         SecuritySensitiveRateLimitPolicy
             .PolicyName.Should()
             .NotBe(
@@ -61,11 +60,8 @@ public sealed class SecuritySensitiveRateLimitPolicyTests
         HttpContext ContextForAdmin()
         {
             DefaultHttpContext context = new();
-            context.User = new ClaimsPrincipal(
-                new ClaimsIdentity(
-                    [new Claim(ClaimTypes.NameIdentifier, "admin-under-test")],
-                    "test"
-                )
+            context.User = new(
+                new ClaimsIdentity([new(ClaimTypes.NameIdentifier, "admin-under-test")], "test")
             );
             return context;
         }
@@ -90,8 +86,8 @@ public sealed class SecuritySensitiveRateLimitPolicyTests
 
         // A DIFFERENT caller is a separate partition and is unaffected.
         DefaultHttpContext otherCaller = new();
-        otherCaller.User = new ClaimsPrincipal(
-            new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "another-admin")], "test")
+        otherCaller.User = new(
+            new ClaimsIdentity([new(ClaimTypes.NameIdentifier, "another-admin")], "test")
         );
         using RateLimitLease otherLease = await limiter.AcquireAsync(otherCaller);
         otherLease.IsAcquired.Should().BeTrue();

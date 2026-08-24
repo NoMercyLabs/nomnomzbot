@@ -145,9 +145,7 @@ public sealed class KickAccessTokenProvider : IKickAccessTokenProvider
         // Re-check under the gate: another caller may have already refreshed this connection while we waited.
         Result<DecryptedTokenDto> current = await _vault.GetAccessTokenAsync(connectionId, ct);
         if (
-            current.IsSuccess
-            && !current.Value.IsExpired
-            && current.Value.ExpiresAt is { } expiresAt
+            current is { IsSuccess: true, Value: { IsExpired: false, ExpiresAt: { } expiresAt } }
             && expiresAt > _clock.GetUtcNow().UtcDateTime.Add(RefreshMargin)
         )
             return current.Value.Value;

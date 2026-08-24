@@ -111,7 +111,8 @@ public sealed class CommunityStandingService(
         DateTime now = clock.GetUtcNow().UtcDateTime;
         // A lapse downgrade is safe ONLY when both signals were read completely — otherwise a user absent from this
         // run might still be a sub/VIP via the signal we could not read.
-        bool fullyAuthoritative = snapshot.SubscribersAuthoritative && snapshot.VipsAuthoritative;
+        bool fullyAuthoritative =
+            snapshot is { SubscribersAuthoritative: true, VipsAuthoritative: true };
 
         HashSet<Guid> snapshotUsers = [.. snapshot.Members.Select(m => m.UserId)];
 

@@ -43,18 +43,14 @@ public class InfraPipelineEngineTests
             )
             .Returns(ci => Task.FromResult((string)ci[0]));
 
-        ICommandAction[] actions = new ICommandAction[]
-        {
+        ICommandAction[] actions =
+        [
             new StopAction(),
             new SetVariableAction(),
             new WaitAction(resolver),
-        };
+        ];
 
-        ICommandCondition[] conditions = new ICommandCondition[]
-        {
-            new UserRoleCondition(),
-            new RandomCondition(),
-        };
+        ICommandCondition[] conditions = [new UserRoleCondition(), new RandomCondition()];
 
         // Tests pass PipelineJson directly — PipelineId is never set, so DB step lookup is never hit.
         NomNomzBot.Application.Abstractions.Persistence.IApplicationDbContext db =
@@ -330,13 +326,16 @@ public class InfraPipelineEngineTests
         const string json = """{"steps":[{"action":{"type":"wait","milliseconds":5000}}]}""";
 
         // Start 5 long-running pipelines
-        List<CancellationTokenSource> ctsList = Enumerable
-            .Range(0, 5)
-            .Select(_ => new CancellationTokenSource())
-            .ToList();
-        Task<PipelineExecutionResult>[] longTasks = ctsList
-            .Select(cts => engine.ExecuteAsync(BuildRequest(json, TestChannel), cts.Token))
-            .ToArray();
+        List<CancellationTokenSource> ctsList =
+        [
+            .. Enumerable.Range(0, 5).Select(_ => new CancellationTokenSource()),
+        ];
+        Task<PipelineExecutionResult>[] longTasks =
+        [
+            .. ctsList.Select(cts =>
+                engine.ExecuteAsync(BuildRequest(json, TestChannel), cts.Token)
+            ),
+        ];
 
         await Task.Delay(100); // Let them register
 

@@ -220,7 +220,7 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
 
         Result deleted = await WithHelixAsync(helix => helix.SendAsync(request, ct));
         // A 404 means it is already gone — idempotent success.
-        if (deleted.IsFailure && deleted.ErrorCode == TwitchErrorCodes.NotFound)
+        if (deleted is { IsFailure: true, ErrorCode: TwitchErrorCodes.NotFound })
             return Result.Success();
         return deleted;
     }

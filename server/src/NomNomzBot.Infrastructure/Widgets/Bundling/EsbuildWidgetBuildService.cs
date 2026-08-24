@@ -143,10 +143,16 @@ public sealed class EsbuildWidgetBuildService : IWidgetBuildService
         try
         {
             MaterializeFiles(workDir, files);
-            List<string> arguments = ["--bundle", "--format=iife", "--minify", "--charset=utf8"];
-            arguments.AddRange(ExternalArgs(manifest.Dependencies));
-            arguments.AddRange(extraArgs);
-            arguments.Add(NormalizeRelative(manifest.Entry));
+            List<string> arguments =
+            [
+                "--bundle",
+                "--format=iife",
+                "--minify",
+                "--charset=utf8",
+                .. ExternalArgs(manifest.Dependencies),
+                .. extraArgs,
+                NormalizeRelative(manifest.Entry),
+            ];
             return await RunEsbuildAsync(workDir, arguments, framework, cancellationToken);
         }
         finally

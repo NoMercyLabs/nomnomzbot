@@ -234,7 +234,7 @@ internal sealed class CustomDataPollService : ICustomDataPollService
     )
     {
         // Fast reject when the server declares an oversize body up front — no need to buffer.
-        if (response.Content.Headers.ContentLength is { } declared && declared > MaxResponseBytes)
+        if (response.Content.Headers.ContentLength is { } and > MaxResponseBytes)
             return (true, string.Empty);
 
         await using System.IO.Stream stream = await response.Content.ReadAsStreamAsync(ct);

@@ -126,10 +126,10 @@ public sealed class MusicStatePollingService : BackgroundService
         IMusicService musicService = scope.ServiceProvider.GetRequiredService<IMusicService>();
         ISongRequestHandover handover =
             scope.ServiceProvider.GetRequiredService<ISongRequestHandover>();
-        List<string> providerKeys = scope
-            .ServiceProvider.GetServices<IMusicProvider>()
-            .Select(p => p.Provider)
-            .ToList();
+        List<string> providerKeys =
+        [
+            .. scope.ServiceProvider.GetServices<IMusicProvider>().Select(p => p.Provider),
+        ];
 
         List<Guid> channelIds = await LoadConnectedChannelsAsync(
             db,

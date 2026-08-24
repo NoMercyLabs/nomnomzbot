@@ -83,9 +83,7 @@ public sealed class AuthServiceReAuthOnboardingRepublishTests
         Result<AuthResultDto> second = await service.HandleTwitchCallbackAsync(callback, context);
         second.IsSuccess.Should().BeTrue();
 
-        List<ChannelOnboardedEvent> published = bus
-            .Published.OfType<ChannelOnboardedEvent>()
-            .ToList();
+        List<ChannelOnboardedEvent> published = [.. bus.Published.OfType<ChannelOnboardedEvent>()];
 
         // The repair guarantee: BOTH logins re-published the event for the SAME existing channel — not just
         // the first (which the old isNewChannel-gated code would have skipped entirely, since the channel

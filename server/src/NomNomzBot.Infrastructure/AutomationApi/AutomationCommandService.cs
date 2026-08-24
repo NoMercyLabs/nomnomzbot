@@ -437,7 +437,7 @@ public class AutomationCommandService : IAutomationCommandService
             "music:control:write",
             ct
         );
-        return authorized.IsSuccess && authorized.Value;
+        return authorized is { IsSuccess: true, Value: true };
     }
 
     private async Task<PipelineEntity?> ResolvePipelineAsync(

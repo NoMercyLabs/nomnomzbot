@@ -30,7 +30,7 @@ public sealed class TimeoutActionTests
         new()
         {
             Type = "timeout",
-            Parameters = new Dictionary<string, JsonElement>
+            Parameters = new()
             {
                 ["user_id"] = JsonSerializer.SerializeToElement("target-123"),
                 ["duration"] = JsonSerializer.SerializeToElement(duration),

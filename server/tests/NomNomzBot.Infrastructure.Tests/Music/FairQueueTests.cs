@@ -75,7 +75,7 @@ public class FairQueueTests
         q.Enqueue("carol", "c2");
 
         // Round 1: all rank-1 items (a1, b1, c1) come before round 2 (a2, b2, c2)
-        List<string?> dequeued = Enumerable.Range(0, 6).Select(_ => q.Dequeue()).ToList();
+        List<string?> dequeued = [.. Enumerable.Range(0, 6).Select(_ => q.Dequeue())];
 
         dequeued.Should().BeEquivalentTo(["a1", "a2", "b1", "b2", "c1", "c2"]);
 

@@ -56,7 +56,7 @@ public sealed class TokenBucketChatSendQueueTests
 
         // Pacing proof: the first burst (bucket starts full) sends immediately; the rest are spread
         // across multiple refill windows rather than all landing in the same instant.
-        DateTime[] ordered = sendTimestamps.OrderBy(t => t).ToArray();
+        DateTime[] ordered = [.. sendTimestamps.OrderBy(t => t)];
         TimeSpan span = ordered[^1] - ordered[0];
         Assert.True(
             span > TimeSpan.FromMilliseconds(100),
@@ -103,10 +103,12 @@ public sealed class TokenBucketChatSendQueueTests
         Task<bool> first = queue.EnqueueAsync("channel-1:twitch", "burst-line", Send);
         await enteredGate.WaitAsync(); // wait until the first call is actually in flight
 
-        Task<bool>[] joiners = Enumerable
-            .Range(0, 9)
-            .Select(_ => queue.EnqueueAsync("channel-1:twitch", "burst-line", Send))
-            .ToArray();
+        Task<bool>[] joiners =
+        [
+            .. Enumerable
+                .Range(0, 9)
+                .Select(_ => queue.EnqueueAsync("channel-1:twitch", "burst-line", Send)),
+        ];
 
         releaseGate.Release();
         bool firstResult = await first;

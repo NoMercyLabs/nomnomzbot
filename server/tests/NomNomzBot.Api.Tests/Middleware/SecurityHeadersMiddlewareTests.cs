@@ -9,7 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using Microsoft.AspNetCore.Http;
 using NomNomzBot.Api.Middleware;
 using NSubstitute;
 // IHostEnvironment is in Microsoft.Extensions.Hosting.Abstractions

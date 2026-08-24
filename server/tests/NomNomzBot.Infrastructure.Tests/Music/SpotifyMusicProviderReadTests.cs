@@ -118,7 +118,7 @@ public sealed class SpotifyMusicProviderReadTests
             HttpStatusCode.OK,
             "[]"
         );
-        List<string> ids = Enumerable.Range(0, 120).Select(i => $"track{i:D3}xxxx").ToList();
+        List<string> ids = [.. Enumerable.Range(0, 120).Select(i => $"track{i:D3}xxxx")];
 
         Result<IReadOnlyList<bool>> result = await api.AreTracksSavedAsync(
             ChannelId,
@@ -295,7 +295,7 @@ public sealed class SpotifyMusicProviderReadTests
         TrackInfo? track = await spotify.GetCurrentTrackAsync(ChannelId);
 
         track.Should().NotBeNull();
-        track!.TrackName.Should().Be("Nightcall");
+        track.TrackName.Should().Be("Nightcall");
         track.IsPlaying.Should().BeTrue();
         track.ProgressMs.Should().Be(42_000);
         // The real player toggles — the dashboard now shows the actual state instead of guessing "on".
@@ -328,7 +328,7 @@ public sealed class SpotifyMusicProviderReadTests
         // Not the old hardcoded 100 — the device's real reported volume, so a mute button can show and
         // trust the actual state instead of a fake "always full" number.
         track.Should().NotBeNull();
-        track!.VolumePercent.Should().Be(37);
+        track.VolumePercent.Should().Be(37);
     }
 
     [Fact]
@@ -350,7 +350,7 @@ public sealed class SpotifyMusicProviderReadTests
         TrackInfo? track = await spotify.GetCurrentTrackAsync(ChannelId);
 
         track.Should().NotBeNull();
-        track!.ShuffleEnabled.Should().BeFalse();
+        track.ShuffleEnabled.Should().BeFalse();
         track.RepeatMode.Should().Be(MusicRepeatMode.Off);
     }
 
@@ -376,7 +376,7 @@ public sealed class SpotifyMusicProviderReadTests
         TrackInfo? track = await spotify.GetCurrentTrackAsync(ChannelId);
 
         track.Should().NotBeNull();
-        track!.CanSetShuffle.Should().BeFalse();
+        track.CanSetShuffle.Should().BeFalse();
         track.CanSetRepeat.Should().BeFalse();
         track.CanSkipNext.Should().BeFalse();
         // Not disallowed by Spotify — must stay permitted rather than defaulting to blocked.
@@ -407,7 +407,7 @@ public sealed class SpotifyMusicProviderReadTests
         TrackInfo? track = await spotify.GetCurrentTrackAsync(ChannelId);
 
         track.Should().NotBeNull();
-        track!.CanSetRepeat.Should().BeTrue();
+        track.CanSetRepeat.Should().BeTrue();
     }
 
     [Fact]
@@ -429,7 +429,7 @@ public sealed class SpotifyMusicProviderReadTests
         TrackInfo? track = await spotify.GetCurrentTrackAsync(ChannelId);
 
         track.Should().NotBeNull();
-        track!.CanSetShuffle.Should().BeTrue();
+        track.CanSetShuffle.Should().BeTrue();
         track.CanSetRepeat.Should().BeTrue();
         track.CanSkipNext.Should().BeTrue();
         track.CanSkipPrevious.Should().BeTrue();

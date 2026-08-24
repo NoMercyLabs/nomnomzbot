@@ -14,7 +14,6 @@ using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Clients;
 using NomNomzBot.Domain.Identity.Enums;
-using NomNomzBot.Domain.Identity.Events;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Hubs;

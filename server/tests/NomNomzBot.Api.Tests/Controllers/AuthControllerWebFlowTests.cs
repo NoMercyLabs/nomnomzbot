@@ -232,8 +232,8 @@ public sealed class AuthControllerWebFlowTests
             state,
             Substitute.For<ILoginProviderRegistry>(),
             Substitute.For<IUserIdentityService>(),
-            Array.Empty<ILoginIdentityProvider>(),
-            Array.Empty<IAuthCodeLoginProvider>(),
+            [],
+            [],
             Substitute.For<IExternalLoginService>(),
             Substitute.For<ISessionService>()
         )

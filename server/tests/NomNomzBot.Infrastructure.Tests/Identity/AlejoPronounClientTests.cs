@@ -50,7 +50,7 @@ public sealed class AlejoPronounClientTests
             .FetchAsync();
 
         records.Should().NotBeNull();
-        records!.Should().HaveCount(2);
+        records.Should().HaveCount(2);
 
         // The two-part pronoun keeps the API's display casing on the record (the seeder lowercases/derives Name).
         PronounRecord theyThem = records.Single(r => r.Subject == "They");

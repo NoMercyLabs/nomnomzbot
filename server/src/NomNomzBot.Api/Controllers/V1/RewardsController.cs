@@ -336,20 +336,22 @@ public class RewardsController : BaseController
 
         // GroupBy+Select(new record)+OrderByDescending cannot be translated by the SQLite EF provider
         // — materialize after the GroupBy, then sort in memory.
-        List<ChatterTally> topChatters = (
-            await _db
-                .ChatMessages.Where(m => m.BroadcasterId == broadcasterId)
-                .GroupBy(m => m.UserId)
-                .Select(g => new ChatterTally(g.Key, g.Count()))
-                .ToListAsync(ct)
-        )
-            .OrderByDescending(t => t.Count)
-            .Take(50)
-            .ToList();
+        List<ChatterTally> topChatters =
+        [
+            .. (
+                await _db
+                    .ChatMessages.Where(m => m.BroadcasterId == broadcasterId)
+                    .GroupBy(m => m.UserId)
+                    .Select(g => new ChatterTally(g.Key, g.Count()))
+                    .ToListAsync(ct)
+            )
+                .OrderByDescending(t => t.Count)
+                .Take(50),
+        ];
 
         // ChatMessage.UserId holds the Twitch user string id — join on User.TwitchUserId to resolve both the
         // display name and the internal User.Id (the analytics viewer endpoint's key).
-        List<string> userIds = topChatters.Select(t => t.UserId).ToList();
+        List<string> userIds = [.. topChatters.Select(t => t.UserId)];
         var users = await _db
             .Users.Where(u => userIds.Contains(u.TwitchUserId!))
             .Select(u => new
@@ -360,8 +362,9 @@ public class RewardsController : BaseController
             })
             .ToDictionaryAsync(u => u.TwitchUserId!, ct);
 
-        List<LeaderboardEntryDto> entries = topChatters
-            .Select(
+        List<LeaderboardEntryDto> entries =
+        [
+            .. topChatters.Select(
                 (tally, index) =>
                 {
                     users.TryGetValue(tally.UserId, out var user);
@@ -373,8 +376,8 @@ public class RewardsController : BaseController
                         tally.Count
                     );
                 }
-            )
-            .ToList();
+            ),
+        ];
 
         return Ok(new StatusResponseDto<List<LeaderboardEntryDto>> { Data = entries });
     }

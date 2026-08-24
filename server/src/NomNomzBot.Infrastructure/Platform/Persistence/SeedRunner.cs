@@ -42,7 +42,7 @@ public sealed class SeedRunner
     public async Task SeedAsync(CancellationToken ct = default)
     {
         // Stable ascending Order; ties preserve discovery order (OrderBy is a stable sort).
-        IReadOnlyList<ISeeder> ordered = _seeders.OrderBy(s => s.Order).ToList();
+        IReadOnlyList<ISeeder> ordered = [.. _seeders.OrderBy(s => s.Order)];
 
         if (ordered.Count == 0)
         {

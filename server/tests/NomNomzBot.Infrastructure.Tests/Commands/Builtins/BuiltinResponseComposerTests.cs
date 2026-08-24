@@ -97,14 +97,16 @@ public sealed class BuiltinResponseComposerTests
             );
 
         // Must be one of the Sassy variations (rendered), never the neutral fallback.
-        HashSet<string> expected = ToneTemplateCatalog
-            .Get(
-                PersonalityTone.Sassy,
-                BuiltinResponseSlots.Uptime.Key,
-                BuiltinResponseSlots.Uptime.Live
-            )
-            .Select(t => t.Replace("{uptime}", "2h 5m"))
-            .ToHashSet();
+        HashSet<string> expected =
+        [
+            .. ToneTemplateCatalog
+                .Get(
+                    PersonalityTone.Sassy,
+                    BuiltinResponseSlots.Uptime.Key,
+                    BuiltinResponseSlots.Uptime.Live
+                )
+                .Select(t => t.Replace("{uptime}", "2h 5m")),
+        ];
 
         result.Should().NotBe("NEUTRAL 2h 5m");
         expected.Should().Contain(result);
@@ -174,13 +176,14 @@ public sealed class BuiltinResponseComposerTests
                 }
             );
 
-        HashSet<string> chill = ToneTemplateCatalog
-            .Get(
+        HashSet<string> chill =
+        [
+            .. ToneTemplateCatalog.Get(
                 PersonalityTone.Chill,
                 BuiltinResponseSlots.Song.Key,
                 BuiltinResponseSlots.Song.Nothing
-            )
-            .ToHashSet();
+            ),
+        ];
 
         result.Should().NotBe("NEUTRAL");
         chill.Should().Contain(result);

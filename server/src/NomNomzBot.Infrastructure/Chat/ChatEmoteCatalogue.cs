@@ -104,7 +104,7 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
         // emotes are subscriber-gated (the dedicated bot account is not the broadcaster and cannot use them) and
         // the operator's personal emotes obviously are not the bot's. What survives — Twitch global + third-party
         // (BTTV/FFZ/7TV are plain text codes any sender may type) — is exactly what the bot can genuinely send.
-        List<ChatEmote> all = new();
+        List<ChatEmote> all = [];
         if (sender == ChatEmoteSender.Operator)
         {
             all.AddRange(await TwitchChannelAsync(broadcasterId, twitchId, ct));
@@ -139,9 +139,10 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
             return [];
         }
 
-        List<ChatEmote> mapped = fetched
-            .Value.Select(e => Map(e.Id, e.Name, e.Format, setId: null))
-            .ToList();
+        List<ChatEmote> mapped =
+        [
+            .. fetched.Value.Select(e => Map(e.Id, e.Name, e.Format, setId: null)),
+        ];
         await _cache.SetAsync<IReadOnlyList<ChatEmote>>(key, mapped, TwitchGlobalTtl, ct);
         return mapped;
     }
@@ -173,9 +174,10 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
             return [];
         }
 
-        List<ChatEmote> mapped = fetched
-            .Value.Select(e => Map(e.Id, e.Name, e.Format, e.EmoteSetId))
-            .ToList();
+        List<ChatEmote> mapped =
+        [
+            .. fetched.Value.Select(e => Map(e.Id, e.Name, e.Format, e.EmoteSetId)),
+        ];
         await _cache.SetAsync<IReadOnlyList<ChatEmote>>(key, mapped, TwitchChannelTtl, ct);
         return mapped;
     }
@@ -203,7 +205,7 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
         if (cached is not null)
             return cached;
 
-        List<ChatEmote> mapped = new();
+        List<ChatEmote> mapped = [];
 
         // Every OTHER channel the operator already has emotes from. Get User Emotes returns a channel's FOLLOWER
         // emotes only when THAT channel is passed as broadcaster_id, so cross-channel follower emotes are absent
@@ -336,6 +338,6 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
         Dictionary<string, ChatEmote> byCode = new(StringComparer.Ordinal);
         foreach (ChatEmote emote in emotes)
             byCode.TryAdd(emote.Code, emote);
-        return byCode.Values.ToList();
+        return [.. byCode.Values];
     }
 }

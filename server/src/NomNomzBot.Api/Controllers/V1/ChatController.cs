@@ -191,7 +191,7 @@ public class ChatController : BaseController
                     DisplayName: row.DisplayName,
                     Username: row.Username,
                     Message: row.Message,
-                    Fragments: decorated.Fragments.Select(ChatFragmentMapper.MapFragment).ToList(),
+                    Fragments: [.. decorated.Fragments.Select(ChatFragmentMapper.MapFragment)],
                     UserType: row.UserType,
                     IsSubscriber: isSubscriber,
                     IsVip: isVip,
@@ -199,7 +199,7 @@ public class ChatController : BaseController
                     IsBroadcaster: isBroadcaster,
                     IsCheer: row.IsCheer,
                     IsCommand: row.IsCommand,
-                    Badges: decorated.Badges.Select(ChatFragmentMapper.MapBadge).ToList(),
+                    Badges: [.. decorated.Badges.Select(ChatFragmentMapper.MapBadge)],
                     BitsAmount: row.BitsAmount ?? 0,
                     Color: row.ColorHex,
                     MessageType: row.MessageType,
@@ -371,16 +371,17 @@ public class ChatController : BaseController
         if (catalogue.IsFailure)
             return TwitchResultResponse(catalogue);
 
-        List<ChatEmoteCatalogueDto> emotes = catalogue
-            .Value.Select(e => new ChatEmoteCatalogueDto(
+        List<ChatEmoteCatalogueDto> emotes =
+        [
+            .. catalogue.Value.Select(e => new ChatEmoteCatalogueDto(
                 e.Code,
                 e.Provider.ToString(),
                 e.Urls,
                 e.Animated,
                 e.ZeroWidth,
                 e.SetId
-            ))
-            .ToList();
+            )),
+        ];
         return Ok(new StatusResponseDto<IReadOnlyList<ChatEmoteCatalogueDto>> { Data = emotes });
     }
 
@@ -419,7 +420,7 @@ public class ChatController : BaseController
         // fail the moderation outright, fall back to the tenant delete (broadcaster's token, broadcaster as moderator_id).
         // This is the single path that mis-attributes to the broadcaster, and only when acting AS the operator is
         // impossible — every other failure is surfaced honestly below, never a silent broadcaster-attributed retry.
-        if (result.IsFailure && result.ErrorCode == TwitchErrorCodes.NoToken)
+        if (result is { IsFailure: true, ErrorCode: TwitchErrorCodes.NoToken })
         {
             await _chat.DeleteMessageAsync(broadcasterId, messageId, ct);
             return Ok(new StatusResponseDto<bool> { Data = true });

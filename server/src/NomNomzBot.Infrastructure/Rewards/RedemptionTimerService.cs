@@ -246,7 +246,7 @@ public sealed class RedemptionTimerService : IRedemptionTimerService
             .RedemptionTimers.Where(t => t.Status == RedemptionTimerStatus.Running)
             .ToListAsync(cancellationToken);
 
-        List<RedemptionTimer> due = running.Where(t => LiveRemaining(t, now) <= 0).ToList();
+        List<RedemptionTimer> due = [.. running.Where(t => LiveRemaining(t, now) <= 0)];
         if (due.Count == 0)
             return 0;
 
@@ -325,7 +325,7 @@ public sealed class RedemptionTimerService : IRedemptionTimerService
 
     /// <summary>The live countdown value: exact while paused/terminal, clock-derived while running.</summary>
     internal static int LiveRemaining(RedemptionTimer timer, DateTime nowUtc) =>
-        timer.Status == RedemptionTimerStatus.Running && timer.RunningSince is { } since
+        timer is { Status: RedemptionTimerStatus.Running, RunningSince: { } since }
             ? Math.Max(0, timer.RemainingSeconds - (int)(nowUtc - since).TotalSeconds)
             : timer.RemainingSeconds;
 

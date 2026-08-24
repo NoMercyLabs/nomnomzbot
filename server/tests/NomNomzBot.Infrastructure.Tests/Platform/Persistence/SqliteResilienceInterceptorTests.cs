@@ -12,7 +12,6 @@ using FluentAssertions;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Infrastructure.Platform.Persistence.Interceptors;
-using NomNomzBot.Infrastructure.Tests.Common;
 
 namespace NomNomzBot.Infrastructure.Tests.Platform.Persistence;
 
@@ -125,7 +124,7 @@ public sealed class SqliteResilienceInterceptorTests : IDisposable
                 })
             );
 
-        Task[] allWriters = tableAWriters.Concat(tableBWriters).ToArray();
+        Task[] allWriters = [.. tableAWriters, .. tableBWriters];
 
         List<Exception> lockedErrors = [];
         try

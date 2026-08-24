@@ -9,10 +9,8 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
-using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Domain.Economy.Entities;
 using NomNomzBot.Domain.Economy.Enums;
 using NomNomzBot.Infrastructure.Economy;
@@ -88,31 +86,33 @@ public sealed class CurrencyEarningDedupeConcurrencyTests
 
         // Every task uses its OWN DbContext/service stack (mirrors a real request-scoped DbContext per
         // redelivery) but the SAME EventId — the exact shape of an at-least-once redelivery racing itself.
-        Task<Result<long>>[] tasks = Enumerable
-            .Range(0, concurrency)
-            .Select(_ =>
-                Task.Run(async () =>
-                {
-                    EventStoreTestDbContext db = database.NewContext();
-                    EventStoreTestUnitOfWork uow = new(db);
-                    TenantSequenceAllocator allocator = new(db);
-                    RecordingEventBus bus = new();
-                    CurrencyAccountService accounts = new(db, allocator, uow, bus, Clock);
-                    CurrencyEarningService sut = new(db, accounts, bus, Clock);
-                    return await sut.ApplyEarningAsync(
-                        Channel,
-                        new(
-                            Viewer,
-                            nameof(EarningSource.ChatMessage),
-                            units,
-                            RedeliveredEventId,
-                            null,
-                            null
-                        )
-                    );
-                })
-            )
-            .ToArray();
+        Task<Result<long>>[] tasks =
+        [
+            .. Enumerable
+                .Range(0, concurrency)
+                .Select(_ =>
+                    Task.Run(async () =>
+                    {
+                        EventStoreTestDbContext db = database.NewContext();
+                        EventStoreTestUnitOfWork uow = new(db);
+                        TenantSequenceAllocator allocator = new(db);
+                        RecordingEventBus bus = new();
+                        CurrencyAccountService accounts = new(db, allocator, uow, bus, Clock);
+                        CurrencyEarningService sut = new(db, accounts, bus, Clock);
+                        return await sut.ApplyEarningAsync(
+                            Channel,
+                            new(
+                                Viewer,
+                                nameof(EarningSource.ChatMessage),
+                                units,
+                                RedeliveredEventId,
+                                null,
+                                null
+                            )
+                        );
+                    })
+                ),
+        ];
 
         Result<long>[] results = await Task.WhenAll(tasks);
 
@@ -132,13 +132,14 @@ public sealed class CurrencyEarningDedupeConcurrencyTests
         );
         account.Balance.Should().Be(expectedCredit);
 
-        List<CurrencyLedgerEntry> entries = verify
-            .CurrencyLedgerEntries.Where(e =>
+        List<CurrencyLedgerEntry> entries =
+        [
+            .. verify.CurrencyLedgerEntries.Where(e =>
                 e.BroadcasterId == Channel
                 && e.ViewerUserId == Viewer
                 && e.EventId == RedeliveredEventId
-            )
-            .ToList();
+            ),
+        ];
         entries
             .Should()
             .ContainSingle(

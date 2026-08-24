@@ -62,7 +62,7 @@ public sealed class DefaultCommandsSeeder : ISeeder
             .Select(b => new ValueTuple<Guid, string>(b.BroadcasterId, b.BuiltinKey))
             .ToListAsync(ct);
 
-        HashSet<(Guid, string)> present = existing.ToHashSet();
+        HashSet<(Guid, string)> present = [.. existing];
 
         foreach (Guid channelId in channelIds)
         {

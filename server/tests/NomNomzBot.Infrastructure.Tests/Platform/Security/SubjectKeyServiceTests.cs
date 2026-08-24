@@ -144,7 +144,7 @@ public class SubjectKeyServiceTests
         SubjectKeyRecord? record = await store.GetAsync(keyId);
 
         record.Should().NotBeNull();
-        record!.Status.Should().Be(SubjectKeyStatus.Active);
+        record.Status.Should().Be(SubjectKeyStatus.Active);
         record.Provider.Should().Be("local_aes");
         record.Algorithm.Should().Be("AES-256-GCM");
         // The persisted material is the WRAPPED DEK, not a raw 32-byte key: base64-decoded it is

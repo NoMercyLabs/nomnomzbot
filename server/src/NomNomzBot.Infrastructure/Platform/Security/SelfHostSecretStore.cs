@@ -24,7 +24,7 @@ public static class SelfHostSecretStore
 {
     // Mixed into DPAPI so an unrelated process can't unprotect the blob with the machine key alone; distinct
     // from the KEK store's entropy so the two sealed values are not interchangeable.
-    private static readonly byte[] Entropy = "nomnomzbot-jwt-secret-v1"u8.ToArray();
+    private static readonly byte[] Entropy = [.. "nomnomzbot-jwt-secret-v1"u8];
 
     /// <summary>
     /// Returns the persisted JWT signing secret, generating + sealing a fresh 64-char base64 value (384 bits)

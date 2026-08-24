@@ -340,7 +340,7 @@ public sealed class MediaShareService : IMediaShareService
 
         return Result.Success(
             new PagedList<MediaShareRequestDto>(
-                rows.Select(ToDto).ToList(),
+                [.. rows.Select(ToDto)],
                 pagination.Page,
                 pagination.PageSize,
                 total

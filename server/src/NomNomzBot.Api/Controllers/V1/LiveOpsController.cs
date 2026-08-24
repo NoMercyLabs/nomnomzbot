@@ -102,16 +102,17 @@ public class LiveOpsController : BaseController
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
 
-        List<CreatePollChoiceRequest> choices = dto
-            .Choices.Select(c => new CreatePollChoiceRequest(c))
-            .ToList();
+        List<CreatePollChoiceRequest> choices =
+        [
+            .. dto.Choices.Select(c => new CreatePollChoiceRequest(c)),
+        ];
 
         CreatePollRequest request = new(
             dto.Title,
             choices,
             dto.DurationSeconds,
             dto.ChannelPointsVotingEnabled ? true : null,
-            dto.ChannelPointsVotingEnabled && dto.ChannelPointsPerVote > 0
+            dto is { ChannelPointsVotingEnabled: true, ChannelPointsPerVote: > 0 }
                 ? dto.ChannelPointsPerVote
                 : null
         );
@@ -195,9 +196,10 @@ public class LiveOpsController : BaseController
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
 
-        List<CreatePredictionOutcome> outcomes = dto
-            .Outcomes.Select(o => new CreatePredictionOutcome(o))
-            .ToList();
+        List<CreatePredictionOutcome> outcomes =
+        [
+            .. dto.Outcomes.Select(o => new CreatePredictionOutcome(o)),
+        ];
 
         CreatePredictionRequest request = new(dto.Title, outcomes, dto.PredictionWindowSeconds);
 

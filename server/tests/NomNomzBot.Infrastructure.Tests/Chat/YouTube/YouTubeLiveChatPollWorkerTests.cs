@@ -95,15 +95,16 @@ public sealed class YouTubeLiveChatPollWorkerTests
         // primary channel whose token authorizes writes (slice-3 YouTubeChatPlatform reads this).
         YouTubeLiveChatSession? session = sessions.Get(tenant.Id);
         session.Should().NotBeNull();
-        session!.LiveChatId.Should().Be("chat-1");
+        session.LiveChatId.Should().Be("chat-1");
         session.PrimaryBroadcasterId.Should().Be(Broadcaster);
 
         // Paging: bootstrap read with no token, the live read continues from the bootstrap cursor.
         client.PageTokensSeen.Should().Equal(null, "tok-1");
 
-        List<ChatMessageReceivedEvent> published = bus
-            .Published.OfType<ChatMessageReceivedEvent>()
-            .ToList();
+        List<ChatMessageReceivedEvent> published =
+        [
+            .. bus.Published.OfType<ChatMessageReceivedEvent>(),
+        ];
         published.Should().HaveCount(2, "history must bootstrap silently; only live lines publish");
         published.Select(e => e.MessageId).Should().Equal("m-1", "m-2");
 
@@ -339,7 +340,7 @@ public sealed class YouTubeLiveChatPollWorkerTests
             FakeTimeProvider time,
             _
         ) = await BuildConnectedAsync(
-            selfEchoGuard: new FakeBotSelfEchoGuard
+            selfEchoGuard: new()
             {
                 DedicatedBotIdentity = (AuthEnums.Platform.YouTube, "UCauthor-m-1"),
             }
@@ -381,7 +382,7 @@ public sealed class YouTubeLiveChatPollWorkerTests
             FakeTimeProvider time,
             _
         ) = await BuildConnectedAsync(
-            selfEchoGuard: new FakeBotSelfEchoGuard
+            selfEchoGuard: new()
             {
                 DedicatedBotIdentity = (AuthEnums.Platform.Twitch, "UCauthor-m-1"),
             }

@@ -33,7 +33,7 @@ public sealed class OverlayHostControllerTests
     private static OverlayHostController WithManifest(params OverlayWidgetEntry[] widgets)
     {
         IWidgetService service = Substitute.For<IWidgetService>();
-        OverlayManifest manifest = new(Guid.NewGuid(), "nonce", new(widgets));
+        OverlayManifest manifest = new(Guid.NewGuid(), "nonce", [.. widgets]);
         service
             .GetOverlayManifestAsync(Token, Arg.Any<CancellationToken>())
             .Returns(Result<OverlayManifest>.Success(manifest));
@@ -48,7 +48,7 @@ public sealed class OverlayHostControllerTests
             "unverified",
             $"/api/v1/overlay/bundle/{WidgetId}",
             "hash123",
-            new() { "twitch.chat.message" },
+            ["twitch.chat.message"],
             settings
         );
 

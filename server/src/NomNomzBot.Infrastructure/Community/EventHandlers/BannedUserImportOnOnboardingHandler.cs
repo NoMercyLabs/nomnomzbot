@@ -88,14 +88,15 @@ public sealed class BannedUserImportOnOnboardingHandler(
             IApplicationDbContext db =
                 scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-            HashSet<string> existingKeys = (
-                await db
+            HashSet<string> existingKeys =
+            [
+                .. await db
                     .Configurations.Where(c =>
                         c.BroadcasterId == @event.BroadcasterId && c.Key.StartsWith("ban:")
                     )
                     .Select(c => c.Key)
-                    .ToListAsync(ct)
-            ).ToHashSet();
+                    .ToListAsync(ct),
+            ];
 
             int imported = 0;
             foreach (TwitchBannedUser ban in bannedUsers)

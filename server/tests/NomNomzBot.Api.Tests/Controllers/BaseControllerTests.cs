@@ -127,7 +127,7 @@ public class BaseControllerTests
         OkObjectResult? result = ctrl.TestResultResponse(Result.Success("hello")) as OkObjectResult;
 
         result.Should().NotBeNull();
-        result!.StatusCode.Should().Be(200);
+        result.StatusCode.Should().Be(200);
     }
 
     [Fact]
@@ -215,7 +215,7 @@ public class BaseControllerTests
         OkObjectResult? result = ctrl.TestResultResponse(Result.Success()) as OkObjectResult;
 
         result.Should().NotBeNull();
-        result!.StatusCode.Should().Be(200);
+        result.StatusCode.Should().Be(200);
     }
 
     [Fact]

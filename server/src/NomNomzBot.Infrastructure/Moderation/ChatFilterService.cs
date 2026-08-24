@@ -52,7 +52,7 @@ public sealed class ChatFilterService(IApplicationDbContext db) : IChatFilterSer
             .Take(pagination.PageSize)
             .ToListAsync(ct);
 
-        List<ChatFilterDto> items = page.Select(ToDto).ToList();
+        List<ChatFilterDto> items = [.. page.Select(ToDto)];
         return Result.Success(
             new PagedList<ChatFilterDto>(items, pagination.Page, pagination.PageSize, total)
         );
@@ -90,7 +90,7 @@ public sealed class ChatFilterService(IApplicationDbContext db) : IChatFilterSer
                 compileCheck.ErrorCode!
             );
 
-        if (request.Action == ChatFilterAction.Timeout && request.TimeoutSeconds is not > 0)
+        if (request is { Action: ChatFilterAction.Timeout, TimeoutSeconds: not > 0 })
             return Result.Failure<ChatFilterDto>(
                 "A timeout filter needs a positive duration.",
                 "VALIDATION_FAILED"

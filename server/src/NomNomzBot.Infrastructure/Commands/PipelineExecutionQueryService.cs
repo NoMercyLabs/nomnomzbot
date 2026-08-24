@@ -125,18 +125,18 @@ public class PipelineExecutionQueryService : IPipelineExecutionQueryService
             ? []
             : JsonSerializer.Deserialize<List<StepLogJson>>(entity.StepLogsJson) ?? [];
 
-        List<PipelineExecutionStepLogDto> stepLogs = raw.Select(
-                s => new PipelineExecutionStepLogDto(
-                    s.StepIndex,
-                    s.ActionType,
-                    s.Succeeded,
-                    s.DurationMs,
-                    s.ErrorMessage
-                )
-            )
-            .ToList();
+        List<PipelineExecutionStepLogDto> stepLogs =
+        [
+            .. raw.Select(s => new PipelineExecutionStepLogDto(
+                s.StepIndex,
+                s.ActionType,
+                s.Succeeded,
+                s.DurationMs,
+                s.ErrorMessage
+            )),
+        ];
 
-        return new PipelineExecutionDetailDto(
+        return new(
             entity.Id,
             entity.PipelineId,
             entity.TriggerKind,

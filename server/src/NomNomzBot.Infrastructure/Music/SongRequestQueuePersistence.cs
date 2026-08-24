@@ -97,8 +97,9 @@ public sealed class SongRequestQueuePersistence : ISongRequestQueuePersistence
         if (snapshot.Count > 0)
         {
             DateTime now = DateTime.UtcNow;
-            List<SongRequestQueueItem> rows = snapshot
-                .Select(
+            List<SongRequestQueueItem> rows =
+            [
+                .. snapshot.Select(
                     (entry, index) =>
                         new SongRequestQueueItem
                         {
@@ -112,8 +113,8 @@ public sealed class SongRequestQueuePersistence : ISongRequestQueuePersistence
                             DurationMs = entry.Item.DurationMs,
                             CreatedAt = now,
                         }
-                )
-                .ToList();
+                ),
+            ];
 
             _db.SongRequestQueueItems.AddRange(rows);
             await _db.SaveChangesAsync(cancellationToken);
@@ -150,24 +151,25 @@ public sealed class SongRequestQueuePersistence : ISongRequestQueuePersistence
             }
 
             restored.Add(
-                new RestoredSongRequestQueue(
+                new(
                     channel.Key,
-                    channel
-                        .OrderBy(r => r.Sequence)
-                        .Select(r =>
-                            (
-                                r.OwnerKey,
-                                new SongRequestEntry(
-                                    r.TrackUri,
-                                    r.TrackName,
-                                    r.Artist,
-                                    r.ImageUrl,
-                                    r.DurationMs,
-                                    r.OwnerKey
+                    [
+                        .. channel
+                            .OrderBy(r => r.Sequence)
+                            .Select(r =>
+                                (
+                                    r.OwnerKey,
+                                    new SongRequestEntry(
+                                        r.TrackUri,
+                                        r.TrackName,
+                                        r.Artist,
+                                        r.ImageUrl,
+                                        r.DurationMs,
+                                        r.OwnerKey
+                                    )
                                 )
-                            )
-                        )
-                        .ToList()
+                            ),
+                    ]
                 )
             );
         }
@@ -179,6 +181,6 @@ public sealed class SongRequestQueuePersistence : ISongRequestQueuePersistence
                 .ExecuteDeleteAsync(cancellationToken);
         }
 
-        return new SongRequestQueueRestoreResult(restored, staleBroadcasterIds);
+        return new(restored, staleBroadcasterIds);
     }
 }

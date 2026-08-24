@@ -9,11 +9,9 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using NomNomzBot.Api.Controllers.V1;
-using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
@@ -71,11 +69,7 @@ public sealed class AuthControllerRefreshCustodyTests
             )
             .Returns(Result.Success(Auth("new-acc-tok", "new-ref-tok")));
 
-        IActionResult result = await controller.RefreshToken(
-            new RefreshTokenRequest("body-ref-tok"),
-            null,
-            default
-        );
+        IActionResult result = await controller.RefreshToken(new("body-ref-tok"), null, default);
 
         OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
         string body = System.Text.Json.JsonSerializer.Serialize(ok.Value);
@@ -266,8 +260,8 @@ public sealed class AuthControllerRefreshCustodyTests
             Substitute.For<ITwitchOAuthStateService>(),
             Substitute.For<ILoginProviderRegistry>(),
             Substitute.For<IUserIdentityService>(),
-            Array.Empty<ILoginIdentityProvider>(),
-            Array.Empty<IAuthCodeLoginProvider>(),
+            [],
+            [],
             Substitute.For<IExternalLoginService>(),
             Substitute.For<ISessionService>()
         )

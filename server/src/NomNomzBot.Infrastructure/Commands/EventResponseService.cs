@@ -61,16 +61,18 @@ public class EventResponseService : IEventResponseService
             .EventResponses.Where(e => e.BroadcasterId == broadcaster)
             .Select(e => e.EventType)
             .ToListAsync(cancellationToken);
-        List<EventResponse> seeds = DefaultEventTypes
-            .Where(et => !existingTypes.Contains(et))
-            .Select(et => new EventResponse
-            {
-                BroadcasterId = broadcaster,
-                EventType = et,
-                IsEnabled = false,
-                ResponseType = "chat_message",
-            })
-            .ToList();
+        List<EventResponse> seeds =
+        [
+            .. DefaultEventTypes
+                .Where(et => !existingTypes.Contains(et))
+                .Select(et => new EventResponse
+                {
+                    BroadcasterId = broadcaster,
+                    EventType = et,
+                    IsEnabled = false,
+                    ResponseType = "chat_message",
+                }),
+        ];
         if (seeds.Count > 0)
         {
             _db.EventResponses.AddRange(seeds);

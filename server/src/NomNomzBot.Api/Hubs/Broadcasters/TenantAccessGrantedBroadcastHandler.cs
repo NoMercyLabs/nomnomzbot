@@ -8,7 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 
@@ -24,7 +23,7 @@ public sealed class TenantAccessGrantedBroadcastHandler(IDashboardNotifier notif
     public Task HandleAsync(TenantAccessGrantedEvent @event, CancellationToken ct = default) =>
         notifier.SendAlertAsync(
             @event.TargetBroadcasterId.ToString(),
-            new AlertDto(
+            new(
                 "tenant_access_granted",
                 @event.BreakGlass
                     ? "A NomNomzBot operator used break-glass access on your channel."

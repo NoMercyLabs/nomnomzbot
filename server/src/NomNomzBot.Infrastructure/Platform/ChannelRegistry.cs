@@ -450,7 +450,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
             }
 
             commands.Add(
-                new CachedCommand
+                new()
                 {
                     Name = c.Name,
                     TemplateResponses = NormalizeResponses(c.TemplateResponses, c.TemplateResponse),
@@ -459,7 +459,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
                     MinPermissionLevel = c.MinPermissionLevel,
                     Tier = c.Tier,
                     PipelineGraphJson = c.PipelineGraphJson,
-                    Aliases = c.Aliases.ToArray(),
+                    Aliases = [.. c.Aliases],
                     PrefixMode = c.PrefixMode,
                     CustomPrefix = c.CustomPrefix,
                     MatchMode = c.MatchMode,
@@ -493,7 +493,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
         IReadOnlyList<string>? responses,
         string? singular
     ) =>
-        responses is { Count: > 0 } ? responses.ToArray()
+        responses is { Count: > 0 } ? [.. responses]
         : string.IsNullOrEmpty(singular) ? []
         : [singular];
 
@@ -598,9 +598,10 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
     private void RunEviction(object? state)
     {
         DateTimeOffset threshold = _timeProvider.GetUtcNow() - EvictionThreshold;
-        List<ChannelContext> candidates = _channels
-            .Values.Where(c => !c.IsLive && c.LastActivityAt < threshold)
-            .ToList();
+        List<ChannelContext> candidates =
+        [
+            .. _channels.Values.Where(c => !c.IsLive && c.LastActivityAt < threshold),
+        ];
 
         foreach (ChannelContext ctx in candidates)
         {

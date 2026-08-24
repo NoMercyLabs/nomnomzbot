@@ -75,7 +75,7 @@ public sealed class FirstPartyWidgetCatalogueSeeder : ISeeder
         // pickable item. Never touches community-submitted items (trust_tier != first_party).
         foreach (
             WidgetGalleryItem row in existing.Where(item =>
-                item.TrustTier == "first_party" && item.DeletedAt is null
+                item is { TrustTier: "first_party", DeletedAt: null }
             )
         )
         {

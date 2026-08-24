@@ -117,11 +117,7 @@ public sealed class RewardServiceRedemptionsTests
                 Arg.Any<UpdateRedemptionStatusRequest>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(
-                Result.Success<IReadOnlyList<TwitchCustomRewardRedemption>>(
-                    Array.Empty<TwitchCustomRewardRedemption>()
-                )
-            );
+            .Returns(Result.Success<IReadOnlyList<TwitchCustomRewardRedemption>>([]));
         RewardService sut = new(db, points, NullLogger<RewardService>.Instance);
 
         Result result = await sut.SetRedemptionStatusAsync(

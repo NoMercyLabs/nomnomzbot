@@ -68,7 +68,7 @@ public sealed class WatchSessionConcurrencyTests
             );
             primed.Should().NotBeNull();
             await seed.SaveChangesAsync();
-            viewerUserId = primed!.ViewerUserId;
+            viewerUserId = primed.ViewerUserId;
 
             for (int i = 1; i <= concurrency; i++)
             {
@@ -91,27 +91,31 @@ public sealed class WatchSessionConcurrencyTests
         // Task i extends its OWN session by exactly i*10 seconds — a single writer per session, so this delta
         // is deterministic regardless of interleaving. The sum below is the ONLY correct total if every
         // concurrent fold survives into the shared ViewerProfile row.
-        Task[] tasks = Enumerable
-            .Range(1, concurrency)
-            .Select(i =>
-                Task.Run(async () =>
-                {
-                    using AuthDbContext db = AuthTestBuilder.NewContext(dbName);
-                    (ViewerResolver resolver, IUserService _) = BuildResolver(db);
-                    ILiveWindowResolver live = Substitute.For<ILiveWindowResolver>();
-                    live.GetCoveringStreamIdAsync(
-                            Arg.Any<Guid>(),
-                            Arg.Any<DateTime>(),
-                            Arg.Any<CancellationToken>()
-                        )
-                        .Returns($"stream-{i}");
-                    WatchSessionProjection sut = new(db, resolver, live);
+        Task[] tasks =
+        [
+            .. Enumerable
+                .Range(1, concurrency)
+                .Select(i =>
+                    Task.Run(async () =>
+                    {
+                        using AuthDbContext db = AuthTestBuilder.NewContext(dbName);
+                        (ViewerResolver resolver, IUserService _) = BuildResolver(db);
+                        ILiveWindowResolver live = Substitute.For<ILiveWindowResolver>();
+                        live.GetCoveringStreamIdAsync(
+                                Arg.Any<Guid>(),
+                                Arg.Any<DateTime>(),
+                                Arg.Any<CancellationToken>()
+                            )
+                            .Returns($"stream-{i}");
+                        WatchSessionProjection sut = new(db, resolver, live);
 
-                    Result result = await sut.ApplyAsync(ChatEvent(BaseTime.AddSeconds(i * 10)));
-                    result.IsSuccess.Should().BeTrue();
-                })
-            )
-            .ToArray();
+                        Result result = await sut.ApplyAsync(
+                            ChatEvent(BaseTime.AddSeconds(i * 10))
+                        );
+                        result.IsSuccess.Should().BeTrue();
+                    })
+                ),
+        ];
 
         await Task.WhenAll(tasks);
 
@@ -161,35 +165,39 @@ public sealed class WatchSessionConcurrencyTests
             await seed.SaveChangesAsync();
         }
 
-        Task[] tasks = Enumerable
-            .Range(1, concurrency)
-            .Select(_ =>
-                Task.Run(async () =>
-                {
-                    using AuthDbContext db = AuthTestBuilder.NewContext(dbName);
-                    (ViewerResolver resolver, IUserService _) = BuildResolver(db);
-                    ILiveWindowResolver live = Substitute.For<ILiveWindowResolver>();
-                    live.GetCoveringStreamIdAsync(
-                            Arg.Any<Guid>(),
-                            Arg.Any<DateTime>(),
-                            Arg.Any<CancellationToken>()
-                        )
-                        .Returns(streamId);
-                    WatchSessionProjection sut = new(db, resolver, live);
+        Task[] tasks =
+        [
+            .. Enumerable
+                .Range(1, concurrency)
+                .Select(_ =>
+                    Task.Run(async () =>
+                    {
+                        using AuthDbContext db = AuthTestBuilder.NewContext(dbName);
+                        (ViewerResolver resolver, IUserService _) = BuildResolver(db);
+                        ILiveWindowResolver live = Substitute.For<ILiveWindowResolver>();
+                        live.GetCoveringStreamIdAsync(
+                                Arg.Any<Guid>(),
+                                Arg.Any<DateTime>(),
+                                Arg.Any<CancellationToken>()
+                            )
+                            .Returns(streamId);
+                        WatchSessionProjection sut = new(db, resolver, live);
 
-                    Result result = await sut.ApplyAsync(ChatEvent(BaseTime));
-                    result.IsSuccess.Should().BeTrue();
-                })
-            )
-            .ToArray();
+                        Result result = await sut.ApplyAsync(ChatEvent(BaseTime));
+                        result.IsSuccess.Should().BeTrue();
+                    })
+                ),
+        ];
 
         await Task.WhenAll(tasks);
 
         using AuthDbContext verify = AuthTestBuilder.NewContext(dbName);
-        List<WatchSession> rows = verify
-            .WatchSessions.IgnoreQueryFilters()
-            .Where(s => s.BroadcasterId == Channel && s.StreamId == streamId)
-            .ToList();
+        List<WatchSession> rows =
+        [
+            .. verify
+                .WatchSessions.IgnoreQueryFilters()
+                .Where(s => s.BroadcasterId == Channel && s.StreamId == streamId),
+        ];
 
         rows.Should()
             .HaveCount(
@@ -228,47 +236,51 @@ public sealed class WatchSessionConcurrencyTests
             );
             primed.Should().NotBeNull();
             await seed.SaveChangesAsync();
-            viewerUserId = primed!.ViewerUserId;
+            viewerUserId = primed.ViewerUserId;
         }
 
         // No pre-seeding: every task's FIRST activity for its OWN stream races GetOrOpenAsync's INSERT path
         // concurrently with every other task's insert for a DIFFERENT key — proving the unique index + the
         // insert-conflict fallback added in this slice never cross-wires unrelated keys.
-        DateTime[] openedAt = Enumerable
-            .Range(1, concurrency)
-            .Select(i => BaseTime.AddSeconds(i * 10))
-            .ToArray();
-        Task[] tasks = Enumerable
-            .Range(1, concurrency)
-            .Select(i =>
-                Task.Run(async () =>
-                {
-                    using AuthDbContext db = AuthTestBuilder.NewContext(dbName);
-                    (ViewerResolver resolver, IUserService _) = BuildResolver(db);
-                    ILiveWindowResolver live = Substitute.For<ILiveWindowResolver>();
-                    live.GetCoveringStreamIdAsync(
-                            Arg.Any<Guid>(),
-                            Arg.Any<DateTime>(),
-                            Arg.Any<CancellationToken>()
-                        )
-                        .Returns($"distinct-stream-{i}");
-                    WatchSessionProjection sut = new(db, resolver, live);
+        DateTime[] openedAt =
+        [
+            .. Enumerable.Range(1, concurrency).Select(i => BaseTime.AddSeconds(i * 10)),
+        ];
+        Task[] tasks =
+        [
+            .. Enumerable
+                .Range(1, concurrency)
+                .Select(i =>
+                    Task.Run(async () =>
+                    {
+                        using AuthDbContext db = AuthTestBuilder.NewContext(dbName);
+                        (ViewerResolver resolver, IUserService _) = BuildResolver(db);
+                        ILiveWindowResolver live = Substitute.For<ILiveWindowResolver>();
+                        live.GetCoveringStreamIdAsync(
+                                Arg.Any<Guid>(),
+                                Arg.Any<DateTime>(),
+                                Arg.Any<CancellationToken>()
+                            )
+                            .Returns($"distinct-stream-{i}");
+                        WatchSessionProjection sut = new(db, resolver, live);
 
-                    Result result = await sut.ApplyAsync(ChatEvent(openedAt[i - 1]));
-                    result.IsSuccess.Should().BeTrue();
-                })
-            )
-            .ToArray();
+                        Result result = await sut.ApplyAsync(ChatEvent(openedAt[i - 1]));
+                        result.IsSuccess.Should().BeTrue();
+                    })
+                ),
+        ];
 
         await Task.WhenAll(tasks);
 
         using AuthDbContext verify = AuthTestBuilder.NewContext(dbName);
-        List<WatchSession> rows = verify
-            .WatchSessions.IgnoreQueryFilters()
-            .Where(s => s.BroadcasterId == Channel && s.ViewerUserId == viewerUserId)
-            .ToList()
-            .OrderBy(s => int.Parse(s.StreamId!.Split('-')[^1]))
-            .ToList();
+        List<WatchSession> rows =
+        [
+            .. verify
+                .WatchSessions.IgnoreQueryFilters()
+                .Where(s => s.BroadcasterId == Channel && s.ViewerUserId == viewerUserId)
+                .ToList()
+                .OrderBy(s => int.Parse(s.StreamId!.Split('-')[^1])),
+        ];
 
         rows.Should()
             .HaveCount(
@@ -327,7 +339,7 @@ public sealed class WatchSessionConcurrencyTests
                 CancellationToken.None
             );
             primed.Should().NotBeNull();
-            viewerUserId = primed!.ViewerUserId;
+            viewerUserId = primed.ViewerUserId;
 
             // ONE already-open session — every concurrent task below extends THIS SAME row, isolating the
             // extend-race this slice fixes from the separate (already-fixed) insert race S004f closed.
@@ -346,27 +358,31 @@ public sealed class WatchSessionConcurrencyTests
             sessionId = session.Id;
         }
 
-        Task[] tasks = Enumerable
-            .Range(1, concurrency)
-            .Select(i =>
-                Task.Run(async () =>
-                {
-                    using AuthDbContext db = AuthTestBuilder.NewContext(dbName);
-                    (ViewerResolver resolver, IUserService _) = BuildResolver(db);
-                    ILiveWindowResolver live = Substitute.For<ILiveWindowResolver>();
-                    live.GetCoveringStreamIdAsync(
-                            Arg.Any<Guid>(),
-                            Arg.Any<DateTime>(),
-                            Arg.Any<CancellationToken>()
-                        )
-                        .Returns(streamId);
-                    WatchSessionProjection sut = new(db, resolver, live);
+        Task[] tasks =
+        [
+            .. Enumerable
+                .Range(1, concurrency)
+                .Select(i =>
+                    Task.Run(async () =>
+                    {
+                        using AuthDbContext db = AuthTestBuilder.NewContext(dbName);
+                        (ViewerResolver resolver, IUserService _) = BuildResolver(db);
+                        ILiveWindowResolver live = Substitute.For<ILiveWindowResolver>();
+                        live.GetCoveringStreamIdAsync(
+                                Arg.Any<Guid>(),
+                                Arg.Any<DateTime>(),
+                                Arg.Any<CancellationToken>()
+                            )
+                            .Returns(streamId);
+                        WatchSessionProjection sut = new(db, resolver, live);
 
-                    Result result = await sut.ApplyAsync(ChatEvent(BaseTime.AddSeconds(i * 10)));
-                    result.IsSuccess.Should().BeTrue();
-                })
-            )
-            .ToArray();
+                        Result result = await sut.ApplyAsync(
+                            ChatEvent(BaseTime.AddSeconds(i * 10))
+                        );
+                        result.IsSuccess.Should().BeTrue();
+                    })
+                ),
+        ];
 
         await Task.WhenAll(tasks);
 

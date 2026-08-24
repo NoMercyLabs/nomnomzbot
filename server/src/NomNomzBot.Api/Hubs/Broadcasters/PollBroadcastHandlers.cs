@@ -19,9 +19,7 @@ namespace NomNomzBot.Api.Hubs.Broadcasters;
 internal static class PollAlertMapper
 {
     public static IReadOnlyList<PollChoiceDto> MapChoices(IReadOnlyList<PollChoice> choices) =>
-        choices
-            .Select(c => new PollChoiceDto(c.Id, c.Title, c.Votes, c.ChannelPointsVotes))
-            .ToList();
+        [.. choices.Select(c => new PollChoiceDto(c.Id, c.Title, c.Votes, c.ChannelPointsVotes))];
 }
 
 /// <summary>Broadcasts a poll opening (<c>channel.poll.begin</c>) to dashboard clients AND, identically, to

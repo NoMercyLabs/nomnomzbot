@@ -70,7 +70,7 @@ public sealed class ActionAuthorizationService(
             actionKey,
             cancellationToken
         );
-        if (capability.IsSuccess && capability.Value)
+        if (capability is { IsSuccess: true, Value: true })
             return Result.Success(true);
 
         await eventBus.PublishAsync(

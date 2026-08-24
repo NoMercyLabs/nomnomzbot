@@ -175,5 +175,5 @@ public sealed class RenderManifestService : IRenderManifestService
         return EmptyScopes();
     }
 
-    private static MissingScopesDto EmptyScopes() => new("unknown", Array.Empty<MissingScopeDto>());
+    private static MissingScopesDto EmptyScopes() => new("unknown", []);
 }

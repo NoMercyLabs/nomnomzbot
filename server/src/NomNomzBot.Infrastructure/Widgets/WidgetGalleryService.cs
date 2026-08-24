@@ -76,7 +76,7 @@ public partial class WidgetGalleryService(
             .Take(pagination.PageSize)
             .ToListAsync(cancellationToken);
 
-        List<GalleryItemSummary> summaries = items.Select(ToSummary).ToList();
+        List<GalleryItemSummary> summaries = [.. items.Select(ToSummary)];
         return Result.Success(
             new PagedList<GalleryItemSummary>(
                 summaries,

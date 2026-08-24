@@ -32,7 +32,7 @@ public sealed class RequireActionCoverageTests
 
         RequireActionAttribute? attribute = method.GetCustomAttribute<RequireActionAttribute>();
         attribute.Should().NotBeNull($"{controllerType.Name}.{methodName} must be Gate-2 gated");
-        return attribute!.ActionKey;
+        return attribute.ActionKey;
     }
 
     [Theory]

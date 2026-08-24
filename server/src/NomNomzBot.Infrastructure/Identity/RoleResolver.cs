@@ -136,7 +136,7 @@ public sealed class RoleResolver(IApplicationDbContext db, TimeProvider clock) :
         [
             .. activePermits
                 .Where(p =>
-                    p.GrantType == PermitGrantType.Capability && p.ActionDefinitionId != null
+                    p is { GrantType: PermitGrantType.Capability, ActionDefinitionId: not null }
                 )
                 .Select(p => p.ActionDefinitionId!.Value),
         ];
@@ -165,7 +165,7 @@ public sealed class RoleResolver(IApplicationDbContext db, TimeProvider clock) :
         );
 
         ManagementRole? permitRole = activePermits
-            .Where(p => p.GrantType == PermitGrantType.Role && p.GrantedRole != null)
+            .Where(p => p is { GrantType: PermitGrantType.Role, GrantedRole: not null })
             .Select(p => (ManagementRole?)p.GrantedRole!.Value)
             .OrderByDescending(r => r!.Value.ToLevel())
             .FirstOrDefault();

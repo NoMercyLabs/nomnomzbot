@@ -129,9 +129,10 @@ public class BundlesController(
 
     private static string SafeFileName(string name)
     {
-        char[] safe = name.Trim()
-            .Select(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_' ? c : '-')
-            .ToArray();
+        char[] safe =
+        [
+            .. name.Trim().Select(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_' ? c : '-'),
+        ];
         string fileName = new(safe);
         return fileName.Length == 0 ? "bundle" : fileName;
     }

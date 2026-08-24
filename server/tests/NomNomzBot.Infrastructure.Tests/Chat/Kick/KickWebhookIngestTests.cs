@@ -155,7 +155,7 @@ public sealed class KickWebhookIngestTests
     public async Task A_dedicated_bot_accounts_line_is_ignored_once_connected()
     {
         (KickWebhookIngest ingest, _, RecordingEventBus bus) = Build(
-            new FakeBotSelfEchoGuard
+            new()
             {
                 // the SAME sender id ChatBody carries, on Kick — the connected dedicated bot's identity.
                 DedicatedBotIdentity = (AuthEnums.Platform.Kick, "678"),
@@ -176,7 +176,7 @@ public sealed class KickWebhookIngestTests
         // key its identity match on (provider, senderId) together, never senderId alone, or a numeric-id
         // collision across platforms would cross-amplify the suppression.
         (KickWebhookIngest ingest, _, RecordingEventBus bus) = Build(
-            new FakeBotSelfEchoGuard { DedicatedBotIdentity = (AuthEnums.Platform.Twitch, "678") }
+            new() { DedicatedBotIdentity = (AuthEnums.Platform.Twitch, "678") }
         );
         await ingest.HandleAsync("chat.message.sent", ChatBody);
 

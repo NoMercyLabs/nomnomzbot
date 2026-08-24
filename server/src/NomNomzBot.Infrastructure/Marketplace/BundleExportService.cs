@@ -76,7 +76,7 @@ public class BundleExportService : IBundleExportService
             );
 
         // ── Resolve every requested entity (broadcaster-scoped), de-duplicated ──
-        List<ExportItemRef> refs = request.Items.Distinct().ToList();
+        List<ExportItemRef> refs = [.. request.Items.Distinct()];
 
         Dictionary<Guid, Command> commands = [];
         Dictionary<Guid, Pipeline> pipelines = [];

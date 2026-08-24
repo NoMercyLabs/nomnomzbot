@@ -345,10 +345,10 @@ public sealed class WebSocketEventSubTransportTests
         private readonly ConcurrentQueue<CapturedRevocation> _revocations = new();
         private readonly ConcurrentQueue<CapturedDisconnect> _disconnects = new();
 
-        public IReadOnlyList<string> Welcomes => _welcomes.ToList();
-        public IReadOnlyList<CapturedNotification> Notifications => _notifications.ToList();
-        public IReadOnlyList<CapturedRevocation> Revocations => _revocations.ToList();
-        public IReadOnlyList<CapturedDisconnect> Disconnects => _disconnects.ToList();
+        public IReadOnlyList<string> Welcomes => [.. _welcomes];
+        public IReadOnlyList<CapturedNotification> Notifications => [.. _notifications];
+        public IReadOnlyList<CapturedRevocation> Revocations => [.. _revocations];
+        public IReadOnlyList<CapturedDisconnect> Disconnects => [.. _disconnects];
 
         public Task OnSessionWelcomeAsync(string sessionId, string ownerKey, CancellationToken ct)
         {
@@ -430,7 +430,7 @@ public sealed class WebSocketEventSubTransportTests
         public ScriptedChannelFactory(params ScriptedChannel[] channels) =>
             _channels = new(channels);
 
-        public IReadOnlyList<Uri> ConnectedUrls => _connected.ToList();
+        public IReadOnlyList<Uri> ConnectedUrls => [.. _connected];
 
         public Task<IWebSocketChannel> ConnectAsync(Uri uri, CancellationToken cancellationToken)
         {

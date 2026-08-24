@@ -15,7 +15,6 @@ using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Domain.Identity.Entities;
-using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Infrastructure.Chat;
 using NomNomzBot.Infrastructure.Moderation;
@@ -437,7 +436,7 @@ public sealed class SharedBanServiceTests
 
         // Inserted newest-first, so a passing assertion cannot be an accident of add order.
         db.SharedBanTrustedChannels.Add(
-            new SharedBanTrustedChannel
+            new()
             {
                 BroadcasterId = Channel,
                 TrustedChannelId = SecondPartner,
@@ -446,7 +445,7 @@ public sealed class SharedBanServiceTests
             }
         );
         db.SharedBanTrustedChannels.Add(
-            new SharedBanTrustedChannel
+            new()
             {
                 BroadcasterId = Channel,
                 TrustedChannelId = Partner,

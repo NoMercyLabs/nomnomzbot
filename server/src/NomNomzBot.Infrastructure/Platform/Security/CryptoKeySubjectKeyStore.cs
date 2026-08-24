@@ -195,7 +195,7 @@ public sealed class CryptoKeySubjectKeyStore : ISubjectKeyStore
             )
             .Select(k => k.Id)
             .ToListAsync(cancellationToken);
-        return resolved.Distinct().ToList();
+        return [.. resolved.Distinct()];
     }
 
     public async Task<IReadOnlyList<SubjectKeyRecord>> GetAllNonDestroyedAsync(
@@ -206,7 +206,7 @@ public sealed class CryptoKeySubjectKeyStore : ISubjectKeyStore
             .CryptoKeys.AsNoTracking()
             .Where(k => k.Status != DestroyedStatus)
             .ToListAsync(cancellationToken);
-        return entities.Select(ToRecord).ToList();
+        return [.. entities.Select(ToRecord)];
     }
 
     private const string ActiveStatus = "active";

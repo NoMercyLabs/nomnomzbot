@@ -222,7 +222,7 @@ public sealed class CommunityControllerTests
         OkObjectResult ok = (OkObjectResult)result;
         PaginatedResponse<CommunityController.CommunityUserDto> body =
             (PaginatedResponse<CommunityController.CommunityUserDto>)ok.Value!;
-        return body.Data.ToList();
+        return [.. body.Data];
     }
 
     [Fact]

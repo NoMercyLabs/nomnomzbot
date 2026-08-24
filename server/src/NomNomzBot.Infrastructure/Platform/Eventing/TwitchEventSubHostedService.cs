@@ -602,8 +602,7 @@ public sealed class TwitchEventSubHostedService
         string? currentSession = handle.SessionId;
         if (
             !isNew
-            && row.Status == "enabled"
-            && row.TwitchSubscriptionId is not null
+            && row is { Status: "enabled", TwitchSubscriptionId: not null }
             && currentSession is not null
             && row.SessionId == currentSession
         )
@@ -819,7 +818,7 @@ public sealed class TwitchEventSubHostedService
 
         return Result.Success(
             new PagedList<EventSubSubscriptionDto>(
-                rows.Select(ToDto).ToList(),
+                [.. rows.Select(ToDto)],
                 pagination.Page,
                 pagination.PageSize,
                 total
@@ -928,7 +927,7 @@ public sealed class TwitchEventSubHostedService
         // Re-create rows that are desired (Enabled) but Twitch no longer has.
         int created = 0;
         foreach (
-            EventSubSubscription row in registry.Where(r => r.Enabled && !r.DeletedAt.HasValue)
+            EventSubSubscription row in registry.Where(r => r is { Enabled: true, DeletedAt: null })
         )
         {
             bool liveExists = row.TwitchSubscriptionId is { } id && liveById.ContainsKey(id);

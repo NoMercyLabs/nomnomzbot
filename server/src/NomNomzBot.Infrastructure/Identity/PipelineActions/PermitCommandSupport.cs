@@ -85,7 +85,7 @@ internal static class PermitCommandSupport
             PermitIssueActionKey,
             ctx.CancellationToken
         );
-        return mayIssue.IsSuccess && mayIssue.Value
+        return mayIssue is { IsSuccess: true, Value: true }
             ? invoker
             : Result.Failure<Guid>(
                 $"{verb}: you are not allowed to manage permits (needs {PermitIssueActionKey})",

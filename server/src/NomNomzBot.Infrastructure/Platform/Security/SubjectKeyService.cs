@@ -163,7 +163,7 @@ public sealed class SubjectKeyService : ISubjectKeyService
         // caller writes stays consistent), and seal the new value with it. Anything sealed under the lost DEK was
         // already unrecoverable and is being replaced. Gated to UNWRAP_FAILED only — a crypto-shredded key fails
         // with KEY_DESTROYED and is never re-keyed here, so the GDPR erasure guarantee is untouched.
-        if (unwrap.IsFailure && unwrap.ErrorCode == "UNWRAP_FAILED")
+        if (unwrap is { IsFailure: true, ErrorCode: "UNWRAP_FAILED" })
         {
             Result<byte[]> rekeyed = await RekeyInPlaceAsync(cryptoKeyId, cancellationToken);
             if (rekeyed.IsFailure)

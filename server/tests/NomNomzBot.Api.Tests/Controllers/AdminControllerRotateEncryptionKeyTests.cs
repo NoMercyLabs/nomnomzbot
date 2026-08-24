@@ -42,7 +42,7 @@ public sealed class AdminControllerRotateEncryptionKeyTests
         AdminController controller = new(adminService, db, rotationService);
 
         IActionResult result = await controller.RotateEncryptionKey(
-            new AdminController.RotateEncryptionKeyRequestDto("old-key", "new-key"),
+            new("old-key", "new-key"),
             CancellationToken.None
         );
 

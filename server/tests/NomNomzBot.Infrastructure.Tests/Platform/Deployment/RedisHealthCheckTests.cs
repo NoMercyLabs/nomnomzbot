@@ -44,7 +44,7 @@ public sealed class RedisHealthCheckTests
         );
         RedisHealthCheck sut = new(disconnected);
 
-        HealthCheckResult result = await sut.CheckHealthAsync(new HealthCheckContext());
+        HealthCheckResult result = await sut.CheckHealthAsync(new());
 
         result.Status.Should().Be(HealthStatus.Degraded);
         disconnected.IsConnected.Should().BeFalse("nothing is listening on the probed port");
@@ -74,7 +74,7 @@ public sealed class RedisHealthCheckTests
 
         RedisHealthCheck sut = new(multiplexer);
 
-        HealthCheckResult result = await sut.CheckHealthAsync(new HealthCheckContext());
+        HealthCheckResult result = await sut.CheckHealthAsync(new());
 
         result.Status.Should().Be(HealthStatus.Unhealthy);
         result.Exception.Should().BeOfType<RedisConnectionException>();
@@ -92,7 +92,7 @@ public sealed class RedisHealthCheckTests
 
         RedisHealthCheck sut = new(multiplexer);
 
-        HealthCheckResult result = await sut.CheckHealthAsync(new HealthCheckContext());
+        HealthCheckResult result = await sut.CheckHealthAsync(new());
 
         result.Status.Should().Be(HealthStatus.Healthy);
     }

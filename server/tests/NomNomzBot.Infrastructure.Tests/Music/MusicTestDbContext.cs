@@ -83,19 +83,21 @@ internal sealed class MusicTestDbContext : DbContext, IApplicationDbContext
     /// by reflection from the interface's <c>DbSet&lt;T&gt;</c> members so it never silently drifts when the
     /// contract grows.
     /// </summary>
-    private static readonly IReadOnlyList<Type> UnmappedEntities = typeof(IApplicationDbContext)
-        .GetProperties()
-        .Where(p =>
-            p.PropertyType.IsGenericType
-            && p.PropertyType.GetGenericTypeDefinition() == typeof(DbSet<>)
-        )
-        .Select(p => p.PropertyType.GetGenericArguments()[0])
-        .Where(t =>
-            t != typeof(Service)
-            && t != typeof(NomNomzBot.Domain.Music.Entities.BlockedTrack)
-            && t != typeof(IntegrationConnection)
-        )
-        .ToList();
+    private static readonly IReadOnlyList<Type> UnmappedEntities =
+    [
+        .. typeof(IApplicationDbContext)
+            .GetProperties()
+            .Where(p =>
+                p.PropertyType.IsGenericType
+                && p.PropertyType.GetGenericTypeDefinition() == typeof(DbSet<>)
+            )
+            .Select(p => p.PropertyType.GetGenericArguments()[0])
+            .Where(t =>
+                t != typeof(Service)
+                && t != typeof(NomNomzBot.Domain.Music.Entities.BlockedTrack)
+                && t != typeof(IntegrationConnection)
+            ),
+    ];
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
     public DbSet<User> Users => throw new NotSupportedException();

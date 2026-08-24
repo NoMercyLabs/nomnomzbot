@@ -80,7 +80,7 @@ public class AssemblyScanDiscoveryTests
         expected.Should().BeGreaterThan(0, "the assembly defines pipeline actions to discover");
 
         using ServiceProvider provider = BuildProvider(validate: false);
-        List<ICommandAction> actions = provider.GetServices<ICommandAction>().ToList();
+        List<ICommandAction> actions = [.. provider.GetServices<ICommandAction>()];
 
         actions.Should().HaveCount(expected);
         actions
@@ -98,7 +98,7 @@ public class AssemblyScanDiscoveryTests
         expected.Should().BeGreaterThan(0);
 
         using ServiceProvider provider = BuildProvider(validate: false);
-        List<ICommandCondition> conditions = provider.GetServices<ICommandCondition>().ToList();
+        List<ICommandCondition> conditions = [.. provider.GetServices<ICommandCondition>()];
 
         conditions.Should().HaveCount(expected);
         conditions.Select(c => c.GetType()).Should().OnlyHaveUniqueItems();
@@ -112,9 +112,7 @@ public class AssemblyScanDiscoveryTests
 
         using ServiceProvider provider = BuildProvider(validate: false);
         using IServiceScope scope = provider.CreateScope();
-        List<IMusicProvider> providers = scope
-            .ServiceProvider.GetServices<IMusicProvider>()
-            .ToList();
+        List<IMusicProvider> providers = [.. scope.ServiceProvider.GetServices<IMusicProvider>()];
 
         providers.Should().HaveCount(expected);
         providers.Select(p => p.GetType()).Should().OnlyHaveUniqueItems();
@@ -131,7 +129,7 @@ public class AssemblyScanDiscoveryTests
 
         using ServiceProvider provider = BuildProvider(validate: false);
         using IServiceScope scope = provider.CreateScope();
-        List<ISeeder> seeders = scope.ServiceProvider.GetServices<ISeeder>().ToList();
+        List<ISeeder> seeders = [.. scope.ServiceProvider.GetServices<ISeeder>()];
 
         seeders.Should().HaveCount(expected);
         seeders.Select(s => s.GetType()).Should().OnlyHaveUniqueItems();
@@ -145,19 +143,21 @@ public class AssemblyScanDiscoveryTests
         // IsGenericTypeDefinition: false matches the scanner's own rule — the open-generic automation
         // bridge handler yields an OPEN IEventHandler<TEvent> interface that can't (and shouldn't)
         // resolve; its closed forms are registered per described event by the descriptor DI loop.
-        List<Type> closedHandlerInterfaces = InfrastructureAssembly
-            .GetTypes()
-            .Where(t =>
-                t is { IsAbstract: false, IsInterface: false, IsGenericTypeDefinition: false }
-            )
-            .SelectMany(t => t.GetInterfaces())
-            .Where(i =>
-                i.IsGenericType
-                && i.GetGenericTypeDefinition() == typeof(IEventHandler<>)
-                && !i.ContainsGenericParameters
-            )
-            .Distinct()
-            .ToList();
+        List<Type> closedHandlerInterfaces =
+        [
+            .. InfrastructureAssembly
+                .GetTypes()
+                .Where(t =>
+                    t is { IsAbstract: false, IsInterface: false, IsGenericTypeDefinition: false }
+                )
+                .SelectMany(t => t.GetInterfaces())
+                .Where(i =>
+                    i.IsGenericType
+                    && i.GetGenericTypeDefinition() == typeof(IEventHandler<>)
+                    && !i.ContainsGenericParameters
+                )
+                .Distinct(),
+        ];
 
         closedHandlerInterfaces.Should().NotBeEmpty();
 
@@ -184,7 +184,7 @@ public class AssemblyScanDiscoveryTests
         int expectedWorkers = CountConcreteAssignableTo(typeof(BackgroundService)) + 1; // ChannelRegistry implements IHostedService directly, not BackgroundService.
 
         using ServiceProvider provider = BuildProvider(validate: false);
-        List<IHostedService> hosted = provider.GetServices<IHostedService>().ToList();
+        List<IHostedService> hosted = [.. provider.GetServices<IHostedService>()];
 
         hosted
             .Select(h => h.GetType().Name)

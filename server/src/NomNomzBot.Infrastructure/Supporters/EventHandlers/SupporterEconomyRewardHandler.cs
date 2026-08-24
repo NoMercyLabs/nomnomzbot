@@ -67,7 +67,7 @@ public sealed class SupporterEconomyRewardHandler : IEventHandler<SupporterEvent
                 cancellationToken
             );
 
-            if (result.IsSuccess && result.Value > 0)
+            if (result is { IsSuccess: true, Value: > 0 })
                 _logger.LogInformation(
                     "Supporter reward: credited {Amount} to {Viewer} for {Kind} on {Channel}",
                     result.Value,

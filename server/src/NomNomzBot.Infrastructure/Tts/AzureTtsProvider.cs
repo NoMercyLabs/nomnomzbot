@@ -119,8 +119,9 @@ public sealed class AzureTtsProvider : ITtsProvider
             if (voices is null)
                 return [];
 
-            return voices
-                .Select(v => new TtsVoiceInfo
+            return
+            [
+                .. voices.Select(v => new TtsVoiceInfo
                 {
                     Id = v.ShortName,
                     Name = v.ShortName,
@@ -131,8 +132,8 @@ public sealed class AzureTtsProvider : ITtsProvider
                     // Azure's list carries per-voice expressive styles (e.g. cheerful, angry); the locale/gender
                     // are the only other catalogue-relevant fields it exposes (no accent/age/preview url).
                     Styles = v.StyleList is { Count: > 0 } ? v.StyleList : null,
-                })
-                .ToList();
+                }),
+            ];
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

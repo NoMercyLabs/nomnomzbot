@@ -55,7 +55,7 @@ public sealed class ScriptRunner(
             script.BroadcasterId,
             cancellationToken
         );
-        if (budget.IsSuccess && !budget.Value.Allowed)
+        if (budget is { IsSuccess: true, Value.Allowed: false })
             return Result.Success(
                 new ScriptRunResult(
                     ScriptExecutionOutcome.Denied,

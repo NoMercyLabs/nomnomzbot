@@ -174,12 +174,7 @@ public sealed class SongRequestQueueReconcilerTests
         RecordingEventBus bus = new();
         RecordingHandover handover = new();
         return (
-            new SongRequestQueueReconciler(
-                store,
-                handover,
-                new NoOpSongRequestQueuePersistence(),
-                bus
-            ),
+            new(store, handover, new NoOpSongRequestQueuePersistence(), bus),
             queue,
             bus,
             store,
