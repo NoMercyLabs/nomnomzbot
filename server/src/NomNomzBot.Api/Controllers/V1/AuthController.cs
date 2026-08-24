@@ -17,6 +17,7 @@ using Microsoft.Extensions.Primitives;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Extensions;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
@@ -43,6 +44,7 @@ public class AuthController : BaseController
     private readonly IEnumerable<IAuthCodeLoginProvider> _authCodeImpls;
     private readonly IExternalLoginService _externalLogin;
     private readonly ISessionService _sessions;
+    private readonly ISystemCredentialsProvider _credentials;
 
     public AuthController(
         IUserService userService,
@@ -55,7 +57,8 @@ public class AuthController : BaseController
         IEnumerable<ILoginIdentityProvider> loginImpls,
         IEnumerable<IAuthCodeLoginProvider> authCodeImpls,
         IExternalLoginService externalLogin,
-        ISessionService sessions
+        ISessionService sessions,
+        ISystemCredentialsProvider credentials
     )
     {
         _userService = userService;
@@ -69,6 +72,7 @@ public class AuthController : BaseController
         _authCodeImpls = authCodeImpls;
         _externalLogin = externalLogin;
         _sessions = sessions;
+        _credentials = credentials;
     }
 
     private ILoginIdentityProvider? FindLoginImpl(string key) =>
@@ -1235,22 +1239,30 @@ public class AuthController : BaseController
 
     /// <summary>
     /// Begin the bot-account device login (no secret). The operator approves the bot's own Twitch account at
-    /// twitch.tv/activate and the client polls until connected. Admin-gated — the streamer is already signed in
-    /// when they add a bot account (Streamer.bot parity).
+    /// twitch.tv/activate and the client polls until connected. Admin-gated once setup is complete (adding/
+    /// replacing a bot later, from Settings) — but the first-time setup wizard authorizes the bot BEFORE the
+    /// streamer signs in, so this stays anonymous during that bootstrap window, exactly the same "open until
+    /// setup finishes" gate <see cref="SystemController"/>'s setup/* endpoints already use.
     /// </summary>
     [HttpPost("twitch/bot/device")]
-    [Authorize(Policy = IamPermissionKeys.IamManage)]
+    [AllowAnonymous]
     [EnableRateLimiting("auth")]
     [ProducesResponseType<StatusResponseDto<DeviceCodeStartDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> StartBotDeviceLogin(CancellationToken ct)
     {
+        if (await IsSetupCompleteAsync(ct) && !User.IsInRole("admin"))
+            return Forbid();
+
         Result<DeviceCodeStartDto> result = await _authService.StartBotDeviceLoginAsync(ct);
         return ResultResponse(result);
     }
 
-    /// <summary>Poll a bot device login once; on <c>authorized</c> the shared bot account is connected + vaulted.</summary>
+    /// <summary>
+    /// Poll a bot device login once; on <c>authorized</c> the shared bot account is connected + vaulted. Open
+    /// during the same setup bootstrap window as <see cref="StartBotDeviceLogin"/> — see its remarks.
+    /// </summary>
     [HttpPost("twitch/bot/device/poll")]
-    [Authorize(Policy = IamPermissionKeys.IamManage)]
+    [AllowAnonymous]
     [EnableRateLimiting("device-poll")]
     [ProducesResponseType<StatusResponseDto<DeviceBotPollDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> PollBotDeviceLogin(
@@ -1258,10 +1270,30 @@ public class AuthController : BaseController
         CancellationToken ct
     )
     {
+        if (await IsSetupCompleteAsync(ct) && !User.IsInRole("admin"))
+            return Forbid();
+
         Result<DeviceBotPollDto> result = await _authService.PollBotDeviceLoginAsync(
             body.DeviceCode,
             ct
         );
         return ResultResponse(result);
+    }
+
+    // Mirrors SystemController's own IsSetupCompleteAsync exactly (same two facts, same "explicitly finalized
+    // OR (Twitch client id + platform bot) both present" rule) so this controller's bootstrap-window gate can
+    // never drift from the one setup/* already enforces.
+    private async Task<bool> IsSetupCompleteAsync(CancellationToken ct)
+    {
+        if (await _credentials.GetValueAsync("system", "setup_complete", ct) == "true")
+            return true;
+
+        bool hasTwitchClientId = !string.IsNullOrWhiteSpace(
+            await _credentials.GetClientIdAsync("twitch", ct)
+        );
+        Result<BotStatusDto> botStatus = await _authService.GetBotStatusAsync(ct);
+        bool hasPlatformBot = botStatus is { IsSuccess: true, Value.Connected: true };
+
+        return hasTwitchClientId && hasPlatformBot;
     }
 }
