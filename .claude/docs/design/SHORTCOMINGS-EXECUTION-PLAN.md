@@ -61,6 +61,17 @@ stable — without dropping the planned requirements behind them.
   the class of bug that caused the loss) would not be caught. Done-when: a TestServer round-trip saves a
   pipeline graph and reads it back with steps intact.
 
+- **S-TTS-TEMPLATED-VOICE** (owner, 2026-08-25) Every bot reply must be able to also speak, with the
+  VOICE chosen by a template — owner's case: the watch-streak event response. Established: every
+  reply-producing surface already runs a pipeline (`Command`, `EventResponse`, `ChatTrigger`, `Timer`,
+  `ScheduledPipelineTask`, `AutomationApiToken`, `CatalogItem`, `Giveaway` all carry a `PipelineId`), so
+  a reply speaks by chaining the generic `play_tts` step — NO per-surface TTS toggle, ever. The real gap
+  is `PlayTtsAction.cs:61`: the `text` field is template-resolved (`:52`) but the `voice` field is read
+  raw via `action.GetString("voice")`. Done-when: the voice field resolves through `ITemplateResolver`
+  and then through the case-insensitive lookup, an unknown resolved voice fails honestly (never a silent
+  substitution), and a watch-streak event-response test asserts the resolved voice id AND text that
+  reach the synthesis call.
+
 - **S-CODE-EDITOR** The code-scripts surface gets a **VS Code-for-web grade editor that functions like
   one** — Monaco-class: completion, hover types, go-to-definition, diagnostics, multi-file — loading a
   **REAL fully-typed SDK from npm** (the actual published types, not hand-written `.d.ts`
