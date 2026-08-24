@@ -29,26 +29,12 @@ Slice IDs are stable; the order is the queue.
 
 - **S035** SignalR hardening — `WithStatefulReconnect()`; OverlayHub many-widgets-per-connection;
   overlay token out of the query string + throttle (U·B5/B7). 🔒 backplane for multi-replica.
-- **S036b** Two token-custody gaps S036 (23f1e119) named but did not close: `SpotifyMusicProvider`'s vaulted refresh has the
-  identical unguarded-concurrent-refresh shape as Twitch/Kick, and `IYouTubeAccessTokenProvider` keeps custody on the legacy
-  flat `Service` table rather than `IIntegrationTokenVault` — a second custody path. Done-when: Spotify refresh goes through
-  `ConnectionRefreshGate` with the same two-concurrent-callers test, and YouTube custody is on the vault or the split is
-  documented as deliberate with the reason.
-- **S038b** Redis loss still throws per-call — S038 (daaca3a4) set `AbortOnConnectFail=false` so the app boots without Redis,
-  but `RedisRateLimiterPartitionStore` and `DistributedCacheService` call straight into Redis with no fallback, so losing Redis
-  at RUNTIME now surfaces as per-call timeouts instead of a clean degrade. `InfraReachabilityProbe`/`StartupReadinessChecker`
-  also open their own multiplexers with the old abort posture. Done-when: a runtime Redis outage degrades to in-memory for both
-  stores and the health check reports it, proven with Redis stopped mid-run.
-- **S039** Timers correctness — interval floor/ceiling; `LastFiredAt` advances on failure; stamp on
-  enable/create; `MinChatActivity` snapshot; prune dead; rename uniqueness (S·F2/F5/F8, U·B1).
-- **S040** Cooldown + collisions — atomic cooldown try-acquire (🔒 DB write-through); unique index or
-  ordering on `EventResponse(BroadcasterId, EventType)`; builtin-name + alias collision checks;
-  chat-trigger order column + `continue` on cooldown (S·F7/F9/F10, U·B1). Done-when: duplicate
-  response rows impossible; alias hijack rejected at save.
-- **S041b** TTS has NO per-channel volume cap because there is no volume field at all (S041, 8832a68e, closed the SSML
-  escape + webhook flatten-depth halves; the volume clamp had nothing to clamp). Done-when: a per-channel TTS volume
-  exists end to end (entity, DTO, dashboard control, overlay payload) and is clamped to a safe baseline at the service
-  boundary. Also: `ElevenLabsTtsProvider` interpolates `voiceId` into the URL path unescaped — different bug class, fix here.
+- **S036c** YouTube token custody is still a SECOND custody path — S036b (005273c7) closed the Spotify half
+  (refresh now goes through `ConnectionRefreshGate`, proven by a two-concurrent-callers test) and documented in place
+  why YouTube was not moved: `YouTubeAccessTokenProvider` keeps custody on the legacy flat `Service` table, and moving
+  it needs a backfill of existing `Service` rows into `IntegrationConnection` coordinated across every reader/writer of
+  that table. Done-when: YouTube custody reads and writes through `IIntegrationTokenVault`, existing rows are migrated,
+  and no `Service`-table token read remains on that path.
 
 ## Phase 2 — existing platforms made to work (Kick / YouTube are shipped features that are broken) — only the spine pieces these fixes REQUIRE
 
