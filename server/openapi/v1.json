@@ -14833,6 +14833,124 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/moderation/chat-filters/test": {
+      "post": {
+        "tags": [
+          "Moderation"
+        ],
+        "summary": "Dry-run a candidate pattern against one sample message — the dashboard editor's \"test this filter\" seam.\r\nNothing is persisted; an invalid regex comes back as a non-match carrying the compile error rather than an\r\nerror response, so the editor can show it inline.",
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestChatFilterRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestChatFilterRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestChatFilterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfChatFilterTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/chat-polls": {
       "get": {
         "tags": [
@@ -32720,6 +32838,316 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/integrations/spotify/credentials": {
+      "get": {
+        "tags": [
+          "Integrations"
+        ],
+        "summary": "The channel's stored Spotify BYOC state: client id (safe to show) + whether a secret is\r\n    configured. Never returns the secret itself.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfChannelSpotifyCredentialsDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Integrations"
+        ],
+        "summary": "Store the channel's own Spotify client id + secret (BYOC). Sealed at rest; never echoed\r\n    back in plaintext.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetChannelSpotifyCredentialsDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetChannelSpotifyCredentialsDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetChannelSpotifyCredentialsDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfChannelSpotifyCredentialsDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Integrations"
+        ],
+        "summary": "Remove the channel's own Spotify credentials — Spotify OAuth falls back to the app-level\r\n    configuration.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfChannelSpotifyCredentialsDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/integrations": {
       "get": {
         "tags": [
@@ -48849,6 +49277,277 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatusResponseDtoOfPickListPreviewDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/pipeline-executions": {
+      "get": {
+        "tags": [
+          "Pipelines"
+        ],
+        "summary": "List the channel's pipeline runs, newest-first, paginated. `failuresOnly=true`\r\n    restricts to non-success outcomes.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Page",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "Take",
+            "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "Sort",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Order",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "failuresOnly",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponseOfPipelineExecutionSummaryDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/pipeline-executions/{id}": {
+      "get": {
+        "tags": [
+          "Pipelines"
+        ],
+        "summary": "Get one run's detail, including its ordered per-step logs, so the failing step is\r\n    identifiable.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfPipelineExecutionDetailDto"
                 }
               }
             }
@@ -71250,6 +71949,12 @@
               "null",
               "string"
             ]
+          },
+          "authStatus": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "description": "The channel-wide connection state of a single integration entry (Twitch, custom bot, Spotify,\r\nDiscord, YouTube, OBS) as shown on the integrations screen and the dashboard shell. Carries only\r\nthe persisted connection facts — the request-specific OAuth connect URL is layered on by the\r\nintegrations controller. Distinct from IntegrationStatusDto, which is the per-OAuth\r\nprovider view (scope sets / capabilities / re-auth)."
@@ -71365,6 +72070,25 @@
           }
         },
         "description": "One channel that matched a broadcaster-name search (for autocomplete — raid / invite / trust targets)."
+      },
+      "ChannelSpotifyCredentialsDto": {
+        "required": [
+          "clientId",
+          "hasClientSecret"
+        ],
+        "type": "object",
+        "properties": {
+          "clientId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "hasClientSecret": {
+            "type": "boolean"
+          }
+        },
+        "description": "Read-model for a channel's Spotify BYOC state — never carries the secret."
       },
       "ChannelSummaryDto": {
         "required": [
@@ -71676,6 +72400,25 @@
           }
         },
         "description": "A custom chat filter (moderation.md J.6) as surfaced to the dashboard."
+      },
+      "ChatFilterTestResult": {
+        "required": [
+          "isMatch",
+          "compileError"
+        ],
+        "type": "object",
+        "properties": {
+          "isMatch": {
+            "type": "boolean"
+          },
+          "compileError": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "The tester's verdict: whether the pattern compiles at all (string? ChatFilterTestResult.CompileError is non-null when it does\r\nnot — the same reason the save path would reject it) and, when it compiles, whether the sample matched."
       },
       "ChatFilterType": {
         "type": "integer"
@@ -81635,6 +82378,44 @@
           }
         }
       },
+      "PaginatedResponseOfPipelineExecutionSummaryDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PipelineExecutionSummaryDto"
+            }
+          },
+          "nextPage": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "total": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "PaginatedResponseOfPipelineListItemDto": {
         "type": "object",
         "properties": {
@@ -82399,6 +83180,192 @@
           }
         },
         "description": "Full pipeline details including the deserialized node graph cache."
+      },
+      "PipelineExecutionDetailDto": {
+        "required": [
+          "id",
+          "pipelineId",
+          "triggerKind",
+          "status",
+          "hostCallCount",
+          "durationMs",
+          "errorMessage",
+          "startedAt",
+          "completedAt",
+          "stepLogs"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "pipelineId": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "triggerKind": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "hostCallCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "durationMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "errorMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "stepLogs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PipelineExecutionStepLogDto"
+            }
+          }
+        },
+        "description": "Full run detail — the summary fields plus its ordered per-step logs."
+      },
+      "PipelineExecutionStepLogDto": {
+        "required": [
+          "stepIndex",
+          "actionType",
+          "succeeded",
+          "durationMs",
+          "errorMessage"
+        ],
+        "type": "object",
+        "properties": {
+          "stepIndex": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "actionType": {
+            "type": "string"
+          },
+          "succeeded": {
+            "type": "boolean"
+          },
+          "durationMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "errorMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "One step's outcome within a run, so the FAILING step is identifiable in the detail read."
+      },
+      "PipelineExecutionSummaryDto": {
+        "required": [
+          "id",
+          "pipelineId",
+          "triggerKind",
+          "status",
+          "hostCallCount",
+          "durationMs",
+          "errorMessage",
+          "startedAt",
+          "completedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "pipelineId": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "triggerKind": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "hostCallCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "durationMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "errorMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        },
+        "description": "Lightweight run summary for the execution-history list view (H.4 PipelineExecution)."
       },
       "PipelineGraphInput": {
         "required": [
@@ -83367,9 +84334,12 @@
               "null",
               "string"
             ]
+          },
+          "confirm": {
+            "type": "boolean"
           }
         },
-        "description": "Approve or deny a pending unban request, with an optional note the viewer sees."
+        "description": "Approve or deny a pending unban request, with an optional note the viewer sees. Approving reverses a\r\nban instantly and irreversibly (from the dashboard's perspective — Twitch offers no \"re-ban on regret\"), so\r\nbool ResolveUnbanRequestRequest.Confirm must be explicitly set true on approval; a bare `Approve: true` with no confirmation\r\nis rejected rather than acted on. Denial carries no such risk and needs no confirmation."
       },
       "ResolveViewerReportRequest": {
         "required": [
@@ -83985,6 +84955,22 @@
           }
         },
         "description": "Request to set a channel's built-in-command personality tone."
+      },
+      "SetChannelSpotifyCredentialsDto": {
+        "required": [
+          "clientId",
+          "clientSecret"
+        ],
+        "type": "object",
+        "properties": {
+          "clientId": {
+            "type": "string"
+          },
+          "clientSecret": {
+            "type": "string"
+          }
+        },
+        "description": "Request body to store a channel's own Spotify app credentials."
       },
       "SetCodeScriptEnabledRequest": {
         "required": [
@@ -85133,6 +86119,36 @@
           }
         }
       },
+      "StatusResponseDtoOfChannelSpotifyCredentialsDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ChannelSpotifyCredentialsDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfChannelSummaryDto": {
         "type": "object",
         "properties": {
@@ -85176,6 +86192,36 @@
               },
               {
                 "$ref": "#/components/schemas/ChatFilterDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfChatFilterTestResult": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ChatFilterTestResult"
               }
             ]
           },
@@ -89266,6 +90312,36 @@
           }
         }
       },
+      "StatusResponseDtoOfPipelineExecutionDetailDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PipelineExecutionDetailDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfPipelineValidationResult": {
         "type": "object",
         "properties": {
@@ -91428,6 +92504,40 @@
         },
         "description": "An audited support-access grant — a time-boxed, tenant-narrowed role assignment (stream-admin.md §4)."
       },
+      "TestChatFilterRequest": {
+        "required": [
+          "filterType",
+          "sampleMessage"
+        ],
+        "type": "object",
+        "properties": {
+          "filterType": {
+            "$ref": "#/components/schemas/ChatFilterType"
+          },
+          "pattern": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "terms": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "sampleMessage": {
+            "type": "string"
+          },
+          "isCaseSensitive": {
+            "type": "boolean"
+          }
+        },
+        "description": "Dry-runs a pattern the dashboard editor is not (yet) saving, against one sample message."
+      },
       "TestCustomDataSourceRequest": {
         "required": [
           "samplePayload"
@@ -93022,7 +94132,7 @@
               "null",
               "string"
             ],
-            "description": "The visible marker bot-emitted lines carry when the bot posts through the streamer's own account (e.g. `*`, `#`, or an emoji; 1-4 chars). Empty string clears it back to none; null leaves it unchanged."
+            "description": "The visible marker bot-emitted lines carry when the bot posts through the streamer's own account\r\n(e.g. `*`, `#`, or an emoji; 1-4 chars). Empty string clears it back to none; null leaves\r\nit unchanged."
           },
           "locale": {
             "type": [
