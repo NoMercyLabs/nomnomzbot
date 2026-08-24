@@ -111,17 +111,60 @@ public sealed class PlatformApiRouterTests
     }
 
     [Fact]
-    public async Task An_unregistered_provider_falls_back_to_twitch_instead_of_throwing()
+    public async Task An_unregistered_provider_fails_honestly_and_calls_no_platform()
     {
-        // Kick has a Channel row but no registered platform API yet — same fallback as the chat seam.
-        (PlatformApiRouter router, IPlatformApi twitch, _) = await BuildAsync();
+        // Kick has a Channel row but no registered platform API yet.
+        (PlatformApiRouter router, IPlatformApi twitch, IPlatformApi youtube) = await BuildAsync();
 
-        await router.UpdateStreamInfoAsync(KickTenant, new("t"));
+        Result<PlatformStreamInfoApplied> result = await router.UpdateStreamInfoAsync(
+            KickTenant,
+            new("t")
+        );
 
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("unsupported_provider");
+        await twitch
+            .DidNotReceiveWithAnyArgs()
+            .UpdateStreamInfoAsync(default, default!, Arg.Any<CancellationToken>());
+        await youtube
+            .DidNotReceiveWithAnyArgs()
+            .UpdateStreamInfoAsync(default, default!, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Consecutive_calls_for_different_tenants_each_route_to_their_own_platform()
+    {
+        // No provider is cached/defaulted from a previous call.
+        (PlatformApiRouter router, IPlatformApi twitch, IPlatformApi youtube) = await BuildAsync();
+
+        await router.UpdateStreamInfoAsync(YouTubeTenant, new("first"));
+        await router.UpdateStreamInfoAsync(TwitchTenant, new("second"));
+
+        await youtube
+            .Received(1)
+            .UpdateStreamInfoAsync(
+                YouTubeTenant,
+                Arg.Any<PlatformStreamInfoUpdate>(),
+                Arg.Any<CancellationToken>()
+            );
         await twitch
             .Received(1)
             .UpdateStreamInfoAsync(
-                KickTenant,
+                TwitchTenant,
+                Arg.Any<PlatformStreamInfoUpdate>(),
+                Arg.Any<CancellationToken>()
+            );
+        await twitch
+            .DidNotReceive()
+            .UpdateStreamInfoAsync(
+                YouTubeTenant,
+                Arg.Any<PlatformStreamInfoUpdate>(),
+                Arg.Any<CancellationToken>()
+            );
+        await youtube
+            .DidNotReceive()
+            .UpdateStreamInfoAsync(
+                TwitchTenant,
                 Arg.Any<PlatformStreamInfoUpdate>(),
                 Arg.Any<CancellationToken>()
             );
