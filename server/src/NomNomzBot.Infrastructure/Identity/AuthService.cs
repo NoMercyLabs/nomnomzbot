@@ -61,13 +61,11 @@ public sealed class AuthService : IAuthService
     // Self-host makes the first onboarded account the platform admin (the owner IS the admin); SaaS does not.
     private readonly bool _isSelfHost;
 
-    // D2 bootstrap wiring: the seeded system role the self-host owner (or the configured initial admin) is
-    // minted into on promotion — IamCatalogSeeder's "platform-super-admin" (roles-permissions.md §C.2).
-    private const string PlatformOwnerRoleName = "platform-super-admin";
-
-    // The service-account principal attributed as the ACTING principal for bootstrap-time IAM writes, so a
-    // bootstrap role assignment is never attributed to Guid.Empty (fix D2 item 3).
-    private const string SystemPrincipalName = "system-bootstrap";
+    // D2 bootstrap fix: mints the IamPrincipal + platform-super-admin role assignment on promotion.
+    // Extracted to NomNomzBot.Infrastructure.Identity.PlatformOwnerPrincipalMinter so
+    // IamPrincipalBackfillSeeder can reuse the identical, idempotent row-building logic for pre-existing
+    // IsPlatformPrincipal users that predate this fix — never duplicated.
+    private readonly IPlatformOwnerPrincipalMinter _principalMinter;
 
     // SelfHostLite is single-streamer: a second login attaches to the existing channel instead of creating one.
     private readonly DeploymentMode _deploymentMode;
@@ -124,6 +122,7 @@ public sealed class AuthService : IAuthService
         DeploymentContext deploymentContext,
         TimeProvider timeProvider,
         TwitchScopeRegistry scopeRegistry,
+        IPlatformOwnerPrincipalMinter principalMinter,
         ILogger<AuthService> logger
     )
     {
@@ -137,6 +136,7 @@ public sealed class AuthService : IAuthService
         _credentials = credentials;
         _http = httpClientFactory.CreateClient("twitch-auth");
         _timeProvider = timeProvider;
+        _principalMinter = principalMinter;
         _logger = logger;
         _baseUrl = configuration["App:BaseUrl"] ?? "http://localhost:5080";
         _initialAdminTwitchId = configuration["App:InitialAdminTwitchId"];
@@ -457,81 +457,12 @@ public sealed class AuthService : IAuthService
     /// owner, and deciding "is this SaaS" from "does any <c>IamPrincipal</c> row exist" meant creating a
     /// second principal (e.g. a service account) would flip a self-host deployment into default-deny and lock
     /// the owner out. Idempotent: re-running bootstrap for an already-minted owner adds neither a duplicate
-    /// principal nor a duplicate assignment. Internal so NomNomzBot.Infrastructure.Tests can exercise it
-    /// directly without driving the full Twitch login flow.
+    /// principal nor a duplicate assignment. Delegates the actual row-building to
+    /// <see cref="IPlatformOwnerPrincipalMinter"/> (shared with the startup backfill seeder). Internal so
+    /// NomNomzBot.Infrastructure.Tests can exercise it directly without driving the full Twitch login flow.
     /// </summary>
-    internal async Task MintPlatformOwnerPrincipalAsync(Guid userId, CancellationToken ct)
-    {
-        IamPrincipal? principal = await _db.IamPrincipals.FirstOrDefaultAsync(
-            p => p.UserId == userId,
-            ct
-        );
-        if (principal is null)
-        {
-            principal = new()
-            {
-                PrincipalType = IamPrincipalType.Employee,
-                UserId = userId,
-                Name = "Platform Owner",
-                IsActive = true,
-            };
-            _db.IamPrincipals.Add(principal);
-        }
-        else
-        {
-            principal.IsActive = true;
-        }
-
-        IamRole? ownerRole = await _db.IamRoles.FirstOrDefaultAsync(
-            r => r.Name == PlatformOwnerRoleName,
-            ct
-        );
-        if (ownerRole is null)
-            return; // the IAM catalog seeder has not run yet; the next login retries idempotently
-
-        bool hasAssignment = await _db.IamRoleAssignments.AnyAsync(
-            a => a.PrincipalId == principal.Id && a.RoleId == ownerRole.Id && a.RevokedAt == null,
-            ct
-        );
-        if (hasAssignment)
-            return;
-
-        Guid systemPrincipalId = await EnsureSystemPrincipalIdAsync(ct);
-        _db.IamRoleAssignments.Add(
-            new()
-            {
-                PrincipalId = principal.Id,
-                RoleId = ownerRole.Id,
-                AssignedByPrincipalId = systemPrincipalId,
-                Reason = "self-host owner bootstrap",
-            }
-        );
-    }
-
-    /// <summary>
-    /// The system service-account principal attributed as the ACTING principal for bootstrap-time IAM writes
-    /// (fix D2 item 3) — created once, idempotently, so a bootstrap role assignment is never attributed to
-    /// <see cref="Guid.Empty"/>.
-    /// </summary>
-    private async Task<Guid> EnsureSystemPrincipalIdAsync(CancellationToken ct)
-    {
-        IamPrincipal? system = await _db.IamPrincipals.FirstOrDefaultAsync(
-            p =>
-                p.PrincipalType == IamPrincipalType.ServiceAccount && p.Name == SystemPrincipalName,
-            ct
-        );
-        if (system is not null)
-            return system.Id;
-
-        system = new()
-        {
-            PrincipalType = IamPrincipalType.ServiceAccount,
-            Name = SystemPrincipalName,
-            IsActive = true,
-        };
-        _db.IamPrincipals.Add(system);
-        return system.Id;
-    }
+    internal Task MintPlatformOwnerPrincipalAsync(Guid userId, CancellationToken ct) =>
+        _principalMinter.MintAsync(userId, ct);
 
     // ─── Device Code Flow login (no client secret) ─────────────────────────────
 

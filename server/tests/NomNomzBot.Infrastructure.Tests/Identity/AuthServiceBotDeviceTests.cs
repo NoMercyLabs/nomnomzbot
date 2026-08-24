@@ -147,6 +147,7 @@ public sealed class AuthServiceBotDeviceTests
             new(DeploymentMode.SelfHostLite),
             TimeProvider.System,
             new(),
+            Substitute.For<IPlatformOwnerPrincipalMinter>(),
             NullLogger<AuthService>.Instance
         );
     }

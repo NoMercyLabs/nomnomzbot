@@ -904,6 +904,14 @@ public static class DependencyInjection
         services.AddHttpContextAccessor();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
+        // D2 bootstrap fix: the platform-owner IamPrincipal + role-assignment mint, shared by AuthService's
+        // promotion-time mint and IamPrincipalBackfillSeeder's startup backfill for pre-existing
+        // IsPlatformPrincipal users. Not an I<X>Service — registered explicitly.
+        services.AddScoped<
+            Application.Identity.Services.IPlatformOwnerPrincipalMinter,
+            Identity.PlatformOwnerPrincipalMinter
+        >();
+
         // Base health-check service — AdminService reports the REAL registered probes. The Api host's
         // AddHealthChecks() call layers the per-profile checks (postgres/redis/lite) onto this same service.
         services.AddHealthChecks();

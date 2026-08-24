@@ -189,6 +189,7 @@ public sealed class AuthServiceReAuthOnboardingRepublishTests
             new(DeploymentMode.SelfHostFull),
             TimeProvider.System,
             new(),
+            Substitute.For<IPlatformOwnerPrincipalMinter>(),
             NullLogger<AuthService>.Instance
         );
     }

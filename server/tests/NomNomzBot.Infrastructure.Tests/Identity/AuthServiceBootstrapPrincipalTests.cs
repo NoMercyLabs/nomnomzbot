@@ -19,6 +19,7 @@ using NomNomzBot.Domain.Enums.Deployment;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Identity;
+using NomNomzBot.Infrastructure.Platform.Deployment;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity;
@@ -166,6 +167,7 @@ public sealed class AuthServiceBootstrapPrincipalTests
             new(DeploymentMode.SelfHostLite),
             TimeProvider.System,
             new(),
+            new PlatformOwnerPrincipalMinter(db),
             NullLogger<AuthService>.Instance
         );
     }

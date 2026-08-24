@@ -173,6 +173,7 @@ public sealed class AuthServiceStreamerScopesTests
             new(DeploymentMode.SelfHostLite),
             TimeProvider.System,
             new(),
+            Substitute.For<IPlatformOwnerPrincipalMinter>(),
             NullLogger<AuthService>.Instance
         );
     }
