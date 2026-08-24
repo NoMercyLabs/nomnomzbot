@@ -224,6 +224,18 @@ stable — without dropping the planned requirements behind them.
   Already fixed in the parent slice, do not re-open: `discord:connection:write` and `music:token:read`
   were seeded below Broadcaster despite bearing credentials.
 
+- **S048b** (server half of S048, found by d56a0169) `EventResponseService.ListAsync`
+  (server/src/NomNomzBot.Infrastructure/Commands/EventResponseService.cs:58-80) TOP-UP SEEDS on every
+  read: a GET inserts catalog defaults as a side effect. Two consequences: (a) a read mutates state,
+  (b) Delete is impossible — `DeleteAsync` (:218-249) genuinely removes the row and the next list call
+  re-inserts it, so the user's intent never sticks. S048 made the UI TRUTHFUL about this (renamed to
+  "Reset to default" with a confirm that says it comes back), which is the right stopgap, but the honest
+  fix is server-side. Done-when: seeding happens on a real lifecycle event (channel creation, or a
+  catalogue-version change) rather than on read; a GET performs NO writes; and a user who deletes an
+  event response can make it STAY deleted — decide and implement the model (either a suppression flag so
+  the catalogue default is not re-added, or a genuine delete with no re-seed), proven by a test that
+  deletes, re-lists, and asserts it did not come back. Also assert the GET writes nothing.
+
 - **S055b** (follow-up to S055 58121707, needed for a truthful Discord picker) The Discord picker's
   disabled reasons cannot be honest yet: `DiscordGuildChannel`/`DiscordGuildRole` DTOs carry NO "bot can
   post here" / "bot can assign this role" flag, so the channel picker disables by TYPE only and a role
