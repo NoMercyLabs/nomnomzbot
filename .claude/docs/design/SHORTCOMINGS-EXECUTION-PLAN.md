@@ -19,10 +19,6 @@ Slice IDs are stable; the order is the queue.
 
 ---
 
-## Phase 0 — truth and safety of EXISTING features (data loss, money, lies to viewers)
-
-*(empty — all Phase 0 slices closed as of 2026-08-24)*
-
 ## DO NEXT — owner directives, 2026-08-24 (ahead of phase order)
 
 Owner: move the **stream-facing** work forward — commands and overlays, easier to use and more
@@ -64,8 +60,6 @@ stable — without dropping the planned requirements behind them.
   represent real behaviour.** This re-opens the earlier CodeMirror-over-Monaco decision — the owner
   has asked for VS Code behaviour. Done-when: completion and type errors are driven by the real SDK
   types, and every event sample is verifiably the official payload shape.
-
-## Phase 1 — runtime stability of EXISTING plumbing
 
 ## Phase 2 — existing platforms made to work (Kick / YouTube are shipped features that are broken) — only the spine pieces these fixes REQUIRE
 
