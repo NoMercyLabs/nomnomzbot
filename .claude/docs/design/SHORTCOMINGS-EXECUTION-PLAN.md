@@ -25,6 +25,12 @@ Slice IDs are stable; the order is the queue.
 
 ## Phase 1 — runtime stability of EXISTING plumbing
 
+- **S044** Kick token refresh has no `needs_reauth` guard — `KickAccessTokenProvider.GetAsync` refreshes on the
+  routine cadence regardless of connection status, the same shape that produced 4653 consecutive failures against a
+  dead Spotify connection on the deployed box before 07f60a1c fixed the Spotify path. Done-when: a `needs_reauth`
+  Kick connection is skipped by the routine refresher (no upstream call, proven by test) and repeated failures back
+  off, mirroring `SpotifyMusicProvider.ShouldAttemptRefreshAsync`.
+
 - **S043** Billing redirect URLs ignore the access origin — `SubscriptionService.cs:100,244` build Stripe checkout/
   portal success+cancel URLs from `App:BaseUrl` directly, so on a tunnel or LAN address they bounce the user back to
   a loopback URL. Every other OAuth/redirect site now resolves through `PublicOriginExtensions.ResolvePublicOrigin`
