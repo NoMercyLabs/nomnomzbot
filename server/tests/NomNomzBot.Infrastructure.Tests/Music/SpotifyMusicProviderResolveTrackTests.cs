@@ -13,6 +13,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
 
@@ -156,7 +157,8 @@ public sealed class SpotifyMusicProviderResolveTrackTests
             new SingleHandlerClientFactory(handler),
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance,
-            NullSystemCredentialsProvider.Instance
+            NullSystemCredentialsProvider.Instance,
+            new ConnectionRefreshGate()
         );
         return (provider, handler);
     }

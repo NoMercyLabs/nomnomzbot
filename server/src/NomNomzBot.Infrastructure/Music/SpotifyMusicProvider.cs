@@ -82,6 +82,7 @@ public sealed class SpotifyMusicProvider
     private readonly HttpClient _http;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<SpotifyMusicProvider> _logger;
+    private readonly Identity.IConnectionRefreshGate _refreshGate;
 
     public SpotifyMusicProvider(
         IApplicationDbContext db,
@@ -91,7 +92,8 @@ public sealed class SpotifyMusicProvider
         IHttpClientFactory httpClientFactory,
         TimeProvider timeProvider,
         ILogger<SpotifyMusicProvider> logger,
-        ISystemCredentialsProvider credentials
+        ISystemCredentialsProvider credentials,
+        Identity.IConnectionRefreshGate refreshGate
     )
     {
         _db = db;
@@ -102,6 +104,7 @@ public sealed class SpotifyMusicProvider
         _timeProvider = timeProvider;
         _logger = logger;
         _credentials = credentials;
+        _refreshGate = refreshGate;
     }
 
     public string Provider => ProviderName;
@@ -1330,6 +1333,26 @@ public sealed class SpotifyMusicProvider
         CancellationToken cancellationToken
     )
     {
+        // S036/S036b — serialize refreshes of the SAME connection. Two concurrent callers racing a refresh
+        // could both post the same Spotify refresh token; re-checking the vaulted token under the gate lets
+        // the loser reuse the winner's freshly-vaulted token instead of refreshing again.
+        using IDisposable gate = await _refreshGate.AcquireAsync(
+            $"spotify:{connectionId}",
+            cancellationToken
+        );
+
+        Result<DecryptedTokenDto> current = await _vault.GetAccessTokenAsync(
+            connectionId,
+            cancellationToken
+        );
+        if (
+            current.IsSuccess
+            && !current.Value.IsExpired
+            && current.Value.ExpiresAt is { } currentExpiresAt
+            && currentExpiresAt > _timeProvider.GetUtcNow().UtcDateTime.AddMinutes(5)
+        )
+            return current.Value.Value;
+
         Result<DecryptedTokenDto> refresh = await _vault.GetRefreshTokenAsync(
             connectionId,
             cancellationToken

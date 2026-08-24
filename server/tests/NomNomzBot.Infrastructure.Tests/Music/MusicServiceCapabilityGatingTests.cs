@@ -14,6 +14,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -276,7 +277,8 @@ public sealed class MusicServiceCapabilityGatingTests
             new SingleHandlerClientFactory(handler),
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance,
-            NullSystemCredentialsProvider.Instance
+            NullSystemCredentialsProvider.Instance,
+            new ConnectionRefreshGate()
         );
         YouTubeMusicProvider youtube = YouTubeProviderFactory.Create();
 

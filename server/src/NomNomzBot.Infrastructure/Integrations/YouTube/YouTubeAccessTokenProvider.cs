@@ -25,6 +25,20 @@ namespace NomNomzBot.Infrastructure.Integrations.YouTube;
 /// live-chat poller share ONE custody path. Refreshes against Google's token endpoint with the stored
 /// per-channel client credentials when the token expires within 5 minutes; Google does not rotate the
 /// refresh token on a refresh grant, so only the access token + expiry are re-protected and saved.
+///
+/// <para>
+/// <b>S036b — deliberate second custody path (not migrated to <c>IIntegrationTokenVault</c>).</b>
+/// Twitch/Kick/Spotify vault their OAuth tokens as <c>IntegrationConnection</c> rows; YouTube alone
+/// still lives on the legacy flat <c>Service</c> table (predates the vault). Folding it into
+/// <c>IIntegrationTokenVault</c> is the right end state, but it is a DATA migration, not a code
+/// change: every reader/writer of the YouTube <c>Service</c> row (this provider,
+/// <c>YouTubeMusicProvider</c>, the OAuth callback that creates the row, the integrations-status
+/// surface, and any admin/support tooling that queries <c>Services</c> directly) would need to move
+/// in lockstep with a one-time backfill of existing rows into <c>IntegrationConnection</c> — a
+/// decision beyond this slice's scope. Until that migration lands, this provider closes the SAME
+/// concurrent-refresh race Twitch/Kick/Spotify close (see the <see cref="_refreshGate"/> use below),
+/// just keyed to the <c>Service</c> row's identity instead of a vault connection id.
+/// </para>
 /// </summary>
 public sealed class YouTubeAccessTokenProvider : IYouTubeAccessTokenProvider
 {

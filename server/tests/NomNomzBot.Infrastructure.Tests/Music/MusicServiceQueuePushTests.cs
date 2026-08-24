@@ -13,6 +13,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -256,7 +257,8 @@ public sealed class MusicServiceQueuePushTests
             new SingleHandlerClientFactory(handler),
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance,
-            NullSystemCredentialsProvider.Instance
+            NullSystemCredentialsProvider.Instance,
+            new ConnectionRefreshGate()
         );
 
         MusicService sut = new(

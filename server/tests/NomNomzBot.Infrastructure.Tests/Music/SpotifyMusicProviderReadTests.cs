@@ -15,6 +15,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
 
@@ -459,7 +460,8 @@ public sealed class SpotifyMusicProviderReadTests
             new SingleHandlerClientFactory(new RecordingHttpHandler()),
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance,
-            NullSystemCredentialsProvider.Instance
+            NullSystemCredentialsProvider.Instance,
+            new ConnectionRefreshGate()
         );
 
         string? token = await spotify.GetEmbeddedPlaybackTokenAsync(ChannelId);
@@ -501,7 +503,8 @@ public sealed class SpotifyMusicProviderReadTests
             new SingleHandlerClientFactory(handler),
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance,
-            NullSystemCredentialsProvider.Instance
+            NullSystemCredentialsProvider.Instance,
+            new ConnectionRefreshGate()
         );
 
         string? token = await spotify.GetEmbeddedPlaybackTokenAsync(ChannelId);
@@ -560,7 +563,8 @@ public sealed class SpotifyMusicProviderReadTests
             new SingleHandlerClientFactory(handler),
             TimeProvider.System,
             NullLogger<SpotifyMusicProvider>.Instance,
-            NullSystemCredentialsProvider.Instance
+            NullSystemCredentialsProvider.Instance,
+            new ConnectionRefreshGate()
         );
 
         return (spotify, handler);
