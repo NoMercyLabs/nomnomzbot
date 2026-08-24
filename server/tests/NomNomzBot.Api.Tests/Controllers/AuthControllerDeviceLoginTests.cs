@@ -47,6 +47,7 @@ public sealed class AuthControllerDeviceLoginTests
             Substitute.For<IUserService>(),
             Substitute.For<IAuthService>(),
             new ConfigurationBuilder().Build(),
+            TestHostEnvironment.Development,
             TimeProvider.System,
             Substitute.For<ITwitchOAuthStateService>(),
             registry,

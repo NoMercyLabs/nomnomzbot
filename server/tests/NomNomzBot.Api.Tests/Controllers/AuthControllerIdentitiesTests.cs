@@ -33,6 +33,7 @@ public sealed class AuthControllerIdentitiesTests
             Substitute.For<IUserService>(),
             Substitute.For<IAuthService>(),
             new ConfigurationBuilder().Build(),
+            TestHostEnvironment.Development,
             TimeProvider.System,
             Substitute.For<ITwitchOAuthStateService>(),
             Substitute.For<ILoginProviderRegistry>(),

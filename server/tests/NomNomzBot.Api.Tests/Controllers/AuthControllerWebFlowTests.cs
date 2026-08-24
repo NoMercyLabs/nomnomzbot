@@ -229,6 +229,7 @@ public sealed class AuthControllerWebFlowTests
             userService,
             authService,
             config,
+            TestHostEnvironment.Development,
             TimeProvider.System,
             state,
             Substitute.For<ILoginProviderRegistry>(),

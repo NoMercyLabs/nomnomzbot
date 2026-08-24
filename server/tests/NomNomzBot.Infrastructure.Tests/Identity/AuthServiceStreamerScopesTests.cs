@@ -24,8 +24,8 @@ namespace NomNomzBot.Infrastructure.Tests.Identity;
 
 /// <summary>
 /// Progressive scopes (CLAUDE.md "Progressive scopes" / identity-auth §3.4a): a fresh streamer login (or
-/// device-code start) must request only the minimal base grant — identity plus the two scopes basic chat
-/// operation cannot work without at all — never the whole 79-scope catalogue up front. A 79-scope, 2301-char
+/// device-code start) must request only the minimal base grant — identity, the two scopes basic chat
+/// operation cannot work without, and the moderated-channels list the channel switcher needs — never the whole 79-scope catalogue up front. A 79-scope, 2301-char
 /// authorize URL made Twitch's own upstream 502; this is the fix. Every feature scope is instead reachable
 /// on demand through the existing action-required mechanism: <c>ScopeNotificationService.GetMissingScopesAsync</c>
 /// (the dashboard "N more permissions" banner) and its additive re-grant (<c>BuildRegrantScopeSetAsync</c> →
@@ -38,6 +38,7 @@ public sealed class AuthServiceStreamerScopesTests
         "user:read:email",
         "user:read:chat",
         "user:write:chat",
+        "user:read:moderated_channels",
     ];
 
     [Fact]

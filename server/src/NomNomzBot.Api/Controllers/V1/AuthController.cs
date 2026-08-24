@@ -36,6 +36,7 @@ public class AuthController : BaseController
     private readonly IUserService _userService;
     private readonly IAuthService _authService;
     private readonly IConfiguration _config;
+    private readonly IHostEnvironment _env;
     private readonly TimeProvider _timeProvider;
     private readonly ITwitchOAuthStateService _oauthState;
     private readonly ILoginProviderRegistry _loginProviders;
@@ -50,6 +51,7 @@ public class AuthController : BaseController
         IUserService userService,
         IAuthService authService,
         IConfiguration config,
+        IHostEnvironment env,
         TimeProvider timeProvider,
         ITwitchOAuthStateService oauthState,
         ILoginProviderRegistry loginProviders,
@@ -64,6 +66,7 @@ public class AuthController : BaseController
         _userService = userService;
         _authService = authService;
         _config = config;
+        _env = env;
         _timeProvider = timeProvider;
         _oauthState = oauthState;
         _loginProviders = loginProviders;
@@ -1126,6 +1129,14 @@ public class AuthController : BaseController
     /// (scheme + host + port), so a same-host origin on another scheme or port is still refused.
     /// </para>
     /// </summary>
+    private static bool IsLoopbackOrigin(string origin) =>
+        Uri.TryCreate(origin, UriKind.Absolute, out Uri? uri)
+        && (
+            string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase)
+            || uri.Host == "127.0.0.1"
+            || uri.Host == "[::1]"
+        );
+
     private bool HasAllowedOrigin()
     {
         string? origin = Request.Headers.Origin.ToString();
@@ -1143,6 +1154,12 @@ public class AuthController : BaseController
 
         string servingOrigin = $"{Request.Scheme}://{Request.Host.Value}";
         if (string.Equals(servingOrigin, origin, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        // Development runs the dashboard dev server and the API on different loopback ports, and that port
+        // moves; a hardcoded allowlist strands the developer on a rejected refresh. Loopback carries no
+        // cross-site risk, so trust any loopback origin here — never outside Development.
+        if (_env.IsDevelopment() && IsLoopbackOrigin(origin))
             return true;
 
         string[] allowedOrigins =

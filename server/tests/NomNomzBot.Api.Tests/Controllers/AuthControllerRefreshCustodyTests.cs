@@ -257,6 +257,7 @@ public sealed class AuthControllerRefreshCustodyTests
             userService,
             authService,
             config,
+            TestHostEnvironment.Development,
             TimeProvider.System,
             Substitute.For<ITwitchOAuthStateService>(),
             Substitute.For<ILoginProviderRegistry>(),

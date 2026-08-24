@@ -87,6 +87,9 @@ public sealed class AuthService : IAuthService
         "user:read:email", // account identity claim — the login itself needs it to resolve the Twitch user
         "user:read:chat", // EventSub channel.chat.message — the bot cannot read chat at all without this
         "user:write:chat", // HelixChatProvider send — the bot cannot type in chat at all without this
+        // The channel switcher's "channels you moderate" list is part of signing in for a moderator-of-many:
+        // without it they land on a dashboard that silently claims they moderate nothing.
+        "user:read:moderated_channels",
     ];
 
     private readonly string[] _requiredScopes;

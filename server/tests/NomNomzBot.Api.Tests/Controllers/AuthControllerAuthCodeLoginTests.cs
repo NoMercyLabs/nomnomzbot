@@ -55,6 +55,7 @@ public sealed class AuthControllerAuthCodeLoginTests
             Substitute.For<IUserService>(),
             Substitute.For<IAuthService>(),
             config,
+            TestHostEnvironment.Development,
             TimeProvider.System,
             state,
             registry,
