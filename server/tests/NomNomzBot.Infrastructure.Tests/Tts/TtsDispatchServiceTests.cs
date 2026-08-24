@@ -893,4 +893,75 @@ public sealed class TtsDispatchServiceTests
             .Tts.Received(1)
             .SynthesizeAsync("good game chat", "default-voice", Arg.Any<CancellationToken>());
     }
+
+    // S-TTS-TEMPLATED-VOICE: a pipeline step's templated `voice` field (play_tts) can resolve to anything at
+    // runtime. An unknown id must reject honestly — never fall back to a different voice while reporting the
+    // requested id as spoken.
+    [Fact]
+    public async Task RequestSpeakAsync_UnknownVoiceOverride_RejectsHonestly_WithoutSynthOrLedger()
+    {
+        Harness h = Build();
+        h.Db.TtsVoices.Add(
+            new()
+            {
+                Id = "en-US-AriaNeural",
+                Name = "AriaNeural",
+                DisplayName = "Aria (US)",
+                Locale = "en-US",
+                Gender = "Female",
+                Provider = "edge",
+            }
+        );
+        await h.Db.SaveChangesAsync();
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
+            Speak("hello") with
+            {
+                VoiceIdOverride = "not-a-real-voice",
+            }
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorMessage.Should().Contain("not-a-real-voice");
+        await h
+            .Tts.DidNotReceive()
+            .SynthesizeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        (await h.Db.TtsUsageRecords.CountAsync()).Should().Be(0);
+        await h
+            .Bus.DidNotReceive()
+            .PublishAsync(Arg.Any<TtsUtteranceDispatchedEvent>(), Arg.Any<CancellationToken>());
+    }
+
+    // The same override matched case-insensitively (tts.md §6.2) — a templated voice in a different casing than
+    // the catalogue still resolves and is the voice that actually reaches synthesis.
+    [Fact]
+    public async Task RequestSpeakAsync_VoiceOverrideDifferentCasing_ResolvesAndDispatchesTheCatalogueVoice()
+    {
+        Harness h = Build();
+        h.Db.TtsVoices.Add(
+            new()
+            {
+                Id = "en-US-AriaNeural",
+                Name = "AriaNeural",
+                DisplayName = "Aria (US)",
+                Locale = "en-US",
+                Gender = "Female",
+                Provider = "edge",
+            }
+        );
+        await h.Db.SaveChangesAsync();
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
+            Speak("hello") with
+            {
+                VoiceIdOverride = "en-us-arianeural",
+            }
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.VoiceId.Should().Be("en-us-arianeural");
+        await h
+            .Tts.Received(1)
+            .SynthesizeAsync("hello", "en-us-arianeural", Arg.Any<CancellationToken>());
+    }
 }

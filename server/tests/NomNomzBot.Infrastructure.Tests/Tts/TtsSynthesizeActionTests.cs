@@ -60,6 +60,8 @@ public sealed class TtsSynthesizeActionTests
         ISoundClipStore Store
     ) Build(string resolvedText)
     {
+        // Only a `{{...}}` template resolves to resolvedText — a literal (e.g. an explicit voice id with no
+        // braces) passes through unchanged, matching the real resolver's behavior for plain strings.
         ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
         resolver
             .ResolveAsync(
@@ -68,7 +70,11 @@ public sealed class TtsSynthesizeActionTests
                 Arg.Any<Guid?>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(Task.FromResult(resolvedText));
+            .Returns(ci =>
+                Task.FromResult(
+                    ci.ArgAt<string>(0).Contains("{{") ? resolvedText : ci.ArgAt<string>(0)
+                )
+            );
 
         ITtsService tts = Substitute.For<ITtsService>();
         ITtsConfigService config = Substitute.For<ITtsConfigService>();
@@ -76,6 +82,37 @@ public sealed class TtsSynthesizeActionTests
 
         return (new(resolver, tts, config, store), tts, config, store);
     }
+
+    /// <summary>Makes the catalogue search report <paramref name="voiceId"/> as a known voice (case-insensitive).</summary>
+    private static void MockVoiceExists(ITtsConfigService config, string voiceId) =>
+        config
+            .SearchVoicesAsync(Arg.Any<TtsVoiceQuery>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new PagedList<TtsVoiceDto>(
+                        [
+                            new(
+                                voiceId,
+                                voiceId,
+                                voiceId,
+                                "en-US",
+                                "Male",
+                                "azure",
+                                false,
+                                null,
+                                null,
+                                [],
+                                [],
+                                null,
+                                null
+                            ),
+                        ],
+                        1,
+                        200,
+                        1
+                    )
+                )
+            );
 
     private static TtsConfigDto DefaultConfig(string? defaultVoiceId) =>
         new(
@@ -102,6 +139,7 @@ public sealed class TtsSynthesizeActionTests
             ISoundClipStore store
         ) = Build("BSOD detected, rebooting.");
 
+        MockVoiceExists(config, "en-US-Guy");
         tts.SynthesizeAsync("BSOD detected, rebooting.", "en-US-Guy", Arg.Any<CancellationToken>())
             .Returns(new TtsResult([1, 2, 3], 4200, "en-US-Guy", "azure"));
 
@@ -199,8 +237,14 @@ public sealed class TtsSynthesizeActionTests
     [Fact]
     public async Task ExecuteAsync_ProviderReturnsNoAudio_FailsWithoutStoring()
     {
-        (TtsSynthesizeAction action, ITtsService tts, _, ISoundClipStore store) = Build("hi there");
+        (
+            TtsSynthesizeAction action,
+            ITtsService tts,
+            ITtsConfigService config,
+            ISoundClipStore store
+        ) = Build("hi there");
 
+        MockVoiceExists(config, "en-US-Guy");
         tts.SynthesizeAsync("hi there", "en-US-Guy", Arg.Any<CancellationToken>())
             .Returns(new TtsResult([], 0, "en-US-Guy", "azure"));
 
@@ -224,8 +268,14 @@ public sealed class TtsSynthesizeActionTests
     [Fact]
     public async Task ExecuteAsync_StoreFails_SurfacesTheReason()
     {
-        (TtsSynthesizeAction action, ITtsService tts, _, ISoundClipStore store) = Build("hi there");
+        (
+            TtsSynthesizeAction action,
+            ITtsService tts,
+            ITtsConfigService config,
+            ISoundClipStore store
+        ) = Build("hi there");
 
+        MockVoiceExists(config, "en-US-Guy");
         tts.SynthesizeAsync("hi there", "en-US-Guy", Arg.Any<CancellationToken>())
             .Returns(new TtsResult([1], 500, "en-US-Guy", "azure"));
         store
@@ -250,8 +300,14 @@ public sealed class TtsSynthesizeActionTests
     [Fact]
     public async Task ExecuteAsync_PlaybackUrlResolutionFails_SurfacesTheReason()
     {
-        (TtsSynthesizeAction action, ITtsService tts, _, ISoundClipStore store) = Build("hi there");
+        (
+            TtsSynthesizeAction action,
+            ITtsService tts,
+            ITtsConfigService config,
+            ISoundClipStore store
+        ) = Build("hi there");
 
+        MockVoiceExists(config, "en-US-Guy");
         tts.SynthesizeAsync("hi there", "en-US-Guy", Arg.Any<CancellationToken>())
             .Returns(new TtsResult([1], 500, "en-US-Guy", "azure"));
         store

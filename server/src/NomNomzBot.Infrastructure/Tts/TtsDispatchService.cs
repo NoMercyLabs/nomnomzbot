@@ -170,6 +170,22 @@ public sealed class TtsDispatchService : ITtsDispatchService
                 ct
             );
 
+        // A caller-supplied override (e.g. a pipeline step's templated `voice` field) is honored ONLY when it
+        // names a real catalogue voice — matched case-insensitively, same as VoiceExistsAsync/SearchVoicesAsync
+        // (tts.md §6.2). An unknown id fails honestly instead of silently falling back to a different voice and
+        // reporting it as if the requested one spoke.
+        if (
+            !string.IsNullOrWhiteSpace(request.VoiceIdOverride)
+            && !await VoiceExistsAsync(voiceId, ct)
+        )
+            return await RejectRequestAsync(
+                request,
+                "unknown_voice",
+                $"TTS voice '{voiceId}' does not exist.",
+                "VALIDATION_FAILED",
+                ct
+            );
+
         // Cautious-streamer gate (P.1a): hold the utterance for a moderator instead of speaking it now.
         if (config.ModApprovalRequired)
             return await EnqueueForApprovalAsync(
@@ -633,6 +649,22 @@ public sealed class TtsDispatchService : ITtsDispatchService
                 synth.DurationMs,
                 dataUri
             )
+        );
+    }
+
+    // Case-insensitive catalogue lookup — mirrors TtsConfigService.VoiceExistsAsync (tts.md §6.2): "en-US-AriaNeural"
+    // and "en-us-arianeural" are the same voice. Used to honestly reject a caller-supplied VoiceIdOverride that
+    // doesn't name a real voice, instead of silently dispatching under a voice id nobody actually spoke as.
+    private async Task<bool> VoiceExistsAsync(string voiceId, CancellationToken ct)
+    {
+        string idLower = voiceId.ToLower();
+        if (await _db.TtsVoices.AnyAsync(v => v.Id.ToLower() == idLower, ct))
+            return true;
+        if (await _db.TtsVoices.AnyAsync(ct))
+            return false; // catalogue present but no match
+        IReadOnlyList<TtsVoiceInfo> providerVoices = await _tts.GetAvailableVoicesAsync(ct);
+        return providerVoices.Any(v =>
+            string.Equals(v.Id, voiceId, StringComparison.OrdinalIgnoreCase)
         );
     }
 

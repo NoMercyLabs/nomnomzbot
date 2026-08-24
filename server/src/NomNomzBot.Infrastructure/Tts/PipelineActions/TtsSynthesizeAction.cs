@@ -76,7 +76,18 @@ public sealed class TtsSynthesizeAction : ICommandAction
         if (string.IsNullOrWhiteSpace(text))
             return ActionResult.Failure("tts_synthesize resolved to empty text.");
 
-        string? voiceId = action.GetString("voice");
+        string voiceTemplate = action.GetString("voice") ?? string.Empty;
+        string? voiceId = null;
+        if (!string.IsNullOrWhiteSpace(voiceTemplate))
+        {
+            string resolvedVoice = await _resolver.ResolveAsync(
+                voiceTemplate,
+                ctx.Variables,
+                ctx.BroadcasterId,
+                ctx.CancellationToken
+            );
+            voiceId = string.IsNullOrWhiteSpace(resolvedVoice) ? null : resolvedVoice;
+        }
         if (string.IsNullOrWhiteSpace(voiceId))
         {
             Result<TtsConfigDto> config = await _ttsConfig.GetConfigAsync(
@@ -89,6 +100,26 @@ public sealed class TtsSynthesizeAction : ICommandAction
             return ActionResult.Failure(
                 "tts_synthesize: no TTS voice configured for this channel."
             );
+
+        // A templated `voice` field can resolve to anything at runtime — validate it against the catalogue
+        // (case-insensitively, tts.md §6.2) before synthesizing, so an unknown voice fails honestly instead of
+        // the provider silently substituting a different one and this step reporting the requested id as spoken.
+        if (!string.IsNullOrWhiteSpace(voiceTemplate))
+        {
+            Result<PagedList<TtsVoiceDto>> voiceSearch = await _ttsConfig.SearchVoicesAsync(
+                new TtsVoiceQuery(Q: voiceId, PageSize: 200),
+                ctx.CancellationToken
+            );
+            bool voiceKnown =
+                voiceSearch.IsSuccess
+                && voiceSearch.Value.Items.Any(v =>
+                    string.Equals(v.Id, voiceId, StringComparison.OrdinalIgnoreCase)
+                );
+            if (!voiceKnown)
+                return ActionResult.Failure(
+                    $"tts_synthesize: TTS voice '{voiceId}' does not exist."
+                );
+        }
 
         TtsResult synth = await _tts.SynthesizeAsync(text, voiceId, ctx.CancellationToken);
         if (synth.AudioData.Length == 0)

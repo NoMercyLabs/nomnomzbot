@@ -45,7 +45,7 @@ public sealed class PlayTtsAction : ICommandAction
         ActionDefinition action
     )
     {
-        string template = action.GetString("text") ?? action.GetString("message") ?? string.Empty;
+        string template = action.GetString("text") ?? string.Empty;
         if (string.IsNullOrWhiteSpace(template))
             return ActionResult.Failure("play_tts requires a 'text' parameter.");
 
@@ -58,7 +58,18 @@ public sealed class PlayTtsAction : ICommandAction
         if (string.IsNullOrWhiteSpace(text))
             return ActionResult.Failure("play_tts resolved to empty text.");
 
-        string? voiceOverride = action.GetString("voice");
+        string voiceTemplate = action.GetString("voice") ?? string.Empty;
+        string? voiceOverride = null;
+        if (!string.IsNullOrWhiteSpace(voiceTemplate))
+        {
+            string resolvedVoice = await _resolver.ResolveAsync(
+                voiceTemplate,
+                ctx.Variables,
+                ctx.BroadcasterId,
+                ctx.CancellationToken
+            );
+            voiceOverride = string.IsNullOrWhiteSpace(resolvedVoice) ? null : resolvedVoice;
+        }
 
         TtsSpeakRequest request = new(
             BroadcasterId: ctx.BroadcasterId,

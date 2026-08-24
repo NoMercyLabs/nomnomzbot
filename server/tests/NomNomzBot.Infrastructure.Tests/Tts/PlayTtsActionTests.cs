@@ -65,6 +65,25 @@ public sealed class PlayTtsActionTests
         return (new(resolver, dispatch), dispatch);
     }
 
+    /// <summary>Resolver that returns a distinct value per input template, so text and voice can differ.</summary>
+    private static (PlayTtsAction Action, ITtsDispatchService Dispatch) BuildWithTemplateMap(
+        IReadOnlyDictionary<string, string> templateToResolved
+    )
+    {
+        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
+        resolver
+            .ResolveAsync(
+                Arg.Any<string>(),
+                Arg.Any<IDictionary<string, string>>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(ci => Task.FromResult(templateToResolved[ci.ArgAt<string>(0)]));
+
+        ITtsDispatchService dispatch = Substitute.For<ITtsDispatchService>();
+        return (new(resolver, dispatch), dispatch);
+    }
+
     [Fact]
     public async Task ExecuteAsync_ResolvesText_AndDispatchesIt()
     {
@@ -129,5 +148,91 @@ public sealed class PlayTtsActionTests
 
         result.Succeeded.Should().BeFalse();
         result.ErrorMessage.Should().Be("TTS is disabled for this channel.");
+    }
+
+    // S-TTS-TEMPLATED-VOICE worked example — the owner's own case: a watch-streak event response speaks its
+    // message via play_tts, choosing the voice from a template too (e.g. the viewer's own assigned voice stored
+    // in a pipeline variable), not a hardcoded id. Proves BOTH the resolved text AND the resolved voice reach the
+    // dispatch call — the voice field is template-resolved exactly like text, not passed through raw.
+    [Fact]
+    public async Task ExecuteAsync_WatchStreakEventResponse_ResolvesTemplatedTextAndTemplatedVoice()
+    {
+        (PlayTtsAction action, ITtsDispatchService dispatch) = BuildWithTemplateMap(
+            new Dictionary<string, string>
+            {
+                ["{{user.name}}'s watch streak just hit {{streak.count}} days!"] =
+                    "viewer-9's watch streak just hit 30 days!",
+                ["{{user.voice}}"] = "en-US-AriaNeural",
+            }
+        );
+        dispatch
+            .RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new TtsDispatchOutcome(
+                        TtsDispatchDisposition.Dispatched,
+                        "en-US-AriaNeural",
+                        "edge",
+                        41,
+                        1800,
+                        "https://bot.local/sounds/tts.mp3"
+                    )
+                )
+            );
+
+        ActionResult result = await action.ExecuteAsync(
+            Context(),
+            Action(
+                ("text", "{{user.name}}'s watch streak just hit {{streak.count}} days!"),
+                ("voice", "{{user.voice}}")
+            )
+        );
+
+        result.Succeeded.Should().BeTrue(result.ErrorMessage);
+        await dispatch
+            .Received(1)
+            .RequestSpeakAsync(
+                Arg.Is<TtsSpeakRequest>(r =>
+                    r.Text == "viewer-9's watch streak just hit 30 days!"
+                    && r.VoiceIdOverride == "en-US-AriaNeural"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    // Unknown-voice honest failure (project truthful-data rule): the dispatch service's reject reason must
+    // surface through the action unchanged — never swallowed, never reported as if a different voice spoke.
+    [Fact]
+    public async Task ExecuteAsync_TemplatedVoiceResolvesToUnknownVoice_SurfacesTheHonestRejection()
+    {
+        (PlayTtsAction action, ITtsDispatchService dispatch) = BuildWithTemplateMap(
+            new Dictionary<string, string>
+            {
+                ["{{args}}"] = "hello",
+                ["{{user.voice}}"] = "not-a-real-voice",
+            }
+        );
+        dispatch
+            .RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Failure<TtsDispatchOutcome>(
+                    "TTS voice 'not-a-real-voice' does not exist.",
+                    "VALIDATION_FAILED"
+                )
+            );
+
+        ActionResult result = await action.ExecuteAsync(
+            Context(),
+            Action(("text", "{{args}}"), ("voice", "{{user.voice}}"))
+        );
+
+        result.Succeeded.Should().BeFalse();
+        result.ErrorMessage.Should().Be("TTS voice 'not-a-real-voice' does not exist.");
+        await dispatch
+            .Received(1)
+            .RequestSpeakAsync(
+                Arg.Is<TtsSpeakRequest>(r => r.VoiceIdOverride == "not-a-real-voice"),
+                Arg.Any<CancellationToken>()
+            );
     }
 }
