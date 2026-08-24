@@ -71,6 +71,10 @@ say "OK  Java found ($(command -v java))"
 # (app/composeApp/webpack.config.d/proxy.js) forwards /api + /hubs from 5173
 # through to the API on 5080 by default, so the browser only ever talks to one
 # origin and no env var is needed here.
+#
+# OAuth redirect URI for local dev is ALWAYS http://localhost:5173/api/v1/auth/twitch/callback — the
+# proxy forwards X-Forwarded-Host/Proto so the API's ResolvePublicOrigin reports 5173 (the origin the
+# browser is really on), not 5080. Register that one URL in the Twitch Developer Console for local dev.
 
 DASHBOARD_PORT=5173
 API_PORT=5080
