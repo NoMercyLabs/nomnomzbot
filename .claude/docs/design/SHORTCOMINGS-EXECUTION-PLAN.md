@@ -23,6 +23,48 @@ Slice IDs are stable; the order is the queue.
 
 *(empty — all Phase 0 slices closed as of 2026-08-24)*
 
+## DO NEXT — owner directives, 2026-08-24 (ahead of phase order)
+
+Owner: move the **stream-facing** work forward — commands and overlays, easier to use and more
+stable — without dropping the planned requirements behind them.
+
+- **S-CONSEQ** (cross-cutting law, applies to every slice from here on, not a one-off) Every control
+  must explain what it does and what changes when it changes; the user must never need to know the
+  bot from the inside out to predict an effect. Per control: plain-language purpose (en + nl), the
+  downstream effect and when it takes effect, **blast radius counted from real data** before any
+  destructive or wide-reaching save ("disables 4 commands and 2 timers"), the dependents that will
+  break named BEFORE the save, a reason on every disabled control, and a preview/dry-run wherever one
+  is possible. Never state an effect that is not actually enforced. Done-when: a control cannot pass
+  review without its purpose text, its effect text and — where it destroys or disables — its counted
+  blast radius; a guard test fails on a control that ships without them.
+
+- **S-PIPE-TREE** Pipelines become a TREE, designed before any code is written (owner: "gets truly
+  thought about before you make any code for it"). N triggers per pipeline (add/remove/reorder);
+  nested `If / Else-if / Else` blocks containing their own sub-chains at any depth; a boolean
+  condition TREE per branch (`(A and B) or (C and not D)`), groupable and re-groupable; loops
+  (repeat-N and for-each, with execution caps + timeout guards); wait-for-event / resume-later
+  (pipeline runs become long-lived persisted state); sub-pipeline calls with arguments and a return
+  value. Editor = **nested block list** with indentation, drag to reorder and drag into/out of a
+  branch — NOT a node graph (a graph may later be a second renderer over the same tree, never a
+  second model). Everything generic and composable, no bespoke blocks. Input: the old-bot capability
+  analysis (`old-bot-pipeline-capability-analysis.md`) — his real behaviours, and the old bot's bugs,
+  are requirements. Done-when: the model + editor express every behaviour in that analysis's gap list
+  without a bespoke block, proven by round-tripping his real imported pipelines.
+
+- **S-PIPE-BLANK** (bug, stream-facing) Opening an existing pipeline shows an EMPTY editor although
+  the steps exist in the database — the owner's imported legacy pipelines. Done-when: a pipeline with
+  steps round-trips through the real GET endpoint to the client with every step, action and condition
+  intact, plus a regression test pinning the legacy/imported shape.
+
+- **S-CODE-EDITOR** The code-scripts surface gets a **VS Code-for-web grade editor that functions like
+  one** — Monaco-class: completion, hover types, go-to-definition, diagnostics, multi-file — loading a
+  **REAL fully-typed SDK from npm** (the actual published types, not hand-written `.d.ts`
+  approximations that drift), and **REAL example events**: every handleable event ships a sample
+  payload matching what the official platform event actually delivers. **No fake stubs that do not
+  represent real behaviour.** This re-opens the earlier CodeMirror-over-Monaco decision — the owner
+  has asked for VS Code behaviour. Done-when: completion and type errors are driven by the real SDK
+  types, and every event sample is verifiably the official payload shape.
+
 ## Phase 1 — runtime stability of EXISTING plumbing
 
 - **S035** SignalR hardening — `WithStatefulReconnect()`; OverlayHub many-widgets-per-connection;
