@@ -495,7 +495,17 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         // DueAt/CreatedAt/FiredAt are DateTimeOffset — comparison/ORDER BY translation on SQLite (the
         // sweeper's `t.DueAt <= now`) is handled model-wide by ApplySqliteCompatibility below.
         b.Entity<NomNomzBot.Domain.Commands.Entities.ScheduledPipelineTask>().HasKey(e => e.Id);
-        b.Ignore<NomNomzBot.Domain.Commands.Entities.PipelineStep>();
+
+        // PipelineStep/PipelineStepCondition: mapped scalar + the Step->Conditions relation (Pipeline
+        // nav ignored) so PipelineService's normalized-row dual-write (S-PIPE-WRITE-SYMMETRY) round-trips
+        // through this harness the same way it does against the real AppDbContext.
+        b.Entity<NomNomzBot.Domain.Commands.Entities.PipelineStep>().HasKey(e => e.Id);
+        b.Entity<NomNomzBot.Domain.Commands.Entities.PipelineStep>().Ignore(e => e.Pipeline);
+        b.Entity<NomNomzBot.Domain.Commands.Entities.PipelineStep>()
+            .HasMany(e => e.Conditions)
+            .WithOne(c => c.Step)
+            .HasForeignKey(c => c.PipelineStepId);
+        b.Entity<NomNomzBot.Domain.Commands.Entities.PipelineStepCondition>().HasKey(e => e.Id);
         b.Ignore<NomNomzBot.Domain.EventStore.Entities.EventJournal>();
         b.Ignore<NomNomzBot.Domain.EventStore.Entities.TenantSequence>();
         b.Ignore<NomNomzBot.Domain.EventStore.Entities.ProjectionCheckpoint>();
@@ -644,9 +654,9 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Commands.Entities.ScheduledPipelineTask> ScheduledPipelineTasks =>
         Set<NomNomzBot.Domain.Commands.Entities.ScheduledPipelineTask>();
     public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineStep> PipelineSteps =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Commands.Entities.PipelineStep>();
     public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineStepCondition> PipelineStepConditions =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Commands.Entities.PipelineStepCondition>();
     public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineTrigger> PipelineTriggers =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineExecution> PipelineExecutions =>

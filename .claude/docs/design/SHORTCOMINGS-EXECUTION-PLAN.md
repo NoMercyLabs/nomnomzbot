@@ -97,6 +97,19 @@ stable — without dropping the planned requirements behind them.
   enforced when they are not — a truthful-data violation ([[feedback-truthful-data-not-fake-enforcement]]).
   Build on `scaling-qos.md` §8 (per-unit resource budgets) and `music-sr.md` (tiered allowances) —
   EXTEND, do not duplicate.
+  **WHY (owner, 2026-08-25, binding intent):** "my goal is to offset the cost of buying the resource
+  headroom for the users' shenanigans — that is the base for limits imposed on a SaaS user." So limits
+  exist to RECOVER REAL MARGINAL COST, never to manufacture upsell pressure. That determines the whole
+  design: classify every limited resource by whether it actually costs money.
+  - **Cost-driving (tier-scaled):** stored file bytes (disk + egress + backup), TTS characters, script
+    CPU seconds, external API call volume, bandwidth/egress, retained history rows. These map to a real
+    bill, so tier headroom is priced against them.
+  - **Near-free (safety cap ONLY, no paid ceiling):** registering a command, a timer, a pipeline, an
+    event response — one DB row costing effectively nothing. Cap these against ABUSE (runaway scripts,
+    a million rows) at a generous floor; do NOT sell headroom on them. A paid gate on a free-to-serve
+    resource is an artificial gate and this project does not ship those.
+  Applying that test to the owner's own examples: stored files ARE tier-worthy; registered commands are
+  NOT — they get an abuse floor instead.
   Shape: a safety baseline that applies to everyone regardless of tier, plus tier-scaled headroom
   ([[limits-safety-baseline-then-tier]]); self-host is the operator's own hardware so it gets the safety
   baseline WITHOUT commercial tier ceilings ([[no-free-hosted-tier]] — self-host free, hosted pays).

@@ -17,6 +17,7 @@ using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Platform.Pipeline;
 using NomNomzBot.Infrastructure.Tests.Identity;
+using NomNomzBot.Infrastructure.Tests.Persistence;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Commands;
@@ -116,6 +117,7 @@ public sealed class PipelineServiceCacheInvalidationTests
     private static PipelineService BuildService(AuthDbContext db, IChannelRegistry registry) =>
         new(
             db,
+            new PassThroughUnitOfWork(),
             Substitute.For<IEventBus>(),
             new CommandConfigValidator([new FakeAction { ActionType = "send_message" }]),
             registry

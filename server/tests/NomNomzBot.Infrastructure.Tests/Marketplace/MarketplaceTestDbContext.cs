@@ -97,6 +97,21 @@ internal sealed class MarketplaceTestDbContext : DbContext, IApplicationDbContex
             e.Ignore(p => p.Steps);
         });
 
+        // PipelineStep/PipelineStepCondition: mapped scalar + the Step->Conditions relation (Pipeline
+        // nav ignored) so PipelineService's normalized-row dual-write (S-PIPE-WRITE-SYMMETRY) round-trips
+        // through this harness the same way it does against the real AppDbContext.
+        b.Entity<PipelineStep>(e =>
+        {
+            e.HasKey(s => s.Id);
+            e.Ignore(s => s.Pipeline);
+            e.HasMany(s => s.Conditions).WithOne(c => c.Step).HasForeignKey(c => c.PipelineStepId);
+        });
+
+        b.Entity<PipelineStepCondition>(e =>
+        {
+            e.HasKey(c => c.Id);
+        });
+
         b.Entity<CustomDataSource>(e =>
         {
             e.HasKey(s => s.Id);
@@ -193,6 +208,8 @@ internal sealed class MarketplaceTestDbContext : DbContext, IApplicationDbContex
     [
         typeof(Command),
         typeof(PipelineEntity),
+        typeof(PipelineStep),
+        typeof(PipelineStepCondition),
         typeof(CustomDataSource),
         typeof(InstalledBundle),
         typeof(Channel),
@@ -322,8 +339,8 @@ internal sealed class MarketplaceTestDbContext : DbContext, IApplicationDbContex
     public DbSet<DeletionAuditLog> DeletionAuditLogs => throw new NotSupportedException();
     public DbSet<ComplianceAuditLog> ComplianceAuditLogs => throw new NotSupportedException();
     public DbSet<WatchStreak> WatchStreaks => throw new NotSupportedException();
-    public DbSet<PipelineStep> PipelineSteps => throw new NotSupportedException();
-    public DbSet<PipelineStepCondition> PipelineStepConditions => throw new NotSupportedException();
+    public DbSet<PipelineStep> PipelineSteps => Set<PipelineStep>();
+    public DbSet<PipelineStepCondition> PipelineStepConditions => Set<PipelineStepCondition>();
     public DbSet<PipelineTrigger> PipelineTriggers => throw new NotSupportedException();
     public DbSet<PipelineExecution> PipelineExecutions => throw new NotSupportedException();
     public DbSet<ChannelBuiltinCommand> ChannelBuiltinCommands => throw new NotSupportedException();

@@ -25,18 +25,21 @@ namespace NomNomzBot.Infrastructure.Commands;
 public class PipelineService : IPipelineService
 {
     private readonly IApplicationDbContext _db;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IEventBus _eventBus;
     private readonly ICommandConfigValidator _validator;
     private readonly IChannelRegistry _registry;
 
     public PipelineService(
         IApplicationDbContext db,
+        IUnitOfWork unitOfWork,
         IEventBus eventBus,
         ICommandConfigValidator validator,
         IChannelRegistry registry
     )
     {
         _db = db;
+        _unitOfWork = unitOfWork;
         _eventBus = eventBus;
         _validator = validator;
         _registry = registry;
@@ -151,8 +154,22 @@ public class PipelineService : IPipelineService
             GraphJsonCache = graphValidation.Value,
         };
 
-        _db.Pipelines.Add(entity);
-        await _db.SaveChangesAsync(ct);
+        await _unitOfWork.ExecuteInTransactionAsync(
+            async token =>
+            {
+                _db.Pipelines.Add(entity);
+                await _db.SaveChangesAsync(token);
+                await SyncStepRowsFromGraphAsync(
+                    broadcaster,
+                    entity.Id,
+                    graphValidation.Value,
+                    token
+                );
+                await _db.SaveChangesAsync(token);
+            },
+            ct
+        );
+
         await PublishConfigChangedAsync(broadcaster, entity.Id, "created", ct);
         await InvalidateBoundCachesAsync(broadcaster, ct);
 
@@ -188,6 +205,7 @@ public class PipelineService : IPipelineService
             entity.IsEnabled = request.IsEnabled.Value;
         if (request.TriggerKind is not null)
             entity.TriggerKind = request.TriggerKind;
+        bool graphChanged = false;
         if (request.GraphJsonCache is not null)
         {
             Result<string?> graphValidation = await ValidateAndSerializeGraphAsync(
@@ -201,13 +219,124 @@ public class PipelineService : IPipelineService
                 );
 
             entity.GraphJsonCache = graphValidation.Value;
+            graphChanged = true;
         }
 
-        await _db.SaveChangesAsync(ct);
+        await _unitOfWork.ExecuteInTransactionAsync(
+            async token =>
+            {
+                await _db.SaveChangesAsync(token);
+                if (graphChanged)
+                {
+                    await SyncStepRowsFromGraphAsync(
+                        broadcaster,
+                        entity.Id,
+                        entity.GraphJsonCache,
+                        token
+                    );
+                    await _db.SaveChangesAsync(token);
+                }
+            },
+            ct
+        );
+
         await PublishConfigChangedAsync(broadcaster, entity.Id, "updated", ct);
         await InvalidateBoundCachesAsync(broadcaster, ct);
 
         return Result.Success(ToDto(entity));
+    }
+
+    /// <summary>
+    /// S-PIPE-WRITE-SYMMETRY: the engine (<see cref="Platform.Pipeline.PipelineEngine"/>,
+    /// "Step source priority") executes a bound pipeline from its normalized
+    /// <see cref="PipelineStep"/>/<see cref="PipelineStepCondition"/> rows FIRST, falling back to
+    /// <c>GraphJsonCache</c> only when no rows exist — the rows, not the cache, are execution truth.
+    /// <see cref="CreateAsync"/>/<see cref="UpdateAsync"/> used to write only the cache, leaving those
+    /// rows permanently empty for every dashboard-authored pipeline; that asymmetry is what turned a
+    /// wire-binding bug into unrecoverable data loss (both representations landed empty at once — see
+    /// <c>PipelineServiceLegacyStepsTests</c>). This replaces the pipeline's full row set from the
+    /// validated graph on every create/update so the two representations can never diverge — a
+    /// hard-delete-and-reinsert rather than a diff, since a saved pipeline's step count/order is fully
+    /// re-derived from the incoming graph each time (no orphan rows survive a removal or reorder).
+    /// <see cref="PipelineStep"/>/<see cref="PipelineStepCondition"/> are plain <c>BaseEntity</c> rows
+    /// (not soft-deletable), so a hard delete here is the correct lifecycle, matching how the engine's
+    /// own <c>LoadFromDbAsync</c> reads them back.
+    /// </summary>
+    private async Task SyncStepRowsFromGraphAsync(
+        Guid broadcasterId,
+        Guid pipelineId,
+        string? graphJson,
+        CancellationToken ct
+    )
+    {
+        List<PipelineStep> existingSteps = await _db
+            .PipelineSteps.Where(s => s.PipelineId == pipelineId)
+            .Include(s => s.Conditions)
+            .ToListAsync(ct);
+
+        foreach (PipelineStep existingStep in existingSteps)
+        {
+            if (existingStep.Conditions.Count > 0)
+                _db.PipelineStepConditions.RemoveRange(existingStep.Conditions);
+        }
+
+        if (existingSteps.Count > 0)
+            _db.PipelineSteps.RemoveRange(existingSteps);
+
+        if (graphJson is null)
+            return;
+
+        PipelineDefinition? definition = JsonSerializer.Deserialize<PipelineDefinition>(graphJson);
+        if (definition is null)
+            return;
+
+        for (int i = 0; i < definition.Steps.Count; i++)
+        {
+            PipelineStepDefinition stepDef = definition.Steps[i];
+            PipelineStep step = new()
+            {
+                Id = Guid.NewGuid(),
+                PipelineId = pipelineId,
+                BroadcasterId = broadcasterId,
+                Order = i,
+                ActionType = stepDef.Action.Type,
+                ConfigJson = JsonSerializer.Serialize(stepDef.Action),
+                IsEnabled = true,
+            };
+            _db.PipelineSteps.Add(step);
+
+            if (stepDef.Condition is not null)
+            {
+                _db.PipelineStepConditions.Add(
+                    new PipelineStepCondition
+                    {
+                        Id = Guid.NewGuid(),
+                        PipelineStepId = step.Id,
+                        BroadcasterId = broadcasterId,
+                        ConditionType = stepDef.Condition.Type,
+                        Operator = stepDef.Condition.GetString("operator") ?? "eq",
+                        LeftOperand = stepDef.Condition.GetString("left") ?? string.Empty,
+                        RightOperand = stepDef.Condition.GetString("right") ?? string.Empty,
+                        Negate = GetConditionBool(stepDef.Condition, "negate"),
+                        Order = 0,
+                    }
+                );
+            }
+        }
+    }
+
+    private static bool GetConditionBool(ConditionDefinition condition, string key)
+    {
+        if (condition.Parameters is null)
+            return false;
+        if (!condition.Parameters.TryGetValue(key, out JsonElement elem))
+            return false;
+        return elem.ValueKind switch
+        {
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            _ => false,
+        };
     }
 
     public async Task<Result> DeleteAsync(

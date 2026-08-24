@@ -33,6 +33,7 @@ using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.CustomEvents;
 using NomNomzBot.Infrastructure.Marketplace;
 using NomNomzBot.Infrastructure.Tests.Identity;
+using NomNomzBot.Infrastructure.Tests.Persistence;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Marketplace;
@@ -77,6 +78,7 @@ public sealed class MarketplaceServiceTests
             .Returns(Result.Success(PipelineValidationResult.Valid()));
         PipelineService pipelines = new(
             db,
+            new PassThroughUnitOfWork(),
             bus,
             permissiveValidator,
             Substitute.For<IChannelRegistry>()

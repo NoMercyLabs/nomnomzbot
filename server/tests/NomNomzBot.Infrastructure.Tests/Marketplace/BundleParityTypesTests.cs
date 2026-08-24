@@ -38,6 +38,7 @@ using NomNomzBot.Infrastructure.Marketplace;
 using NomNomzBot.Infrastructure.PickLists;
 using NomNomzBot.Infrastructure.Rewards;
 using NomNomzBot.Infrastructure.Tests.Identity;
+using NomNomzBot.Infrastructure.Tests.Persistence;
 using NSubstitute;
 using DomainTimer = NomNomzBot.Domain.Commands.Entities.Timer;
 using PipelineEntity = NomNomzBot.Domain.Commands.Entities.Pipeline;
@@ -112,6 +113,7 @@ public sealed class BundleParityTypesTests
             .Returns(Result.Success(PipelineValidationResult.Valid()));
         PipelineService pipelines = new(
             db,
+            new PassThroughUnitOfWork(),
             bus,
             permissiveValidator,
             Substitute.For<IChannelRegistry>()

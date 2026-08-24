@@ -34,6 +34,7 @@ using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.CustomEvents;
 using NomNomzBot.Infrastructure.Marketplace;
 using NomNomzBot.Infrastructure.Tests.Identity;
+using NomNomzBot.Infrastructure.Tests.Persistence;
 using NSubstitute;
 using PipelineEntity = NomNomzBot.Domain.Commands.Entities.Pipeline;
 
@@ -93,6 +94,7 @@ public sealed class BundleServiceTests
             .Returns(Result.Success(PipelineValidationResult.Valid()));
         PipelineService pipelines = new(
             db,
+            new PassThroughUnitOfWork(),
             bus,
             permissiveValidator,
             Substitute.For<IChannelRegistry>()
