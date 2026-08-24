@@ -11,92 +11,142 @@
 # NomNomzBot — self_host_full quickstart stack (deployment-distribution.md §1.1 / §2).
 #
 # One command brings up the whole bot: Postgres + Redis (the durable data tier) and the API
-# container, with Adminer for DB inspection. The same image runs self_host_full here and saas
+# containers, with Adminer for DB inspection. The same image runs self_host_full here and saas
 # in a fleet — the boot probe (Deployment__Mode) decides which adapters wake up, not this file.
 #
 #   1. cp .env.example .env   (or run ./deploy.sh / .\deploy.ps1)
 #   2. fill in TWITCH_CLIENT_ID / TWITCH_CLIENT_SECRET / TWITCH_BOT_USERNAME
 #   3. docker compose up -d --build
 #
-# The api container auto-migrates Postgres on boot under the run-once guard — no separate
-# migration step. Every secret is read from .env; nothing is hardcoded here.
+# The api containers auto-migrate Postgres on boot under the run-once guard (a Postgres advisory
+# lock on full/saas — exactly one replica migrates while the other waits for the migrated schema,
+# which is what makes the blue/green overlap below safe). Every secret is read from .env; nothing
+# is hardcoded here.
+#
+# --- Blue/green API + Caddy ingress (deployment-distribution.md, slice Z5) --------------------
+# Host port 5080 is owned by `caddy`, not by an API container — two API services (`api-blue` /
+# `api-green`) sit behind it and neither publishes a host port of its own. Caddy actively polls
+# each upstream's `/health/ready` and only routes to the one(s) currently passing it, so
+# `scripts/switchover.ps1` can start the idle colour, wait for it to go ready, and only then stop
+# the old colour (letting in-flight requests drain) without the port ever going dark. In steady
+# state exactly one of api-blue/api-green is running; the other is defined but stopped. Never
+# `docker compose up -d` both colours by hand outside the script, and never restart `api-blue`/
+# `api-green` directly for a deploy — use the script so the switchover stays ordered.
+#
+# API_HTTPS_PORT/5001 is dropped here: ASPNETCORE_URLS below only ever bound :5000, so the old
+# 5081->5001 mapping forwarded to a port nothing listened on — it was already dead. TLS
+# termination belongs to the operator's own reverse proxy (see DEPLOY.md's saas section), not
+# this stack.
+#
+# `watchtower` is NOT part of this stack (it never was — it runs as a separate container the
+# operator adds by hand on the host, outside this file) and must NOT be pointed at api-blue /
+# api-green: its stop-then-start update is exactly the downtime this blue/green setup exists to
+# remove, and it doesn't know how to wait for /health/ready before killing the live colour.
+# Deploys go through `scripts/switchover.ps1` only — see DEPLOY.md.
+
+# --- Shared API service template (blue/green) --------------------------------------------------
+# Referenced by api-blue / api-green below via YAML merge (<<: *api-service). Must be defined
+# BEFORE its first use — a YAML alias can only resolve an anchor that appears earlier in the
+# document. Keeping it as a top-level x-* key (Compose ignores keys prefixed x-) avoids
+# duplicating ~55 lines of environment mapping per colour — the two services differ ONLY in
+# container_name.
+x-api-service: &api-service
+  # Build from server/ for self-host. To pull the published image instead of building, set
+  #   API_IMAGE=ghcr.io/nomercylabs/nomnomzbot:latest
+  # in .env and run `docker compose up -d` (no --build needed).
+  image: ${API_IMAGE:-nomnomzbot-api:local}
+  build:
+    context: .
+    dockerfile: Dockerfile
+  environment:
+    - ASPNETCORE_ENVIRONMENT=Production
+    - ASPNETCORE_URLS=http://+:5000
+    # Deployment profile — self_host_full (default) or saas. Override via DEPLOYMENT_MODE in .env.
+    - Deployment__Mode=${DEPLOYMENT_MODE:-self_host_full}
+    - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=${POSTGRES_DB:-nomnomzbot};Username=${POSTGRES_USER:-nomnomzbot};Password=${POSTGRES_PASSWORD:-nomnomzbot_dev};MaxPoolSize=20
+    # StackExchange.Redis syntax (host:port[,password=...]) — NOT a redis:// URI, which it can't parse.
+    - ConnectionStrings__Redis=redis:6379${REDIS_PASSWORD:+,password=${REDIS_PASSWORD}}
+    - Jwt__Secret=${JWT_SECRET}
+    - Jwt__Issuer=${JWT_ISSUER:-nomnomzbot}
+    - Jwt__Audience=${JWT_AUDIENCE:-nomnomzbot}
+    - Encryption__Key=${ENCRYPTION_KEY}
+    - App__BaseUrl=${API_BASE_URL:-http://localhost:5080}
+    - App__InitialAdminTwitchId=${INITIAL_ADMIN_TWITCH_ID:-}
+    # Trust X-Forwarded-* only from the proxy in front of the API. Caddy now reaches the API over
+    # the bridge network, not loopback, so TRUSTED_PROXY_NETWORKS must cover the compose network
+    # (e.g. 172.16.0.0/12) for the real client IP to be trusted — see .env.example.
+    - ForwardedHeaders__KnownNetworks__0=${TRUSTED_PROXY_NETWORKS:-}
+    - Twitch__ClientId=${TWITCH_CLIENT_ID}
+    - Twitch__ClientSecret=${TWITCH_CLIENT_SECRET}
+    - Twitch__BotUsername=${TWITCH_BOT_USERNAME}
+    - Spotify__ClientId=${SPOTIFY_CLIENT_ID:-}
+    - Spotify__ClientSecret=${SPOTIFY_CLIENT_SECRET:-}
+    - Discord__ClientId=${DISCORD_CLIENT_ID:-}
+    - Discord__ClientSecret=${DISCORD_CLIENT_SECRET:-}
+    - Discord__PublicKey=${DISCORD_PUBLIC_KEY:-}
+    - YouTube__ClientId=${YOUTUBE_CLIENT_ID:-}
+    - YouTube__ClientSecret=${YOUTUBE_CLIENT_SECRET:-}
+    - YouTube__ApiKey=${YOUTUBE_API_KEY:-}
+    - Patreon__ClientId=${PATREON_CLIENT_ID:-}
+    - Patreon__ClientSecret=${PATREON_CLIENT_SECRET:-}
+    - Shopify__ClientId=${SHOPIFY_CLIENT_ID:-}
+    - Shopify__ClientSecret=${SHOPIFY_CLIENT_SECRET:-}
+    - Treatstream__ClientId=${TREATSTREAM_CLIENT_ID:-}
+    - Treatstream__ClientSecret=${TREATSTREAM_CLIENT_SECRET:-}
+    # Extra multi-platform sign-in providers — hidden until their creds are set AND their
+    # login feature flag is on (use_kick_login / use_twitter_login). See .env.example.
+    - Kick__ClientId=${KICK_CLIENT_ID:-}
+    - Kick__ClientSecret=${KICK_CLIENT_SECRET:-}
+    - Twitter__ClientId=${TWITTER_CLIENT_ID:-}
+    - Twitter__ClientSecret=${TWITTER_CLIENT_SECRET:-}
+    - Azure__Tts__ApiKey=${AZURE_TTS_API_KEY:-}
+    - Azure__Tts__Region=${AZURE_TTS_REGION:-westeurope}
+    - ElevenLabs__ApiKey=${ELEVENLABS_API_KEY:-}
+    - Api__ExposeDocs=${API_EXPOSE_DOCS:-false}
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  healthcheck:
+    test: ["CMD-SHELL", "curl -f http://localhost:5000/health/live || exit 1"]
+    interval: 15s
+    timeout: 5s
+    retries: 5
+    start_period: 30s
+  restart: unless-stopped
+  # File state the API keeps outside Postgres (NOMNOMZ_DATA_DIR=/app/data): uploaded sound
+  # clips, key files when secrets aren't supplied via .env. Shared across both colours so an
+  # overlap never sees divergent file state.
+  volumes:
+    - api_data:/app/data
+  networks:
+    - nomnomzbot
 
 services:
-  api:
-    # Build from server/ for self-host. To pull the published image instead of building, set
-    #   API_IMAGE=ghcr.io/nomercylabs/nomnomzbot:latest
-    # in .env and run `docker compose up -d` (no --build needed).
-    image: ${API_IMAGE:-nomnomzbot-api:local}
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: nomnomzbot-api
+  caddy:
+    image: caddy:2-alpine
+    container_name: nomnomzbot-caddy
+    # Caddy is the ONLY thing that binds the documented API port — it actively health-checks
+    # both api-blue and api-green and only forwards to whichever currently passes /health/ready.
     ports:
-      - "${API_HTTP_PORT:-5080}:5000"
-      - "${API_HTTPS_PORT:-5081}:5001"
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Production
-      - ASPNETCORE_URLS=http://+:5000
-      # Deployment profile — self_host_full (default) or saas. Override via DEPLOYMENT_MODE in .env.
-      - Deployment__Mode=${DEPLOYMENT_MODE:-self_host_full}
-      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=${POSTGRES_DB:-nomnomzbot};Username=${POSTGRES_USER:-nomnomzbot};Password=${POSTGRES_PASSWORD:-nomnomzbot_dev};MaxPoolSize=20
-      # StackExchange.Redis syntax (host:port[,password=...]) — NOT a redis:// URI, which it can't parse.
-      - ConnectionStrings__Redis=redis:6379${REDIS_PASSWORD:+,password=${REDIS_PASSWORD}}
-      - Jwt__Secret=${JWT_SECRET}
-      - Jwt__Issuer=${JWT_ISSUER:-nomnomzbot}
-      - Jwt__Audience=${JWT_AUDIENCE:-nomnomzbot}
-      - Encryption__Key=${ENCRYPTION_KEY}
-      - App__BaseUrl=${API_BASE_URL:-http://localhost:5080}
-      - App__InitialAdminTwitchId=${INITIAL_ADMIN_TWITCH_ID:-}
-      # Trust X-Forwarded-* only from the proxy in front of the API. Leave TRUSTED_PROXY_NETWORKS
-      # blank when a proxy runs on the host (loopback is trusted by default); set it to the proxy's
-      # docker network when the proxy reaches the API over the bridge (e.g. 172.16.0.0/12).
-      - ForwardedHeaders__KnownNetworks__0=${TRUSTED_PROXY_NETWORKS:-}
-      - Twitch__ClientId=${TWITCH_CLIENT_ID}
-      - Twitch__ClientSecret=${TWITCH_CLIENT_SECRET}
-      - Twitch__BotUsername=${TWITCH_BOT_USERNAME}
-      - Spotify__ClientId=${SPOTIFY_CLIENT_ID:-}
-      - Spotify__ClientSecret=${SPOTIFY_CLIENT_SECRET:-}
-      - Discord__ClientId=${DISCORD_CLIENT_ID:-}
-      - Discord__ClientSecret=${DISCORD_CLIENT_SECRET:-}
-      - Discord__PublicKey=${DISCORD_PUBLIC_KEY:-}
-      - YouTube__ClientId=${YOUTUBE_CLIENT_ID:-}
-      - YouTube__ClientSecret=${YOUTUBE_CLIENT_SECRET:-}
-      - YouTube__ApiKey=${YOUTUBE_API_KEY:-}
-      - Patreon__ClientId=${PATREON_CLIENT_ID:-}
-      - Patreon__ClientSecret=${PATREON_CLIENT_SECRET:-}
-      - Shopify__ClientId=${SHOPIFY_CLIENT_ID:-}
-      - Shopify__ClientSecret=${SHOPIFY_CLIENT_SECRET:-}
-      - Treatstream__ClientId=${TREATSTREAM_CLIENT_ID:-}
-      - Treatstream__ClientSecret=${TREATSTREAM_CLIENT_SECRET:-}
-      # Extra multi-platform sign-in providers — hidden until their creds are set AND their
-      # login feature flag is on (use_kick_login / use_twitter_login). See .env.example.
-      - Kick__ClientId=${KICK_CLIENT_ID:-}
-      - Kick__ClientSecret=${KICK_CLIENT_SECRET:-}
-      - Twitter__ClientId=${TWITTER_CLIENT_ID:-}
-      - Twitter__ClientSecret=${TWITTER_CLIENT_SECRET:-}
-      - Azure__Tts__ApiKey=${AZURE_TTS_API_KEY:-}
-      - Azure__Tts__Region=${AZURE_TTS_REGION:-westeurope}
-      - ElevenLabs__ApiKey=${ELEVENLABS_API_KEY:-}
-      - Api__ExposeDocs=${API_EXPOSE_DOCS:-false}
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:5000/health/live || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    restart: unless-stopped
-    # File state the API keeps outside Postgres (NOMNOMZ_DATA_DIR=/app/data): uploaded sound
-    # clips, key files when secrets aren't supplied via .env. Persist it across recreates.
+      - "${API_HTTP_PORT:-5080}:80"
     volumes:
-      - api_data:/app/data
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - api-blue
+      - api-green
+    restart: unless-stopped
     networks:
       - nomnomzbot
+
+  api-blue:
+    <<: *api-service
+    container_name: nomnomzbot-api-blue
+
+  api-green:
+    <<: *api-service
+    container_name: nomnomzbot-api-green
 
   postgres:
     image: postgres:16-alpine

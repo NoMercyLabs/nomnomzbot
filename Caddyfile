@@ -1,0 +1,32 @@
+# -----------------------------------------------------------------------------
+#  Copyright (c) NoMercy Labs.
+#
+#  This file is part of NomNomzBot, free software licensed under the GNU Affero
+#  General Public License v3.0 or later. You may redistribute and/or modify it
+#  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+#
+#  SPDX-License-Identifier: AGPL-3.0-or-later
+# -----------------------------------------------------------------------------
+#
+# Blue/green ingress for NomNomzBot (deployment-distribution.md, slice Z5). Caddy owns the
+# documented API port (docker-compose.yml maps ${API_HTTP_PORT:-5080} to this container's :80)
+# and load-balances across BOTH api-blue and api-green — chosen because open-source Caddy
+# supports ACTIVE upstream health checks out of the box (polling /health/ready on an interval,
+# not just reacting to failed proxied requests), which open-source nginx does not; Caddy is also
+# a single static binary with no extra module build, keeping the ingress layer as few moving
+# parts as possible.
+#
+# `health_status 200` means an upstream failing /health/ready (503 while draining or not-yet-
+# ready) is excluded from the pool immediately — scripts/switchover.ps1 relies on exactly this so
+# it never has to touch this file or reload Caddy: starting the idle colour and stopping the old
+# one is enough, because Caddy's own health poller notices both transitions on its own.
+
+:80 {
+	reverse_proxy api-blue:5000 api-green:5000 {
+		lb_policy first
+		health_uri /health/ready
+		health_interval 5s
+		health_timeout 3s
+		health_status 200
+	}
+}

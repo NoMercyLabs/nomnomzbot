@@ -132,8 +132,42 @@ prints your URLs.
 - Dashboard/API: `http://localhost:5080` — Adminer: `http://localhost:8082`
 - **Pull instead of build:** set `API_IMAGE=ghcr.io/nomercylabs/nomnomzbot:latest` in `.env`; the
   script switches to pulling the published image automatically.
-- **Update** by re-running the scenario. **Logs:** `docker compose logs -f api`.
+- **First bring-up** (or a full reset): re-run the scenario, or `docker compose up -d`. **Logs:**
+  `docker compose logs -f api-blue api-green`.
 - **Backup:** the `postgres_data` and `api_data` volumes plus your `.env`.
+
+### Zero-downtime updates — blue/green behind Caddy
+
+Host port 5080 is owned by the `caddy` service, not by an API container directly. Two API
+services sit behind it, `api-blue` and `api-green`; in steady state exactly one is running (the
+"live" colour) and Caddy actively polls its `/health/ready` before routing any traffic to it. This
+is what makes an update possible without the port ever going dark — the *proxy* stays up the
+whole time, only the API instance behind it changes.
+
+**Deploy an update:**
+
+```powershell
+.\scripts\switchover.ps1
+```
+
+The script works out which colour is currently live from `docker ps` (never take its word for
+it — it always re-derives this), pulls the new image, starts the **idle** colour alongside the
+live one, waits for the idle colour to pass its own `/health/ready`, and only then stops the old
+colour with a stop timeout long enough for it to drain in-flight requests (SIGTERM → up to 30s →
+SIGKILL). If the idle colour never becomes ready, the script stops it, leaves the old colour
+serving, and exits non-zero — there is never a moment with zero healthy instances. Re-running the
+script is safe; it converges from whatever state it finds.
+
+By default it targets the local compose stack (`docker-compose.yml` in the repo root). Point it at
+a remote host the same way `ship.ps1` does, by setting `NOMNOMZ_DEPLOY_SSH` (`user@host`),
+`NOMNOMZ_DEPLOY_KEY` (SSH key path), and optionally `NOMNOMZ_DEPLOY_DIR` (default
+`/opt/nomnomzbot`).
+
+**Do not** point `watchtower` (or any other auto-updater) at `api-blue`/`api-green` — its
+stop-then-start update is exactly the downtime this setup removes, and it does not know how to
+wait for `/health/ready` before killing the live colour. `watchtower`, if present on a host at
+all, is a separate container the operator added by hand outside this compose file; it was never
+declared here and updates must go through `switchover.ps1` instead.
 
 ## Scenario: saas — `saas` multi-tenant fleet mode (restricted)
 
