@@ -19,6 +19,33 @@ Slice IDs are stable; the order is the queue.
 
 ---
 
+## AT A GLANCE — what is open, in one screen
+
+Read this block first. It is the only summary; everything below is detail.
+
+**Your asks, and where each one is:**
+
+| Your words | Slice | State |
+|---|---|---|
+| pipeline page needs love, nested if/and/or, add-remove-reorder | S-PIPE-TREE | design DONE + settled - schema DONE - engine/editor next |
+| every reply can speak, template picks the voice | S-TTS-TEMPLATED-VOICE | DONE + verified |
+| make effects and repercussions visible | S-CONSEQ | law recorded, applies to every slice |
+| VS Code-web editor, real npm SDK, real event payloads | S-CODE-EDITOR | queued |
+| item pickers show a rich list, not opaque ids | S-RICH-PICKERS | backend building |
+| budget system for payment tiers by resource usage | S-BUDGETS | queued, gap confirmed |
+| old-bot behaviour only from generic blocks | (standing rule) | verified against the spec |
+| stream-facing first (commands + overlays) | (ordering) | in force |
+
+**Phases 0-S, 0 and 1 are EMPTY — all closed.** The queue is: DO NEXT, then Phase 2 onward.
+
+**Rules that now bind every future slice** (learned the hard way, each cost rework):
+1. A guard that checks only a hand-written list is not a guard — enumerate from the real source.
+2. Every model change lands in BOTH migration sets (SQLite AND Postgres) or Postgres deploys break.
+3. Never show state that is not actually enforced.
+4. Every control says what it does and what changes; destructive saves show a counted blast radius.
+
+---
+
 ## DO NEXT — owner directives, 2026-08-24 (ahead of phase order)
 
 Owner: move the **stream-facing** work forward — commands and overlays, easier to use and more
