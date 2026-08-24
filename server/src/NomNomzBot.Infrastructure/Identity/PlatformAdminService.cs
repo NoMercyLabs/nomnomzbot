@@ -44,6 +44,14 @@ public sealed class PlatformAdminService(
     /// <summary>The seeded role a support-access grant assigns, narrowed to the target tenant (§3.2).</summary>
     private const string SupportRoleName = "platform-support";
 
+    /// <summary>
+    /// Default lifetime for a support-access grant when the request omits one. A grant with no expiry never
+    /// expires — <see cref="StartImpersonationAsync"/> requires a non-null, still-future <c>ExpiresAt</c>, so
+    /// an omitted expiry must still resolve to a real, bounded one, never to "permanent" (a security defect in
+    /// its own right: the banner promises "temporary support access").
+    /// </summary>
+    private static readonly TimeSpan DefaultTenantAccessDuration = TimeSpan.FromHours(4);
+
     public async Task<Result<PagedList<AdminTenantDto>>> ListTenantsAsync(
         Guid principalId,
         AdminTenantQuery query,
@@ -239,13 +247,14 @@ public sealed class PlatformAdminService(
             );
 
         DateTime now = clock.GetUtcNow().UtcDateTime;
+        DateTime expiresAt = request.ExpiresAt ?? now.Add(DefaultTenantAccessDuration);
         IamRoleAssignment assignment = new()
         {
             PrincipalId = principalId,
             RoleId = supportRole.Id,
             ScopeChannelId = broadcasterId,
             AssignedByPrincipalId = principalId,
-            ExpiresAt = request.ExpiresAt,
+            ExpiresAt = expiresAt,
             Reason = request.Justification,
         };
         db.IamRoleAssignments.Add(assignment);
@@ -259,7 +268,7 @@ public sealed class PlatformAdminService(
                 TargetBroadcasterId = broadcasterId,
                 AccessGrantId = assignment.Id,
                 BreakGlass = request.BreakGlass,
-                ExpiresAt = request.ExpiresAt,
+                ExpiresAt = expiresAt,
             },
             ct
         );
@@ -272,7 +281,7 @@ public sealed class PlatformAdminService(
                 request.Justification,
                 request.BreakGlass,
                 now,
-                request.ExpiresAt,
+                expiresAt,
                 RevokedAt: null
             )
         );

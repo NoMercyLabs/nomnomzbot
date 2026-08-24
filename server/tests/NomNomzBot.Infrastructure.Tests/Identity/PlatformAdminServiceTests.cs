@@ -333,6 +333,112 @@ public sealed class PlatformAdminServiceTests
             .Be(result.Value.Id);
     }
 
+    /// <summary>
+    /// Reproduces the "act as owner" 500: the dashboard's begin-access call omits <c>ExpiresAt</c>
+    /// (BeginTenantAccessBody has no field for it). Before the fix this persisted a NULL-expiry grant, which
+    /// StartImpersonationAsync's `ExpiresAt != null &amp;&amp; ExpiresAt > now` check always failed to match —
+    /// so the very next impersonate call was refused with SESSION_REQUIRED (which BaseController then had no
+    /// mapping for, surfacing as a bare 500). The grant must resolve to a real, non-null, still-future expiry
+    /// on its own.
+    /// </summary>
+    [Fact]
+    public async Task BeginTenantAccess_defaults_a_bounded_future_expiry_when_the_request_omits_one()
+    {
+        (PlatformAdminService sut, AuthDbContext db, _, _) = Build();
+        Guid principal = SeedPrincipal(db, "tenant:access");
+        Guid tenant = SeedTenant(db);
+        db.IamRoles.Add(new() { Id = Guid.NewGuid(), Name = "platform-support" });
+        await db.SaveChangesAsync();
+
+        Result<TenantAccessGrantDto> result = await sut.BeginTenantAccessAsync(
+            principal,
+            tenant,
+            new("support ticket, no explicit expiry", BreakGlass: false, ExpiresAt: null)
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.ExpiresAt.Should().NotBeNull();
+        result.Value.ExpiresAt!.Value.Should().BeAfter(Now.UtcDateTime);
+        // Bounded, not permanent — a "temporary support access" grant must actually expire.
+        result.Value.ExpiresAt!.Value.Should().BeOnOrBefore(Now.UtcDateTime.AddHours(24));
+
+        IamRoleAssignment assignment = await db.IamRoleAssignments.SingleAsync(a =>
+            a.Id == result.Value.Id
+        );
+        assignment.ExpiresAt.Should().Be(result.Value.ExpiresAt);
+    }
+
+    /// <summary>
+    /// The full "act as owner" path exactly as the dashboard drives it: begin access with NO explicit
+    /// expiry, then immediately mint an impersonation token off the returned grant id. Both steps must
+    /// succeed, and the minted token's tenant claim must resolve to the IMPERSONATED owner's own channel —
+    /// not the operator's — while the real operator rides only the non-authoritative `act` claim.
+    /// </summary>
+    [Fact]
+    public async Task ActAsOwner_full_path_begin_access_then_impersonate_resolves_the_target_tenant()
+    {
+        (PlatformAdminService sut, AuthDbContext db, _, _) = Build();
+        Guid operatorUserId = SeedUser(db, "operator", isPlatformPrincipal: true);
+        Guid principal = SeedPrincipalFor(
+            db,
+            operatorUserId,
+            "operator",
+            "tenant:access",
+            "user:impersonate"
+        );
+        Guid ownerUserId = SeedUser(db, "tenant_owner", isPlatformPrincipal: false);
+        Guid tenant = Guid.NewGuid();
+        db.Channels.Add(
+            new()
+            {
+                Id = tenant,
+                OwnerUserId = ownerUserId,
+                TwitchChannelId = "tw-owned-chan",
+                Name = "owned_chan",
+                NameNormalized = "owned_chan",
+            }
+        );
+        db.IamRoles.Add(new() { Id = Guid.NewGuid(), Name = "platform-support" });
+        await db.SaveChangesAsync();
+
+        Result<TenantAccessGrantDto> grant = await sut.BeginTenantAccessAsync(
+            principal,
+            tenant,
+            new("act as owner for a support ticket", BreakGlass: false, ExpiresAt: null)
+        );
+        grant.IsSuccess.Should().BeTrue(grant.ErrorMessage);
+
+        Result<ImpersonationTokenDto> result = await sut.StartImpersonationAsync(
+            principal,
+            ownerUserId,
+            grant.Value.Id,
+            "act as owner for a support ticket"
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.User.Id.Should().Be(ownerUserId.ToString());
+
+        // Read raw, not via ValidateAccessToken: the default grant expiry (and its clamp on the token's own
+        // `exp`) is computed off the fixture's FAKE clock (Now), which validation would compare against the
+        // REAL system clock — exactly like the sibling tests above, so this reads claims without re-deriving
+        // that mismatch.
+        JwtSecurityToken raw = new JwtSecurityTokenHandler().ReadJwtToken(result.Value.AccessToken);
+        // The dashboard resolves tenant context from this claim — it must be the OWNER's channel.
+        raw.Claims.Should()
+            .ContainSingle(c => c.Type == JwtTokenService.TenantClaim)
+            .Which.Value.Should()
+            .Be(tenant.ToString());
+        raw.Claims.Should()
+            .ContainSingle(c => c.Type == ClaimTypes.NameIdentifier)
+            .Which.Value.Should()
+            .Be(ownerUserId.ToString());
+
+        raw.Claims.Should()
+            .ContainSingle(c => c.Type == JwtTokenService.ActorClaim)
+            .Which.Value.Should()
+            .Be(operatorUserId.ToString());
+    }
+
     [Fact]
     public async Task BeginTenantAccess_requires_a_justification()
     {

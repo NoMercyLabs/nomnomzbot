@@ -11,6 +11,7 @@
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Controllers;
+using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Common.Models;
 
 namespace NomNomzBot.Api.Tests.Controllers;
@@ -300,5 +301,56 @@ public class BaseControllerTests
             ctrl.TestResultResponse(Result.Failure("nope", "BET_OUT_OF_RANGE")) as ObjectResult;
 
         result!.StatusCode.Should().Be(400);
+    }
+
+    // ─── Admin act-as (tenant-access / impersonation) codes ───────────────────
+    //
+    // Regression coverage for the "act as owner" 500: StartImpersonationAsync refuses with
+    // SESSION_REQUIRED (no open, unexpired support-access grant) or NOT_SUPPORTED (impersonation
+    // disabled on self-host) — both were previously unmapped and fell through to a bare 500.
+
+    [Fact]
+    public void ResultResponse_SessionRequired_Returns409NotInternalServerError()
+    {
+        TestController ctrl = CreateController();
+        ObjectResult? result =
+            ctrl.TestResultResponse(Result.Failure("no session", "SESSION_REQUIRED"))
+            as ObjectResult;
+
+        result!.StatusCode.Should().Be(409);
+    }
+
+    [Fact]
+    public void ResultResponse_NotSupported_Returns409NotInternalServerError()
+    {
+        TestController ctrl = CreateController();
+        ObjectResult? result =
+            ctrl.TestResultResponse(Result.Failure("self-host", "NOT_SUPPORTED")) as ObjectResult;
+
+        result!.StatusCode.Should().Be(409);
+    }
+
+    [Fact]
+    public void ResultResponseT_SessionRequired_Returns409NotInternalServerError()
+    {
+        TestController ctrl = CreateController();
+        ObjectResult? result =
+            ctrl.TestResultResponse(Result.Failure<string>("no session", "SESSION_REQUIRED"))
+            as ObjectResult;
+
+        result!.StatusCode.Should().Be(409);
+    }
+
+    [Fact]
+    public void ResultResponse_VoidSuccess_HasNoDataField()
+    {
+        TestController ctrl = CreateController();
+        OkObjectResult result = (OkObjectResult)ctrl.TestResultResponse(Result.Success());
+
+        // The void overload delegates to the generic one internally — the delegation must not leak a
+        // "data" payload into a void success response.
+        result.Value.Should().BeOfType<StatusResponseDto<object?>>();
+        ((StatusResponseDto<object?>)result.Value!).Data.Should().BeNull();
+        ((StatusResponseDto<object?>)result.Value!).Status.Should().Be("ok");
     }
 }

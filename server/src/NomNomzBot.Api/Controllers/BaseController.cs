@@ -112,9 +112,13 @@ public abstract class BaseController : ControllerBase
 
         return result.ErrorCode switch
         {
-            "AUTH_REQUIRED" or "TOKEN_EXPIRED" or "INVALID_TOKEN" => UnauthenticatedResponse(
-                result.ErrorMessage
-            ),
+            "AUTH_REQUIRED"
+            or "TOKEN_EXPIRED"
+            or "INVALID_TOKEN"
+            or "TOKEN_REVOKED"
+            or "SESSION_INVALID"
+            or "SESSION_NOT_ACTIVE"
+            or "UNAUTHENTICATED" => UnauthenticatedResponse(result.ErrorMessage),
             "FORBIDDEN"
             or "FEATURE_DISABLED"
             or "NOT_ENTITLED"
@@ -127,14 +131,63 @@ public abstract class BaseController : ControllerBase
             or "tier_limit_reached"
             or "EGRESS_NOT_ALLOWED"
             or "MISSING_SCOPE"
-            or "PREMIUM_REQUIRED" => UnauthorizedResponse(result.ErrorMessage),
+            or "PREMIUM_REQUIRED"
+            or "NOT_ELIGIBLE"
+            or "MUSIC_FORBIDDEN"
+            or "VTS_DENIED"
+            or "VTS_UNAUTHORIZED"
+            or "CANNOT_MODERATE_BROADCASTER"
+            or "SOURCE_NOT_ALLOWED"
+            or "PROJECT_DEPENDENCY_NOT_ALLOWED"
+            or "WIDGET_DEPENDENCY_NOT_ALLOWED"
+            or "TENANT_MISMATCH" => UnauthorizedResponse(result.ErrorMessage),
             "NOT_FOUND"
             or "CHANNEL_NOT_FOUND"
             or "CHANNEL_NOT_ONBOARDED"
             or "QUOTES_EMPTY"
-            or "PICKLIST_EMPTY" => NotFoundResponse(result.ErrorMessage),
-            "VALIDATION_FAILED" or "BET_OUT_OF_RANGE" or "TWITCH_NOT_CONFIGURED" =>
-                BadRequestResponse(result.ErrorMessage),
+            or "PICKLIST_EMPTY"
+            or "IDENTITY_NOT_FOUND"
+            or "KEY_NOT_FOUND"
+            or "SOURCE_NOT_FOUND"
+            or "PROJECTION_NOT_FOUND"
+            or "NO_CAMPAIGN"
+            or "NO_ACTIVE_DEVICE"
+            or "UNKNOWN_GAME"
+            or "UNKNOWN_PROVIDER"
+            or "UNKNOWN_SCOPE_SET"
+            or "LEGACY_DB_NOT_FOUND"
+            or "WIDGET_NO_SOURCE"
+            or "WIDGET_NO_SETTINGS_SCHEMA"
+            or "PROJECT_ENTRY_MISSING"
+            or "WIDGET_PROJECT_ENTRY_MISSING" => NotFoundResponse(result.ErrorMessage),
+            "VALIDATION_FAILED"
+            or "BET_OUT_OF_RANGE"
+            or "TWITCH_NOT_CONFIGURED"
+            or "INVALID_ID"
+            or "INVALID_KEY"
+            or "INVALID_SEQUENCE_BLOCK"
+            or "INVALID_CALLBACK"
+            or "INVALID_CHANNEL_ID"
+            or "INVALID_GRAPH"
+            or "INVALID_PATH"
+            or "INVALID_STATE"
+            or "PROJECT_PATH_INVALID"
+            or "WIDGET_PROJECT_PATH_INVALID"
+            or "WIDGET_CLONE_SOURCE_INVALID"
+            or "BUNDLE_INVALID"
+            or "ENVELOPE_INVALID"
+            or "IMPORT_INVALID_ENVELOPE"
+            or "IMPORT_MALFORMED_LINE"
+            or "CONFIRMATION_REQUIRED"
+            or "DURATION_EXCEEDED"
+            or "BUNDLE_TOO_LARGE"
+            or "WIDGET_FRAMEWORK_UNSUPPORTED"
+            or "NO_MISSING_SCOPES"
+            or "SHOP_REQUIRED"
+            or "SUBJECT_KEY_MISSING"
+            or "GAME_NOT_CONFIGURED"
+            or "NO_SCOPES"
+            or "NO_TENANT" => BadRequestResponse(result.ErrorMessage),
             "ALREADY_EXISTS"
             or "INSUFFICIENT_FUNDS"
             or "ACCOUNT_FROZEN"
@@ -148,7 +201,38 @@ public abstract class BaseController : ControllerBase
             or "CAPABILITY_UNSUPPORTED"
             or "TRACK_BLOCKED"
             or "MARKETPLACE_NO_PUBLISHER_TOKEN"
-            or "MARKETPLACE_AUTH_FAILED" => ConflictResponse(result.ErrorMessage),
+            or "MARKETPLACE_AUTH_FAILED"
+            // A refused act-as: the request is well-formed but the caller has no open support session
+            // (SESSION_REQUIRED) or the platform build doesn't offer impersonation at all (NOT_SUPPORTED) —
+            // both are an actionable "you can't do this right now", the same class as the other conflicts
+            // above, never a server fault.
+            or "SESSION_REQUIRED"
+            or "NOT_SUPPORTED"
+            or "ALREADY_ENTERED"
+            or "DUPLICATE_ASSIGNMENT"
+            or "DUPLICATE_TRACK"
+            or "GIVEAWAY_ALREADY_ACTIVE"
+            or "GIVEAWAY_NOT_OPEN"
+            or "SESSION_ALREADY_ACTIVE"
+            or "IDENTITY_ALREADY_LINKED"
+            or "PROVIDER_ALREADY_LINKED"
+            or "LAST_IDENTITY"
+            or "PRIMARY_IDENTITY"
+            or "LAST_MANAGER"
+            or "CONCURRENCY_CONFLICT"
+            or "ESCALATION_STATE_RACE"
+            or "USAGE_RECORD_RACE"
+            or "TARGET_INACTIVE"
+            or "COOLDOWN"
+            or "LIMIT_EXCEEDED"
+            or "QUEUE_FULL"
+            or "CODE_POOL_EXHAUSTED"
+            or "WIDGET_VERSION_NOT_SUCCESSFUL"
+            or "WIDGET_GALLERY_ITEM_NOT_VERIFIED"
+            or "KEY_NOT_ACTIVE"
+            or "KEY_DESTROYED"
+            or "PROJECTION_RUN_IN_PROGRESS"
+            or "FIRST_PARTY_IMMUTABLE" => ConflictResponse(result.ErrorMessage),
             // Discord upstream results are never our fault (500). An invalid/expired bot token or a missing
             // connection is an actionable "reconnect the Discord bot" state → 409, so the client shows a
             // reconnect prompt instead of a generic failure; other upstream conditions map to their true class.
@@ -162,72 +246,52 @@ public abstract class BaseController : ControllerBase
             "SERVICE_UNAVAILABLE"
             or "MARKETPLACE_UNAVAILABLE"
             or "DISCORD_ERROR"
-            or "DISCORD_TRANSPORT" => ServiceUnavailableResponse(result.ErrorMessage),
+            or "DISCORD_TRANSPORT"
+            or "PROVIDER_UNAVAILABLE"
+            or "PROVIDER_NOT_CONFIGURED"
+            or "PROVIDER_NOT_CONNECTED"
+            or "MUSIC_AUTH_FAILED"
+            or "TWITCH_ERROR"
+            or "VTS_ERROR"
+            or "VTS_BRIDGE_OFFLINE"
+            or "VTS_NOT_CONNECTED"
+            or "VTS_TIMEOUT"
+            or "VTS_WRONG_MODE"
+            or "VTS_DISABLED"
+            or "OBS_ERROR"
+            or "OBS_BRIDGE_OFFLINE"
+            or "OBS_DISABLED"
+            or "OBS_NOT_CONNECTED"
+            or "OBS_TIMEOUT"
+            or "OBS_WRONG_MODE"
+            or "EMOTE_PROVIDER_ERROR"
+            or "WIDGET_BUILD_TOOL_UNAVAILABLE" => ServiceUnavailableResponse(result.ErrorMessage),
+            // Genuinely internal — our own machinery (journal append, projections, crypto, token exchange,
+            // import/export, provisioning) faulted; there is no client action that avoids this, so 500 is the
+            // correct, intentional class rather than an omission.
+            "JOURNAL_APPEND_FAILED"
+            or "JOURNAL_APPEND_BATCH_FAILED"
+            or "PROJECTION_FAULTED"
+            or "WIDGET_BUILD_FAILED"
+            or "EXPORT_FAILED"
+            or "IMPORT_FAILED"
+            or "IMPORT_UPCAST_FAILED"
+            or "ERASURE_FAILED"
+            or "PROVISIONING_FAILED"
+            or "UNWRAP_FAILED"
+            or "DECRYPT_FAILED"
+            or "TOKEN_EXCHANGE_FAILED"
+            or "TOKEN_STORE_FAILED"
+            or "USER_FETCH_FAILED"
+            or "DEVICE_TRANSFER_FAILED"
+            or "UPCASTER_CHAIN_BROKEN"
+            or "INTERNAL_ERROR" => InternalServerErrorResponse(result.ErrorMessage),
             _ => InternalServerErrorResponse(result.ErrorMessage),
         };
     }
 
-    protected IActionResult ResultResponse(NomNomzBot.Application.Common.Models.Result result)
-    {
-        if (result.IsSuccess)
-            return Ok(new StatusResponseDto<object> { Status = "ok" });
-
-        return result.ErrorCode switch
-        {
-            "AUTH_REQUIRED" or "TOKEN_EXPIRED" or "INVALID_TOKEN" => UnauthenticatedResponse(
-                result.ErrorMessage
-            ),
-            "FORBIDDEN"
-            or "FEATURE_DISABLED"
-            or "NOT_ENTITLED"
-            or "SCOPE_MISSING"
-            or "BILLING_LIMIT"
-            or "JAR_MEMBERSHIP_REQUIRED"
-            or "AGE_CONSENT_REQUIRED"
-            or "GAMBLING_DISABLED"
-            or "QUOTA_EXCEEDED"
-            or "tier_limit_reached"
-            or "EGRESS_NOT_ALLOWED"
-            or "MISSING_SCOPE"
-            or "PREMIUM_REQUIRED" => UnauthorizedResponse(result.ErrorMessage),
-            "NOT_FOUND"
-            or "CHANNEL_NOT_FOUND"
-            or "CHANNEL_NOT_ONBOARDED"
-            or "QUOTES_EMPTY"
-            or "PICKLIST_EMPTY" => NotFoundResponse(result.ErrorMessage),
-            "VALIDATION_FAILED" or "BET_OUT_OF_RANGE" or "TWITCH_NOT_CONFIGURED" =>
-                BadRequestResponse(result.ErrorMessage),
-            "ALREADY_EXISTS"
-            or "INSUFFICIENT_FUNDS"
-            or "ACCOUNT_FROZEN"
-            or "CURRENCY_DISABLED"
-            or "MAX_BALANCE_EXCEEDED"
-            or "OUT_OF_STOCK"
-            or "ON_COOLDOWN"
-            or "PER_STREAM_LIMIT"
-            or "JAR_NOT_OPEN"
-            or "JAR_CAP_EXCEEDED"
-            or "CAPABILITY_UNSUPPORTED"
-            or "TRACK_BLOCKED"
-            or "MARKETPLACE_NO_PUBLISHER_TOKEN"
-            or "MARKETPLACE_AUTH_FAILED" => ConflictResponse(result.ErrorMessage),
-            // Discord upstream results are never our fault (500). An invalid/expired bot token or a missing
-            // connection is an actionable "reconnect the Discord bot" state → 409, so the client shows a
-            // reconnect prompt instead of a generic failure; other upstream conditions map to their true class.
-            "DISCORD_UNAUTHORIZED" or "DISCORD_NOT_CONNECTED" => ConflictResponse(
-                result.ErrorMessage
-            ),
-            "DISCORD_NOT_FOUND" => NotFoundResponse(result.ErrorMessage),
-            "RATE_LIMITED" or "DISCORD_RATE_LIMITED" => TooManyRequestsResponse(
-                result.ErrorMessage
-            ),
-            "SERVICE_UNAVAILABLE"
-            or "MARKETPLACE_UNAVAILABLE"
-            or "DISCORD_ERROR"
-            or "DISCORD_TRANSPORT" => ServiceUnavailableResponse(result.ErrorMessage),
-            _ => InternalServerErrorResponse(result.ErrorMessage),
-        };
-    }
+    protected IActionResult ResultResponse(NomNomzBot.Application.Common.Models.Result result) =>
+        ResultResponse(result.WithValue<object?>(null));
 
     protected IActionResult GetPaginatedResponse<T>(
         NomNomzBot.Application.Common.Models.PagedList<T> pagedList,
