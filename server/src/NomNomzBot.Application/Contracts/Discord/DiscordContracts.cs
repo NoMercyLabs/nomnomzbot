@@ -183,7 +183,8 @@ public sealed record DiscordGuildRoleDto(
     string Name,
     int Color,
     int Position,
-    bool Managed
+    bool Managed,
+    bool Mentionable = false
 );
 
 /// <summary>A live guild channel, for the target/button channel pickers. <c>Type</c> is Discord's channel type (0 = text).</summary>
