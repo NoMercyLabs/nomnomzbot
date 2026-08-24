@@ -194,16 +194,22 @@ public sealed class YouTubeMusicProvider : IMusicProvider, IMusicProviderManageA
         return Task.FromResult<TrackInfo?>(null);
     }
 
-    public async Task<IReadOnlyList<TrackInfo>> SearchAsync(
+    public async Task<(
+        IReadOnlyList<TrackInfo> Tracks,
+        MusicProviderFailureReason Failure
+    )> SearchAsync(
         Guid broadcasterId,
         string query,
         int maxResults = 5,
         CancellationToken cancellationToken = default
     )
     {
-        // Unconfigured key or empty query ⇒ feature not available; degrade to empty, never throw.
-        if (!IsConfigured || string.IsNullOrWhiteSpace(query))
-            return [];
+        // Unconfigured key ⇒ the feature was never set up for this deployment; empty query genuinely has
+        // no possible match — both stay distinct from a live provider outage.
+        if (!IsConfigured)
+            return ([], MusicProviderFailureReason.NotConnected);
+        if (string.IsNullOrWhiteSpace(query))
+            return ([], MusicProviderFailureReason.None);
 
         int limit = Math.Clamp(maxResults, 1, MaxSearchResults);
         string searchUrl =
@@ -212,11 +218,10 @@ public sealed class YouTubeMusicProvider : IMusicProvider, IMusicProviderManageA
             + $"&q={Uri.EscapeDataString(query)}"
             + $"&key={Uri.EscapeDataString(_apiKey)}";
 
-        YouTubeSearchResponse? search = await GetJsonAsync<YouTubeSearchResponse>(
-            searchUrl,
-            "search.list",
-            cancellationToken
-        );
+        (YouTubeSearchResponse? search, MusicProviderFailureReason searchFailure) =
+            await GetJsonAsync<YouTubeSearchResponse>(searchUrl, "search.list", cancellationToken);
+        if (searchFailure != MusicProviderFailureReason.None)
+            return ([], searchFailure);
 
         // search.list carries only ids + a thin snippet; the gates need duration/embeddable/age, which
         // only videos.list returns — so resolve the ordered ids there and preserve relevance ordering.
@@ -228,12 +233,12 @@ public sealed class YouTubeMusicProvider : IMusicProvider, IMusicProviderManageA
                 .ToList()
             ?? [];
         if (orderedIds.Count == 0)
-            return [];
+            return ([], MusicProviderFailureReason.None);
 
-        Dictionary<string, YouTubeVideo> byId = await FetchVideosByIdAsync(
-            orderedIds,
-            cancellationToken
-        );
+        (Dictionary<string, YouTubeVideo> byId, MusicProviderFailureReason videosFailure) =
+            await FetchVideosByIdAsync(orderedIds, cancellationToken);
+        if (videosFailure != MusicProviderFailureReason.None)
+            return ([], videosFailure);
 
         List<TrackInfo> results = [];
         foreach (string id in orderedIds)
@@ -250,44 +255,48 @@ public sealed class YouTubeMusicProvider : IMusicProvider, IMusicProviderManageA
             results.Add(MapToTrackInfo(video));
         }
 
-        return results;
+        return (results, MusicProviderFailureReason.None);
     }
 
-    public async Task<TrackInfo?> ResolveTrackAsync(
+    public async Task<(TrackInfo? Track, MusicProviderFailureReason Failure)> ResolveTrackAsync(
         Guid broadcasterId,
         string uriOrId,
         CancellationToken cancellationToken = default
     )
     {
-        // §3.5: null = not found/unavailable. Parse the id BEFORE any config/HTTP so garbage input fails
-        // closed without a call; an unconfigured key likewise resolves to null with zero calls.
+        // Parse the id BEFORE any config/HTTP so garbage input fails closed without a call.
         string? videoId = ExtractVideoId(uriOrId);
-        if (videoId is null || !IsConfigured)
-            return null;
+        if (videoId is null)
+            return (null, MusicProviderFailureReason.None); // not a link — legitimately nothing to resolve.
+        if (!IsConfigured)
+            return (null, MusicProviderFailureReason.NotConnected);
 
         string videosUrl =
             $"{YouTubeApiBase}/videos?part=snippet,contentDetails,status"
             + $"&id={videoId}"
             + $"&key={Uri.EscapeDataString(_apiKey)}";
 
-        YouTubeVideoListResponse? response = await GetJsonAsync<YouTubeVideoListResponse>(
-            videosUrl,
-            "videos.list",
-            cancellationToken
-        );
+        (YouTubeVideoListResponse? response, MusicProviderFailureReason failure) =
+            await GetJsonAsync<YouTubeVideoListResponse>(
+                videosUrl,
+                "videos.list",
+                cancellationToken
+            );
+        if (failure != MusicProviderFailureReason.None)
+            return (null, failure);
 
         YouTubeVideo? video = response?.Items?.FirstOrDefault();
         if (video is null)
-            return null; // unknown / private / deleted / region-blocked all return no items.
+            return (null, MusicProviderFailureReason.None); // unknown/private/deleted/region-blocked.
 
         // A live or upcoming broadcast is not a resolvable on-demand track.
         if (!IsOnDemand(video.Snippet))
-            return null;
+            return (null, MusicProviderFailureReason.None);
 
         // Unlike search, resolve keeps a found on-demand video and returns it WITH its gate flags
         // (embeddable/age/explicit) so the SR pipeline can reject with the precise reason (§3.5.2
         // failure taxonomy: not_embeddable / age_restricted), rather than a bare "not found".
-        return MapToTrackInfo(video);
+        return (MapToTrackInfo(video), MusicProviderFailureReason.None);
     }
 
     public Task<bool> AddToQueueAsync(
@@ -987,21 +996,22 @@ public sealed class YouTubeMusicProvider : IMusicProvider, IMusicProviderManageA
 
     // ─── HTTP ────────────────────────────────────────────────────────────────
 
-    private async Task<Dictionary<string, YouTubeVideo>> FetchVideosByIdAsync(
-        IReadOnlyList<string> orderedIds,
-        CancellationToken cancellationToken
-    )
+    private async Task<(
+        Dictionary<string, YouTubeVideo> ById,
+        MusicProviderFailureReason Failure
+    )> FetchVideosByIdAsync(IReadOnlyList<string> orderedIds, CancellationToken cancellationToken)
     {
         string videosUrl =
             $"{YouTubeApiBase}/videos?part=snippet,contentDetails,status"
             + $"&id={string.Join(",", orderedIds)}"
             + $"&key={Uri.EscapeDataString(_apiKey)}";
 
-        YouTubeVideoListResponse? response = await GetJsonAsync<YouTubeVideoListResponse>(
-            videosUrl,
-            "videos.list",
-            cancellationToken
-        );
+        (YouTubeVideoListResponse? response, MusicProviderFailureReason failure) =
+            await GetJsonAsync<YouTubeVideoListResponse>(
+                videosUrl,
+                "videos.list",
+                cancellationToken
+            );
 
         Dictionary<string, YouTubeVideo> byId = new(StringComparer.Ordinal);
         foreach (YouTubeVideo video in response?.Items ?? [])
@@ -1010,13 +1020,15 @@ public sealed class YouTubeMusicProvider : IMusicProvider, IMusicProviderManageA
                 byId[video.Id] = video;
         }
 
-        return byId;
+        return (byId, failure);
     }
 
     /// <summary>GETs and deserializes a Data API response; any transport/HTTP failure degrades to
-    /// null (the caller yields empty/null). The URL carries the app key, so only the operation name is
-    /// logged — never the URL.</summary>
-    private async Task<T?> GetJsonAsync<T>(
+    /// <see cref="MusicProviderFailureReason.Unavailable"/> — the app-key search/resolve surface has no
+    /// per-user auth, so a live HTTP failure here is always a provider outage/quota issue, never a "missing
+    /// scope" the viewer could fix. The URL carries the app key, so only the operation name is logged —
+    /// never the URL.</summary>
+    private async Task<(T? Value, MusicProviderFailureReason Failure)> GetJsonAsync<T>(
         string url,
         string operation,
         CancellationToken cancellationToken
@@ -1028,22 +1040,23 @@ public sealed class YouTubeMusicProvider : IMusicProvider, IMusicProviderManageA
             HttpResponseMessage response = await _http.GetAsync(url, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogDebug(
+                _logger.LogWarning(
                     "YouTube Data API {Operation} failed: {Status}",
                     operation,
                     response.StatusCode
                 );
-                return null;
+                return (null, MusicProviderFailureReason.Unavailable);
             }
 
-            return await response.Content.ReadFromJsonAsync<T>(
+            T? body = await response.Content.ReadFromJsonAsync<T>(
                 cancellationToken: cancellationToken
             );
+            return (body, MusicProviderFailureReason.None);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogError(ex, "YouTube Data API {Operation} threw", operation);
-            return null;
+            return (null, MusicProviderFailureReason.Unavailable);
         }
     }
 

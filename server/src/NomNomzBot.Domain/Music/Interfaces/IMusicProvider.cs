@@ -11,6 +11,26 @@
 namespace NomNomzBot.Domain.Music.Interfaces;
 
 /// <summary>
+/// Why <see cref="IMusicProvider.SearchAsync"/> / <see cref="IMusicProvider.ResolveTrackAsync"/> did not
+/// (or could not be trusted to) return real hits — Domain-safe (no dependency on Application's typed
+/// Result), so the Application layer can turn a real cause into an honest, actionable chat/API message
+/// instead of the provider collapsing every non-hit into a bare empty/null that reads as "not found".
+/// </summary>
+public enum MusicProviderFailureReason
+{
+    /// <summary>The search/resolve genuinely ran; the returned hits (possibly none) are authoritative.</summary>
+    None,
+
+    /// <summary>No usable credential for this channel — never connected, the connection was revoked, or
+    /// the token is dead/missing the required scope. The search never reached the provider.</summary>
+    NotConnected,
+
+    /// <summary>The provider was reached but errored, timed out, or rate-limited — a transient outage,
+    /// not an answer about whether the track exists.</summary>
+    Unavailable,
+}
+
+/// <summary>
 /// What a music provider can do (music-sr.md §3.5). Routing and per-operation gates check these
 /// flags — never provider names. A member whose required flag is absent fails with the
 /// <c>CAPABILITY_UNSUPPORTED</c> result code at the consumer, and the provider member is never called.
@@ -156,7 +176,16 @@ public interface IMusicProvider
         CancellationToken cancellationToken = default
     );
 
-    Task<IReadOnlyList<TrackInfo>> SearchAsync(
+    /// <summary>
+    /// Text search. <see cref="MusicProviderFailureReason.None"/> means the search genuinely ran — the
+    /// (possibly empty) <c>Tracks</c> list is authoritative, and an empty list means it matched nothing.
+    /// Any other <see cref="MusicProviderFailureReason"/> means the search never meaningfully ran at all
+    /// (not connected/missing scope/dead token, or the provider erroring/rate-limited) — callers must
+    /// never render that as "no results" (music-sr.md: the bot must never report a provider outage as a
+    /// song that doesn't exist). Domain carries no typed Result — the Application layer turns the reason
+    /// into a user-facing message.
+    /// </summary>
+    Task<(IReadOnlyList<TrackInfo> Tracks, MusicProviderFailureReason Failure)> SearchAsync(
         Guid broadcasterId,
         string query,
         int maxResults = 5,
@@ -165,9 +194,12 @@ public interface IMusicProvider
 
     /// <summary>
     /// Authoritative single-track metadata lookup (provider track id/uri → <see cref="TrackInfo"/>).
-    /// Null if not found/unavailable.
+    /// <see cref="MusicProviderFailureReason.None"/> means the lookup genuinely ran — a null
+    /// <c>Track</c> then means not a link, or the provider reports no such track. Any other
+    /// <see cref="MusicProviderFailureReason"/> means the lookup never meaningfully ran; see
+    /// <see cref="SearchAsync"/>.
     /// </summary>
-    Task<TrackInfo?> ResolveTrackAsync(
+    Task<(TrackInfo? Track, MusicProviderFailureReason Failure)> ResolveTrackAsync(
         Guid broadcasterId,
         string uriOrId,
         CancellationToken cancellationToken = default

@@ -46,11 +46,9 @@ public sealed class YouTubeMusicProviderSearchTests
             """
         );
 
-        IReadOnlyList<TrackInfo> results = await provider.SearchAsync(
-            ChannelId,
-            "never gonna give",
-            5
-        );
+        (IReadOnlyList<TrackInfo> results, MusicProviderFailureReason failure) =
+            await provider.SearchAsync(ChannelId, "never gonna give", 5);
+        failure.Should().Be(MusicProviderFailureReason.None);
 
         results.Should().HaveCount(1);
         TrackInfo track = results[0];
@@ -115,7 +113,7 @@ public sealed class YouTubeMusicProviderSearchTests
             """
         );
 
-        IReadOnlyList<TrackInfo> results = await provider.SearchAsync(ChannelId, "mix", 10);
+        (IReadOnlyList<TrackInfo> results, _) = await provider.SearchAsync(ChannelId, "mix", 10);
 
         results.Should().ContainSingle().Which.ProviderTrackId.Should().Be("playableAAA");
         results
@@ -156,7 +154,7 @@ public sealed class YouTubeMusicProviderSearchTests
             """
         );
 
-        IReadOnlyList<TrackInfo> results = await provider.SearchAsync(ChannelId, "q", 5);
+        (IReadOnlyList<TrackInfo> results, _) = await provider.SearchAsync(ChannelId, "q", 5);
 
         results
             .Select(t => t.ProviderTrackId)
@@ -182,9 +180,11 @@ public sealed class YouTubeMusicProviderSearchTests
     {
         (YouTubeMusicProvider provider, RecordingHttpHandler handler) = Build(apiKey: null);
 
-        IReadOnlyList<TrackInfo> results = await provider.SearchAsync(ChannelId, "never gonna", 5);
+        (IReadOnlyList<TrackInfo> results, MusicProviderFailureReason failure) =
+            await provider.SearchAsync(ChannelId, "never gonna", 5);
 
         results.Should().BeEmpty();
+        failure.Should().Be(MusicProviderFailureReason.NotConnected);
         handler.RequestUrls.Should().BeEmpty("an unconfigured key must not reach the Data API");
     }
 
@@ -195,9 +195,11 @@ public sealed class YouTubeMusicProviderSearchTests
     {
         (YouTubeMusicProvider provider, RecordingHttpHandler handler) = Build();
 
-        IReadOnlyList<TrackInfo> results = await provider.SearchAsync(ChannelId, query, 5);
+        (IReadOnlyList<TrackInfo> results, MusicProviderFailureReason failure) =
+            await provider.SearchAsync(ChannelId, query, 5);
 
         results.Should().BeEmpty();
+        failure.Should().Be(MusicProviderFailureReason.None);
         handler.RequestUrls.Should().BeEmpty();
     }
 

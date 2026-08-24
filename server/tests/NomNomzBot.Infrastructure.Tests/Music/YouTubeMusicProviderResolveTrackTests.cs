@@ -45,7 +45,7 @@ public sealed class YouTubeMusicProviderResolveTrackTests
         (YouTubeMusicProvider provider, RecordingHttpHandler handler) = Build();
         RouteVideos(handler, OneVideoJson("PT4M13S"));
 
-        TrackInfo? track = await provider.ResolveTrackAsync(ChannelId, input);
+        (TrackInfo? track, _) = await provider.ResolveTrackAsync(ChannelId, input);
 
         track.Should().NotBeNull();
         track.ProviderTrackId.Should().Be(VideoId);
@@ -75,7 +75,7 @@ public sealed class YouTubeMusicProviderResolveTrackTests
             """
         );
 
-        TrackInfo? track = await provider.ResolveTrackAsync(
+        (TrackInfo? track, _) = await provider.ResolveTrackAsync(
             ChannelId,
             "https://youtu.be/dQw4w9WgXcQ"
         );
@@ -105,7 +105,7 @@ public sealed class YouTubeMusicProviderResolveTrackTests
             """
         );
 
-        TrackInfo? track = await provider.ResolveTrackAsync(ChannelId, VideoId);
+        (TrackInfo? track, _) = await provider.ResolveTrackAsync(ChannelId, VideoId);
 
         track
             .Should()
@@ -126,7 +126,7 @@ public sealed class YouTubeMusicProviderResolveTrackTests
             """
         );
 
-        TrackInfo? track = await provider.ResolveTrackAsync(ChannelId, VideoId);
+        (TrackInfo? track, _) = await provider.ResolveTrackAsync(ChannelId, VideoId);
 
         track.Should().NotBeNull();
         track.IsAgeRestricted.Should().BeTrue();
@@ -143,7 +143,7 @@ public sealed class YouTubeMusicProviderResolveTrackTests
             """
         );
 
-        TrackInfo? track = await provider.ResolveTrackAsync(ChannelId, VideoId);
+        (TrackInfo? track, _) = await provider.ResolveTrackAsync(ChannelId, VideoId);
 
         track.Should().BeNull("a live broadcast is not a resolvable on-demand track");
     }
@@ -155,7 +155,7 @@ public sealed class YouTubeMusicProviderResolveTrackTests
         // Unknown/private/deleted/region-blocked videos all come back as an empty item set.
         RouteVideos(handler, """{"items":[]}""");
 
-        TrackInfo? track = await provider.ResolveTrackAsync(ChannelId, VideoId);
+        (TrackInfo? track, _) = await provider.ResolveTrackAsync(ChannelId, VideoId);
 
         track.Should().BeNull();
     }
@@ -172,9 +172,13 @@ public sealed class YouTubeMusicProviderResolveTrackTests
     {
         (YouTubeMusicProvider provider, RecordingHttpHandler handler) = Build();
 
-        TrackInfo? track = await provider.ResolveTrackAsync(ChannelId, input);
+        (TrackInfo? track, MusicProviderFailureReason failure) = await provider.ResolveTrackAsync(
+            ChannelId,
+            input
+        );
 
         track.Should().BeNull();
+        failure.Should().Be(MusicProviderFailureReason.None);
         handler.RequestUrls.Should().BeEmpty("garbage input must not become an API request");
     }
 
@@ -183,9 +187,13 @@ public sealed class YouTubeMusicProviderResolveTrackTests
     {
         (YouTubeMusicProvider provider, RecordingHttpHandler handler) = Build(apiKey: null);
 
-        TrackInfo? track = await provider.ResolveTrackAsync(ChannelId, VideoId);
+        (TrackInfo? track, MusicProviderFailureReason failure) = await provider.ResolveTrackAsync(
+            ChannelId,
+            VideoId
+        );
 
         track.Should().BeNull();
+        failure.Should().Be(MusicProviderFailureReason.NotConnected);
         handler.RequestUrls.Should().BeEmpty("an unconfigured key must not reach the Data API");
     }
 
@@ -199,7 +207,7 @@ public sealed class YouTubeMusicProviderResolveTrackTests
         (YouTubeMusicProvider provider, RecordingHttpHandler handler) = Build();
         RouteVideos(handler, OneVideoJson(iso));
 
-        TrackInfo? track = await provider.ResolveTrackAsync(ChannelId, VideoId);
+        (TrackInfo? track, _) = await provider.ResolveTrackAsync(ChannelId, VideoId);
 
         track.Should().NotBeNull();
         track.DurationMs.Should().Be(expectedMs);
@@ -211,7 +219,7 @@ public sealed class YouTubeMusicProviderResolveTrackTests
         (YouTubeMusicProvider provider, RecordingHttpHandler handler) = Build();
         RouteVideos(handler, OneVideoJson(duration: null));
 
-        TrackInfo? track = await provider.ResolveTrackAsync(ChannelId, VideoId);
+        (TrackInfo? track, _) = await provider.ResolveTrackAsync(ChannelId, VideoId);
 
         track.Should().NotBeNull();
         track.DurationMs.Should().Be(0);

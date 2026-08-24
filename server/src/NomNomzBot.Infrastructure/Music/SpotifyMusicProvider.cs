@@ -285,7 +285,10 @@ public sealed class SpotifyMusicProvider
             _ => MusicRepeatMode.Off,
         };
 
-    public async Task<IReadOnlyList<TrackInfo>> SearchAsync(
+    public async Task<(
+        IReadOnlyList<TrackInfo> Tracks,
+        MusicProviderFailureReason Failure
+    )> SearchAsync(
         Guid broadcasterId,
         string query,
         int maxResults = 5,
@@ -294,7 +297,7 @@ public sealed class SpotifyMusicProvider
     {
         string? token = await GetTokenAsync(broadcasterId, cancellationToken);
         if (token is null)
-            return [];
+            return ([], MusicProviderFailureReason.NotConnected);
 
         // Feb 2026: max 10 results per type
         int limit = Math.Min(maxResults, 10);
@@ -308,8 +311,32 @@ public sealed class SpotifyMusicProvider
             broadcasterId,
             cancellationToken
         );
-        if (response is null || !response.IsSuccessStatusCode)
-            return [];
+        if (response is null)
+        {
+            _logger.LogWarning(
+                "Spotify search failed for {BroadcasterId}: no response",
+                broadcasterId
+            );
+            return ([], MusicProviderFailureReason.Unavailable);
+        }
+        if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+        {
+            _logger.LogWarning(
+                "Spotify search failed for {BroadcasterId}: {Status}",
+                broadcasterId,
+                response.StatusCode
+            );
+            return ([], MusicProviderFailureReason.NotConnected);
+        }
+        if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogWarning(
+                "Spotify search failed for {BroadcasterId}: {Status}",
+                broadcasterId,
+                response.StatusCode
+            );
+            return ([], MusicProviderFailureReason.Unavailable);
+        }
 
         SpotifySearchResponse? json = await ReadJsonSafeAsync<SpotifySearchResponse>(
             response,
@@ -317,12 +344,19 @@ public sealed class SpotifyMusicProvider
             cancellationToken
         );
         if (json?.Tracks?.Items is null)
-            return [];
+        {
+            // A 200 with a malformed/empty body is a provider-side irregularity, not a genuine
+            // "nothing matched" — ReadJsonSafeAsync already logged the parse failure.
+            return ([], MusicProviderFailureReason.Unavailable);
+        }
 
-        return [.. json.Tracks.Items.Where(t => t is not null).Select(t => MapToTrackInfo(t))];
+        return (
+            [.. json.Tracks.Items.Where(t => t is not null).Select(t => MapToTrackInfo(t))],
+            MusicProviderFailureReason.None
+        );
     }
 
-    public async Task<TrackInfo?> ResolveTrackAsync(
+    public async Task<(TrackInfo? Track, MusicProviderFailureReason Failure)> ResolveTrackAsync(
         Guid broadcasterId,
         string uriOrId,
         CancellationToken cancellationToken = default
@@ -330,11 +364,11 @@ public sealed class SpotifyMusicProvider
     {
         string? trackId = ExtractId(uriOrId, "track");
         if (trackId is null)
-            return null;
+            return (null, MusicProviderFailureReason.None); // not a link — legitimately nothing to resolve.
 
         string? token = await GetTokenAsync(broadcasterId, cancellationToken);
         if (token is null)
-            return null;
+            return (null, MusicProviderFailureReason.NotConnected);
 
         HttpResponseMessage? response = await SendAsync(
             HttpMethod.Get,
@@ -343,15 +377,41 @@ public sealed class SpotifyMusicProvider
             broadcasterId,
             cancellationToken
         );
-        if (response is null || !response.IsSuccessStatusCode)
-            return null;
+        if (response is null)
+        {
+            _logger.LogWarning(
+                "Spotify track resolve failed for {BroadcasterId}: no response",
+                broadcasterId
+            );
+            return (null, MusicProviderFailureReason.Unavailable);
+        }
+        if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+        {
+            _logger.LogWarning(
+                "Spotify track resolve failed for {BroadcasterId}: {Status}",
+                broadcasterId,
+                response.StatusCode
+            );
+            return (null, MusicProviderFailureReason.NotConnected);
+        }
+        if (response.StatusCode == HttpStatusCode.NotFound)
+            return (null, MusicProviderFailureReason.None); // genuinely no such track.
+        if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogWarning(
+                "Spotify track resolve failed for {BroadcasterId}: {Status}",
+                broadcasterId,
+                response.StatusCode
+            );
+            return (null, MusicProviderFailureReason.Unavailable);
+        }
 
         SpotifyTrack? track = await ReadJsonSafeAsync<SpotifyTrack>(
             response,
             "tracks/{id}",
             cancellationToken
         );
-        return track is null ? null : MapToTrackInfo(track);
+        return (track is null ? null : MapToTrackInfo(track), MusicProviderFailureReason.None);
     }
 
     /// <summary>

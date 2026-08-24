@@ -11,6 +11,7 @@
 using System.Net;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
@@ -181,13 +182,113 @@ public sealed class MusicServiceRequestTrackTests
         (await sut.GetQueueAsync(ChannelId.ToString())).Queue.Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task A_missing_scope_failure_is_never_worded_as_nothing_matched_and_names_the_real_cause()
+    {
+        // The channel's Spotify connection is never seeded (FakeIntegrationTokenVault has no entry for
+        // it) — GetTokenAsync resolves to null on every call, exactly like a broken/disconnected
+        // integration in production. Neither /search nor /tracks/{id} gets a responder: if the service
+        // still tried to reach the API despite having no token, the RecordingHttpHandler's unrouted 404
+        // would surface as a different (still-wrong) failure, proving the assertion below is exercising
+        // the real "not connected" path.
+        RecordingCapturingLogger<MusicService> logger = new();
+        (MusicService sut, _, _) = Build(seedSpotifyConnection: false, logger: logger);
+
+        Result<MusicTrack> result = await sut.RequestTrackAsync(
+            ChannelId.ToString(),
+            "tweekaz - summer of 69",
+            "viewer1"
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("MISSING_SCOPE");
+        result
+            .ErrorMessage.Should()
+            .NotContain(
+                "matched",
+                "a missing/dead connection must never be phrased as a search that ran and found nothing"
+            );
+        result.ErrorMessage.Should().NotContain("No tracks found");
+        result.ErrorMessage.Should().Contain("reconnected");
+        logger
+            .Entries.Should()
+            .Contain(e =>
+                e.Level == LogLevel.Warning && e.Message.Contains("tweekaz - summer of 69")
+            );
+    }
+
+    [Fact]
+    public async Task A_provider_outage_is_never_worded_as_nothing_matched_and_names_the_real_cause()
+    {
+        (MusicService sut, RecordingHttpHandler handler, _) = Build(seedSpotifyConnection: true);
+        // The connection IS live (a token is on file) but Spotify itself is erroring — a live-service
+        // failure, not a missing/expired credential. /search answers 503 for both the resolve attempt
+        // (garbage, so no /tracks call is even made) and the fallback search.
+        handler.RespondWhen(
+            r => r.RequestUri!.AbsolutePath.EndsWith("/search", StringComparison.Ordinal),
+            HttpStatusCode.ServiceUnavailable,
+            "{}"
+        );
+
+        Result<MusicTrack> result = await sut.RequestTrackAsync(
+            ChannelId.ToString(),
+            "tweekaz - summer of 69",
+            "viewer1"
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("PROVIDER_UNAVAILABLE");
+        result.ErrorMessage.Should().NotContain("matched");
+        result.ErrorMessage.Should().NotContain("No tracks found");
+    }
+
+    [Fact]
+    public async Task A_genuinely_empty_successful_search_still_reports_NOT_FOUND()
+    {
+        // The honest case must keep working: a live, connected provider that legitimately has no hits
+        // still answers NOT_FOUND — the fix must not turn every miss into a false "provider is down".
+        (MusicService sut, RecordingHttpHandler handler, _) = Build(seedSpotifyConnection: true);
+        handler.RespondWhen(
+            r => r.RequestUri!.AbsolutePath.EndsWith("/search", StringComparison.Ordinal),
+            HttpStatusCode.OK,
+            EmptySearchJson
+        );
+
+        Result<MusicTrack> result = await sut.RequestTrackAsync(
+            ChannelId.ToString(),
+            "totally unknown song",
+            "viewer1"
+        );
+
+        result.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
     // ─── Harness ──────────────────────────────────────────────────────────────
+
+    /// <summary>Records every warning/error the SUT logs — proves a provider failure is surfaced to the
+    /// operator, not just swallowed into a chat message.</summary>
+    private sealed class RecordingCapturingLogger<T> : ILogger<T>
+    {
+        public List<(LogLevel Level, string Message)> Entries { get; } = [];
+
+        IDisposable? ILogger.BeginScope<TState>(TState state) => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter
+        ) => Entries.Add((logLevel, formatter(state, exception)));
+    }
 
     private static (
         MusicService Sut,
         RecordingHttpHandler Handler,
         BlockedTrackService Blocks
-    ) Build()
+    ) Build(bool seedSpotifyConnection = true, ILogger<MusicService>? logger = null)
     {
         MusicTestDbContext db = new(
             new DbContextOptionsBuilder<MusicTestDbContext>()
@@ -207,7 +308,8 @@ public sealed class MusicServiceRequestTrackTests
         db.SaveChanges();
 
         FakeIntegrationTokenVault vault = new(db);
-        vault.SeedConnectedSpotify(ChannelId);
+        if (seedSpotifyConnection)
+            vault.SeedConnectedSpotify(ChannelId);
 
         RecordingHttpHandler handler = new();
         SpotifyMusicProvider spotify = new(
@@ -232,7 +334,7 @@ public sealed class MusicServiceRequestTrackTests
             blocks,
             new SongRequestQueueStore(),
             new NoOpSongRequestQueuePersistence(),
-            NullLogger<MusicService>.Instance,
+            logger ?? NullLogger<MusicService>.Instance,
             new InMemoryIntegrationCapabilityStore()
         );
         return (sut, handler, blocks);

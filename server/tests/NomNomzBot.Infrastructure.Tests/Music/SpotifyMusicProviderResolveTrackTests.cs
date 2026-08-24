@@ -53,7 +53,7 @@ public sealed class SpotifyMusicProviderResolveTrackTests
             TrackJson
         );
 
-        TrackInfo? track = await provider.ResolveTrackAsync(ChannelId, input);
+        (TrackInfo? track, _) = await provider.ResolveTrackAsync(ChannelId, input);
 
         track.Should().NotBeNull();
         handler
@@ -72,7 +72,7 @@ public sealed class SpotifyMusicProviderResolveTrackTests
             TrackJson
         );
 
-        TrackInfo? track = await provider.ResolveTrackAsync(
+        (TrackInfo? track, _) = await provider.ResolveTrackAsync(
             ChannelId,
             $"https://open.spotify.com/track/{TrackId}"
         );
@@ -99,9 +99,18 @@ public sealed class SpotifyMusicProviderResolveTrackTests
         (SpotifyMusicProvider provider, _) = Build(connectSpotify: true);
         // No route registered — the handler answers 404, Spotify's real "no such track".
 
-        TrackInfo? track = await provider.ResolveTrackAsync(ChannelId, "zzzzzzzzzzzzzzzzzzzzzz");
+        (TrackInfo? track, MusicProviderFailureReason failure) = await provider.ResolveTrackAsync(
+            ChannelId,
+            "zzzzzzzzzzzzzzzzzzzzzz"
+        );
 
         track.Should().BeNull();
+        failure
+            .Should()
+            .Be(
+                MusicProviderFailureReason.None,
+                "a 404 is a genuine not-found, not a provider failure"
+            );
     }
 
     [Fact]
@@ -111,9 +120,13 @@ public sealed class SpotifyMusicProviderResolveTrackTests
             connectSpotify: false
         );
 
-        TrackInfo? track = await provider.ResolveTrackAsync(ChannelId, $"spotify:track:{TrackId}");
+        (TrackInfo? track, MusicProviderFailureReason failure) = await provider.ResolveTrackAsync(
+            ChannelId,
+            $"spotify:track:{TrackId}"
+        );
 
         track.Should().BeNull();
+        failure.Should().Be(MusicProviderFailureReason.NotConnected);
         handler.RequestUrls.Should().BeEmpty("no token means no API call");
     }
 
@@ -127,9 +140,13 @@ public sealed class SpotifyMusicProviderResolveTrackTests
     {
         (SpotifyMusicProvider provider, RecordingHttpHandler handler) = Build(connectSpotify: true);
 
-        TrackInfo? track = await provider.ResolveTrackAsync(ChannelId, input);
+        (TrackInfo? track, MusicProviderFailureReason failure) = await provider.ResolveTrackAsync(
+            ChannelId,
+            input
+        );
 
         track.Should().BeNull();
+        failure.Should().Be(MusicProviderFailureReason.None);
         handler.RequestUrls.Should().BeEmpty("garbage input must not become an API request");
     }
 

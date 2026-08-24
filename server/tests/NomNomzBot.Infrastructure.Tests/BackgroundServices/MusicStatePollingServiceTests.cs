@@ -459,14 +459,17 @@ public sealed class MusicStatePollingServiceTests
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();
 
-        public Task<IReadOnlyList<TrackInfo>> SearchAsync(
+        public Task<(
+            IReadOnlyList<TrackInfo> Tracks,
+            MusicProviderFailureReason Failure
+        )> SearchAsync(
             Guid broadcasterId,
             string query,
             int maxResults = 5,
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();
 
-        public Task<TrackInfo?> ResolveTrackAsync(
+        public Task<(TrackInfo? Track, MusicProviderFailureReason Failure)> ResolveTrackAsync(
             Guid broadcasterId,
             string uriOrId,
             CancellationToken cancellationToken = default

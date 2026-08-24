@@ -87,12 +87,18 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         if (provider is null)
             return [];
 
-        IReadOnlyList<TrackInfo> results = await provider.SearchAsync(
-            tenantId,
-            query,
-            maxResults,
-            cancellationToken
-        );
+        (IReadOnlyList<TrackInfo> results, MusicProviderFailureReason failure) =
+            await provider.SearchAsync(tenantId, query, maxResults, cancellationToken);
+        if (failure != MusicProviderFailureReason.None)
+        {
+            _logger.LogWarning(
+                "Music search failed for channel {TenantId} via {Provider}: {Failure}",
+                tenantId,
+                provider.Provider,
+                failure
+            );
+            return [];
+        }
 
         return
         [
@@ -269,9 +275,25 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
 
         // Resolve the request to a concrete track: authoritative id/URI lookup first (trackUri is normally
         // an exact provider URI already), else the provider's best search hit (callers may pass a raw
-        // query), else a display-only synthetic entry.
+        // query), else a display-only synthetic entry. Unlike RequestTrackAsync (the free-text !sr entry
+        // point, where "provider down" vs "genuinely no such song" changes what the viewer is told),
+        // AddToQueueAsync's caller already trusts trackUri as a real, admissible id/URI — the resolve here
+        // is best-effort metadata enrichment only, so a lookup failure degrades to the synthetic entry
+        // rather than refusing an otherwise-valid admission; a resolve failure is still logged so the
+        // metadata gap is diagnosable.
+        (TrackInfo? resolvedTrack, MusicProviderFailureReason resolveFailure) =
+            await ResolveOrSearchAsync(provider, tenantId, trackUri, cancellationToken);
+        if (resolveFailure != MusicProviderFailureReason.None)
+            _logger.LogWarning(
+                "Track metadata lookup failed for channel {TenantId} via {Provider}: {Failure} — queuing \"{TrackUri}\" with placeholder metadata",
+                tenantId,
+                provider.Provider,
+                resolveFailure,
+                trackUri
+            );
+
         TrackInfo trackInfo =
-            await ResolveOrSearchAsync(provider, tenantId, trackUri, cancellationToken)
+            resolvedTrack
             ?? new TrackInfo
             {
                 TrackName = trackUri,
@@ -305,12 +327,23 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         if (provider is null)
             return NoProvider<MusicTrack>();
 
-        TrackInfo? trackInfo = await ResolveOrSearchAsync(
+        (TrackInfo? trackInfo, MusicProviderFailureReason failure) = await ResolveOrSearchAsync(
             provider,
             tenantId,
             query,
             cancellationToken
         );
+        if (failure != MusicProviderFailureReason.None)
+        {
+            _logger.LogWarning(
+                "Song request search/resolve failed for channel {TenantId} via {Provider}: {Failure} (query: \"{Query}\")",
+                tenantId,
+                provider.Provider,
+                failure,
+                query
+            );
+            return ProviderFailureResult<MusicTrack>(failure);
+        }
         if (trackInfo is null)
             return Result.Failure<MusicTrack>($"No tracks found for \"{query}\".", "NOT_FOUND");
 
@@ -346,31 +379,55 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
     /// Authoritative link/id resolve first — a pasted Spotify/YouTube track link only ever finds its track
     /// this way (the providers' text search does not parse URLs). A plain search phrase fails the resolve
     /// cheaply (no network call for input that isn't a link/id shape — see each provider's
-    /// ExtractId/ExtractVideoId) and falls through to search. Null when neither finds anything.
+    /// ExtractId/ExtractVideoId) and falls through to search. A null track with
+    /// <see cref="MusicProviderFailureReason.None"/> means neither genuinely found anything; any other
+    /// failure reason means the search/resolve never meaningfully ran and must NOT be read as "not found"
+    /// by the caller — the bot must never report a provider outage as a song that doesn't exist.
     /// </summary>
-    private static async Task<TrackInfo?> ResolveOrSearchAsync(
+    private static async Task<(
+        TrackInfo? Track,
+        MusicProviderFailureReason Failure
+    )> ResolveOrSearchAsync(
         IMusicProvider provider,
         Guid tenantId,
         string queryOrUri,
         CancellationToken cancellationToken
     )
     {
-        TrackInfo? resolved = await provider.ResolveTrackAsync(
-            tenantId,
-            queryOrUri,
-            cancellationToken
-        );
+        (TrackInfo? resolved, MusicProviderFailureReason resolveFailure) =
+            await provider.ResolveTrackAsync(tenantId, queryOrUri, cancellationToken);
+        if (resolveFailure != MusicProviderFailureReason.None)
+            return (null, resolveFailure);
         if (resolved is not null)
-            return resolved;
+            return (resolved, MusicProviderFailureReason.None);
 
-        IReadOnlyList<TrackInfo> hits = await provider.SearchAsync(
-            tenantId,
-            queryOrUri,
-            1,
-            cancellationToken
-        );
-        return hits.FirstOrDefault();
+        (IReadOnlyList<TrackInfo> hits, MusicProviderFailureReason searchFailure) =
+            await provider.SearchAsync(tenantId, queryOrUri, 1, cancellationToken);
+        return searchFailure != MusicProviderFailureReason.None
+            ? (null, searchFailure)
+            : (hits.FirstOrDefault(), MusicProviderFailureReason.None);
     }
+
+    /// <summary>
+    /// Translates a provider's <see cref="MusicProviderFailureReason"/> into the caller-facing error code
+    /// every SR entry point (the !sr builtin, the reward-pipeline action, the public SR page, scripts)
+    /// already switches on — <c>MISSING_SCOPE</c> so the message tells the broadcaster/mod the connection
+    /// needs attention, <c>PROVIDER_UNAVAILABLE</c> (distinct from this service's own
+    /// <c>SERVICE_UNAVAILABLE</c> "no provider configured at all") so a transient outage never reads as
+    /// "go connect Spotify" when it already IS connected.
+    /// </summary>
+    private static Result<T> ProviderFailureResult<T>(MusicProviderFailureReason failure) =>
+        failure switch
+        {
+            MusicProviderFailureReason.NotConnected => Result.Failure<T>(
+                "The music connection needs to be reconnected.",
+                "MISSING_SCOPE"
+            ),
+            _ => Result.Failure<T>(
+                "The music provider is temporarily unavailable.",
+                "PROVIDER_UNAVAILABLE"
+            ),
+        };
 
     /// <summary>
     /// The shared admission path once a track has already been resolved: blocklist gate, fair-queue

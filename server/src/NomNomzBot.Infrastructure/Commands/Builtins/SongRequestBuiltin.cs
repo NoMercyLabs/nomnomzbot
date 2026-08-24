@@ -93,6 +93,11 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
                     "PREMIUM_REQUIRED" => requested.ErrorMessage!,
                     "MUSIC_AUTH_FAILED" => requested.ErrorMessage!,
                     "MUSIC_FORBIDDEN" => requested.ErrorMessage!,
+                    // The search/resolve itself never meaningfully ran (dead token/not connected, or a
+                    // live provider outage) — this must never be worded as "nothing matched", which would
+                    // claim the search ran cleanly and the song simply doesn't exist.
+                    "MISSING_SCOPE" => requested.ErrorMessage!,
+                    "PROVIDER_UNAVAILABLE" => requested.ErrorMessage!,
                     _ =>
                         $"Couldn't reach the music service for \"{query}\" — try again in a moment.",
                 }
