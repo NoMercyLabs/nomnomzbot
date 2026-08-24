@@ -127,24 +127,25 @@ public sealed class ActionDefinitionSeeder : ISeeder
         // commands out of the box). It uses the Default==Floor form: the write bundles DELETE, so like
         // quotes:delete / timers:write it stays a "protected" action that CANNOT be lowered to Vip — a deleted
         // command is recoverable content, but wiping the command set is not something to hand a VIP by override.
-        // The broadcaster may still RAISE the requirement via a ChannelActionOverride. The heavier automation
-        // writes below (pipelines / event responses / chat triggers / timers) stay at Editor — those skew
-        // owner/editor across the same incumbents and are not mod-default anywhere.
+        // The broadcaster may still RAISE the requirement via a ChannelActionOverride. The automation writes
+        // below (pipelines / event responses / chat triggers / timers) are bot-internal tooling — reversible
+        // and auditable, not Twitch-account-mutating — so they also default to Moderator (S-MOD-PERMS): the
+        // moderator's job includes building/adjusting the bot's automation on the channel they moderate.
         MFloor("commands:read", Mod, Vip);
         M("commands:write", Mod);
         MFloor("commands:builtin:read", Mod, Vip);
         M("commands:builtin:write", Mod);
         MFloor("pipelines:read", Mod, Vip);
-        M("pipelines:write", Editor);
+        M("pipelines:write", Mod);
         MFloor("pipelines:validate", Mod, Vip);
         MFloor("eventresponses:read", Mod, Vip);
-        M("eventresponses:write", Editor);
+        M("eventresponses:write", Mod);
         MFloor("chattriggers:read", Mod, Vip);
-        M("chattriggers:write", Editor);
+        M("chattriggers:write", Mod);
         MFloor("chatpolls:read", Mod, Vip);
         MFloor("chatpolls:write", Mod, Vip);
         MFloor("timers:read", Mod, Vip);
-        M("timers:write", Editor);
+        M("timers:write", Mod);
 
         // Bundles (marketplace.md §5) — export/import at Editor (imported code is sandboxed + disabled,
         // destructive actions bound by the importer's own runtime roles, D4); publish is Broadcaster-only.
@@ -164,11 +165,16 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("roles:read", Mod);
         M("roles:manage", Broadcaster, DangerTier.Critical, grant: false);
         s.Add(new("permit:issue", Broadcaster, Editor, DangerTier.Low, true, AuthPlane.Management));
-        M("code:script:author", Broadcaster, DangerTier.Critical);
+        // Bot-internal tooling (sandboxed Jint execution, not a Twitch-native or credential action): the
+        // owner reported feeling over-restricted authoring code scripts as a moderator on channels he does
+        // not own. Opened to the Moderator default like commands/pipelines/music; stays Critical tier and
+        // NOT permit-grantable (a permit can never hand code authorship to a viewer below Moderator), and the
+        // broadcaster may still raise the requirement via a ChannelActionOverride.
+        M("code:script:author", Mod, DangerTier.Critical, grant: false);
 
         // Discord (not permit-grantable)
         M("discord:connection:read", Mod, grant: false);
-        M("discord:connection:write", LeadModerator, grant: false);
+        M("discord:connection:write", Broadcaster, grant: false);
         M("discord:config:read", Mod, grant: false);
         M("discord:config:write", LeadModerator, grant: false);
         M("discord:role:read", Mod, grant: false);
@@ -230,7 +236,7 @@ public sealed class ActionDefinitionSeeder : ISeeder
         // Reads default to the Moderator base, floor Vip (broadcaster may open the presentation config /
         // voice list to a VIP — non-destructive). tts:voice:test triggers audio (spammable) so it stays Mod.
         MFloor("tts:config:read", Mod, Vip);
-        M("tts:config:write", Editor);
+        M("tts:config:write", Mod);
         MFloor("tts:voice:read", Mod, Vip);
         M("tts:voice:test", Mod);
         M("tts:uservoice:write", Mod);
@@ -261,10 +267,10 @@ public sealed class ActionDefinitionSeeder : ISeeder
         // reading config is non-destructive so the broadcaster may open it to a VIP.
         MFloor("music:config:read", Mod, Vip);
         M("music:queue:moderate", Mod);
-        M("music:token:read", Editor);
+        M("music:token:read", Broadcaster);
         M("music:token:rotate", Broadcaster, DangerTier.Critical, grant: false);
         M("music:remote:control", Mod);
-        M("music:library:write", Editor);
+        M("music:library:write", Mod);
         // music-automation-controls.md D5 — gates which AllowedPipelineIds an automation token mint may
         // grant invoke rights over: every music_* pipeline action operates the broadcaster's own connected
         // Spotify/YouTube account, so it is Critical, not permit-delegable below Moderator.
@@ -324,11 +330,11 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("webhooks:outbound:read", Mod);
         M("webhooks:outbound:write", Editor);
         MFloor("widget:read", Mod, Vip);
-        M("widget:write", Editor);
-        M("widget:compile", Editor);
+        M("widget:write", Mod);
+        M("widget:compile", Mod);
         MFloor("widget:version:read", Mod, Vip);
-        M("widget:rollback", Editor);
-        M("widget:install", Editor);
+        M("widget:rollback", Mod);
+        M("widget:install", Mod);
         M("integration:read", Mod);
         M("integration:write", Editor);
         M("community:read", Mod);
@@ -336,9 +342,10 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("community:trust:write", Mod);
         MFloor("dashboard:read", Mod, Vip);
         M("setup:write", Broadcaster, grant: false);
-        // Per-channel feature enablement (FeaturesController): read at Mod, toggle at the config-write tier.
+        // Per-channel feature enablement (FeaturesController): read + toggle both default to Moderator —
+        // reversible bot-internal tooling (S-MOD-PERMS).
         M("feature:read", Mod);
-        M("feature:write", Editor);
+        M("feature:write", Mod);
         M("analytics:read", Mod);
         M("analytics:viewer:read", Mod);
 
@@ -410,25 +417,27 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("giveaways:codes:write", Broadcaster);
 
         // Custom data sources (custom-events.md §5) — the pipeline-facing external data feeds (HypeRate,
-        // Pulsoid, webhooks). Read at Moderator, write (create/update/delete/test) at Editor.
+        // Pulsoid, webhooks). Read + write (create/update/delete/test) both default to Moderator — bot-internal
+        // tooling, reversible (S-MOD-PERMS).
         M("customdata:read", Mod);
-        M("customdata:write", Editor);
+        M("customdata:write", Mod);
 
         // Per-viewer data store (per-viewer-data.md §5) — a viewer's custom key/values (death counters,
-        // quest flags). Browsing is mod work; hand-editing what pipelines wrote sits at Editor.
+        // quest flags). Browsing and hand-editing what pipelines wrote both default to Moderator (S-MOD-PERMS).
         M("viewerdata:read", Mod);
-        M("viewerdata:write", Editor);
+        M("viewerdata:write", Mod);
 
         // Engagement triggers (engagement.md §5) — auto-greet/loyalty config. Read at Moderator, toggling
-        // the triggers (write) at Editor.
+        // the triggers (write) both default to Moderator (S-MOD-PERMS).
         M("engagement:read", Mod);
-        M("engagement:write", Editor);
+        M("engagement:write", Mod);
 
         // Media share (media-share.md §5) — the viewer clip/video queue. Reading + moderating the queue
-        // (approve/reject/skip/reorder) is Moderator work; changing the config (enable/cost/caps) is Editor.
+        // (approve/reject/skip/reorder) is Moderator work; changing the config (enable/cost/caps) also
+        // defaults to Moderator now (S-MOD-PERMS) — reversible bot-internal tooling.
         M("media:read", Mod);
         M("media:moderate", Mod);
-        M("media:write", Editor);
+        M("media:write", Mod);
 
         // Supporter events (supporter-events.md §5) — monetization ingest (tips/memberships/merch/charity).
         // Reading connections + recorded events is Moderator work; connecting a payout/identity-bearing money
@@ -438,9 +447,9 @@ public sealed class ActionDefinitionSeeder : ISeeder
 
         // Sound clips (sound-system.md §5) — audio clip library for pipeline SendSound actions. Read
         // (including preview playback, non-mutating) DEFAULTS to Moderator, floor Vip (broadcaster may open it
-        // to a VIP); write (upload/update/delete) at Editor.
+        // to a VIP); write (upload/update/delete) defaults to Moderator (S-MOD-PERMS).
         MFloor("sounds:read", Mod, Vip);
-        M("sounds:write", Editor);
+        M("sounds:write", Mod);
 
         // ── Community plane (Default = Floor = Everyone(0), Tier = Low, Grant = true) ──
         void C(string key) =>
