@@ -36,6 +36,7 @@ import bot.nomnomz.dashboard.core.network.SystemApi
 import bot.nomnomz.dashboard.core.network.SystemStatus
 import bot.nomnomz.dashboard.core.network.TwitchDiagnosticsApi
 import kotlinx.coroutines.CompletableJob
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -587,7 +588,16 @@ class ConnectController(
 
         val outcome: RedirectOutcome =
             coroutineScope {
-                val redirectResult: Deferred<ApiResult<SessionTokens>> = async { startRedirect() }
+                // UNDISPATCHED: on web, [startRedirect] runs window.location.assign synchronously before its
+                // first suspension point (the never-resolving CompletableDeferred().await() in
+                // OAuthLauncher.wasmJs.kt). Plain `async` (CoroutineStart.DEFAULT) instead schedules the whole
+                // body onto the dispatcher and only starts running it once this coroutine yields — which
+                // happens inside `select` below — so the navigation could sit queued behind whatever the
+                // dispatcher runs first instead of firing in the same tick as the click. UNDISPATCHED runs the
+                // body immediately, in the calling coroutine, up to that first suspension, so the browser
+                // navigates the instant the button is pressed while the wait/cancel/timeout race is unaffected.
+                val redirectResult: Deferred<ApiResult<SessionTokens>> =
+                    async(start = CoroutineStart.UNDISPATCHED) { startRedirect() }
                 val timeoutJob: Job = launch { delay(REDIRECT_WAIT_TIMEOUT_MS) }
                 select<RedirectOutcome> {
                     redirectResult.onAwait { RedirectOutcome.Completed(it) }
