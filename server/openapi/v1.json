@@ -74333,7 +74333,7 @@
             "maxLength": 30,
             "type": "string"
           },
-          "graphJsonCache": { }
+          "graph": { }
         },
         "description": "Request to create a new pipeline."
       },
@@ -83245,7 +83245,7 @@
           "description",
           "isEnabled",
           "triggerKind",
-          "graphJsonCache",
+          "graph",
           "triggerCount",
           "lastTriggeredAt",
           "createdAt",
@@ -83276,7 +83276,7 @@
           "triggerKind": {
             "type": "string"
           },
-          "graphJsonCache": {
+          "graph": {
             "oneOf": [
               {
                 "type": "null"
@@ -95087,7 +95087,7 @@
               "string"
             ]
           },
-          "graphJsonCache": { }
+          "graph": { }
         },
         "description": "Request to update an existing pipeline."
       },

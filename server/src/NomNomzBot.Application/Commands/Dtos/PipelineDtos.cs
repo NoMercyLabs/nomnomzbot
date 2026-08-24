@@ -10,6 +10,7 @@
 
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace NomNomzBot.Application.Commands.Dtos;
 
@@ -21,7 +22,7 @@ public sealed record PipelineDto(
     string? Description,
     bool IsEnabled,
     string TriggerKind,
-    JsonElement? GraphJsonCache,
+    [property: JsonPropertyName("graph")] JsonElement? GraphJsonCache,
     long TriggerCount,
     DateTime? LastTriggeredAt,
     DateTime CreatedAt,
@@ -87,6 +88,7 @@ public sealed record CreatePipelineDto
     [MaxLength(30)]
     public string TriggerKind { get; init; } = "manual";
 
+    [JsonPropertyName("graph")]
     public object? GraphJsonCache { get; init; }
 }
 
@@ -104,5 +106,6 @@ public sealed record UpdatePipelineDto
     [MaxLength(30)]
     public string? TriggerKind { get; init; }
 
+    [JsonPropertyName("graph")]
     public object? GraphJsonCache { get; init; }
 }

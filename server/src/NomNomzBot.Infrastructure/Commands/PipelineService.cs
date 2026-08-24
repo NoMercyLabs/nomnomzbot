@@ -15,6 +15,7 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using PipelineEntity = NomNomzBot.Domain.Commands.Entities.Pipeline;
@@ -95,6 +96,25 @@ public class PipelineService : IPipelineService
 
         if (entity is null)
             return Errors.NotFound<PipelineDto>("Pipeline", id.ToString());
+
+        // GraphJsonCache is only a performance cache — the normalized PipelineStep/PipelineStepCondition
+        // rows are the execution truth PipelineEngine actually runs (LoadFromDbAsync, "DB steps take
+        // priority over graph JSON cache"). A pipeline imported directly into those tables (e.g. an
+        // old-bot migration) never gets a cache row written, so GraphJsonCache stays null while the
+        // pipeline still executes — without this, the editor's GET returns nothing to render even
+        // though the pipeline has real steps. Load and reconstruct from the rows whenever the cache is
+        // absent so the editor always shows exactly what the engine would run.
+        if (entity.GraphJsonCache is null)
+        {
+            List<PipelineStep> steps = await _db
+                .PipelineSteps.Where(s => s.PipelineId == entity.Id)
+                .Include(s => s.Conditions)
+                .OrderBy(s => s.Order)
+                .ToListAsync(ct);
+
+            if (steps.Count > 0)
+                return Result.Success(ToDto(entity, steps));
+        }
 
         return Result.Success(ToDto(entity));
     }
@@ -316,7 +336,62 @@ public class PipelineService : IPipelineService
             ? JsonSerializer.Deserialize<JsonElement>(p.GraphJsonCache)
             : null;
 
-        return new(
+        return ToDto(p, graph);
+    }
+
+    /// <summary>Builds the DTO with its graph reconstructed from normalized <see cref="PipelineStep"/> rows,
+    /// in the exact wire shape <see cref="PipelineDefinition"/> reads back (<c>steps[].action</c> /
+    /// <c>steps[].condition</c>) — the same shape the editor's builder + <see cref="ValidateAndSerializeGraphAsync"/>
+    /// already speak.</summary>
+    private static PipelineDto ToDto(PipelineEntity p, List<PipelineStep> steps) =>
+        ToDto(p, BuildGraphFromSteps(steps));
+
+    private static JsonElement BuildGraphFromSteps(List<PipelineStep> steps)
+    {
+        List<object> stepNodes = [];
+        foreach (PipelineStep step in steps)
+        {
+            JsonElement actionJson;
+            try
+            {
+                using JsonDocument doc = JsonDocument.Parse(step.ConfigJson);
+                Dictionary<string, JsonElement> actionFields = doc
+                    .RootElement.EnumerateObject()
+                    .Where(prop =>
+                        !string.Equals(prop.Name, "type", StringComparison.OrdinalIgnoreCase)
+                    )
+                    .ToDictionary(prop => prop.Name, prop => prop.Value.Clone());
+                actionFields["type"] = JsonSerializer.SerializeToElement(step.ActionType);
+                actionJson = JsonSerializer.SerializeToElement(actionFields);
+            }
+            catch (JsonException)
+            {
+                actionJson = JsonSerializer.SerializeToElement(new { type = step.ActionType });
+            }
+
+            PipelineStepCondition? firstCondition = step
+                .Conditions?.OrderBy(c => c.Order)
+                .FirstOrDefault();
+
+            object? conditionNode = firstCondition is null
+                ? null
+                : new
+                {
+                    type = firstCondition.ConditionType,
+                    @operator = firstCondition.Operator ?? "eq",
+                    left = firstCondition.LeftOperand ?? string.Empty,
+                    right = firstCondition.RightOperand ?? string.Empty,
+                    negate = firstCondition.Negate,
+                };
+
+            stepNodes.Add(new { action = actionJson, condition = conditionNode });
+        }
+
+        return JsonSerializer.SerializeToElement(new { steps = stepNodes });
+    }
+
+    private static PipelineDto ToDto(PipelineEntity p, JsonElement? graph) =>
+        new(
             p.Id,
             p.BroadcasterId.ToString(),
             p.Name,
@@ -329,5 +404,4 @@ public class PipelineService : IPipelineService
             p.CreatedAt,
             p.UpdatedAt
         );
-    }
 }
