@@ -18,10 +18,23 @@ using Npgsql;
 namespace NomNomzBot.Infrastructure.Platform.Deployment;
 
 /// <summary>
-/// The full/SaaS run-once guard (platform-conventions §3.8): a session-scoped Postgres advisory lock
-/// (<c>pg_try_advisory_lock</c>) so exactly one instance owns a named resource (migrate / seed /
-/// conduit-provision) across the stateless pool. The lock is released when its dedicated connection is disposed
-/// (lease dispose). A held lock returns <c>null</c> (another instance owns it).
+/// The Postgres-backed run-once guard (platform-conventions §3.8) — registered for every Postgres profile
+/// (self_host_full AND saas, selected by DB PROVIDER not deployment mode): a session-scoped Postgres advisory
+/// lock (<c>pg_try_advisory_lock</c>) so exactly one instance owns a named resource (migrate / seed /
+/// conduit-provision) across the stateless pool, including two deliberately-overlapping instances during a
+/// zero-downtime deploy. The lock is released when its dedicated connection is disposed (lease dispose). A held
+/// lock returns <c>null</c> (another instance owns it).
+/// <para>
+/// Self-heal on a crashed holder: <see cref="TryAcquireAsync"/>'s <c>ttl</c> parameter is intentionally
+/// UNUSED — <c>pg_try_advisory_lock</c> takes a SESSION-level lock, and Postgres guarantees a session's locks are
+/// released the instant its backend session ends, for ANY reason including an ungraceful process crash or a
+/// killed connection (Postgres docs, "Advisory Locks": "...the lock is guaranteed to be released at the end of
+/// the session"). There is no separate expiry window to honour: the moment the crashed holder's TCP connection is
+/// reaped by Postgres (driven by the server's own <c>tcp_keepalives_*</c> / <c>statement_timeout</c> settings,
+/// not by this guard), the lease is gone and a contender's next <c>pg_try_advisory_lock</c> call succeeds. This is
+/// the simpler-and-correct option versus reimplementing a client-side TTL/heartbeat on top of a mechanism that
+/// already self-expires with the connection.
+/// </para>
 /// </summary>
 public sealed class PostgresRunOnceGuard : IRunOnceGuard
 {

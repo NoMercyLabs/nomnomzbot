@@ -206,9 +206,13 @@ public static class DependencyInjection
             provider.GetRequiredService<AppDbContext>()
         );
 
-        // Run-once guard (platform-conventions §3.8) — no-op on self-host (single process), pg advisory lock on
-        // SaaS. Rate-limiter counter store (§3.7) — in-memory per-instance on lite, Redis cluster-wide on full/SaaS.
-        if (mode == DeploymentMode.Saas)
+        // Run-once guard (platform-conventions §3.8) — selected by DATABASE PROVIDER, not deployment mode: any
+        // Postgres-backed profile (self_host_full AND saas) can legitimately run two overlapping instances against
+        // the same database (zero-downtime deploy topology), so both get the cross-process pg advisory-lock guard.
+        // Only SQLite (self_host_lite) — where a second process against one file DB is not a supported topology —
+        // keeps the in-process no-op. Rate-limiter counter store (§3.7) — in-memory per-instance on lite, Redis
+        // cluster-wide on full/SaaS.
+        if (dbProvider == DbProviderKind.Postgres)
             services.AddSingleton<IRunOnceGuard, PostgresRunOnceGuard>();
         else
             services.AddSingleton<IRunOnceGuard, NoOpRunOnceGuard>();

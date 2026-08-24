@@ -14,13 +14,16 @@ using NomNomzBot.Application.Common.Interfaces;
 namespace NomNomzBot.Infrastructure.Platform.Deployment;
 
 /// <summary>
-/// The self-host (lite/full) run-once guard: there is no CLUSTER to coordinate against (platform-conventions
-/// §3.8), so a lease always succeeds against another PROCESS. It still enforces genuine mutual exclusion WITHIN
-/// this one process, though: two async call sites in the same process can race for the same named resource (e.g.
-/// the projection driver's periodic tick and an operator's manual replay/rebuild hitting the same
-/// projection+channel — S004g). A named, non-reentrant in-process lock — held from acquire to lease dispose —
-/// covers that race without needing a database round-trip; <paramref name="ttl"/> is unused because release is
-/// always explicit (the lease is disposed, never abandoned, on every code path that acquires it).
+/// The SQLite (self_host_lite) run-once guard ONLY: a second process against one SQLite file is not a supported
+/// topology, so there is no CLUSTER to coordinate against (platform-conventions §3.8) and a lease always succeeds
+/// against another PROCESS. Postgres-backed profiles (self_host_full AND saas) — which DO support two overlapping
+/// instances against one database (zero-downtime deploys) — are registered onto <see cref="PostgresRunOnceGuard"/>
+/// instead; this type is never selected there. It still enforces genuine mutual exclusion WITHIN this one process,
+/// though: two async call sites in the same process can race for the same named resource (e.g. the projection
+/// driver's periodic tick and an operator's manual replay/rebuild hitting the same projection+channel — S004g). A
+/// named, non-reentrant in-process lock — held from acquire to lease dispose — covers that race without needing a
+/// database round-trip; <paramref name="ttl"/> is unused because release is always explicit (the lease is
+/// disposed, never abandoned, on every code path that acquires it).
 /// </summary>
 public sealed class NoOpRunOnceGuard : IRunOnceGuard
 {
