@@ -16,6 +16,7 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.RateLimiting;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Common.Models;
@@ -89,11 +90,12 @@ public sealed class CommandNamePrefixGuardTests
         // Now prove the SAVED ROW actually dispatches — drive the real trigger-building logic
         // (ChatMessageHandler.ResolveAuthoredCommand) with the persisted row's own fields, not a
         // hand-typed stand-in, against the exact chat text a viewer would type.
-        IChatProvider chat = await DispatchAsync(persisted, "!so stoney_eagle");
+        IInboundOriginChatSender chat = await DispatchAsync(persisted, "!so stoney_eagle");
 
         await chat.Received(1)
             .SendReplyAsync(
                 Channel,
+                Arg.Any<string>(),
                 Arg.Any<string>(),
                 "shouting them out!",
                 Arg.Any<CancellationToken>()
@@ -120,10 +122,16 @@ public sealed class CommandNamePrefixGuardTests
         created.Value.Name.Should().Be("deal");
 
         NomNomzBot.Domain.Commands.Entities.Command persisted = await db.Commands.SingleAsync();
-        IChatProvider chat = await DispatchAsync(persisted, "$deal");
+        IInboundOriginChatSender chat = await DispatchAsync(persisted, "$deal");
 
         await chat.Received(1)
-            .SendReplyAsync(Channel, Arg.Any<string>(), "dealt!", Arg.Any<CancellationToken>());
+            .SendReplyAsync(
+                Channel,
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                "dealt!",
+                Arg.Any<CancellationToken>()
+            );
     }
 
     // ─── S2: rejections ────────────────────────────────────────────────────────
@@ -244,7 +252,7 @@ public sealed class CommandNamePrefixGuardTests
     /// from the PERSISTED <see cref="NomNomzBot.Domain.Commands.Entities.Command"/> row's own fields (the exact
     /// same copy <c>ChannelRegistry.LoadCommandsAsync</c> performs), and runs the given chat text through it.
     /// </summary>
-    private static async Task<IChatProvider> DispatchAsync(
+    private static async Task<IInboundOriginChatSender> DispatchAsync(
         NomNomzBot.Domain.Commands.Entities.Command persisted,
         string chatText
     )
@@ -312,7 +320,15 @@ public sealed class CommandNamePrefixGuardTests
             )
             .Returns(callInfo => callInfo.ArgAt<string>(0));
 
-        IChatProvider chat = Substitute.For<IChatProvider>();
+        IInboundOriginChatSender chat = Substitute.For<IInboundOriginChatSender>();
+        chat.SendReplyAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
 
         ChatMessageHandler sut = new(
             registry,

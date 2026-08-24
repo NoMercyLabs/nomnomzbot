@@ -11,6 +11,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Chat.Services;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Chat;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity.Enums;
@@ -22,8 +24,13 @@ namespace NomNomzBot.Infrastructure.Chat;
 /// <see cref="IChatPlatform"/> serving the tenant channel's <c>Channel.Provider</c>, so commands,
 /// pipelines, timers, and the dashboard all speak to the right platform with zero call-site changes.
 /// The provider key is resolved once per tenant and cached for the scope's lifetime (channels never
-/// change platform); an unknown/unregistered provider falls back to Twitch — the dominant platform and
-/// the pre-seam behavior — with a warning, never a throw into the hot chat path.
+/// change their primary platform); an unknown/unregistered provider is dropped with a warning — NEVER
+/// a silent fall-through to Twitch or any other platform (S021) — and never a throw into the hot chat
+/// path. <see cref="IInboundOriginChatSender"/> is this router's OTHER registered interface (same scoped
+/// instance): it routes by an explicit provider key — the platform an inbound message actually arrived
+/// on — instead of the tenant's single <c>Channel.Provider</c>, which is wrong once a channel has more
+/// than one platform connection live at once (a Kick reply must never be able to reach Twitch just
+/// because Twitch happens to be the channel's primary platform).
 ///
 /// This is also where every outbound line is stamped with <see cref="BotEmittedLine.Marker"/> (S009b):
 /// the router is the ONE seam every bot-voice send crosses regardless of platform, so stamping here —
@@ -50,7 +57,7 @@ namespace NomNomzBot.Infrastructure.Chat;
 /// bot account is connected, its distinct username already tells viewers apart from the streamer, so the
 /// prefix would be redundant noise and is skipped.
 /// </summary>
-public sealed class ChatPlatformRouter : IChatProvider
+public sealed class ChatPlatformRouter : IChatProvider, IInboundOriginChatSender
 {
     private readonly IReadOnlyDictionary<string, IChatPlatform> _platforms;
     private readonly IApplicationDbContext _db;
@@ -81,7 +88,102 @@ public sealed class ChatPlatformRouter : IChatProvider
         CancellationToken cancellationToken = default
     )
     {
-        IChatPlatform platform = await ResolveAsync(broadcasterId, cancellationToken);
+        IChatPlatform? platform = await ResolveAsync(broadcasterId, cancellationToken);
+        return platform is null
+            ? false
+            : await SendMessageViaAsync(platform, broadcasterId, message, cancellationToken);
+    }
+
+    public async Task<bool> SendReplyAsync(
+        Guid broadcasterId,
+        string replyToMessageId,
+        string message,
+        CancellationToken cancellationToken = default
+    )
+    {
+        IChatPlatform? platform = await ResolveAsync(broadcasterId, cancellationToken);
+        return platform is null
+            ? false
+            : await SendReplyViaAsync(
+                platform,
+                broadcasterId,
+                replyToMessageId,
+                message,
+                cancellationToken
+            );
+    }
+
+    /// <summary>
+    /// S021 — the counterpart to <see cref="SendMessageAsync(Guid,string,CancellationToken)"/> that routes
+    /// by an EXPLICIT provider key (the platform an inbound message actually arrived on) instead of the
+    /// tenant channel's single <c>Channel.Provider</c> field. A provider with no registered
+    /// <see cref="IChatPlatform"/> is an honest failure — never a silent fall-through to Twitch or any
+    /// other platform, and no send is attempted anywhere.
+    /// </summary>
+    public async Task<Result> SendMessageAsync(
+        Guid broadcasterId,
+        string provider,
+        string message,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!_platforms.TryGetValue(provider, out IChatPlatform? platform))
+            return UnsupportedProviderFailure(broadcasterId, provider);
+
+        bool sent = await SendMessageViaAsync(platform, broadcasterId, message, cancellationToken);
+        return sent
+            ? Result.Success()
+            : Result.Failure($"The '{provider}' chat platform rejected the send.", "send_rejected");
+    }
+
+    /// <summary>
+    /// S021 — the counterpart to <see cref="SendReplyAsync(Guid,string,string,CancellationToken)"/> that
+    /// routes by an EXPLICIT provider key. See <see cref="SendMessageAsync(Guid,string,string,CancellationToken)"/>
+    /// for the honest-failure contract on an unregistered provider.
+    /// </summary>
+    public async Task<Result> SendReplyAsync(
+        Guid broadcasterId,
+        string provider,
+        string replyToMessageId,
+        string message,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!_platforms.TryGetValue(provider, out IChatPlatform? platform))
+            return UnsupportedProviderFailure(broadcasterId, provider);
+
+        bool sent = await SendReplyViaAsync(
+            platform,
+            broadcasterId,
+            replyToMessageId,
+            message,
+            cancellationToken
+        );
+        return sent
+            ? Result.Success()
+            : Result.Failure($"The '{provider}' chat platform rejected the send.", "send_rejected");
+    }
+
+    private Result UnsupportedProviderFailure(Guid broadcasterId, string provider)
+    {
+        _logger.LogWarning(
+            "No chat platform registered for provider '{Provider}' (channel {BroadcasterId}) — inbound-origin send refused, never routed to another platform",
+            provider,
+            broadcasterId
+        );
+        return Result.Failure(
+            $"No chat platform is registered for provider '{provider}'.",
+            "unsupported_provider"
+        );
+    }
+
+    private async Task<bool> SendMessageViaAsync(
+        IChatPlatform platform,
+        Guid broadcasterId,
+        string message,
+        CancellationToken cancellationToken
+    )
+    {
         string provider = platform.Provider;
         string queueKey = $"{broadcasterId:D}:{provider}";
         string coalesceKey = $"{queueKey}|msg|{message}";
@@ -118,14 +220,14 @@ public sealed class ChatPlatformRouter : IChatProvider
         );
     }
 
-    public async Task<bool> SendReplyAsync(
+    private async Task<bool> SendReplyViaAsync(
+        IChatPlatform platform,
         Guid broadcasterId,
         string replyToMessageId,
         string message,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken
     )
     {
-        IChatPlatform platform = await ResolveAsync(broadcasterId, cancellationToken);
         string provider = platform.Provider;
         string queueKey = $"{broadcasterId:D}:{provider}";
         string coalesceKey = $"{queueKey}|reply|{replyToMessageId}|{message}";
@@ -177,49 +279,89 @@ public sealed class ChatPlatformRouter : IChatProvider
         int durationSeconds,
         string? reason = null,
         CancellationToken cancellationToken = default
-    ) =>
-        await (await ResolveAsync(broadcasterId, cancellationToken)).TimeoutUserAsync(
+    )
+    {
+        IChatPlatform? platform = await ResolveForModerationAsync(
             broadcasterId,
-            userId,
-            durationSeconds,
-            reason,
+            "timeout",
             cancellationToken
         );
+        if (platform is not null)
+            await platform.TimeoutUserAsync(
+                broadcasterId,
+                userId,
+                durationSeconds,
+                reason,
+                cancellationToken
+            );
+    }
 
     public async Task BanUserAsync(
         Guid broadcasterId,
         string userId,
         string? reason = null,
         CancellationToken cancellationToken = default
-    ) =>
-        await (await ResolveAsync(broadcasterId, cancellationToken)).BanUserAsync(
+    )
+    {
+        IChatPlatform? platform = await ResolveForModerationAsync(
             broadcasterId,
-            userId,
-            reason,
+            "ban",
             cancellationToken
         );
+        if (platform is not null)
+            await platform.BanUserAsync(broadcasterId, userId, reason, cancellationToken);
+    }
 
     public async Task UnbanUserAsync(
         Guid broadcasterId,
         string userId,
         CancellationToken cancellationToken = default
-    ) =>
-        await (await ResolveAsync(broadcasterId, cancellationToken)).UnbanUserAsync(
+    )
+    {
+        IChatPlatform? platform = await ResolveForModerationAsync(
             broadcasterId,
-            userId,
+            "unban",
             cancellationToken
         );
+        if (platform is not null)
+            await platform.UnbanUserAsync(broadcasterId, userId, cancellationToken);
+    }
 
     public async Task DeleteMessageAsync(
         Guid broadcasterId,
         string messageId,
         CancellationToken cancellationToken = default
-    ) =>
-        await (await ResolveAsync(broadcasterId, cancellationToken)).DeleteMessageAsync(
+    )
+    {
+        IChatPlatform? platform = await ResolveForModerationAsync(
             broadcasterId,
-            messageId,
+            "delete-message",
             cancellationToken
         );
+        if (platform is not null)
+            await platform.DeleteMessageAsync(broadcasterId, messageId, cancellationToken);
+    }
+
+    /// <summary>
+    /// Shared resolve-or-log-and-drop path for the four fire-and-forget moderation operations above —
+    /// an unregistered provider is dropped with a warning, never routed to a platform it never happened
+    /// on (see <see cref="ResolveAsync"/>).
+    /// </summary>
+    private async Task<IChatPlatform?> ResolveForModerationAsync(
+        Guid broadcasterId,
+        string operation,
+        CancellationToken ct
+    )
+    {
+        IChatPlatform? platform = await ResolveAsync(broadcasterId, ct);
+        if (platform is null)
+            _logger.LogWarning(
+                "Moderation action '{Operation}' dropped for channel {BroadcasterId} — no chat platform registered",
+                operation,
+                broadcasterId
+            );
+        return platform;
+    }
 
     /// <summary>
     /// The visible bot-line prefix (D5) to apply for this tenant, or null when there is nothing to prepend —
@@ -274,7 +416,14 @@ public sealed class ChatPlatformRouter : IChatProvider
             );
     }
 
-    private async Task<IChatPlatform> ResolveAsync(Guid broadcasterId, CancellationToken ct)
+    /// <summary>
+    /// Resolves the <see cref="IChatPlatform"/> for the tenant channel's own <c>Channel.Provider</c> —
+    /// the fallback path used only by non-inbound-triggered sends (pipelines, timers, announcements) that
+    /// have no inbound message to key off. S021: an unregistered provider is NEVER silently swapped for
+    /// Twitch (or any other platform) — it returns <c>null</c> and callers drop/log the operation, so a
+    /// Kick-only tenant never gets a Twitch line it never asked for.
+    /// </summary>
+    private async Task<IChatPlatform?> ResolveAsync(Guid broadcasterId, CancellationToken ct)
     {
         if (!_providerByTenant.TryGetValue(broadcasterId, out string? provider))
         {
@@ -290,10 +439,10 @@ public sealed class ChatPlatformRouter : IChatProvider
             return platform;
 
         _logger.LogWarning(
-            "No chat platform registered for provider '{Provider}' (channel {BroadcasterId}) — falling back to twitch",
+            "No chat platform registered for provider '{Provider}' (channel {BroadcasterId}) — chat operation dropped, never routed to another platform",
             provider,
             broadcasterId
         );
-        return _platforms[AuthEnums.Platform.Twitch];
+        return null;
     }
 }

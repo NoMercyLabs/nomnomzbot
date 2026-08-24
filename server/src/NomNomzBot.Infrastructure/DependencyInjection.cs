@@ -1393,7 +1393,16 @@ public static class DependencyInjection
         services.AddScoped<IChatPlatform, HelixChatProvider>();
         services.AddScoped<IChatPlatform, YouTubeChatPlatform>();
         services.AddScoped<IChatPlatform, KickChatPlatform>();
-        services.AddScoped<IChatProvider, ChatPlatformRouter>();
+        // ChatPlatformRouter implements BOTH IChatProvider (tenant-keyed) and IInboundOriginChatSender
+        // (S021 — explicit-provider-keyed, for replying on the SAME platform an inbound message arrived
+        // on). Registered once as itself and forwarded to both interfaces so the two share one scoped
+        // instance — and therefore one provider/bot-line-prefix cache per request — rather than two
+        // independently-caching routers.
+        services.AddScoped<ChatPlatformRouter>();
+        services.AddScoped<IChatProvider>(sp => sp.GetRequiredService<ChatPlatformRouter>());
+        services.AddScoped<Application.Chat.Services.IInboundOriginChatSender>(sp =>
+            sp.GetRequiredService<ChatPlatformRouter>()
+        );
 
         // Kick transport + token custody (slice 3b-2c): the client is stateless HTTP over api.kick.com
         // (singleton); the token provider resolves the tenant's vaulted Kick connection and refreshes

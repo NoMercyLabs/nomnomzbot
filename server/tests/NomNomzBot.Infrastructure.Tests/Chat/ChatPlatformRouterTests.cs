@@ -9,6 +9,8 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.Extensions.Logging.Abstractions;
+using NomNomzBot.Application.Chat.Services;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Chat;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity.Entities;
@@ -22,10 +24,11 @@ namespace NomNomzBot.Infrastructure.Tests.Chat;
 /// <summary>
 /// Proves the slice-3 chat seam: the router (registered as THE <see cref="IChatProvider"/>) selects the
 /// platform by the tenant channel's <c>Channel.Provider</c> — a YouTube tenant's send reaches the YouTube
-/// platform, a Twitch tenant's the Twitch one, and an unknown/unregistered provider falls back to Twitch
-/// (the pre-seam behavior) instead of throwing into the hot chat path. It also proves S009b: the router
-/// stamps every outbound line with <see cref="BotEmittedLine.Marker"/> BEFORE handing it to whichever
-/// platform is selected — the one seam a future platform inherits the loop-guard from automatically.
+/// platform, a Twitch tenant's the Twitch one. S021: an unknown/unregistered provider is dropped with a
+/// warning — it is NEVER silently routed to Twitch or any other platform — while still never throwing into
+/// the hot chat path. It also proves S009b: the router stamps every outbound line with
+/// <see cref="BotEmittedLine.Marker"/> BEFORE handing it to whichever platform is selected — the one seam a
+/// future platform inherits the loop-guard from automatically.
 /// </summary>
 public sealed class ChatPlatformRouterTests
 {
@@ -59,6 +62,52 @@ public sealed class ChatPlatformRouterTests
             NullLogger<ChatPlatformRouter>.Instance
         );
         return (router, twitch, youtube);
+    }
+
+    private static async Task<(
+        ChatPlatformRouter Router,
+        IChatPlatform Twitch,
+        IChatPlatform Kick
+    )> BuildWithTwitchAndKickAsync()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Channels.Add(Channel(TwitchTenant, AuthEnums.Platform.Twitch, "tw1"));
+        await db.SaveChangesAsync();
+
+        IChatPlatform twitch = Substitute.For<IChatPlatform>();
+        twitch.Provider.Returns(AuthEnums.Platform.Twitch);
+        twitch
+            .SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+        twitch
+            .SendReplyAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(true);
+
+        IChatPlatform kick = Substitute.For<IChatPlatform>();
+        kick.Provider.Returns(AuthEnums.Platform.Kick);
+        kick.SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+        kick.SendReplyAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(true);
+
+        ChatPlatformRouter router = new(
+            [twitch, kick],
+            db,
+            new OutboundChatShaper(),
+            new TokenBucketChatSendQueue(),
+            NullLogger<ChatPlatformRouter>.Instance
+        );
+        return (router, twitch, kick);
     }
 
     [Fact]
@@ -111,20 +160,18 @@ public sealed class ChatPlatformRouterTests
     }
 
     [Fact]
-    public async Task An_unregistered_provider_falls_back_to_twitch_instead_of_throwing()
+    public async Task An_unregistered_provider_is_dropped_honestly_never_routed_to_twitch()
     {
-        // Kick has a Channel row but no registered platform yet — the router must not blow up chat.
+        // Kick has a Channel row but no registered platform yet — the router must not blow up chat,
+        // and (S021) must NEVER silently reroute the send to Twitch just because Twitch is registered.
         (ChatPlatformRouter router, IChatPlatform twitch, _) = await BuildAsync();
 
-        await router.SendMessageAsync(KickTenant, "yo");
+        bool sent = await router.SendMessageAsync(KickTenant, "yo");
 
+        Assert.False(sent);
         await twitch
-            .Received(1)
-            .SendMessageAsync(
-                KickTenant,
-                BotEmittedLine.Marker + "yo",
-                Arg.Any<CancellationToken>()
-            );
+            .DidNotReceiveWithAnyArgs()
+            .SendMessageAsync(default, default!, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -232,6 +279,136 @@ public sealed class ChatPlatformRouterTests
         bool sent = await router.SendMessageAsync(TwitchTenant, "hello");
 
         Assert.False(sent);
+    }
+
+    // ---- S021: IInboundOriginChatSender — route by the platform the INBOUND message arrived on ----
+
+    [Fact]
+    public async Task A_kick_origin_send_reaches_kick_and_never_twitch_even_though_the_tenant_is_a_twitch_channel()
+    {
+        (ChatPlatformRouter router, IChatPlatform twitch, IChatPlatform kick) =
+            await BuildWithTwitchAndKickAsync();
+        IInboundOriginChatSender sender = router;
+
+        Result result = await sender.SendMessageAsync(
+            TwitchTenant,
+            AuthEnums.Platform.Kick,
+            "up 2h30m"
+        );
+
+        Assert.True(result.IsSuccess);
+        await kick.Received(1)
+            .SendMessageAsync(
+                TwitchTenant,
+                BotEmittedLine.Marker + "up 2h30m",
+                Arg.Any<CancellationToken>()
+            );
+        await twitch
+            .DidNotReceiveWithAnyArgs()
+            .SendMessageAsync(default, default!, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_twitch_origin_send_reaches_twitch_and_never_kick()
+    {
+        (ChatPlatformRouter router, IChatPlatform twitch, IChatPlatform kick) =
+            await BuildWithTwitchAndKickAsync();
+        IInboundOriginChatSender sender = router;
+
+        Result result = await sender.SendMessageAsync(
+            TwitchTenant,
+            AuthEnums.Platform.Twitch,
+            "up 2h30m"
+        );
+
+        Assert.True(result.IsSuccess);
+        await twitch
+            .Received(1)
+            .SendMessageAsync(
+                TwitchTenant,
+                BotEmittedLine.Marker + "up 2h30m",
+                Arg.Any<CancellationToken>()
+            );
+        await kick.DidNotReceiveWithAnyArgs()
+            .SendMessageAsync(default, default!, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task An_unsupported_provider_is_an_honest_result_failure_with_no_send_on_any_platform()
+    {
+        (ChatPlatformRouter router, IChatPlatform twitch, IChatPlatform kick) =
+            await BuildWithTwitchAndKickAsync();
+        IInboundOriginChatSender sender = router;
+
+        Result result = await sender.SendMessageAsync(TwitchTenant, "discord", "hi");
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("unsupported_provider", result.ErrorCode);
+        await twitch
+            .DidNotReceiveWithAnyArgs()
+            .SendMessageAsync(default, default!, Arg.Any<CancellationToken>());
+        await kick.DidNotReceiveWithAnyArgs()
+            .SendMessageAsync(default, default!, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Successive_messages_from_different_providers_on_the_same_channel_each_route_to_their_own_provider_never_cached_from_the_first()
+    {
+        (ChatPlatformRouter router, IChatPlatform twitch, IChatPlatform kick) =
+            await BuildWithTwitchAndKickAsync();
+        IInboundOriginChatSender sender = router;
+
+        await sender.SendMessageAsync(TwitchTenant, AuthEnums.Platform.Kick, "kick first");
+        await sender.SendMessageAsync(TwitchTenant, AuthEnums.Platform.Twitch, "twitch second");
+
+        await kick.Received(1)
+            .SendMessageAsync(
+                TwitchTenant,
+                BotEmittedLine.Marker + "kick first",
+                Arg.Any<CancellationToken>()
+            );
+        await twitch
+            .Received(1)
+            .SendMessageAsync(
+                TwitchTenant,
+                BotEmittedLine.Marker + "twitch second",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task An_inbound_origin_reply_routes_to_its_own_provider_and_an_unsupported_provider_reply_fails_honestly()
+    {
+        (ChatPlatformRouter router, IChatPlatform twitch, IChatPlatform kick) =
+            await BuildWithTwitchAndKickAsync();
+        IInboundOriginChatSender sender = router;
+
+        Result kickReply = await sender.SendReplyAsync(
+            TwitchTenant,
+            AuthEnums.Platform.Kick,
+            "kick-msg-1",
+            "reply"
+        );
+        Result unsupportedReply = await sender.SendReplyAsync(
+            TwitchTenant,
+            "discord",
+            "d-msg-1",
+            "reply"
+        );
+
+        Assert.True(kickReply.IsSuccess);
+        Assert.True(unsupportedReply.IsFailure);
+        Assert.Equal("unsupported_provider", unsupportedReply.ErrorCode);
+        await kick.Received(1)
+            .SendReplyAsync(
+                TwitchTenant,
+                "kick-msg-1",
+                BotEmittedLine.Marker + "reply",
+                Arg.Any<CancellationToken>()
+            );
+        await twitch
+            .DidNotReceiveWithAnyArgs()
+            .SendReplyAsync(default, default!, default!, Arg.Any<CancellationToken>());
     }
 
     private static Channel Channel(

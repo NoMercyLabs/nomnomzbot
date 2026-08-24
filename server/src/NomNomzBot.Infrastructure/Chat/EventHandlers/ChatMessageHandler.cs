@@ -15,6 +15,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.RateLimiting;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
@@ -51,7 +52,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
     private readonly IChannelRegistry _registry;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ICooldownManager _cooldowns;
-    private readonly IChatProvider _chat;
+    private readonly IInboundOriginChatSender _chat;
     private readonly IPipelineEngine _pipeline;
     private readonly IBuiltinCommandCatalog _builtins;
     private readonly ITemplateResolver _templateResolver;
@@ -64,7 +65,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         IChannelRegistry registry,
         IServiceScopeFactory scopeFactory,
         ICooldownManager cooldowns,
-        IChatProvider chat,
+        IInboundOriginChatSender chat,
         IPipelineEngine pipeline,
         IBuiltinCommandCatalog builtins,
         ITemplateResolver templateResolver,
@@ -650,16 +651,31 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
     )
     {
         if (string.IsNullOrEmpty(@event.MessageId))
-            return await _chat.SendMessageAsync(@event.BroadcasterId, text, ct);
+            return (
+                await _chat.SendMessageAsync(@event.BroadcasterId, @event.Provider, text, ct)
+            ).IsSuccess;
 
-        if (await _chat.SendReplyAsync(@event.BroadcasterId, @event.MessageId, text, ct))
+        if (
+            (
+                await _chat.SendReplyAsync(
+                    @event.BroadcasterId,
+                    @event.Provider,
+                    @event.MessageId,
+                    text,
+                    ct
+                )
+            ).IsSuccess
+        )
             return true;
 
-        return await _chat.SendMessageAsync(
-            @event.BroadcasterId,
-            $"@{@event.UserDisplayName} {text}",
-            ct
-        );
+        return (
+            await _chat.SendMessageAsync(
+                @event.BroadcasterId,
+                @event.Provider,
+                $"@{@event.UserDisplayName} {text}",
+                ct
+            )
+        ).IsSuccess;
     }
 
     /// <summary>
@@ -1109,7 +1125,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             ct
         );
         if (!string.IsNullOrWhiteSpace(resolved))
-            await _chat.SendMessageAsync(@event.BroadcasterId, resolved, ct);
+            await _chat.SendMessageAsync(@event.BroadcasterId, @event.Provider, resolved, ct);
     }
 
     /// <summary>

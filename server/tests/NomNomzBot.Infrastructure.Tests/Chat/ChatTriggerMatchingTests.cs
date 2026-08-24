@@ -14,7 +14,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -33,6 +35,35 @@ namespace NomNomzBot.Infrastructure.Tests.Chat;
 /// </summary>
 public sealed class ChatTriggerMatchingTests
 {
+    /// <summary>
+    /// S021: a substitute <see cref="IInboundOriginChatSender"/> that mirrors the pre-S021
+    /// <c>IChatProvider</c> mock default — an unconfigured send is a FAILURE (never a null-dereferencing
+    /// <c>Result</c>, and never a silent success) — so <c>ChatMessageHandler.SendResponseAsync</c>'s
+    /// reply-then-mention-fallback still exercises exactly as it did when the mock's default return was
+    /// <c>false</c>. Tests that care about the actual send outcome configure their own <c>.Returns(...)</c>
+    /// on top of this.
+    /// </summary>
+    private static IInboundOriginChatSender NoopChatSender()
+    {
+        IInboundOriginChatSender chat = Substitute.For<IInboundOriginChatSender>();
+        chat.SendMessageAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure("not configured in this test"));
+        chat.SendReplyAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure("not configured in this test"));
+        return chat;
+    }
+
     private static readonly Guid Broadcaster = Guid.Parse("019f6d00-5555-7000-8000-000000000001");
 
     private static ChannelContext NewContext() =>
@@ -72,9 +103,11 @@ public sealed class ChatTriggerMatchingTests
                     : null,
         };
 
-    private static (ChatMessageHandler Sut, IChatProvider Chat, IPipelineEngine Pipeline) Build(
-        ChannelContext ctx
-    )
+    private static (
+        ChatMessageHandler Sut,
+        IInboundOriginChatSender Chat,
+        IPipelineEngine Pipeline
+    ) Build(ChannelContext ctx)
     {
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
         registry.Get(Broadcaster).Returns(ctx);
@@ -89,7 +122,7 @@ public sealed class ChatTriggerMatchingTests
             )
             .Returns(callInfo => Task.FromResult($"resolved:{callInfo.ArgAt<string>(0)}"));
 
-        IChatProvider chat = Substitute.For<IChatProvider>();
+        IInboundOriginChatSender chat = NoopChatSender();
         IPipelineEngine pipeline = Substitute.For<IPipelineEngine>();
 
         // An empty builtin catalog: NSubstitute would otherwise auto-return a substitute builtin,
@@ -141,12 +174,17 @@ public sealed class ChatTriggerMatchingTests
         ChannelContext ctx = NewContext();
         CachedChatTrigger trigger = Trigger("good bot");
         ctx.ChatTriggers[trigger.Id] = trigger;
-        (ChatMessageHandler sut, IChatProvider chat, _) = Build(ctx);
+        (ChatMessageHandler sut, IInboundOriginChatSender chat, _) = Build(ctx);
 
         await sut.HandleAsync(Line("such a GOOD BOT today"), CancellationToken.None);
 
         await chat.Received(1)
-            .SendMessageAsync(Broadcaster, "resolved:hi {user}", Arg.Any<CancellationToken>());
+            .SendMessageAsync(
+                Broadcaster,
+                Arg.Any<string>(),
+                "resolved:hi {user}",
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Theory]
@@ -166,12 +204,17 @@ public sealed class ChatTriggerMatchingTests
         ChannelContext ctx = NewContext();
         CachedChatTrigger trigger = Trigger(pattern, matchType);
         ctx.ChatTriggers[trigger.Id] = trigger;
-        (ChatMessageHandler sut, IChatProvider chat, _) = Build(ctx);
+        (ChatMessageHandler sut, IInboundOriginChatSender chat, _) = Build(ctx);
 
         await sut.HandleAsync(Line(message), CancellationToken.None);
 
         await chat.Received(shouldFire ? 1 : 0)
-            .SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .SendMessageAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -180,13 +223,18 @@ public sealed class ChatTriggerMatchingTests
         ChannelContext ctx = NewContext();
         CachedChatTrigger trigger = Trigger("hype", cooldownSeconds: 300);
         ctx.ChatTriggers[trigger.Id] = trigger;
-        (ChatMessageHandler sut, IChatProvider chat, _) = Build(ctx);
+        (ChatMessageHandler sut, IInboundOriginChatSender chat, _) = Build(ctx);
 
         await sut.HandleAsync(Line("hype!"), CancellationToken.None);
         await sut.HandleAsync(Line("hype again!"), CancellationToken.None);
 
         await chat.Received(1)
-            .SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .SendMessageAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -195,15 +243,20 @@ public sealed class ChatTriggerMatchingTests
         ChannelContext ctx = NewContext();
         CachedChatTrigger trigger = Trigger("secret", minLevel: 10); // moderator floor
         ctx.ChatTriggers[trigger.Id] = trigger;
-        (ChatMessageHandler sut, IChatProvider chat, _) = Build(ctx);
+        (ChatMessageHandler sut, IInboundOriginChatSender chat, _) = Build(ctx);
 
         await sut.HandleAsync(Line("the secret word"), CancellationToken.None);
         await chat.DidNotReceiveWithAnyArgs()
-            .SendMessageAsync(default, default!, Arg.Any<CancellationToken>());
+            .SendMessageAsync(default, default!, default!, default);
 
         await sut.HandleAsync(Line("the secret word", isModerator: true), CancellationToken.None);
         await chat.Received(1)
-            .SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .SendMessageAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -216,7 +269,9 @@ public sealed class ChatTriggerMatchingTests
             pipelineJson: """{"steps":[]}"""
         );
         ctx.ChatTriggers[trigger.Id] = trigger;
-        (ChatMessageHandler sut, IChatProvider chat, IPipelineEngine pipeline) = Build(ctx);
+        (ChatMessageHandler sut, IInboundOriginChatSender chat, IPipelineEngine pipeline) = Build(
+            ctx
+        );
 
         await sut.HandleAsync(Line("welcome chain go"), CancellationToken.None);
 
@@ -232,7 +287,7 @@ public sealed class ChatTriggerMatchingTests
                 Arg.Any<CancellationToken>()
             );
         await chat.DidNotReceiveWithAnyArgs()
-            .SendMessageAsync(default, default!, Arg.Any<CancellationToken>());
+            .SendMessageAsync(default, default!, default!, default);
     }
 
     [Fact]
@@ -243,12 +298,17 @@ public sealed class ChatTriggerMatchingTests
         CachedChatTrigger second = Trigger("hello there");
         ctx.ChatTriggers[first.Id] = first;
         ctx.ChatTriggers[second.Id] = second;
-        (ChatMessageHandler sut, IChatProvider chat, _) = Build(ctx);
+        (ChatMessageHandler sut, IInboundOriginChatSender chat, _) = Build(ctx);
 
         await sut.HandleAsync(Line("hello there friends"), CancellationToken.None);
 
         await chat.Received(1)
-            .SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+            .SendMessageAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -266,7 +326,7 @@ public sealed class ChatTriggerMatchingTests
             .BuildServiceProvider();
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
         registry.Get(Broadcaster).Returns(ctx);
-        IChatProvider chat = Substitute.For<IChatProvider>();
+        IInboundOriginChatSender chat = NoopChatSender();
         ChatMessageHandler sut = new(
             registry,
             provider.GetRequiredService<IServiceScopeFactory>(),
@@ -294,7 +354,7 @@ public sealed class ChatTriggerMatchingTests
                 Arg.Any<CancellationToken>()
             );
         await chat.DidNotReceiveWithAnyArgs()
-            .SendMessageAsync(default, default!, Arg.Any<CancellationToken>());
+            .SendMessageAsync(default, default!, default!, default);
 
         // An out-of-range number is NOT a vote — it falls through to the trigger surface as usual.
         await sut.HandleAsync(Line("9"), CancellationToken.None);
@@ -323,15 +383,17 @@ public sealed class ChatTriggerMatchingTests
             .Muted;
         CachedChatTrigger trigger = Trigger("hello");
         ctx.ChatTriggers[trigger.Id] = trigger;
-        (ChatMessageHandler sut, IChatProvider chat, IPipelineEngine pipeline) = Build(ctx);
+        (ChatMessageHandler sut, IInboundOriginChatSender chat, IPipelineEngine pipeline) = Build(
+            ctx
+        );
 
         await sut.HandleAsync(Line("hello everyone"), CancellationToken.None);
         await sut.HandleAsync(Line("!uptime"), CancellationToken.None);
 
         await chat.DidNotReceiveWithAnyArgs()
-            .SendMessageAsync(default, default!, Arg.Any<CancellationToken>());
+            .SendMessageAsync(default, default!, default!, default);
         await chat.DidNotReceiveWithAnyArgs()
-            .SendReplyAsync(default, default!, default!, Arg.Any<CancellationToken>());
+            .SendReplyAsync(default, default!, default!, default!, default);
         await pipeline
             .DidNotReceiveWithAnyArgs()
             .ExecuteAsync(default!, Arg.Any<CancellationToken>());
@@ -345,11 +407,11 @@ public sealed class ChatTriggerMatchingTests
         ChannelContext ctx = NewContext();
         CachedChatTrigger trigger = Trigger("!uptime");
         ctx.ChatTriggers[trigger.Id] = trigger;
-        (ChatMessageHandler sut, IChatProvider chat, _) = Build(ctx);
+        (ChatMessageHandler sut, IInboundOriginChatSender chat, _) = Build(ctx);
 
         await sut.HandleAsync(Line("!uptime"), CancellationToken.None);
 
         await chat.DidNotReceiveWithAnyArgs()
-            .SendMessageAsync(default, default!, Arg.Any<CancellationToken>());
+            .SendMessageAsync(default, default!, default!, default);
     }
 }

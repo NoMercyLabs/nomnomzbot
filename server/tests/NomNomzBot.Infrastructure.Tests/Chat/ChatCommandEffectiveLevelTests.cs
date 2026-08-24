@@ -14,6 +14,7 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.RateLimiting;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
@@ -41,6 +42,35 @@ namespace NomNomzBot.Infrastructure.Tests.Chat;
 /// </summary>
 public sealed class ChatCommandEffectiveLevelTests
 {
+    /// <summary>
+    /// S021: a substitute <see cref="IInboundOriginChatSender"/> that mirrors the pre-S021
+    /// <c>IChatProvider</c> mock default — an unconfigured send is a FAILURE (never a null-dereferencing
+    /// <c>Result</c>, and never a silent success) — so <c>ChatMessageHandler.SendResponseAsync</c>'s
+    /// reply-then-mention-fallback still exercises exactly as it did when the mock's default return was
+    /// <c>false</c>. Tests that care about the actual send outcome configure their own <c>.Returns(...)</c>
+    /// on top of this.
+    /// </summary>
+    private static IInboundOriginChatSender NoopChatSender()
+    {
+        IInboundOriginChatSender chat = Substitute.For<IInboundOriginChatSender>();
+        chat.SendMessageAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure("not configured in this test"));
+        chat.SendReplyAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure("not configured in this test"));
+        return chat;
+    }
+
     private static readonly Guid Broadcaster = Guid.Parse("0198a000-0000-7000-8000-00000000e001");
     private static readonly Guid ViewerUser = Guid.Parse("0198a000-0000-7000-8000-00000000e002");
     private static readonly DateTime Now = new(2026, 7, 4, 12, 0, 0, DateTimeKind.Utc);
@@ -69,12 +99,18 @@ public sealed class ChatCommandEffectiveLevelTests
         );
         await db.SaveChangesAsync();
 
-        (ChatMessageHandler sut, IChatProvider chat, _, _) = Build(db);
+        (ChatMessageHandler sut, IInboundOriginChatSender chat, _, _) = Build(db);
 
         await sut.HandleAsync(BadgelessEvent($"!{CommandKey}"), CancellationToken.None);
 
         await chat.Received(1)
-            .SendReplyAsync(Broadcaster, "msg-9", CommandResponse, Arg.Any<CancellationToken>());
+            .SendReplyAsync(
+                Broadcaster,
+                Arg.Any<string>(),
+                "msg-9",
+                CommandResponse,
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -94,12 +130,18 @@ public sealed class ChatCommandEffectiveLevelTests
         );
         await db.SaveChangesAsync();
 
-        (ChatMessageHandler sut, IChatProvider chat, _, _) = Build(db);
+        (ChatMessageHandler sut, IInboundOriginChatSender chat, _, _) = Build(db);
 
         await sut.HandleAsync(BadgelessEvent($"!{CommandKey}"), CancellationToken.None);
 
         await chat.Received(1)
-            .SendReplyAsync(Broadcaster, "msg-9", CommandResponse, Arg.Any<CancellationToken>());
+            .SendReplyAsync(
+                Broadcaster,
+                Arg.Any<string>(),
+                "msg-9",
+                CommandResponse,
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -119,7 +161,7 @@ public sealed class ChatCommandEffectiveLevelTests
         );
         await db.SaveChangesAsync();
 
-        (ChatMessageHandler sut, IChatProvider chat, _, _) = Build(db);
+        (ChatMessageHandler sut, IInboundOriginChatSender chat, _, _) = Build(db);
 
         await sut.HandleAsync(BadgelessEvent($"!{CommandKey}"), CancellationToken.None);
 
@@ -128,6 +170,7 @@ public sealed class ChatCommandEffectiveLevelTests
         await chat.Received(1)
             .SendMessageAsync(
                 Broadcaster,
+                Arg.Any<string>(),
                 "@Viewer You don't have permission to use that command.",
                 Arg.Any<CancellationToken>()
             );
@@ -138,13 +181,14 @@ public sealed class ChatCommandEffectiveLevelTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
 
-        (ChatMessageHandler sut, IChatProvider chat, _, _) = Build(db);
+        (ChatMessageHandler sut, IInboundOriginChatSender chat, _, _) = Build(db);
 
         await sut.HandleAsync(BadgelessEvent($"!{CommandKey}"), CancellationToken.None);
 
         await chat.Received(1)
             .SendMessageAsync(
                 Broadcaster,
+                Arg.Any<string>(),
                 "@Viewer You don't have permission to use that command.",
                 Arg.Any<CancellationToken>()
             );
@@ -157,13 +201,23 @@ public sealed class ChatCommandEffectiveLevelTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
 
-        (ChatMessageHandler sut, IChatProvider chat, IUserService users, IRoleResolver resolver) =
-            Build(db);
+        (
+            ChatMessageHandler sut,
+            IInboundOriginChatSender chat,
+            IUserService users,
+            IRoleResolver resolver
+        ) = Build(db);
 
         await sut.HandleAsync(ModeratorEvent($"!{CommandKey}"), CancellationToken.None);
 
         await chat.Received(1)
-            .SendReplyAsync(Broadcaster, "msg-10", CommandResponse, Arg.Any<CancellationToken>());
+            .SendReplyAsync(
+                Broadcaster,
+                Arg.Any<string>(),
+                "msg-10",
+                CommandResponse,
+                Arg.Any<CancellationToken>()
+            );
         // The short-circuit: the badge already met the floor, so the DB seam was never touched.
         await users
             .DidNotReceiveWithAnyArgs()
@@ -176,13 +230,23 @@ public sealed class ChatCommandEffectiveLevelTests
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
 
-        (ChatMessageHandler sut, IChatProvider chat, IUserService users, IRoleResolver resolver) =
-            Build(db, minPermissionLevel: 0);
+        (
+            ChatMessageHandler sut,
+            IInboundOriginChatSender chat,
+            IUserService users,
+            IRoleResolver resolver
+        ) = Build(db, minPermissionLevel: 0);
 
         await sut.HandleAsync(BadgelessEvent($"!{CommandKey}"), CancellationToken.None);
 
         await chat.Received(1)
-            .SendReplyAsync(Broadcaster, "msg-9", CommandResponse, Arg.Any<CancellationToken>());
+            .SendReplyAsync(
+                Broadcaster,
+                Arg.Any<string>(),
+                "msg-9",
+                CommandResponse,
+                Arg.Any<CancellationToken>()
+            );
         await users
             .DidNotReceiveWithAnyArgs()
             .GetOrCreateAsync(default!, default!, default!, default!, default);
@@ -200,7 +264,7 @@ public sealed class ChatCommandEffectiveLevelTests
     /// </summary>
     private static (
         ChatMessageHandler Sut,
-        IChatProvider Chat,
+        IInboundOriginChatSender Chat,
         IUserService Users,
         IRoleResolver Resolver
     ) Build(AuthDbContext db, int minPermissionLevel = ModeratorFloor)
@@ -273,7 +337,7 @@ public sealed class ChatCommandEffectiveLevelTests
             )
             .Returns(callInfo => callInfo.ArgAt<string>(0));
 
-        IChatProvider chat = Substitute.For<IChatProvider>();
+        IInboundOriginChatSender chat = NoopChatSender();
 
         ChatMessageHandler sut = new(
             registry,

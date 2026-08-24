@@ -15,6 +15,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.RateLimiting;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Games;
@@ -40,6 +41,35 @@ namespace NomNomzBot.Infrastructure.Tests.Chat;
 /// </summary>
 public sealed class ChatMessageHandlerTests
 {
+    /// <summary>
+    /// S021: a substitute <see cref="IInboundOriginChatSender"/> that mirrors the pre-S021
+    /// <c>IChatProvider</c> mock default — an unconfigured send is a FAILURE (never a null-dereferencing
+    /// <c>Result</c>, and never a silent success) — so <c>ChatMessageHandler.SendResponseAsync</c>'s
+    /// reply-then-mention-fallback still exercises exactly as it did when the mock's default return was
+    /// <c>false</c>. Tests that care about the actual send outcome configure their own <c>.Returns(...)</c>
+    /// on top of this.
+    /// </summary>
+    private static IInboundOriginChatSender NoopChatSender()
+    {
+        IInboundOriginChatSender chat = Substitute.For<IInboundOriginChatSender>();
+        chat.SendMessageAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure("not configured in this test"));
+        chat.SendReplyAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure("not configured in this test"));
+        return chat;
+    }
+
     private static readonly Guid Broadcaster = Guid.Parse("0198a000-0000-7000-8000-00000000d001");
 
     private const string BuiltinKey = "uptime";
@@ -51,12 +81,14 @@ public sealed class ChatMessageHandlerTests
         ChannelContext ctx = NewChannelContext();
         ctx.DisabledBuiltins[BuiltinKey] = 0;
 
-        (ChatMessageHandler sut, IChatProvider chat) = Build(ctx);
+        (ChatMessageHandler sut, IInboundOriginChatSender chat) = Build(ctx);
 
         await sut.HandleAsync(MessageEvent($"!{BuiltinKey}"), CancellationToken.None);
 
-        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
-        await chat.DidNotReceiveWithAnyArgs().SendReplyAsync(default, default!, default!, default);
+        await chat.DidNotReceiveWithAnyArgs()
+            .SendMessageAsync(default, default!, default!, default);
+        await chat.DidNotReceiveWithAnyArgs()
+            .SendReplyAsync(default, default!, default!, default!, default);
     }
 
     [Fact]
@@ -66,12 +98,18 @@ public sealed class ChatMessageHandlerTests
         // Explicitly enabled looks identical to "no row at all" in the cache — ChannelRegistry only ever
         // populates DisabledBuiltins for rows where IsEnabled == false — so this proves the enabled path.
 
-        (ChatMessageHandler sut, IChatProvider chat) = Build(ctx);
+        (ChatMessageHandler sut, IInboundOriginChatSender chat) = Build(ctx);
 
         await sut.HandleAsync(MessageEvent($"!{BuiltinKey}"), CancellationToken.None);
 
         await chat.Received(1)
-            .SendReplyAsync(Broadcaster, "msg-1", BuiltinResponse, Arg.Any<CancellationToken>());
+            .SendReplyAsync(
+                Broadcaster,
+                Arg.Any<string>(),
+                "msg-1",
+                BuiltinResponse,
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -83,12 +121,18 @@ public sealed class ChatMessageHandlerTests
         ChannelContext ctx = NewChannelContext();
         ctx.DisabledBuiltins.Should().BeEmpty();
 
-        (ChatMessageHandler sut, IChatProvider chat) = Build(ctx);
+        (ChatMessageHandler sut, IInboundOriginChatSender chat) = Build(ctx);
 
         await sut.HandleAsync(MessageEvent($"!{BuiltinKey}"), CancellationToken.None);
 
         await chat.Received(1)
-            .SendReplyAsync(Broadcaster, "msg-1", BuiltinResponse, Arg.Any<CancellationToken>());
+            .SendReplyAsync(
+                Broadcaster,
+                Arg.Any<string>(),
+                "msg-1",
+                BuiltinResponse,
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -110,12 +154,14 @@ public sealed class ChatMessageHandlerTests
         };
         ctx.DisabledBuiltins[BuiltinKey] = 0;
 
-        (ChatMessageHandler sut, IChatProvider chat) = Build(ctx);
+        (ChatMessageHandler sut, IInboundOriginChatSender chat) = Build(ctx);
 
         await sut.HandleAsync(MessageEvent($"!{BuiltinKey}"), CancellationToken.None);
 
-        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
-        await chat.DidNotReceiveWithAnyArgs().SendReplyAsync(default, default!, default!, default);
+        await chat.DidNotReceiveWithAnyArgs()
+            .SendMessageAsync(default, default!, default!, default);
+        await chat.DidNotReceiveWithAnyArgs()
+            .SendReplyAsync(default, default!, default!, default!, default);
     }
 
     [Fact]
@@ -203,11 +249,15 @@ public sealed class ChatMessageHandlerTests
             matchMode: "StartsWith"
         );
 
-        (ChatMessageHandler sut, IChatProvider chat, IEventBus bus) = BuildWithGames(ctx, new());
+        (ChatMessageHandler sut, IInboundOriginChatSender chat, IEventBus bus) = BuildWithGames(
+            ctx,
+            new()
+        );
 
         await sut.HandleAsync(MessageEvent("!hype"), CancellationToken.None);
 
-        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+        await chat.DidNotReceiveWithAnyArgs()
+            .SendMessageAsync(default, default!, default!, default);
         await bus.DidNotReceiveWithAnyArgs()
             .PublishAsync(
                 Arg.Any<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(),
@@ -303,12 +353,12 @@ public sealed class ChatMessageHandlerTests
             customPrefix: null,
             matchMode: "Exact"
         );
-        (ChatMessageHandler exactSut, IChatProvider exactChat, IEventBus exactBus) = BuildWithGames(
-            exactCtx,
-            new()
-        );
+        (ChatMessageHandler exactSut, IInboundOriginChatSender exactChat, IEventBus exactBus) =
+            BuildWithGames(exactCtx, new());
         await exactSut.HandleAsync(MessageEvent("!go now"), CancellationToken.None);
-        await exactChat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+        await exactChat
+            .DidNotReceiveWithAnyArgs()
+            .SendMessageAsync(default, default!, default!, default);
         await exactBus
             .DidNotReceiveWithAnyArgs()
             .PublishAsync(
@@ -339,7 +389,7 @@ public sealed class ChatMessageHandlerTests
         IBuiltinCommandCatalog builtins = Substitute.For<IBuiltinCommandCatalog>();
         builtins.Get(Arg.Any<string>()).Returns((IBuiltinCommand?)null);
         IPipelineEngine pipelineEngine = Substitute.For<IPipelineEngine>();
-        IChatProvider chat = Substitute.For<IChatProvider>();
+        IInboundOriginChatSender chat = NoopChatSender();
 
         ChatMessageHandler sut = new(
             registry,
@@ -360,7 +410,8 @@ public sealed class ChatMessageHandlerTests
         await pipelineEngine
             .DidNotReceiveWithAnyArgs()
             .ExecuteAsync(default!, Arg.Any<CancellationToken>());
-        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+        await chat.DidNotReceiveWithAnyArgs()
+            .SendMessageAsync(default, default!, default!, default);
     }
 
     // ── per-channel command prefix (Channel.CommandPrefix) ──────────────────
@@ -395,12 +446,17 @@ public sealed class ChatMessageHandlerTests
         ctx.CommandPrefix = "?";
         AddTemplateCommand(ctx, "hello", "Hi there");
 
-        (ChatMessageHandler sut, IChatProvider chat, IEventBus bus) = BuildWithGames(ctx, new());
+        (ChatMessageHandler sut, IInboundOriginChatSender chat, IEventBus bus) = BuildWithGames(
+            ctx,
+            new()
+        );
 
         await sut.HandleAsync(MessageEvent("!hello"), CancellationToken.None);
 
-        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
-        await chat.DidNotReceiveWithAnyArgs().SendReplyAsync(default, default!, default!, default);
+        await chat.DidNotReceiveWithAnyArgs()
+            .SendMessageAsync(default, default!, default!, default);
+        await chat.DidNotReceiveWithAnyArgs()
+            .SendReplyAsync(default, default!, default!, default!, default);
         await bus.DidNotReceiveWithAnyArgs()
             .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
                 default!,
@@ -411,12 +467,12 @@ public sealed class ChatMessageHandlerTests
     [Fact]
     public async Task A_youtube_message_executes_commands_and_replies_through_the_platform_router()
     {
-        // Since the slice-3 seam, IChatProvider IS the platform router — a YouTube chatter's command
+        // Since the slice-3 seam, IInboundOriginChatSender IS the platform router — a YouTube chatter's command
         // executes exactly like a Twitch one, the reply routes to the YouTube send path, and the
         // execution fact publishes so analytics/use-counts fold for the YouTube tenant too.
         ChannelContext ctx = NewChannelContext();
 
-        (ChatMessageHandler sut, IChatProvider chat, IEventBus bus) = BuildWithBus(ctx);
+        (ChatMessageHandler sut, IInboundOriginChatSender chat, IEventBus bus) = BuildWithBus(ctx);
 
         ChatMessageReceivedEvent youtube = new()
         {
@@ -439,7 +495,13 @@ public sealed class ChatMessageHandlerTests
         await sut.HandleAsync(youtube, CancellationToken.None);
 
         await chat.Received(1)
-            .SendReplyAsync(Broadcaster, "yt-msg-1", BuiltinResponse, Arg.Any<CancellationToken>());
+            .SendReplyAsync(
+                Broadcaster,
+                Arg.Any<string>(),
+                "yt-msg-1",
+                BuiltinResponse,
+                Arg.Any<CancellationToken>()
+            );
         await bus.Received(1)
             .PublishAsync(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
@@ -524,7 +586,7 @@ public sealed class ChatMessageHandlerTests
             registry,
             provider.GetRequiredService<IServiceScopeFactory>(),
             Substitute.For<ICooldownManager>(),
-            Substitute.For<IChatProvider>(),
+            NoopChatSender(),
             pipeline,
             Substitute.For<IBuiltinCommandCatalog>(),
             Substitute.For<ITemplateResolver>(),
@@ -563,7 +625,7 @@ public sealed class ChatMessageHandlerTests
             registry,
             Substitute.For<IServiceScopeFactory>(),
             Substitute.For<ICooldownManager>(),
-            Substitute.For<IChatProvider>(),
+            NoopChatSender(),
             Substitute.For<IPipelineEngine>(),
             builtins,
             Substitute.For<ITemplateResolver>(),
@@ -597,7 +659,7 @@ public sealed class ChatMessageHandlerTests
             registry,
             Substitute.For<IServiceScopeFactory>(),
             Substitute.For<ICooldownManager>(),
-            Substitute.For<IChatProvider>(),
+            NoopChatSender(),
             Substitute.For<IPipelineEngine>(),
             builtins,
             Substitute.For<ITemplateResolver>(),
@@ -719,7 +781,7 @@ public sealed class ChatMessageHandlerTests
             registry,
             provider.GetRequiredService<IServiceScopeFactory>(),
             Substitute.For<ICooldownManager>(),
-            Substitute.For<IChatProvider>(),
+            NoopChatSender(),
             Substitute.For<IPipelineEngine>(),
             Substitute.For<IBuiltinCommandCatalog>(),
             Substitute.For<ITemplateResolver>(),
@@ -930,7 +992,7 @@ public sealed class ChatMessageHandlerTests
             registry,
             provider.GetRequiredService<IServiceScopeFactory>(),
             Substitute.For<ICooldownManager>(),
-            Substitute.For<IChatProvider>(),
+            NoopChatSender(),
             Substitute.For<IPipelineEngine>(),
             Substitute.For<IBuiltinCommandCatalog>(),
             Substitute.For<ITemplateResolver>(),
@@ -979,13 +1041,18 @@ public sealed class ChatMessageHandlerTests
         LiveGameSessionRegistry games = new();
         games.TryRegister(ActiveHeistSession()).Should().BeTrue();
 
-        (ChatMessageHandler sut, IChatProvider chat, IEventBus bus) = BuildWithGames(ctx, games);
+        (ChatMessageHandler sut, IInboundOriginChatSender chat, IEventBus bus) = BuildWithGames(
+            ctx,
+            games
+        );
 
         await sut.HandleAsync(MessageEvent(HeistKeyword), CancellationToken.None);
 
         // No reply, no send, and — critically — no fabricated execution fact (analytics must not count it).
-        await chat.DidNotReceiveWithAnyArgs().SendReplyAsync(default, default!, default!, default);
-        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+        await chat.DidNotReceiveWithAnyArgs()
+            .SendReplyAsync(default, default!, default!, default!, default);
+        await chat.DidNotReceiveWithAnyArgs()
+            .SendMessageAsync(default, default!, default!, default);
         await bus.DidNotReceiveWithAnyArgs()
             .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
                 default!,
@@ -1010,13 +1077,17 @@ public sealed class ChatMessageHandlerTests
 
         LiveGameSessionRegistry games = new(); // empty — no active round
 
-        (ChatMessageHandler sut, IChatProvider chat, IEventBus bus) = BuildWithGames(ctx, games);
+        (ChatMessageHandler sut, IInboundOriginChatSender chat, IEventBus bus) = BuildWithGames(
+            ctx,
+            games
+        );
 
         await sut.HandleAsync(MessageEvent(HeistKeyword), CancellationToken.None);
 
         await chat.Received(1)
             .SendReplyAsync(
                 Broadcaster,
+                Arg.Any<string>(),
                 "msg-1",
                 "Command heist fired",
                 Arg.Any<CancellationToken>()
@@ -1042,13 +1113,17 @@ public sealed class ChatMessageHandlerTests
         LiveGameSessionRegistry games = new();
         games.TryRegister(ActiveHeistSession()).Should().BeTrue();
 
-        (ChatMessageHandler sut, IChatProvider chat, IEventBus bus) = BuildWithGames(ctx, games);
+        (ChatMessageHandler sut, IInboundOriginChatSender chat, IEventBus bus) = BuildWithGames(
+            ctx,
+            games
+        );
 
         await sut.HandleAsync(MessageEvent("!drop"), CancellationToken.None);
 
         await chat.Received(1)
             .SendReplyAsync(
                 Broadcaster,
+                Arg.Any<string>(),
                 "msg-1",
                 "Command drop fired",
                 Arg.Any<CancellationToken>()
@@ -1082,25 +1157,28 @@ public sealed class ChatMessageHandlerTests
             Tier = "template",
         };
 
-        (ChatMessageHandler sut, IChatProvider chat, IEventBus bus) = BuildWithBus(ctx);
+        (ChatMessageHandler sut, IInboundOriginChatSender chat, IEventBus bus) = BuildWithBus(ctx);
         chat.SendReplyAsync(
                 Arg.Any<Guid>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
+                Arg.Any<string>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(true);
+            .Returns(Result.Success());
 
         await sut.HandleAsync(MessageEvent("!modonly"), CancellationToken.None);
 
         await chat.Received(1)
             .SendReplyAsync(
                 Broadcaster,
+                Arg.Any<string>(),
                 "msg-1",
                 "You don't have permission to use that command.",
                 Arg.Any<CancellationToken>()
             );
-        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+        await chat.DidNotReceiveWithAnyArgs()
+            .SendMessageAsync(default, default!, default!, default);
         await bus.DidNotReceiveWithAnyArgs()
             .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
                 default!,
@@ -1128,14 +1206,15 @@ public sealed class ChatMessageHandlerTests
         builtins.Get(Arg.Any<string>()).Returns((IBuiltinCommand?)null);
         ICooldownManager cooldowns = Substitute.For<ICooldownManager>();
         cooldowns.IsOnCooldown(Broadcaster.ToString(), "spam").Returns(true);
-        IChatProvider chat = Substitute.For<IChatProvider>();
+        IInboundOriginChatSender chat = NoopChatSender();
         chat.SendReplyAsync(
                 Arg.Any<Guid>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
+                Arg.Any<string>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(true);
+            .Returns(Result.Success());
         IEventBus bus = Substitute.For<IEventBus>();
 
         ChatMessageHandler sut = new(
@@ -1157,6 +1236,7 @@ public sealed class ChatMessageHandlerTests
         await chat.Received(1)
             .SendReplyAsync(
                 Broadcaster,
+                Arg.Any<string>(),
                 "msg-1",
                 "That command is still on cooldown.",
                 Arg.Any<CancellationToken>()
@@ -1188,14 +1268,15 @@ public sealed class ChatMessageHandlerTests
 
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
         registry.Get(Broadcaster).Returns(ctx);
-        IChatProvider chat = Substitute.For<IChatProvider>();
+        IInboundOriginChatSender chat = NoopChatSender();
         chat.SendReplyAsync(
                 Arg.Any<Guid>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
+                Arg.Any<string>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(true);
+            .Returns(Result.Success());
         IEventBus bus = Substitute.For<IEventBus>();
         IPipelineEngine pipeline = Substitute.For<IPipelineEngine>();
         pipeline
@@ -1230,6 +1311,7 @@ public sealed class ChatMessageHandlerTests
         await chat.Received(1)
             .SendReplyAsync(
                 Broadcaster,
+                Arg.Any<string>(),
                 "msg-1",
                 "Sorry, that command hit a snag and didn't finish.",
                 Arg.Any<CancellationToken>()
@@ -1261,7 +1343,7 @@ public sealed class ChatMessageHandlerTests
 
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
         registry.Get(Broadcaster).Returns(ctx);
-        IChatProvider chat = Substitute.For<IChatProvider>();
+        IInboundOriginChatSender chat = NoopChatSender();
         IEventBus bus = Substitute.For<IEventBus>();
         IPipelineEngine pipeline = Substitute.For<IPipelineEngine>();
         pipeline
@@ -1291,8 +1373,10 @@ public sealed class ChatMessageHandlerTests
 
         await sut.HandleAsync(MessageEvent("!clean"), CancellationToken.None);
 
-        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
-        await chat.DidNotReceiveWithAnyArgs().SendReplyAsync(default, default!, default!, default);
+        await chat.DidNotReceiveWithAnyArgs()
+            .SendMessageAsync(default, default!, default!, default);
+        await chat.DidNotReceiveWithAnyArgs()
+            .SendReplyAsync(default, default!, default!, default!, default);
         await bus.Received(1)
             .PublishAsync(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e => e.Succeeded),
@@ -1307,17 +1391,29 @@ public sealed class ChatMessageHandlerTests
         // reach the user, this time as a plain line with an inline mention since the reply header is no
         // longer there to address them.
         ChannelContext ctx = NewChannelContext();
-        (ChatMessageHandler sut, IChatProvider chat) = Build(ctx);
-        chat.SendReplyAsync(Broadcaster, "msg-1", BuiltinResponse, Arg.Any<CancellationToken>())
-            .Returns(false);
-        chat.SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(true);
+        (ChatMessageHandler sut, IInboundOriginChatSender chat) = Build(ctx);
+        chat.SendReplyAsync(
+                Broadcaster,
+                Arg.Any<string>(),
+                "msg-1",
+                BuiltinResponse,
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure("send rejected"));
+        chat.SendMessageAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
 
         await sut.HandleAsync(MessageEvent($"!{BuiltinKey}"), CancellationToken.None);
 
         await chat.Received(1)
             .SendMessageAsync(
                 Broadcaster,
+                Arg.Any<string>(),
                 $"@Viewer {BuiltinResponse}",
                 Arg.Any<CancellationToken>()
             );
@@ -1330,23 +1426,31 @@ public sealed class ChatMessageHandlerTests
         // SendResponseAsync and always recorded success as long as the builtin's own logic didn't throw — a
         // reply the viewer never saw was still reported as delivered.
         ChannelContext ctx = NewChannelContext();
-        (ChatMessageHandler sut, IChatProvider chat, IEventBus bus) = BuildWithBus(ctx);
+        (ChatMessageHandler sut, IInboundOriginChatSender chat, IEventBus bus) = BuildWithBus(ctx);
         // Only the builtin's OWN reply text fails to send — the later failure-notice text still goes
         // through via the shared "sends succeed" default, exactly like the pipeline PartiallyFailed case.
-        chat.SendReplyAsync(Broadcaster, "msg-1", BuiltinResponse, Arg.Any<CancellationToken>())
-            .Returns(false);
+        chat.SendReplyAsync(
+                Broadcaster,
+                Arg.Any<string>(),
+                "msg-1",
+                BuiltinResponse,
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure("send rejected"));
         chat.SendMessageAsync(
                 Broadcaster,
+                Arg.Any<string>(),
                 $"@Viewer {BuiltinResponse}",
                 Arg.Any<CancellationToken>()
             )
-            .Returns(false);
+            .Returns(Result.Failure("send rejected"));
 
         await sut.HandleAsync(MessageEvent($"!{BuiltinKey}"), CancellationToken.None);
 
         await chat.Received(1)
             .SendReplyAsync(
                 Broadcaster,
+                Arg.Any<string>(),
                 "msg-1",
                 "Sorry, that command hit a snag and didn't finish.",
                 Arg.Any<CancellationToken>()
@@ -1366,13 +1470,20 @@ public sealed class ChatMessageHandlerTests
         // Regression guard: a builtin whose reply reaches chat fine must NOT also fire the new failure
         // notice, and must record success — exactly one line to the invoker, not two.
         ChannelContext ctx = NewChannelContext();
-        (ChatMessageHandler sut, IChatProvider chat, IEventBus bus) = BuildWithBus(ctx);
+        (ChatMessageHandler sut, IInboundOriginChatSender chat, IEventBus bus) = BuildWithBus(ctx);
 
         await sut.HandleAsync(MessageEvent($"!{BuiltinKey}"), CancellationToken.None);
 
         await chat.Received(1)
-            .SendReplyAsync(Broadcaster, "msg-1", BuiltinResponse, Arg.Any<CancellationToken>());
-        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+            .SendReplyAsync(
+                Broadcaster,
+                Arg.Any<string>(),
+                "msg-1",
+                BuiltinResponse,
+                Arg.Any<CancellationToken>()
+            );
+        await chat.DidNotReceiveWithAnyArgs()
+            .SendMessageAsync(default, default!, default!, default);
         await bus.Received(1)
             .PublishAsync(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e => e.Succeeded),
@@ -1398,23 +1509,31 @@ public sealed class ChatMessageHandlerTests
             MinPermissionLevel = 0,
             Tier = "template",
         };
-        (ChatMessageHandler sut, IChatProvider chat, IEventBus bus) = BuildWithBus(ctx);
+        (ChatMessageHandler sut, IInboundOriginChatSender chat, IEventBus bus) = BuildWithBus(ctx);
         // Only the builtin's OWN reply text fails to send — the later failure-notice text still goes
         // through via the shared "sends succeed" default, exactly like the pipeline PartiallyFailed case.
-        chat.SendReplyAsync(Broadcaster, "msg-1", BuiltinResponse, Arg.Any<CancellationToken>())
-            .Returns(false);
+        chat.SendReplyAsync(
+                Broadcaster,
+                Arg.Any<string>(),
+                "msg-1",
+                BuiltinResponse,
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure("send rejected"));
         chat.SendMessageAsync(
                 Broadcaster,
+                Arg.Any<string>(),
                 $"@Viewer {BuiltinResponse}",
                 Arg.Any<CancellationToken>()
             )
-            .Returns(false);
+            .Returns(Result.Failure("send rejected"));
 
         await sut.HandleAsync(MessageEvent($"!{BuiltinKey}"), CancellationToken.None);
 
         await chat.Received(1)
             .SendReplyAsync(
                 Broadcaster,
+                Arg.Any<string>(),
                 "msg-1",
                 "Sorry, that command hit a snag and didn't finish.",
                 Arg.Any<CancellationToken>()
@@ -1442,13 +1561,20 @@ public sealed class ChatMessageHandlerTests
             MinPermissionLevel = 0,
             Tier = "template",
         };
-        (ChatMessageHandler sut, IChatProvider chat, IEventBus bus) = BuildWithBus(ctx);
+        (ChatMessageHandler sut, IInboundOriginChatSender chat, IEventBus bus) = BuildWithBus(ctx);
 
         await sut.HandleAsync(MessageEvent($"!{BuiltinKey}"), CancellationToken.None);
 
         await chat.Received(1)
-            .SendReplyAsync(Broadcaster, "msg-1", BuiltinResponse, Arg.Any<CancellationToken>());
-        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+            .SendReplyAsync(
+                Broadcaster,
+                Arg.Any<string>(),
+                "msg-1",
+                BuiltinResponse,
+                Arg.Any<CancellationToken>()
+            );
+        await chat.DidNotReceiveWithAnyArgs()
+            .SendMessageAsync(default, default!, default!, default);
         await bus.Received(1)
             .PublishAsync(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e => e.Succeeded),
@@ -1468,26 +1594,42 @@ public sealed class ChatMessageHandlerTests
         ChannelContext ctx = NewChannelContext();
         AddTemplateCommand(ctx, "hello", "Hi there");
 
-        (ChatMessageHandler sut, IChatProvider chat, IEventBus bus) = BuildWithGames(ctx, new());
-        chat.SendReplyAsync(Broadcaster, "msg-1", "Hi there", Arg.Any<CancellationToken>())
-            .Returns(false);
-        chat.SendMessageAsync(Broadcaster, "@Viewer Hi there", Arg.Any<CancellationToken>())
-            .Returns(false);
+        (ChatMessageHandler sut, IInboundOriginChatSender chat, IEventBus bus) = BuildWithGames(
+            ctx,
+            new()
+        );
+        chat.SendReplyAsync(
+                Broadcaster,
+                Arg.Any<string>(),
+                "msg-1",
+                "Hi there",
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure("send rejected"));
+        chat.SendMessageAsync(
+                Broadcaster,
+                Arg.Any<string>(),
+                "@Viewer Hi there",
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure("send rejected"));
         // The one failure notice the invoker gets also goes through SendReplyAsync — let it succeed so
         // the assertion isolates the execution-fact outcome, mirroring the builtin/fallback tests.
         chat.SendReplyAsync(
                 Broadcaster,
+                Arg.Any<string>(),
                 "msg-1",
                 "Sorry, that command hit a snag and didn't finish.",
                 Arg.Any<CancellationToken>()
             )
-            .Returns(true);
+            .Returns(Result.Success());
 
         await sut.HandleAsync(MessageEvent("!hello"), CancellationToken.None);
 
         await chat.Received(1)
             .SendReplyAsync(
                 Broadcaster,
+                Arg.Any<string>(),
                 "msg-1",
                 "Sorry, that command hit a snag and didn't finish.",
                 Arg.Any<CancellationToken>()
@@ -1508,17 +1650,33 @@ public sealed class ChatMessageHandlerTests
         ChannelContext ctx = NewChannelContext();
         AddTemplateCommand(ctx, "hello", "Hi there");
 
-        (ChatMessageHandler sut, IChatProvider chat, IEventBus bus) = BuildWithGames(ctx, new());
-        chat.SendReplyAsync(Broadcaster, "msg-1", "Hi there", Arg.Any<CancellationToken>())
-            .Returns(true);
+        (ChatMessageHandler sut, IInboundOriginChatSender chat, IEventBus bus) = BuildWithGames(
+            ctx,
+            new()
+        );
+        chat.SendReplyAsync(
+                Broadcaster,
+                Arg.Any<string>(),
+                "msg-1",
+                "Hi there",
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
 
         await sut.HandleAsync(MessageEvent("!hello"), CancellationToken.None);
 
         await chat.Received(1)
-            .SendReplyAsync(Broadcaster, "msg-1", "Hi there", Arg.Any<CancellationToken>());
+            .SendReplyAsync(
+                Broadcaster,
+                Arg.Any<string>(),
+                "msg-1",
+                "Hi there",
+                Arg.Any<CancellationToken>()
+            );
         await chat.DidNotReceive()
             .SendReplyAsync(
                 Broadcaster,
+                Arg.Any<string>(),
                 "msg-1",
                 "Sorry, that command hit a snag and didn't finish.",
                 Arg.Any<CancellationToken>()
@@ -1591,10 +1749,11 @@ public sealed class ChatMessageHandlerTests
             CompiledRegex = compiledRegex,
         };
 
-    private static (ChatMessageHandler Sut, IChatProvider Chat, IEventBus Bus) BuildWithGames(
-        ChannelContext ctx,
-        LiveGameSessionRegistry games
-    )
+    private static (
+        ChatMessageHandler Sut,
+        IInboundOriginChatSender Chat,
+        IEventBus Bus
+    ) BuildWithGames(ChannelContext ctx, LiveGameSessionRegistry games)
     {
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
         registry.Get(Broadcaster).Returns(ctx);
@@ -1615,7 +1774,7 @@ public sealed class ChatMessageHandlerTests
             )
             .Returns(callInfo => Task.FromResult(callInfo.ArgAt<string>(0)));
 
-        IChatProvider chat = Substitute.For<IChatProvider>();
+        IInboundOriginChatSender chat = NoopChatSender();
         // Real transport sends succeed by default (S008d): see the identical comment in BuildWithBus —
         // an unconfigured NSubstitute bool call defaults to false, which now that the template-response
         // path threads the real chat-send bool through would flip every "command dispatched fine" test
@@ -1624,11 +1783,17 @@ public sealed class ChatMessageHandlerTests
                 Arg.Any<Guid>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
+                Arg.Any<string>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(true);
-        chat.SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(true);
+            .Returns(Result.Success());
+        chat.SendMessageAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
         IEventBus bus = Substitute.For<IEventBus>();
 
         ChatMessageHandler sut = new(
@@ -1648,15 +1813,17 @@ public sealed class ChatMessageHandlerTests
         return (sut, chat, bus);
     }
 
-    private static (ChatMessageHandler Sut, IChatProvider Chat) Build(ChannelContext ctx)
+    private static (ChatMessageHandler Sut, IInboundOriginChatSender Chat) Build(ChannelContext ctx)
     {
-        (ChatMessageHandler sut, IChatProvider chat, _) = BuildWithBus(ctx);
+        (ChatMessageHandler sut, IInboundOriginChatSender chat, _) = BuildWithBus(ctx);
         return (sut, chat);
     }
 
-    private static (ChatMessageHandler Sut, IChatProvider Chat, IEventBus Bus) BuildWithBus(
-        ChannelContext ctx
-    )
+    private static (
+        ChatMessageHandler Sut,
+        IInboundOriginChatSender Chat,
+        IEventBus Bus
+    ) BuildWithBus(ChannelContext ctx)
     {
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
         registry.Get(Broadcaster).Returns(ctx);
@@ -1664,7 +1831,7 @@ public sealed class ChatMessageHandlerTests
         IBuiltinCommandCatalog builtins = Substitute.For<IBuiltinCommandCatalog>();
         builtins.Get(BuiltinKey).Returns(new StubBuiltinCommand());
 
-        IChatProvider chat = Substitute.For<IChatProvider>();
+        IInboundOriginChatSender chat = NoopChatSender();
         // Real transport sends succeed by default — an unconfigured NSubstitute bool call defaults to
         // false, which would silently flip every "builtin executed fine" test into a false SendFailed
         // outcome now that the handler threads the real chat-send bool through (S008c). Tests that need
@@ -1673,11 +1840,17 @@ public sealed class ChatMessageHandlerTests
                 Arg.Any<Guid>(),
                 Arg.Any<string>(),
                 Arg.Any<string>(),
+                Arg.Any<string>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(true);
-        chat.SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(true);
+            .Returns(Result.Success());
+        chat.SendMessageAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
         IEventBus bus = Substitute.For<IEventBus>();
 
         ChatMessageHandler sut = new(

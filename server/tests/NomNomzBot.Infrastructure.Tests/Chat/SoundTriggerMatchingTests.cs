@@ -12,6 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Sound.Services;
@@ -32,6 +33,35 @@ namespace NomNomzBot.Infrastructure.Tests.Chat;
 /// </summary>
 public sealed class SoundTriggerMatchingTests
 {
+    /// <summary>
+    /// S021: a substitute <see cref="IInboundOriginChatSender"/> that mirrors the pre-S021
+    /// <c>IChatProvider</c> mock default — an unconfigured send is a FAILURE (never a null-dereferencing
+    /// <c>Result</c>, and never a silent success) — so <c>ChatMessageHandler.SendResponseAsync</c>'s
+    /// reply-then-mention-fallback still exercises exactly as it did when the mock's default return was
+    /// <c>false</c>. Tests that care about the actual send outcome configure their own <c>.Returns(...)</c>
+    /// on top of this.
+    /// </summary>
+    private static IInboundOriginChatSender NoopChatSender()
+    {
+        IInboundOriginChatSender chat = Substitute.For<IInboundOriginChatSender>();
+        chat.SendMessageAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure("not configured in this test"));
+        chat.SendReplyAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure("not configured in this test"));
+        return chat;
+    }
+
     private static readonly Guid Broadcaster = Guid.Parse("019f6d00-6666-7000-8000-000000000001");
     private static readonly Guid ClipId = Guid.Parse("019f6d00-6666-7000-8000-0000000000c1");
 
@@ -60,7 +90,7 @@ public sealed class SoundTriggerMatchingTests
         ChatMessageHandler Sut,
         ISoundClipService Clips,
         ISoundClipOverlayNotifier Overlay,
-        IChatProvider Chat
+        IInboundOriginChatSender Chat
     ) Build(ChannelContext ctx, bool resolveSucceeds = true)
     {
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
@@ -93,7 +123,7 @@ public sealed class SoundTriggerMatchingTests
             .AddScoped(_ => overlay)
             .BuildServiceProvider();
 
-        IChatProvider chat = Substitute.For<IChatProvider>();
+        IInboundOriginChatSender chat = NoopChatSender();
 
         // Empty catalog + template resolver so no chat-trigger/builtin path interferes.
         IBuiltinCommandCatalog builtins = Substitute.For<IBuiltinCommandCatalog>();
