@@ -486,7 +486,11 @@ class ApiClient(
     @PublishedApi
     internal fun <T> networkFailure(cause: Throwable): ApiResult<T> =
         ApiResult.Failure(
-            ApiError(status = 0, code = "NETWORK", message = cause.message ?: "Network request failed.")
+            ApiError(
+                status = 0,
+                code = "NETWORK",
+                message = cause.message?.takeIf { it.isNotBlank() } ?: "Network request failed.",
+            )
         )
 
     @PublishedApi
@@ -506,8 +510,38 @@ class ApiClient(
         return ApiError(
             status = response.status.value,
             code = problem?.type ?: response.status.value.toString(),
-            message = problem?.detail ?: problem?.title ?: response.status.description,
+            message = failureMessage(response.status.value, problem?.detail, problem?.title, response.status.description),
             traceId = problem?.traceId,
         )
+    }
+
+    // The server's problem-details detail/title, when present and non-blank, always wins. Below that we do
+    // NOT trust `HttpStatusCode.description` as a fallback: it comes from the HTTP reason phrase, which HTTP/2
+    // and HTTP/3 responses (the norm behind Cloudflare — see the alt-svc h3 the deployed instances advertise)
+    // do not carry, so browsers commonly report it as an empty string. A truly empty body (auth challenges,
+    // Gate-2 forbids, and other failures with no ProblemDetails payload) must still resolve to a real,
+    // actionable sentence naming the HTTP status — never a dangling "...: " with nothing after it.
+    @PublishedApi
+    internal fun failureMessage(
+        status: Int,
+        detail: String?,
+        title: String?,
+        reasonPhrase: String?,
+    ): String {
+        if (!detail.isNullOrBlank()) return detail
+        if (!title.isNullOrBlank()) return title
+        val named: String? = reasonPhrase?.takeIf { it.isNotBlank() }
+        return when {
+            status == 401 -> "You're not signed in, or your session expired (HTTP 401). Sign in again and retry."
+            status == 403 ->
+                "You don't have permission to do this (HTTP 403). Ask a broadcaster or admin to grant access."
+            status == 404 -> "That wasn't found on the server (HTTP 404)."
+            status in 400..499 ->
+                if (named != null) "$named (HTTP $status)." else "The server rejected the request (HTTP $status)."
+            status in 500..599 ->
+                if (named != null) "$named (HTTP $status)." else "The server hit an error (HTTP $status). Try again shortly."
+            named != null -> "$named (HTTP $status)."
+            else -> "The request failed (HTTP $status)."
+        }
     }
 }
