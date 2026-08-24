@@ -196,6 +196,18 @@ stable — without dropping the planned requirements behind them.
   without clobbering deliberate overrides (a seeder that only inserts would leave live channels stale and
   fix nothing).
 
+- **S055b** (follow-up to S055 58121707, needed for a truthful Discord picker) The Discord picker's
+  disabled reasons cannot be honest yet: `DiscordGuildChannel`/`DiscordGuildRole` DTOs carry NO "bot can
+  post here" / "bot can assign this role" flag, so the channel picker disables by TYPE only and a role
+  above the bot in the hierarchy is never shown as unassignable. The S-DISCORD-LIVEROLE slice is adding
+  `ValidateRoleAssignableAsync` + a `Permissions` field to the gateway contracts — surface those on the
+  DTOs and drive the picker's disabled state + reason from them. Done-when: a channel the bot cannot post
+  in, and a role above the bot, each render unselectable WITH their real reason (not hidden, not silently
+  selectable-then-failing). Also: `CreateRoleDialog`/`PostButtonDialog` in the same file still collapse a
+  fetch failure into an empty list — move them onto the new `PickerState` so all three states stay
+  distinct there too. And re-run `:composeApp:jvmTest` for S055 once the tree compiles (it was blocked by
+  a sibling's in-flight `PickListsScreen.kt` edit, so S055's UI is proven by source inspection only).
+
 - **S-RICH-PICKERS** (owner, 2026-08-25) "item pickers get a rich item list and not just a template
   string or something not easily understandable." S045 shipped the picker KINDS (`reward`, `widget`,
   `voice`, `sound_clip`, `discord_channel`, `discord_role`, `twitch_user`, `asset`); this makes the
