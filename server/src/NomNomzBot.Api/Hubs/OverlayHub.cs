@@ -13,64 +13,72 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Hubs.Clients;
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Api.Hubs.Overlay;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Widgets.Services;
-using NomNomzBot.Domain.Identity.Entities;
-using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
 
 namespace NomNomzBot.Api.Hubs;
 
 public class OverlayHub : Hub<IOverlayClient>
 {
-    private static readonly ConcurrentDictionary<string, string> _connectionWidget = new(); // connectionId -> widgetId
-    private readonly IChannelRegistry _registry;
+    // connectionId -> the set of widget group names ("widget-{broadcasterId}-{widgetId}") this connection has
+    // joined. A single browser source can host MANY widgets on one page (S035 item 2) — the old single-value
+    // map remembered only the LAST widget joined, so earlier widgets on the same page silently stopped
+    // receiving events once a second widget joined, and a disconnect leaked every earlier group.
+    private static readonly ConcurrentDictionary<
+        string,
+        ConcurrentDictionary<string, byte>
+    > _connectionWidgets = new();
     private readonly IApplicationDbContext _db;
     private readonly IWidgetService _widgetService;
+    private readonly IOverlayTicketService _tickets;
     private readonly ILogger<OverlayHub> _logger;
 
     public OverlayHub(
-        IChannelRegistry registry,
         IApplicationDbContext db,
         IWidgetService widgetService,
+        IOverlayTicketService tickets,
         ILogger<OverlayHub> logger
     )
     {
-        _registry = registry;
         _db = db;
         _widgetService = widgetService;
+        _tickets = tickets;
         _logger = logger;
     }
 
     public override async Task OnConnectedAsync()
     {
-        // Validate overlay token from query string
-        string? token = Context.GetHttpContext()?.Request.Query["token"].ToString();
-        if (string.IsNullOrWhiteSpace(token))
+        // The long-lived overlay token never rides on this URL (S035 item 3, U·B5/B7): the SDK exchanges it
+        // for a short-lived, single-use ticket via POST /overlay/ticket (header, not query string) first, and
+        // only that ticket appears here.
+        string? ticket = Context.GetHttpContext()?.Request.Query["ticket"].ToString();
+        Guid? broadcasterId = _tickets.RedeemTicket(ticket);
+        if (broadcasterId is null)
         {
             Context.Abort();
             return;
         }
 
-        Channel? channel = await _db.Channels.FirstOrDefaultAsync(c => c.OverlayToken == token);
-        if (channel == null)
-        {
-            Context.Abort();
-            return;
-        }
-
-        Context.Items["BroadcasterId"] = channel.Id;
+        Context.Items["BroadcasterId"] = broadcasterId.Value;
         // All overlay connections for a broadcaster share the overlay group so sound play/stop
         // signals (and future broadcaster-wide overlay events) reach every browser source.
-        await Groups.AddToGroupAsync(Context.ConnectionId, $"overlay-{channel.Id}");
-        _logger.LogDebug("Overlay connected for channel {B}", channel.Id);
+        await Groups.AddToGroupAsync(Context.ConnectionId, $"overlay-{broadcasterId}");
+        _logger.LogDebug("Overlay connected for channel {B}", broadcasterId);
         await base.OnConnectedAsync();
     }
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        if (_connectionWidget.TryRemove(Context.ConnectionId, out string? widgetId))
-            await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"widget-{widgetId}");
+        if (
+            _connectionWidgets.TryRemove(
+                Context.ConnectionId,
+                out ConcurrentDictionary<string, byte>? widgetGroups
+            )
+        )
+            foreach (string groupName in widgetGroups.Keys)
+                await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
         await base.OnDisconnectedAsync(exception);
     }
 
@@ -81,7 +89,11 @@ public class OverlayHub : Hub<IOverlayClient>
 
         string groupName = $"widget-{broadcasterId}-{widgetId}";
         await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
-        _connectionWidget[Context.ConnectionId] = $"{broadcasterId}-{widgetId}";
+        ConcurrentDictionary<string, byte> widgetGroups = _connectionWidgets.GetOrAdd(
+            Context.ConnectionId,
+            static _ => new(StringComparer.Ordinal)
+        );
+        widgetGroups[groupName] = 0;
         _logger.LogDebug(
             "Overlay connection {C} joined widget {W}",
             Context.ConnectionId,
@@ -104,11 +116,15 @@ public class OverlayHub : Hub<IOverlayClient>
     {
         if (Context.Items["BroadcasterId"] is not Guid broadcasterId)
             return;
-        await Groups.RemoveFromGroupAsync(
-            Context.ConnectionId,
-            $"widget-{broadcasterId}-{widgetId}"
-        );
-        _connectionWidget.TryRemove(Context.ConnectionId, out _);
+        string groupName = $"widget-{broadcasterId}-{widgetId}";
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
+        if (
+            _connectionWidgets.TryGetValue(
+                Context.ConnectionId,
+                out ConcurrentDictionary<string, byte>? widgetGroups
+            )
+        )
+            widgetGroups.TryRemove(groupName, out _);
     }
 
     public Task WidgetReady(string widgetId)

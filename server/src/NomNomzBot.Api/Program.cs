@@ -19,6 +19,7 @@ using NomNomzBot.Api.AutomationStream;
 using NomNomzBot.Api.Configuration;
 using NomNomzBot.Api.HealthChecks;
 using NomNomzBot.Api.Hubs;
+using NomNomzBot.Api.Hubs.Overlay;
 using NomNomzBot.Api.Identifiers;
 using NomNomzBot.Api.Middleware;
 using NomNomzBot.Api.RateLimiting;
@@ -168,6 +169,13 @@ try
             // consistent with the REST contract instead of silently diverging.
             options.PayloadSerializerOptions.Converters.Add(new UlidGuidJsonConverter())
         );
+
+    // Overlay hub connection security (S035 item 3, U·B5/B7): the long-lived overlay token exchanges for a
+    // short-lived, single-use ticket, and connection attempts are throttled per source. Singleton — the
+    // in-memory ticket/attempt state must survive across the scoped requests of a single instance (the
+    // Redis-backed multi-replica variant is out of scope, owner decision, 🔒).
+    builder.Services.AddSingleton<IOverlayTicketService, OverlayTicketService>();
+    builder.Services.AddSingleton<IOverlayConnectionThrottle, OverlayConnectionThrottle>();
 
     // Hub notifiers
     builder.Services.AddScoped<IDashboardNotifier, DashboardNotifier>();

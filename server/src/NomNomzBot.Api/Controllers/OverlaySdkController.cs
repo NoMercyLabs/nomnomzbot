@@ -87,14 +87,32 @@ public sealed class OverlaySdkController : ControllerBase
           }
 
           // ── The widget's own SignalR (JSON protocol) connection to the overlay hub ──
-          function wsUrl() {
+          // The long-lived overlay token never rides on the WebSocket URL: it is exchanged, over a plain
+          // fetch() (which CAN carry a header, unlike the WS upgrade OBS browser sources use), for a
+          // short-lived single-use ticket — only THAT appears in the hub query string. A fresh ticket is
+          // fetched before every connect (including reconnects), since a ticket burns on first use.
+          function wsUrl(ticket) {
             var proto = location.protocol === "https:" ? "wss://" : "ws://";
-            return proto + location.host + "/hubs/overlay?token=" + encodeURIComponent(token || "");
+            return proto + location.host + "/hubs/overlay?ticket=" + encodeURIComponent(ticket || "");
+          }
+
+          function fetchTicket() {
+            return fetch("/overlay/ticket", { method: "POST", headers: { "X-Overlay-Token": token || "" } })
+              .then(function (r) { if (!r.ok) throw new Error("ticket request failed: " + r.status); return r.json(); })
+              .then(function (body) { return body.ticket; });
           }
 
           function connect() {
             if (!token) { console.error("[widget] missing token — cannot connect to the overlay hub"); return; }
-            ws = new WebSocket(wsUrl());
+            fetchTicket().then(openSocket).catch(function (e) {
+              console.error("[widget] could not obtain an overlay ticket:", e);
+              setTimeout(connect, backoffMs);
+              backoffMs = Math.min(backoffMs * 2, 30000);
+            });
+          }
+
+          function openSocket(ticket) {
+            ws = new WebSocket(wsUrl(ticket));
             var handshaken = false;
 
             ws.onopen = function () { ws.send(JSON.stringify({ protocol: "json", version: 1 }) + RS); };
