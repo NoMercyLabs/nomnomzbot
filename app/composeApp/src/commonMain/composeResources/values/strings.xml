@@ -1554,6 +1554,15 @@
     <string name="feedback_picklist_saved">Pick list saved</string>
     <string name="feedback_picklist_deleted">Pick list deleted</string>
     <string name="feedback_picklist_save_failed">Couldn't save the pick list: %1$s</string>
+    <string name="feedback_timer_saved">Timer saved</string>
+    <string name="feedback_timer_deleted">Timer deleted</string>
+    <string name="feedback_timer_save_failed">Couldn't save the timer: %1$s</string>
+    <string name="feedback_chat_trigger_saved">Chat trigger saved</string>
+    <string name="feedback_chat_trigger_deleted">Chat trigger deleted</string>
+    <string name="feedback_chat_trigger_save_failed">Couldn't save the chat trigger: %1$s</string>
+    <string name="feedback_event_response_saved">Event response saved</string>
+    <string name="feedback_event_response_reset">Event response reset to default</string>
+    <string name="feedback_event_response_save_failed">Couldn't save the event response: %1$s</string>
     <string name="feedback_pipeline_saved">Pipeline saved</string>
     <string name="feedback_pipeline_deleted">Pipeline deleted</string>
     <string name="feedback_pipeline_save_failed">Couldn't save the pipeline: %1$s</string>
@@ -2733,7 +2742,9 @@
     <string name="event_responses_variables_label">Insert a variable</string>
     <string name="event_responses_dialog_save">Save</string>
     <string name="event_responses_dialog_cancel">Cancel</string>
-    <string name="event_responses_dialog_delete">Delete</string>
+    <string name="event_responses_dialog_reset">Reset to default</string>
+    <string name="event_responses_reset_confirm_title">Reset this response?</string>
+    <string name="event_responses_reset_confirm_message">%1$s goes back to its default: disabled, with no message. This does not stay deleted — the list re-adds it as the default the next time it loads.</string>
     <!-- Friendly labels for event type keys -->
     <string name="event_type_engagement_session_first_message">First message this stream</string>
     <string name="event_type_engagement_first_time_chatter">First-time chatter</string>

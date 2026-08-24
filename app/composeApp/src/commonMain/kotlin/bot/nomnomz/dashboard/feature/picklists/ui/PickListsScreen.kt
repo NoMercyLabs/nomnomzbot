@@ -40,6 +40,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Card
@@ -92,6 +93,7 @@ import nomnomzbot.composeapp.generated.resources.picklists_preview_action
 import nomnomzbot.composeapp.generated.resources.picklists_preview_close
 import nomnomzbot.composeapp.generated.resources.picklists_preview_empty
 import nomnomzbot.composeapp.generated.resources.picklists_preview_title
+import nomnomzbot.composeapp.generated.resources.picklists_row_type
 import nomnomzbot.composeapp.generated.resources.picklists_requires_delete
 import nomnomzbot.composeapp.generated.resources.picklists_requires_write
 import nomnomzbot.composeapp.generated.resources.picklists_retry
@@ -200,9 +202,15 @@ fun PickListsScreen(controller: PickListsController, heldActionKeys: Set<String>
     }
 
     pendingDelete?.let { list ->
+        val deleteName: String =
+            resolveRowLabel(
+                primary = list.name,
+                typeLabel = stringResource(Res.string.picklists_row_type),
+                discriminatorSource = list.id,
+            )
         ConfirmDialog(
             title = stringResource(Res.string.picklists_delete_title),
-            message = stringResource(Res.string.picklists_delete_message, list.name),
+            message = stringResource(Res.string.picklists_delete_message, deleteName),
             confirmLabel = stringResource(Res.string.picklists_delete_confirm),
             dismissLabel = stringResource(Res.string.picklists_delete_cancel),
             destructive = true,
@@ -305,11 +313,17 @@ private fun PickListRow(
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
+    val displayName: String =
+        resolveRowLabel(
+            primary = list.name,
+            typeLabel = stringResource(Res.string.picklists_row_type),
+            discriminatorSource = list.id,
+        )
     val count: String = stringResource(Res.string.picklists_item_count, list.items.size)
     val description: String? = list.description?.takeIf { it.isNotBlank() }
-    val editLabel: String = stringResource(Res.string.picklists_edit_action, list.name)
-    val deleteLabel: String = stringResource(Res.string.picklists_delete_action, list.name)
-    val testLabel: String = stringResource(Res.string.picklists_preview_action, list.name)
+    val editLabel: String = stringResource(Res.string.picklists_edit_action, displayName)
+    val deleteLabel: String = stringResource(Res.string.picklists_delete_action, displayName)
+    val testLabel: String = stringResource(Res.string.picklists_preview_action, displayName)
 
     Row(
         modifier = Modifier
@@ -324,12 +338,12 @@ private fun PickListRow(
                 // One node for the text block: "<name>. N items. <description>".
                 .clearAndSetSemantics {
                     contentDescription =
-                        "${list.name}. $count" + (description?.let { ". $it" } ?: "")
+                        "$displayName. $count" + (description?.let { ". $it" } ?: "")
                 },
             verticalArrangement = Arrangement.spacedBy(spacing.s1),
         ) {
             Text(
-                text = list.name,
+                text = displayName,
                 style = typography.base,
                 color = tokens.cardForeground,
                 maxLines = 1,

@@ -1550,6 +1550,15 @@
     <string name="feedback_picklist_saved">Keuzelijst opgeslagen</string>
     <string name="feedback_picklist_deleted">Keuzelijst verwijderd</string>
     <string name="feedback_picklist_save_failed">Keuzelijst opslaan mislukt: %1$s</string>
+    <string name="feedback_timer_saved">Timer opgeslagen</string>
+    <string name="feedback_timer_deleted">Timer verwijderd</string>
+    <string name="feedback_timer_save_failed">Timer opslaan mislukt: %1$s</string>
+    <string name="feedback_chat_trigger_saved">Chattrigger opgeslagen</string>
+    <string name="feedback_chat_trigger_deleted">Chattrigger verwijderd</string>
+    <string name="feedback_chat_trigger_save_failed">Chattrigger opslaan mislukt: %1$s</string>
+    <string name="feedback_event_response_saved">Eventreactie opgeslagen</string>
+    <string name="feedback_event_response_reset">Eventreactie teruggezet naar standaard</string>
+    <string name="feedback_event_response_save_failed">Eventreactie opslaan mislukt: %1$s</string>
     <string name="feedback_pipeline_saved">Pijplijn opgeslagen</string>
     <string name="feedback_pipeline_deleted">Pijplijn verwijderd</string>
     <string name="feedback_pipeline_save_failed">Pijplijn opslaan mislukt: %1$s</string>
@@ -2719,7 +2728,9 @@
     <string name="event_responses_variables_label">Variabele invoegen</string>
     <string name="event_responses_dialog_save">Opslaan</string>
     <string name="event_responses_dialog_cancel">Annuleren</string>
-    <string name="event_responses_dialog_delete">Verwijderen</string>
+    <string name="event_responses_dialog_reset">Terugzetten naar standaard</string>
+    <string name="event_responses_reset_confirm_title">Deze reactie terugzetten?</string>
+    <string name="event_responses_reset_confirm_message">%1$s gaat terug naar de standaardwaarde: uitgeschakeld, zonder bericht. Dit blijft niet verwijderd — de lijst voegt de standaard opnieuw toe zodra deze de volgende keer wordt geladen.</string>
     <string name="event_type_engagement_session_first_message">Eerste bericht deze stream</string>
     <string name="event_type_engagement_first_time_chatter">Eerste keer chatter</string>
     <string name="event_type_channel_follow">Nieuwe volger</string>
