@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
@@ -49,6 +50,51 @@ internal sealed class DeadFieldFixtureAction : ICommandAction
 
     public Task<ActionResult> ExecuteAsync(PipelineExecutionContext ctx, ActionDefinition action) =>
         Task.FromResult(ActionResult.Success());
+}
+
+/// <summary>
+/// S045b fail-safe fixture: reads a parameter through a LOCAL ALIAS of <see cref="ActionDefinition.Parameters"/>
+/// (<c>Dictionary&lt;string, JsonElement&gt;? p = action.Parameters; p["sneaky_key"];</c>) — an accessor shape
+/// outside the scanner's known-pattern list. Proves the scanner FAILS SAFE: an unrecognised
+/// <c>action.Parameters</c>/<c>action.</c> access must be a loud, named failure, never a silent pass, because
+/// the read itself (<c>p["sneaky_key"]</c>) does not even mention <c>action</c> and so can never be pattern-matched
+/// once aliased.
+/// </summary>
+internal sealed class LocalAliasIndexerFixtureAction : ICommandAction
+{
+    public string ActionType => "guard_fixture_local_alias_indexer";
+
+    public Task<ActionResult> ExecuteAsync(PipelineExecutionContext ctx, ActionDefinition action)
+    {
+        Dictionary<string, JsonElement>? p = action.Parameters;
+        JsonElement sneaky = p!["sneaky_key"];
+        return Task.FromResult(ActionResult.Success(sneaky.ToString()));
+    }
+}
+
+/// <summary>
+/// S045b fail-safe fixture: reads a parameter through an EXTENSION METHOD (<c>action.ReadSneaky("other_key")</c>)
+/// — a second, differently-shaped accessor outside the scanner's known-pattern list. Proves the fail-safe check
+/// is not narrowly tuned to the indexer-alias shape alone: any unrecognised <c>action.&lt;member&gt;</c> access
+/// must fail loud.
+/// </summary>
+internal static class SneakyActionDefinitionExtensions
+{
+    public static string? ReadSneaky(this ActionDefinition action, string key) =>
+        action.GetString(key);
+}
+
+internal sealed class ExtensionMethodFixtureAction : ICommandAction
+{
+    public string ActionType => "guard_fixture_extension_method";
+
+    public Task<ActionResult> ExecuteAsync(PipelineExecutionContext ctx, ActionDefinition action)
+    {
+        string? value = action.ReadSneaky("other_key");
+        return Task.FromResult(
+            value is null ? ActionResult.Failure("missing") : ActionResult.Success()
+        );
+    }
 }
 
 /// <summary>
@@ -154,19 +200,77 @@ internal static class PipelineActionParameterSurfaceScanner
     ];
 
     /// <summary>
+    /// FAIL-SAFE (S045b, second pass): every recognised parameter-access shape that hangs directly off the
+    /// literal identifier <c>action</c> (<c>action.GetString(...)</c>, <c>action.Parameters is null</c>,
+    /// <c>action.Parameters.TryGetValue(...)</c>). Each pattern is anchored at <c>\baction\.</c> so its match
+    /// START always coincides with the start of the corresponding <see cref="AnyActionMemberAccess"/> token —
+    /// that shared start position is how <see cref="FindUnclassifiedAccess"/> proves an
+    /// <c>action.&lt;member&gt;</c> access is accounted for. Anything reachable off <c>action</c> that is NOT
+    /// one of these shapes (a local alias of <c>action.Parameters</c>, an extension method, a differently-named
+    /// helper) is deliberately NOT whitelisted here — see <see cref="FindUnclassifiedAccess"/>.
+    /// </summary>
+    private static readonly Regex[] SafeActionMemberAccess =
+    [
+        new(@"\baction\.(?:GetString|GetInt|GetBool|GetDouble)\s*\("),
+        new(@"\baction\.Parameters\s*\??\s*\.\s*TryGetValue\s*\("),
+        new(@"\baction\.Parameters\s*is\s+(?:not\s+)?null\b"),
+    ];
+
+    /// <summary>Any dot-access hanging off the literal identifier <c>action</c> — the full accessor surface.</summary>
+    private static readonly Regex AnyActionMemberAccess = new(@"\baction\.(?<member>\w+)");
+
+    /// <summary>
+    /// FAIL-SAFE (S045b): the hole a verifier proved — <c>Dictionary&lt;string, JsonElement&gt;? p =
+    /// action.Parameters; p["sneaky_key"];</c> reads a parameter through an accessor shape outside the
+    /// 10-pattern list above, and the scanner reported zero violations for it. A hand-maintained accessor list
+    /// can never be proven exhaustive, so instead of trusting the list, this walks EVERY
+    /// <c>action.&lt;member&gt;</c> token in the class body and demands each one start at the same position as
+    /// one of <see cref="SafeActionMemberAccess"/> — any token that does not is an unrecognised accessor and is
+    /// a LOUD, named failure: extend the scanner or use a known accessor, never a silent pass.
+    /// </summary>
+    private static List<string> FindUnclassifiedAccess(
+        string body,
+        string actionType,
+        string typeName
+    )
+    {
+        HashSet<int> safeStarts =
+        [
+            .. SafeActionMemberAccess.SelectMany(p => p.Matches(body).Select(m => m.Index)),
+        ];
+
+        return
+        [
+            .. AnyActionMemberAccess
+                .Matches(body)
+                .Where(m => !safeStarts.Contains(m.Index))
+                .Select(m =>
+                    $"{actionType} ({typeName}) has an UNRECOGNISED accessor 'action.{m.Groups["member"].Value}' "
+                    + "the scanner cannot classify — extend PipelineActionParameterSurfaceScanner or use a "
+                    + "known accessor (GetString/GetInt/GetBool/GetDouble/Parameters.TryGetValue), never an "
+                    + "unrecognised shape that reads a parameter invisibly"
+                ),
+        ];
+    }
+
+    /// <summary>
     /// Structural violations for one action: a key its source reads but does not declare in
-    /// <see cref="ICommandAction.Fields"/>, and a declared field its source never reads. Returns an empty list
-    /// (never null) when the action's own source file could not be located under <paramref name="searchRoot"/>
-    /// — callers that require full coverage should assert non-empty results were found for every action.
+    /// <see cref="ICommandAction.Fields"/>, a declared field its source never reads, and (fail-safe) any
+    /// <c>action.&lt;member&gt;</c> accessor the scanner cannot classify at all. Returns an empty list (never
+    /// null) when the action's own source file could not be located under <paramref name="searchRoot"/> —
+    /// callers that require full coverage should assert non-empty results were found for every action.
     /// </summary>
     public static List<string> ComputeViolations(ICommandAction action, string searchRoot)
     {
-        string? body = PipelineActionSourceLocator.FindClassBody(action.GetType().Name, searchRoot);
+        string typeName = action.GetType().Name;
+        string? body = PipelineActionSourceLocator.FindClassBody(typeName, searchRoot);
         if (body is null)
             return
             [
-                $"{action.ActionType}: could not locate source for {action.GetType().Name} under {searchRoot}",
+                $"{action.ActionType}: could not locate source for {typeName} under {searchRoot}",
             ];
+
+        List<string> violations = [.. FindUnclassifiedAccess(body, action.ActionType, typeName)];
 
         HashSet<string> readKeys =
         [
@@ -175,7 +279,6 @@ internal static class PipelineActionParameterSurfaceScanner
         ];
         HashSet<string> declaredKeys = [.. action.Fields.Select(f => f.Name)];
 
-        List<string> violations = [];
         foreach (string key in readKeys.Except(declaredKeys))
             violations.Add(
                 $"{action.ActionType} reads '{key}' but does not declare a Fields entry for it"
@@ -358,5 +461,55 @@ public sealed class PipelineActionFieldSchemaGuardTests
         violations
             .Should()
             .Contain(v => v.Contains("phantom_field") && v.Contains("never reads it"));
+    }
+
+    /// <summary>
+    /// S045b FAIL-SAFE: proves an accessor shape outside the scanner's 10-pattern list — a local alias of
+    /// <c>action.Parameters</c> read via an indexer (<c>Dictionary&lt;string, JsonElement&gt;? p =
+    /// action.Parameters; p["sneaky_key"];</c>) — is caught as an UNRECOGNISED accessor rather than silently
+    /// passing. This is the exact hole a verifier proved: the scanner previously reported zero violations for
+    /// this fixture.
+    /// </summary>
+    [Fact]
+    public void Structural_scanner_flags_an_unrecognised_local_alias_indexer_accessor()
+    {
+        LocalAliasIndexerFixtureAction action = new();
+
+        List<string> violations = PipelineActionParameterSurfaceScanner.ComputeViolations(
+            action,
+            "tests/NomNomzBot.Infrastructure.Tests"
+        );
+
+        violations
+            .Should()
+            .Contain(v =>
+                v.Contains("UNRECOGNISED accessor")
+                && v.Contains("action.Parameters")
+                && v.Contains(nameof(LocalAliasIndexerFixtureAction))
+            );
+    }
+
+    /// <summary>
+    /// S045b FAIL-SAFE: proves a SECOND, differently-shaped unrecognised accessor — an extension method
+    /// (<c>action.ReadSneaky("other_key")</c>) — is also caught, so the fail-safe check is not narrowly tuned
+    /// to the indexer-alias shape alone.
+    /// </summary>
+    [Fact]
+    public void Structural_scanner_flags_an_unrecognised_extension_method_accessor()
+    {
+        ExtensionMethodFixtureAction action = new();
+
+        List<string> violations = PipelineActionParameterSurfaceScanner.ComputeViolations(
+            action,
+            "tests/NomNomzBot.Infrastructure.Tests"
+        );
+
+        violations
+            .Should()
+            .Contain(v =>
+                v.Contains("UNRECOGNISED accessor")
+                && v.Contains("action.ReadSneaky")
+                && v.Contains(nameof(ExtensionMethodFixtureAction))
+            );
     }
 }
