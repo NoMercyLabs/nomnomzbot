@@ -60,3 +60,6 @@ server/.twitch-spec/
 # wwwroot holds the compiled Wasm dashboard — built from source inside the Dockerfile
 # (wasm-build stage) and committed wasm files are no longer tracked.
 server/src/NomNomzBot.Api/wwwroot/
+server/src/NomNomzBot.Migrations.Sqlite/nomnomz.db
+server/src/NomNomzBot.Migrations.Sqlite/nomnomz.db-shm
+server/src/NomNomzBot.Migrations.Sqlite/nomnomz.db-wal
