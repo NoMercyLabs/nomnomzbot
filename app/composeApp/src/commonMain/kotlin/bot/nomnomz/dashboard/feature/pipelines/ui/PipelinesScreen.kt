@@ -270,7 +270,13 @@ import org.jetbrains.compose.resources.stringResource
 // (create / rename / enable-disable / delete) and the chain EDITOR surface (add / configure / reorder / remove
 // the ordered action blocks with an optional condition + stop flag, then save). It loads on first composition.
 @Composable
-fun PipelinesScreen(controller: PipelinesController, role: ManagementRole?, hubEvents: SharedFlow<HubEvent>? = null) {
+fun PipelinesScreen(
+    controller: PipelinesController,
+    role: ManagementRole?,
+    hubEvents: SharedFlow<HubEvent>? = null,
+    historyController: bot.nomnomz.dashboard.feature.pipelines.state.PipelineExecutionHistoryController? = null,
+    heldActionKeys: Set<String> = emptySet(),
+) {
     val state: PipelinesState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
@@ -280,6 +286,14 @@ fun PipelinesScreen(controller: PipelinesController, role: ManagementRole?, hubE
     // (add / configure / reorder / remove / save). A caller below it sees the list and the chain but each write
     // disabled with "Requires Editor" (§7); the backend re-checks every write regardless.
     val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Pipelines)
+
+    // The run-history debugging surface (S008c-read-b) is a separate read-only screen entered from the list
+    // header; hidden entirely below the `pipelines:read` floor (§7 hide-below-read-floor) rather than shown
+    // disabled, since there is nothing to disable-with-reason for a pure read.
+    val canReadHistory: Boolean =
+        historyController != null &&
+            bot.nomnomz.dashboard.feature.pipelines.state.PipelineExecutionHistoryAccess.canRead(heldActionKeys)
+    var showHistory: Boolean by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { controller.load() }
 
@@ -291,6 +305,11 @@ fun PipelinesScreen(controller: PipelinesController, role: ManagementRole?, hubE
 
         LaunchedEffect(hubEvents) { controller.subscribeToHub(hubEvents) }
 
+    }
+
+    if (showHistory && historyController != null) {
+        PipelineHistoryScreen(controller = historyController, onBack = { showHistory = false })
+        return
     }
 
     Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
@@ -305,6 +324,8 @@ fun PipelinesScreen(controller: PipelinesController, role: ManagementRole?, hubE
                     manage = manage,
                     controller = controller,
                     scope = scope,
+                    canReadHistory = canReadHistory,
+                    onOpenHistory = { showHistory = true },
                 )
             is PipelinesState.Ready ->
                 ListContent(
@@ -313,6 +334,8 @@ fun PipelinesScreen(controller: PipelinesController, role: ManagementRole?, hubE
                     manage = manage,
                     controller = controller,
                     scope = scope,
+                    canReadHistory = canReadHistory,
+                    onOpenHistory = { showHistory = true },
                 )
             is PipelinesState.Editing ->
                 ChainEditor(editing = current, manage = manage, controller = controller, scope = scope)
@@ -329,6 +352,8 @@ private fun ListContent(
     manage: ManageDecision,
     controller: PipelinesController,
     scope: kotlinx.coroutines.CoroutineScope,
+    canReadHistory: Boolean = false,
+    onOpenHistory: () -> Unit = {},
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -341,7 +366,12 @@ private fun ListContent(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
-        ListHeader(manage = manage, onNew = { editor = PipelineEditor.create() })
+        ListHeader(
+            manage = manage,
+            onNew = { editor = PipelineEditor.create() },
+            canReadHistory = canReadHistory,
+            onOpenHistory = onOpenHistory,
+        )
         actionError?.let { ActionErrorBanner(message = stringResource(Res.string.pipelines_action_error, it)) }
 
         if (pipelines.isEmpty()) {
@@ -399,18 +429,29 @@ private fun ListContent(
 }
 
 @Composable
-private fun ListHeader(manage: ManageDecision, onNew: () -> Unit) {
+private fun ListHeader(
+    manage: ManageDecision,
+    onNew: () -> Unit,
+    canReadHistory: Boolean = false,
+    onOpenHistory: () -> Unit = {},
+) {
     val tokens = LocalTokens.current
     val newLabel: String = stringResource(Res.string.pipelines_new_action)
+    val historyLabel: String = pipelineHistoryActionLabel()
 
     PageHeader(title = stringResource(Res.string.shell_nav_pipelines)) {
-        ManageGate(decision = manage) { enabled ->
-            GlyphButton(
-                imageVector = AddGlyph,
-                label = newLabel,
-                onClick = onNew,
-                enabled = enabled,
-            )
+        Row(horizontalArrangement = Arrangement.spacedBy(LocalSpacing.current.s2)) {
+            if (canReadHistory) {
+                TextButton(onClick = onOpenHistory) { Text(text = historyLabel) }
+            }
+            ManageGate(decision = manage) { enabled ->
+                GlyphButton(
+                    imageVector = AddGlyph,
+                    label = newLabel,
+                    onClick = onNew,
+                    enabled = enabled,
+                )
+            }
         }
     }
 }

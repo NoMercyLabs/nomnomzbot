@@ -614,6 +614,8 @@ private fun ShellContent(
                     controller = graph.pipelinesController,
                     role = role,
                     hubEvents = graph.dashboardHubClient.events,
+                    historyController = graph.pipelineExecutionHistoryController,
+                    heldActionKeys = heldActionKeys,
                 )
             ShellRoute.Schedule -> ScheduleScreen(controller = graph.scheduleController, role = role)
             ShellRoute.Roles -> RolesScreen(controller = graph.rolesController, role = role)
