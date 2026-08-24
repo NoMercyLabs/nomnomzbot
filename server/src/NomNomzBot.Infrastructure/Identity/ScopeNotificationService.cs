@@ -153,9 +153,10 @@ public sealed class ScopeNotificationService : IScopeNotificationService
         // FeatureScopeMap only covers toggleable features. An always-on Helix-backed action (e.g. the shoutout
         // builtin's moderator:manage:shoutouts) has no feature key to key off, so without this second pass its
         // scope gap was invisible here — surfacing only reactively, after a live 403 already broke the action on
-        // stream. TwitchScopeRegistry is every scope the code actually calls, always-on or not, so this closes
+        // stream. TwitchScopeRegistry.FullCatalogue is every scope the code actually needs — Helix-reflected AND
+        // the EventSub-only residuals (progressive login no longer requests either up front) — so this closes
         // that gap: a channel missing ANY code-required scope shows up the moment this runs, not after it fails.
-        foreach (string scope in _scopeRegistry.AllDeclaredScopes)
+        foreach (string scope in _scopeRegistry.FullCatalogue)
         {
             if (granted.Contains(scope) || featuresByScope.ContainsKey(scope))
                 continue;

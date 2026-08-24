@@ -23,17 +23,25 @@ using NSubstitute;
 namespace NomNomzBot.Infrastructure.Tests.Identity;
 
 /// <summary>
-/// Proves the Charity/Goals EventSub ingest (ROADMAP "Small decided items") actually requests the two scopes
-/// its topics need — <c>channel:read:charity</c> and <c>channel:read:goals</c> — as part of the streamer OAuth
-/// grant, exactly like the pre-existing <c>channel:read:hype_train</c> entry it sits beside in
-/// <see cref="AuthService"/>'s <c>RequiredScopes</c>. This drives the real URL-building path
-/// (<see cref="AuthService.GetTwitchOAuthUrl"/>), not a reflected list, so a scope silently dropped from the
-/// requested set — which would make every future charity/goal subscribe 403 with "missing scope" — fails here.
+/// Progressive scopes (CLAUDE.md "Progressive scopes" / identity-auth §3.4a): a fresh streamer login (or
+/// device-code start) must request only the minimal base grant — identity plus the two scopes basic chat
+/// operation cannot work without at all — never the whole 79-scope catalogue up front. A 79-scope, 2301-char
+/// authorize URL made Twitch's own upstream 502; this is the fix. Every feature scope is instead reachable
+/// on demand through the existing action-required mechanism: <c>ScopeNotificationService.GetMissingScopesAsync</c>
+/// (the dashboard "N more permissions" banner) and its additive re-grant (<c>BuildRegrantScopeSetAsync</c> →
+/// <c>StartTwitchDeviceLoginForScopesAsync</c>), which never forces a logout.
 /// </summary>
 public sealed class AuthServiceStreamerScopesTests
 {
+    private static readonly string[] ExpectedMinimalScopes =
+    [
+        "user:read:email",
+        "user:read:chat",
+        "user:write:chat",
+    ];
+
     [Fact]
-    public async Task GetTwitchOAuthUrl_RequestsCharityAndGoalsScopes_AlongsideHypeTrain()
+    public async Task GetTwitchOAuthUrl_WithoutBroadcasterHint_RequestsOnlyTheMinimalScopeSet()
     {
         AuthService service = Build(ConfigWith(clientId: "public-id", secret: "shh"));
 
@@ -43,193 +51,58 @@ public sealed class AuthServiceStreamerScopesTests
         );
 
         result.IsSuccess.Should().BeTrue();
-        // Uri.EscapeDataString percent-encodes ':' (%3A) inside the space-joined `scope` query param.
-        result.Value.Should().Contain("channel%3Aread%3Acharity");
-        result.Value.Should().Contain("channel%3Aread%3Agoals");
-        // Regression guard: the pre-existing hype-train scope these two sit beside must still be requested.
-        result.Value.Should().Contain("channel%3Aread%3Ahype_train");
+
+        Uri uri = new(result.Value);
+        string? scopeQueryPair = uri
+            .Query.TrimStart('?')
+            .Split('&')
+            .FirstOrDefault(pair => pair.StartsWith("scope=", StringComparison.Ordinal));
+        scopeQueryPair.Should().NotBeNull();
+        string scopeParam = Uri.UnescapeDataString(scopeQueryPair!["scope=".Length..]);
+        string[] requestedScopes = scopeParam.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+        requestedScopes
+            .Should()
+            .BeEquivalentTo(
+                ExpectedMinimalScopes,
+                "login must be minimal, not the whole catalogue"
+            );
+        result
+            .Value.Length.Should()
+            .BeLessThan(1000, "the oversized authorize URL 502'd on Twitch's end");
     }
 
     /// <summary>
-    /// Proves E1 (subscribe every remaining translator-backed EventSub topic) requests every scope its newly
-    /// added topics need — otherwise each one 403s on first subscribe (TwitchEventSubHostedService.SubscribeAsync)
-    /// with no way for an already-onboarded streamer to grant it short of the action-required re-grant flow.
+    /// The full Helix-reflected catalogue stays intact and reachable — it is what feature-driven, on-demand
+    /// scope requests (the missing-scope banner / regrant) check against, not what login requests.
     /// </summary>
     [Fact]
-    public async Task GetTwitchOAuthUrl_RequestsEveryE1EventSubScope()
+    public void TwitchScopeRegistry_FullCatalogue_StillCarriesEveryDeclaredAndResidualScope()
     {
-        AuthService service = Build(ConfigWith(clientId: "public-id", secret: "shh"));
+        TwitchScopeRegistry registry = new();
 
-        Result<string> result = await service.GetTwitchOAuthUrl(
-            state: "nonce",
-            baseUrl: "https://api.example.test"
-        );
-
-        result.IsSuccess.Should().BeTrue();
-        string[] expectedScopes =
-        [
-            "channel:read:ads",
-            "channel:read:vips",
-            "moderation:read",
-            "moderator:manage:automod",
-            "moderator:read:automod_settings",
-            "moderator:read:blocked_terms",
-            "moderator:read:chat_settings",
-            "moderator:read:moderators",
-            "moderator:read:shield_mode",
-            "moderator:read:shoutouts",
-            "moderator:manage:shoutouts",
-            "moderator:read:suspicious_users",
-            "moderator:read:unban_requests",
-            "moderator:read:vips",
-            "moderator:read:warnings",
-            "user:read:whispers",
-        ];
-
-        foreach (string scope in expectedScopes)
-            result.Value.Should().Contain(Uri.EscapeDataString(scope));
-    }
-
-    /// <summary>
-    /// Proves Guest Star ingest (restored — the E1 commit's "Twitch deprecated it" claim was false against
-    /// live docs) requests both read scopes its beta topics need: <c>channel:read:guest_star</c> for the
-    /// broadcaster's own sessions and <c>moderator:read:guest_star</c> for channels the bot moderates.
-    /// </summary>
-    [Fact]
-    public async Task GetTwitchOAuthUrl_RequestsBothGuestStarReadScopes()
-    {
-        AuthService service = Build(ConfigWith(clientId: "public-id", secret: "shh"));
-
-        Result<string> result = await service.GetTwitchOAuthUrl(
-            state: "nonce",
-            baseUrl: "https://api.example.test"
-        );
-
-        result.IsSuccess.Should().BeTrue();
-        result.Value.Should().Contain(Uri.EscapeDataString("channel:read:guest_star"));
-        result.Value.Should().Contain(Uri.EscapeDataString("moderator:read:guest_star"));
-    }
-
-    /// <summary>
-    /// Proves the dashboard moderation page's WRITE controls request the two Helix manage scopes they need —
-    /// <c>moderator:manage:blocked_terms</c> (Add/Remove Blocked Term) and <c>moderator:manage:shield_mode</c>
-    /// (Update Shield Mode Status). Without them those controls fell back to a local config Twitch never saw
-    /// (cosmetic switches); a scope silently dropped here would resurrect that phantom behaviour.
-    /// </summary>
-    [Fact]
-    public async Task GetTwitchOAuthUrl_RequestsTheBlockedTermsAndShieldModeManageScopes()
-    {
-        AuthService service = Build(ConfigWith(clientId: "public-id", secret: "shh"));
-
-        Result<string> result = await service.GetTwitchOAuthUrl(
-            state: "nonce",
-            baseUrl: "https://api.example.test"
-        );
-
-        result.IsSuccess.Should().BeTrue();
-        result.Value.Should().Contain(Uri.EscapeDataString("moderator:manage:blocked_terms"));
-        result.Value.Should().Contain(Uri.EscapeDataString("moderator:manage:shield_mode"));
-    }
-
-    /// <summary>
-    /// Proves the dashboard unban-request queue's RESOLVE action requests the Helix manage scope it needs
-    /// (<c>moderator:manage:unban_requests</c>) — the read scope is already granted; without the manage scope
-    /// approving/denying a request would 403.
-    /// </summary>
-    [Fact]
-    public async Task GetTwitchOAuthUrl_RequestsTheUnbanRequestManageScope()
-    {
-        AuthService service = Build(ConfigWith(clientId: "public-id", secret: "shh"));
-
-        Result<string> result = await service.GetTwitchOAuthUrl(
-            state: "nonce",
-            baseUrl: "https://api.example.test"
-        );
-
-        result.IsSuccess.Should().BeTrue();
-        result.Value.Should().Contain(Uri.EscapeDataString("moderator:manage:unban_requests"));
-    }
-
-    /// <summary>
-    /// Proves the dashboard per-user enforcement actions request the Helix manage scopes they need —
-    /// <c>moderator:manage:warnings</c> (Warn Chat User) and <c>moderator:manage:suspicious_users</c>
-    /// (Update Suspicious User). Only the read variants shipped before; without the manage scopes both actions
-    /// would 403.
-    /// </summary>
-    [Fact]
-    public async Task GetTwitchOAuthUrl_RequestsTheWarningsAndSuspiciousUsersManageScopes()
-    {
-        AuthService service = Build(ConfigWith(clientId: "public-id", secret: "shh"));
-
-        Result<string> result = await service.GetTwitchOAuthUrl(
-            state: "nonce",
-            baseUrl: "https://api.example.test"
-        );
-
-        result.IsSuccess.Should().BeTrue();
-        result.Value.Should().Contain(Uri.EscapeDataString("moderator:manage:warnings"));
-        result.Value.Should().Contain(Uri.EscapeDataString("moderator:manage:suspicious_users"));
-    }
-
-    /// <summary>
-    /// Proves the two core proactive management jobs request the scopes they need as part of the streamer grant:
-    /// <c>channel:read:editors</c> (ManagementRoleReconcileService → Get Channel Editors, mapping editors to the
-    /// dashboard Editor role every 10 minutes) and <c>channel:manage:moderators</c> (BotJoinOnOnboardingHandler →
-    /// Add Channel Moderator, self-modding the bot on join). Both ran unconditionally yet their scopes were absent
-    /// from the base grant, so each cycle 403'd and recorded a missing-scope gap the streamer could never satisfy
-    /// from a feature toggle — a permanent "N more permissions" nag. This guards that regression.
-    /// </summary>
-    [Fact]
-    public async Task GetTwitchOAuthUrl_RequestsTheManagementRoleAndBotModeratorScopes()
-    {
-        AuthService service = Build(ConfigWith(clientId: "public-id", secret: "shh"));
-
-        Result<string> result = await service.GetTwitchOAuthUrl(
-            state: "nonce",
-            baseUrl: "https://api.example.test"
-        );
-
-        result.IsSuccess.Should().BeTrue();
-        result.Value.Should().Contain(Uri.EscapeDataString("channel:read:editors"));
-        result.Value.Should().Contain(Uri.EscapeDataString("channel:manage:moderators"));
-    }
-
-    /// <summary>
-    /// Proves EVERY scope any offered feature can require (<see cref="FeatureScopeMap"/>) is part of the base
-    /// streamer grant. This is the structural guard for the stuck permissions banner: the proactive
-    /// missing-scope read model reports every feature scope the connection lacks, so a feature scope absent
-    /// from the base grant (as <c>channel:manage:raids</c> / <c>channel:manage:vips</c> were) makes the banner
-    /// impossible to clear through the redirect re-auth — a permanent nag no consent can satisfy.
-    /// </summary>
-    [Fact]
-    public async Task GetTwitchOAuthUrl_RequestsEveryFeatureScopeMapScope()
-    {
-        AuthService service = Build(ConfigWith(clientId: "public-id", secret: "shh"));
-
-        Result<string> result = await service.GetTwitchOAuthUrl(
-            state: "nonce",
-            baseUrl: "https://api.example.test"
-        );
-
-        result.IsSuccess.Should().BeTrue();
-        foreach (string scope in FeatureScopeMap.Features.Values.SelectMany(scopes => scopes))
-            result
-                .Value.Should()
-                .Contain(
-                    Uri.EscapeDataString(scope),
-                    $"the base grant must cover feature scope '{scope}' or the missing-scope banner can never clear"
-                );
+        registry.AllDeclaredScopes.Should().NotBeEmpty();
+        foreach (string scope in registry.AllDeclaredScopes)
+            registry.FullCatalogue.Should().Contain(scope);
+        foreach (string scope in TwitchScopeRegistry.ResidualEventSubScopes)
+            registry.FullCatalogue.Should().Contain(scope);
+        registry
+            .FullCatalogue.Count.Should()
+            .BeGreaterThan(
+                60,
+                "the full catalogue is the pre-existing 79-scope set, just no longer requested up front"
+            );
     }
 
     /// <summary>
     /// Proves the additive re-auth for a KNOWN channel (the redirect re-grant a returning operator gets):
-    /// with a broadcaster hint the requested set is <c>base ∪ currently-granted ∪ recorded-missing</c> — the
-    /// extra scope the connection already holds (<c>user:bot</c>, single-account self-host) is re-consented
-    /// instead of silently dropped, and a runtime-detected gap OUTSIDE the base set is finally requested.
-    /// Without the hint (a fresh login) neither rides along.
+    /// with a broadcaster hint the requested set is <c>minimal base ∪ currently-granted ∪ recorded-missing</c>
+    /// — the extra scope the connection already holds (<c>user:bot</c>, single-account self-host) is
+    /// re-consented instead of silently dropped, and a runtime-detected gap is finally requested. Without the
+    /// hint (a fresh login) neither rides along, and no un-granted feature scope is requested speculatively.
     /// </summary>
     [Fact]
-    public async Task GetTwitchOAuthUrl_WithBroadcasterHint_UnionsGrantedAndRecordedGaps()
+    public async Task GetTwitchOAuthUrl_WithBroadcasterHint_UnionsMinimalBaseGrantedAndRecordedGaps()
     {
         Guid channel = Guid.Parse("0192a000-0000-7000-8000-0000000000e1");
         AuthDbContext db = AuthTestBuilder.NewContext();
@@ -239,17 +112,14 @@ public sealed class AuthServiceStreamerScopesTests
                 BroadcasterId = channel,
                 Provider = "twitch",
                 Status = "connected",
-                Scopes = ["user:read:email", "user:bot"], // user:bot is NOT in the base set
+                Scopes = ["user:read:email", "user:bot"], // user:bot is NOT in the minimal base set
             }
         );
         db.ChannelMissingScopes.Add(
             new()
             {
                 BroadcasterId = channel,
-                // `channel:manage:extensions` is a real Twitch scope this codebase has no Helix method for
-                // (unlike `channel:edit:commercial`, which the [RequiresTwitchScope]-reflected base set now
-                // covers), so it's still a genuine runtime-detected gap OUTSIDE the reflected ∪ residual base set.
-                Scope = "channel:manage:extensions",
+                Scope = "channel:manage:raids", // a feature scope not yet granted — the action-required signal
                 DetectedAt = new(2026, 7, 16, 0, 0, 0, DateTimeKind.Utc),
             }
         );
@@ -268,10 +138,12 @@ public sealed class AuthServiceStreamerScopesTests
 
         withHint.IsSuccess.Should().BeTrue();
         withHint.Value.Should().Contain(Uri.EscapeDataString("user:bot"));
-        withHint.Value.Should().Contain(Uri.EscapeDataString("channel:manage:extensions"));
-        withHint.Value.Should().Contain(Uri.EscapeDataString("user:read:chat")); // base still rides
+        withHint.Value.Should().Contain(Uri.EscapeDataString("channel:manage:raids"));
+        withHint.Value.Should().Contain(Uri.EscapeDataString("user:read:chat")); // minimal base still rides
         without.Value.Should().NotContain(Uri.EscapeDataString("user:bot"));
-        without.Value.Should().NotContain(Uri.EscapeDataString("channel:manage:extensions"));
+        without.Value.Should().NotContain(Uri.EscapeDataString("channel:manage:raids"));
+        // The unrequested, un-granted, un-flagged rest of the catalogue never rides along speculatively.
+        withHint.Value.Should().NotContain(Uri.EscapeDataString("channel:manage:polls"));
     }
 
     // ─── scaffolding (mirrors AuthServiceBotDeviceTests.Build/ConfigWith) ──────────────────────────────

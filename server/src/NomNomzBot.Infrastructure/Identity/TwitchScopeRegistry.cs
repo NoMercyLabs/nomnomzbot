@@ -36,6 +36,51 @@ public sealed class TwitchScopeRegistry
     /// </summary>
     public IReadOnlySet<string> AllDeclaredScopes { get; }
 
+    /// <summary>
+    /// Scopes that gate something other than a <see cref="RequiresTwitchScopeAttribute"/>-decorated Helix
+    /// sub-client method — an EventSub subscription topic condition with no corresponding Helix call, or a
+    /// non-Helix identity claim — so they can never be discovered by the reflection sweep above. Hand-
+    /// maintained: a topic gated ONLY by an EventSub condition (not a Helix call) belongs here.
+    /// </summary>
+    public static readonly IReadOnlySet<string> ResidualEventSubScopes = new HashSet<string>(
+        StringComparer.Ordinal
+    )
+    {
+        "user:read:email", // account identity claim on login, not a Helix call
+        "user:read:chat", // EventSub channel.chat.message (bot's own read topic; also rides here for the
+        // single-account self-host fallback where the streamer's account IS the bot)
+        "user:write:chat", // HelixChatProvider send (Helix, but no [RequiresTwitchScope] sub-client method)
+        // The chatbot badge: the broadcaster grants `channel:bot` to let the bot appear WITH THE BOT BADGE in
+        // THEIR channel — the broadcaster-side half of the app-token send (also reachable via the
+        // FeatureScopeMap "bot_badge" feature).
+        "channel:bot",
+        "channel:moderate", // EventSub channel.moderate v2 topic (read-only stream of mod actions)
+        "moderator:read:chat_settings", // channel.moderate v2
+        "moderator:read:moderators", // channel.moderate v2
+        "moderator:read:shoutouts", // channel.shoutout.create / channel.shoutout.receive (EventSub only —
+        // the Send Shoutout Helix call itself requires moderator:manage:shoutouts, which IS reflected)
+        "moderator:read:suspicious_users", // channel.suspicious_user.message / channel.suspicious_user.update
+        "moderator:read:vips", // channel.moderate v2 (distinct from channel:read:vips, which IS reflected)
+        "moderator:read:warnings", // channel.warning.acknowledge / channel.warning.send, channel.moderate v2
+        // user.whisper.message rides the BOT identity — this streamer-side grant is the single-account
+        // self-host leg, where the streamer's own account IS the bot. Distinct from user:manage:whispers
+        // (Send Whisper), which IS reflected via TwitchWhispersApi.
+        "user:read:whispers",
+        // Guest Star ingest: channel:read:guest_star is reflected (gates GetGuestStarSessionAsync);
+        // moderator:read:guest_star gates the EventSub condition for channels the bot moderates and is not
+        // itself a Helix method pre-check.
+        "moderator:read:guest_star",
+    };
+
+    /// <summary>
+    /// The full scope catalogue — <see cref="AllDeclaredScopes"/> ∪ <see cref="ResidualEventSubScopes"/> —
+    /// everything a feature may ever need to request, on demand. This is what the proactive missing-scope
+    /// sweep (<c>ScopeNotificationService.GetMissingScopesAsync</c>) and the additive re-grant
+    /// (<c>BuildRegrantScopeSetAsync</c>) check against; it is intentionally NOT what a fresh login requests
+    /// (that's the small progressive-scope base in <c>AuthService</c>).
+    /// </summary>
+    public IReadOnlySet<string> FullCatalogue { get; }
+
     public TwitchScopeRegistry()
         : this(typeof(TwitchScopeRegistry).Assembly) { }
 
@@ -43,6 +88,9 @@ public sealed class TwitchScopeRegistry
     internal TwitchScopeRegistry(Assembly subClientAssembly)
     {
         AllDeclaredScopes = CollectDeclaredScopes(subClientAssembly);
+        HashSet<string> fullCatalogue = new(AllDeclaredScopes, StringComparer.Ordinal);
+        fullCatalogue.UnionWith(ResidualEventSubScopes);
+        FullCatalogue = fullCatalogue;
     }
 
     private static IReadOnlySet<string> CollectDeclaredScopes(Assembly subClientAssembly)

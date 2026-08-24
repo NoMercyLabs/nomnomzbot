@@ -72,51 +72,21 @@ public sealed class AuthService : IAuthService
     // SelfHostLite is single-streamer: a second login attaches to the existing channel instead of creating one.
     private readonly DeploymentMode _deploymentMode;
 
-    // Scopes NOT covered by any [RequiresTwitchScope]-decorated Helix sub-client method — i.e. not
-    // enforced by a runtime RequireScopeAsync pre-check, so TwitchScopeRegistry can't discover them by
-    // reflection. Each is here because it gates something other than a Helix sub-client call: an
-    // EventSub subscription topic, a non-Helix identity claim, or the app-token chat-badge path.
-    // RequiredScopes (built in the constructor) is the union of this array with
-    // TwitchScopeRegistry.AllDeclaredScopes — every Helix-gated scope is swept in automatically, so a
-    // new [RequiresTwitchScope] method can never go unrequested (the moderator:manage:shoutouts drift).
-    private static readonly string[] ResidualNonHelixGatedScopes =
+    // Progressive scopes (identity-auth §3.4a; CLAUDE.md "Progressive scopes"): a fresh streamer login must
+    // NOT request the whole catalogue up front — a 79-scope, 2301-char authorize URL made Twitch's own
+    // upstream 502 (oversized authorize request), not a scope the code got wrong. This is the base grant a
+    // login/device-code start actually requests: identity + the two scopes basic chat operation cannot work
+    // without at all (the self-host single-account fallback where the streamer's own account IS the bot).
+    // Every other scope — every Helix-gated feature (TwitchScopeRegistry.AllDeclaredScopes) and every
+    // EventSub-only residual (TwitchScopeRegistry.ResidualEventSubScopes) — is requested on demand: reactively
+    // via ScopeNotificationService.RecordMissingScopeAsync (a live 403), or proactively via the dashboard's
+    // "N more permissions" banner (GetMissingScopesAsync) and its one-click additive re-grant
+    // (BuildRegrantScopeSetAsync → StartTwitchDeviceLoginForScopesAsync), which never forces a logout.
+    private static readonly string[] MinimalLoginScopes =
     [
-        "user:read:email", // account identity claim on login, not a Helix call
-        "user:read:chat", // EventSub channel.chat.message (bot's own read topic; also rides here for the
-        // single-account self-host fallback where the streamer's account IS the bot)
-        // The streamer's own account is the bot's chat identity until a custom bot account is registered
-        // (onboarding.md two-account model; deployment-profile.md "self-host always custom"), so the
-        // streamer grant must carry the Helix chat-send scope — `HelixChatProvider` sends via
-        // `POST /helix/chat/messages` (`user:write:chat`) on every profile (scaling-qos.md §6). The send
-        // itself goes through HelixChatProvider, not a [RequiresTwitchScope] sub-client method.
-        "user:write:chat",
-        // The chatbot badge: the broadcaster grants `channel:bot` to let the bot appear WITH THE BOT BADGE in
-        // THEIR channel — the broadcaster-side half of the app-token send. The bot-side half (`user:bot`) rides
-        // BotScopes. This is the proven recipe (the reference bot uses channel:bot on the broadcaster + user:bot
-        // on the bot + an app-token send). `user:bot` deliberately does NOT ride this streamer grant: the
-        // streamer's own account is not the chat sender on a dedicated-bot deployment, so requesting it here
-        // only adds a confusing "appear as a bot" consent for no gain. Neither rides a Helix scope pre-check.
-        "channel:bot",
-        "channel:moderate", // EventSub channel.moderate v2 topic (read-only stream of mod actions)
-        // The remaining translator-backed EventSub surface (twitch-eventsub.md, BotLifecycleService
-        // ChannelEventTypes): these gate an EventSub subscribe topic, not a Helix sub-client call, so they
-        // sit outside the reflected set alongside channel:moderate above.
-        "moderator:read:chat_settings", // channel.moderate v2
-        "moderator:read:moderators", // channel.moderate v2
-        "moderator:read:shoutouts", // channel.shoutout.create / channel.shoutout.receive (EventSub only —
-        // the Send Shoutout Helix call itself requires moderator:manage:shoutouts, which IS reflected)
-        "moderator:read:suspicious_users", // channel.suspicious_user.message / channel.suspicious_user.update
-        "moderator:read:vips", // channel.moderate v2 (distinct from channel:read:vips, which IS reflected)
-        "moderator:read:warnings", // channel.warning.acknowledge / channel.warning.send, channel.moderate v2
-        // user.whisper.message rides the BOT identity (BotScopes below) — this streamer-side grant is the
-        // single-account self-host leg, where the streamer's own account IS the bot. Distinct from
-        // user:manage:whispers (Send Whisper), which IS reflected via TwitchWhispersApi.
-        "user:read:whispers", // user.whisper.message (single-account fallback)
-        // Guest Star ingest (ROADMAP "Small decided items" — restored 2026-07-04; Twitch has not deprecated
-        // the API, live docs still list all four beta topics). channel:read:guest_star is reflected (gates
-        // GetGuestStarSessionAsync); moderator:read:guest_star gates the EventSub condition for channels the
-        // bot moderates and is not itself a Helix method pre-check.
-        "moderator:read:guest_star", // channel.guest_star_session.begin/.end, .guest.update, .settings.update
+        "user:read:email", // account identity claim — the login itself needs it to resolve the Twitch user
+        "user:read:chat", // EventSub channel.chat.message — the bot cannot read chat at all without this
+        "user:write:chat", // HelixChatProvider send — the bot cannot type in chat at all without this
     ];
 
     private readonly string[] _requiredScopes;
@@ -170,14 +140,9 @@ public sealed class AuthService : IAuthService
         _isSelfHost = deploymentContext.IsSelfHost;
         _deploymentMode = deploymentContext.Mode;
 
-        // The base streamer login grant = every Helix-gated scope the sub-clients actually enforce
-        // (reflected, so it can never drift) ∪ the residual EventSub-only / non-Helix-gated scopes above.
-        SortedSet<string> requiredScopes = new(
-            ResidualNonHelixGatedScopes,
-            StringComparer.OrdinalIgnoreCase
-        );
-        requiredScopes.UnionWith(scopeRegistry.AllDeclaredScopes);
-        _requiredScopes = [.. requiredScopes];
+        // The base streamer LOGIN grant is intentionally minimal (see MinimalLoginScopes above) — the full
+        // catalogue (scopeRegistry.FullCatalogue) is requested on demand instead, never up front.
+        _requiredScopes = MinimalLoginScopes;
     }
 
     // ─── User OAuth ──────────────────────────────────────────────────────────

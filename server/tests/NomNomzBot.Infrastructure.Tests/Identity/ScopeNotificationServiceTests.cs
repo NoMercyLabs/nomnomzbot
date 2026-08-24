@@ -113,7 +113,7 @@ public sealed class ScopeNotificationServiceTests
         [
             .. FeatureScopeMap
                 .Features.Values.SelectMany(scopes => scopes)
-                .Concat(new TwitchScopeRegistry().AllDeclaredScopes)
+                .Concat(new TwitchScopeRegistry().FullCatalogue)
                 .Distinct(StringComparer.OrdinalIgnoreCase),
         ];
         await SeedTwitchConnectionAsync(db, all);
@@ -288,7 +288,7 @@ public sealed class ScopeNotificationServiceTests
         [
             .. FeatureScopeMap
                 .Features.Values.SelectMany(scopes => scopes)
-                .Concat(new TwitchScopeRegistry().AllDeclaredScopes)
+                .Concat(new TwitchScopeRegistry().FullCatalogue)
                 .Distinct(StringComparer.OrdinalIgnoreCase),
         ];
         await SeedTwitchConnectionAsync(db, all);
