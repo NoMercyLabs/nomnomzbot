@@ -98,8 +98,22 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         // Cooldown manager is keyed by a string channel id; use the tenant Guid's string form.
         string cooldownChannelKey = @event.BroadcasterId.ToString();
 
-        // Increment channel message counter (used by TimerService for activity gating; approximate is fine)
+        // Registry/context bootstrap happens on the FIRST message of ANY kind on EVERY ingest — plain
+        // chat or a command, Twitch/Kick/YouTube alike — never only when the message happens to parse as
+        // a `!command`. A channel whose only live platform is non-Twitch (or a chatter who never types a
+        // command) must still get welcome/triggers/timers wired up. EnsureChannelLoadedAsync only needs
+        // the tenant Guid + the platform broadcaster id carried on the event, so this is provider-agnostic;
+        // GetOrCreateAsync (called underneath) is idempotent, so a warm registry short-circuits here with
+        // no re-load and no double-fire below.
         ChannelContext? channelCtx = _registry.Get(@event.BroadcasterId);
+        if (channelCtx is null)
+        {
+            channelCtx = await EnsureChannelLoadedAsync(
+                @event.BroadcasterId,
+                @event.TwitchBroadcasterId,
+                cancellationToken
+            );
+        }
 
         // Bot-side standing (J.12): a muted/shadowbanned user's chat still displays, persists, and counts
         // toward room activity/{chatters} (it IS visible chat) — but every bot feature ignores them:
@@ -135,18 +149,9 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
 
         bool defaultPrefixed = text.StartsWith(commandPrefix, StringComparison.Ordinal);
 
-        // Resolve the channel context up front (lazy-loading a cold registry) so a command whose own
-        // PrefixMode/MatchMode diverges from the channel default (commands-pipelines.md §3.2.1) can be
-        // matched even when the message doesn't start with the channel's default prefix.
+        // The context is already ensured above (bootstrap runs before the welcome/trigger checks now),
+        // so no second lazy-load is needed here for a command's own PrefixMode/MatchMode resolution.
         ChannelContext? ctx = channelCtx;
-        if (ctx is null)
-        {
-            ctx = await EnsureChannelLoadedAsync(
-                @event.BroadcasterId,
-                @event.TwitchBroadcasterId,
-                cancellationToken
-            );
-        }
 
         (CachedCommand? resolvedCommand, string resolvedArgs) = ctx is not null
             ? ResolveAuthoredCommand(ctx, text, commandPrefix)

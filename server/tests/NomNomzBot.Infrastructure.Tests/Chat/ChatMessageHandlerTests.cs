@@ -11,6 +11,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.RateLimiting;
 using NomNomzBot.Application.Abstractions.Templating;
@@ -24,6 +25,7 @@ using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Chat.EventHandlers;
 using NomNomzBot.Infrastructure.Games;
 using NomNomzBot.Infrastructure.Games.Catalog;
+using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Chat;
@@ -727,6 +729,236 @@ public sealed class ChatMessageHandlerTests
             NullLogger<ChatMessageHandler>.Instance
         );
         return (sut, executor);
+    }
+
+    // ── S020: registry/context bootstrap is provider-agnostic and fires on ANY first message ─────
+
+    /// <summary>
+    /// S020: before the fix, <c>HandleAsync</c> only lazy-loaded a cold registry context AFTER the
+    /// welcome-trigger check — so a channel's very first message (of any kind, on any provider) never
+    /// bootstrapped in time to fire welcome. This proves a Kick-only channel's first PLAIN (non-command)
+    /// message bootstraps the registry via <c>GetOrCreateAsync</c> — asserted by the actual call the
+    /// handler made (broadcaster id + the Kick platform channel id it read from the DB), not a mock hit
+    /// count on an unrelated method.
+    /// </summary>
+    [Fact]
+    public async Task Cold_registry_plain_message_on_kick_ingest_bootstraps_the_channel_context()
+    {
+        (ChatMessageHandler sut, IChannelRegistry registry, _) = BuildColdKickChannel(
+            out ChatMessageReceivedEvent kickMessage
+        );
+
+        await sut.HandleAsync(kickMessage, CancellationToken.None);
+
+        await registry
+            .Received(1)
+            .GetOrCreateAsync(
+                Broadcaster,
+                "kick-ext-1",
+                "kickonlychannel",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    /// <summary>
+    /// S020 done-when #2: that same Kick-only chatter's first plain message must not just create a
+    /// context object — it must cause the session-first-message ("welcome them in") trigger to actually
+    /// evaluate and fire, proven by the emitted/attempted trigger execution.
+    /// </summary>
+    [Fact]
+    public async Task Cold_registry_plain_message_on_kick_ingest_fires_the_welcome_trigger()
+    {
+        (
+            ChatMessageHandler sut,
+            IChannelRegistry registry,
+            NomNomzBot.Application.Commands.Services.IEventResponseExecutor executor
+        ) = BuildColdKickChannel(out ChatMessageReceivedEvent kickMessage);
+
+        await sut.HandleAsync(kickMessage, CancellationToken.None);
+
+        await executor
+            .Received(1)
+            .ExecuteAsync(
+                Broadcaster,
+                "engagement.session_first_message",
+                "kick-viewer-1",
+                "KickViewer",
+                Arg.Is<Dictionary<string, string>>(v =>
+                    v["user"] == "KickViewer" && v["user.id"] == "kick-viewer-1"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+
+        // S020 done-when #3: the channel is now IN the singleton registry with no !command ever having
+        // been typed — TimerService (TimerService.cs) scans exactly this registry (`_registry.GetAll()`)
+        // to decide which channels' timers are active, so a channel present here has live timers.
+        registry.Get(Broadcaster).Should().NotBeNull();
+    }
+
+    /// <summary>
+    /// S020 done-when #4 (idempotency half): a second plain message from the SAME cold-bootstrapped
+    /// channel must not re-bootstrap the registry or double-fire the welcome for the same chatter.
+    /// </summary>
+    [Fact]
+    public async Task Second_plain_message_does_not_rebootstrap_or_refire_the_welcome()
+    {
+        (
+            ChatMessageHandler sut,
+            IChannelRegistry registry,
+            NomNomzBot.Application.Commands.Services.IEventResponseExecutor executor
+        ) = BuildColdKickChannel(out ChatMessageReceivedEvent kickMessage);
+
+        await sut.HandleAsync(kickMessage, CancellationToken.None);
+        await sut.HandleAsync(kickMessage, CancellationToken.None); // same user, same channel, again
+
+        await registry
+            .Received(1) // exactly once — the second message found a warm registry
+            .GetOrCreateAsync(
+                Broadcaster,
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
+        await executor
+            .Received(1) // exactly once — session-deduped, never double-fired
+            .ExecuteAsync(
+                Broadcaster,
+                "engagement.session_first_message",
+                "kick-viewer-1",
+                Arg.Any<string>(),
+                Arg.Any<Dictionary<string, string>>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    /// <summary>
+    /// S020 regression: the pre-existing Twitch path (registry already warm — the common EventSub case)
+    /// must keep behaving exactly as before the reorder — welcome still fires on the first live line and
+    /// is still session-deduped on the second, unchanged from the pre-fix behavior these two facts already
+    /// proved.
+    /// </summary>
+    [Fact]
+    public async Task Twitch_path_with_a_warm_registry_still_fires_welcome_exactly_once()
+    {
+        ChannelContext ctx = NewChannelContext();
+        ctx.IsLive = true;
+
+        (
+            ChatMessageHandler sut,
+            NomNomzBot.Application.Commands.Services.IEventResponseExecutor executor
+        ) = BuildWithExecutor(ctx);
+
+        await sut.HandleAsync(MessageEvent("hello everyone"), CancellationToken.None);
+        await sut.HandleAsync(MessageEvent("me again"), CancellationToken.None);
+
+        await executor
+            .Received(1)
+            .ExecuteAsync(
+                Broadcaster,
+                "engagement.session_first_message",
+                "tw-viewer-1",
+                "Viewer",
+                Arg.Any<Dictionary<string, string>>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    /// <summary>
+    /// Builds a <see cref="ChatMessageHandler"/> whose registry starts COLD (<c>Get</c> returns null) for
+    /// a Kick-only channel seeded in a real <see cref="AuthDbContext"/> (no <c>TwitchChannelId</c>, only
+    /// <c>ExternalChannelId</c> — the provider-agnostic key, platform-identity.md §9.4), so
+    /// <c>EnsureChannelLoadedAsync</c> exercises its real DB read. The registry substitute mirrors real
+    /// <c>ChannelRegistry</c> idempotency semantics: the first <c>GetOrCreateAsync</c> call creates and
+    /// "stores" the context (flips <c>Get</c> from null to non-null for every call after), exactly like
+    /// the production singleton.
+    /// </summary>
+    private static (
+        ChatMessageHandler Sut,
+        IChannelRegistry Registry,
+        NomNomzBot.Application.Commands.Services.IEventResponseExecutor Executor
+    ) BuildColdKickChannel(out ChatMessageReceivedEvent kickMessage)
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Channels.Add(
+            new()
+            {
+                Id = Broadcaster,
+                Name = "kickonlychannel",
+                NameNormalized = "kickonlychannel",
+                TwitchChannelId = null,
+                Provider = "kick",
+                ExternalChannelId = "kick-ext-1",
+                CreatedAt = DateTime.UtcNow,
+            }
+        );
+        db.SaveChanges();
+
+        ChannelContext? stored = null;
+        IChannelRegistry registry = Substitute.For<IChannelRegistry>();
+        registry.Get(Broadcaster).Returns(_ => stored);
+        registry
+            .GetOrCreateAsync(
+                Broadcaster,
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(callInfo =>
+            {
+                stored ??= new()
+                {
+                    BroadcasterId = Broadcaster,
+                    TwitchChannelId = callInfo.ArgAt<string>(1),
+                    ChannelName = callInfo.ArgAt<string>(2),
+                    IsLive = true,
+                };
+                return Task.FromResult(stored);
+            });
+
+        NomNomzBot.Application.Commands.Services.IEventResponseExecutor executor =
+            Substitute.For<NomNomzBot.Application.Commands.Services.IEventResponseExecutor>();
+
+        // One scope factory serves BOTH seams the handler resolves scoped services from:
+        // EnsureChannelLoadedAsync (IApplicationDbContext) and FireSessionFirstMessageAsync
+        // (IEventResponseExecutor) — exactly the production DI shape.
+        ServiceCollection services = new();
+        services.AddSingleton<IApplicationDbContext>(db);
+        services.AddSingleton(executor);
+        ServiceProvider provider = services.BuildServiceProvider();
+
+        ChatMessageHandler sut = new(
+            registry,
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            Substitute.For<ICooldownManager>(),
+            Substitute.For<IChatProvider>(),
+            Substitute.For<IPipelineEngine>(),
+            Substitute.For<IBuiltinCommandCatalog>(),
+            Substitute.For<ITemplateResolver>(),
+            Substitute.For<IEventBus>(),
+            new(),
+            TimeProvider.System,
+            NullLogger<ChatMessageHandler>.Instance
+        );
+
+        kickMessage = new()
+        {
+            BroadcasterId = Broadcaster,
+            MessageId = "kick-msg-1",
+            TwitchBroadcasterId = "kick-ext-1",
+            Provider = "kick",
+            UserId = "kick-viewer-1",
+            UserDisplayName = "KickViewer",
+            UserLogin = "kickviewer",
+            Message = "hello from kick", // plain chat — no "!command" prefix
+            Fragments = [],
+            Badges = [],
+            IsSubscriber = false,
+            IsVip = false,
+            IsModerator = false,
+            IsBroadcaster = false,
+        };
+
+        return (sut, registry, executor);
     }
 
     // ── live-game precedence: an active round shadows a same-named command ────

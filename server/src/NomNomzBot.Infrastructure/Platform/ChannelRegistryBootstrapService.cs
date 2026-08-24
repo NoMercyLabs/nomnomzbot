@@ -68,9 +68,19 @@ public sealed class ChannelRegistryBootstrapService : IHostedService
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
+        // Provider-agnostic: every live channel row gets pre-loaded regardless of which platform it runs
+        // on. TwitchChannelId is Twitch-only (null for a Kick/YouTube-only channel), so filtering on it
+        // silently dropped every non-Twitch channel from the bootstrap pass — a Kick-only channel never
+        // got a registry entry until its first chat message forced a lazy load, and until then welcome /
+        // triggers / timers never fired. A row carries its platform channel id in EITHER TwitchChannelId
+        // (Twitch) or ExternalChannelId (platform-identity.md §9.4's provider-agnostic key, set for every
+        // provider including Twitch on a fully-backfilled row) — accept a row with either populated so an
+        // older Twitch row that only ever got TwitchChannelId written still bootstraps.
         List<Channel> channels = await db
             .Channels.IgnoreQueryFilters()
-            .Where(c => c.DeletedAt == null && c.TwitchChannelId != null)
+            .Where(c =>
+                c.DeletedAt == null && (c.TwitchChannelId != null || c.ExternalChannelId != "")
+            )
             .ToListAsync(cancellationToken);
 
         _logger.LogInformation(
@@ -82,9 +92,15 @@ public sealed class ChannelRegistryBootstrapService : IHostedService
         {
             try
             {
+                // Prefer the provider-agnostic key; fall back to the legacy Twitch-only field for a row
+                // that predates ExternalChannelId being backfilled.
+                string platformChannelId = !string.IsNullOrEmpty(channel.ExternalChannelId)
+                    ? channel.ExternalChannelId
+                    : channel.TwitchChannelId!;
+
                 await _registry.GetOrCreateAsync(
                     channel.Id,
-                    channel.TwitchChannelId!,
+                    platformChannelId,
                     channel.Name,
                     cancellationToken
                 );
