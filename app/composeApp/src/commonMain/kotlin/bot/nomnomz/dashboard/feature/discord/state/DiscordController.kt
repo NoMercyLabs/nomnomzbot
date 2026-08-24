@@ -17,6 +17,7 @@ import bot.nomnomz.dashboard.core.network.CreateDiscordConfigBody
 import bot.nomnomz.dashboard.core.network.CreateDiscordRoleBody
 import bot.nomnomz.dashboard.core.network.DiscordApi
 import bot.nomnomz.dashboard.core.network.DiscordConfigPreview
+import bot.nomnomz.dashboard.core.network.DiscordEmbed
 import bot.nomnomz.dashboard.core.network.DiscordDispatchLogEntry
 import bot.nomnomz.dashboard.core.network.DiscordGuildChannel
 import bot.nomnomz.dashboard.core.network.DiscordGuildConnection
@@ -98,6 +99,8 @@ class DiscordController(
         targetChannelId: String,
         messageTemplate: String,
         enabled: Boolean,
+        pingRoleId: String? = null,
+        embedConfig: DiscordEmbed? = null,
     ) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
         afterWrite(
@@ -108,7 +111,9 @@ class DiscordController(
                     triggerType = triggerType,
                     enabled = enabled,
                     targetChannelId = targetChannelId,
+                    pingRoleId = pingRoleId,
                     messageTemplate = messageTemplate,
+                    embedConfig = embedConfig,
                 ),
             )
         )
@@ -123,6 +128,8 @@ class DiscordController(
         targetChannelId: String,
         messageTemplate: String,
         enabled: Boolean,
+        pingRoleId: String? = null,
+        embedConfig: DiscordEmbed? = null,
     ) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
         val current: DiscordNotificationConfig =
@@ -135,6 +142,8 @@ class DiscordController(
                     enabled = enabled,
                     targetChannelId = targetChannelId,
                     messageTemplate = messageTemplate,
+                    pingRoleId = pingRoleId,
+                    embedConfig = embedConfig,
                 ),
             )
         )
@@ -328,6 +337,8 @@ private fun DiscordNotificationConfig.toUpdateBody(
     enabled: Boolean = this.enabled,
     targetChannelId: String = this.targetChannelId,
     messageTemplate: String? = this.messageTemplate,
+    pingRoleId: String? = this.pingRoleId,
+    embedConfig: DiscordEmbed? = this.embedConfig,
 ): UpdateDiscordConfigBody =
     UpdateDiscordConfigBody(
         enabled = enabled,

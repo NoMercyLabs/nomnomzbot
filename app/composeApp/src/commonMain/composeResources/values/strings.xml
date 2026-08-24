@@ -1684,6 +1684,7 @@
     <string name="picklists_item_count">%1$d responses</string>
     <string name="picklists_edit_action">Edit %1$s</string>
     <string name="picklists_delete_action">Delete %1$s</string>
+    <string name="picklists_row_type">Pick list</string>
     <string name="picklists_delete_title">Delete list?</string>
     <string name="picklists_delete_message">Delete the random-response list '%1$s'? This can't be undone.</string>
     <string name="picklists_delete_confirm">Delete</string>
@@ -1990,12 +1991,38 @@
     <string name="discord_dialog_create_title">New notification rule</string>
     <string name="discord_dialog_edit_title">Edit notification rule</string>
     <string name="discord_dialog_trigger_label">Trigger event</string>
+    <string name="discord_dialog_trigger_hint">When this happens on stream, the bot posts the message below to the channel you pick.</string>
+    <string name="discord_dialog_trigger_locked_hint">The trigger can’t be changed after the rule is created — delete and recreate it to pick a different event.</string>
     <string name="discord_dialog_channel_label">Discord channel ID</string>
+    <string name="discord_dialog_channel_picker">Discord channel</string>
+    <string name="discord_dialog_channel_hint">The bot posts here, in the linked Discord server.</string>
     <string name="discord_dialog_message_label">Message</string>
     <string name="discord_dialog_enabled_label">Enabled</string>
+    <string name="discord_dialog_ping_role_label">Ping role (optional)</string>
+    <string name="discord_dialog_ping_role_none">No ping</string>
+    <string name="discord_dialog_embed_title_label">Embed title (optional)</string>
+    <string name="discord_dialog_embed_description_label">Embed description (optional)</string>
+    <string name="discord_dialog_helper_hint">Use {{streamer}}, {{game}}, {{title}} and {{viewers}} in the message — they’re filled in with real stream data when the bot posts.</string>
     <string name="discord_dialog_create">Add</string>
     <string name="discord_dialog_save">Save</string>
     <string name="discord_dialog_cancel">Cancel</string>
+    <!-- Discord: channel/role picker honest states -->
+    <string name="discord_picker_loading">Loading from Discord…</string>
+    <string name="discord_picker_error">Couldn’t reach Discord: %1$s</string>
+    <string name="discord_picker_retry">Retry</string>
+    <string name="discord_picker_empty_channels">This server has no channels the bot can see</string>
+    <string name="discord_picker_empty_roles">This server has no roles yet</string>
+    <string name="discord_channel_category_none">No category</string>
+    <string name="discord_channel_not_postable">Not a text channel — pick a text or announcement channel</string>
+    <string name="discord_channel_type_text">Text</string>
+    <string name="discord_channel_type_announcement">Announcement</string>
+    <string name="discord_channel_type_voice">Voice</string>
+    <string name="discord_channel_type_category">Category</string>
+    <string name="discord_channel_type_forum">Forum</string>
+    <string name="discord_channel_type_stage">Stage</string>
+    <string name="discord_channel_type_thread">Thread</string>
+    <string name="discord_channel_type_other">Other</string>
+    <string name="discord_preview_unavailable_create">Save the rule first to preview the rendered message.</string>
 
     <!-- Roles &amp; permits page. -->
     <string name="roles_loading">Loading roles…</string>

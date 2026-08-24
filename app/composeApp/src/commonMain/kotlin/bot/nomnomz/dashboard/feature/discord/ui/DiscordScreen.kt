@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.feature.discord.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,9 +21,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -62,6 +67,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.DiscordConfigPreview
 import bot.nomnomz.dashboard.core.network.DiscordDispatchLogEntry
+import bot.nomnomz.dashboard.core.network.DiscordEmbed
 import bot.nomnomz.dashboard.core.network.DiscordGuildChannel
 import bot.nomnomz.dashboard.core.network.DiscordGuildConnection
 import bot.nomnomz.dashboard.core.network.DiscordGuildRole
@@ -76,7 +82,31 @@ import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.discord_action_error
+import nomnomzbot.composeapp.generated.resources.discord_channel_category_none
+import nomnomzbot.composeapp.generated.resources.discord_channel_not_postable
+import nomnomzbot.composeapp.generated.resources.discord_channel_type_announcement
+import nomnomzbot.composeapp.generated.resources.discord_channel_type_category
+import nomnomzbot.composeapp.generated.resources.discord_channel_type_forum
+import nomnomzbot.composeapp.generated.resources.discord_channel_type_other
+import nomnomzbot.composeapp.generated.resources.discord_channel_type_stage
+import nomnomzbot.composeapp.generated.resources.discord_channel_type_text
+import nomnomzbot.composeapp.generated.resources.discord_channel_type_thread
+import nomnomzbot.composeapp.generated.resources.discord_channel_type_voice
 import nomnomzbot.composeapp.generated.resources.discord_config_load_error
+import nomnomzbot.composeapp.generated.resources.discord_dialog_channel_hint
+import nomnomzbot.composeapp.generated.resources.discord_dialog_channel_picker
+import nomnomzbot.composeapp.generated.resources.discord_dialog_embed_description_label
+import nomnomzbot.composeapp.generated.resources.discord_dialog_embed_title_label
+import nomnomzbot.composeapp.generated.resources.discord_dialog_helper_hint
+import nomnomzbot.composeapp.generated.resources.discord_dialog_ping_role_label
+import nomnomzbot.composeapp.generated.resources.discord_dialog_ping_role_none
+import nomnomzbot.composeapp.generated.resources.discord_dialog_trigger_hint
+import nomnomzbot.composeapp.generated.resources.discord_dialog_trigger_locked_hint
+import nomnomzbot.composeapp.generated.resources.discord_picker_empty_channels
+import nomnomzbot.composeapp.generated.resources.discord_picker_empty_roles
+import nomnomzbot.composeapp.generated.resources.discord_picker_error
+import nomnomzbot.composeapp.generated.resources.discord_picker_loading
+import nomnomzbot.composeapp.generated.resources.discord_picker_retry
 import nomnomzbot.composeapp.generated.resources.discord_consent_approve
 import nomnomzbot.composeapp.generated.resources.discord_consent_approve_action
 import nomnomzbot.composeapp.generated.resources.discord_consent_approve_title
@@ -161,6 +191,56 @@ import nomnomzbot.composeapp.generated.resources.discord_toggle_action
 import nomnomzbot.composeapp.generated.resources.shell_nav_discord
 import org.jetbrains.compose.resources.stringResource
 
+// A live-from-Discord picker's honest load state. [Loading] and [Error] are distinct from a genuinely empty
+// [Loaded] list — collapsing a failed fetch into an empty list would read as "this server has no channels",
+// sending the operator hunting a bug that isn't there. See CLAUDE.md's honest-states rule for this slice.
+private sealed interface PickerState<out T> {
+    data object Loading : PickerState<Nothing>
+    data class Error(val detail: String) : PickerState<Nothing>
+    data class Loaded<T>(val value: T) : PickerState<T>
+}
+
+private fun <T> ApiResult<T>.toPickerState(): PickerState<T> =
+    when (this) {
+        is ApiResult.Ok -> PickerState.Loaded(value)
+        is ApiResult.Failure -> PickerState.Error(error.message)
+    }
+
+// Discord channel type constants the picker cares about (Discord's numeric channel types).
+private const val ChannelTypeText = 0
+private const val ChannelTypeVoice = 2
+private const val ChannelTypeCategory = 4
+private const val ChannelTypeAnnouncement = 5
+private const val ChannelTypeStage = 13
+private const val ChannelTypeForum = 15
+
+// A channel can host the bot's post only if it is a text-like channel (regular text or announcement). Every
+// other type — voice, category, stage, forum, thread — is shown in the picker but disabled with a reason,
+// per the slice's "unselectable with a reason, never hidden" rule.
+private fun DiscordGuildChannel.isPostable(): Boolean = type == ChannelTypeText || type == ChannelTypeAnnouncement
+
+@Composable
+private fun channelTypeLabel(type: Int): String {
+    val resource =
+        when (type) {
+            ChannelTypeText -> Res.string.discord_channel_type_text
+            ChannelTypeAnnouncement -> Res.string.discord_channel_type_announcement
+            ChannelTypeVoice -> Res.string.discord_channel_type_voice
+            ChannelTypeCategory -> Res.string.discord_channel_type_category
+            ChannelTypeForum -> Res.string.discord_channel_type_forum
+            ChannelTypeStage -> Res.string.discord_channel_type_stage
+            in 10..12 -> Res.string.discord_channel_type_thread
+            else -> Res.string.discord_channel_type_other
+        }
+    return stringResource(resource)
+}
+
+// The category (parent) name for a channel, resolved from the same channel list — Discord channels carry a
+// [DiscordGuildChannel.parentId] pointing at a category channel (type 4). Distinguishes "#general" in two
+// categories, per the slice.
+private fun categoryNameFor(channel: DiscordGuildChannel, allChannels: List<DiscordGuildChannel>): String? =
+    channel.parentId?.let { parentId -> allChannels.firstOrNull { it.id == parentId }?.name }
+
 // The Discord page (frontend-ia.md, Stream group): the channel's linked Discord guild(s) and, per guild, the
 // notification rules — which channel-event trigger (stream.online, channel.follow, …) posts to which Discord
 // channel, with what message, on or off. All real data from [DiscordController]. The screen is a pure
@@ -193,7 +273,31 @@ fun DiscordScreen(controller: DiscordController, role: ManagementRole?) {
     // roles are loaded per card on connection.id, which a role write never changes, leaving the card stale.
     var rolesVersion: Int by remember { mutableStateOf(0) }
 
+    // The live Discord channel/role lists for every linked guild, keyed by connection id — loaded once the
+    // guild list is known so the rule dialog, the role dialogs and the rule list's channel-name resolution all
+    // share one honest (Loading / Error / Loaded) fetch instead of each re-fetching and re-guessing on failure.
+    var channelsByConnection: Map<String, PickerState<List<DiscordGuildChannel>>> by
+        remember { mutableStateOf(emptyMap()) }
+    var guildRolesByConnection: Map<String, PickerState<List<DiscordGuildRole>>> by
+        remember { mutableStateOf(emptyMap()) }
+
     LaunchedEffect(Unit) { controller.load() }
+
+    val readyGuildIds: List<String> = (state as? DiscordState.Ready)?.guilds?.map { it.connection.id }.orEmpty()
+    LaunchedEffect(readyGuildIds) {
+        readyGuildIds.forEach { connectionId ->
+            channelsByConnection = channelsByConnection + (connectionId to PickerState.Loading)
+            channelsByConnection =
+                channelsByConnection + (connectionId to controller.guildChannels(connectionId).toPickerState())
+        }
+    }
+    LaunchedEffect(readyGuildIds) {
+        readyGuildIds.forEach { connectionId ->
+            guildRolesByConnection = guildRolesByConnection + (connectionId to PickerState.Loading)
+            guildRolesByConnection =
+                guildRolesByConnection + (connectionId to controller.guildRoles(connectionId).toPickerState())
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
         when (val current: DiscordState = state) {
@@ -208,14 +312,19 @@ fun DiscordScreen(controller: DiscordController, role: ManagementRole?) {
                     manage = manage,
                     controller = controller,
                     rolesVersion = rolesVersion,
+                    channelsByConnection = channelsByConnection,
                     onNewRule = { connectionId -> editor = RuleEditor.create(connectionId) },
-                    onEditRule = { rule ->
+                    onEditRule = { connectionId, rule ->
                         editor =
                             RuleEditor.edit(
+                                connectionId = connectionId,
                                 configId = rule.id,
                                 triggerType = rule.triggerType,
                                 targetChannelId = rule.targetChannelId,
                                 message = rule.messageTemplate.orEmpty(),
+                                pingRoleId = rule.pingRoleId,
+                                embedTitle = rule.embedConfig?.title.orEmpty(),
+                                embedDescription = rule.embedConfig?.description.orEmpty(),
                                 enabled = rule.enabled,
                             )
                     },
@@ -246,14 +355,55 @@ fun DiscordScreen(controller: DiscordController, role: ManagementRole?) {
     editor?.let { open ->
         RuleFormDialog(
             editor = open,
+            channels = channelsByConnection[open.connectionId] ?: PickerState.Loading,
+            roles = guildRolesByConnection[open.connectionId] ?: PickerState.Loading,
+            onRetryChannels = {
+                scope.launch {
+                    channelsByConnection =
+                        channelsByConnection + (open.connectionId to PickerState.Loading)
+                    channelsByConnection =
+                        channelsByConnection +
+                            (open.connectionId to controller.guildChannels(open.connectionId).toPickerState())
+                }
+            },
+            onRetryRoles = {
+                scope.launch {
+                    guildRolesByConnection =
+                        guildRolesByConnection + (open.connectionId to PickerState.Loading)
+                    guildRolesByConnection =
+                        guildRolesByConnection +
+                            (open.connectionId to controller.guildRoles(open.connectionId).toPickerState())
+                }
+            },
             onDismiss = { editor = null },
-            onSubmit = { triggerType, channelId, message, enabled ->
+            onSubmit = { triggerType, channelId, message, pingRoleId, embedTitle, embedDescription, enabled ->
                 editor = null
+                val embed: DiscordEmbed? =
+                    if (embedTitle.isBlank() && embedDescription.isBlank()) null
+                    else DiscordEmbed(
+                        title = embedTitle.ifBlank { null },
+                        description = embedDescription.ifBlank { null },
+                    )
                 scope.launch {
                     if (open.isEdit) {
-                        controller.updateConfig(open.configId, channelId, message, enabled)
+                        controller.updateConfig(
+                            open.configId,
+                            channelId,
+                            message,
+                            enabled,
+                            pingRoleId = pingRoleId,
+                            embedConfig = embed,
+                        )
                     } else {
-                        controller.createConfig(open.connectionId, triggerType, channelId, message, enabled)
+                        controller.createConfig(
+                            open.connectionId,
+                            triggerType,
+                            channelId,
+                            message,
+                            enabled,
+                            pingRoleId = pingRoleId,
+                            embedConfig = embed,
+                        )
                     }
                 }
             },
@@ -373,8 +523,9 @@ private fun ReadyContent(
     manage: ManageDecision,
     controller: DiscordController,
     rolesVersion: Int,
+    channelsByConnection: Map<String, PickerState<List<DiscordGuildChannel>>>,
     onNewRule: (connectionId: String) -> Unit,
-    onEditRule: (DiscordNotificationConfig) -> Unit,
+    onEditRule: (connectionId: String, DiscordNotificationConfig) -> Unit,
     onToggleRule: (DiscordNotificationConfig, Boolean) -> Unit,
     onDeleteRule: (DiscordNotificationConfig) -> Unit,
     onPreviewRule: (DiscordNotificationConfig) -> Unit,
@@ -406,8 +557,9 @@ private fun ReadyContent(
                     manage = manage,
                     controller = controller,
                     rolesVersion = rolesVersion,
+                    channels = channelsByConnection[guild.connection.id] ?: PickerState.Loading,
                     onNewRule = { onNewRule(guild.connection.id) },
-                    onEditRule = onEditRule,
+                    onEditRule = { rule -> onEditRule(guild.connection.id, rule) },
                     onToggleRule = onToggleRule,
                     onDeleteRule = onDeleteRule,
                     onPreviewRule = onPreviewRule,
@@ -431,6 +583,7 @@ private fun GuildCard(
     controller: DiscordController,
     // Bumped by the parent after a role create/edit/delete so this card re-fetches its self-assign roles.
     rolesVersion: Int,
+    channels: PickerState<List<DiscordGuildChannel>>,
     onNewRule: () -> Unit,
     onEditRule: (DiscordNotificationConfig) -> Unit,
     onToggleRule: (DiscordNotificationConfig, Boolean) -> Unit,
@@ -490,11 +643,16 @@ private fun GuildCard(
                     color = tokens.mutedForeground,
                 )
             } else {
+                // Resolve each rule's target channel id to its real Discord name (the slice's "no snowflake in
+                // the list" requirement) — a lookup built from the same guild-channels fetch used by the picker.
+                val channelNames: Map<String, String> =
+                    (channels as? PickerState.Loaded)?.value?.associate { it.id to (it.name ?: it.id) }.orEmpty()
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column {
                         guild.configs.forEachIndexed { index, rule ->
                             RuleRow(
                                 rule = rule,
+                                channelName = channelNames[rule.targetChannelId] ?: rule.targetChannelId,
                                 manage = manage,
                                 onEdit = { onEditRule(rule) },
                                 onToggle = { enabled -> onToggleRule(rule, enabled) },
@@ -674,6 +832,7 @@ private fun GuildHeader(
 @Composable
 private fun RuleRow(
     rule: DiscordNotificationConfig,
+    channelName: String,
     manage: ManageDecision,
     onEdit: () -> Unit,
     onToggle: (Boolean) -> Unit,
@@ -684,7 +843,7 @@ private fun RuleRow(
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    val channelLine: String = stringResource(Res.string.discord_rule_channel, rule.targetChannelId)
+    val channelLine: String = stringResource(Res.string.discord_rule_channel, "#$channelName")
     val message: String =
         rule.messageTemplate?.takeIf { it.isNotBlank() }
             ?: stringResource(Res.string.discord_rule_no_message)
@@ -761,21 +920,58 @@ private fun RuleRow(
     }
 }
 
+// Curated well-known EventSub triggers (CLAUDE.md's Twitch EventSub topic catalogue) offered in the trigger
+// dropdown — real display names, never a bare technical string the operator has to guess at.
+private val KnownTriggers: List<Pair<String, String>> =
+    listOf(
+        "stream.online" to "Stream goes live",
+        "stream.offline" to "Stream ends",
+        "channel.follow" to "New follower",
+        "channel.subscribe" to "New subscriber",
+        "channel.subscription.gift" to "Gifted sub",
+        "channel.cheer" to "Cheer / bits",
+        "channel.raid" to "Incoming raid",
+        "channel.poll.begin" to "Poll starts",
+        "channel.prediction.begin" to "Prediction starts",
+    )
+
+private fun triggerLabel(triggerType: String): String =
+    KnownTriggers.firstOrNull { it.first == triggerType }?.second ?: triggerType
+
 // One composable for both create and edit (DRY): a [RuleEditor] without a config id = create (the trigger +
 // channel are editable), with one = edit (the trigger is read-only — the backend treats it as immutable on the
-// row). The affirmative button is disabled until the trigger, channel and message are all non-blank.
+// row). The affirmative button is disabled until the trigger, channel and message are all non-blank. Channel
+// and ping-role are real Discord pickers (never a typed snowflake) fed by the guild's live channel/role lists,
+// which are shown honestly: loading, an unreachable-Discord error with retry, or the resolved list (possibly
+// genuinely empty) — three visibly different states, per the slice.
 @Composable
 private fun RuleFormDialog(
     editor: RuleEditor,
+    channels: PickerState<List<DiscordGuildChannel>>,
+    roles: PickerState<List<DiscordGuildRole>>,
+    onRetryChannels: () -> Unit,
+    onRetryRoles: () -> Unit,
     onDismiss: () -> Unit,
-    onSubmit: (triggerType: String, channelId: String, message: String, enabled: Boolean) -> Unit,
+    onSubmit: (
+        triggerType: String,
+        channelId: String,
+        message: String,
+        pingRoleId: String?,
+        embedTitle: String,
+        embedDescription: String,
+        enabled: Boolean,
+    ) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
 
     var triggerType: String by remember { mutableStateOf(editor.triggerType) }
     var channelId: String by remember { mutableStateOf(editor.targetChannelId) }
     var message: String by remember { mutableStateOf(editor.message) }
+    var pingRoleId: String? by remember { mutableStateOf(editor.pingRoleId) }
+    var embedTitle: String by remember { mutableStateOf(editor.embedTitle) }
+    var embedDescription: String by remember { mutableStateOf(editor.embedDescription) }
     var enabled: Boolean by remember { mutableStateOf(editor.enabled) }
 
     val canSubmit: Boolean = triggerType.isNotBlank() && channelId.isNotBlank() && message.isNotBlank()
@@ -793,25 +989,75 @@ private fun RuleFormDialog(
         title = { Text(text = title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                AppTextField(
-                    value = triggerType,
-                    onValueChange = { triggerType = it },
-                    enabled = !editor.isEdit,
-                    modifier = Modifier.fillMaxWidth(),
-                    label = stringResource(Res.string.discord_dialog_trigger_label),
+                Text(
+                    text = stringResource(Res.string.discord_dialog_trigger_hint),
+                    style = typography.xs,
+                    color = tokens.mutedForeground,
                 )
-                AppTextField(
-                    value = channelId,
-                    onValueChange = { channelId = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = stringResource(Res.string.discord_dialog_channel_label),
+                if (editor.isEdit) {
+                    // Immutable on the row — shown as its friendly label, not the raw snowflake-like string,
+                    // with an explanation of why it can't be changed here.
+                    Text(text = triggerLabel(triggerType), style = typography.base, color = tokens.cardForeground)
+                    Text(
+                        text = stringResource(Res.string.discord_dialog_trigger_locked_hint),
+                        style = typography.xs,
+                        color = tokens.mutedForeground,
+                    )
+                } else {
+                    GuildPickerField(
+                        label = stringResource(Res.string.discord_dialog_trigger_label),
+                        options = KnownTriggers,
+                        selectedId = triggerType,
+                        onSelect = { triggerType = it },
+                    )
+                }
+
+                Text(
+                    text = stringResource(Res.string.discord_dialog_channel_hint),
+                    style = typography.xs,
+                    color = tokens.mutedForeground,
                 )
+                ChannelPickerField(
+                    label = stringResource(Res.string.discord_dialog_channel_picker),
+                    channels = channels,
+                    selectedId = channelId,
+                    onSelect = { channelId = it },
+                    onRetry = onRetryChannels,
+                )
+
                 AppTextField(
                     value = message,
                     onValueChange = { message = it },
                     modifier = Modifier.fillMaxWidth(),
                     label = stringResource(Res.string.discord_dialog_message_label),
                 )
+                Text(
+                    text = stringResource(Res.string.discord_dialog_helper_hint),
+                    style = typography.xs,
+                    color = tokens.mutedForeground,
+                )
+
+                RolePickerField(
+                    label = stringResource(Res.string.discord_dialog_ping_role_label),
+                    roles = roles,
+                    selectedId = pingRoleId,
+                    onSelect = { pingRoleId = it },
+                    onRetry = onRetryRoles,
+                )
+
+                AppTextField(
+                    value = embedTitle,
+                    onValueChange = { embedTitle = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = stringResource(Res.string.discord_dialog_embed_title_label),
+                )
+                AppTextField(
+                    value = embedDescription,
+                    onValueChange = { embedDescription = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = stringResource(Res.string.discord_dialog_embed_description_label),
+                )
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -828,7 +1074,9 @@ private fun RuleFormDialog(
         },
         confirmButton = {
             TextButton(
-                onClick = { onSubmit(triggerType, channelId, message, enabled) },
+                onClick = {
+                    onSubmit(triggerType, channelId, message, pingRoleId, embedTitle, embedDescription, enabled)
+                },
                 enabled = canSubmit,
             ) {
                 Text(text = submitLabel, color = if (canSubmit) tokens.primary else tokens.mutedForeground)
@@ -840,6 +1088,191 @@ private fun RuleFormDialog(
             }
         },
     )
+}
+
+// The channel picker: real Discord channel names with their type badge and category, backing the rule dialog's
+// and the post-button dialog's channel field. A channel the bot can't post to (not a text/announcement type)
+// stays visible but disabled, labelled with the reason — hiding it would look like a missing channel bug.
+// [channels] carries the three honest load states: Loading / Error(detail, with retry) / Loaded(list, possibly
+// genuinely empty).
+@Composable
+private fun ChannelPickerField(
+    label: String,
+    channels: PickerState<List<DiscordGuildChannel>>,
+    selectedId: String,
+    onSelect: (String) -> Unit,
+    onRetry: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+        Text(text = label, style = typography.sm, color = tokens.mutedForeground)
+        when (channels) {
+            is PickerState.Loading ->
+                Text(
+                    text = stringResource(Res.string.discord_picker_loading),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                )
+            is PickerState.Error ->
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                    Text(
+                        text = stringResource(Res.string.discord_picker_error, channels.detail),
+                        style = typography.sm,
+                        color = tokens.destructiveForeground,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = onRetry) {
+                        Text(text = stringResource(Res.string.discord_picker_retry), color = tokens.primary)
+                    }
+                }
+            is PickerState.Loaded ->
+                if (channels.value.isEmpty()) {
+                    Text(
+                        text = stringResource(Res.string.discord_picker_empty_channels),
+                        style = typography.sm,
+                        color = tokens.mutedForeground,
+                    )
+                } else {
+                    var expanded: Boolean by remember { mutableStateOf(false) }
+                    val selected: DiscordGuildChannel? = channels.value.firstOrNull { it.id == selectedId }
+                    val selectedLabel: String? = selected?.let { "#" + (it.name ?: it.id) }
+
+                    Box {
+                        TextButton(onClick = { expanded = true }) {
+                            Text(
+                                text = selectedLabel ?: label,
+                                color = if (selectedLabel != null) tokens.cardForeground else tokens.mutedForeground,
+                            )
+                        }
+                        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                            channels.value.sortedBy { it.position }.forEach { channel ->
+                                val postable: Boolean = channel.isPostable()
+                                val category: String? = categoryNameFor(channel, channels.value)
+                                val typeText: String = channelTypeLabel(channel.type)
+                                val categoryText: String =
+                                    category ?: stringResource(Res.string.discord_channel_category_none)
+                                DropdownMenuItem(
+                                    text = {
+                                        Column {
+                                            Text(
+                                                text = "#" + (channel.name ?: channel.id),
+                                                style = typography.sm,
+                                                color = if (postable) tokens.cardForeground else tokens.mutedForeground,
+                                            )
+                                            Text(
+                                                text = "$typeText · $categoryText" +
+                                                    if (!postable) " · " + stringResource(Res.string.discord_channel_not_postable) else "",
+                                                style = typography.xs,
+                                                color = tokens.mutedForeground,
+                                            )
+                                        }
+                                    },
+                                    enabled = postable,
+                                    onClick = {
+                                        onSelect(channel.id)
+                                        expanded = false
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+        }
+    }
+}
+
+// The optional ping-role picker: real Discord role names with their colour swatch, plus a "no ping" option.
+// Same three honest states as [ChannelPickerField].
+@Composable
+private fun RolePickerField(
+    label: String,
+    roles: PickerState<List<DiscordGuildRole>>,
+    selectedId: String?,
+    onSelect: (String?) -> Unit,
+    onRetry: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+        Text(text = label, style = typography.sm, color = tokens.mutedForeground)
+        when (roles) {
+            is PickerState.Loading ->
+                Text(
+                    text = stringResource(Res.string.discord_picker_loading),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                )
+            is PickerState.Error ->
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                    Text(
+                        text = stringResource(Res.string.discord_picker_error, roles.detail),
+                        style = typography.sm,
+                        color = tokens.destructiveForeground,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = onRetry) {
+                        Text(text = stringResource(Res.string.discord_picker_retry), color = tokens.primary)
+                    }
+                }
+            is PickerState.Loaded ->
+                if (roles.value.isEmpty()) {
+                    Text(
+                        text = stringResource(Res.string.discord_picker_empty_roles),
+                        style = typography.sm,
+                        color = tokens.mutedForeground,
+                    )
+                } else {
+                    var expanded: Boolean by remember { mutableStateOf(false) }
+                    val noPingLabel: String = stringResource(Res.string.discord_dialog_ping_role_none)
+                    val selectedLabel: String =
+                        roles.value.firstOrNull { it.id == selectedId }?.name ?: noPingLabel
+
+                    Box {
+                        TextButton(onClick = { expanded = true }) {
+                            Text(text = selectedLabel, color = tokens.cardForeground)
+                        }
+                        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                            DropdownMenuItem(
+                                text = { Text(text = noPingLabel, style = typography.sm, color = tokens.cardForeground) },
+                                onClick = {
+                                    onSelect(null)
+                                    expanded = false
+                                },
+                            )
+                            roles.value.sortedByDescending { it.position }.forEach { role ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                                        ) {
+                                            // The role's own Discord colour (per-role data, like the user's Twitch
+                                            // chat colour elsewhere in the app) — not a design-system token.
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(spacing.s2)
+                                                    .clip(CircleShape)
+                                                    .background(Color(0xFF000000 or role.color.toLong()))
+                                            )
+                                            Text(text = role.name, style = typography.sm, color = tokens.cardForeground)
+                                        }
+                                    },
+                                    onClick = {
+                                        onSelect(role.id)
+                                        expanded = false
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+        }
+    }
 }
 
 // ── Roles section ────────────────────────────────────────────────────────────
@@ -1495,6 +1928,9 @@ private data class RuleEditor(
     val triggerType: String,
     val targetChannelId: String,
     val message: String,
+    val pingRoleId: String?,
+    val embedTitle: String,
+    val embedDescription: String,
     val enabled: Boolean,
 ) {
     companion object {
@@ -1506,23 +1942,33 @@ private data class RuleEditor(
                 triggerType = "",
                 targetChannelId = "",
                 message = "",
+                pingRoleId = null,
+                embedTitle = "",
+                embedDescription = "",
                 enabled = true,
             )
 
         fun edit(
+            connectionId: String,
             configId: String,
             triggerType: String,
             targetChannelId: String,
             message: String,
+            pingRoleId: String?,
+            embedTitle: String,
+            embedDescription: String,
             enabled: Boolean,
         ): RuleEditor =
             RuleEditor(
                 isEdit = true,
-                connectionId = "",
+                connectionId = connectionId,
                 configId = configId,
                 triggerType = triggerType,
                 targetChannelId = targetChannelId,
                 message = message,
+                pingRoleId = pingRoleId,
+                embedTitle = embedTitle,
+                embedDescription = embedDescription,
                 enabled = enabled,
             )
     }

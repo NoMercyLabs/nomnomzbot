@@ -1680,6 +1680,7 @@
     <string name="picklists_item_count">%1$d antwoorden</string>
     <string name="picklists_edit_action">%1$s bewerken</string>
     <string name="picklists_delete_action">%1$s verwijderen</string>
+    <string name="picklists_row_type">Keuzelijst</string>
     <string name="picklists_delete_title">Lijst verwijderen?</string>
     <string name="picklists_delete_message">De willekeurige-antwoordenlijst '%1$s' verwijderen? Dit kan niet ongedaan worden gemaakt.</string>
     <string name="picklists_delete_confirm">Verwijderen</string>
@@ -1986,12 +1987,38 @@
     <string name="discord_dialog_create_title">Nieuwe meldingsregel</string>
     <string name="discord_dialog_edit_title">Meldingsregel bewerken</string>
     <string name="discord_dialog_trigger_label">Triggergebeurtenis</string>
+    <string name="discord_dialog_trigger_hint">Als dit gebeurt tijdens de stream, plaatst de bot het bericht hieronder in het gekozen kanaal.</string>
+    <string name="discord_dialog_trigger_locked_hint">De trigger kan na het aanmaken niet meer worden gewijzigd — verwijder de regel en maak een nieuwe aan voor een andere gebeurtenis.</string>
     <string name="discord_dialog_channel_label">Discord-kanaal-ID</string>
+    <string name="discord_dialog_channel_picker">Discord-kanaal</string>
+    <string name="discord_dialog_channel_hint">De bot plaatst hier, in de gekoppelde Discord-server.</string>
     <string name="discord_dialog_message_label">Bericht</string>
     <string name="discord_dialog_enabled_label">Ingeschakeld</string>
+    <string name="discord_dialog_ping_role_label">Ping-rol (optioneel)</string>
+    <string name="discord_dialog_ping_role_none">Geen ping</string>
+    <string name="discord_dialog_embed_title_label">Embed-titel (optioneel)</string>
+    <string name="discord_dialog_embed_description_label">Embed-omschrijving (optioneel)</string>
+    <string name="discord_dialog_helper_hint">Gebruik {{streamer}}, {{game}}, {{title}} en {{viewers}} in het bericht — deze worden ingevuld met echte streamgegevens wanneer de bot plaatst.</string>
     <string name="discord_dialog_create">Toevoegen</string>
     <string name="discord_dialog_save">Opslaan</string>
     <string name="discord_dialog_cancel">Annuleren</string>
+    <!-- Discord: eerlijke status voor kanaal-/rolkiezers -->
+    <string name="discord_picker_loading">Laden vanaf Discord…</string>
+    <string name="discord_picker_error">Discord niet bereikbaar: %1$s</string>
+    <string name="discord_picker_retry">Opnieuw</string>
+    <string name="discord_picker_empty_channels">Deze server heeft geen kanalen die de bot kan zien</string>
+    <string name="discord_picker_empty_roles">Deze server heeft nog geen rollen</string>
+    <string name="discord_channel_category_none">Geen categorie</string>
+    <string name="discord_channel_not_postable">Geen tekstkanaal — kies een tekst- of aankondigingskanaal</string>
+    <string name="discord_channel_type_text">Tekst</string>
+    <string name="discord_channel_type_announcement">Aankondiging</string>
+    <string name="discord_channel_type_voice">Spraak</string>
+    <string name="discord_channel_type_category">Categorie</string>
+    <string name="discord_channel_type_forum">Forum</string>
+    <string name="discord_channel_type_stage">Stage</string>
+    <string name="discord_channel_type_thread">Thread</string>
+    <string name="discord_channel_type_other">Overig</string>
+    <string name="discord_preview_unavailable_create">Sla de regel eerst op om het weergegeven bericht te bekijken.</string>
 
     <!-- Roles &amp; permits page. -->
     <string name="roles_loading">Rollen laden…</string>
