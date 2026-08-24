@@ -78,6 +78,10 @@ stable — without dropping the planned requirements behind them.
   backend-authored, user-facing schema string is affected, not just widgets: the same question applies to
   the pipeline action field descriptors (S045) and any other server-supplied label/help/reason text.
   This blocks the S-CONSEQ law, which requires every control's purpose and effect text in en AND nl.
+  CONFIRMED SECOND SITE (found by S-TTS-TEMPLATED-VOICE): `PipelineActionFieldDescriptor`
+  (Application/Abstractions/Pipeline/PipelineActionFieldDescriptor.cs:48) has **no Description/help-text
+  property at all** — so a pipeline action field physically cannot carry the purpose/effect text the law
+  requires. Same root cause as the widget-schema gap; fix both in the one sweep.
   Done-when: backend-authored user-facing schema strings resolve through a translation mechanism with
   en + nl, the dashboard renders the viewer's locale, and a guard test fails on a schema string that has
   no translation entry. Sweep the WHOLE class in one pass — widgets, action descriptors, and any other
