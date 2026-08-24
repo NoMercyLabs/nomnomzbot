@@ -27,12 +27,12 @@ Read this block first. It is the only summary; everything below is detail.
 
 | Your words | Slice | State |
 |---|---|---|
-| pipeline page needs love, nested if/and/or, add-remove-reorder | S-PIPE-TREE | design DONE + settled - schema DONE - engine/editor next |
+| pipeline page needs love, nested if/and/or, add-remove-reorder | S-PIPE-TREE | design DONE - schema + nesting DONE (verified) - engine + API + editor next |
 | every reply can speak, template picks the voice | S-TTS-TEMPLATED-VOICE | DONE + verified |
 | make effects and repercussions visible | S-CONSEQ | law recorded, applies to every slice |
 | VS Code-web editor, real npm SDK, real event payloads | S-CODE-EDITOR | queued |
-| item pickers show a rich list, not opaque ids | S-RICH-PICKERS | backend building |
-| budget system for payment tiers by resource usage | S-BUDGETS | queued, gap confirmed |
+| item pickers show a rich list, not opaque ids | S-RICH-PICKERS | backend building - dashboard half after |
+| budget system for payment tiers by resource usage | S-BUDGETS | queued - intent recorded: recover real cost, not upsell |
 | old-bot behaviour only from generic blocks | (standing rule) | verified against the spec |
 | stream-facing first (commands + overlays) | (ordering) | in force |
 
