@@ -32,6 +32,26 @@ function Fail([string]$message) {
     exit 1
 }
 
+# Runs a native command and judges success ONLY by $LASTEXITCODE, never by the presence of stderr
+# output. Under Windows PowerShell 5.1, merging a native command's stderr into the pipeline via
+# `2>&1` while $ErrorActionPreference = "Stop" is in effect turns ANY stderr write (docker's normal
+# pull/build progress, ssh banners, etc.) into a terminating NativeCommandError, aborting the
+# script before the exit code is ever checked - even on a successful command. The fix: temporarily
+# relax $ErrorActionPreference to "Continue" for the duration of the native call, let stdout+stderr
+# interleave to the host for readability, and decide pass/fail from $LASTEXITCODE alone afterwards.
+# (Same fix as scripts/switchover.ps1, commit 7e2ba888.)
+function Invoke-NativeCommand([string]$cmd) {
+    $previousEap = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $out = Invoke-Expression "$cmd 2>&1" | Out-String
+    }
+    finally {
+        $ErrorActionPreference = $previousEap
+    }
+    return @{ Output = $out.TrimEnd("`r", "`n"); ExitCode = $LASTEXITCODE }
+}
+
 # ── Resolve inputs ────────────────────────────────────────────────────────────
 # Always expand to the FULL sha — `gh run list -c` silently returns nothing for a short one.
 $Sha = if ($Sha -eq "") { (git rev-parse HEAD).Trim() } else { (git rev-parse $Sha).Trim() }
@@ -113,8 +133,9 @@ echo "image_created=`$(docker inspect --format '{{.Created}}' ghcr.io/nomercylab
 echo "image_digest=`$(docker inspect --format '{{index .RepoDigests 0}}' ghcr.io/nomercylabs/nomnomzbot:latest)"
 echo "container=`$(docker ps --filter name=nomnomzbot-api --format '{{.Status}}')"
 "@
-$deployOut = ssh -i $sshKey -o StrictHostKeyChecking=accept-new $sshTarget $remote
-if ($LASTEXITCODE -ne 0) { Fail "ssh deploy step failed" }
+$deployResult = Invoke-NativeCommand "ssh -i `"$sshKey`" -o StrictHostKeyChecking=accept-new $sshTarget `"$remote`""
+if ($deployResult.ExitCode -ne 0) { Fail "ssh deploy step failed: $($deployResult.Output)" }
+$deployOut = $deployResult.Output
 
 $health = ($deployOut | Select-String '^health=(\d+)').Matches.Groups[1].Value
 $imageCreated = ($deployOut | Select-String '^image_created=(.+)').Matches.Groups[1].Value
