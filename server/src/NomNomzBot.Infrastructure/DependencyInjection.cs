@@ -876,6 +876,10 @@ public static class DependencyInjection
 
         // PipelineEngine (scoped — IPipelineEngine is not an I<X>Service, registered explicitly)
         services.AddScoped<IPipelineEngine, PipelineEngine>();
+        // Read-only H.4 PipelineExecution history (S008c) — also matches the I<X>Service convention and
+        // would be picked up by AddServicesByConvention below; registered explicitly for clarity here
+        // alongside its sibling IPipelineService/IPipelineEngine.
+        services.AddScoped<IPipelineExecutionQueryService, PipelineExecutionQueryService>();
         // The ONE event-response execution path every trigger source dispatches through (alert handlers,
         // supporter triggers, stream online/offline, reward redemptions). Not an I<X>Service — explicit.
         services.AddScoped<IEventResponseExecutor, EventResponseExecutor>();
