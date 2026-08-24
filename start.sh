@@ -72,9 +72,9 @@ say "OK  Java found ($(command -v java))"
 # through to the API on 5080 by default, so the browser only ever talks to one
 # origin and no env var is needed here.
 #
-# OAuth redirect URI for local dev is ALWAYS http://localhost:5173/api/v1/auth/twitch/callback — the
-# proxy forwards X-Forwarded-Host/Proto so the API's ResolvePublicOrigin reports 5173 (the origin the
-# browser is really on), not 5080. Register that one URL in the Twitch Developer Console for local dev.
+# OAuth redirect URI for local dev is ALWAYS http://localhost:5080/api/v1/auth/twitch/callback — the
+# dev proxy deliberately does NOT forward X-Forwarded-Host/Proto, so ResolvePublicOrigin reports the
+# API's own origin (5080), matching what's registered in the Twitch Developer Console.
 
 DASHBOARD_PORT=5173
 API_PORT=5080
@@ -146,7 +146,7 @@ say " API docs (Scalar)      : http://localhost:${API_PORT}/scalar"
 say " API health             : http://localhost:${API_PORT}/health"
 say " Twitch redirect URL    : register this in the Twitch Developer Console if"
 say "                           it isn't there already:"
-say "                           http://localhost:${DASHBOARD_PORT}/api/v1/auth/twitch/callback"
+say "                           http://localhost:${API_PORT}/api/v1/auth/twitch/callback"
 say "--------------------------------------------------------------------------"
 say " The dashboard needs a little longer to finish its first compile before"
 say " http://localhost:${DASHBOARD_PORT} responds — refresh once it does."

@@ -20,11 +20,9 @@
 
 const target = process.env.NNZ_DEV_BACKEND || "http://localhost:5080";
 
-// changeOrigin rewrites the Host header to the TARGET (5080), so ResolvePublicOrigin on the API side sees
-// 5080 and hands the owner a redirect URI he never actually browses (5173). Attach X-Forwarded-Host/Proto
-// from the ORIGINAL browser request so the API's forwarded-header resolution reports the origin the owner
-// is really on, matching every other reverse-proxy deployment (Cloudflare Tunnel, Proxmox) this resolver
-// already supports.
+// No X-Forwarded-Host/Proto here on purpose: the OAuth redirect_uri must match the URI registered
+// with the provider, which for local dev is the API's own origin (http://localhost:5080), not the
+// dev-server port the browser happens to be on. changeOrigin alone is enough for the proxy itself.
 config.devServer = config.devServer || {};
 config.devServer.proxy = [
     {
@@ -33,13 +31,5 @@ config.devServer.proxy = [
         changeOrigin: true,
         secure: true,
         ws: true,
-        // The installed http-proxy-middleware is 2.x (webpack-dev-server 4.x's dependency), whose hook is the
-        // top-level `onProxyReq` option — the nested `on: { proxyReq }` shape is a v3+/webpack-dev-server-5-only
-        // API and is silently ignored here (verified live: without this exact shape the header never reaches
-        // the API and ResolvePublicOrigin kept reporting :5080).
-        onProxyReq: (proxyReq, req) => {
-            proxyReq.setHeader("X-Forwarded-Host", req.headers.host);
-            proxyReq.setHeader("X-Forwarded-Proto", "http");
-        },
     },
 ];

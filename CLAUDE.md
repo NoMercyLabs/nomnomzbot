@@ -305,12 +305,14 @@ The dashboard dev server (`wasmJsBrowserDevelopmentRun`) listens on its own port
 reason. The two documented commands (`dotnet run` + `wasmJsBrowserDevelopmentRun`) run together with
 **zero flags and zero env vars** on a fresh clone. See *Running the Frontend* below.
 
-**OAuth redirect URI for local dev — always `http://localhost:5173/api/v1/auth/twitch/callback`.**
-The browser is on `5173`; the proxy forwards `X-Forwarded-Host`/`X-Forwarded-Proto` from that request
-so `ResolvePublicOrigin` reports `5173` (not the `5080` the API actually listens on) — matching every
-other reverse-proxy deployment this resolver supports (Cloudflare Tunnel, Proxmox). Register exactly
-that one URL in the Twitch Developer Console for local dev; `5080` alone is never a valid redirect
-target once the dev server is in front of it, because the browser never lands there directly.
+**OAuth redirect URI for local dev — always `http://localhost:5080/api/v1/auth/twitch/callback`.**
+The two-port dev proxy deliberately does **not** forward `X-Forwarded-Host`/`X-Forwarded-Proto`, so
+`ResolvePublicOrigin` reports the API's own origin (`5080`) rather than the dashboard dev-server port
+(`5173`) the browser happens to be on — the redirect must byte-match what's actually registered in
+the Twitch Developer Console, and the owner registers `5080`. This is a deliberate exception to the
+forwarded-header precedence used everywhere else (Cloudflare Tunnel, Proxmox) — those are real
+reverse-proxy deployments where the forwarded origin IS the one to trust; the local two-port dev
+arrangement is not one of those, so the API resolves its own origin instead.
 
 ### Running Tests
 
@@ -383,11 +385,11 @@ From `app/` (Windows: `.\gradlew.bat` instead of `./gradlew`):
 The web dev server listens on `5173`; run it alongside a plain `dotnet run` API (its committed
 default, `5080` — see *Running the Backend*) with **no flags or env vars needed** — the dev server's
 webpack proxy forwards `/api` + `/hubs` to `http://localhost:5080` by default
-(`webpack.config.d/proxy.js`, override with `NNZ_DEV_BACKEND` to point at a different backend), and
-forwards `X-Forwarded-Host`/`X-Forwarded-Proto` for the original `5173` request so OAuth redirects
-(`ResolvePublicOrigin`) resolve to `5173`, the origin the browser is actually on — register
-`http://localhost:5173/api/v1/auth/twitch/callback` in the Twitch Developer Console for local dev.
-`start.sh` runs both together this way. The prod web bundle is bundled automatically into the API
+(`webpack.config.d/proxy.js`, override with `NNZ_DEV_BACKEND` to point at a different backend). It
+does not forward `X-Forwarded-Host`/`X-Forwarded-Proto`, so OAuth redirects (`ResolvePublicOrigin`)
+resolve to the API's own origin — register `http://localhost:5080/api/v1/auth/twitch/callback` in
+the Twitch Developer Console for local dev. `start.sh` runs both together this way. The prod web
+bundle is bundled automatically into the API
 publish and Docker image (that build serves everything from one origin — no proxy, no port split); the deploy script's `--app` flag wraps
 the installer task (see `DEPLOY.md`).
 
