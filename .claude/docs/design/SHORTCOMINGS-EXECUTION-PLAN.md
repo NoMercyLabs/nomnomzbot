@@ -209,6 +209,21 @@ stable — without dropping the planned requirements behind them.
   allowlist (`set_variable`, `stop`, `pick_from_list`, `check_balance`) — re-check that allowlist when the
   engine rewrite lands, since a passthrough action that gains a side effect would silently execute it.
 
+- **S-MOD-PERMS-b** (follow-up to 609ae0fc — NEEDS THE OWNER'S EYES) S-MOD-PERMS classified 204
+  management-plane keys (cat2 91 -> Moderator, cat3 26 -> Broadcaster, 87 other/Twitch-native) and
+  deliberately left a set of AMBIGUOUS keys at their existing Editor/LeadModerator levels rather than
+  guess. Several of those look bot-internal by the owner's own rule and may still block him as a
+  moderator on someone else's channel: `music:config:write`, `economy:catalog/earning-rules/
+  leaderboards-config` writes, `webhooks:*:write`, `discord:config/role/optin:write`, `reward:manage`/
+  `reward:sync`, `federation:optin:*`, and the Twitch-native `channel:*` / `stream:*` / `live-ops:*`
+  writes. Done-when: each is decided against the three-way rule (Twitch-native -> mirror Twitch;
+  bot-internal -> Moderator; money/credentials/privilege -> Broadcaster) with the owner confirming the
+  handful that are genuinely a product call — chiefly whether a moderator should be able to change
+  ECONOMY config (it spends the streamer's channel currency, not real money) and REWARD management
+  (Twitch-native, so Twitch's own rule should decide it).
+  Already fixed in the parent slice, do not re-open: `discord:connection:write` and `music:token:read`
+  were seeded below Broadcaster despite bearing credentials.
+
 - **S055b** (follow-up to S055 58121707, needed for a truthful Discord picker) The Discord picker's
   disabled reasons cannot be honest yet: `DiscordGuildChannel`/`DiscordGuildRole` DTOs carry NO "bot can
   post here" / "bot can assign this role" flag, so the channel picker disables by TYPE only and a role
