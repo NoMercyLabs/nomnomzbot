@@ -198,6 +198,9 @@ class AdminHubClient {
                 if (event != null) _events.tryEmit(event)
             }
             TYPE_PING -> Unit
+            // S035b: see DashboardHubClient's TYPE_CLOSE handling — same rationale applies here. No stateful
+            // resume handshake is implemented (unverifiable wire protocol from this environment); a close
+            // always degrades to a full clean reconnect, never a stuck/falsely-connected state.
             TYPE_CLOSE -> isConnected = false
         }
     }

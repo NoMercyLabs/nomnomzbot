@@ -308,6 +308,14 @@ class DashboardHubClient {
                 }
             }
             TYPE_PING -> Unit // pong is automatic — nothing to do on an inbound ping
+            // S035b: the server now runs WithStatefulReconnect() (861caccf), but this hand-rolled JSON hub
+            // protocol client does not implement the SignalR resume handshake (the "useStatefulReconnect"
+            // handshake opt-in plus the Sequence/Ack message pair) — that wire protocol cannot be verified
+            // against a live server from this environment, and a hand-rolled guess at it risks silently
+            // mis-claiming a resumed connection that never actually resumed. So a close, recoverable or not,
+            // always falls through to the existing full-reconnect loop below (real isConnected=false here,
+            // socket torn down in openSession's finally, fresh handshake + rejoin on the next attempt) — never
+            // a stuck or falsely-connected state. See DashboardHubClientReconnectTest.
             TYPE_CLOSE -> {
                 isConnected = false
             }
