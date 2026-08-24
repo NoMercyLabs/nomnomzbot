@@ -12,6 +12,8 @@ package bot.nomnomz.dashboard.feature.timers.state
 
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.core.realtime.onConfigChange
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -29,6 +31,11 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.feedback_timer_deleted
+import nomnomzbot.composeapp.generated.resources.feedback_timer_save_failed
+import nomnomzbot.composeapp.generated.resources.feedback_timer_saved
+import org.jetbrains.compose.resources.StringResource
 
 // The Timers page's state-holder: resolve the active channel, then load its real scheduled timers from the
 // backend (no fabricated rows), and drive the full create / edit / toggle / delete management surface. The
@@ -39,6 +46,7 @@ class TimersController(
     private val timersApi: TimersApi,
     private val pipelinesApi: PipelinesApi,
     private val pickListsApi: PickListsApi,
+    private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<TimersState> = MutableStateFlow(TimersState.Loading)
 
@@ -179,7 +187,7 @@ class TimersController(
     /** Delete a timer, then reload the list on success. */
     suspend fun deleteTimer(id: String) {
         val channelId: String = resolveChannelId() ?: return
-        runWrite { timersApi.delete(channelId, id) }
+        runWrite(success = Res.string.feedback_timer_deleted) { timersApi.delete(channelId, id) }
     }
 
     /**
@@ -202,13 +210,21 @@ class TimersController(
             is ApiResult.Ok -> result.value.id
         }
 
-    // Run a mutation: on success clear any prior error and reload the list; on failure surface the message and
-    // leave the current list untouched.
-    private suspend fun runWrite(write: suspend () -> ApiResult<Unit>) {
+    // Run a mutation: on success clear any prior error, announce it on the frame, and reload the list; on
+    // failure surface the message (both the in-page banner AND the frame-level error) and leave the current
+    // list untouched. [success] lets a delete say "Deleted" while the rest default to "Saved".
+    private suspend fun runWrite(
+        success: StringResource = Res.string.feedback_timer_saved,
+        write: suspend () -> ApiResult<Unit>,
+    ) {
         when (val result: ApiResult<Unit> = write()) {
-            is ApiResult.Failure -> _writeError.value = result.error.message
+            is ApiResult.Failure -> {
+                _writeError.value = result.error.message
+                feedback.error(Res.string.feedback_timer_save_failed, result.error.message)
+            }
             is ApiResult.Ok -> {
                 _writeError.value = null
+                feedback.success(success)
                 load()
             }
         }

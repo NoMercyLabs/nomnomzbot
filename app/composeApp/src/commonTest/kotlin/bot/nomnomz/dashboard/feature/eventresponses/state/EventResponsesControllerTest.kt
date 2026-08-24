@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.eventresponses.state
 
+import bot.nomnomz.dashboard.core.feedback.FeedbackKind
+import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
@@ -33,6 +35,10 @@ import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlinx.coroutines.test.runTest
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.feedback_event_response_reset
+import nomnomzbot.composeapp.generated.resources.feedback_event_response_save_failed
+import nomnomzbot.composeapp.generated.resources.feedback_event_response_saved
 
 // Proves the EventResponses page state machine: channel resolution, listing, and the write path
 // (toggle / save / delete). Every write re-lists on success so the screen reflects the backend.
@@ -219,7 +225,7 @@ class EventResponsesControllerTest {
     }
 
     @Test
-    fun delete_calls_api_and_reloads() = runTest {
+    fun reset_to_default_calls_the_delete_endpoint_and_reloads() = runTest {
         val api = RecordingEventResponsesApi(listResult = ApiResult.Ok(emptyList()))
         val controller =
             EventResponsesController(
@@ -231,9 +237,95 @@ class EventResponsesControllerTest {
             )
 
         controller.load()
-        controller.delete("channel.raid")
+        controller.resetToDefault("channel.raid")
 
         assertEquals("channel.raid", api.lastDeletedEventType)
+    }
+
+    @Test
+    fun a_successful_reset_announces_the_reset_label_not_deleted() = runTest {
+        val feedback = RecordingFeedback()
+        val controller =
+            EventResponsesController(
+                pipelinesApi = StubPipelinesApi,
+                pickListsApi = StubPickListsApi,
+                widgetsApi = StubWidgetsApi,
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                eventResponsesApi = RecordingEventResponsesApi(listResult = ApiResult.Ok(emptyList())),
+                feedback = feedback,
+            )
+        controller.load()
+
+        controller.resetToDefault("channel.raid")
+
+        // The reset announces "reset to default", never a generic/permanent "deleted" label — the row comes
+        // right back via the list's top-up seed, so the UI must never claim a permanent removal.
+        assertEquals(
+            FeedbackKind.Success,
+            feedback.only.kind,
+        )
+        assertEquals(
+            Res.string.feedback_event_response_reset,
+            feedback.only.label,
+        )
+    }
+
+    @Test
+    fun a_successful_save_announces_success_on_the_frame() = runTest {
+        val feedback = RecordingFeedback()
+        val controller =
+            EventResponsesController(
+                pipelinesApi = StubPipelinesApi,
+                pickListsApi = StubPickListsApi,
+                widgetsApi = StubWidgetsApi,
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                eventResponsesApi = RecordingEventResponsesApi(listResult = ApiResult.Ok(emptyList())),
+                feedback = feedback,
+            )
+        controller.load()
+
+        controller.save("channel.follow", "chat_message", "Thanks!", null, null)
+
+        assertEquals(
+            FeedbackKind.Success,
+            feedback.only.kind,
+        )
+        assertEquals(
+            Res.string.feedback_event_response_saved,
+            feedback.only.label,
+        )
+    }
+
+    @Test
+    fun a_failed_save_announces_an_error_carrying_the_backend_detail_and_no_success() = runTest {
+        val feedback = RecordingFeedback()
+        val api =
+            RecordingEventResponsesApi(
+                listResult = ApiResult.Ok(emptyList()),
+                upsertResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "no permission")),
+            )
+        val controller =
+            EventResponsesController(
+                pipelinesApi = StubPipelinesApi,
+                pickListsApi = StubPickListsApi,
+                widgetsApi = StubWidgetsApi,
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                eventResponsesApi = api,
+                feedback = feedback,
+            )
+        controller.load()
+
+        controller.save("channel.follow", "chat_message", "Thanks!", null, null)
+
+        assertEquals(
+            FeedbackKind.Error,
+            feedback.only.kind,
+        )
+        assertEquals(
+            Res.string.feedback_event_response_save_failed,
+            feedback.only.label,
+        )
+        assertEquals(listOf<Any>("no permission"), feedback.only.formatArgs)
     }
 
     @Test

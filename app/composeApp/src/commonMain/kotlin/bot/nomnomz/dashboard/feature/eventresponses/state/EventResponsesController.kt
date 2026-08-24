@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.eventresponses.state
 
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -31,6 +33,11 @@ import bot.nomnomz.dashboard.core.network.WidgetsApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.feedback_event_response_reset
+import nomnomzbot.composeapp.generated.resources.feedback_event_response_save_failed
+import nomnomzbot.composeapp.generated.resources.feedback_event_response_saved
+import org.jetbrains.compose.resources.StringResource
 
 // The Event Responses page state-holder: maps Twitch channel events (follow, sub, cheer, raid, stream.online …)
 // to a configured reaction (chat message, overlay, pipeline, or none). The list is seeded by the backend on
@@ -43,6 +50,7 @@ class EventResponsesController(
     private val pipelinesApi: PipelinesApi,
     private val pickListsApi: PickListsApi,
     private val widgetsApi: WidgetsApi,
+    private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<EventResponsesState> =
         MutableStateFlow(EventResponsesState.Loading)
@@ -193,20 +201,36 @@ class EventResponsesController(
         )
     }
 
-    /** Delete an event response (restores the seeded default on the next channel join). */
-    suspend fun delete(eventType: String) {
+    /**
+     * Reset an event response to its seeded default. The backend row is actually removed (`DELETE`), but
+     * `ListAsync`'s top-up seed (`EventResponseService.cs:58-80`) re-inserts the catalog default — disabled,
+     * `chat_message`, no message — the moment the list is next read, so the net effect an operator sees is a
+     * RESET to default, not a permanent removal. The confirm dialog and this success label say "reset", never
+     * "deleted", so the UI never claims a permanence the backend doesn't provide.
+     */
+    suspend fun resetToDefault(eventType: String) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
-        afterWrite(eventResponsesApi.delete(channel, eventType))
+        afterWrite(eventResponsesApi.delete(channel, eventType), success = Res.string.feedback_event_response_reset)
     }
 
-    private suspend fun afterWrite(result: ApiResult<*>) {
+    // A write either reloads the list AND announces success on the frame, or surfaces its error over the current
+    // Ready list without losing it (failure) AND announces it on the frame. [success] lets a reset say "Reset to
+    // default" while the rest default to "Saved".
+    private suspend fun afterWrite(
+        result: ApiResult<*>,
+        success: StringResource = Res.string.feedback_event_response_saved,
+    ) {
         when (result) {
-            is ApiResult.Ok -> load()
+            is ApiResult.Ok -> {
+                feedback.success(success)
+                load()
+            }
             is ApiResult.Failure -> failWrite(result.error.message)
         }
     }
 
     private fun failWrite(detail: String) {
+        feedback.error(Res.string.feedback_event_response_save_failed, detail)
         val current: EventResponsesState = _state.value
         _state.value =
             if (current is EventResponsesState.Ready) current.copy(actionError = detail)

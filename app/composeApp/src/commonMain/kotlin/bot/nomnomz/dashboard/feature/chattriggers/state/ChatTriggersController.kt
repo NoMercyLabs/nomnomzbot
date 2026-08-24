@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.feature.chattriggers.state
 
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -23,6 +25,11 @@ import bot.nomnomz.dashboard.core.network.UpdateChatTriggerBody
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.feedback_chat_trigger_deleted
+import nomnomzbot.composeapp.generated.resources.feedback_chat_trigger_save_failed
+import nomnomzbot.composeapp.generated.resources.feedback_chat_trigger_saved
+import org.jetbrains.compose.resources.StringResource
 
 // The Chat Triggers page's state-holder (frontend-ia.md §3 — the Chat group, beside Commands). Resolves the
 // active channel, then lists its real keyword triggers and the channel's pipelines (for the bind-pipeline
@@ -34,6 +41,7 @@ class ChatTriggersController(
     private val channelsApi: ChannelsApi,
     private val chatTriggersApi: ChatTriggersApi,
     private val pipelinesApi: PipelinesApi,
+    private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<ChatTriggersState> = MutableStateFlow(ChatTriggersState.Loading)
 
@@ -157,20 +165,28 @@ class ChatTriggersController(
     /** Delete a trigger, addressed by its [triggerId]. Reloads on success. Surfaces the error on failure. */
     suspend fun deleteTrigger(triggerId: String) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
-        afterWrite(chatTriggersApi.delete(channel, triggerId))
+        afterWrite(chatTriggersApi.delete(channel, triggerId), success = Res.string.feedback_chat_trigger_deleted)
     }
 
-    // A write either reloads the list (success) or surfaces its error over the current Ready list without losing
-    // it (failure) — so a failed create/edit leaves the page intact with the visible server-side reason (a regex
-    // that won't compile, a trigger with no reaction).
-    private suspend fun afterWrite(result: ApiResult<Unit>) {
+    // A write either reloads the list AND announces success on the frame (success), or surfaces its error over
+    // the current Ready list without losing it (failure) — so a failed create/edit leaves the page intact with
+    // the visible server-side reason (a regex that won't compile, a trigger with no reaction) AND a frame-level
+    // error. [success] lets a delete say "Deleted" while the rest default to "Saved".
+    private suspend fun afterWrite(
+        result: ApiResult<Unit>,
+        success: StringResource = Res.string.feedback_chat_trigger_saved,
+    ) {
         when (result) {
-            is ApiResult.Ok -> load()
+            is ApiResult.Ok -> {
+                feedback.success(success)
+                load()
+            }
             is ApiResult.Failure -> failWrite(result.error.message)
         }
     }
 
     private fun failWrite(detail: String) {
+        feedback.error(Res.string.feedback_chat_trigger_save_failed, detail)
         val current: ChatTriggersState = _state.value
         _state.value =
             when (current) {

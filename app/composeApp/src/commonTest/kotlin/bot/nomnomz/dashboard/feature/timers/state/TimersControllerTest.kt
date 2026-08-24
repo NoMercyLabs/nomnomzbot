@@ -10,6 +10,10 @@
 
 package bot.nomnomz.dashboard.feature.timers.state
 
+import bot.nomnomz.dashboard.core.feedback.Feedback
+import bot.nomnomz.dashboard.core.feedback.FeedbackKind
+import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
+import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
@@ -31,6 +35,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.feedback_timer_deleted
+import nomnomzbot.composeapp.generated.resources.feedback_timer_save_failed
+import nomnomzbot.composeapp.generated.resources.feedback_timer_saved
 
 // Proves the Timers page state machine the screen renders: resolve the active channel, then surface the real
 // scheduled timers — Empty when there are none, or an Error if either step fails — and the create / edit /
@@ -230,6 +238,47 @@ class TimersControllerTest {
 
         assertNull(controller.writeError.value)
     }
+
+    @Test
+    fun a_successful_create_announces_save_success_on_the_frame() = runTest {
+        val feedback = RecordingFeedback()
+        val controller =
+            timersController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), FakeTimersApi(emptyList()), feedback = feedback)
+        controller.load()
+
+        controller.createTimer(name = "Discord", messages = listOf("Join!"), intervalMinutes = 20, minChatActivity = 3, enabled = true, fireOnce = true, pipelineId = null)
+
+        assertEquals(FeedbackKind.Success, feedback.only.kind)
+        assertEquals(Res.string.feedback_timer_saved, feedback.only.label)
+    }
+
+    @Test
+    fun a_successful_delete_announces_the_deleted_label() = runTest {
+        val feedback = RecordingFeedback()
+        val api = FakeTimersApi(listOf(TimerSummary(id = "00000005-0000-0000-0000-000000000005", name = "Bye", intervalMinutes = 5, isEnabled = true, messageCount = 1)))
+        val controller = timersController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, feedback = feedback)
+        controller.load()
+
+        controller.deleteTimer(id = "00000005-0000-0000-0000-000000000005")
+
+        // A delete says "deleted", not the generic "saved" — the success message is action-specific.
+        assertEquals(FeedbackKind.Success, feedback.only.kind)
+        assertEquals(Res.string.feedback_timer_deleted, feedback.only.label)
+    }
+
+    @Test
+    fun a_failed_write_announces_an_error_carrying_the_backend_detail_and_no_success() = runTest {
+        val feedback = RecordingFeedback()
+        val api = FakeTimersApi(emptyList(), writeFailure = ApiError(403, "FORBIDDEN", "no permission"))
+        val controller = timersController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, feedback = feedback)
+        controller.load()
+
+        controller.createTimer(name = "Nope", messages = listOf("blocked"), intervalMinutes = 30, minChatActivity = 0, enabled = true, fireOnce = false, pipelineId = null)
+
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+        assertEquals(Res.string.feedback_timer_save_failed, feedback.only.label)
+        assertEquals(listOf<Any>("no permission"), feedback.only.formatArgs)
+    }
 }
 
 // Builds a controller with an empty-pipeline fake so the tests that don't exercise the picker stay unchanged.
@@ -237,7 +286,8 @@ private fun timersController(
     channelsApi: ChannelsApi,
     timersApi: TimersApi,
     pipelinesApi: PipelinesApi = FakePipelinesApi(),
-): TimersController = TimersController(channelsApi, timersApi, pipelinesApi, FakePickListsApi())
+    feedback: Feedback = NoOpFeedback,
+): TimersController = TimersController(channelsApi, timersApi, pipelinesApi, FakePickListsApi(), feedback)
 
 private class FakePickListsApi : bot.nomnomz.dashboard.core.network.PickListsApi {
     override suspend fun list(): ApiResult<List<bot.nomnomz.dashboard.core.network.PickList>> =

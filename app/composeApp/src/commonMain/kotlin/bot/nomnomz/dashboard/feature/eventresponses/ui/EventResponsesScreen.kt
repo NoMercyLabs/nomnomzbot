@@ -41,6 +41,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Card
+import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.EntityPickerField
@@ -71,7 +72,6 @@ import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.event_responses_action_error
 import nomnomzbot.composeapp.generated.resources.event_responses_dialog_cancel
-import nomnomzbot.composeapp.generated.resources.event_responses_dialog_delete
 import nomnomzbot.composeapp.generated.resources.event_responses_dialog_message_label
 import nomnomzbot.composeapp.generated.resources.event_responses_dialog_pipeline_choose
 import nomnomzbot.composeapp.generated.resources.event_responses_dialog_pipeline_create_new
@@ -87,7 +87,10 @@ import nomnomzbot.composeapp.generated.resources.event_responses_dialog_widget_p
 import nomnomzbot.composeapp.generated.resources.event_responses_edit_action
 import nomnomzbot.composeapp.generated.resources.event_responses_empty
 import nomnomzbot.composeapp.generated.resources.event_responses_error
+import nomnomzbot.composeapp.generated.resources.event_responses_dialog_reset
 import nomnomzbot.composeapp.generated.resources.event_responses_loading
+import nomnomzbot.composeapp.generated.resources.event_responses_reset_confirm_message
+import nomnomzbot.composeapp.generated.resources.event_responses_reset_confirm_title
 import nomnomzbot.composeapp.generated.resources.event_responses_retry
 import nomnomzbot.composeapp.generated.resources.event_responses_toggle_action
 import nomnomzbot.composeapp.generated.resources.event_responses_type_chat_message
@@ -170,9 +173,9 @@ fun EventResponsesScreen(
                 editing = null
                 scope.launch { controller.createPipelineAndBind(response.eventType, pipelineName) }
             },
-            onDelete = {
+            onResetToDefault = {
                 editing = null
-                scope.launch { controller.delete(response.eventType) }
+                scope.launch { controller.resetToDefault(response.eventType) }
             },
             manage = manage,
         )
@@ -308,7 +311,7 @@ private fun EditDialog(
     onDismiss: () -> Unit,
     onSave: (responseType: String, message: String?, pipelineId: String?, widgetId: String?) -> Unit,
     onCreateAndBind: (pipelineName: String) -> Unit,
-    onDelete: () -> Unit,
+    onResetToDefault: () -> Unit,
     manage: ManageDecision,
 ) {
     val tokens = LocalTokens.current
@@ -321,6 +324,10 @@ private fun EditDialog(
     var newPipelineName: String by remember { mutableStateOf("") }
     var widgetChoice: String by remember { mutableStateOf("") }
     var typeMenuOpen: Boolean by remember { mutableStateOf(false) }
+    // The reset is destructive (it discards the current config), so it confirms first and names exactly what
+    // happens — the row goes back to its disabled, no-message default, it is NOT a permanent removal (the
+    // backend's list read re-seeds the catalog default the moment the row is gone).
+    var confirmingReset: Boolean by remember { mutableStateOf(false) }
 
     // Load the stored config (so the fields open pre-filled) and fall back to the preset's default template when
     // there is no stored message yet — the "pre-filled templates in every input" the owner asked for.
@@ -477,9 +484,9 @@ private fun EditDialog(
         },
         dismissButton = {
             Row(horizontalArrangement = Arrangement.spacedBy(spacing.s1)) {
-                TextButton(onClick = onDelete, enabled = manage.isAllowed) {
+                TextButton(onClick = { confirmingReset = true }, enabled = manage.isAllowed) {
                     Text(
-                        text = stringResource(Res.string.event_responses_dialog_delete),
+                        text = stringResource(Res.string.event_responses_dialog_reset),
                         color = if (manage.isAllowed) tokens.destructive else tokens.mutedForeground,
                     )
                 }
@@ -492,6 +499,26 @@ private fun EditDialog(
             }
         },
     )
+
+    // Names exactly what will change BEFORE the operator commits: this event's response reverts to disabled +
+    // no message — never phrased as a permanent delete, because the backend's list read re-seeds it right back.
+    if (confirmingReset) {
+        ConfirmDialog(
+            title = stringResource(Res.string.event_responses_reset_confirm_title),
+            message = stringResource(
+                Res.string.event_responses_reset_confirm_message,
+                response.eventType.toEventLabel(),
+            ),
+            confirmLabel = stringResource(Res.string.event_responses_dialog_reset),
+            dismissLabel = stringResource(Res.string.event_responses_dialog_cancel),
+            onConfirm = {
+                confirmingReset = false
+                onResetToDefault()
+            },
+            onDismiss = { confirmingReset = false },
+            destructive = true,
+        )
+    }
 }
 
 // Insert chips for the event's seeded template variables — clicking one appends `{var}` to the message so a

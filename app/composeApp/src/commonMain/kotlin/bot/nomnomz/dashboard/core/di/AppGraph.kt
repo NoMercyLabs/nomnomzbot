@@ -467,6 +467,7 @@ class AppGraph {
             channelsApi = channelsApi,
             chatTriggersApi = chatTriggersApi,
             pipelinesApi = pipelinesApi,
+            feedback = feedbackController,
         )
 
     val timersController: TimersController =
@@ -475,6 +476,7 @@ class AppGraph {
             timersApi = timersApi,
             pipelinesApi = pipelinesApi,
             pickListsApi = pickListsApi,
+            feedback = feedbackController,
         )
 
     val moderationController: ModerationController =
@@ -510,6 +512,7 @@ class AppGraph {
             pipelinesApi = pipelinesApi,
             pickListsApi = pickListsApi,
             widgetsApi = widgetsApi,
+            feedback = feedbackController,
         )
 
     val settingsController: SettingsController =
