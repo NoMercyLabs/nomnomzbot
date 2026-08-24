@@ -34,16 +34,10 @@ public class IntegrationConnectionConfiguration : IEntityTypeConfiguration<Integ
             .WithMany()
             .HasForeignKey(e => e.BroadcasterId)
             .OnDelete(DeleteBehavior.Cascade);
-
-        // (BroadcasterId, Provider, ProviderAccountId) uniquely identifies a connection.
-        builder
-            .HasIndex(e => new
-            {
-                e.BroadcasterId,
-                e.Provider,
-                e.ProviderAccountId,
-            })
+builder
+            .HasIndex(e => new { e.BroadcasterId, e.Provider })
             .IsUnique()
-            .HasDatabaseName("IX_IntegrationConnection_Broadcaster_Provider_Account");
+            .HasDatabaseName("IX_IntegrationConnection_Broadcaster_Provider_Live")
+            .HasFilter("\"DeletedAt\" IS NULL");
     }
 }

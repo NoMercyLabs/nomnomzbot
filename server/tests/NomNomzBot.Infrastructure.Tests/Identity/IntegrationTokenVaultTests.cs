@@ -232,6 +232,93 @@ public sealed class IntegrationTokenVaultTests
     }
 
     [Fact]
+    public async Task Reconnect_WithAnExistingLiveConnection_UpdatesItInPlace_InsteadOfInsertingASibling()
+    {
+        // The qtkitte incident: reconnecting Spotify with a NEW (BYOC) client id created a SECOND live row —
+        // the dashboard kept reading the stale needs_reauth one. The upsert must match the live connection by
+        // (BroadcasterId, Provider) alone, never by the fetched ProviderAccountId (which a reconnect can
+        // legitimately resolve differently than the stale row's).
+        (IntegrationTokenVault vault, AuthDbContext db, _) = Build();
+        Guid firstId = (await vault.UpsertConnectionAsync(TwitchConnect())).Value.Id;
+        await vault.StoreTokensAsync(
+            firstId,
+            new("old-access", "old-refresh", null, DateTime.UtcNow.AddHours(1))
+        );
+        await vault.MarkRefreshFailureAsync(firstId, "e1");
+        await vault.MarkRefreshFailureAsync(firstId, "e2");
+        await vault.MarkRefreshFailureAsync(firstId, "e3"); // crosses the threshold -> needs_reauth
+
+        // Reconnect: same broadcaster/provider, a DIFFERENT resolved account id/name and a NEW (BYOC) client id.
+        Result<IntegrationConnectionDto> reconnect = await vault.UpsertConnectionAsync(
+            new(
+                Tenant,
+                AuthEnums.IntegrationProvider.Twitch,
+                "twitch-account-BYOC-999",
+                "streamer (byoc)",
+                ["channel:read:subscriptions"],
+                ClientId: "byoc-client-xyz",
+                IsByok: true,
+                ConnectedByUserId: null,
+                SettingsJson: null
+            )
+        );
+        reconnect
+            .Value.Id.Should()
+            .Be(firstId, "the same live connection is updated, not sibling-inserted");
+        await vault.StoreTokensAsync(
+            reconnect.Value.Id,
+            new("new-access", "new-refresh", null, DateTime.UtcNow.AddHours(1))
+        );
+
+        List<IntegrationConnection> live = await db
+            .IntegrationConnections.IgnoreQueryFilters()
+            .Where(c => c.DeletedAt == null)
+            .ToListAsync();
+        live.Should()
+            .ContainSingle("exactly one live row must exist for this (broadcaster, provider)");
+        IntegrationConnection surviving = live.Single();
+        surviving.ClientId.Should().Be("byoc-client-xyz");
+        surviving.IsByok.Should().BeTrue();
+        surviving.Status.Should().Be(AuthEnums.IntegrationStatus.Connected);
+        surviving
+            .ConsecutiveFailureCount.Should()
+            .Be(0, "a successful reconnect clears the failure count");
+    }
+
+    [Fact]
+    public async Task Reconnect_AfterADisconnect_CreatesAFreshLiveRow_NotBlockedByTheSoftDeletedOne()
+    {
+        (IntegrationTokenVault vault, AuthDbContext db, _) = Build();
+        Guid firstId = (await vault.UpsertConnectionAsync(TwitchConnect())).Value.Id;
+        await vault.StoreTokensAsync(firstId, new("a", "r", null, DateTime.UtcNow.AddHours(1)));
+        await vault.RevokeConnectionAsync(firstId, "user_disconnect"); // status=revoked; NOT soft-deleted by this call
+
+        // Simulate the row also being soft-deleted (e.g. GDPR erasure / full disconnect cleanup) — the
+        // scenario the filtered unique index and the upsert's DeletedAt==null match must tolerate.
+        IntegrationConnection revoked = await db.IntegrationConnections.SingleAsync(c =>
+            c.Id == firstId
+        );
+        revoked.DeletedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+
+        Result<IntegrationConnectionDto> reconnect = await vault.UpsertConnectionAsync(
+            TwitchConnect()
+        );
+
+        reconnect
+            .IsSuccess.Should()
+            .BeTrue("a soft-deleted prior connection must not block a fresh reconnect");
+        reconnect.Value.Id.Should().NotBe(firstId);
+
+        List<IntegrationConnection> live = await db
+            .IntegrationConnections.IgnoreQueryFilters()
+            .Where(c => c.DeletedAt == null)
+            .ToListAsync();
+        live.Should().ContainSingle();
+        live.Single().Id.Should().Be(reconnect.Value.Id);
+    }
+
+    [Fact]
     public async Task RevokeConnection_SoftDeletesTokens_AndEmitsDisconnectedEvent()
     {
         (IntegrationTokenVault vault, AuthDbContext db, RecordingEventBus bus) = Build();

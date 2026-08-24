@@ -283,6 +283,13 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
 
         b.Entity<IntegrationConnection>().HasKey(e => e.Id);
         b.Entity<IntegrationConnection>().Ignore(e => e.Channel).Ignore(e => e.Tokens);
+        // Mirrors IntegrationConnectionConfiguration's DB-enforced half of the vault's upsert: one LIVE
+        // connection per (BroadcasterId, Provider). The InMemory provider never enforced this — this harness
+        // moved to real SQLite (S004d) exactly so a duplicate-insert race is a real UNIQUE violation here too.
+        b.Entity<IntegrationConnection>()
+            .HasIndex(e => new { e.BroadcasterId, e.Provider })
+            .IsUnique()
+            .HasFilter("\"DeletedAt\" IS NULL");
 
         b.Entity<IntegrationToken>().HasKey(e => e.Id);
         b.Entity<IntegrationToken>().Ignore(e => e.Connection).Ignore(e => e.Channel);

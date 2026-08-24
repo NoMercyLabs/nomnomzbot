@@ -69,13 +69,22 @@ public sealed class IntegrationTokenVault : IIntegrationTokenVault
         CancellationToken cancellationToken = default
     )
     {
+        // Match the LIVE connection by (BroadcasterId, Provider) only — NOT ProviderAccountId. Matching on the
+        // account id let a reconnect (fresh identity fetch, a switch from the app-level client to a BYOC
+        // client, or simply a re-fetch that resolved a different/nullable account id than the stale row's)
+        // miss the existing row and INSERT a sibling instead of updating it, leaving the dashboard reading
+        // whichever row insertion order happened to surface first (the qtkitte incident). IgnoreQueryFilters +
+        // an explicit DeletedAt == null re-applies the tenant/soft-delete filtering by hand (identical to
+        // MembershipService.FindAsync) so a soft-deleted prior connection never blocks — and never gets
+        // silently revived by — a fresh connect; the filtered unique index on (BroadcasterId, Provider) WHERE
+        // DeletedAt IS NULL is the DB-enforced half of this invariant.
         IntegrationConnection? connection = await _db
             .IntegrationConnections.IgnoreQueryFilters()
             .FirstOrDefaultAsync(
                 c =>
                     c.BroadcasterId == request.BroadcasterId
                     && c.Provider == request.Provider
-                    && c.ProviderAccountId == request.ProviderAccountId,
+                    && c.DeletedAt == null,
                 cancellationToken
             );
 

@@ -5886,9 +5886,10 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BroadcasterId", "Provider", "ProviderAccountId")
+                    b.HasIndex("BroadcasterId", "Provider")
                         .IsUnique()
-                        .HasDatabaseName("IX_IntegrationConnection_Broadcaster_Provider_Account");
+                        .HasDatabaseName("IX_IntegrationConnection_Broadcaster_Provider_Live")
+                        .HasFilter("\"DeletedAt\" IS NULL");
 
                     b.ToTable("IntegrationConnections");
                 });

@@ -22,6 +22,7 @@ using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Integrations.Services;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Domain.Music.Exceptions;
 using NomNomzBot.Domain.Music.Interfaces;
 
@@ -1350,6 +1351,46 @@ public sealed class SpotifyMusicProvider
             .Select(c => (Guid?)c.Id)
             .FirstOrDefaultAsync(cancellationToken);
 
+    /// <summary>
+    /// Retry-storm guard for the periodic "now playing" poll: a connection already flagged
+    /// <c>needs_reauth</c> cannot be fixed by retrying — only a fresh OAuth grant clears it — so hammering
+    /// Spotify's token endpoint on every poll cycle just re-confirms the same dead refresh token forever (the
+    /// qtkitte incident logged <c>ConsecutiveFailureCount</c> = 4653). Skip the refresh entirely once
+    /// needs_reauth, and back off exponentially between attempts before that threshold so a flaky-but-alive
+    /// connection doesn't get hammered at full poll cadence either.
+    /// </summary>
+    private static readonly TimeSpan[] RefreshBackoffSchedule =
+    [
+        TimeSpan.FromSeconds(30),
+        TimeSpan.FromMinutes(2),
+        TimeSpan.FromMinutes(10),
+    ];
+
+    private async Task<bool> ShouldAttemptRefreshAsync(
+        Guid connectionId,
+        CancellationToken cancellationToken
+    )
+    {
+        IntegrationConnection? connection = await _db
+            .IntegrationConnections.AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == connectionId, cancellationToken);
+        if (connection is null)
+            return false;
+
+        // Dead beyond retry — needs a human to re-auth; retrying cannot fix it and only burns the rate limit.
+        if (connection.Status == AuthEnums.IntegrationStatus.NeedsReauth)
+            return false;
+
+        if (connection.ConsecutiveFailureCount <= 0)
+            return true;
+
+        TimeSpan backoff = RefreshBackoffSchedule[
+            Math.Min(connection.ConsecutiveFailureCount - 1, RefreshBackoffSchedule.Length - 1)
+        ];
+        DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
+        return connection.LastErrorAt is null || now >= connection.LastErrorAt.Value + backoff;
+    }
+
     private async Task<string?> GetTokenAsync(
         Guid broadcasterId,
         CancellationToken cancellationToken
@@ -1387,6 +1428,15 @@ public sealed class SpotifyMusicProvider
             );
         if (!expiring)
             return access.Value.Value;
+
+        if (!await ShouldAttemptRefreshAsync(connectionId.Value, cancellationToken))
+        {
+            _logger.LogDebug(
+                "Skipping Spotify refresh for broadcaster {BroadcasterId}: needs_reauth or backing off",
+                broadcasterId
+            );
+            return null;
+        }
 
         return await RefreshTokenAsync(connectionId.Value, broadcasterId, cancellationToken);
     }
