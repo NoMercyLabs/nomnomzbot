@@ -757,11 +757,20 @@ try
 
     app.MapControllers();
 
-    // SignalR hubs
-    app.MapHub<DashboardHub>("/hubs/dashboard");
-    app.MapHub<OverlayHub>("/hubs/overlay");
-    app.MapHub<OBSRelayHub>("/hubs/obs");
-    app.MapHub<AdminHub>("/hubs/admin");
+    // SignalR hubs. `AllowStatefulReconnects = true` is the real per-endpoint switch (there is no
+    // `WithStatefulReconnect()` extension in this repo's ASP.NET Core 10.0 — verified against the
+    // installed 10.0.11 runtime; it does not exist in the shipped 8.0/9.0/10.0 assemblies either).
+    // Without this, `AddSignalR`'s global `StatefulReconnectBufferSize` configures the FEATURE's buffer
+    // but the connection dispatcher for each hub endpoint still defaults `AllowStatefulReconnects` to
+    // false — the option actually enforced at the WebSocket upgrade lives on the mapped endpoint, not on
+    // the shared `HubOptions`.
+    static void EnableStatefulReconnect(
+        Microsoft.AspNetCore.Http.Connections.HttpConnectionDispatcherOptions options
+    ) => options.AllowStatefulReconnects = true;
+    app.MapHub<DashboardHub>("/hubs/dashboard", EnableStatefulReconnect);
+    app.MapHub<OverlayHub>("/hubs/overlay", EnableStatefulReconnect);
+    app.MapHub<OBSRelayHub>("/hubs/obs", EnableStatefulReconnect);
+    app.MapHub<AdminHub>("/hubs/admin", EnableStatefulReconnect);
 
     // Automation stream — a RAW WebSocket (automation-api.md D1: deliberately not SignalR, so any
     // language can integrate). UseWebSockets serves this endpoint; the hubs manage their own upgrade.
