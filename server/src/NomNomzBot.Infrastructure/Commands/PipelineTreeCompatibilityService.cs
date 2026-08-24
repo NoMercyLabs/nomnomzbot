@@ -110,4 +110,26 @@ public class PipelineTreeCompatibilityService : IPipelineTreeCompatibilityServic
 
         return [synthetic];
     }
+
+    public IReadOnlyList<PipelineStep> UpcastStepTree(IReadOnlyList<PipelineStep> steps)
+    {
+        return [.. DepthFirst(steps, parentStepId: null)];
+    }
+
+    private static IEnumerable<PipelineStep> DepthFirst(
+        IReadOnlyList<PipelineStep> steps,
+        Guid? parentStepId
+    )
+    {
+        IEnumerable<PipelineStep> siblings = steps
+            .Where(s => s.ParentStepId == parentStepId)
+            .OrderBy(s => s.Order);
+
+        foreach (PipelineStep step in siblings)
+        {
+            yield return step;
+            foreach (PipelineStep descendant in DepthFirst(steps, step.Id))
+                yield return descendant;
+        }
+    }
 }

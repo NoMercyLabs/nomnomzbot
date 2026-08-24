@@ -1586,6 +1586,13 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasMaxLength(60)
                         .HasColumnType("character varying(60)");
 
+                    b.Property<string>("BlockConfigJson")
+                        .HasColumnType("text");
+
+                    b.Property<string>("BlockKind")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<string>("Branch")
                         .HasMaxLength(10)
                         .HasColumnType("character varying(10)");
@@ -1649,11 +1656,17 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.Property<string>("ConditionType")
                         .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasMaxLength(40)
-                        .HasColumnType("character varying(40)");
+                        .HasColumnType("character varying(40)")
+                        .HasDefaultValue("");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("GroupOp")
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
 
                     b.Property<string>("LeftOperand")
                         .HasMaxLength(500)
@@ -1671,6 +1684,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<int>("Order")
                         .HasColumnType("integer");
 
+                    b.Property<Guid?>("ParentConditionId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("PipelineStepId")
                         .HasColumnType("uuid");
 
@@ -1683,10 +1699,62 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ParentConditionId")
+                        .HasDatabaseName("IX_PipelineStepCondition_ParentConditionId");
+
                     b.HasIndex("PipelineStepId")
                         .HasDatabaseName("IX_PipelineStepCondition_StepId");
 
                     b.ToTable("PipelineStepConditions");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Commands.Entities.PipelineTrigger", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ConfigJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("{}");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("PipelineId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId")
+                        .HasDatabaseName("IX_PipelineTrigger_BroadcasterId");
+
+                    b.HasIndex("PipelineId", "Order")
+                        .IsUnique()
+                        .HasDatabaseName("IX_PipelineTrigger_PipelineId_Order");
+
+                    b.ToTable("PipelineTriggers");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Commands.Entities.ScheduledPipelineTask", b =>
@@ -9554,6 +9622,11 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
             modelBuilder.Entity("NomNomzBot.Domain.Commands.Entities.PipelineStepCondition", b =>
                 {
+                    b.HasOne("NomNomzBot.Domain.Commands.Entities.PipelineStepCondition", null)
+                        .WithMany()
+                        .HasForeignKey("ParentConditionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("NomNomzBot.Domain.Commands.Entities.PipelineStep", "Step")
                         .WithMany("Conditions")
                         .HasForeignKey("PipelineStepId")
@@ -9561,6 +9634,17 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Step");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Commands.Entities.PipelineTrigger", b =>
+                {
+                    b.HasOne("NomNomzBot.Domain.Commands.Entities.Pipeline", "Pipeline")
+                        .WithMany("Triggers")
+                        .HasForeignKey("PipelineId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Pipeline");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Commands.Entities.Timer", b =>
@@ -10287,6 +10371,8 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
             modelBuilder.Entity("NomNomzBot.Domain.Commands.Entities.Pipeline", b =>
                 {
                     b.Navigation("Steps");
+
+                    b.Navigation("Triggers");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Commands.Entities.PipelineStep", b =>

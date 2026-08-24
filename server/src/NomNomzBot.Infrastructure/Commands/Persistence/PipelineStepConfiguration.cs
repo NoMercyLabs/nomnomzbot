@@ -28,6 +28,7 @@ public class PipelineStepConfiguration : IEntityTypeConfiguration<PipelineStep>
         builder.Property(e => e.ConfigSchemaVersion).IsRequired().HasDefaultValue(1);
         builder.Property(e => e.IsEnabled).IsRequired().HasDefaultValue(true);
         builder.Property(e => e.Branch).HasMaxLength(10);
+        builder.Property(e => e.BlockKind).HasMaxLength(20);
 
         builder
             .HasOne(e => e.Pipeline)

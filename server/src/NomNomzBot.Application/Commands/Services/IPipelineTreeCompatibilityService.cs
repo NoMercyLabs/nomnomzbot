@@ -46,4 +46,17 @@ public interface IPipelineTreeCompatibilityService
     /// <see cref="PipelineTrigger.Id"/> left <see cref="Guid.Empty"/>) from <see cref="Pipeline.TriggerKind"/>.
     /// </summary>
     IReadOnlyList<PipelineTrigger> UpcastTriggers(Pipeline pipeline, Command? wrappingCommand);
+
+    /// <summary>
+    /// Upcasts a pipeline's steps onto the block-tree shape (pipeline-control-flow.md D1/D7,
+    /// pipeline-tree-and-editor.md §1.1). A legacy flat pipeline's steps already satisfy the tree
+    /// shape as-is — every row already has <see cref="PipelineStep.BlockKind"/> null (a leaf action
+    /// step) and, for a never-nested pipeline, <see cref="PipelineStep.ParentStepId"/> null (depth 0)
+    /// — so this is an ordering pass, never a structural rewrite: no <see cref="PipelineStep.ParentStepId"/>,
+    /// <see cref="PipelineStep.BlockKind"/>, or <see cref="PipelineStep.Branch"/> is invented or
+    /// altered. Returns the steps ordered depth-first by <c>(ParentStepId, Order)</c> — the same walk
+    /// order the engine uses. Idempotent: calling this twice on the same source rows (or on its own
+    /// output) yields a structurally identical sequence each time.
+    /// </summary>
+    IReadOnlyList<PipelineStep> UpcastStepTree(IReadOnlyList<PipelineStep> steps);
 }

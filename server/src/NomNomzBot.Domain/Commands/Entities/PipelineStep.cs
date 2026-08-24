@@ -32,6 +32,23 @@ public class PipelineStep : BaseEntity, ITenantScoped
     [MaxLength(10)]
     public string? Branch { get; set; }
 
+    /// <summary>
+    /// Block kind (pipeline-control-flow.md D1/D7, pipeline-tree-and-editor.md §1.1). Null = a leaf
+    /// action step (today's behavior, unchanged). Non-null values:
+    /// if | switch | switch_case | loop | random_branch | random_case | try | detached_step.
+    /// A non-null value makes this step a block that owns ordered child steps via
+    /// <see cref="ParentStepId"/>/<see cref="Branch"/>.
+    /// </summary>
+    [MaxLength(20)]
+    public string? BlockKind { get; set; }
+
+    /// <summary>
+    /// Block-kind-specific configuration (if/while condition pointer, switch value + case-match,
+    /// loop mode/list-var/count, random_case weight, ...). Null/"{}" for a leaf action step or a
+    /// block kind with no parameters (try, detached_step). Never null for a persisted block step.
+    /// </summary>
+    public string? BlockConfigJson { get; set; }
+
     /// <summary>Execution order within the pipeline (unique per pipeline).</summary>
     public int Order { get; set; }
 
