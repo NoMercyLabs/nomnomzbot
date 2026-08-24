@@ -58,7 +58,7 @@ kotlin {
                 // Preserve the plugin's default dev server (its `static` dirs serve index.html from
                 // processedResources) and only override the port — replacing the whole DevServer
                 // object drops those static dirs, so `/` 404s and the app never loads in the browser.
-                devServer = (devServer ?: KotlinWebpackConfig.DevServer()).copy(port = 5173)
+                devServer = (devServer ?: KotlinWebpackConfig.DevServer()).copy(port = 5090)
             }
         }
         binaries.executable()

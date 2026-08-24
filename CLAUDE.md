@@ -299,7 +299,7 @@ the dashboard dev server is also running:
 - `http://localhost:5080/health` — Health check (JSON)
 - `http://localhost:8082` — Adminer (DB browser)
 
-The dashboard dev server (`wasmJsBrowserDevelopmentRun`) listens on its own port, `5173`
+The dashboard dev server (`wasmJsBrowserDevelopmentRun`) listens on its own port, `5090`
 (`build.gradle.kts`), so it never collides with the API's `5080`; its dev-only webpack proxy
 (`webpack.config.d/proxy.js`) defaults `NNZ_DEV_BACKEND` to `http://localhost:5080` for exactly this
 reason. The two documented commands (`dotnet run` + `wasmJsBrowserDevelopmentRun`) run together with
@@ -308,7 +308,7 @@ reason. The two documented commands (`dotnet run` + `wasmJsBrowserDevelopmentRun
 **OAuth redirect URI for local dev — always `http://localhost:5080/api/v1/auth/twitch/callback`.**
 The two-port dev proxy deliberately does **not** forward `X-Forwarded-Host`/`X-Forwarded-Proto`, so
 `ResolvePublicOrigin` reports the API's own origin (`5080`) rather than the dashboard dev-server port
-(`5173`) the browser happens to be on — the redirect must byte-match what's actually registered in
+(`5090`) the browser happens to be on — the redirect must byte-match what's actually registered in
 the Twitch Developer Console, and the owner registers `5080`. This is a deliberate exception to the
 forwarded-header precedence used everywhere else (Cloudflare Tunnel, Proxmox) — those are real
 reverse-proxy deployments where the forwarded origin IS the one to trust; the local two-port dev
@@ -376,13 +376,13 @@ dotnet test tests/NomNomzBot.Domain.Tests      # one project
 From `app/` (Windows: `.\gradlew.bat` instead of `./gradlew`):
 
 ```bash
-./gradlew :composeApp:wasmJsBrowserDevelopmentRun --watch-fs -t   # web dev server (hot reload), http://localhost:5173
+./gradlew :composeApp:wasmJsBrowserDevelopmentRun --watch-fs -t   # web dev server (hot reload), http://localhost:5090
 ./gradlew :composeApp:run                                         # desktop (dev)
 ./gradlew :composeApp:wasmJsBrowserDistribution                    # prod web bundle (use --rerun-tasks for a clean prod build)
 ./gradlew :composeApp:packageDistributionForCurrentOS              # desktop installer (MSI/DMG/DEB)
 ```
 
-The web dev server listens on `5173`; run it alongside a plain `dotnet run` API (its committed
+The web dev server listens on `5090`; run it alongside a plain `dotnet run` API (its committed
 default, `5080` — see *Running the Backend*) with **no flags or env vars needed** — the dev server's
 webpack proxy forwards `/api` + `/hubs` to `http://localhost:5080` by default
 (`webpack.config.d/proxy.js`, override with `NNZ_DEV_BACKEND` to point at a different backend). It

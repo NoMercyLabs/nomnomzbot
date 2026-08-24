@@ -66,9 +66,9 @@ say "OK  Java found ($(command -v java))"
 # --- 2. ports ----------------------------------------------------------------
 #
 # The API runs on its committed, documented default — 5080. The dashboard dev
-# server listens on 5173 (app/composeApp/build.gradle.kts) — that's the URL to
+# server listens on 5090 (app/composeApp/build.gradle.kts) — that's the URL to
 # open in a browser. The dashboard's own dev-only webpack proxy
-# (app/composeApp/webpack.config.d/proxy.js) forwards /api + /hubs from 5173
+# (app/composeApp/webpack.config.d/proxy.js) forwards /api + /hubs from 5090
 # through to the API on 5080 by default, so the browser only ever talks to one
 # origin and no env var is needed here.
 #
@@ -76,7 +76,7 @@ say "OK  Java found ($(command -v java))"
 # dev proxy deliberately does NOT forward X-Forwarded-Host/Proto, so ResolvePublicOrigin reports the
 # API's own origin (5080), matching what's registered in the Twitch Developer Console.
 
-DASHBOARD_PORT=5173
+DASHBOARD_PORT=5090
 API_PORT=5080
 
 # --- 3. start the API (Development, SelfHostLite/SQLite) --------------------
