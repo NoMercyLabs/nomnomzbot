@@ -160,14 +160,56 @@ public sealed class PlatformIamPolicyCoverageTests
     [InlineData(nameof(AuthController.StartBotOAuth), IamPermissionKeys.IamManage)]
     [InlineData(nameof(AuthController.GetBotStatus), IamPermissionKeys.IamManage)]
     [InlineData(nameof(AuthController.DisconnectBot), IamPermissionKeys.IamManage)]
-    [InlineData(nameof(AuthController.StartBotDeviceLogin), IamPermissionKeys.IamManage)]
-    [InlineData(nameof(AuthController.PollBotDeviceLogin), IamPermissionKeys.IamManage)]
     public void AuthController_platform_bot_action_carries_the_iam_manage_policy(
         string methodName,
         string expectedKey
     )
     {
         PolicyOf(typeof(AuthController), methodName).Should().Be(expectedKey);
+    }
+
+    /// <summary>
+    /// The one documented exception to "every action carries a static Plane-C policy": endpoints that carry a
+    /// RUNTIME bootstrap-window guard instead (open only until setup finishes, admin-gated again after). A
+    /// fresh self-host has no admin yet when it authorizes the platform bot during setup, so a static policy
+    /// would 401 the very first run. See <c>AuthController.IsSetupCompleteAsync</c> for the guard these two
+    /// methods share with <c>SystemController</c>'s setup/* endpoints.
+    /// </summary>
+    private static readonly (Type Controller, string Method)[] BootstrapWindowExceptions =
+    [
+        (typeof(AuthController), nameof(AuthController.StartBotDeviceLogin)),
+        (typeof(AuthController), nameof(AuthController.PollBotDeviceLogin)),
+    ];
+
+    /// <summary>
+    /// Pins the bootstrap-window exception to EXACTLY these two methods: each must be anonymous with no static
+    /// policy (proving the exception is still needed and correctly shaped). Every OTHER admin/IAM-gated action
+    /// in this file's other theories still requires its named policy — that coverage is what catches a policy
+    /// silently dropped anywhere else (the negative proof below removes one to demonstrate this).
+    /// </summary>
+    [Fact]
+    public void Bootstrap_window_exception_is_exactly_the_two_documented_methods()
+    {
+        foreach ((Type controller, string methodName) in BootstrapWindowExceptions)
+        {
+            MethodInfo method =
+                controller.GetMethod(methodName, BindingFlags.Public | BindingFlags.Instance)
+                ?? throw new MissingMethodException(controller.Name, methodName);
+
+            method
+                .GetCustomAttributes<AuthorizeAttribute>()
+                .Any(a => !string.IsNullOrEmpty(a.Policy))
+                .Should()
+                .BeFalse(
+                    $"{controller.Name}.{methodName} is documented anonymous-during-bootstrap"
+                );
+            method
+                .GetCustomAttribute<AllowAnonymousAttribute>()
+                .Should()
+                .NotBeNull(
+                    $"{controller.Name}.{methodName} must be explicitly [AllowAnonymous], not merely un-gated"
+                );
+        }
     }
 
     [Fact]
