@@ -12,7 +12,8 @@ const followers = ref<string[]>([])
 const shown = computed<string[]>(() => followers.value.slice(0, Math.max(1, cfg.count)))
 
 function onFollow(d: any): void {
-  const user: string = (d && d.user) || ''
+  // FollowAlertDto (AlertDtos.cs) — camelCase on the wire: displayName, not user.
+  const user: string = (d && d.displayName) || ''
   if (!user) return
   followers.value = [user, ...followers.value.filter((f) => f !== user)]
 }

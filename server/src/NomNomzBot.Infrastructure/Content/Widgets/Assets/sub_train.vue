@@ -25,7 +25,8 @@ function add(n: number): void {
   now.value = t
 }
 function onSub(): void { add(1) }
-function onGift(d: any): void { add(Math.max(1, Number(d && d.amount) || 1)) }
+// GiftSubAlertDto (AlertDtos.cs) — camelCase on the wire: count, not amount. A gift of N counts as N.
+function onGift(d: any): void { add(Math.max(1, Number(d && d.count) || 1)) }
 
 onMounted(() => {
   if (!nnz) return

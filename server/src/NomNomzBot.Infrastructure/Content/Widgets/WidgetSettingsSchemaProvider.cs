@@ -295,7 +295,6 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
                     Content,
                     "Optional override for the popup copy."
                 ),
-                Text(d, "sound", "Sound", Content, "Optional sound clip name to play."),
                 NumberField(d, "durationMs", "On-screen time (ms)", Behaviour, min: 0, step: 100),
                 Accent(d),
             ],
@@ -361,7 +360,8 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
                     "handles",
                     "Handles",
                     Content,
-                    "The social accounts to rotate, as a JSON array of objects (e.g. label + url)."
+                    "The social accounts to rotate, as a JSON array of { label, handle } objects — e.g. "
+                        + """[{"label":"Twitter","handle":"@you"}]. An entry with a blank handle is dropped."""
                 ),
                 NumberField(d, "rotateMs", "Rotate interval (ms)", Behaviour, min: 0, step: 500),
                 Accent(d),

@@ -17,8 +17,9 @@ const board = ref<Cheerer[]>([])
 const shown = computed<Cheerer[]>(() => board.value.slice(0, Math.max(1, cfg.count)))
 
 function onCheer(d: any): void {
-  const user: string = (d && d.user) || ''
-  const bits: number = Number(d && d.amount) || 0
+  // CheerAlertDto (AlertDtos.cs) — camelCase on the wire: displayName/bits, not user/amount.
+  const user: string = (d && d.displayName) || ''
+  const bits: number = Number(d && d.bits) || 0
   if (!user || bits <= 0) return
   totals[user] = (totals[user] || 0) + bits
   board.value = Object.keys(totals)

@@ -51,37 +51,44 @@ function money(d: any): string {
   return currency ? amount + ' ' + currency : String(amount)
 }
 
-function enabled(type: string): boolean {
-  return cfg.events.indexOf(type) !== -1
+// The wire DTOs (AlertDtos.cs, camelCase) name their subject field differently per event type: FollowAlertDto/
+// SubscriptionAlertDto/ResubAlertDto/CheerAlertDto use `displayName`; GiftSubAlertDto (no subscriber identity —
+// only the gifter) uses `gifterDisplayName`; RaidAlertDto uses `fromDisplayName`. Supporter.* events have no
+// confirmed first-party DTO yet, so they keep the generic `user`/`amount` shape they always used.
+function nameOf(type: string, d: any): string {
+  if (type === 'gift') return d.gifterDisplayName || 'Someone'
+  if (type === 'raid') return d.fromDisplayName || 'Someone'
+  return d.displayName || d.user || 'Someone'
 }
 
-// Amount gates keep small/spammy events off the overlay: bits for cheers, sub count for gifts, money for tips.
+// Bits/gift-count/tip-amount gates keep small/spammy events off the overlay.
 function passesThreshold(type: string, d: any): boolean {
-  if (type === 'cheer') return (Number(d.amount) || 0) >= cfg.minBits
-  if (type === 'gift') return (Number(d.amount) || 0) >= cfg.minGiftCount
+  if (type === 'cheer') return (Number(d.bits) || 0) >= cfg.minBits
+  if (type === 'gift') return (Number(d.count) || 0) >= cfg.minGiftCount
   if (type.indexOf('supporter.') === 0) return (Number(d.amount) || 0) >= cfg.minAmount
   return true
 }
 
-function applyTemplate(d: any): string {
+function applyTemplate(type: string, d: any): string {
+  const amount: number = type === 'cheer' ? Number(d.bits) || 0 : type === 'gift' ? Number(d.count) || 0 : Number(d.amount) || 0
   return cfg.textTemplate
-    .replace(/\{user\}/g, d.user || '')
-    .replace(/\{amount\}/g, String(d.amount ?? ''))
+    .replace(/\{user\}/g, nameOf(type, d))
+    .replace(/\{amount\}/g, String(amount))
     .replace(/\{tier\}/g, tierText(d.tier))
     .replace(/\{months\}/g, String(d.months ?? ''))
-    .replace(/\{viewers\}/g, String(d.viewers ?? ''))
+    .replace(/\{viewers\}/g, String(d.viewerCount ?? d.viewers ?? ''))
 }
 
 function cardFor(type: string, d: any): AlertCard | null {
-  if (cfg.textTemplate) return { title: applyTemplate(d), detail: '' }
-  const user: string = d.user || 'Someone'
+  if (cfg.textTemplate) return { title: applyTemplate(type, d), detail: '' }
+  const user: string = nameOf(type, d)
   switch (type) {
     case 'follow': return { title: user + ' just followed!', detail: '' }
     case 'subscription': return { title: user + ' just subscribed!', detail: tierText(d.tier) }
     case 'resub': return { title: user + ' resubscribed!', detail: (d.months || 0) + ' months ' + tierText(d.tier) }
-    case 'gift': return { title: user + ' gifted ' + (d.amount || 1) + ' sub' + (Number(d.amount) === 1 ? '' : 's') + '!', detail: tierText(d.tier) }
-    case 'cheer': return { title: user + ' cheered ' + (d.amount || 0) + ' bits!', detail: '' }
-    case 'raid': return { title: user + ' is raiding!', detail: (d.viewers || 0) + ' viewers incoming' }
+    case 'gift': return { title: user + ' gifted ' + (d.count || 1) + ' sub' + (Number(d.count) === 1 ? '' : 's') + '!', detail: tierText(d.tier) }
+    case 'cheer': return { title: user + ' cheered ' + (d.bits || 0) + ' bits!', detail: '' }
+    case 'raid': return { title: user + ' is raiding!', detail: (d.viewerCount || 0) + ' viewers incoming' }
     case 'supporter.tip': return { title: user + ' tipped ' + money(d), detail: d.message || '' }
     case 'supporter.membership': return { title: user + ' joined as a member!', detail: d.message || '' }
     case 'supporter.merch': return { title: user + ' bought merch!', detail: d.message || '' }

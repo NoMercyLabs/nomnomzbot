@@ -35,14 +35,14 @@ public static class WidgetTemplateCatalogue
           <div id="app"><h1>Your widget is live 🎉</h1></div>
           <script>
             // The NomNomz overlay SDK is a global. A few things you can do:
-            //   NomNomz.on('follow', function (d) { /* d.user */ });
-            //   NomNomz.on('cheer',  function (d) { /* d.user, d.amount */ });
+            //   NomNomz.on('follow', function (d) { /* d.displayName */ });
+            //   NomNomz.on('cheer',  function (d) { /* d.displayName, d.bits */ });
             //   NomNomz.onAny(function (type, d) { /* every event */ });
             //   NomNomz.onSettings(function (s) { /* dashboard settings changed */ });
             // Edit this code, hit Save, and the overlay hot-reloads automatically.
             var app = document.getElementById('app');
             NomNomz.on('follow', function (d) {
-              app.innerHTML = '<h1>💜 ' + (d.user || 'Someone') + ' followed!</h1>';
+              app.innerHTML = '<h1>💜 ' + (d.displayName || 'Someone') + ' followed!</h1>';
             });
           </script>
         </body>
@@ -93,12 +93,12 @@ public static class WidgetTemplateCatalogue
               setTimeout(function () { box.classList.remove('show'); setTimeout(next, 450); }, DURATION);
             }
 
-            NomNomz.on('follow', function (d) { show((d.user || 'Someone') + ' followed!', ''); });
-            NomNomz.on('subscription', function (d) { show((d.user || 'Someone') + ' subscribed!', ''); });
-            NomNomz.on('resub', function (d) { show((d.user || 'Someone') + ' resubscribed!', (d.months || 0) + ' months'); });
-            NomNomz.on('gift', function (d) { show((d.user || 'Someone') + ' gifted ' + (d.amount || 1) + ' subs!', ''); });
-            NomNomz.on('cheer', function (d) { show((d.user || 'Someone') + ' cheered ' + (d.amount || 0) + ' bits!', ''); });
-            NomNomz.on('raid', function (d) { show((d.user || 'Someone') + ' is raiding!', (d.viewers || 0) + ' viewers'); });
+            NomNomz.on('follow', function (d) { show((d.displayName || 'Someone') + ' followed!', ''); });
+            NomNomz.on('subscription', function (d) { show((d.displayName || 'Someone') + ' subscribed!', ''); });
+            NomNomz.on('resub', function (d) { show((d.displayName || 'Someone') + ' resubscribed!', (d.months || 0) + ' months'); });
+            NomNomz.on('gift', function (d) { show((d.gifterDisplayName || 'Someone') + ' gifted ' + (d.count || 1) + ' subs!', ''); });
+            NomNomz.on('cheer', function (d) { show((d.displayName || 'Someone') + ' cheered ' + (d.bits || 0) + ' bits!', ''); });
+            NomNomz.on('raid', function (d) { show((d.fromDisplayName || 'Someone') + ' is raiding!', (d.viewerCount || 0) + ' viewers'); });
           </script>
         </body>
         </html>
@@ -128,7 +128,7 @@ public static class WidgetTemplateCatalogue
               if (typeof s.label === 'string') textEl.textContent = s.label;
             });
             // Update the value on each new follower — swap the event to track a different stat.
-            NomNomz.on('follow', function (d) { valueEl.textContent = d.user || '-'; });
+            NomNomz.on('follow', function (d) { valueEl.textContent = d.displayName || '-'; });
           </script>
         </body>
         </html>

@@ -19,28 +19,33 @@ const display = computed<string>(() => {
 })
 
 function onFollow(d: any): void {
+  // FollowAlertDto — camelCase on the wire: displayName, not user.
   followCount += 1
-  if (cfg.label === 'latest_follower') raw.value = (d && d.user) || raw.value
+  if (cfg.label === 'latest_follower') raw.value = (d && d.displayName) || raw.value
   else if (cfg.label === 'follower_count') raw.value = String(followCount)
 }
 function onSub(d: any): void {
+  // SubscriptionAlertDto — camelCase on the wire: displayName, not user.
   subCount += 1
-  if (cfg.label === 'latest_sub') raw.value = (d && d.user) || raw.value
+  if (cfg.label === 'latest_sub') raw.value = (d && d.displayName) || raw.value
   else if (cfg.label === 'sub_count') raw.value = String(subCount)
 }
 function onResub(d: any): void {
-  if (cfg.label === 'latest_sub') raw.value = (d && d.user) || raw.value
+  // ResubAlertDto — camelCase on the wire: displayName, not user.
+  if (cfg.label === 'latest_sub') raw.value = (d && d.displayName) || raw.value
 }
 function onGift(d: any): void {
-  const n: number = Math.max(1, Number(d && d.amount) || 1)
+  // GiftSubAlertDto — camelCase on the wire: count, not amount.
+  const n: number = Math.max(1, Number(d && d.count) || 1)
   subCount += n
   if (cfg.label === 'sub_count') raw.value = String(subCount)
 }
 function onCheer(d: any): void {
+  // CheerAlertDto — camelCase on the wire: displayName/bits, not user/amount.
   if (cfg.label !== 'top_cheerer') return
-  const user: string = (d && d.user) || ''
+  const user: string = (d && d.displayName) || ''
   if (!user) return
-  cheerTotals[user] = (cheerTotals[user] || 0) + (Number(d && d.amount) || 0)
+  cheerTotals[user] = (cheerTotals[user] || 0) + (Number(d && d.bits) || 0)
   let top = ''
   let best = -1
   Object.keys(cheerTotals).forEach((u: string) => {

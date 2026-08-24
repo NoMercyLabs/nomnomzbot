@@ -30,16 +30,26 @@ function money(d: any): string {
   return d.currency ? amount + ' ' + d.currency : String(amount)
 }
 
+// The wire DTOs (AlertDtos.cs, camelCase) name their subject field differently per event type: FollowAlertDto/
+// SubscriptionAlertDto/ResubAlertDto/CheerAlertDto use `displayName`; GiftSubAlertDto uses `gifterDisplayName`
+// (no subscriber identity, only the gifter); RaidAlertDto uses `fromDisplayName`. Supporter.* events have no
+// confirmed first-party DTO yet, so they keep the generic `user` shape they always used.
+function nameOf(type: string, d: any): string {
+  if (type === 'gift') return d.gifterDisplayName || 'Someone'
+  if (type === 'raid') return d.fromDisplayName || 'Someone'
+  return d.displayName || d.user || 'Someone'
+}
+
 function chipFor(type: string, data: any): Chip | null {
   const d: any = data || {}
-  const user: string = d.user || 'Someone'
+  const user: string = nameOf(type, d)
   switch (type) {
     case 'follow': return { id: ++seq, icon: '★', text: user + ' followed' }
     case 'subscription': return { id: ++seq, icon: '✦', text: user + ' subscribed' }
     case 'resub': return { id: ++seq, icon: '✦', text: user + ' resubbed ' + (d.months || 0) + 'mo' }
-    case 'gift': return { id: ++seq, icon: '✚', text: user + ' gifted ' + (d.amount || 1) }
-    case 'cheer': return { id: ++seq, icon: '◆', text: user + ' cheered ' + (d.amount || 0) }
-    case 'raid': return { id: ++seq, icon: '⚑', text: user + ' raided ' + (d.viewers || 0) }
+    case 'gift': return { id: ++seq, icon: '✚', text: user + ' gifted ' + (d.count || 1) }
+    case 'cheer': return { id: ++seq, icon: '◆', text: user + ' cheered ' + (d.bits || 0) }
+    case 'raid': return { id: ++seq, icon: '⚑', text: user + ' raided ' + (d.viewerCount || 0) }
     case 'supporter.tip': return { id: ++seq, icon: '♥', text: user + ' tipped ' + money(d) }
     case 'supporter.membership': return { id: ++seq, icon: '♥', text: user + ' membership' }
     case 'supporter.merch': return { id: ++seq, icon: '♥', text: user + ' merch' }

@@ -8,10 +8,13 @@ const nnz = (window as any).NomNomz
 // Channel-point redemption popup. Binds "reward_redeemed" (RewardRedeemedBroadcastHandler:
 // RewardRedeemedDto — { rewardId, rewardTitle, userDisplayName, cost, userInput, avatarUrl, ... }).
 // One card at a time, queued like the alerts widget.
+// No `sound` field: the overlay SDK's audio bus is server-driven only (a broadcaster-wide PlaySound push
+// from the host, e.g. the play_sound pipeline action) — a widget has no client-callable "play this clip"
+// API, so a per-widget sound-clip setting here could never actually trigger playback. Removed rather than
+// shipped inert (widget-quality-audit §1).
 interface RedemptionConfig {
   rewards: string[]     // per-reward enable: reward ids or titles; empty = every reward
   textTemplate: string  // {user} {reward} {cost} {input}; empty = default copy
-  sound: string         // sound-clip key; playback rides the host audio bus (play_sound), never a widget fetch
   durationMs: number
   accentColor: string
 }
@@ -19,7 +22,6 @@ interface RedemptionConfig {
 const cfg = reactive<RedemptionConfig>({
   rewards: [],
   textTemplate: '',
-  sound: '',
   durationMs: 6000,
   accentColor: '#9146ff',
 })
@@ -82,7 +84,6 @@ onMounted(() => {
     if (!s || typeof s !== 'object') return
     if (Array.isArray(s.rewards)) cfg.rewards = s.rewards.slice()
     if (typeof s.textTemplate === 'string') cfg.textTemplate = s.textTemplate
-    if (typeof s.sound === 'string') cfg.sound = s.sound
     if (isFinite(Number(s.durationMs))) cfg.durationMs = Number(s.durationMs)
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
   })

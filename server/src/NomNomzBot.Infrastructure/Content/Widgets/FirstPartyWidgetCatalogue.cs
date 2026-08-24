@@ -245,7 +245,6 @@ public static class FirstPartyWidgetCatalogue
             {
                 ["rewards"] = new List<string>(),
                 ["textTemplate"] = "",
-                ["sound"] = "",
                 ["durationMs"] = 6000,
                 ["accentColor"] = "#9146ff",
             },

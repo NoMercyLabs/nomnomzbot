@@ -49,8 +49,10 @@ function onGoal(d: any): void {
 }
 function onFollow(): void { if (cfg.metric === 'followers') value.value += 1 }
 function onSub(): void { if (cfg.metric === 'subs') value.value += 1 }
-function onGift(d: any): void { if (cfg.metric === 'subs') value.value += Math.max(1, Number(d && d.amount) || 1) }
-function onCheer(d: any): void { if (cfg.metric === 'bits') value.value += Math.max(0, Number(d && d.amount) || 0) }
+// GiftSubAlertDto — camelCase on the wire: count, not amount.
+function onGift(d: any): void { if (cfg.metric === 'subs') value.value += Math.max(1, Number(d && d.count) || 1) }
+// CheerAlertDto — camelCase on the wire: bits, not amount.
+function onCheer(d: any): void { if (cfg.metric === 'bits') value.value += Math.max(0, Number(d && d.bits) || 0) }
 
 onMounted(() => {
   value.value = cfg.start
