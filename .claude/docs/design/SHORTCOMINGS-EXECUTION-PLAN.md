@@ -117,10 +117,6 @@ stable — without dropping the planned requirements behind them.
   caption optional; TTS page shows URL / last-seen / test-through-overlay / queue controls;
   `tts_caption` out of the gallery (U·A3, spec `widgets-overlays.md` §1.2). Done-when: a TTS redeem
   is audible in OBS from a fresh channel with no widget install.
-- **S053** TTS voice truth — overlay SDK sets `utter.voice`/`lang`; search matches Id + Locale
-  case-insensitively; `VoiceExistsAsync` case-insensitive; `!voice` exact-id fallback; no
-  hardcoded-Aria / keyless-Azure preference; precedence doc = code (U·A4). Done-when: `!voice
-  en-US-AriaNeural` and `!voice aria` both work; the chosen voice is heard on client_edge.
 - **S055** Discord rule editor — channel/role pickers via `GuildPickerField`, trigger dropdown, ping
   role, embed, helper link + preview; names in list (U·A6 i1). Done-when: no snowflake typed.
 - **S058** Widget runtime fixes — field-name alignment for `recent_followers`/`top_cheerers`/
