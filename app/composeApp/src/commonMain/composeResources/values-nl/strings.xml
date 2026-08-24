@@ -77,6 +77,8 @@
     <string name="setup_step_done">Klaar</string>
     <string name="setup_optional_badge">Optioneel</string>
     <string name="setup_action_save">Opslaan</string>
+    <string name="setup_use_shared_divider">Liever geen eigen app registreren?</string>
+    <string name="setup_action_use_shared">Gebruik de gedeelde NomNomzBot-app</string>
     <string name="setup_secret_show">Tonen</string>
     <string name="setup_secret_hide">Verbergen</string>
     <string name="setup_action_connect_bot">Botaccount autoriseren</string>

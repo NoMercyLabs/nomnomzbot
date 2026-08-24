@@ -80,6 +80,25 @@ public sealed class SystemCredentialsProvider(
         return configuration[$"{section}:{PascalCase(field)}"];
     }
 
+    public async Task<bool> IsAppDecisionRecordedAsync(
+        string provider,
+        CancellationToken cancellationToken = default
+    )
+    {
+        // BYOC: a DB-vaulted client id row is itself the recorded decision — never the config/env fallback
+        // (the shipped public client), which is an incidental default, not a choice the operator made.
+        string? byocClientId = await ReadConfigAsync($"{provider}.client_id", cancellationToken);
+        if (!string.IsNullOrWhiteSpace(byocClientId))
+            return true;
+
+        // The explicit "use the shared app" choice, recorded by the setup endpoint when the operator clicks it.
+        string? decision = await ReadConfigAsync($"{provider}.app_decision", cancellationToken);
+        return decision == SharedAppDecision;
+    }
+
+    /// <summary>The recorded value of a <c>"{provider}.app_decision"</c> row when the shared app was chosen.</summary>
+    public const string SharedAppDecision = "shared";
+
     /// <summary>
     /// Reads one system-scoped <c>Configuration</c> row: a sealed <see cref="ConfigEntity.SecureValue"/> is
     /// opened under the row's AAD; otherwise the plain <see cref="ConfigEntity.Value"/> is returned. Null when

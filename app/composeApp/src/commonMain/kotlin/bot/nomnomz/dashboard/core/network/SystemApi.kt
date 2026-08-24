@@ -50,6 +50,14 @@ interface SystemApi {
      */
     suspend fun saveCredentials(provider: String, clientId: String, clientSecret: String): ApiResult<Unit>
 
+    /**
+     * Record the operator's explicit decision to use the shared NomNomzBot public Twitch app instead of BYOC —
+     * one click, no fields. POSTs `/api/v1/system/setup/credentials/twitch/use-shared`. This is what completes
+     * the Twitch step (and onboarding) on a fresh install that never saves its own credentials: the shipped
+     * client id resolving on its own is never enough — a deliberate choice is required.
+     */
+    suspend fun useSharedTwitchApp(): ApiResult<Unit>
+
     /** The authorize URL to open for the platform bot account; the callback vaults the token server-side. */
     suspend fun botOAuthUrl(): ApiResult<BotOAuthUrl>
 
@@ -94,6 +102,9 @@ class RestSystemApi(private val client: ApiClient) : SystemApi {
             "api/v1/system/setup/credentials/$provider",
             SaveCredentialsBody(clientId = clientId, clientSecret = clientSecret),
         )
+
+    override suspend fun useSharedTwitchApp(): ApiResult<Unit> =
+        client.postUnit("api/v1/system/setup/credentials/twitch/use-shared")
 
     override suspend fun botOAuthUrl(): ApiResult<BotOAuthUrl> =
         client.getEnvelope("api/v1/system/setup/bot/oauth-url")

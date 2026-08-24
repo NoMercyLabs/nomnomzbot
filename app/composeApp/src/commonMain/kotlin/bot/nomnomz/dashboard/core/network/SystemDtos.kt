@@ -78,6 +78,10 @@ data class SetupStep(
     val instructions: List<String> = emptyList(),
     val action: SetupAction,
     val fields: List<SetupField> = emptyList(),
+    // The one-click "use the shared app" alternative to BYOC — present only on a login-platform step that
+    // ships a public default (today just twitch_app). Null everywhere else. Choosing it records the SAME
+    // kind of deliberate decision saving [action]'s fields would; either one completes the step.
+    val useSharedAction: SetupAction? = null,
 )
 
 /**

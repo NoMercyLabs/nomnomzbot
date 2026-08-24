@@ -746,6 +746,8 @@ private class FakeSystemApi : SystemApi {
         clientSecret: String,
     ): ApiResult<Unit> = ApiResult.Ok(Unit)
 
+    override suspend fun useSharedTwitchApp(): ApiResult<Unit> = ApiResult.Ok(Unit)
+
     override suspend fun botOAuthUrl(): ApiResult<bot.nomnomz.dashboard.core.network.BotOAuthUrl> =
         ApiResult.Ok(bot.nomnomz.dashboard.core.network.BotOAuthUrl(oauthUrl = ""))
 

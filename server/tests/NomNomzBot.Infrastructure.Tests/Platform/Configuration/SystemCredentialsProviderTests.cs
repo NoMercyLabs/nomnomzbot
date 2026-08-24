@@ -239,4 +239,58 @@ public sealed class SystemCredentialsProviderTests
             .Should()
             .Be("db-bot");
     }
+
+    [Fact]
+    public async Task IsAppDecisionRecordedAsync_IsFalse_OnAConfigOnlyClientId_WithNoDbRow()
+    {
+        // THE REPRODUCED BUG's root cause: the shipped public client id resolving from config ALONE (no DB
+        // row, no explicit decision) must never read as a recorded decision.
+        IConfiguration config = Config(("Twitch:ClientId", "shipped-public-client-id"));
+        (SystemCredentialsProvider provider, _, _) = Build(config);
+
+        (await provider.IsAppDecisionRecordedAsync("twitch")).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task IsAppDecisionRecordedAsync_IsTrue_OnceAByocClientIdRowIsStored()
+    {
+        (SystemCredentialsProvider provider, AuthDbContext db, _) = Build(Config());
+        db.Configurations.Add(
+            new()
+            {
+                BroadcasterId = null,
+                Key = "twitch.client_id",
+                Value = "byoc-client-id",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        (await provider.IsAppDecisionRecordedAsync("twitch")).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task IsAppDecisionRecordedAsync_IsTrue_OnceTheSharedAppDecisionIsStored()
+    {
+        IConfiguration config = Config(("Twitch:ClientId", "shipped-public-client-id"));
+        (SystemCredentialsProvider provider, AuthDbContext db, _) = Build(config);
+        db.Configurations.Add(
+            new()
+            {
+                BroadcasterId = null,
+                Key = "twitch.app_decision",
+                Value = SystemCredentialsProvider.SharedAppDecision,
+            }
+        );
+        await db.SaveChangesAsync();
+
+        (await provider.IsAppDecisionRecordedAsync("twitch")).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task IsAppDecisionRecordedAsync_IsFalse_WithNeitherRowNorAnyConfig()
+    {
+        (SystemCredentialsProvider provider, _, _) = Build(Config());
+
+        (await provider.IsAppDecisionRecordedAsync("twitch")).Should().BeFalse();
+    }
 }

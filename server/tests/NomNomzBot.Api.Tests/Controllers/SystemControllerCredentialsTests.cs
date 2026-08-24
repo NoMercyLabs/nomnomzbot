@@ -17,6 +17,7 @@ using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Infrastructure.Platform.Configuration;
 using NSubstitute;
 using ConfigEntity = NomNomzBot.Domain.Platform.Entities.Configuration;
 
@@ -104,6 +105,27 @@ public sealed class SystemControllerCredentialsTests
                 "the-secret",
                 Arg.Any<TokenProtectionContext>(),
                 Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task UseSharedTwitchApp_RecordsTheSharedAppDecision()
+    {
+        // Proves the "use the shared app" one-click affordance records the SAME kind of deliberate decision
+        // BYOC would — a Configuration row IsAppDecisionRecordedAsync reads back as true.
+        ApiTestDbContext db = ApiTestDbContext.New();
+        ITokenProtector protector = Substitute.For<ITokenProtector>();
+        SystemController controller = Build(db, protector);
+
+        IActionResult result = await controller.UseSharedTwitchApp(default);
+
+        result.Should().BeOfType<OkObjectResult>();
+        List<ConfigEntity> rows = await db.Configurations.ToListAsync();
+        rows.Should()
+            .ContainSingle(c =>
+                c.BroadcasterId == null
+                && c.Key == "twitch.app_decision"
+                && c.Value == SystemCredentialsProvider.SharedAppDecision
             );
     }
 }

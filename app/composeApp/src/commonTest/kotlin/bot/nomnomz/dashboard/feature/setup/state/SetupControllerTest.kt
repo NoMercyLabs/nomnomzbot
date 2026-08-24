@@ -210,6 +210,28 @@ class SetupControllerTest {
     }
 
     @Test
+    fun using_the_shared_twitch_app_records_the_decision_then_reflects_the_step_complete_from_the_reread() = runTest {
+        // The one-click alternative to BYOC (the login-lockout fix): choosing it calls the dedicated endpoint,
+        // never saveCredentials, and the step only flips complete once the backend's re-read says so.
+        val api = FakeSystemApi(wizard = wizard(twitch = false, bot = true), ready = false)
+        val controller = controller(api)
+        controller.load()
+        assertFalse((controller.state.value as SetupState.Steps).ready)
+
+        api.wizardAfter = wizard(twitch = true, bot = true)
+        api.readyAfter = true
+        controller.useSharedTwitchApp()
+
+        assertTrue(api.usedSharedTwitchApp)
+        assertNull(api.savedTwitchClientId) // the shared-app path never PUTs credentials
+        val steps: SetupState.Steps = controller.state.value as SetupState.Steps
+        assertTrue(steps.steps.first { it.key == "twitch_app" }.complete)
+        assertTrue(steps.ready)
+        assertNull(steps.busy)
+        assertNull(steps.error)
+    }
+
+    @Test
     fun saving_a_confidential_provider_without_its_secret_surfaces_an_error() = runTest {
         // Spotify is a confidential OAuth client: the client id alone is not enough — the secret is required, so
         // a blank secret surfaces MissingFields and never calls the backend.
@@ -636,6 +658,7 @@ private class FakeSystemApi(
     var savedTwitchBotUsername: String? = null
     var savedSpotify: Pair<String, String>? = null
     var setupCompleted: Boolean = false
+    var usedSharedTwitchApp: Boolean = false
 
     override suspend fun status(): ApiResult<SystemStatus> {
         val isReady: Boolean = readyAfter ?: ready
@@ -660,6 +683,11 @@ private class FakeSystemApi(
 
     override suspend fun saveCredentials(provider: String, clientId: String, clientSecret: String): ApiResult<Unit> {
         if (provider == "spotify") savedSpotify = clientId to clientSecret
+        return ApiResult.Ok(Unit)
+    }
+
+    override suspend fun useSharedTwitchApp(): ApiResult<Unit> {
+        usedSharedTwitchApp = true
         return ApiResult.Ok(Unit)
     }
 

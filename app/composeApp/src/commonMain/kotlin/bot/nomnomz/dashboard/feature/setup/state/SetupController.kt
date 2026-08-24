@@ -149,6 +149,22 @@ class SetupController(
     }
 
     /**
+     * Record the operator's one-click decision to use the shared NomNomzBot Twitch app instead of BYOC, then
+     * reload so the step flips to complete from the backend's re-read — the same "never an optimistic flip"
+     * contract [saveCredentials] follows.
+     */
+    suspend fun useSharedTwitchApp() {
+        val current: SetupState.Steps = _state.value as? SetupState.Steps ?: return
+        _state.value = current.copy(busy = STEP_TWITCH, error = null)
+
+        when (val result: ApiResult<Unit> = systemApi.useSharedTwitchApp()) {
+            is ApiResult.Failure ->
+                _state.value = current.copy(busy = null, error = SetupError.Save(STEP_TWITCH, result.error.message))
+            is ApiResult.Ok -> reload(busy = null, error = null)
+        }
+    }
+
+    /**
      * Run the platform-bot authorization via the secret-free DEVICE CODE flow (CLAUDE.md: login is device
      * code, secret-free, shared public client by default) — never the redirect flow, which needs a
      * configured Twitch app the operator does not have yet at this point in onboarding. Mints a device

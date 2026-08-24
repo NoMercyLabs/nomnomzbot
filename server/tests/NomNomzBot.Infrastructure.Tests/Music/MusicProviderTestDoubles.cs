@@ -254,6 +254,11 @@ internal sealed class NullSystemCredentialsProvider : ISystemCredentialsProvider
         string field,
         CancellationToken cancellationToken = default
     ) => Task.FromResult<string?>(null);
+
+    public Task<bool> IsAppDecisionRecordedAsync(
+        string provider,
+        CancellationToken cancellationToken = default
+    ) => Task.FromResult(false);
 }
 
 /// <summary>Layers over <see cref="NullSystemCredentialsProvider"/> the way the real

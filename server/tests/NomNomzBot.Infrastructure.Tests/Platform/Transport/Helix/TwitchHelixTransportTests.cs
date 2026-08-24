@@ -92,6 +92,11 @@ public class TwitchHelixTransportTests
             string provider,
             CancellationToken cancellationToken = default
         ) => Task.FromResult(clientId);
+
+        public Task<bool> IsAppDecisionRecordedAsync(
+            string provider,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult(clientId is not null);
     }
 
     [Fact]

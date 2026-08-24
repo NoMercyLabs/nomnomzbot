@@ -69,6 +69,8 @@ import nomnomzbot.composeapp.generated.resources.setup_action_connect_bot
 import nomnomzbot.composeapp.generated.resources.setup_action_continue
 import nomnomzbot.composeapp.generated.resources.setup_action_retry
 import nomnomzbot.composeapp.generated.resources.setup_action_save
+import nomnomzbot.composeapp.generated.resources.setup_action_use_shared
+import nomnomzbot.composeapp.generated.resources.setup_use_shared_divider
 import nomnomzbot.composeapp.generated.resources.setup_copy_action
 import nomnomzbot.composeapp.generated.resources.setup_copy_done
 import nomnomzbot.composeapp.generated.resources.connect_device_copied
@@ -182,6 +184,7 @@ private fun SetupStepsFrame(controller: SetupController, state: SetupState.Steps
                     botDevice = state.botDevice,
                     onValueChange = { fieldKey, value -> controller.onFieldChange(step.key, fieldKey, value) },
                     onSave = { scope.launch { controller.saveCredentials(step) } },
+                    onUseShared = { scope.launch { controller.useSharedTwitchApp() } },
                     onConnectBot = { scope.launch { controller.connectBot() } },
                     onCancelDevice = { controller.cancelBotDevice() },
                 )
@@ -234,6 +237,7 @@ private fun StepPanel(
     botDevice: BotDeviceState?,
     onValueChange: (fieldKey: String, value: String) -> Unit,
     onSave: () -> Unit,
+    onUseShared: () -> Unit,
     onConnectBot: () -> Unit,
     onCancelDevice: () -> Unit,
 ) {
@@ -312,6 +316,7 @@ private fun StepPanel(
                         error = error,
                         onValueChange = onValueChange,
                         onSave = onSave,
+                        onUseShared = step.useSharedAction?.let { { onUseShared() } },
                     )
 
                 ACTION_OAUTH_REDIRECT ->
@@ -517,8 +522,11 @@ private fun CredentialFields(
     error: SetupError?,
     onValueChange: (fieldKey: String, value: String) -> Unit,
     onSave: () -> Unit,
+    onUseShared: (() -> Unit)?,
 ) {
     val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    val tokens = LocalTokens.current
 
     Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
         step.fields.forEach { field ->
@@ -543,6 +551,19 @@ private fun CredentialFields(
         } else {
             Button(onClick = onSave, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(Res.string.setup_action_save))
+            }
+
+            // The one-click alternative to BYOC — records the SAME kind of deliberate decision the Save
+            // button above does. Only rendered when the backend offers it (today just the Twitch step).
+            if (onUseShared != null) {
+                Text(
+                    text = stringResource(Res.string.setup_use_shared_divider),
+                    style = typography.xs,
+                    color = tokens.mutedForeground,
+                )
+                OutlinedButton(onClick = onUseShared, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(Res.string.setup_action_use_shared))
+                }
             }
         }
     }

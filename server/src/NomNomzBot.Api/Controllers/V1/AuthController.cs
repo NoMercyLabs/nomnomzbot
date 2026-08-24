@@ -1281,19 +1281,17 @@ public class AuthController : BaseController
     }
 
     // Mirrors SystemController's own IsSetupCompleteAsync exactly (same two facts, same "explicitly finalized
-    // OR (Twitch client id + platform bot) both present" rule) so this controller's bootstrap-window gate can
-    // never drift from the one setup/* already enforces.
+    // OR (a RECORDED Twitch app decision + platform bot) both present" rule) so this controller's bootstrap-
+    // window gate can never drift from the one setup/* already enforces.
     private async Task<bool> IsSetupCompleteAsync(CancellationToken ct)
     {
         if (await _credentials.GetValueAsync("system", "setup_complete", ct) == "true")
             return true;
 
-        bool hasTwitchClientId = !string.IsNullOrWhiteSpace(
-            await _credentials.GetClientIdAsync("twitch", ct)
-        );
+        bool hasTwitchDecision = await _credentials.IsAppDecisionRecordedAsync("twitch", ct);
         Result<BotStatusDto> botStatus = await _authService.GetBotStatusAsync(ct);
         bool hasPlatformBot = botStatus is { IsSuccess: true, Value.Connected: true };
 
-        return hasTwitchClientId && hasPlatformBot;
+        return hasTwitchDecision && hasPlatformBot;
     }
 }

@@ -231,6 +231,8 @@ private class FakeSystemApi(
     override suspend fun saveCredentials(provider: String, clientId: String, clientSecret: String): ApiResult<Unit> =
         ApiResult.Ok(Unit)
 
+    override suspend fun useSharedTwitchApp(): ApiResult<Unit> = ApiResult.Ok(Unit)
+
     override suspend fun botOAuthUrl(): ApiResult<BotOAuthUrl> = ApiResult.Ok(BotOAuthUrl("https://unused"))
 
     override suspend fun botStatus(): ApiResult<BotStatus> = ApiResult.Ok(BotStatus(connected = true))

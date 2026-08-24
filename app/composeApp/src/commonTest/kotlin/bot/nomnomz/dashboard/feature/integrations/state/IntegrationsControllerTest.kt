@@ -765,6 +765,8 @@ private class FakeSystemApi(
         return ApiResult.Ok(Unit)
     }
 
+    override suspend fun useSharedTwitchApp(): ApiResult<Unit> = ApiResult.Ok(Unit)
+
     override suspend fun botOAuthUrl(): ApiResult<BotOAuthUrl> =
         ApiResult.Ok(BotOAuthUrl("https://id.twitch.tv/authorize?bot"))
 

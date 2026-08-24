@@ -66,10 +66,12 @@ public class SystemController : BaseController
 
     /// <summary>
     /// <see cref="OnboardingComplete"/> is the ONLY gate the client routes onboarding vs. login off. It means
-    /// exactly "at least one platform's app credentials are configured" — deployment-level setup, not who is
-    /// signed in and not whether the platform bot is authorized. Bot authorization is per-channel work that
-    /// happens after login; its live state is <see cref="SystemChecks.PlatformBot"/>, reported separately so
-    /// the wizard can still show it without it ever blocking the client from reaching the login screen.
+    /// the operator has made a DELIBERATE, RECORDED decision about at least one platform's app — either BYOC
+    /// (their own client id, saved) or an explicit "use the shared app" choice — never an incidental config/env
+    /// fallback (the shipped public Twitch client id) alone. It is deployment-level setup, not who is signed in
+    /// and not whether the platform bot is authorized. Bot authorization is per-channel work that happens after
+    /// login; its live state is <see cref="SystemChecks.PlatformBot"/>, reported separately so the wizard can
+    /// still show it without it ever blocking the client from reaching the login screen.
     /// </summary>
     public record SystemStatusDto(bool OnboardingComplete, SystemChecks Checks);
 
@@ -110,12 +112,14 @@ public class SystemController : BaseController
         bool hasDiscord = st.HasDiscord;
         bool hasYouTube = st.HasYouTube;
 
-        // Onboarding is deployment-level configuration ONLY: at least one platform's app credentials configured
-        // (today just Twitch — kick/youtube/twitter join this OR as they land). It is NOT gated on the platform
-        // bot: bot authorization is per-channel work that belongs after login, never a reason to keep the
-        // operator locked out of the login screen. A client secret is never required either — the client id
-        // alone is enough via the secret-free Device Code Flow.
-        bool onboardingComplete = hasTwitchClientId;
+        // Onboarding is deployment-level configuration ONLY: at least one platform's app has a RECORDED
+        // DECISION (today just Twitch — kick/youtube/twitter join this OR as they land). A shipped config/env
+        // default (the public Twitch client id) is never enough on its own — that is an incidental fallback,
+        // not a choice the operator made, and on a completely empty database it must NOT complete onboarding.
+        // It is NOT gated on the platform bot: bot authorization is per-channel work that belongs after login,
+        // never a reason to keep the operator locked out of the login screen. A client secret is never
+        // required either — the client id alone is enough via the secret-free Device Code Flow.
+        bool onboardingComplete = st.HasTwitchDecision;
 
         SystemChecks checks = new(
             // Ok = redirect-capable (secret present); Ready = usable now (client id present → device-code works).
@@ -192,11 +196,11 @@ public class SystemController : BaseController
             new StatusResponseDto<SetupWizardDto>
             {
                 Data = SetupWizard.Build(
-                    // The Twitch step is complete once a client id is present — a secret is optional, so id-only
-                    // is a finished, fully-functional configuration (device-code login). Without a secret the
-                    // step stays complete but the status flags the redirect enhancement as still available.
                     st.HasTwitchClientId,
                     st.HasTwitchSecret,
+                    // The Twitch step's Complete/onboarding gate: a RECORDED decision (BYOC or explicit shared
+                    // choice), never the shipped client id resolving on its own.
+                    st.HasTwitchDecision,
                     st.HasPlatformBot,
                     st.HasSpotify,
                     st.HasDiscord,
@@ -218,6 +222,9 @@ public class SystemController : BaseController
             await _credentials.GetClientIdAsync("twitch", ct)
         );
         bool hasTwitchSecret = await _credentials.GetAsync("twitch", ct) is not null;
+        // The onboarding gate: a DELIBERATE, RECORDED decision (BYOC saved, or the shared app explicitly
+        // chosen) — never satisfied by the shipped config/env client id resolving on its own.
+        bool hasTwitchDecision = await _credentials.IsAppDecisionRecordedAsync("twitch", ct);
 
         // The optional providers stay "configured = both fields" — they have no device-code path, so a secret
         // is genuinely required to use them at all.
@@ -234,6 +241,7 @@ public class SystemController : BaseController
         return new(
             hasTwitchClientId,
             hasTwitchSecret,
+            hasTwitchDecision,
             hasPlatformBot,
             hasSpotify,
             hasDiscord,
@@ -244,6 +252,7 @@ public class SystemController : BaseController
     private sealed record SetupState(
         bool HasTwitchClientId,
         bool HasTwitchSecret,
+        bool HasTwitchDecision,
         bool HasPlatformBot,
         bool HasSpotify,
         bool HasDiscord,
@@ -327,6 +336,32 @@ public class SystemController : BaseController
         string ClientSecret,
         string? BotUsername
     );
+
+    /// <summary>
+    /// Records the operator's explicit decision to use the shared NomNomzBot public Twitch app (the shipped
+    /// client id) instead of BYOC — one click, no fields. This is what completes onboarding on a fresh install
+    /// that never saves its own credentials: without it, the shipped config default alone must never finish
+    /// onboarding (a deliberate choice is required, per the setup contract).
+    /// </summary>
+    [HttpPost("setup/credentials/twitch/use-shared")]
+    [EnableRateLimiting("auth")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> UseSharedTwitchApp(CancellationToken ct)
+    {
+        if (await IsSetupCompleteAsync(ct) && !User.IsInRole("admin"))
+            return Forbid();
+
+        await UpsertSystemConfig(
+            "twitch.app_decision",
+            Infrastructure.Platform.Configuration.SystemCredentialsProvider.SharedAppDecision,
+            ct
+        );
+        await _db.SaveChangesAsync(ct);
+
+        return Ok(
+            new StatusResponseDto<object> { Message = "Using the shared NomNomzBot Twitch app." }
+        );
+    }
 
     /// <summary>Save system-level Spotify app credentials.</summary>
     [HttpPut("setup/credentials/spotify")]
@@ -418,15 +453,16 @@ public class SystemController : BaseController
         return Ok(new StatusResponseDto<object> { Message = "Setup marked complete." });
     }
 
-    // Setup is "complete" once explicitly finalized, or once the system is ready (a Twitch client id — the
-    // secret is optional — plus the platform bot authorized). After that, credential overwrites require a
-    // platform admin — closing the standing hosted-mode hole where anyone could repoint the platform's app.
+    // Setup is "complete" once explicitly finalized, or once the system is ready (a RECORDED Twitch app
+    // decision — BYOC or explicit shared-app choice, the secret is optional — plus the platform bot
+    // authorized). After that, credential overwrites require a platform admin — closing the standing
+    // hosted-mode hole where anyone could repoint the platform's app.
     private async Task<bool> IsSetupCompleteAsync(CancellationToken ct)
     {
         if (await GetSystemConfig("system.setup_complete", ct) == "true")
             return true;
         SetupState st = await ComputeSetupStateAsync(ct);
-        return st is { HasTwitchClientId: true, HasPlatformBot: true };
+        return st is { HasTwitchDecision: true, HasPlatformBot: true };
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

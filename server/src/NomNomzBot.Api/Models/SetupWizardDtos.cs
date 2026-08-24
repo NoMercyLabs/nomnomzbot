@@ -28,7 +28,13 @@ public sealed record SetupStepDto(
     string Status,
     IReadOnlyList<string> Instructions,
     SetupActionDto Action,
-    IReadOnlyList<SetupFieldDto> Fields
+    IReadOnlyList<SetupFieldDto> Fields,
+    // The one-click "use the shared app" affordance — present only on a login-platform step that ships a
+    // public default client id (today just twitch_app). Null on every step with no shared-app alternative
+    // (the bot step, and the confidential-client optional integrations). Choosing this records the SAME kind
+    // of deliberate decision as saving BYOC credentials via <see cref="Action"/> — either one completes the
+    // step; this is never a fallback the step completes on its own.
+    SetupActionDto? UseSharedAction = null
 );
 
 /// <summary>
@@ -62,6 +68,7 @@ public static class SetupWizard
     public static SetupWizardDto Build(
         bool hasTwitchClientId,
         bool hasTwitchSecret,
+        bool hasTwitchDecision,
         bool hasPlatformBot,
         bool hasSpotify,
         bool hasDiscord,
@@ -75,20 +82,25 @@ public static class SetupWizard
             new(
                 "twitch_app",
                 "Connect your Twitch application",
-                "The bot talks to Twitch through a Twitch app. Paste a Client ID to get going — a Client Secret is optional and only adds one-tap redirect sign-in.",
+                "The bot talks to Twitch through a Twitch app. Bring your own Client ID (encouraged — a Client Secret is optional and only adds one-tap redirect sign-in), or use the shared NomNomzBot app in one click.",
                 Required: true,
-                // Complete once a Client ID is present: that alone fully runs the bot via the secret-free
-                // device-code login. A missing secret leaves the step done but flags the redirect enhancement.
-                Complete: hasTwitchClientId,
+                // Complete only once the operator made a DELIBERATE, RECORDED decision — BYOC saved, or the
+                // shared app explicitly chosen via UseSharedAction below. A client id merely being READY
+                // (Status below — the shipped config default resolving on its own) is NOT a decision and must
+                // never complete this step on its own; that was the onboarding-skip bug.
+                Complete: hasTwitchDecision,
+                // Status still reports what's USABLE right now (any source, including the shipped default) —
+                // this is what the "ready_device" copy and the shared-app affordance's availability key off.
                 Status: !hasTwitchClientId ? "missing"
                     : hasTwitchSecret ? "ready_redirect"
                     : "ready_device",
                 Instructions:
                 [
-                    "Open the Twitch Developer Console at https://dev.twitch.tv/console/apps and register a new application.",
+                    "Bring your own app (encouraged): open the Twitch Developer Console at https://dev.twitch.tv/console/apps and register a new application.",
                     $"Set the OAuth Redirect URL to exactly: {root}/api/v1/auth/twitch/callback",
                     "Choose the \"Chat Bot\" category, create it, then copy the Client ID.",
                     "A Client Secret is optional — the bot signs in with the secret-free device-code flow without one. Add it only if you want the smoother one-tap redirect sign-in.",
+                    "Prefer not to register your own app? Use the shared NomNomzBot app instead — one click, no fields.",
                 ],
                 Action: new(
                     "save_credentials",
@@ -112,7 +124,15 @@ public static class SetupWizard
                         false,
                         "Optional — only needed for one-tap redirect sign-in. Generated on the Twitch app page, shown only once."
                     ),
-                ]
+                ],
+                // The one-click alternative to BYOC: records the operator's choice to run on the shared public
+                // client id (already usable via device-code — Status above) without registering their own app.
+                UseSharedAction: new(
+                    "use_shared",
+                    "POST",
+                    "/api/v1/system/setup/credentials/twitch/use-shared",
+                    null
+                )
             ),
             new(
                 "platform_bot",
@@ -211,10 +231,11 @@ public static class SetupWizard
             ),
         ];
 
-        // Complete = onboarding done = at least one platform's app credentials configured (today just Twitch's
-        // client id — a secret is optional). Mirrors SystemController.GetStatus's OnboardingComplete exactly;
-        // the platform bot is NOT part of this — it's per-channel work the wizard's own "platform_bot" step
-        // still tracks (see its own Complete/Status above), never a reason to keep onboarding "not done".
-        return new(hasTwitchClientId, steps);
+        // Complete = onboarding done = at least one platform's app has a RECORDED DECISION (today just
+        // Twitch's — BYOC or explicit shared-app choice). Mirrors SystemController.GetStatus's
+        // OnboardingComplete exactly; the platform bot is NOT part of this — it's per-channel work the
+        // wizard's own "platform_bot" step still tracks (see its own Complete/Status above), never a reason
+        // to keep onboarding "not done".
+        return new(hasTwitchDecision, steps);
     }
 }

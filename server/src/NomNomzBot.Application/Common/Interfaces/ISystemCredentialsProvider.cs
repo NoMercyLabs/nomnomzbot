@@ -51,6 +51,19 @@ public interface ISystemCredentialsProvider
         string field,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// Whether the operator has made a DELIBERATE, RECORDED decision about <paramref name="provider"/>'s app —
+    /// never satisfied by an incidental config/env fallback (e.g. the shipped public Twitch client id). True
+    /// when either (a) a DB-vaulted <c>"{provider}.client_id"</c> row exists (BYOC — the encouraged path), or
+    /// (b) the operator explicitly chose the shared app (<c>"{provider}.app_decision"</c> == <c>"shared"</c>).
+    /// This — not <see cref="GetClientIdAsync"/> — is what onboarding-complete must be driven by: a shipped
+    /// config default alone must never silently finish onboarding.
+    /// </summary>
+    Task<bool> IsAppDecisionRecordedAsync(
+        string provider,
+        CancellationToken cancellationToken = default
+    );
 }
 
 /// <summary>The resolved platform app credentials for one provider — both fields present by construction.</summary>

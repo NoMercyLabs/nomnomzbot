@@ -201,6 +201,11 @@ public sealed class SpotifyMusicProviderRefreshConcurrencyTests
             string key,
             CancellationToken cancellationToken = default
         ) => Task.FromResult<string?>(null);
+
+        public Task<bool> IsAppDecisionRecordedAsync(
+            string provider,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult(true);
     }
 
     /// <summary>

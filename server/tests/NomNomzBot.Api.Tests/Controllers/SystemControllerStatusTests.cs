@@ -32,20 +32,21 @@ namespace NomNomzBot.Api.Tests.Controllers;
 public sealed class SystemControllerStatusTests
 {
     [Fact]
-    public async Task Status_is_ready_with_a_client_id_alone_and_no_secret()
+    public async Task Status_is_ready_but_onboarding_is_not_complete_on_a_shipped_client_id_alone()
     {
-        // The keystone: a self-host operator who configured only a client id (or runs on the shipped public
-        // client) is READY — the bot works via device-code. The Twitch check is usable (Ready) but not
-        // redirect-capable (Ok=false), and its status names the device-code mode, never "missing".
+        // THE REPRODUCED BUG: a virgin database resolves the shipped public client id via config fallback
+        // (Ready=true, usable now), but the operator never made a decision. Onboarding must stay incomplete —
+        // Ready/Status still honestly report the device-code flow is usable.
         (SystemController controller, _) = Build(
             clientId: "abc123",
             secret: null,
-            botConnected: true
+            botConnected: true,
+            decisionRecorded: false
         );
 
         SystemController.SystemStatusDto status = await ReadStatus(controller);
 
-        status.OnboardingComplete.Should().BeTrue();
+        status.OnboardingComplete.Should().BeFalse();
         status.Checks.TwitchApp.Ready.Should().BeTrue();
         status.Checks.TwitchApp.Ok.Should().BeFalse(); // no secret ⇒ no redirect login, only device-code
         status.Checks.TwitchApp.Status.Should().Be("ready_device");
@@ -54,11 +55,13 @@ public sealed class SystemControllerStatusTests
     [Fact]
     public async Task Status_reports_redirect_mode_when_a_secret_is_configured()
     {
-        // A configured secret is the enhancement: the check is now redirect-capable (Ok) on top of usable.
+        // A configured secret is the enhancement: the check is now redirect-capable (Ok) on top of usable —
+        // independent of whether a decision was recorded.
         (SystemController controller, _) = Build(
             clientId: "abc123",
             secret: "shh",
-            botConnected: true
+            botConnected: true,
+            decisionRecorded: true
         );
 
         SystemController.SystemStatusDto status = await ReadStatus(controller);
@@ -74,7 +77,12 @@ public sealed class SystemControllerStatusTests
     {
         // A missing CLIENT ID is still not-ready (a missing secret is not). The Twitch check is neither usable
         // nor redirect-capable, and reports "missing" — the only state that routes to the setup wizard.
-        (SystemController controller, _) = Build(clientId: null, secret: null, botConnected: true);
+        (SystemController controller, _) = Build(
+            clientId: null,
+            secret: null,
+            botConnected: true,
+            decisionRecorded: false
+        );
 
         SystemController.SystemStatusDto status = await ReadStatus(controller);
 
@@ -85,16 +93,17 @@ public sealed class SystemControllerStatusTests
     }
 
     [Fact]
-    public async Task Onboarding_is_complete_with_a_client_id_alone_even_with_no_bot_authorized()
+    public async Task Onboarding_is_complete_once_a_decision_is_recorded_even_with_no_bot_authorized()
     {
         // The keystone of the login-lockout fix: onboarding (OnboardingComplete) is deployment-level
-        // configuration ONLY. Bot authorization is per-channel work that happens after login, so it must
-        // NEVER gate reaching the login screen — even though the bot's own live state is still reported,
-        // separately and honestly, in PlatformBot.
+        // configuration ONLY, driven by a RECORDED decision. Bot authorization is per-channel work that
+        // happens after login, so it must NEVER gate reaching the login screen — even though the bot's own
+        // live state is still reported, separately and honestly, in PlatformBot.
         (SystemController controller, _) = Build(
             clientId: "abc123",
             secret: null,
-            botConnected: false
+            botConnected: false,
+            decisionRecorded: true
         );
 
         SystemController.SystemStatusDto status = await ReadStatus(controller);
@@ -108,7 +117,29 @@ public sealed class SystemControllerStatusTests
     [Fact]
     public async Task Onboarding_is_not_complete_with_no_platform_credentials_at_all()
     {
-        (SystemController controller, _) = Build(clientId: null, secret: null, botConnected: false);
+        (SystemController controller, _) = Build(
+            clientId: null,
+            secret: null,
+            botConnected: false,
+            decisionRecorded: false
+        );
+
+        SystemController.SystemStatusDto status = await ReadStatus(controller);
+
+        status.OnboardingComplete.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Onboarding_is_not_complete_with_a_usable_client_id_and_bot_but_no_recorded_decision()
+    {
+        // Even with the bot fully authorized, a usable-but-undecided client id must not complete onboarding —
+        // the decision is the ONLY thing that counts, never a side effect of other state being ready.
+        (SystemController controller, _) = Build(
+            clientId: "abc123",
+            secret: null,
+            botConnected: true,
+            decisionRecorded: false
+        );
 
         SystemController.SystemStatusDto status = await ReadStatus(controller);
 
@@ -133,7 +164,8 @@ public sealed class SystemControllerStatusTests
     private static (SystemController Controller, ISystemCredentialsProvider Credentials) Build(
         string? clientId,
         string? secret,
-        bool botConnected
+        bool botConnected,
+        bool decisionRecorded
     )
     {
         IAuthService authService = Substitute.For<IAuthService>();
@@ -159,6 +191,9 @@ public sealed class SystemControllerStatusTests
         credentials
             .GetAsync(Arg.Is<string>(p => p != "twitch"), Arg.Any<CancellationToken>())
             .Returns((SystemAppCredentials?)null);
+        credentials
+            .IsAppDecisionRecordedAsync("twitch", Arg.Any<CancellationToken>())
+            .Returns(decisionRecorded);
 
         authService
             .GetBotStatusAsync(Arg.Any<CancellationToken>())

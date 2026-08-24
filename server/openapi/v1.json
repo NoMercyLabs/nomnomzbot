@@ -60238,6 +60238,96 @@
         }
       }
     },
+    "/api/v{version}/system/setup/credentials/twitch/use-shared": {
+      "post": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Records the operator's explicit decision to use the shared NomNomzBot public Twitch app (the shipped\r\nclient id) instead of BYOC — one click, no fields. This is what completes onboarding on a fresh install\r\nthat never saves its own credentials: without it, the shipped config default alone must never finish\r\nonboarding (a deliberate choice is required, per the setup contract).",
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/system/setup/credentials/spotify": {
       "put": {
         "tags": [
@@ -85362,6 +85452,16 @@
             "items": {
               "$ref": "#/components/schemas/SetupFieldDto"
             }
+          },
+          "useSharedAction": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SetupActionDto"
+              }
+            ]
           }
         },
         "description": "One onboarding step: presentation + live state + the action and fields that complete it."
@@ -92448,7 +92548,7 @@
             "$ref": "#/components/schemas/SystemChecks"
           }
         },
-        "description": "bool SystemStatusDto.OnboardingComplete is the ONLY gate the client routes onboarding vs. login off. It means\r\nexactly \"at least one platform's app credentials are configured\" — deployment-level setup, not who is\r\nsigned in and not whether the platform bot is authorized. Bot authorization is per-channel work that\r\nhappens after login; its live state is CheckItem SystemChecks.PlatformBot, reported separately so\r\nthe wizard can still show it without it ever blocking the client from reaching the login screen."
+        "description": "bool SystemStatusDto.OnboardingComplete is the ONLY gate the client routes onboarding vs. login off. It means\r\nthe operator has made a DELIBERATE, RECORDED decision about at least one platform's app — either BYOC\r\n(their own client id, saved) or an explicit \"use the shared app\" choice — never an incidental config/env\r\nfallback (the shipped public Twitch client id) alone. It is deployment-level setup, not who is signed in\r\nand not whether the platform bot is authorized. Bot authorization is per-channel work that happens after\r\nlogin; its live state is CheckItem SystemChecks.PlatformBot, reported separately so the wizard can\r\nstill show it without it ever blocking the client from reaching the login screen."
       },
       "TenantAccessGrantDto": {
         "required": [

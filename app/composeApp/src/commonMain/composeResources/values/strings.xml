@@ -80,6 +80,8 @@
     <string name="setup_step_done">Done</string>
     <string name="setup_optional_badge">Optional</string>
     <string name="setup_action_save">Save</string>
+    <string name="setup_use_shared_divider">Prefer not to register your own app?</string>
+    <string name="setup_action_use_shared">Use the shared NomNomzBot app</string>
     <string name="setup_secret_show">Show</string>
     <string name="setup_secret_hide">Hide</string>
     <string name="setup_action_connect_bot">Authorize bot account</string>
