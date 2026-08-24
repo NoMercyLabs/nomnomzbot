@@ -27,6 +27,9 @@ public sealed class OpenGiveawayAction(IGiveawayService giveaways) : ICommandAct
 {
     public string ActionType => "open_giveaway";
 
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [new("giveaway_id", PipelineActionFieldKind.ResourceId, Required: true)];
+
     public async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
         ActionDefinition action
@@ -54,6 +57,9 @@ public sealed class DrawGiveawayAction(IGiveawayService giveaways, IApplicationD
     : ICommandAction
 {
     public string ActionType => "draw_giveaway";
+
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [new("giveaway_id", PipelineActionFieldKind.ResourceId)];
 
     public async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
@@ -93,6 +99,9 @@ public sealed class EnterGiveawayAction(IGiveawayService giveaways, IApplication
     : ICommandAction
 {
     public string ActionType => "enter_giveaway";
+
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [new("giveaway_id", PipelineActionFieldKind.ResourceId)];
 
     public async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,

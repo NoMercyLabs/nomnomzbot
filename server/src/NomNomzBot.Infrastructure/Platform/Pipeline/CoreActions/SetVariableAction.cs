@@ -16,6 +16,12 @@ public sealed class SetVariableAction : ICommandAction
 {
     public string ActionType => "set_variable";
 
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new("name", PipelineActionFieldKind.Text, Required: true),
+            new("value", PipelineActionFieldKind.Text),
+        ];
+
     public Task<ActionResult> ExecuteAsync(PipelineExecutionContext ctx, ActionDefinition action)
     {
         string? name = action.GetString("name");

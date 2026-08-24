@@ -69,6 +69,15 @@ public sealed class ShoutoutAction : ICommandAction
 
     public string ActionType => "shoutout";
 
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new("user_id", PipelineActionFieldKind.TwitchUser, Required: true),
+            new("cooldown_minutes", PipelineActionFieldKind.Number),
+            new("global_cooldown_minutes", PipelineActionFieldKind.Number),
+            new("tts", PipelineActionFieldKind.Boolean),
+            new("template", PipelineActionFieldKind.Text),
+        ];
+
     public ShoutoutAction(
         ITwitchChatApi chat,
         ITwitchUsersApi users,

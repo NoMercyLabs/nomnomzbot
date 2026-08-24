@@ -26,6 +26,12 @@ public sealed class WaitAction : ICommandAction
 
     public string ActionType => "wait";
 
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new("milliseconds", PipelineActionFieldKind.Number),
+            new("seconds", PipelineActionFieldKind.Number),
+        ];
+
     public WaitAction(ITemplateResolver resolver) => _resolver = resolver;
 
     public async Task<ActionResult> ExecuteAsync(

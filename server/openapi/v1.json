@@ -83146,7 +83146,8 @@
         "required": [
           "type",
           "category",
-          "description"
+          "description",
+          "fields"
         ],
         "type": "object",
         "properties": {
@@ -83158,9 +83159,49 @@
           },
           "description": {
             "type": "string"
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PipelineActionFieldDto"
+            }
           }
         },
         "description": "One available pipeline action block, for the builder's palette (commands-pipelines.md §3.13)."
+      },
+      "PipelineActionFieldDto": {
+        "required": [
+          "name",
+          "kind",
+          "required",
+          "repeatable",
+          "options"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "repeatable": {
+            "type": "boolean"
+          },
+          "options": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "One configuration field of a pipeline action block — drives which typed control the builder's step form\r\nrenders (S045) instead of a free-text box. `Kind` is the serialized name of a\r\nPipelineActionFieldKind value (e.g. `\"number\"`,\r\n`\"enum\"`, `\"discord_channel\"`). `Options` is populated only for `\"enum\"` fields."
       },
       "PipelineCatalogueDto": {
         "required": [

@@ -19,6 +19,13 @@ public sealed class TimeoutAction : ICommandAction
 
     public string ActionType => "timeout";
 
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new("user_id", PipelineActionFieldKind.TwitchUser),
+            new("duration", PipelineActionFieldKind.Number, Required: true),
+            new("reason", PipelineActionFieldKind.Text),
+        ];
+
     public TimeoutAction(IChatProvider chat) => _chat = chat;
 
     public async Task<ActionResult> ExecuteAsync(

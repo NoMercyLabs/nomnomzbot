@@ -34,6 +34,13 @@ public sealed class SchedulePipelineAction : ICommandAction
     public string Category => "flow";
     public string Description => "Schedule a saved pipeline to run once after a delay";
 
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new("pipeline", PipelineActionFieldKind.ResourceId, Required: true),
+            new("delay_seconds", PipelineActionFieldKind.Number, Required: true),
+            new("dedupe_key", PipelineActionFieldKind.Text),
+        ];
+
     public SchedulePipelineAction(IScheduledPipelineService scheduler, ITemplateResolver resolver)
     {
         _scheduler = scheduler;

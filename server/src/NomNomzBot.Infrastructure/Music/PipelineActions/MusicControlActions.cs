@@ -209,6 +209,9 @@ public sealed class MusicSetVolumeAction : ICommandAction
     public string Category => "Music Control";
     public string Description => "Sets playback volume to a fixed level (0-100).";
 
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [new("volume", PipelineActionFieldKind.Number, Required: true)];
+
     public MusicSetVolumeAction(IMusicService music) => _music = music;
 
     public async Task<ActionResult> ExecuteAsync(
@@ -269,6 +272,9 @@ public sealed class MusicVolumeUpAction : ICommandAction
     public string Category => "Music Control";
     public string Description => "Raises playback volume by a step (default 10).";
 
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [new("step", PipelineActionFieldKind.Number)];
+
     public MusicVolumeUpAction(IMusicService music) => _music = music;
 
     public async Task<ActionResult> ExecuteAsync(
@@ -306,6 +312,9 @@ public sealed class MusicVolumeDownAction : ICommandAction
     public string ActionType => "music_volume_down";
     public string Category => "Music Control";
     public string Description => "Lowers playback volume by a step (default 10).";
+
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [new("step", PipelineActionFieldKind.Number)];
 
     public MusicVolumeDownAction(IMusicService music) => _music = music;
 
@@ -354,6 +363,9 @@ public sealed class MusicVolumeMuteAction : ICommandAction
     public string Category => "Music Control";
     public string Description =>
         "Mutes if audible, remembering the current level; unmutes back to that level (or a fixed level, default 50, if none is remembered).";
+
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [new("unmuteVolume", PipelineActionFieldKind.Number)];
 
     public MusicVolumeMuteAction(IMusicService music, IMuteVolumeMemory muteMemory)
     {
@@ -420,6 +432,9 @@ public sealed class MusicSeekAction : ICommandAction
     public string Category => "Music Control";
     public string Description => "Jumps to a specific point in the current track (seconds).";
 
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [new("positionSeconds", PipelineActionFieldKind.Number, Required: true)];
+
     public MusicSeekAction(IMusicService music) => _music = music;
 
     public async Task<ActionResult> ExecuteAsync(
@@ -450,6 +465,9 @@ public sealed class MusicSetShuffleAction : ICommandAction
     public string ActionType => "music_set_shuffle";
     public string Category => "Music Control";
     public string Description => "Turns shuffle on or off.";
+
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [new("enabled", PipelineActionFieldKind.Boolean, Required: true)];
 
     public MusicSetShuffleAction(IMusicService music) => _music = music;
 
@@ -512,6 +530,16 @@ public sealed class MusicSetRepeatAction : ICommandAction
     public string ActionType => "music_set_repeat";
     public string Category => "Music Control";
     public string Description => "Sets repeat to Off, Track, or Playlist/Album.";
+
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new(
+                "mode",
+                PipelineActionFieldKind.Enum,
+                Required: true,
+                Options: ["off", "track", "context"]
+            ),
+        ];
 
     public MusicSetRepeatAction(IMusicService music) => _music = music;
 
@@ -579,6 +607,9 @@ public sealed class MusicTransferDeviceAction : ICommandAction
     public string ActionType => "music_transfer_device";
     public string Category => "Music Control";
     public string Description => "Moves playback to a chosen device.";
+
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [new("deviceId", PipelineActionFieldKind.ResourceId, Required: true)];
 
     public MusicTransferDeviceAction(IMusicService music) => _music = music;
 
@@ -817,6 +848,9 @@ public sealed class MusicAddToPlaylistAction : ICommandAction
     public string Category => "Music Control";
     public string Description => "Adds the currently playing track to a chosen playlist.";
 
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [new("playlistId", PipelineActionFieldKind.ResourceId, Required: true)];
+
     public MusicAddToPlaylistAction(IMusicService music, IMusicProviderManageApi manageApi)
     {
         _music = music;
@@ -862,6 +896,9 @@ public sealed class MusicRemoveFromPlaylistAction : ICommandAction
     public string ActionType => "music_remove_from_playlist";
     public string Category => "Music Control";
     public string Description => "Removes the currently playing track from a chosen playlist.";
+
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [new("playlistId", PipelineActionFieldKind.ResourceId, Required: true)];
 
     public MusicRemoveFromPlaylistAction(IMusicService music, IMusicProviderManageApi manageApi)
     {

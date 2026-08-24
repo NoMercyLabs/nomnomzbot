@@ -98,7 +98,16 @@ public class PipelinesController : BaseController
                 .Select(a => new PipelineActionDescriptorDto(
                     a.ActionType,
                     a.Category,
-                    a.Description
+                    a.Description,
+                    [
+                        .. a.Fields.Select(f => new PipelineActionFieldDto(
+                            f.Name,
+                            f.Kind.ToWireName(),
+                            f.Required,
+                            f.Repeatable,
+                            f.Options
+                        )),
+                    ]
                 ))
                 .OrderBy(a => a.Category, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(a => a.Type, StringComparer.OrdinalIgnoreCase),

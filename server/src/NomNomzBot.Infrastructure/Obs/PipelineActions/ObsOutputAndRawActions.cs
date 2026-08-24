@@ -23,6 +23,15 @@ public sealed class ObsRecordingAction(IObsControlService obs) : ObsActionBase(o
 {
     public override string ActionType => "obs_recording";
 
+    public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new(
+                "action",
+                PipelineActionFieldKind.Enum,
+                Options: ["start", "stop", "toggle", "pause", "resume", "split"]
+            ),
+        ];
+
     public override async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
         ActionDefinition action
@@ -51,6 +60,9 @@ public sealed class ObsStreamingAction(IObsControlService obs) : ObsActionBase(o
 {
     public override string ActionType => "obs_streaming";
 
+    public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [new("action", PipelineActionFieldKind.Enum, Options: ["start", "stop", "toggle"])];
+
     public override async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
         ActionDefinition action
@@ -73,6 +85,9 @@ public sealed class ObsStreamingAction(IObsControlService obs) : ObsActionBase(o
 public sealed class ObsReplayBufferAction(IObsControlService obs) : ObsActionBase(obs)
 {
     public override string ActionType => "obs_replay_buffer";
+
+    public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [new("action", PipelineActionFieldKind.Enum, Options: ["start", "stop", "toggle"])];
 
     public override async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
@@ -97,6 +112,9 @@ public sealed class ObsVirtualCamAction(IObsControlService obs) : ObsActionBase(
 {
     public override string ActionType => "obs_virtual_cam";
 
+    public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [new("action", PipelineActionFieldKind.Enum, Options: ["start", "stop", "toggle"])];
+
     public override async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
         ActionDefinition action
@@ -119,6 +137,12 @@ public sealed class ObsVirtualCamAction(IObsControlService obs) : ObsActionBase(
 public sealed class ObsRequestAction(IObsControlService obs) : ObsActionBase(obs)
 {
     public override string ActionType => "obs_request";
+
+    public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new("request_type", PipelineActionFieldKind.Text, Required: true),
+            new("request_data", PipelineActionFieldKind.Text),
+        ];
 
     public override async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
@@ -173,6 +197,17 @@ public sealed class ObsRequestAction(IObsControlService obs) : ObsActionBase(obs
 public sealed class ObsRequestBatchAction(IObsControlService obs) : ObsActionBase(obs)
 {
     public override string ActionType => "obs_request_batch";
+
+    public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new("requests", PipelineActionFieldKind.Text, Required: true, Repeatable: true),
+            new(
+                "execution",
+                PipelineActionFieldKind.Enum,
+                Options: ["realtime", "frame", "parallel"]
+            ),
+            new("halt_on_failure", PipelineActionFieldKind.Boolean),
+        ];
 
     public override async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
@@ -244,6 +279,13 @@ public sealed class ObsRequestBatchAction(IObsControlService obs) : ObsActionBas
 public sealed class ObsCallVendorAction(IObsControlService obs) : ObsActionBase(obs)
 {
     public override string ActionType => "obs_call_vendor";
+
+    public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new("vendor", PipelineActionFieldKind.Text, Required: true),
+            new("request_type", PipelineActionFieldKind.Text, Required: true),
+            new("request_data", PipelineActionFieldKind.Text),
+        ];
 
     public override async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,

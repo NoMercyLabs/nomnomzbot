@@ -19,6 +19,12 @@ public sealed class BanAction : ICommandAction
 
     public string ActionType => "ban";
 
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new("user_id", PipelineActionFieldKind.TwitchUser),
+            new("reason", PipelineActionFieldKind.Text),
+        ];
+
     public BanAction(IChatProvider chat) => _chat = chat;
 
     public async Task<ActionResult> ExecuteAsync(

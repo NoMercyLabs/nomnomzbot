@@ -32,6 +32,8 @@ public abstract class ObsActionBase : ICommandAction
 
     public abstract string ActionType { get; }
 
+    public virtual IReadOnlyList<PipelineActionFieldDescriptor> Fields => [];
+
     public abstract Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
         ActionDefinition action

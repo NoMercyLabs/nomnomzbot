@@ -44,6 +44,12 @@ public sealed class SetPronounAction : ICommandAction
 
     public string ActionType => "set_pronoun";
 
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new("username", PipelineActionFieldKind.TwitchUser, Required: true),
+            new("pronoun", PipelineActionFieldKind.ResourceId, Required: true),
+        ];
+
     public SetPronounAction(
         ITwitchUsersApi twitchUsers,
         IUserService users,

@@ -31,6 +31,12 @@ public sealed class SendWebhookAction : ICommandAction
 
     public string ActionType => "send_webhook";
 
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new("endpoint", PipelineActionFieldKind.ResourceId, Required: true),
+            new("event_type", PipelineActionFieldKind.Text),
+        ];
+
     public async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
         ActionDefinition action

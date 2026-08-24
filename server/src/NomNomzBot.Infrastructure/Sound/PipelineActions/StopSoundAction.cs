@@ -23,6 +23,9 @@ public sealed class StopSoundAction : ICommandAction
 
     public string ActionType => "stop_sound";
 
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [new("handle", PipelineActionFieldKind.Text), new("all", PipelineActionFieldKind.Boolean)];
+
     public StopSoundAction(ISoundClipOverlayNotifier overlay)
     {
         _overlay = overlay;

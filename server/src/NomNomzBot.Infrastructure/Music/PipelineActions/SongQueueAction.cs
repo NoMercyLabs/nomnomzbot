@@ -32,6 +32,9 @@ public sealed class SongQueueAction : ICommandAction
 
     public string ActionType => "song_queue";
 
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [new("max", PipelineActionFieldKind.Number)];
+
     public SongQueueAction(IMusicService music, IChatProvider chat, ILogger<SongQueueAction> logger)
     {
         _music = music;

@@ -35,6 +35,7 @@ public sealed class CapturingCommandAction(
     public string ActionType => inner.ActionType;
     public string Category => inner.Category;
     public string Description => inner.Description;
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields => inner.Fields;
 
     public async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,

@@ -29,6 +29,14 @@ public sealed class PlaySoundAction : ICommandAction
 
     public string ActionType => "play_sound";
 
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new("clip", PipelineActionFieldKind.SoundClip, Required: true),
+            new("volume", PipelineActionFieldKind.Number),
+            new("wait_for_finish", PipelineActionFieldKind.Boolean),
+            new("handle", PipelineActionFieldKind.Text),
+        ];
+
     public PlaySoundAction(ISoundClipService clips, ISoundClipOverlayNotifier overlay)
     {
         _clips = clips;

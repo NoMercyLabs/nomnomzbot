@@ -25,6 +25,9 @@ public sealed class RunCodeAction(IScriptRunner runner) : ICommandAction
 {
     public string ActionType => "run_code";
 
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [new("code_script_id", PipelineActionFieldKind.ResourceId, Required: true)];
+
     public async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
         ActionDefinition action

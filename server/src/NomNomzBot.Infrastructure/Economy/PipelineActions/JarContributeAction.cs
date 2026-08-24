@@ -24,6 +24,12 @@ public sealed class JarContributeAction(ISavingsJarService jars) : ICommandActio
 {
     public string ActionType => "jar_contribute";
 
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new("jar_id", PipelineActionFieldKind.ResourceId, Required: true),
+            new("amount", PipelineActionFieldKind.Number, Required: true),
+        ];
+
     public async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
         ActionDefinition action

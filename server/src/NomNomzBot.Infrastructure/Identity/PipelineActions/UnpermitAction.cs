@@ -30,6 +30,12 @@ public sealed class UnpermitAction : ICommandAction
 
     public string ActionType => "unpermit";
 
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new("target_variable", PipelineActionFieldKind.Text),
+            new("role_or_capability", PipelineActionFieldKind.ResourceId),
+        ];
+
     public UnpermitAction(IPermitService permits, IUserService users, IRoleResolver roles)
     {
         _permits = permits;

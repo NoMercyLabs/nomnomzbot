@@ -61,6 +61,12 @@ public sealed class StartRaidAction : ICommandAction
     public string Category => "stream";
     public string Description => "Start a raid to another channel";
 
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new("target", PipelineActionFieldKind.TwitchUser, Required: true),
+            new("delay_seconds", PipelineActionFieldKind.Number),
+        ];
+
     public StartRaidAction(
         ITwitchRaidsApi raids,
         ITwitchUsersApi users,

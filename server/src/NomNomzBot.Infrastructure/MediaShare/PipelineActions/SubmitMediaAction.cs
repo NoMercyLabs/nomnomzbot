@@ -30,6 +30,9 @@ public sealed class SubmitMediaAction(
 {
     public string ActionType => "submit_media";
 
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [new("url", PipelineActionFieldKind.Text, Required: true)];
+
     public async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
         ActionDefinition action

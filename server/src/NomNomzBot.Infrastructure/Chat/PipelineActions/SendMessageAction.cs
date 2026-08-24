@@ -21,6 +21,9 @@ public sealed class SendMessageAction : ICommandAction
 
     public string ActionType => "send_message";
 
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [new("message", PipelineActionFieldKind.Text, Required: true)];
+
     public SendMessageAction(IChatProvider chat, ITemplateResolver resolver)
     {
         _chat = chat;

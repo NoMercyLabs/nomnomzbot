@@ -39,6 +39,12 @@ public sealed class PlaylistAddAction : ICommandAction
     public string Category => "music";
     public string Description => "Add the current (or a given) track to a playlist";
 
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new("playlist_id", PipelineActionFieldKind.ResourceId, Required: true),
+            new("track_uri", PipelineActionFieldKind.ResourceId),
+        ];
+
     public PlaylistAddAction(
         IMusicService music,
         IMusicProviderManageApi manage,

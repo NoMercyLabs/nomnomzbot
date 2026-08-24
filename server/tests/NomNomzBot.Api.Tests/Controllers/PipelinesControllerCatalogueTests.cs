@@ -26,10 +26,15 @@ namespace NomNomzBot.Api.Tests.Controllers;
 /// </summary>
 public sealed class PipelinesControllerCatalogueTests
 {
-    private sealed class FakeAction(string type, string category) : ICommandAction
+    private sealed class FakeAction(
+        string type,
+        string category,
+        IReadOnlyList<PipelineActionFieldDescriptor>? fields = null
+    ) : ICommandAction
     {
         public string ActionType => type;
         public string Category => category;
+        public IReadOnlyList<PipelineActionFieldDescriptor> Fields => fields ?? [];
 
         // Description is intentionally NOT overridden — the test asserts the default (=> ActionType) member.
         public Task<Application.Abstractions.Pipeline.ActionResult> ExecuteAsync(
@@ -82,5 +87,52 @@ public sealed class PipelinesControllerCatalogueTests
         data.Actions[0].Description.Should().Be("send_message");
         data.Actions[1].Type.Should().Be("timeout");
         data.Conditions.Should().ContainSingle().Which.Type.Should().Be("user_role");
+    }
+
+    [Fact]
+    public void Catalogue_maps_field_descriptors_including_kind_and_enum_options()
+    {
+        List<ICommandAction> actions =
+        [
+            new FakeAction(
+                "timeout",
+                "moderation",
+                [
+                    new("user_id", PipelineActionFieldKind.TwitchUser, Required: false),
+                    new("duration", PipelineActionFieldKind.Number, Required: true),
+                    new(
+                        "mode",
+                        PipelineActionFieldKind.Enum,
+                        Required: true,
+                        Options: ["off", "track", "context"]
+                    ),
+                ]
+            ),
+        ];
+        PipelinesController controller = new(
+            Substitute.For<IPipelineService>(),
+            Substitute.For<IPipelineTestRunService>(),
+            Substitute.For<ICommandConfigValidator>(),
+            actions,
+            []
+        );
+
+        IActionResult result = controller.ListActionCatalogue("chan");
+
+        OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        PipelineCatalogueDto data = ok
+            .Value.Should()
+            .BeOfType<StatusResponseDto<PipelineCatalogueDto>>()
+            .Subject.Data!;
+
+        IReadOnlyList<PipelineActionFieldDto> fields = data.Actions[0].Fields;
+        fields.Should().HaveCount(3);
+        fields[0].Name.Should().Be("user_id");
+        fields[0].Kind.Should().Be("twitch_user");
+        fields[0].Required.Should().BeFalse();
+        fields[1].Kind.Should().Be("number");
+        fields[1].Required.Should().BeTrue();
+        fields[2].Kind.Should().Be("enum");
+        fields[2].Options.Should().BeEquivalentTo(["off", "track", "context"]);
     }
 }

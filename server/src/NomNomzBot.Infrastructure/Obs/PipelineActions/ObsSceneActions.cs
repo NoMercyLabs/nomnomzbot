@@ -20,6 +20,9 @@ public sealed class ObsSwitchSceneAction(IObsControlService obs) : ObsActionBase
 {
     public override string ActionType => "obs_switch_scene";
 
+    public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [new("scene", PipelineActionFieldKind.ResourceId, Required: true)];
+
     public override async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
         ActionDefinition action
@@ -40,6 +43,9 @@ public sealed class ObsSetPreviewSceneAction(IObsControlService obs) : ObsAction
 {
     public override string ActionType => "obs_set_preview_scene";
 
+    public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [new("scene", PipelineActionFieldKind.ResourceId, Required: true)];
+
     public override async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
         ActionDefinition action
@@ -59,6 +65,13 @@ public sealed class ObsSetPreviewSceneAction(IObsControlService obs) : ObsAction
 public sealed class ObsSetSourceAction(IObsControlService obs) : ObsActionBase(obs)
 {
     public override string ActionType => "obs_set_source";
+
+    public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new("scene", PipelineActionFieldKind.ResourceId, Required: true),
+            new("source", PipelineActionFieldKind.ResourceId, Required: true),
+            new("visible", PipelineActionFieldKind.Boolean),
+        ];
 
     public override async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
@@ -89,6 +102,13 @@ public sealed class ObsFilterAction(IObsControlService obs) : ObsActionBase(obs)
 {
     public override string ActionType => "obs_filter";
 
+    public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new("source", PipelineActionFieldKind.ResourceId, Required: true),
+            new("filter", PipelineActionFieldKind.ResourceId, Required: true),
+            new("enabled", PipelineActionFieldKind.Boolean),
+        ];
+
     public override async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
         ActionDefinition action
@@ -117,6 +137,13 @@ public sealed class ObsFilterAction(IObsControlService obs) : ObsActionBase(obs)
 public sealed class ObsTransitionAction(IObsControlService obs) : ObsActionBase(obs)
 {
     public override string ActionType => "obs_transition";
+
+    public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new("transition", PipelineActionFieldKind.ResourceId),
+            new("studio", PipelineActionFieldKind.Boolean),
+            new("duration_ms", PipelineActionFieldKind.Number),
+        ];
 
     public override async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,

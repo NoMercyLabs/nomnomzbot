@@ -35,6 +35,13 @@ public sealed class SetViewerDataAction(
 {
     public string ActionType => "set_viewer_data";
 
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new("key", PipelineActionFieldKind.Text, Required: true),
+            new("value", PipelineActionFieldKind.Text),
+            new("target", PipelineActionFieldKind.TwitchUser),
+        ];
+
     public async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
         ActionDefinition action
@@ -89,6 +96,13 @@ public sealed class AdjustViewerDataAction(
 ) : ICommandAction
 {
     public string ActionType => "adjust_viewer_data";
+
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new("key", PipelineActionFieldKind.Text, Required: true),
+            new("delta", PipelineActionFieldKind.Number),
+            new("target", PipelineActionFieldKind.TwitchUser),
+        ];
 
     public async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,

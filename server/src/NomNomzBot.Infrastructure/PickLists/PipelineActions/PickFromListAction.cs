@@ -38,6 +38,12 @@ public sealed class PickFromListAction : ICommandAction
 
     public string ActionType => "pick_from_list";
 
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new("list", PipelineActionFieldKind.ResourceId, Required: true),
+            new("variable", PipelineActionFieldKind.Text),
+        ];
+
     public async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
         ActionDefinition action

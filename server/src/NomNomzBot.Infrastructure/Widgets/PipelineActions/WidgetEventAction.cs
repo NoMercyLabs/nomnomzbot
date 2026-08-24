@@ -31,6 +31,13 @@ public sealed class WidgetEventAction : ICommandAction
 
     public string ActionType => "widget_event";
 
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new("widget_id", PipelineActionFieldKind.Widget, Required: true),
+            new("event_type", PipelineActionFieldKind.Text, Required: true),
+            new("data", PipelineActionFieldKind.Text),
+        ];
+
     public WidgetEventAction(IWidgetService widgets, IWidgetEventNotifier overlay)
     {
         _widgets = widgets;

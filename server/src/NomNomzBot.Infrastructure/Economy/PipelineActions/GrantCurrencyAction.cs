@@ -25,6 +25,12 @@ public sealed class GrantCurrencyAction(ICurrencyAccountService accounts) : ICom
 {
     public string ActionType => "grant_currency";
 
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new("amount", PipelineActionFieldKind.Number, Required: true),
+            new("reason", PipelineActionFieldKind.Text),
+        ];
+
     public async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
         ActionDefinition action

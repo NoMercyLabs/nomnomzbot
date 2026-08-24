@@ -32,6 +32,8 @@ public abstract class VtsActionBase : ICommandAction
 
     public abstract string ActionType { get; }
 
+    public virtual IReadOnlyList<PipelineActionFieldDescriptor> Fields => [];
+
     public abstract Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
         ActionDefinition action
@@ -116,6 +118,9 @@ public sealed class VtsLoadModelAction(IVtsControlService vts) : VtsActionBase(v
 {
     public override string ActionType => "vts_load_model";
 
+    public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [new("model", PipelineActionFieldKind.Text, Required: true)];
+
     public override async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
         ActionDefinition action
@@ -136,6 +141,9 @@ public sealed class VtsTriggerHotkeyAction(IVtsControlService vts) : VtsActionBa
 {
     public override string ActionType => "vts_trigger_hotkey";
 
+    public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [new("hotkey", PipelineActionFieldKind.ResourceId, Required: true)];
+
     public override async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
         ActionDefinition action
@@ -155,6 +163,12 @@ public sealed class VtsTriggerHotkeyAction(IVtsControlService vts) : VtsActionBa
 public sealed class VtsSetExpressionAction(IVtsControlService vts) : VtsActionBase(vts)
 {
     public override string ActionType => "vts_set_expression";
+
+    public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new("expression", PipelineActionFieldKind.Text, Required: true),
+            new("active", PipelineActionFieldKind.Boolean),
+        ];
 
     public override async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
@@ -181,6 +195,16 @@ public sealed class VtsSetExpressionAction(IVtsControlService vts) : VtsActionBa
 public sealed class VtsMoveModelAction(IVtsControlService vts) : VtsActionBase(vts)
 {
     public override string ActionType => "vts_move_model";
+
+    public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new("x", PipelineActionFieldKind.Number),
+            new("y", PipelineActionFieldKind.Number),
+            new("rotation", PipelineActionFieldKind.Number),
+            new("size", PipelineActionFieldKind.Number),
+            new("time_seconds", PipelineActionFieldKind.Number),
+            new("relative", PipelineActionFieldKind.Boolean),
+        ];
 
     public override async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
@@ -210,6 +234,15 @@ public sealed class VtsColorTintAction(IVtsControlService vts) : VtsActionBase(v
 {
     public override string ActionType => "vts_color_tint";
 
+    public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new("r", PipelineActionFieldKind.Number, Required: true),
+            new("g", PipelineActionFieldKind.Number, Required: true),
+            new("b", PipelineActionFieldKind.Number, Required: true),
+            new("a", PipelineActionFieldKind.Number),
+            new("art_mesh_tag", PipelineActionFieldKind.Text),
+        ];
+
     public override async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
         ActionDefinition action
@@ -234,6 +267,12 @@ public sealed class VtsColorTintAction(IVtsControlService vts) : VtsActionBase(v
 public sealed class VtsRequestAction(IVtsControlService vts) : VtsActionBase(vts)
 {
     public override string ActionType => "vts_request";
+
+    public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new("request_type", PipelineActionFieldKind.Text, Required: true),
+            new("payload_json", PipelineActionFieldKind.Text),
+        ];
 
     public override async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,

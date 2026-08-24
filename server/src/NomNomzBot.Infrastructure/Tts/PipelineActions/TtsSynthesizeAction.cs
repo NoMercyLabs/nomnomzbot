@@ -39,6 +39,12 @@ public sealed class TtsSynthesizeAction : ICommandAction
     public string Description =>
         "Synthesize TTS audio and expose {{tts.audioUrl}} / {{tts.durationMs}} to later steps, without playing it";
 
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new("text", PipelineActionFieldKind.Text, Required: true),
+            new("voice", PipelineActionFieldKind.Voice),
+        ];
+
     public TtsSynthesizeAction(
         ITemplateResolver resolver,
         ITtsService tts,

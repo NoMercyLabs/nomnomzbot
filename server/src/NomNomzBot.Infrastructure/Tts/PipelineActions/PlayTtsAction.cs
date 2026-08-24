@@ -34,6 +34,12 @@ public sealed class PlayTtsAction : ICommandAction
 
     public string ActionType => "play_tts";
 
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new("text", PipelineActionFieldKind.Text, Required: true),
+            new("voice", PipelineActionFieldKind.Voice),
+        ];
+
     public async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
         ActionDefinition action

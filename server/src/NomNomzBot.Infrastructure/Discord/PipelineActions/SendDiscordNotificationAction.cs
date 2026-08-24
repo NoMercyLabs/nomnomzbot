@@ -28,6 +28,12 @@ public sealed class SendDiscordNotificationAction : ICommandAction
 
     public string ActionType => "send_discord_notification";
 
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new("trigger_type", PipelineActionFieldKind.ResourceId, Required: true),
+            new("dedupe_key", PipelineActionFieldKind.Text),
+        ];
+
     public SendDiscordNotificationAction(IDiscordNotificationDispatcher dispatcher)
     {
         _dispatcher = dispatcher;

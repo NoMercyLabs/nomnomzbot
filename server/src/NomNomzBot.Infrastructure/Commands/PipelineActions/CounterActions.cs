@@ -24,6 +24,12 @@ public sealed class SetCounterAction(INamedCounterService counters) : ICommandAc
 {
     public string ActionType => "set_counter";
 
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new("key", PipelineActionFieldKind.Text, Required: true),
+            new("value", PipelineActionFieldKind.Number, Required: true),
+        ];
+
     public async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
         ActionDefinition action
@@ -60,6 +66,12 @@ public sealed class SetCounterAction(INamedCounterService counters) : ICommandAc
 public sealed class AdjustCounterAction(INamedCounterService counters) : ICommandAction
 {
     public string ActionType => "adjust_counter";
+
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new("key", PipelineActionFieldKind.Text, Required: true),
+            new("delta", PipelineActionFieldKind.Number),
+        ];
 
     public async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,

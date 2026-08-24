@@ -34,6 +34,13 @@ public sealed class PermitAction : ICommandAction
 
     public string ActionType => "permit";
 
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new("target_variable", PipelineActionFieldKind.Text),
+            new("role_or_capability", PipelineActionFieldKind.ResourceId, Required: true),
+            new("duration_minutes", PipelineActionFieldKind.Number),
+        ];
+
     public PermitAction(
         IPermitService permits,
         IUserService users,

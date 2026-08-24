@@ -25,5 +25,13 @@ public interface ICommandAction
     /// <summary>Short human-readable description shown in the builder; defaults to the action type.</summary>
     string Description => ActionType;
 
+    /// <summary>
+    /// The structured schema of this action's <see cref="ActionDefinition.Parameters"/> — one entry per
+    /// configuration field, each carrying a <see cref="PipelineActionFieldKind"/> the step form renders as a
+    /// typed control (number/boolean/enum/resource picker) instead of free text (S045). Defaults to empty for
+    /// actions that take no configuration.
+    /// </summary>
+    IReadOnlyList<PipelineActionFieldDescriptor> Fields => [];
+
     Task<ActionResult> ExecuteAsync(PipelineExecutionContext ctx, ActionDefinition action);
 }

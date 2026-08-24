@@ -33,6 +33,9 @@ public sealed class SongVolumeAction : ICommandAction
 
     public string ActionType => "song_volume";
 
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [new("volume", PipelineActionFieldKind.Number, Required: true)];
+
     public SongVolumeAction(
         IMusicService music,
         IChatProvider chat,

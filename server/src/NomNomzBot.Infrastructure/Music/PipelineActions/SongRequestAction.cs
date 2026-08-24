@@ -33,6 +33,9 @@ public sealed class SongRequestAction : ICommandAction
 
     public string ActionType => "song_request";
 
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [new("query", PipelineActionFieldKind.Text, Required: true)];
+
     public SongRequestAction(
         IMusicService music,
         IChatProvider chat,

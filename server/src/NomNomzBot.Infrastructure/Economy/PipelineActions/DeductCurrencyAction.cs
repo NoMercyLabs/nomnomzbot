@@ -26,6 +26,12 @@ public sealed class DeductCurrencyAction(ICurrencyAccountService accounts) : ICo
 {
     public string ActionType => "deduct_currency";
 
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new("amount", PipelineActionFieldKind.Number, Required: true),
+            new("reason", PipelineActionFieldKind.Text),
+        ];
+
     public async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
         ActionDefinition action

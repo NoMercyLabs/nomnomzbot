@@ -39,8 +39,27 @@ public sealed record PipelineListItemDto(
     DateTime UpdatedAt
 );
 
+/// <summary>
+/// One configuration field of a pipeline action block — drives which typed control the builder's step form
+/// renders (S045) instead of a free-text box. <c>Kind</c> is the serialized name of a
+/// <see cref="NomNomzBot.Application.Abstractions.Pipeline.PipelineActionFieldKind"/> value (e.g. <c>"number"</c>,
+/// <c>"enum"</c>, <c>"discord_channel"</c>). <c>Options</c> is populated only for <c>"enum"</c> fields.
+/// </summary>
+public sealed record PipelineActionFieldDto(
+    string Name,
+    string Kind,
+    bool Required,
+    bool Repeatable,
+    IReadOnlyList<string>? Options
+);
+
 /// <summary>One available pipeline action block, for the builder's palette (commands-pipelines.md §3.13).</summary>
-public sealed record PipelineActionDescriptorDto(string Type, string Category, string Description);
+public sealed record PipelineActionDescriptorDto(
+    string Type,
+    string Category,
+    string Description,
+    IReadOnlyList<PipelineActionFieldDto> Fields
+);
 
 /// <summary>One available pipeline condition type, for the builder's condition picker.</summary>
 public sealed record PipelineConditionDescriptorDto(string Type);

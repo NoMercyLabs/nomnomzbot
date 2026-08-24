@@ -25,6 +25,9 @@ public sealed class StartLiveGameAction(ILiveGameEngine engine) : ICommandAction
 {
     public string ActionType => "start_live_game";
 
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [new("game_type", PipelineActionFieldKind.ResourceId, Required: true)];
+
     public async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
         ActionDefinition action
