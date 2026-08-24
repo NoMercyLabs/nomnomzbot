@@ -65,14 +65,15 @@ say "OK  Java found ($(command -v java))"
 
 # --- 2. ports ----------------------------------------------------------------
 #
-# The dashboard dev server listens on 5080 (app/composeApp/build.gradle.kts) —
-# that's the URL to open in a browser. The API runs on 5090 so the two don't
-# collide; the dashboard's own dev-only webpack proxy
-# (app/composeApp/webpack.config.d/proxy.js) forwards /api + /hubs from 5080
-# through to the API, so the browser only ever talks to one origin.
+# The API runs on its committed, documented default — 5080. The dashboard dev
+# server listens on 5173 (app/composeApp/build.gradle.kts) — that's the URL to
+# open in a browser. The dashboard's own dev-only webpack proxy
+# (app/composeApp/webpack.config.d/proxy.js) forwards /api + /hubs from 5173
+# through to the API on 5080 by default, so the browser only ever talks to one
+# origin and no env var is needed here.
 
-DASHBOARD_PORT=5080
-API_PORT=5090
+DASHBOARD_PORT=5173
+API_PORT=5080
 
 # --- 3. start the API (Development, SelfHostLite/SQLite) --------------------
 
@@ -93,7 +94,6 @@ GRADLEW="$REPO_ROOT/app/gradlew"
 [ -x "$GRADLEW" ] || GRADLEW="sh $REPO_ROOT/app/gradlew"
 (
   cd "$REPO_ROOT/app"
-  NNZ_DEV_BACKEND="http://localhost:${API_PORT}" \
   exec $GRADLEW --no-daemon :composeApp:wasmJsBrowserDevelopmentRun --watch-fs -t --console=plain
 ) &
 WEB_PID=$!
