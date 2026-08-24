@@ -61,6 +61,27 @@ stable — without dropping the planned requirements behind them.
   the class of bug that caused the loss) would not be caught. Done-when: a TestServer round-trip saves a
   pipeline graph and reads it back with steps intact.
 
+- **S-BUDGETS** (owner, 2026-08-25) "a proper budget system to track the payment tiers — most of it is
+  based on resource usage, hence the amount of files you can store or commands you can register."
+  ESTABLISHED BY GREP: the plumbing already exists — `TierLimit` (TierId/LimitKey/LimitValue),
+  `UsageRecord`, `IUsageMeteringService`, `BillingTierService` — but `TierLimit` has exactly ONE consumer
+  in the whole codebase: `CustomCode/ScriptExecutionMeter.cs`. Commands, stored files/assets, widgets,
+  sound clips, timers, pipelines: NO enforcement. A `TierLimits` table nothing checks presents tiers as
+  enforced when they are not — a truthful-data violation ([[feedback-truthful-data-not-fake-enforcement]]).
+  Build on `scaling-qos.md` §8 (per-unit resource budgets) and `music-sr.md` (tiered allowances) —
+  EXTEND, do not duplicate.
+  Shape: a safety baseline that applies to everyone regardless of tier, plus tier-scaled headroom
+  ([[limits-safety-baseline-then-tier]]); self-host is the operator's own hardware so it gets the safety
+  baseline WITHOUT commercial tier ceilings ([[no-free-hosted-tier]] — self-host free, hosted pays).
+  Done-when: (1) every countable resource declares its limit key from ONE registry — enumerate the
+  resources structurally so a NEW limited resource cannot ship without a key (a guard test, not a
+  hand-list); (2) enforcement happens at the WRITE path and a test proves the N+1th create is refused
+  with a reason naming the limit and the tier; (3) usage is truthfully visible — "X of Y used" from real
+  counts, never an estimate; (4) approaching/at the limit is surfaced BEFORE the failed save, per
+  S-CONSEQ; (5) self-host is not crippled — proven by a test that a self-host deployment enforces only
+  the safety baseline; (6) raising a tier immediately raises the ceiling with no re-login
+  ([[never-logout-for-scope-or-schema-changes]]).
+
 - **S-RICH-PICKERS** (owner, 2026-08-25) "item pickers get a rich item list and not just a template
   string or something not easily understandable." S045 shipped the picker KINDS (`reward`, `widget`,
   `voice`, `sound_clip`, `discord_channel`, `discord_role`, `twitch_user`, `asset`); this makes the
