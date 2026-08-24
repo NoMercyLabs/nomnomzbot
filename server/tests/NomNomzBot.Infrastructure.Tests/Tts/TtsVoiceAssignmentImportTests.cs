@@ -367,6 +367,48 @@ public sealed class TtsVoiceAssignmentImportTests
     }
 
     [Fact]
+    public async Task Import_VoiceIdDifferingOnlyInCase_ResolvesToTheRealCatalogueVoice()
+    {
+        // tts.md §6.2: VoiceId matches case-insensitively everywhere else (VoiceExistsAsync,
+        // SearchVoicesAsync) — a bulk import must not be the one surface that silently drops or
+        // mis-assigns a voice whose casing differs from the catalogue.
+        Harness h = Build(knownUserIds: ["100"], catalogueVoiceIds: ["en-US-AriaNeural"]);
+
+        Result<TtsVoiceImportResultDto> result = await h.Service.ImportUserVoiceAssignmentsAsync(
+            Tenant,
+            [Row("100", "en-us-arianeural")]
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Imported.Should().Be(1);
+        result.Value.Skipped.Should().BeEmpty();
+
+        // Truthful data: the persisted assignment resolves to the REAL catalogue voice id, not the
+        // caller's raw casing — so downstream synthesis plays exactly the voice that was requested.
+        UserTtsVoice stored = await h.Db.UserTtsVoices.SingleAsync();
+        stored.VoiceId.Should().Be("en-US-AriaNeural");
+    }
+
+    [Fact]
+    public async Task Import_GenuinelyUnknownVoice_StillFailsHonestly_EvenWithCaseInsensitiveMatching()
+    {
+        Harness h = Build(knownUserIds: ["100"], catalogueVoiceIds: ["en-US-AriaNeural"]);
+
+        Result<TtsVoiceImportResultDto> result = await h.Service.ImportUserVoiceAssignmentsAsync(
+            Tenant,
+            [Row("100", "en-US-GuyNeural")]
+        );
+
+        result.Value.Imported.Should().Be(0);
+        result
+            .Value.Skipped.Should()
+            .ContainSingle()
+            .Which.Should()
+            .BeEquivalentTo(new TtsVoiceImportSkipDto("100", "unknown_voice"));
+        (await h.Db.UserTtsVoices.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
     public async Task Import_CreateMissing_UnknownVoice_SkipsWithoutCreatingTheViewer()
     {
         Harness h = Build(knownUserIds: [], catalogueVoiceIds: ["voice-a"]);

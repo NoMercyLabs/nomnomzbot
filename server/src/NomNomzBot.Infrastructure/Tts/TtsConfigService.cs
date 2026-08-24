@@ -563,23 +563,33 @@ public class TtsConfigService : ITtsConfigService
                 .ToListAsync(cancellationToken)
         ).ToHashSet(StringComparer.Ordinal);
 
+        // tts.md §6.2: VoiceId matches case-insensitively everywhere else (VoiceExistsAsync,
+        // SearchVoicesAsync) — the bulk import must resolve the same way, or a row whose casing
+        // differs from the catalogue silently drops (or, worse, would land under the caller's raw
+        // casing instead of the real catalogue voice). Key the lookup by lowercase Id but keep the
+        // catalogue's REAL casing as the value, so an assignment always persists the exact id the
+        // dispatch resolver and every other lookup on this surface will match.
         List<string> voiceIds = [.. rows.Select(r => r.VoiceId).Distinct()];
-        HashSet<string> knownVoices = (
+        List<string> voiceIdsLower = [.. voiceIds.Select(id => id.ToLower())];
+        Dictionary<string, string> knownVoicesByLowerId = (
             await _db
-                .TtsVoices.Where(v => voiceIds.Contains(v.Id))
+                .TtsVoices.Where(v => voiceIdsLower.Contains(v.Id.ToLower()))
                 .Select(v => v.Id)
                 .ToListAsync(cancellationToken)
-        ).ToHashSet(StringComparer.Ordinal);
+        )
+            .GroupBy(id => id.ToLower())
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
         // Pre-sync fallback: an empty catalogue means "what the providers enumerate" is the valid set.
-        if (knownVoices.Count == 0 && !await _db.TtsVoices.AnyAsync(cancellationToken))
+        if (knownVoicesByLowerId.Count == 0 && !await _db.TtsVoices.AnyAsync(cancellationToken))
         {
             IReadOnlyList<TtsVoiceInfo> providerVoices = await _ttsService.GetAvailableVoicesAsync(
                 cancellationToken
             );
-            knownVoices = providerVoices
+            knownVoicesByLowerId = providerVoices
                 .Select(v => v.Id)
-                .Where(voiceIds.Contains)
-                .ToHashSet(StringComparer.Ordinal);
+                .Where(id => voiceIdsLower.Contains(id.ToLower()))
+                .GroupBy(id => id.ToLower())
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
         }
 
         Dictionary<string, UserTtsVoice> existing = await _db
@@ -593,8 +603,15 @@ public class TtsConfigService : ITtsConfigService
         foreach (TtsVoiceAssignmentRowDto row in rows)
         {
             // Voice first: a row whose voice can never play skips outright — createMissing must not mint a
-            // viewer User for an assignment that would be dropped anyway.
-            if (!knownVoices.Contains(row.VoiceId))
+            // viewer User for an assignment that would be dropped anyway. Resolve to the catalogue's real
+            // Id — never the caller's raw casing — so the persisted assignment is truthfully the voice
+            // that will be heard.
+            if (
+                !knownVoicesByLowerId.TryGetValue(
+                    row.VoiceId.ToLower(),
+                    out string? resolvedVoiceId
+                )
+            )
             {
                 skipped.Add(new(row.TwitchUserId, "unknown_voice"));
                 continue;
@@ -628,7 +645,7 @@ public class TtsConfigService : ITtsConfigService
 
             if (existing.TryGetValue(row.TwitchUserId, out UserTtsVoice? assignment))
             {
-                assignment.VoiceId = row.VoiceId;
+                assignment.VoiceId = resolvedVoiceId;
             }
             else
             {
@@ -636,7 +653,7 @@ public class TtsConfigService : ITtsConfigService
                 {
                     BroadcasterId = broadcasterId,
                     UserId = row.TwitchUserId,
-                    VoiceId = row.VoiceId,
+                    VoiceId = resolvedVoiceId,
                 };
                 _db.UserTtsVoices.Add(created);
                 existing[row.TwitchUserId] = created; // a later duplicate row upserts, not double-inserts
