@@ -122,6 +122,23 @@ stable — without dropping the planned requirements behind them.
   the safety baseline; (6) raising a tier immediately raises the ceiling with no re-login
   ([[never-logout-for-scope-or-schema-changes]]).
 
+- **S-IMPERSONATION-NOTICE** (owner question, 2026-08-25 — "i invoked that 2 or 3 times on qtkitte, what
+  did she actually see and where?") ANSWER ESTABLISHED FROM CODE: most likely NOTHING. (a) The notifier
+  `ImpersonationBroadcastHandlers` only landed 2026-08-23 05:07 (9d7d05b0) — earlier sessions had zero
+  consumers for `ImpersonationStartedEvent`. (b) Delivery is TRANSIENT: `SendAlertAsync` ->
+  `BaseGroup(broadcasterId).AlertTriggered(dto)`, a live SignalR push only. No email, no chat message, no
+  persisted notification, no inbox — if the tenant owner did not have that channel's dashboard open at
+  that exact second, the notice is gone forever. (c) Only the `EventJournal` dual-actor row persists, and
+  that is an audit record she must go hunting for, not a notification.
+  A break-glass whose notice can silently miss its subject is not accountable. Done-when: an
+  impersonation start/end produces a DURABLE notice the tenant owner can see after the fact (persisted,
+  unread-until-acknowledged), delivered on at least one channel that does not require the dashboard to be
+  open at that moment; the notice names the operator, the reason, the scope and the expiry; a test proves
+  the notice survives the owner being offline for the whole session; and the channel owner can review
+  every past impersonation of their channel from the dashboard without reading raw journal rows.
+  Note this generalises: ANY security-relevant alert delivered only via transient SignalR has the same
+  hole — sweep that class, do not fix impersonation alone.
+
 - **S-MOD-PERMS** (owner, 2026-08-25) Moderators are over-restricted on bot tooling. Owner, acting as a
   mod on other channels: "i feel super restricted... open up those permissions just a little bit to
   things that make my job as moderator easier." Mechanism (established by grep): 187 `[RequireAction]`
