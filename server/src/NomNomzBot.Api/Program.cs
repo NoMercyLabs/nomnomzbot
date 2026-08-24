@@ -462,14 +462,18 @@ try
             );
     }
 
-    // Pending EF migrations and EventSub connection state are readiness concerns that Degraded/Unhealthy
-    // 200-mapping on /health has historically masked from orchestrators (S116) — both are wired regardless
-    // of durable-tier vs. lite so a stale schema or a genuinely dropped EventSub socket fails readiness on
-    // every profile.
+    // Pending EF migrations are a serving prerequisite (Degraded/Unhealthy 200-mapping on /health has
+    // historically masked this from orchestrators — S116) so a stale schema fails readiness on every
+    // profile. EventSub connection state is a background/optional integration, NOT a serving
+    // prerequisite: a degraded or dropped EventSub socket does not stop this instance from answering
+    // HTTP requests correctly, so it is reported on the detail /health endpoint (visibility) but
+    // deliberately left OFF the "ready" tag — tagging it "ready" previously meant a reverse proxy that
+    // drops unhealthy upstreams (e.g. Caddy's passive health check) removed the entire instance from
+    // its pool the moment EventSub degraded, taking unrelated endpoints offline with it.
     builder.Services.AddSingleton<EventSubDisconnectTracker>();
     healthChecks
         .AddCheck<PendingMigrationsHealthCheck>("pending-migrations", tags: ["db", "ready"])
-        .AddCheck<EventSubReadinessHealthCheck>("eventsub", tags: ["ready"]);
+        .AddCheck<EventSubReadinessHealthCheck>("eventsub", tags: ["eventsub"]);
 
     // Zero-downtime deploys (Z4): the moment graceful shutdown starts, /health/ready must fail so the
     // reverse proxy stops routing new traffic here — while /health/live (untouched by this check) stays
