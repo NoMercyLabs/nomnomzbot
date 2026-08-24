@@ -25,6 +25,12 @@ Slice IDs are stable; the order is the queue.
 
 ## Phase 1 — runtime stability of EXISTING plumbing
 
+- **S043** Billing redirect URLs ignore the access origin — `SubscriptionService.cs:100,244` build Stripe checkout/
+  portal success+cancel URLs from `App:BaseUrl` directly, so on a tunnel or LAN address they bounce the user back to
+  a loopback URL. Every other OAuth/redirect site now resolves through `PublicOriginExtensions.ResolvePublicOrigin`
+  (swept in fac0b585); this one was left because no `HttpRequest` reaches the service layer. Done-when: the origin is
+  threaded through `ISubscriptionService` and a test proves a forwarded tunnel host appears in the Stripe return URLs.
+
 - **S035** SignalR hardening — `WithStatefulReconnect()`; OverlayHub many-widgets-per-connection;
   overlay token out of the query string + throttle (U·B5/B7). 🔒 backplane for multi-replica.
 - **S036c** YouTube token custody is still a SECOND custody path — S036b (005273c7) closed the Spotify half
