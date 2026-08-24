@@ -29,9 +29,6 @@ Slice IDs are stable; the order is the queue.
   overlay token out of the query string + throttle (U·B5/B7). 🔒 backplane for multi-replica.
 ## Phase 2 — existing platforms made to work (Kick / YouTube are shipped features that are broken) — only the spine pieces these fixes REQUIRE
 
-- **S021** Chat router by origin — `IChatProvider` platform-keyed, reply/send target = message
-  provider, unknown provider = honest failure, never cached as Twitch (U·C0/C1). Done-when: a Kick
-  `!uptime` answers on Kick while Twitch is also live.
 - **S022** `Provider` on every canonical community/monetization event; Kick/YouTube supporter events
   map to the same domain events (U·C1/C2/C3, spec `supporter-events.md` §4.1). Done-when: a Kick sub
   fires the `channel.subscribe` event response with `Provider=kick`.
