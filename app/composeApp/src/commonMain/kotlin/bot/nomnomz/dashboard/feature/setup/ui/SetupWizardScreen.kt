@@ -31,7 +31,11 @@ import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
@@ -530,13 +534,15 @@ private fun CredentialFields(
 
     Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
         step.fields.forEach { field ->
-            CredentialField(
-                stepKey = step.key,
-                field = field,
-                value = controller.valueOf(step.key, field.key),
-                enabled = !busy,
-                onValueChange = { onValueChange(field.key, it) },
-            )
+            key(field.key) {
+                CredentialField(
+                    stepKey = step.key,
+                    field = field,
+                    initialValue = controller.valueOf(step.key, field.key),
+                    enabled = !busy,
+                    onValueChange = { onValueChange(field.key, it) },
+                )
+            }
         }
 
         if (error is SetupError.MissingFields && error.stepKey == step.key) {
@@ -573,7 +579,7 @@ private fun CredentialFields(
 private fun CredentialField(
     stepKey: String,
     field: SetupField,
-    value: String,
+    initialValue: String,
     enabled: Boolean,
     onValueChange: (String) -> Unit,
 ) {
@@ -581,6 +587,17 @@ private fun CredentialField(
     // Help is nullable on both sides: prefer the localized help, then the backend's (itself nullable), then
     // show none — so a field with no help anywhere simply renders without a supporting line.
     val help: String? = SetupCopy.fieldHelp(stepKey, field.key)?.let { stringResource(it) } ?: field.help
+
+    // The field's OWN observable Compose state (same pattern as TwitchAppCredentialsCard/ProviderCredentialsCard) —
+    // seeded once from the controller's held value, then updated locally on every keystroke so THIS composable's
+    // recomposition scope is invalidated and redrawn. The prior version read `controller.valueOf(...)` fresh on
+    // every recomposition instead of holding real Compose state: the controller's plain MutableMap write was
+    // correct (proven — onFieldChange fired with the right value every keystroke) and [SetupController.state]
+    // did re-emit, but nothing about that map write is Compose-observable, so the compiler-inserted recomposition
+    // skip for this field's own call site never fired and the box kept rendering the stale (empty) text forever —
+    // reproducible even after another interaction forced an unrelated redraw. Local `mutableStateOf` is what
+    // every other working credential field in this codebase already uses; this makes the wizard match them.
+    var value: String by remember(stepKey, field.key) { mutableStateOf(initialValue) }
 
     // Secret fields (client secrets, tokens) render masked with a Show/Hide reveal via the shared
     // RevealableSecretField — the same affordance the integrations credential card uses — so a streamer can't
@@ -590,7 +607,10 @@ private fun CredentialField(
     if (isSecret) {
         RevealableSecretField(
             value = value,
-            onValueChange = onValueChange,
+            onValueChange = {
+                value = it
+                onValueChange(it)
+            },
             label = label,
             modifier = Modifier.fillMaxWidth(),
             enabled = enabled,
@@ -599,7 +619,10 @@ private fun CredentialField(
     } else {
         AppTextField(
             value = value,
-            onValueChange = onValueChange,
+            onValueChange = {
+                value = it
+                onValueChange(it)
+            },
             label = label,
             modifier = Modifier.fillMaxWidth(),
             enabled = enabled,

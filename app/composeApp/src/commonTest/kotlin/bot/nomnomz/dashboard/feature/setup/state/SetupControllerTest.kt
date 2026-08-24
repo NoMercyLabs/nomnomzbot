@@ -577,7 +577,7 @@ class SetupControllerTest {
 
 // ── Fakes ─────────────────────────────────────────────────────────────────────
 
-private fun wizard(twitch: Boolean, bot: Boolean, spotify: Boolean = false): SetupWizard {
+internal fun wizard(twitch: Boolean, bot: Boolean, spotify: Boolean = false): SetupWizard {
     val saveCreds = SetupAction("save_credentials", "PUT", "/api/v1/system/setup/credentials/twitch", null)
     val botAction = SetupAction("oauth_redirect", "GET", "/api/v1/system/setup/bot/oauth-url", "/api/v1/system/setup/bot/status")
     return SetupWizard(
@@ -629,7 +629,7 @@ private fun wizard(twitch: Boolean, bot: Boolean, spotify: Boolean = false): Set
     )
 }
 
-private fun checks(twitch: Boolean, bot: Boolean): SystemChecks =
+internal fun checks(twitch: Boolean, bot: Boolean): SystemChecks =
     SystemChecks(
         // `twitch` here models the client-id-present / configured signal: usable (ready) and, in these tests,
         // also secret-configured (ok) so the readiness gate the wizard routes on is satisfied.
@@ -643,7 +643,7 @@ private fun checks(twitch: Boolean, bot: Boolean): SystemChecks =
             SystemCheck(ok = bot, ready = bot, status = if (bot) "connected" else "disconnected"),
     )
 
-private class FakeSystemApi(
+internal class FakeSystemApi(
     private val wizard: SetupWizard,
     private val ready: Boolean,
     private val botOAuthUrl: String = "https://id.twitch.tv/authorize?bot",
@@ -708,7 +708,7 @@ private class FakeSystemApi(
 
 // Resolves a single primary channel so finish()'s basics apply has a target; the rest of the surface is
 // unused here and stubs out.
-private class FakeSetupChannelsApi(private val primary: ApiResult<ChannelSummary>) : ChannelsApi {
+internal class FakeSetupChannelsApi(private val primary: ApiResult<ChannelSummary>) : ChannelsApi {
     override suspend fun primaryChannel(): ApiResult<ChannelSummary> = primary
 
     override suspend fun list(): ApiResult<List<ChannelSummary>> = ApiResult.Ok(emptyList())
@@ -733,7 +733,7 @@ private class FakeSetupChannelsApi(private val primary: ApiResult<ChannelSummary
 }
 
 // Records the exact basics PUT so a test can assert finish() persisted them (channel id + body).
-private class FakeSetupChannelSettingsApi : ChannelSettingsApi {
+internal class FakeSetupChannelSettingsApi : ChannelSettingsApi {
     var lastBasicsChannelId: String? = null
         private set
 
@@ -766,7 +766,7 @@ private class FakeSetupChannelSettingsApi : ChannelSettingsApi {
 // The secret-free bot device-login fake connectBot() drives exclusively: a started code, then the poll
 // statuses to walk through in order (each call past the list's end repeats "pending"). Mirrors
 // IntegrationsControllerTest's FakeBotAuthApi — same backend endpoint, same vocabulary.
-private class FakeBotAuthApi(
+internal class FakeBotAuthApi(
     private val deviceStart: ApiResult<DeviceCodeStart> =
         ApiResult.Ok(
             DeviceCodeStart(
@@ -814,7 +814,7 @@ private class FakeBotAuthApi(
 
 // Drives the authorize-URL provider with a fixed loopback redirect (as the desktop launcher would) and
 // records the URL it was asked to open, so a test can assert the exact URL the browser is sent to.
-private class FakeConnectLauncher : ConnectLauncher {
+internal class FakeConnectLauncher : ConnectLauncher {
     var openedUrl: String? = null
 
     override suspend fun authorizeStreamer(

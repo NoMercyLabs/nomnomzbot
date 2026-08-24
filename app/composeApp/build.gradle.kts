@@ -93,6 +93,13 @@ kotlin {
             implementation(kotlin("test"))
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.coroutines.test)
+            // Compose UI testing (runComposeUiTest) — needed to prove a composable actually RENDERS what the
+            // user typed, not just that the state layer received it (the setup-wizard credential-field
+            // regression: onFieldChange fired with the right value every keystroke, yet the field stayed
+            // visually empty because the composable read a plain, non-observable MutableMap instead of
+            // holding Compose state — a bug no state-machine unit test can catch).
+            @OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class)
+            implementation(compose.uiTest)
         }
 
         jvmMain.dependencies {
