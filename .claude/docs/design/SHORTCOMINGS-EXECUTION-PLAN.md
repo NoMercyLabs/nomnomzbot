@@ -72,6 +72,17 @@ stable — without dropping the planned requirements behind them.
   substitution), and a watch-streak event-response test asserts the resolved voice id AND text that
   reach the synthesis call.
 
+- **S-SCHEMA-I18N** (systemic, found by S058b) Widget-settings schema field labels and help text have
+  NO i18n mechanism at all — `WidgetSettingsSchemaProvider.cs` serves backend-authored plain English
+  straight to the dashboard form renderer, entirely outside the `strings.xml` en/nl pipeline. Every
+  backend-authored, user-facing schema string is affected, not just widgets: the same question applies to
+  the pipeline action field descriptors (S045) and any other server-supplied label/help/reason text.
+  This blocks the S-CONSEQ law, which requires every control's purpose and effect text in en AND nl.
+  Done-when: backend-authored user-facing schema strings resolve through a translation mechanism with
+  en + nl, the dashboard renders the viewer's locale, and a guard test fails on a schema string that has
+  no translation entry. Sweep the WHOLE class in one pass — widgets, action descriptors, and any other
+  server-supplied user-facing text — not one provider at a time.
+
 - **S-CODE-EDITOR** The code-scripts surface gets a **VS Code-for-web grade editor that functions like
   one** — Monaco-class: completion, hover types, go-to-definition, diagnostics, multi-file — loading a
   **REAL fully-typed SDK from npm** (the actual published types, not hand-written `.d.ts`
