@@ -39,7 +39,8 @@ internal sealed class TtsOverlayNotifierAdapter : ITtsOverlayNotifier
                 payload.VoiceId,
                 payload.Provider,
                 payload.CueId,
-                null
+                null,
+                payload.Locale
             ),
             ct
         );

@@ -197,7 +197,8 @@ public record TtsSpeakPayload(
     string VoiceId,
     string Provider,
     string? CueId,
-    TtsSpeakOptions? Options
+    TtsSpeakOptions? Options,
+    string? Locale = null
 );
 
 /// <summary>Optional prosody overrides for a client-edge utterance (all null = provider defaults).</summary>

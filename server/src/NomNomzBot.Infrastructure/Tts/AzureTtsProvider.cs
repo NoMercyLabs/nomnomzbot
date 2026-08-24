@@ -30,6 +30,10 @@ public sealed class AzureTtsProvider : ITtsProvider
     private readonly string? _apiKey;
     private readonly string _region;
 
+    /// <summary>False when no BYOK API key is configured — the provider is registered in DI regardless (shared
+    /// operator config), but must never be preferred over a keyless provider that can actually speak.</summary>
+    public bool IsConfigured => !string.IsNullOrEmpty(_apiKey);
+
     public AzureTtsProvider(
         IHttpClientFactory httpClientFactory,
         ILogger<AzureTtsProvider> logger,

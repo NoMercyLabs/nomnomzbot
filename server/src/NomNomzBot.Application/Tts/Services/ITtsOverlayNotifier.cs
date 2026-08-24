@@ -21,10 +21,13 @@ public interface ITtsOverlayNotifier
     Task SpeakAsync(Guid broadcasterId, TtsOverlaySpeakDto payload, CancellationToken ct = default);
 }
 
-/// <summary>The utterance a client-edge overlay renders: the spoken text + the resolved provider voice.</summary>
+/// <summary>The utterance a client-edge overlay renders: the spoken text + the resolved provider voice.
+/// <paramref name="Locale"/> is the catalogue voice's BCP-47 locale (tts.md §6.2) — the SDK's fallback when the
+/// browser has no local voice matching <paramref name="VoiceId"/> by id/name.</summary>
 public sealed record TtsOverlaySpeakDto(
     string Text,
     string VoiceId,
     string Provider,
-    string? CueId
+    string? CueId,
+    string? Locale = null
 );

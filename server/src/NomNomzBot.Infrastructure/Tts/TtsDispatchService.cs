@@ -447,8 +447,13 @@ public sealed class TtsDispatchService : ITtsDispatchService
         string provider = await ResolveProviderAsync(voiceId, ct);
         if (string.IsNullOrWhiteSpace(provider))
             provider = config.DefaultProvider;
+        string? locale = await ResolveLocaleAsync(voiceId, ct);
 
-        await _ttsOverlay.SpeakAsync(broadcasterId, new(text, voiceId, provider, CueId: null), ct);
+        await _ttsOverlay.SpeakAsync(
+            broadcasterId,
+            new(text, voiceId, provider, CueId: null, Locale: locale),
+            ct
+        );
 
         _db.TtsUsageRecords.Add(
             new()
@@ -634,11 +639,23 @@ public sealed class TtsDispatchService : ITtsDispatchService
     /// <summary>Best-effort provider for a voice from the catalogue (informational for the queue entry).</summary>
     private async Task<string> ResolveProviderAsync(string voiceId, CancellationToken ct)
     {
+        string idLower = voiceId.ToLower();
         string? provider = await _db
-            .TtsVoices.Where(v => v.Id == voiceId)
+            .TtsVoices.Where(v => v.Id.ToLower() == idLower)
             .Select(v => v.Provider)
             .FirstOrDefaultAsync(ct);
         return provider ?? string.Empty;
+    }
+
+    // tts.md §6.2: the SDK falls back to the voice's Locale when the browser has no local voice matching the
+    // id/name — case-insensitive to match the same VoiceId validation used everywhere else in this file.
+    private async Task<string?> ResolveLocaleAsync(string voiceId, CancellationToken ct)
+    {
+        string idLower = voiceId.ToLower();
+        return await _db
+            .TtsVoices.Where(v => v.Id.ToLower() == idLower)
+            .Select(v => v.Locale)
+            .FirstOrDefaultAsync(ct);
     }
 
     /// <summary>Per-viewer voice → explicit override → channel default → first available.</summary>

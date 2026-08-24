@@ -291,10 +291,13 @@ public class TtsConfigService : ITtsConfigService
         if (!string.IsNullOrWhiteSpace(query.Q))
         {
             string q = query.Q.Trim().ToLower();
-            // A viewer types "!voice british" or "!voice male" — free-text spans accent and gender too, not just
-            // the name/description/tags, so the natural words land the voice they mean.
+            // tts.md §6.2: lookup matches Id and Locale case-insensitively first (a full or partial voice id
+            // like "en-US-AriaNeural" / "aria" must resolve), then falls through to the fuzzy name/tag fields —
+            // a viewer typing "!voice british" or "!voice male" still lands the voice they mean.
             voices = voices.Where(v =>
-                v.Name.ToLower().Contains(q)
+                v.Id.ToLower().Contains(q)
+                || v.Locale.ToLower().Contains(q)
+                || v.Name.ToLower().Contains(q)
                 || v.DisplayName.ToLower().Contains(q)
                 || v.Gender.ToLower().Contains(q)
                 || (v.Accent != null && v.Accent.ToLower().Contains(q))
@@ -367,7 +370,9 @@ public class TtsConfigService : ITtsConfigService
         {
             string q = query.Q.Trim();
             voices = voices.Where(v =>
-                v.Name.Contains(q, StringComparison.OrdinalIgnoreCase)
+                v.Id.Contains(q, StringComparison.OrdinalIgnoreCase)
+                || v.Locale.Contains(q, StringComparison.OrdinalIgnoreCase)
+                || v.Name.Contains(q, StringComparison.OrdinalIgnoreCase)
                 || v.DisplayName.Contains(q, StringComparison.OrdinalIgnoreCase)
                 || v.Gender.Contains(q, StringComparison.OrdinalIgnoreCase)
                 || (v.Accent?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false)
@@ -428,16 +433,21 @@ public class TtsConfigService : ITtsConfigService
     }
 
     // True when the catalogue contains the voice, or (pre-sync, empty catalogue) a provider can enumerate it.
+    // tts.md §6.2: VoiceId validation matches Id case-insensitively — "en-US-AriaNeural" and "en-us-arianeural"
+    // are the same voice.
     private async Task<bool> VoiceExistsAsync(string voiceId, CancellationToken cancellationToken)
     {
-        if (await _db.TtsVoices.AnyAsync(v => v.Id == voiceId, cancellationToken))
+        string idLower = voiceId.ToLower();
+        if (await _db.TtsVoices.AnyAsync(v => v.Id.ToLower() == idLower, cancellationToken))
             return true;
         if (await _db.TtsVoices.AnyAsync(cancellationToken))
             return false; // catalogue present but no match
         IReadOnlyList<TtsVoiceInfo> providerVoices = await _ttsService.GetAvailableVoicesAsync(
             cancellationToken
         );
-        return providerVoices.Any(v => v.Id == voiceId);
+        return providerVoices.Any(v =>
+            string.Equals(v.Id, voiceId, StringComparison.OrdinalIgnoreCase)
+        );
     }
 
     public async Task<Result<TtsTestResultDto>> TestVoiceAsync(

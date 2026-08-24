@@ -27,6 +27,9 @@ namespace NomNomzBot.Infrastructure.Tts;
 public sealed class EdgeTtsProvider : ITtsProvider
 {
     private const string ProviderName = "edge";
+
+    /// <summary>Free, keyless Microsoft read-aloud service — always usable, no BYOK gate.</summary>
+    public bool IsConfigured => true;
     private const string TrustedToken = "6A5AA1D4EAFF4E9FB37E23D68491D6F4";
 
     /// <summary>Chromium version Edge's own client currently reports; feeds both Sec-MS-GEC-Version and the

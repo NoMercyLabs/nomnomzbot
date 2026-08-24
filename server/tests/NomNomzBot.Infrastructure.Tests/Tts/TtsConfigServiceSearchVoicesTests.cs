@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Application.Tts.Dtos;
@@ -187,6 +188,54 @@ public sealed class TtsConfigServiceSearchVoicesTests
         firstPage.Value.TotalCount.Should().Be(5);
         firstPage.Value.Items.Should().HaveCount(2);
         firstPage.Value.HasNextPage.Should().BeTrue();
+    }
+
+    // S053 — tts.md §6.2: lookup matches Id AND Locale case-insensitively, not just Name/DisplayName.
+    [Fact]
+    public async Task Free_text_query_matches_the_full_voice_id_case_insensitively()
+    {
+        TtsTestDbContext db = await SeededCatalogueAsync();
+        TtsConfigService sut = Build(db);
+
+        Result<PagedList<TtsVoiceDto>> result = await sut.SearchVoicesAsync(
+            new(Q: "EN-US-ARIANEURAL")
+        );
+
+        result.Value.Items.Should().ContainSingle().Which.Id.Should().Be("en-US-AriaNeural");
+    }
+
+    [Fact]
+    public async Task Free_text_query_matches_the_locale()
+    {
+        TtsTestDbContext db = await SeededCatalogueAsync();
+        TtsConfigService sut = Build(db);
+
+        Result<PagedList<TtsVoiceDto>> result = await sut.SearchVoicesAsync(new(Q: "ja-jp"));
+
+        result.Value.Items.Should().ContainSingle().Which.Id.Should().Be("ja-JP-NanamiNeural");
+    }
+
+    // S053 — VoiceExistsAsync (reached via SetUserVoiceAsync) must accept a voice id in the wrong case: the
+    // moderator-assignment write path is rejected today for anything but a byte-exact id.
+    [Fact]
+    public async Task Set_user_voice_accepts_a_catalogue_id_in_the_wrong_case()
+    {
+        TtsTestDbContext db = await SeededCatalogueAsync();
+        TtsConfigService sut = Build(db);
+
+        Result<UserTtsVoiceDto> result = await sut.SetUserVoiceAsync(
+            Guid.Parse("0192a000-0000-7000-8000-000000000e01"),
+            "viewer-1",
+            new() { VoiceId = "en-us-arianeural" }
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        UserTtsVoice row = await db.UserTtsVoices.SingleAsync();
+        row.VoiceId.Should()
+            .Be(
+                "en-us-arianeural",
+                "the caller's casing is stored, but the lookup that validated it was case-insensitive"
+            );
     }
 
     [Fact]

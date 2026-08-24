@@ -41,6 +41,8 @@ public sealed class TtsVoiceCatalogSyncTests
         public Task<IReadOnlyList<TtsVoiceInfo>> GetVoicesAsync(
             CancellationToken cancellationToken = default
         ) => Task.FromResult(_voices);
+
+        public bool IsConfigured => true;
     }
 
     private static TtsVoiceCatalogSync Build(

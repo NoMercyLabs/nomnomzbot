@@ -76,12 +76,14 @@ public sealed class TtsService : ITtsService
                 voiceId
             );
 
-            // Fall back to Edge TTS
+            // Fall back to Edge TTS — retry the SAME requested voice id first (Edge shares Azure's neural-voice
+            // naming, so it often just works); only when Edge itself has no such voice does it fall through to
+            // whatever the Edge catalogue actually lists first. No baked-in favourite voice.
             EdgeTtsProvider? edgeProvider = _providers.OfType<EdgeTtsProvider>().FirstOrDefault();
             if (edgeProvider is null)
                 return new([], 0, voiceId, "error");
 
-            result = await edgeProvider.SynthesizeAsync(text, "en-US-AriaNeural", ct);
+            result = await RetryThenFirstAvailableAsync(edgeProvider, text, voiceId, ct);
         }
 
         if (result.AudioData.Length > 0)
@@ -130,33 +132,63 @@ public sealed class TtsService : ITtsService
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
-    private ITtsProvider ResolveProvider(string voiceId)
+    // internal (not private): InternalsVisibleTo(NomNomzBot.Infrastructure.Tests) is already wired for exactly
+    // this seam — TtsServiceTests asserts the keyless-provider-preference decision directly, without triggering
+    // a real network call through a concrete BYOK provider.
+    internal ITtsProvider ResolveProvider(string voiceId)
     {
         // Voice ID naming convention: provider prefix
         // Azure: "en-US-AriaNeural" (Neural voices)
         // ElevenLabs: UUID-formatted voice IDs
+        //
+        // Both BYOK providers (Azure, ElevenLabs) are registered in DI regardless of whether an operator/channel
+        // has actually configured a key (shared operator config) — IsConfigured gates the choice so a keyless
+        // BYOK provider is never preferred over the keyless-by-design Edge provider, which would otherwise
+        // silently synthesize empty audio (tts.md §6.2: no keyless-Azure preference).
 
         // ElevenLabs: UUIDs (8-4-4-4-12 format)
         if (Guid.TryParse(voiceId, out _))
         {
             ElevenLabsTtsProvider? elevenlabs = _providers
                 .OfType<ElevenLabsTtsProvider>()
-                .FirstOrDefault();
+                .FirstOrDefault(p => p.IsConfigured);
             if (elevenlabs is not null)
                 return elevenlabs;
         }
 
         // Azure configured separately per BYOK
-        AzureTtsProvider? azure = _providers.OfType<AzureTtsProvider>().FirstOrDefault();
+        AzureTtsProvider? azure = _providers
+            .OfType<AzureTtsProvider>()
+            .FirstOrDefault(p => p.IsConfigured);
         if (azure is not null)
             return azure;
 
-        // Default: Edge TTS (free)
+        // Default: Edge TTS (free, always configured)
         EdgeTtsProvider? edge = _providers.OfType<EdgeTtsProvider>().FirstOrDefault();
         if (edge is not null)
             return edge;
 
         return _providers.First();
+    }
+
+    // internal (not private): InternalsVisibleTo(NomNomzBot.Infrastructure.Tests) is already wired for exactly
+    // this seam — parameterized over ITtsProvider (not the concrete EdgeTtsProvider) so TtsServiceTests can
+    // prove the fallback never bakes in a favourite voice, without driving a real network call. Retries the
+    // originally requested voice id first (the fallback provider often supports the same id), then falls
+    // through to whatever that provider's own catalogue actually lists first.
+    internal static async Task<TtsSynthesisResult> RetryThenFirstAvailableAsync(
+        ITtsProvider provider,
+        string text,
+        string voiceId,
+        CancellationToken ct
+    )
+    {
+        TtsSynthesisResult result = await provider.SynthesizeAsync(text, voiceId, ct);
+        if (result.AudioData.Length > 0)
+            return result;
+
+        IReadOnlyList<TtsVoiceInfo> voices = await provider.GetVoicesAsync(ct);
+        return voices.Count > 0 ? await provider.SynthesizeAsync(text, voices[0].Id, ct) : result;
     }
 
     private static string BuildCacheKey(string text, string voiceId)

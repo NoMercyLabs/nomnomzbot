@@ -708,6 +708,44 @@ public sealed class TtsDispatchServiceTests
             );
     }
 
+    // S053 — tts.md §6.2: the SDK sets utter.voice/utter.lang from the resolved voice, falling back to Locale;
+    // the server must therefore push the catalogue Locale for the resolved voice, not leave it null — this is
+    // the value that actually reaches the browser's speechSynthesis call.
+    [Fact]
+    public async Task RequestSpeakAsync_ClientEdge_PushesTheResolvedVoicesLocale()
+    {
+        Harness h = Build(
+            mode: "client_edge",
+            defaultVoice: "en-GB-SoniaNeural",
+            defaultProvider: "edge"
+        );
+        h.Db.TtsVoices.Add(
+            new()
+            {
+                Id = "en-GB-SoniaNeural",
+                Name = "SoniaNeural",
+                DisplayName = "Sonia (GB)",
+                Locale = "en-GB",
+                Gender = "Female",
+                Provider = "edge",
+            }
+        );
+        await h.Db.SaveChangesAsync();
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(Speak("hello"));
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        await h
+            .TtsOverlay.Received(1)
+            .SpeakAsync(
+                Tenant,
+                Arg.Is<TtsOverlaySpeakDto>(p =>
+                    p.VoiceId == "en-GB-SoniaNeural" && p.Locale == "en-GB"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
     [Fact]
     public async Task RequestSpeakAsync_ClientEdge_CensorsTextBeforePushingToOverlay()
     {

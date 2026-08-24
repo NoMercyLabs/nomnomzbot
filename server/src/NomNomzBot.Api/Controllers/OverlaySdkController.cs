@@ -170,6 +170,47 @@ public sealed class OverlaySdkController : ControllerBase
             if (el) { el.pause(); delete soundHandles[payload.handle]; }
           }
 
+          // Cached browser voice list — some browsers populate it async via voiceschanged, so a lookup right
+          // after page load can see an empty array; re-cache whenever the event fires and re-read on every call.
+          var cachedVoices = null;
+          function browserVoices() {
+            var synth = window.speechSynthesis;
+            var list = synth.getVoices();
+            if (list && list.length) cachedVoices = list;
+            return cachedVoices || list || [];
+          }
+          if (window.speechSynthesis) {
+            window.speechSynthesis.onvoiceschanged = function () { browserVoices(); };
+          }
+
+          // tts.md §6.2: on client_edge the SDK MUST resolve utter.voice/utter.lang from the server-resolved
+          // voice — never the browser default. Match the browser's own voice list by id/name first (exact,
+          // case-insensitive), then by locale; when nothing matches, utter.lang still steers the browser's
+          // own default voice for that language instead of whatever it would otherwise have picked.
+          function pickBrowserVoice(voiceId, locale) {
+            var list = browserVoices();
+            if (!list.length) return null;
+            var idLower = (voiceId || "").toLowerCase();
+            var byId = null;
+            for (var i = 0; i < list.length; i++) {
+              var v = list[i];
+              var name = (v.voiceURI || v.name || "").toLowerCase();
+              if (name === idLower) { byId = v; break; }
+            }
+            if (byId) return byId;
+            if (locale) {
+              var localeLower = locale.toLowerCase();
+              for (var j = 0; j < list.length; j++) {
+                if ((list[j].lang || "").toLowerCase() === localeLower) return list[j];
+              }
+              var lang = localeLower.split("-")[0];
+              for (var k = 0; k < list.length; k++) {
+                if ((list[k].lang || "").toLowerCase().indexOf(lang) === 0) return list[k];
+              }
+            }
+            return null;
+          }
+
           function speakTts(payload) {
             var synth = window.speechSynthesis;
             if (!synth) { report("speechSynthesis unavailable — cannot render client_edge TTS"); return; }
@@ -178,6 +219,13 @@ public sealed class OverlaySdkController : ControllerBase
             if (opts.rate != null) utter.rate = opts.rate;
             if (opts.pitch != null) utter.pitch = opts.pitch;
             if (opts.volume != null) utter.volume = opts.volume;
+            var matched = pickBrowserVoice(payload.voiceId, payload.locale);
+            if (matched) {
+              utter.voice = matched;
+              utter.lang = matched.lang;
+            } else if (payload.locale) {
+              utter.lang = payload.locale;
+            }
             synth.speak(utter);
           }
 

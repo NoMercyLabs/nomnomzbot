@@ -31,6 +31,10 @@ public sealed class ElevenLabsTtsProvider : ITtsProvider
     private readonly ILogger<ElevenLabsTtsProvider> _logger;
     private readonly string? _apiKey;
 
+    /// <summary>False when no BYOK API key is configured — the provider is registered in DI regardless (shared
+    /// operator config), but must never be preferred over a keyless provider that can actually speak.</summary>
+    public bool IsConfigured => !string.IsNullOrEmpty(_apiKey);
+
     public ElevenLabsTtsProvider(
         IHttpClientFactory httpClientFactory,
         ILogger<ElevenLabsTtsProvider> logger,

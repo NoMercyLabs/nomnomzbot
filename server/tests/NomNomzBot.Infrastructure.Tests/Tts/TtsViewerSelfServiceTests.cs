@@ -205,4 +205,43 @@ public sealed class TtsViewerSelfServiceTests
 
         reply.Value.Should().Contain("channel default");
     }
+
+    // S053 — tts.md §6.2: !voice <full-id> and !voice <friendly-name> must resolve to the SAME real voice, and
+    // an id in the wrong case must still resolve. Asserts the resolved voice identity actually persisted, not
+    // merely that the command reported success.
+    [Fact]
+    public async Task Voice_command_full_id_and_friendly_name_resolve_to_the_same_voice()
+    {
+        (TtsConfigService config, TtsTestDbContext db) = await BuildAsync();
+        VoiceBuiltin sut = new(config);
+
+        Result<string> byId = await sut.ExecuteAsync(Ctx("en-GB-SoniaNeural"));
+        UserTtsVoice afterId = await db.UserTtsVoices.SingleAsync();
+        afterId.VoiceId.Should().Be("en-GB-SoniaNeural");
+        byId.IsSuccess.Should().BeTrue();
+
+        Result<string> byName = await sut.ExecuteAsync(Ctx("sonia"));
+        UserTtsVoice afterName = await db.UserTtsVoices.SingleAsync();
+
+        afterName
+            .VoiceId.Should()
+            .Be(afterId.VoiceId, "the full id and the friendly name name the same voice");
+    }
+
+    [Fact]
+    public async Task Voice_command_full_id_resolves_regardless_of_case()
+    {
+        (TtsConfigService config, TtsTestDbContext db) = await BuildAsync();
+        VoiceBuiltin sut = new(config);
+
+        Result<string> reply = await sut.ExecuteAsync(Ctx("EN-gb-SONIANEURAL"));
+
+        reply.IsSuccess.Should().BeTrue();
+        UserTtsVoice row = await db.UserTtsVoices.SingleAsync();
+        row.VoiceId.Should()
+            .Be(
+                "en-GB-SoniaNeural",
+                "the wrong-case id still resolves to the real catalogue voice"
+            );
+    }
 }

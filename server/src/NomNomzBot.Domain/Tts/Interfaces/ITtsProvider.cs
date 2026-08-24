@@ -22,6 +22,11 @@ public interface ITtsProvider
     );
 
     Task<IReadOnlyList<TtsVoiceInfo>> GetVoicesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>True when the provider actually has what it needs to synthesize (a BYOK provider with no key
+    /// configured is registered but unusable) — a keyless provider always answers true. Used to pick a real,
+    /// working provider instead of preferring one that is registered but silently returns empty audio.</summary>
+    bool IsConfigured { get; }
 }
 
 public class TtsSynthesisResult
