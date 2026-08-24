@@ -11,14 +11,19 @@
 package bot.nomnomz.dashboard.feature.setup.state
 
 import bot.nomnomz.dashboard.core.connection.ConnectLauncher
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.BotAuthApi
 import bot.nomnomz.dashboard.core.network.BotOAuthUrl
 import bot.nomnomz.dashboard.core.network.BotStatus
 import bot.nomnomz.dashboard.core.network.ChannelBasics
 import bot.nomnomz.dashboard.core.network.ChannelSettingsApi
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.DeviceBotPoll
+import bot.nomnomz.dashboard.core.network.DeviceCodeStart
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
+import bot.nomnomz.dashboard.core.network.OAuthStart
 import bot.nomnomz.dashboard.core.network.SetupAction
 import bot.nomnomz.dashboard.core.network.SetupField
 import bot.nomnomz.dashboard.core.network.SetupStep
@@ -44,11 +49,12 @@ class SetupControllerTest {
     private fun controller(
         api: FakeSystemApi,
         launcher: ConnectLauncher = FakeConnectLauncher(),
+        botAuthApi: BotAuthApi = FakeBotAuthApi(),
         channelsApi: ChannelsApi = FakeSetupChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
         settingsApi: FakeSetupChannelSettingsApi = FakeSetupChannelSettingsApi(),
         onReadyToSignIn: suspend () -> Boolean = { true },
     ): SetupController =
-        SetupController(api, launcher, channelsApi, settingsApi, onReadyToSignIn)
+        SetupController(api, launcher, botAuthApi, channelsApi, settingsApi, onReadyToSignIn)
 
     @Test
     fun finish_applies_the_collected_basics_to_the_channel_after_signin() = runTest {
@@ -166,26 +172,118 @@ class SetupControllerTest {
         assertNull((controller.state.value as SetupState.Steps).error)
     }
 
-    @Test
-    fun connecting_the_bot_opens_the_backend_oauth_url_then_reflects_the_reread_status() = runTest {
-        val api =
-            FakeSystemApi(wizard = wizard(twitch = true, bot = false), ready = false, botOAuthUrl = "https://id.twitch.tv/authorize?bot")
-        val launcher = FakeConnectLauncher()
-        val controller = controller(api, launcher)
-        controller.load()
-        assertFalse((controller.state.value as SetupState.Steps).steps.first { it.key == "platform_bot" }.complete)
+    // ── Bot authorization: secret-free DEVICE CODE flow ─────────────────────────
+    //
+    // A fresh self-host has NO Twitch app configured yet, so the redirect flow (which needs a client
+    // secret) cannot work at this point in onboarding — connectBot() drives the device-code flow
+    // exclusively: mint a code, surface it, poll, then reload so the step reflects the backend's re-read.
 
-        // The backend marks the bot connected + the system ready once the dance completes.
+    @Test
+    fun connecting_the_bot_starts_the_device_login_and_surfaces_the_code_and_verification_link() = runTest {
+        // The fake's poll never authorizes (empty statuses ⇒ always "pending"), so connectBot() suspends on
+        // the poll loop — capture the panel state from inside the very first poll (mid-flow), the same
+        // pattern IntegrationsControllerTest uses to observe the live device panel.
+        var panelAtFirstPoll: BotDeviceState? = null
+        val bot =
+            FakeBotAuthApi(
+                deviceStart =
+                    ApiResult.Ok(
+                        DeviceCodeStart(
+                            deviceCode = "BOT-DEV-9",
+                            userCode = "ABCD-1234",
+                            verificationUri = "https://www.twitch.tv/activate",
+                            interval = 1,
+                            expiresIn = 2,
+                        )
+                    ),
+                devicePollStatuses = listOf("authorized"),
+            )
+        val api = FakeSystemApi(wizard = wizard(twitch = true, bot = false), ready = false)
+        val controller = controller(api, botAuthApi = bot)
+        controller.load()
+        bot.onPoll = { panelAtFirstPoll = (controller.state.value as? SetupState.Steps)?.botDevice }
+
         api.wizardAfter = wizard(twitch = true, bot = true)
         api.readyAfter = true
         controller.connectBot()
 
-        // The launcher was driven to open the exact bot authorize URL the backend issued.
-        assertEquals("https://id.twitch.tv/authorize?bot", launcher.openedUrl)
-        // The bot step now reflects the backend re-read (connected), and the flow is ready.
+        // The device login started against the typed BotAuthApi (never the redirect/launcher path)...
+        assertTrue(bot.deviceStartCalled)
+        // ...and the screen had the exact user code + verification link to render while awaiting approval.
+        assertEquals("ABCD-1234", panelAtFirstPoll?.userCode)
+        assertEquals("https://www.twitch.tv/activate", panelAtFirstPoll?.verificationUri)
+    }
+
+    @Test
+    fun a_pending_poll_keeps_waiting_and_authorized_completes_the_step_and_reloads() = runTest {
+        // Two polls: pending, then authorized. The panel must still be up after the first (pending) poll,
+        // and gone — with the step complete from the backend's re-read — only after the second.
+        val bot =
+            FakeBotAuthApi(
+                deviceStart =
+                    ApiResult.Ok(
+                        DeviceCodeStart(
+                            deviceCode = "BOT-DEV-2",
+                            userCode = "WXYZ-7890",
+                            verificationUri = "https://www.twitch.tv/activate",
+                            interval = 1,
+                            expiresIn = 10,
+                        )
+                    ),
+                devicePollStatuses = listOf("pending", "authorized"),
+            )
+        val api = FakeSystemApi(wizard = wizard(twitch = true, bot = false), ready = false)
+        val controller = controller(api, botAuthApi = bot)
+        controller.load()
+
+        var stillWaitingAfterFirstPoll = false
+        bot.onPoll = {
+            // Runs BEFORE this poll's response is applied — after one prior "pending" poll the panel must
+            // still be showing (the step has not completed yet).
+            if (bot.pollCount == 1) {
+                stillWaitingAfterFirstPoll = (controller.state.value as? SetupState.Steps)?.botDevice != null
+            }
+        }
+
+        api.wizardAfter = wizard(twitch = true, bot = true)
+        api.readyAfter = true
+        controller.connectBot()
+
+        assertTrue(stillWaitingAfterFirstPoll)
+        // On "authorized" the step COMPLETES from the backend's re-read (never an optimistic flip) and the
+        // flow is ready — not just a local flag flip.
         val steps: SetupState.Steps = controller.state.value as SetupState.Steps
         assertTrue(steps.steps.first { it.key == "platform_bot" }.complete)
         assertTrue(steps.ready)
+        assertNull(steps.botDevice)
+        assertNull(steps.busy)
+    }
+
+    @Test
+    fun a_failed_device_start_surfaces_a_templated_error_and_leaves_the_step_retryable() = runTest {
+        val bot =
+            FakeBotAuthApi(
+                deviceStart = ApiResult.Failure(ApiError(status = 500, code = "BOOM", message = "device mint exploded")),
+            )
+        val api = FakeSystemApi(wizard = wizard(twitch = true, bot = false), ready = false)
+        val controller = controller(api, botAuthApi = bot)
+        controller.load()
+
+        controller.connectBot()
+
+        val steps: SetupState.Steps = controller.state.value as SetupState.Steps
+        val error: SetupError? = steps.error
+        assertTrue(error is SetupError.Bot)
+        // The raw transport detail rides the error (for the "%s" template), but is not itself the whole
+        // user-facing string — the screen wraps it in Res.string.setup_error_bot ("Bot authorization
+        // failed: %1$s"), so the detail alone must not equal a full sentence.
+        assertEquals("device mint exploded", (error as SetupError.Bot).detail)
+        assertFalse(error.detail.startsWith("Bot authorization failed"))
+        // Retryable: no device panel is stuck up, not busy, and the step is still incomplete — the
+        // Authorize button reappears.
+        assertNull(steps.botDevice)
+        assertNull(steps.busy)
+        assertFalse(steps.steps.first { it.key == "platform_bot" }.complete)
     }
 
     @Test
@@ -566,6 +664,55 @@ private class FakeSetupChannelSettingsApi : ChannelSettingsApi {
             )
         )
     }
+}
+
+// The secret-free bot device-login fake connectBot() drives exclusively: a started code, then the poll
+// statuses to walk through in order (each call past the list's end repeats "pending"). Mirrors
+// IntegrationsControllerTest's FakeBotAuthApi — same backend endpoint, same vocabulary.
+private class FakeBotAuthApi(
+    private val deviceStart: ApiResult<DeviceCodeStart> =
+        ApiResult.Ok(
+            DeviceCodeStart(
+                deviceCode = "BOT-DEV-1",
+                userCode = "WXYZ-7890",
+                verificationUri = "https://www.twitch.tv/activate",
+                interval = 1,
+                expiresIn = 60,
+            )
+        ),
+    private val devicePollStatuses: List<String> = listOf("authorized"),
+) : BotAuthApi {
+    var deviceStartCalled: Boolean = false
+    var polledDeviceCode: String? = null
+    var pollCount: Int = 0
+        private set
+
+    // Invoked at the START of each poll (before this poll's response is applied), so a test can observe
+    // the controller's live panel state mid-flow.
+    var onPoll: (() -> Unit)? = null
+    private var pollIndex: Int = 0
+
+    override suspend fun start(loopbackRedirect: String): ApiResult<OAuthStart> =
+        ApiResult.Failure(ApiError(0, "UNUSED", "the redirect bot flow is not used by setup"))
+
+    override suspend fun startDeviceLogin(): ApiResult<DeviceCodeStart> {
+        deviceStartCalled = true
+        return deviceStart
+    }
+
+    override suspend fun pollDeviceLogin(deviceCode: String): ApiResult<DeviceBotPoll> {
+        onPoll?.invoke()
+        polledDeviceCode = deviceCode
+        pollCount++
+        val pollStatus: String = devicePollStatuses.getOrElse(pollIndex) { "pending" }
+        pollIndex++
+        val bot: BotStatus? = if (pollStatus == "authorized") BotStatus(connected = true) else null
+        return ApiResult.Ok(DeviceBotPoll(status = pollStatus, bot = bot))
+    }
+
+    override suspend fun status(): ApiResult<BotStatus> = ApiResult.Ok(BotStatus(connected = false))
+
+    override suspend fun disconnect(): ApiResult<Unit> = ApiResult.Ok(Unit)
 }
 
 // Drives the authorize-URL provider with a fixed loopback redirect (as the desktop launcher would) and

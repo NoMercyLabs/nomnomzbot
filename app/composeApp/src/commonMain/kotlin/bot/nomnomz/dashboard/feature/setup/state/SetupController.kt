@@ -13,15 +13,18 @@ package bot.nomnomz.dashboard.feature.setup.state
 import bot.nomnomz.dashboard.core.connection.ConnectLauncher
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
-import bot.nomnomz.dashboard.core.network.BotOAuthUrl
+import bot.nomnomz.dashboard.core.network.BotAuthApi
 import bot.nomnomz.dashboard.core.network.ChannelSettingsApi
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.DeviceBotPoll
+import bot.nomnomz.dashboard.core.network.DeviceCodeStart
 import bot.nomnomz.dashboard.core.network.SetupStep
 import bot.nomnomz.dashboard.core.network.SetupWizard
 import bot.nomnomz.dashboard.core.network.SystemApi
 import bot.nomnomz.dashboard.core.network.SystemStatus
 import bot.nomnomz.dashboard.core.network.UpdateBasicsBody
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -41,6 +44,10 @@ import kotlinx.coroutines.flow.asStateFlow
 class SetupController(
     private val systemApi: SystemApi,
     private val connectLauncher: ConnectLauncher,
+    // The secret-free bot device-login facade — connectBot() drives this exclusively (device code +
+    // poll), never the redirect flow: a fresh self-host has no Twitch app configured yet, so the
+    // redirect path (which needs a client secret) cannot work at this point in onboarding.
+    private val botAuthApi: BotAuthApi,
     // The channel facade + per-channel settings facade — used only at finish() to persist the onboarding
     // "basics" (prefix / language / timezone) to the freshly-signed-in streamer's channel.
     private val channelsApi: ChannelsApi,
@@ -142,25 +149,86 @@ class SetupController(
     }
 
     /**
-     * Run the platform-bot authorization: open the backend-issued authorize URL (the token vaults
-     * server-side), then reload so the bot step reflects the backend's re-read status.
+     * Run the platform-bot authorization via the secret-free DEVICE CODE flow (CLAUDE.md: login is device
+     * code, secret-free, shared public client by default) — never the redirect flow, which needs a
+     * configured Twitch app the operator does not have yet at this point in onboarding. Mints a device
+     * code, surfaces it on the step (user code + verification link), and polls until the operator
+     * approves at twitch.tv/activate — then reloads so the step reflects the backend's re-read status.
+     * Single-flight: a login already in progress is not restarted.
      */
     suspend fun connectBot() {
         val current: SetupState.Steps = _state.value as? SetupState.Steps ?: return
+        if (current.botDevice != null) return
+
         _state.value = current.copy(busy = STEP_PLATFORM_BOT, error = null)
 
-        val outcome: ApiResult<Unit> =
-            connectLauncher.awaitConnect { _ ->
-                when (val url: ApiResult<BotOAuthUrl> = systemApi.botOAuthUrl()) {
-                    is ApiResult.Failure -> ApiResult.Failure(url.error)
-                    is ApiResult.Ok -> ApiResult.Ok(url.value.oauthUrl)
-                }
+        when (val start: ApiResult<DeviceCodeStart> = botAuthApi.startDeviceLogin()) {
+            is ApiResult.Failure ->
+                _state.value =
+                    current.copy(
+                        busy = null,
+                        error = SetupError.Bot(start.error.message, unreachable = start.error.status == 0),
+                    )
+            is ApiResult.Ok -> {
+                _state.value =
+                    current.copy(
+                        busy = STEP_PLATFORM_BOT,
+                        error = null,
+                        botDevice = BotDeviceState(userCode = start.value.userCode, verificationUri = start.value.verificationUri),
+                    )
+                pollBotDevice(start.value)
             }
-
-        when (outcome) {
-            is ApiResult.Failure -> _state.value = current.copy(busy = null, error = SetupError.Bot(outcome.error.message))
-            is ApiResult.Ok -> reload(busy = null, error = null)
         }
+    }
+
+    /** Abandon an in-flight bot device login (the operator closed the panel) without waiting further. */
+    fun cancelBotDevice() {
+        val current: SetupState.Steps = _state.value as? SetupState.Steps ?: return
+        _state.value = current.copy(busy = null, botDevice = null)
+    }
+
+    // Poll the bot device endpoint on its own interval until the operator approves (→ reload so the step
+    // reflects the backend's re-read, the same "never an optimistic flip" contract every other step
+    // follows), declines, or the code expires. A transient poll failure is tolerated until the deadline
+    // so a blip mid-approval doesn't abort the connect. The delay is a coroutine suspend, never a thread
+    // block, and the loop bails immediately if [cancelBotDevice] cleared botDevice out from under it.
+    private suspend fun pollBotDevice(start: DeviceCodeStart) {
+        val intervalMs: Long = start.interval.coerceAtLeast(1).toLong() * 1000L
+        val deadlineMs: Long = start.expiresIn.coerceAtLeast(1).toLong() * 1000L
+        var elapsedMs: Long = 0
+
+        while (elapsedMs < deadlineMs && (_state.value as? SetupState.Steps)?.botDevice != null) {
+            delay(intervalMs)
+            elapsedMs += intervalMs
+
+            when (val poll: ApiResult<DeviceBotPoll> = botAuthApi.pollDeviceLogin(start.deviceCode)) {
+                is ApiResult.Failure -> Unit // tolerate transient failures until the code's deadline.
+                is ApiResult.Ok ->
+                    when (poll.value.status) {
+                        DEVICE_AUTHORIZED -> {
+                            // The shared bot is vaulted server-side; re-read the authoritative status (no fakes).
+                            reload(busy = null, error = null)
+                            return
+                        }
+                        DEVICE_EXPIRED, DEVICE_DENIED, DEVICE_ERROR -> {
+                            failBotDevice(poll.value.status)
+                            return
+                        }
+                        else -> Unit // pending / slow_down — keep polling.
+                    }
+            }
+        }
+        // Timed out without approval — the code simply expired; surface it as such and stay retryable.
+        if ((_state.value as? SetupState.Steps)?.botDevice != null) failBotDevice(DEVICE_EXPIRED)
+    }
+
+    // Drop the device panel and surface [reason] (a raw status token) through the same SetupError.Bot the
+    // redirect path used — the screen wraps it in the localized "Bot authorization failed: %s" template, so
+    // the raw token is never shown to the user standalone. The step stays retryable: busy clears and
+    // botDevice is dropped, so the Authorize button reappears.
+    private fun failBotDevice(reason: String) {
+        val current: SetupState.Steps = _state.value as? SetupState.Steps ?: return
+        _state.value = current.copy(busy = null, botDevice = null, error = SetupError.Bot(reason, unreachable = false))
     }
 
     /**
@@ -263,9 +331,19 @@ class SetupController(
         // A reserved busy token for the final streamer sign-in (distinct from any step key).
         const val SIGNING_IN: String = "__signing_in__"
 
+        // The bot device-poll status tokens the backend returns (mirrors IntegrationsController's bot
+        // device flow — the same backend endpoint, same vocabulary).
+        const val DEVICE_AUTHORIZED: String = "authorized"
+        const val DEVICE_EXPIRED: String = "expired"
+        const val DEVICE_DENIED: String = "denied"
+        const val DEVICE_ERROR: String = "error"
+
         fun fieldKeyOf(stepKey: String, fieldKey: String): String = "$stepKey.$fieldKey"
     }
 }
+
+/** An in-flight bot device login: the user code to show + the verification link to open/copy. */
+data class BotDeviceState(val userCode: String, val verificationUri: String)
 
 /** The setup wizard's render state. */
 sealed interface SetupState {
@@ -287,6 +365,9 @@ sealed interface SetupState {
         val error: SetupError?,
         val currentStep: Int = 0,
         val basics: SetupBasics = SetupBasics(),
+        // The in-flight bot device login (user code + verification link) while [connectBot] polls; null
+        // when no bot login is in progress.
+        val botDevice: BotDeviceState? = null,
     ) : SetupState {
         /** The index of the trailing review/finish step (one past the last backend step). */
         val reviewIndex: Int get() = steps.size
@@ -335,7 +416,7 @@ sealed interface SetupError {
     data class Save(val stepKey: String, val detail: String) : SetupError
 
     /** The platform-bot authorization failed. */
-    data class Bot(val detail: String) : SetupError
+    data class Bot(val detail: String, val unreachable: Boolean = false) : SetupError
 
     /** The final streamer sign-in failed. */
     data object SignIn : SetupError

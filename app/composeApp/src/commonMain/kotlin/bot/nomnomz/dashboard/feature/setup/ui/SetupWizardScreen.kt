@@ -34,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
@@ -49,6 +50,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.SetupField
 import bot.nomnomz.dashboard.core.network.SetupStep
+import bot.nomnomz.dashboard.feature.setup.state.BotDeviceState
 import bot.nomnomz.dashboard.feature.setup.state.SetupBasics
 import bot.nomnomz.dashboard.feature.setup.state.SetupController
 import bot.nomnomz.dashboard.feature.setup.state.SetupError
@@ -69,7 +71,15 @@ import nomnomzbot.composeapp.generated.resources.setup_action_retry
 import nomnomzbot.composeapp.generated.resources.setup_action_save
 import nomnomzbot.composeapp.generated.resources.setup_copy_action
 import nomnomzbot.composeapp.generated.resources.setup_copy_done
+import nomnomzbot.composeapp.generated.resources.connect_device_copied
+import nomnomzbot.composeapp.generated.resources.connect_device_copy_link
+import nomnomzbot.composeapp.generated.resources.integrations_bot_device_cancel
+import nomnomzbot.composeapp.generated.resources.integrations_bot_device_instruction
+import nomnomzbot.composeapp.generated.resources.integrations_bot_device_open
+import nomnomzbot.composeapp.generated.resources.integrations_bot_device_title
+import nomnomzbot.composeapp.generated.resources.integrations_bot_device_waiting
 import nomnomzbot.composeapp.generated.resources.setup_error_bot
+import nomnomzbot.composeapp.generated.resources.setup_error_bot_unreachable
 import nomnomzbot.composeapp.generated.resources.setup_error_missing_fields
 import nomnomzbot.composeapp.generated.resources.setup_error_save
 import nomnomzbot.composeapp.generated.resources.setup_error_signin
@@ -169,9 +179,11 @@ private fun SetupStepsFrame(controller: SetupController, state: SetupState.Steps
                     step = step,
                     busy = state.busy == step.key,
                     error = state.error,
+                    botDevice = state.botDevice,
                     onValueChange = { fieldKey, value -> controller.onFieldChange(step.key, fieldKey, value) },
                     onSave = { scope.launch { controller.saveCredentials(step) } },
                     onConnectBot = { scope.launch { controller.connectBot() } },
+                    onCancelDevice = { controller.cancelBotDevice() },
                 )
             } else {
                 ReviewPanel(controller = controller, state = state)
@@ -219,9 +231,11 @@ private fun StepPanel(
     step: SetupStep,
     busy: Boolean,
     error: SetupError?,
+    botDevice: BotDeviceState?,
     onValueChange: (fieldKey: String, value: String) -> Unit,
     onSave: () -> Unit,
     onConnectBot: () -> Unit,
+    onCancelDevice: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -301,7 +315,13 @@ private fun StepPanel(
                     )
 
                 ACTION_OAUTH_REDIRECT ->
-                    BotConnect(busy = busy, error = error, onConnectBot = onConnectBot)
+                    BotConnect(
+                        device = botDevice,
+                        busy = busy,
+                        error = error,
+                        onConnectBot = onConnectBot,
+                        onCancelDevice = onCancelDevice,
+                    )
             }
         }
     }
@@ -605,23 +625,93 @@ private fun indexOfHttp(text: String): Int {
 
 private val COPY_TRAILING_PUNCTUATION: Set<Char> = setOf('.', ',', ';', ':', ')', ']', '}', '!', '?', '"', '\'')
 
+// The bot step's action area: either the Authorize button (idle / retry after an error), or — once
+// [device] is minted — the device-code panel showing the user code + verification link while
+// [SetupController.connectBot] polls in the background. Mirrors the Integrations screen's bot device
+// panel (same backend endpoint, same status vocabulary), reusing its copy so the two surfaces read as
+// one product.
 @Composable
 private fun BotConnect(
+    device: BotDeviceState?,
     busy: Boolean,
     error: SetupError?,
     onConnectBot: () -> Unit,
+    onCancelDevice: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
 
     Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
         if (error is SetupError.Bot) {
-            ErrorText(stringResource(Res.string.setup_error_bot, error.detail))
+            ErrorText(
+                if (error.unreachable) {
+                    stringResource(Res.string.setup_error_bot_unreachable)
+                } else {
+                    stringResource(Res.string.setup_error_bot, error.detail)
+                }
+            )
         }
-        if (busy) {
+        if (device != null) {
+            BotDevicePanel(device = device, onCancel = onCancelDevice)
+        } else if (busy) {
             Spinner(modifier = Modifier.size(spacing.s6))
         } else {
             Button(onClick = onConnectBot, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(Res.string.setup_action_connect_bot))
+            }
+        }
+    }
+}
+
+// The secret-free device-code panel: the user code shown large + copyable via [CopyValue], the
+// twitch.tv/activate link both openable (Authorize button) and copyable, and a Cancel to abandon the
+// in-flight login. Both the code and the link are copy affordances — the operator is signing in on a
+// SEPARATE device/session as the bot account, so they may need to hand either value to that session
+// rather than open it here.
+@Composable
+private fun BotDevicePanel(device: BotDeviceState, onCancel: () -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val copyLabel: String = stringResource(Res.string.connect_device_copy_link)
+    val copiedLabel: String = stringResource(Res.string.connect_device_copied)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(tokens.card, RoundedCornerShape(tokens.radius.lg))
+            .border(width = spacing.s0_5 / 2, color = tokens.primary, shape = RoundedCornerShape(tokens.radius.lg))
+            .padding(spacing.s4),
+        verticalArrangement = Arrangement.spacedBy(spacing.s2),
+    ) {
+        Text(
+            text = stringResource(Res.string.integrations_bot_device_title),
+            style = typography.base,
+            color = tokens.cardForeground,
+        )
+        Text(
+            text = stringResource(Res.string.integrations_bot_device_instruction),
+            style = typography.sm,
+            color = tokens.mutedForeground,
+        )
+        Text(text = device.userCode, style = typography.xl2, color = tokens.primary)
+        CopyValue(value = device.userCode, copyLabel = copyLabel, copiedLabel = copiedLabel)
+
+        LinkedText(text = device.verificationUri, style = typography.xs, color = tokens.mutedForeground)
+        CopyValue(value = device.verificationUri, copyLabel = copyLabel, copiedLabel = copiedLabel)
+
+        Text(
+            text = stringResource(Res.string.integrations_bot_device_waiting),
+            style = typography.xs,
+            color = tokens.mutedForeground,
+        )
+        val uriHandler = LocalUriHandler.current
+        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalAlignment = Alignment.CenterVertically) {
+            Button(onClick = { uriHandler.openUri(device.verificationUri) }) {
+                Text(stringResource(Res.string.integrations_bot_device_open), maxLines = 1)
+            }
+            TextButton(onClick = onCancel) {
+                Text(stringResource(Res.string.integrations_bot_device_cancel), maxLines = 1)
             }
         }
     }

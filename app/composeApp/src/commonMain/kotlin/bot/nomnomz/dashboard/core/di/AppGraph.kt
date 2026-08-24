@@ -389,6 +389,7 @@ class AppGraph {
         SetupController(
             systemApi = systemApi,
             connectLauncher = connectLauncher,
+            botAuthApi = botAuthApi,
             channelsApi = channelsApi,
             channelSettingsApi = channelSettingsApi,
             onReadyToSignIn = connectController::signInStreamer,
