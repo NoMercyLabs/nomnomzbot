@@ -217,6 +217,8 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordNotificationDispatch> DiscordNotificationDispatches =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordLiveRoleConfig> DiscordLiveRoleConfigs =>
+        throw new NotSupportedException();
     public DbSet<ChannelSubscription> ChannelSubscriptions => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Vts.Entities.VtsConnection> VtsConnections =>
         Set<NomNomzBot.Domain.Vts.Entities.VtsConnection>();

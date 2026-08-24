@@ -247,6 +247,89 @@ public sealed class DiscordRestBotGatewayTests
     }
 
     [Fact]
+    public async Task ValidateRoleAssignableAsync_Succeeds_WhenBotHasManageRolesAboveTarget()
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        Guid connectionId = await SeedDiscordConnectionAsync(database);
+        IIntegrationTokenVault vault = VaultReturning(connectionId, DecryptedToken);
+
+        SequencedHandler handler = new(
+            JsonResponse("""{"id":"bot-id-1"}"""),
+            JsonResponse("""{"roles":["bot-role"]}"""),
+            JsonResponse(
+                """[{"id":"guild1","name":"@everyone","color":0,"position":0,"managed":false,"permissions":"0"},{"id":"bot-role","name":"Bot","color":0,"position":5,"managed":false,"permissions":"268435456"},{"id":"live-role","name":"Live","color":0,"position":2,"managed":false,"permissions":"0"}]"""
+            )
+        );
+        await using DiscordTestDbContext db = database.NewContext();
+        DiscordRestBotGateway gateway = NewGateway(handler, db, vault);
+
+        Result result = await gateway.ValidateRoleAssignableAsync(Channel, "guild1", "live-role");
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task ValidateRoleAssignableAsync_Fails_WithActionableMessage_WhenManageRolesMissing()
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        Guid connectionId = await SeedDiscordConnectionAsync(database);
+        IIntegrationTokenVault vault = VaultReturning(connectionId, DecryptedToken);
+
+        SequencedHandler handler = new(
+            JsonResponse("""{"id":"bot-id-1"}"""),
+            JsonResponse("""{"roles":["bot-role"]}"""),
+            JsonResponse(
+                """[{"id":"guild1","name":"@everyone","color":0,"position":0,"managed":false,"permissions":"0"},{"id":"bot-role","name":"Bot","color":0,"position":5,"managed":false,"permissions":"0"},{"id":"live-role","name":"Live","color":0,"position":2,"managed":false,"permissions":"0"}]"""
+            )
+        );
+        await using DiscordTestDbContext db = database.NewContext();
+        DiscordRestBotGateway gateway = NewGateway(handler, db, vault);
+
+        Result result = await gateway.ValidateRoleAssignableAsync(Channel, "guild1", "live-role");
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("DISCORD_MISSING_MANAGE_ROLES");
+        result
+            .ErrorMessage.Should()
+            .Be(
+                "The bot needs the Manage Roles permission in this Discord server to manage the "
+                    + "live role. Grant Manage Roles to the bot's role in Server Settings > Roles."
+            );
+    }
+
+    [Fact]
+    public async Task ValidateRoleAssignableAsync_Fails_WithActionableMessage_WhenBotRoleBelowTarget()
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        Guid connectionId = await SeedDiscordConnectionAsync(database);
+        IIntegrationTokenVault vault = VaultReturning(connectionId, DecryptedToken);
+
+        SequencedHandler handler = new(
+            JsonResponse("""{"id":"bot-id-1"}"""),
+            JsonResponse("""{"roles":["bot-role"]}"""),
+            JsonResponse(
+                """[{"id":"guild1","name":"@everyone","color":0,"position":0,"managed":false,"permissions":"0"},{"id":"bot-role","name":"Bot","color":0,"position":1,"managed":false,"permissions":"268435456"},{"id":"live-role","name":"Live","color":0,"position":5,"managed":false,"permissions":"0"}]"""
+            )
+        );
+        await using DiscordTestDbContext db = database.NewContext();
+        DiscordRestBotGateway gateway = NewGateway(handler, db, vault);
+
+        Result result = await gateway.ValidateRoleAssignableAsync(Channel, "guild1", "live-role");
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("DISCORD_ROLE_HIERARCHY");
+        result
+            .ErrorMessage.Should()
+            .Be(
+                "The bot's role must be above 'Live' in Server Settings > Roles for the bot to "
+                    + "apply or remove the live role."
+            );
+    }
+
+    private static HttpResponseMessage JsonResponse(string json) =>
+        new(HttpStatusCode.OK) { Content = new StringContent(json, Encoding.UTF8, "application/json") };
+
+    [Fact]
     public async Task GetGuildAsync_IssuesGetToGuildEndpoint_AndMapsEveryField()
     {
         using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();

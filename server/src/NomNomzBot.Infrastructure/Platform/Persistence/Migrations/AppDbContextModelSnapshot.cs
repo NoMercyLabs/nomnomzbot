@@ -2239,6 +2239,62 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.ToTable("DiscordGuildConnections");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Discord.Entities.DiscordLiveRoleConfig", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AppliedDedupeKey")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DiscordMemberId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("GuildConnectionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsCurrentlyApplied")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("RoleId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GuildConnectionId");
+
+                    b.HasIndex("RoleId");
+
+                    b.HasIndex("BroadcasterId", "GuildConnectionId")
+                        .IsUnique();
+
+                    b.ToTable("DiscordLiveRoleConfigs");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Discord.Entities.DiscordMemberOptIn", b =>
                 {
                     b.Property<Guid>("Id")
@@ -9699,6 +9755,25 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Channel");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Discord.Entities.DiscordLiveRoleConfig", b =>
+                {
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.Channel", "Channel")
+                        .WithMany()
+                        .HasForeignKey("BroadcasterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("NomNomzBot.Domain.Discord.Entities.DiscordGuildConnection", "GuildConnection")
+                        .WithMany()
+                        .HasForeignKey("GuildConnectionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Channel");
+
+                    b.Navigation("GuildConnection");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Discord.Entities.DiscordMemberOptIn", b =>

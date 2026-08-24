@@ -241,6 +241,7 @@ internal sealed class AutomationTestDbContext : DbContext, IApplicationDbContext
     public DbSet<DiscordNotificationRole> DiscordNotificationRoles =>
         throw new NotSupportedException();
     public DbSet<DiscordMemberOptIn> DiscordMemberOptIns => throw new NotSupportedException();
+    public DbSet<DiscordLiveRoleConfig> DiscordLiveRoleConfigs => throw new NotSupportedException();
     public DbSet<DiscordNotificationDispatch> DiscordNotificationDispatches =>
         throw new NotSupportedException();
     public DbSet<ChannelSubscription> ChannelSubscriptions => throw new NotSupportedException();

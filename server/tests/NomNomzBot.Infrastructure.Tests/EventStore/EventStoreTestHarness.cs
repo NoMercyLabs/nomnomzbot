@@ -258,6 +258,7 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.Ignore<NomNomzBot.Domain.Discord.Entities.DiscordNotificationRole>();
         modelBuilder.Ignore<NomNomzBot.Domain.Discord.Entities.DiscordMemberOptIn>();
         modelBuilder.Ignore<NomNomzBot.Domain.Discord.Entities.DiscordNotificationDispatch>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Discord.Entities.DiscordLiveRoleConfig>();
         modelBuilder.Ignore<NomNomzBot.Domain.Identity.Entities.ChannelSubscription>();
         modelBuilder.Ignore<NomNomzBot.Domain.Tts.Entities.TtsVoice>();
         modelBuilder.Ignore<NomNomzBot.Domain.Tts.Entities.UserTtsVoice>();
@@ -388,6 +389,8 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordMemberOptIn> DiscordMemberOptIns =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordNotificationDispatch> DiscordNotificationDispatches =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordLiveRoleConfig> DiscordLiveRoleConfigs =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Identity.Entities.ChannelSubscription> ChannelSubscriptions =>
         throw new NotSupportedException();

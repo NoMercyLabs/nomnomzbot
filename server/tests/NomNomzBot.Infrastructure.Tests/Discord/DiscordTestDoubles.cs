@@ -224,4 +224,24 @@ internal sealed class RecordingGateway : IDiscordBotGateway
         GuildReads.Add($"channels:{guildId}");
         return Task.FromResult(NextGuildChannelsResult);
     }
+
+    public List<(string GuildId, string RoleId)> ValidationChecks { get; } = [];
+
+    /// <summary>Scripted per-role validation outcome; defaults to success when a role has no entry.</summary>
+    public Dictionary<string, Result> ValidationResultsByRole { get; } = [];
+
+    public Task<Result> ValidateRoleAssignableAsync(
+        Guid broadcasterId,
+        string guildId,
+        string roleId,
+        CancellationToken ct = default
+    )
+    {
+        ValidationChecks.Add((guildId, roleId));
+        return Task.FromResult(
+            ValidationResultsByRole.TryGetValue(roleId, out Result? scripted)
+                ? scripted
+                : Result.Success()
+        );
+    }
 }

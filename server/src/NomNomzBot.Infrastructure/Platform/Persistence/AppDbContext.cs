@@ -146,6 +146,7 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<DiscordNotificationRole> DiscordNotificationRoles =>
         Set<DiscordNotificationRole>();
     public DbSet<DiscordMemberOptIn> DiscordMemberOptIns => Set<DiscordMemberOptIn>();
+    public DbSet<DiscordLiveRoleConfig> DiscordLiveRoleConfigs => Set<DiscordLiveRoleConfig>();
     public DbSet<DiscordNotificationDispatch> DiscordNotificationDispatches =>
         Set<DiscordNotificationDispatch>();
     public DbSet<ChannelSubscription> ChannelSubscriptions => Set<ChannelSubscription>();

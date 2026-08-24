@@ -100,6 +100,7 @@ public interface IApplicationDbContext
     DbSet<DiscordNotificationConfig> DiscordNotificationConfigs { get; }
     DbSet<DiscordNotificationRole> DiscordNotificationRoles { get; }
     DbSet<DiscordMemberOptIn> DiscordMemberOptIns { get; }
+    DbSet<DiscordLiveRoleConfig> DiscordLiveRoleConfigs { get; }
     DbSet<DiscordNotificationDispatch> DiscordNotificationDispatches { get; }
     DbSet<ChannelSubscription> ChannelSubscriptions { get; }
     DbSet<Domain.Automation.Entities.AutomationApiToken> AutomationApiTokens { get; }

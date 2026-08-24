@@ -255,7 +255,9 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
                 r.Name,
                 r.Color,
                 r.Position,
-                r.Managed
+                r.Managed,
+                r.Mentionable,
+                r.Permissions
             )),
         ];
         return Result.Success(dtos);
@@ -287,6 +289,89 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
             )),
         ];
         return Result.Success(dtos);
+    }
+
+    /// <summary>Discord's Manage Roles permission bit (1 &lt;&lt; 28).</summary>
+    private const ulong ManageRolesPermission = 0x10000000;
+
+    public async Task<Result> ValidateRoleAssignableAsync(
+        Guid broadcasterId,
+        string guildId,
+        string roleId,
+        CancellationToken ct = default
+    )
+    {
+        Result<DiscordCurrentUserWire> currentUser = await GetAsync<DiscordCurrentUserWire>(
+            broadcasterId,
+            "users/@me",
+            ct
+        );
+        if (currentUser.IsFailure)
+            return Result.Failure(
+                currentUser.ErrorMessage,
+                currentUser.ErrorCode,
+                currentUser.ErrorDetail
+            );
+
+        Result<DiscordGuildMemberWire> botMember = await GetAsync<DiscordGuildMemberWire>(
+            broadcasterId,
+            $"guilds/{Uri.EscapeDataString(guildId)}/members/{Uri.EscapeDataString(currentUser.Value.Id)}",
+            ct
+        );
+        if (botMember.IsFailure)
+            return Result.Failure(
+                botMember.ErrorMessage,
+                botMember.ErrorCode,
+                botMember.ErrorDetail
+            );
+
+        Result<IReadOnlyList<DiscordGuildRoleDto>> guildRoles = await GetGuildRolesAsync(
+            broadcasterId,
+            guildId,
+            ct
+        );
+        if (guildRoles.IsFailure)
+            return Result.Failure(
+                guildRoles.ErrorMessage,
+                guildRoles.ErrorCode,
+                guildRoles.ErrorDetail
+            );
+
+        // The @everyone role's permissions (id == guildId) apply to every member, including the bot.
+        HashSet<string> botRoleIds = [.. botMember.Value.Roles, guildId];
+        List<DiscordGuildRoleDto> botRoles =
+        [
+            .. guildRoles.Value.Where(r => botRoleIds.Contains(r.Id)),
+        ];
+
+        ulong permissionBits = 0;
+        foreach (DiscordGuildRoleDto role in botRoles)
+            if (ulong.TryParse(role.Permissions, out ulong bits))
+                permissionBits |= bits;
+
+        if ((permissionBits & ManageRolesPermission) == 0)
+            return Result.Failure(
+                "The bot needs the Manage Roles permission in this Discord server to manage the "
+                    + "live role. Grant Manage Roles to the bot's role in Server Settings > Roles.",
+                "DISCORD_MISSING_MANAGE_ROLES"
+            );
+
+        DiscordGuildRoleDto? targetRole = guildRoles.Value.FirstOrDefault(r => r.Id == roleId);
+        if (targetRole is null)
+            return Result.Failure(
+                "The configured live role no longer exists in this Discord server.",
+                "DISCORD_NOT_FOUND"
+            );
+
+        int botHighestPosition = botRoles.Count == 0 ? 0 : botRoles.Max(r => r.Position);
+        if (botHighestPosition <= targetRole.Position)
+            return Result.Failure(
+                $"The bot's role must be above '{targetRole.Name}' in Server Settings > Roles for "
+                    + "the bot to apply or remove the live role.",
+                "DISCORD_ROLE_HIERARCHY"
+            );
+
+        return Result.Success();
     }
 
     // ─── Core HTTP ───────────────────────────────────────────────────────────
@@ -611,7 +696,9 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
         [property: JsonPropertyName("name")] string Name,
         [property: JsonPropertyName("color")] int Color,
         [property: JsonPropertyName("position")] int Position,
-        [property: JsonPropertyName("managed")] bool Managed
+        [property: JsonPropertyName("managed")] bool Managed,
+        [property: JsonPropertyName("mentionable")] bool Mentionable = false,
+        [property: JsonPropertyName("permissions")] string Permissions = "0"
     );
 
     private sealed record DiscordGuildChannelWire(
@@ -620,5 +707,11 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
         [property: JsonPropertyName("type")] int Type,
         [property: JsonPropertyName("parent_id")] string? ParentId = null,
         [property: JsonPropertyName("position")] int Position = 0
+    );
+
+    private sealed record DiscordCurrentUserWire([property: JsonPropertyName("id")] string Id);
+
+    private sealed record DiscordGuildMemberWire(
+        [property: JsonPropertyName("roles")] List<string> Roles
     );
 }

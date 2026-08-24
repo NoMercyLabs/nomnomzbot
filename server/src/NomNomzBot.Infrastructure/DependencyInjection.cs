@@ -1194,6 +1194,10 @@ public static class DependencyInjection
             Application.Contracts.Discord.IDiscordInteractionVerifier,
             Discord.Interactions.DiscordInteractionVerifier
         >();
+        // The "currently live" role rule (live-role extension): IDiscordLiveRoleService is convention-bound;
+        // DiscordLiveRoleOnlineHandler/OfflineHandler are auto-discovered (IEventHandler<> scan). This hosted
+        // service self-heals a role stranded by a missed offline event (bot restart/crash) on startup.
+        services.AddHostedService<Discord.DiscordLiveRoleReconciliationHostedService>();
 
         // ChannelRegistry (singleton + hosted service — one instance serves IChannelRegistry
         // AND the hosted lifecycle, so it is wired explicitly and excluded from the worker scan).

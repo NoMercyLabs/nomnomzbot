@@ -68,6 +68,7 @@ internal sealed class DiscordTestDbContext : DbContext, IApplicationDbContext
     public DbSet<DiscordNotificationRole> DiscordNotificationRoles =>
         Set<DiscordNotificationRole>();
     public DbSet<DiscordMemberOptIn> DiscordMemberOptIns => Set<DiscordMemberOptIn>();
+    public DbSet<DiscordLiveRoleConfig> DiscordLiveRoleConfigs => throw new NotSupportedException();
     public DbSet<DiscordNotificationDispatch> DiscordNotificationDispatches =>
         Set<DiscordNotificationDispatch>();
     public DbSet<IntegrationConnection> IntegrationConnections => Set<IntegrationConnection>();

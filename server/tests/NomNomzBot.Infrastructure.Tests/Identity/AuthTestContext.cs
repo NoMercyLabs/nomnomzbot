@@ -455,6 +455,7 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         b.Ignore<NomNomzBot.Domain.Discord.Entities.DiscordNotificationRole>();
         b.Ignore<NomNomzBot.Domain.Discord.Entities.DiscordMemberOptIn>();
         b.Ignore<NomNomzBot.Domain.Discord.Entities.DiscordNotificationDispatch>();
+        b.Ignore<NomNomzBot.Domain.Discord.Entities.DiscordLiveRoleConfig>();
         b.Ignore<ChannelSubscription>();
         b.Ignore<NomNomzBot.Domain.Tts.Entities.TtsVoice>();
         b.Ignore<NomNomzBot.Domain.Tts.Entities.UserTtsVoice>();
@@ -614,6 +615,8 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordMemberOptIn> DiscordMemberOptIns =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordNotificationDispatch> DiscordNotificationDispatches =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordLiveRoleConfig> DiscordLiveRoleConfigs =>
         throw new NotSupportedException();
     public DbSet<ChannelSubscription> ChannelSubscriptions => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Vts.Entities.VtsConnection> VtsConnections =>

@@ -157,6 +157,7 @@ internal sealed class ReadModelRebuildDbContext : DbContext, IApplicationDbConte
         modelBuilder.Ignore<NomNomzBot.Domain.Discord.Entities.DiscordNotificationRole>();
         modelBuilder.Ignore<NomNomzBot.Domain.Discord.Entities.DiscordMemberOptIn>();
         modelBuilder.Ignore<NomNomzBot.Domain.Discord.Entities.DiscordNotificationDispatch>();
+        modelBuilder.Ignore<NomNomzBot.Domain.Discord.Entities.DiscordLiveRoleConfig>();
         modelBuilder.Ignore<NomNomzBot.Domain.Tts.Entities.TtsVoice>();
         modelBuilder.Ignore<NomNomzBot.Domain.Tts.Entities.UserTtsVoice>();
         modelBuilder.Ignore<NomNomzBot.Domain.Tts.Entities.TtsUsageRecord>();
@@ -294,6 +295,8 @@ internal sealed class ReadModelRebuildDbContext : DbContext, IApplicationDbConte
     public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordMemberOptIn> DiscordMemberOptIns =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordNotificationDispatch> DiscordNotificationDispatches =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Discord.Entities.DiscordLiveRoleConfig> DiscordLiveRoleConfigs =>
         throw new NotSupportedException();
     public DbSet<ChannelSubscription> ChannelSubscriptions => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Vts.Entities.VtsConnection> VtsConnections =>

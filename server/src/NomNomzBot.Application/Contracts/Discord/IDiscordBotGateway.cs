@@ -89,4 +89,20 @@ public interface IDiscordBotGateway
         string guildId,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// Proactively checks whether the bot can grant/revoke <paramref name="roleId"/> in <paramref name="guildId"/>
+    /// before attempting it — Discord's own 403 for a missing-permission call and a below-hierarchy call carry
+    /// the identical wire error (code 50013), so the distinct, actionable reasons required by the live-role
+    /// feature (discord.md live-role extension) can only come from checking the bot's own guild member roles
+    /// and their permission bits here. Failure codes: <c>DISCORD_MISSING_MANAGE_ROLES</c> (the bot has no role
+    /// granting Manage Roles in the guild) and <c>DISCORD_ROLE_HIERARCHY</c> (the bot's highest role sits at or
+    /// below <paramref name="roleId"/> in the guild's role order).
+    /// </summary>
+    Task<Result> ValidateRoleAssignableAsync(
+        Guid broadcasterId,
+        string guildId,
+        string roleId,
+        CancellationToken ct = default
+    );
 }
