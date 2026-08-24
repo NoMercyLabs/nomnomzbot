@@ -18,8 +18,10 @@ using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Integrations.Dtos;
 using NomNomzBot.Application.Integrations.Services;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Entities;
 
 namespace NomNomzBot.Api.Controllers.V1;
@@ -36,18 +38,21 @@ public class IntegrationsController : BaseController
     private readonly IDiscordGuildService _discord;
     private readonly IIntegrationStatusService _integrationStatus;
     private readonly IChannelSpotifyCredentialsService _spotifyCredentials;
+    private readonly IIntegrationTokenVault _tokenVault;
 
     public IntegrationsController(
         IApplicationDbContext db,
         IConfiguration config,
         IDiscordGuildService discord,
         IIntegrationStatusService integrationStatus,
-        IChannelSpotifyCredentialsService spotifyCredentials
+        IChannelSpotifyCredentialsService spotifyCredentials,
+        IIntegrationTokenVault tokenVault
     )
     {
         _db = db;
         _config = config;
         _discord = discord;
+        _tokenVault = tokenVault;
         _integrationStatus = integrationStatus;
         _spotifyCredentials = spotifyCredentials;
     }
@@ -210,6 +215,34 @@ public class IntegrationsController : BaseController
 
             foreach (Guid connectionId in connectionIds)
                 await _discord.DisconnectAsync(tenantId, connectionId, ct);
+
+            return NoContent();
+        }
+
+        if (id == "youtube")
+        {
+            // YouTube custody moved off the legacy Service row into IIntegrationTokenVault (S036c) —
+            // the generic Service-row fallback below is a permanent no-op for this provider.
+            Guid? connectionId = await _db
+                .IntegrationConnections.Where(c =>
+                    c.BroadcasterId == tenantId
+                    && c.Provider == AuthEnums.IntegrationProvider.YouTube
+                    && c.Status != AuthEnums.IntegrationStatus.Revoked
+                )
+                .OrderByDescending(c => c.ConnectedAt)
+                .Select(c => (Guid?)c.Id)
+                .FirstOrDefaultAsync(ct);
+
+            if (connectionId is null)
+                return NotFoundResponse($"Integration '{integrationId}' is not connected.");
+
+            Result revokeResult = await _tokenVault.RevokeConnectionAsync(
+                connectionId.Value,
+                "Disconnected via dashboard",
+                ct
+            );
+            if (revokeResult.IsFailure)
+                return ResultResponse(revokeResult);
 
             return NoContent();
         }

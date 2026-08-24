@@ -190,7 +190,8 @@ public sealed class OAuthForwardedOriginTests
             LoopbackConfig(),
             Substitute.For<IDiscordGuildService>(),
             statuses,
-            Substitute.For<IChannelSpotifyCredentialsService>()
+            Substitute.For<IChannelSpotifyCredentialsService>(),
+            Substitute.For<IIntegrationTokenVault>()
         )
         {
             ControllerContext = ForwardedContext(),
