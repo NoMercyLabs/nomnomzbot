@@ -163,12 +163,18 @@ public sealed class MembershipService(
     )
     {
         DateTime now = clock.GetUtcNow().UtcDateTime;
-        List<ChannelMembership> existingSynced = await db
-            .ChannelMemberships.Where(m =>
-                m.BroadcasterId == broadcasterId && SyncedSources.Contains(m.Source)
-            )
+        // "IX_ChannelMemberships_BroadcasterId_UserId" allows only ONE active row per (broadcaster, user) —
+        // regardless of Source — so the lookup must cover every active row for the broadcaster, not only
+        // synced-source ones. A user already holding a non-synced row (Owner / BotGrant) occupies that
+        // (broadcaster, user) slot; blindly inserting a fresh synced-source row for the same user collided
+        // with it (23505) instead of leaving the manual grant untouched.
+        List<ChannelMembership> existingActive = await db
+            .ChannelMemberships.Where(m => m.BroadcasterId == broadcasterId)
             .ToListAsync(cancellationToken);
-        Dictionary<Guid, ChannelMembership> byUser = existingSynced.ToDictionary(m => m.UserId);
+        List<ChannelMembership> existingSynced = existingActive
+            .Where(m => SyncedSources.Contains(m.Source))
+            .ToList();
+        Dictionary<Guid, ChannelMembership> byUser = existingActive.ToDictionary(m => m.UserId);
         HashSet<Guid> snapshotUsers = [.. snapshot.Select(m => m.UserId)];
 
         List<(
@@ -182,6 +188,11 @@ public sealed class MembershipService(
         {
             if (byUser.TryGetValue(member.UserId, out ChannelMembership? row))
             {
+                // The (broadcaster, user) slot is already held by a non-synced-source row (Owner / BotGrant) —
+                // a manual grant takes precedence over what Twitch reports; leave it untouched.
+                if (!SyncedSources.Contains(row.Source))
+                    continue;
+
                 ManagementRole? old = row.ManagementRole;
                 row.LastSyncedAt = now;
                 if (row.ManagementRole != member.Role || row.Source != member.Source)

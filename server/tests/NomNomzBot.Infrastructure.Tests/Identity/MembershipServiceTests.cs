@@ -194,6 +194,39 @@ public sealed class MembershipServiceTests
     }
 
     [Fact]
+    public async Task Sync_leaves_a_bot_grant_untouched_when_that_user_also_appears_in_the_twitch_snapshot()
+    {
+        // Regression (2026-08-24 prod incident, aaoa_): a user already holding an active BotGrant/Editor row
+        // also showed up as a Twitch moderator. The partial unique index allows only ONE active row per
+        // (broadcaster, user) — the old lookup only considered synced-source rows, so it missed the existing
+        // BotGrant row and tried to INSERT a second active row for the same user, throwing 23505 and aborting
+        // every subsequent onboarding-seed step sharing the DbContext.
+        (MembershipService sut, AuthDbContext db, _) = Build();
+        SeedMembership(db, Target, ManagementRole.Editor, MembershipSource.BotGrant);
+        await db.SaveChangesAsync();
+
+        List<TwitchManagementMember> snapshot =
+        [
+            new(Target, "tw-target", ManagementRole.Moderator, MembershipSource.TwitchBadge),
+        ];
+        Result result = await sut.SyncManagementFromTwitchAsync(
+            Channel,
+            snapshot,
+            new HashSet<MembershipSource>
+            {
+                MembershipSource.TwitchBadge,
+                MembershipSource.HelixEditors,
+            }
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        (await db.ChannelMemberships.CountAsync(m => m.UserId == Target)).Should().Be(1);
+        ChannelMembership row = await db.ChannelMemberships.SingleAsync(m => m.UserId == Target);
+        row.Source.Should().Be(MembershipSource.BotGrant);
+        row.ManagementRole.Should().Be(ManagementRole.Editor);
+    }
+
+    [Fact]
     public async Task Sync_does_not_prune_a_source_whose_read_failed()
     {
         // Prune-safety: only HelixEditors was read this run (badge read failed). A stale badge row must survive —
