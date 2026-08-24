@@ -168,6 +168,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
     public async Task<Result<OAuthCallbackResultDto>> HandleCallbackAsync(
         string provider,
         OAuthCallbackParams callbackParams,
+        string? publicOrigin = null,
         CancellationToken cancellationToken = default
     )
     {
@@ -296,7 +297,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
                 provider,
                 accountName ?? accountId ?? provider,
                 grantedScopeSets,
-                entry.ReturnUrl ?? _baseUrl
+                entry.ReturnUrl ?? publicOrigin ?? _baseUrl
             )
         );
     }

@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Authorization;
+using NomNomzBot.Api.Extensions;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
@@ -236,7 +237,7 @@ public class IntegrationsController : BaseController
     /// </summary>
     private string? BuildOauthUrl(string integrationId, string channelId)
     {
-        string baseUrl = _config["App:BaseUrl"] ?? $"{Request.Scheme}://{Request.Host}";
+        string baseUrl = Request.ResolvePublicOrigin(_config);
         string apiBase = $"{baseUrl}/api/v1";
 
         return integrationId switch

@@ -55,10 +55,17 @@ public interface IIntegrationOAuthService
     /// reconciles granted vs requested scopes. Fail-closed on state/PKCE/exchange failure (no partial
     /// connection persisted). The token exchange's <c>redirect_uri</c> is the one persisted at connect-start, so
     /// it matches the authorize request exactly regardless of the callback request's host.
+    /// <para>
+    /// <paramref name="publicOrigin"/> is the public <c>scheme://host</c> the callback request arrived on
+    /// (resolved by the API layer, same as <see cref="StartConnectAsync"/>) — it is the fallback
+    /// <see cref="OAuthCallbackResultDto.RedirectTarget"/> when the connect-start carried no
+    /// <c>returnUrl</c>. When omitted, falls back to the configured (possibly loopback) <c>App:BaseUrl</c>.
+    /// </para>
     /// </summary>
     Task<Result<OAuthCallbackResultDto>> HandleCallbackAsync(
         string provider,
         OAuthCallbackParams callbackParams,
+        string? publicOrigin = null,
         CancellationToken cancellationToken = default
     );
 

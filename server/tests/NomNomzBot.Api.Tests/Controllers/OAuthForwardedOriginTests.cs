@@ -18,6 +18,8 @@ using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Application.Integrations.Dtos;
+using NomNomzBot.Application.Integrations.Services;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Controllers;
@@ -163,6 +165,89 @@ public sealed class OAuthForwardedOriginTests
             .Should()
             .Contain($"redirect_uri={TunnelOrigin}/api/v1/integrations/discord/callback");
         Uri.UnescapeDataString(redirect.Url).Should().NotContain("localhost");
+    }
+
+    [Fact]
+    public async Task IntegrationsList_BehindTunnel_BuildsOauthUrlFromTunnelOrigin()
+    {
+        ApiTestDbContext db = ApiTestDbContext.New();
+        IIntegrationStatusService statuses = Substitute.For<IIntegrationStatusService>();
+        statuses
+            .GetStatusesAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success<List<ChannelIntegrationDto>>([
+                    new("discord", "Discord", "chat", "desc", false, null),
+                ])
+            );
+
+        IntegrationsController controller = new(
+            db,
+            LoopbackConfig(),
+            Substitute.For<IDiscordGuildService>(),
+            statuses,
+            Substitute.For<IChannelSpotifyCredentialsService>()
+        )
+        {
+            ControllerContext = ForwardedContext(),
+        };
+
+        IActionResult result = await controller.ListIntegrations(ChannelId, default);
+
+        NomNomzBot.Api.Models.StatusResponseDto<IntegrationsController.IntegrationsResponse> body =
+            result
+                .Should()
+                .BeOfType<OkObjectResult>()
+                .Subject.Value.Should()
+                .BeOfType<NomNomzBot.Api.Models.StatusResponseDto<IntegrationsController.IntegrationsResponse>>()
+                .Subject;
+        string? oauthUrl = body.Data!.Integrations.Single(i => i.Id == "discord").OauthUrl;
+        oauthUrl.Should().StartWith($"{TunnelOrigin}/api/v1");
+        oauthUrl.Should().NotContain("localhost");
+    }
+
+    [Fact]
+    public async Task IntegrationOAuthCallback_BehindTunnel_RelaysThroughTunnelOrigin()
+    {
+        IIntegrationOAuthService oauth = Substitute.For<IIntegrationOAuthService>();
+        oauth
+            .HandleCallbackAsync(
+                "spotify",
+                Arg.Any<OAuthCallbackParams>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(new OAuthCallbackResultDto("spotify", "acct", [], "/integrations"))
+            );
+
+        IntegrationOAuthController controller = new(oauth, LoopbackConfig())
+        {
+            ControllerContext = ForwardedContext(),
+        };
+
+        IActionResult result = await controller.Callback(
+            "spotify",
+            code: "abc",
+            state: "xyz",
+            error: null,
+            errorDescription: null,
+            default
+        );
+
+        RedirectResult redirect = result.Should().BeOfType<RedirectResult>().Subject;
+        redirect.Url.Should().StartWith($"{TunnelOrigin}/oauth-relay");
+        redirect.Url.Should().NotContain("localhost");
+
+        // The service is told the same tunnel origin, so a callback with no recorded ReturnUrl still
+        // falls back to it instead of the configured (loopback) App:BaseUrl.
+        await oauth
+            .Received(1)
+            .HandleCallbackAsync(
+                "spotify",
+                Arg.Any<OAuthCallbackParams>(),
+                TunnelOrigin,
+                Arg.Any<CancellationToken>()
+            );
     }
 
     // ─── scaffolding ───────────────────────────────────────────────────────────

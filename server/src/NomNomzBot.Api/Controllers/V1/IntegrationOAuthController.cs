@@ -122,16 +122,18 @@ public class IntegrationOAuthController : BaseController
         CancellationToken ct
     )
     {
+        string publicOrigin = Request.ResolvePublicOrigin(_config);
         Result<OAuthCallbackResultDto> result = await _oauth.HandleCallbackAsync(
             provider,
             new(code, state, error, errorDescription),
+            publicOrigin,
             ct
         );
 
         // Always bounce through /oauth-relay so popup windows can postMessage the parent and close
         // without loading the full Wasm app. The relay page falls back to navigating the original
         // target URL when there is no window.opener (full-page redirect fallback).
-        string relay = $"{Request.Scheme}://{Request.Host}/oauth-relay";
+        string relay = $"{publicOrigin}/oauth-relay";
 
         if (result.IsSuccess)
         {
