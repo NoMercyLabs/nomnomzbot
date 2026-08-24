@@ -157,7 +157,18 @@ public sealed class TwitchEventSubHostedService
             _dormancyCts = null;
         }
 
-        await _transport.StopAsync(cancellationToken);
+        // Runs AFTER the drain window (ApplicationStopping → /health/ready fails → proxy stops routing →
+        // HostOptions.ShutdownTimeout drain → normal StopAsync sequence), so the transport keeps consuming
+        // EventSub notifications while this instance drains. Exception-safe: a transport fault here must
+        // never abort the rest of host teardown (Z4).
+        try
+        {
+            await _transport.StopAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "EventSub transport failed to stop cleanly during shutdown.");
+        }
     }
 
     /// <summary>

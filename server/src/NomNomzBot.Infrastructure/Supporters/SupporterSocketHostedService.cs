@@ -88,6 +88,17 @@ internal sealed class SupporterSocketHostedService : BackgroundService, IAsyncDi
         finally
         {
             await StopAllRunnersAsync();
+
+            // Z4 (zero-downtime deploys): release the singleton lease here, DURING StopAsync's shutdown
+            // sequence — not in DisposeAsync, which the DI container only runs after the FULL host teardown
+            // (past the drain window). Releasing here lets a second, already-started instance pick up
+            // "supporters-socket" within seconds of this one stopping, instead of waiting out the whole
+            // shutdown timeout.
+            if (_lease is not null)
+            {
+                await _lease.DisposeAsync();
+                _lease = null;
+            }
         }
     }
 

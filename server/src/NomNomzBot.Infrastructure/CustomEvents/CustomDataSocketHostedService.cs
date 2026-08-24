@@ -94,6 +94,16 @@ internal sealed class CustomDataSocketHostedService : BackgroundService, IAsyncD
         finally
         {
             await StopAllRunnersAsync();
+
+            // Z4 (zero-downtime deploys): release the singleton lease here, DURING StopAsync's shutdown
+            // sequence -- not in DisposeAsync, which the DI container only runs after the FULL host
+            // teardown (past the drain window). Releasing here lets a second, already-started instance
+            // pick up "customdata-socket" within seconds of this one stopping.
+            if (_lease is not null)
+            {
+                await _lease.DisposeAsync();
+                _lease = null;
+            }
         }
     }
 

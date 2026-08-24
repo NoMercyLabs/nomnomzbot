@@ -471,6 +471,24 @@ try
         .AddCheck<PendingMigrationsHealthCheck>("pending-migrations", tags: ["db", "ready"])
         .AddCheck<EventSubReadinessHealthCheck>("eventsub", tags: ["ready"]);
 
+    // Zero-downtime deploys (Z4): the moment graceful shutdown starts, /health/ready must fail so the
+    // reverse proxy stops routing new traffic here — while /health/live (untouched by this check) stays
+    // healthy so in-flight and already-routed requests keep draining for the configured shutdown window.
+    builder.Services.AddSingleton<ShutdownReadinessTracker>();
+    healthChecks.AddCheck<ShutdownReadinessHealthCheck>("shutdown", tags: ["ready"]);
+
+    // Host shutdown timeout — the drain window between /health/ready failing and the process actually
+    // tearing down (HostedServices' StopAsync, including the EventSub transport). Configurable so an
+    // operator can widen it for slower dependents; defaults to 30s, long enough to finish an in-flight
+    // Helix call or chat send without holding a deploy open indefinitely.
+    int shutdownTimeoutSeconds = builder.Configuration.GetValue(
+        "Deployment:ShutdownTimeoutSeconds",
+        30
+    );
+    builder.Services.Configure<HostOptions>(options =>
+        options.ShutdownTimeout = TimeSpan.FromSeconds(shutdownTimeoutSeconds)
+    );
+
     // ── Smart self-host port handling (deployment-distribution §6) ───────────────────────────
     // Before the host binds, resolve the actual listen port so a port conflict never crashes the bot: prefer the
     // configured port; if a stale/duplicate NomNomzBot holds it, replace that (one canonical bot); if another app
@@ -504,6 +522,12 @@ try
     // Publish the bound port so the self-host mDNS advertiser advertises the actual port (deployment-distribution §6).
     if (resolvedListenPort is { } boundPort)
         app.Services.GetRequiredService<IListenEndpointAccessor>().SetPort(boundPort);
+
+    // Bind the shutdown-readiness tracker as early as possible — ApplicationStopping fires before any
+    // IHostedService.StopAsync, so /health/ready flips to failing ahead of the EventSub transport (and
+    // everything else) tearing down (Z4 drain ordering).
+    app.Services.GetRequiredService<ShutdownReadinessTracker>()
+        .Bind(app.Services.GetRequiredService<IHostApplicationLifetime>());
 
     // ── Boot pipeline (deployment-distribution §2) ───────────────────────────────────────────
     // The deployment mode was already resolved at registration time (bootMode) and every provider-specific

@@ -217,6 +217,41 @@ public sealed class SupporterSocketHostedServiceTests
     }
 
     [Fact]
+    public async Task StopAsync_ReleasesTheRunOnceLease_BeforeDisposeAsync_SoASecondInstanceAcquiresImmediately()
+    {
+        // Z4 (zero-downtime deploys): the "supporters-socket" lease must free up during StopAsync's
+        // shutdown sequence, not only when the DI container disposes this singleton at the very end of
+        // host teardown (past the drain window) — otherwise an overlapping new instance during a deploy
+        // would sit locked out of a resource the old instance has already stopped using.
+        NoOpRunOnceGuard guard = new();
+        (SupporterSocketHostedService service, _, QueueFrameSource frames) = await BuildAsync(
+            guard: guard
+        );
+
+        await service.StartAsync(CancellationToken.None);
+        await frames.FirstConnected.WaitAsync(TimeSpan.FromSeconds(10));
+
+        await service.StopAsync(CancellationToken.None);
+
+        // A second guard call for the SAME resource name — modeling a second, already-started instance
+        // during a zero-downtime deploy — must succeed immediately after StopAsync returns, without
+        // waiting for this service's DisposeAsync (which the DI container runs only after full teardown).
+        await using IAsyncDisposable? secondLease = await guard.TryAcquireAsync(
+            "supporters-socket",
+            TimeSpan.FromMinutes(5),
+            CancellationToken.None
+        );
+        secondLease
+            .Should()
+            .NotBeNull(
+                "StopAsync must release the held lease so a second instance can acquire the same "
+                    + "resource within seconds, not only after this instance is fully disposed"
+            );
+
+        await service.DisposeAsync();
+    }
+
+    [Fact]
     public async Task Reconcile_DeniedLease_KeepsThisInstanceSocketFree()
     {
         IRunOnceGuard denied = Substitute.For<IRunOnceGuard>();
