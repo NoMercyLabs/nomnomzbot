@@ -16,6 +16,7 @@ using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
 using Timer = NomNomzBot.Domain.Commands.Entities.Timer;
@@ -40,6 +41,7 @@ namespace NomNomzBot.Infrastructure.Commands.Jobs;
 public sealed class TimerService : BackgroundService
 {
     private static readonly TimeSpan TickInterval = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan LeaseTtl = TimeSpan.FromSeconds(30);
 
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IChannelRegistry _registry;
@@ -104,6 +106,15 @@ public sealed class TimerService : BackgroundService
             return;
 
         using IServiceScope scope = _scopeFactory.CreateScope();
+
+        // Zero-downtime deploys deliberately overlap two instances; without a lease both would send
+        // every due timer's message, doubling it in chat. Only the lease holder ticks — a non-holder is
+        // not a fault (a deploy overlap is normal), so it does nothing and waits for the next tick.
+        IRunOnceGuard guard = scope.ServiceProvider.GetRequiredService<IRunOnceGuard>();
+        await using IAsyncDisposable? lease = await guard.TryAcquireAsync("timers", LeaseTtl, ct);
+        if (lease is null)
+            return;
+
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
         IChatProvider chat = scope.ServiceProvider.GetRequiredService<IChatProvider>();

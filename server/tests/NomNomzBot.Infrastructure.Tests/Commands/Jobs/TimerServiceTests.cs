@@ -10,11 +10,13 @@
 
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands.Jobs;
@@ -40,12 +42,30 @@ public sealed class TimerServiceTests
         TimerService Service,
         AuthDbContext Db,
         IChatProvider Chat,
-        IPipelineEngine Engine
+        IPipelineEngine Engine,
+        IRunOnceGuard Guard,
+        ILogger<TimerService> Logger
     );
 
-    private static Harness Build()
+    private static Harness Build(IRunOnceGuard? guard = null, ILogger<TimerService>? logger = null)
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
+
+        // Default: this instance always holds the lease — matches every pre-existing test's
+        // single-instance assumption. Multi-instance lease tests below pass their own pre-configured
+        // guard, which must NOT be overwritten here.
+        if (guard is null)
+        {
+            guard = Substitute.For<IRunOnceGuard>();
+            guard
+                .TryAcquireAsync(
+                    Arg.Any<string>(),
+                    Arg.Any<TimeSpan>(),
+                    Arg.Any<CancellationToken>()
+                )
+                .Returns(_ => Substitute.For<IAsyncDisposable>());
+        }
+        logger ??= NullLogger<TimerService>.Instance;
 
         IChatProvider chat = Substitute.For<IChatProvider>();
         // Real transport sends succeed by default (S008d): an unconfigured NSubstitute bool call
@@ -90,6 +110,7 @@ public sealed class TimerServiceTests
             .AddSingleton<IApplicationDbContext>(db)
             .AddSingleton(chat)
             .AddSingleton(engine)
+            .AddSingleton(guard)
             .BuildServiceProvider();
 
         TimerService service = new(
@@ -97,10 +118,10 @@ public sealed class TimerServiceTests
             registry,
             templates,
             new FakeTimeProvider(Now),
-            NullLogger<TimerService>.Instance
+            logger
         );
 
-        return new(service, db, chat, engine);
+        return new(service, db, chat, engine, guard, logger);
     }
 
     private static Timer SeedTimer(
@@ -201,6 +222,128 @@ public sealed class TimerServiceTests
             .SendMessageAsync(Channel, "hello chat!", Arg.Any<CancellationToken>());
         await h.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!, default);
         h.Db.Timers.Single(t => t.Id == timer.Id).LastFiredAt.Should().Be(Now.UtcDateTime);
+    }
+
+    /// <summary>
+    /// Z1 — zero-downtime deploys deliberately run two instances against one database; without a lease
+    /// both would send every due timer's message, doubling it in chat. Two TimerService instances share
+    /// one guard: exactly one message goes out.
+    /// </summary>
+    [Fact]
+    public async Task Two_instances_sharing_one_lease_send_the_due_timer_exactly_once()
+    {
+        // "locked" is held across the entire overlap window — NOT auto-released when a single
+        // TickAsync's `await using` disposes its lease. This models the real failure: two instances
+        // ticking during the SAME overlap window must collide, not just two sequential ticks that
+        // happen to run one after another.
+        IRunOnceGuard sharedGuard = Substitute.For<IRunOnceGuard>();
+        bool locked = false;
+        sharedGuard
+            .TryAcquireAsync(Arg.Any<string>(), Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                if (locked)
+                    return Task.FromResult<IAsyncDisposable?>(null);
+                locked = true;
+                IAsyncDisposable lease = Substitute.For<IAsyncDisposable>();
+                lease.DisposeAsync().Returns(_ => ValueTask.CompletedTask); // release is manual below
+                return Task.FromResult<IAsyncDisposable?>(lease);
+            });
+
+        Harness first = Build(guard: sharedGuard);
+        Timer timer = SeedTimer(first.Db, pipelineId: null, ["hello chat!"]);
+
+        // The second instance shares the guard AND the database row the first instance just wrote to —
+        // build it against the same db.
+        IChatProvider secondChat = Substitute.For<IChatProvider>();
+        secondChat
+            .SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+        ChannelContext ctx = new()
+        {
+            BroadcasterId = Channel,
+            TwitchChannelId = "tw-42",
+            ChannelName = "qtkitte",
+        };
+        IChannelRegistry secondRegistry = Substitute.For<IChannelRegistry>();
+        secondRegistry.GetAll().Returns([ctx]);
+        secondRegistry.Get(Channel).Returns(ctx);
+        ITemplateResolver secondTemplates = Substitute.For<ITemplateResolver>();
+        secondTemplates
+            .ResolveAsync(
+                Arg.Any<string>(),
+                Arg.Any<Dictionary<string, string>>(),
+                Arg.Any<Guid>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(callInfo => callInfo.ArgAt<string>(0));
+        ServiceProvider secondProvider = new ServiceCollection()
+            .AddSingleton<IApplicationDbContext>(first.Db)
+            .AddSingleton(secondChat)
+            .AddSingleton(Substitute.For<IPipelineEngine>())
+            .AddSingleton(sharedGuard)
+            .BuildServiceProvider();
+        FakeTimeProvider secondClock = new(Now);
+        TimerService second = new(
+            secondProvider.GetRequiredService<IServiceScopeFactory>(),
+            secondRegistry,
+            secondTemplates,
+            secondClock,
+            NullLogger<TimerService>.Instance
+        );
+
+        // Both instances tick the same due timer "concurrently" — the holder ticks first, while the
+        // lock is still held.
+        await first.Service.TickAsync(CancellationToken.None);
+        await second.TickAsync(CancellationToken.None);
+
+        await first
+            .Chat.Received(1)
+            .SendMessageAsync(Channel, "hello chat!", Arg.Any<CancellationToken>());
+        await secondChat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+        first.Db.Timers.Single(t => t.Id == timer.Id).LastFiredAt.Should().Be(Now.UtcDateTime);
+
+        // After the holder releases the lock and the timer's interval elapses, the OTHER instance
+        // picks it up on a later tick and sends.
+        locked = false;
+        secondClock.Advance(TimeSpan.FromMinutes(15));
+        await second.TickAsync(CancellationToken.None);
+
+        await secondChat
+            .Received(1)
+            .SendMessageAsync(Channel, "hello chat!", Arg.Any<CancellationToken>());
+        first
+            .Db.Timers.Single(t => t.Id == timer.Id)
+            .LastFiredAt.Should()
+            .Be(Now.UtcDateTime.AddMinutes(15));
+    }
+
+    /// <summary>Z1 — the non-holder must be a clean no-op: no send, and no error-level log every 30s (a
+    /// deploy overlap is normal, not a fault).</summary>
+    [Fact]
+    public async Task An_instance_without_the_lease_does_nothing_and_logs_no_error()
+    {
+        IRunOnceGuard guard = Substitute.For<IRunOnceGuard>();
+        guard
+            .TryAcquireAsync(Arg.Any<string>(), Arg.Any<TimeSpan>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IAsyncDisposable?>(null));
+        ILogger<TimerService> logger = Substitute.For<ILogger<TimerService>>();
+
+        Harness h = Build(guard: guard, logger: logger);
+        SeedTimer(h.Db, pipelineId: null, ["hello chat!"]);
+
+        await h.Service.TickAsync(CancellationToken.None);
+
+        await h.Chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+        logger
+            .DidNotReceive()
+            .Log(
+                LogLevel.Error,
+                Arg.Any<EventId>(),
+                Arg.Any<object>(),
+                Arg.Any<Exception?>(),
+                Arg.Any<Func<object, Exception?, string>>()
+            );
     }
 
     [Fact]
