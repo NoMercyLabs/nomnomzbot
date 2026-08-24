@@ -107,6 +107,7 @@
     <string name="setup_error_missing_fields">Fill in every required field.</string>
     <string name="setup_error_save">Couldn't save: %1$s</string>
     <string name="setup_error_bot">Bot authorization failed: %1$s</string>
+    <string name="setup_error_bot_unreachable">Couldn't reach your bot's API. Check that it's running and try again.</string>
     <string name="setup_error_signin">Twitch sign-in failed. Please try again.</string>
     <string name="setup_copy_action">Copy</string>
     <string name="setup_copy_done">Copied</string>

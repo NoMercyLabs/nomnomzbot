@@ -292,11 +292,17 @@ On first start the API:
 3. Seeds reference data (TTS voices, permission presets)
 4. Starts Twitch EventSub WebSocket
 
-Local dev URLs:
+Local dev URLs (`dotnet run` alone, no dashboard dev server running — API on its base-config port):
 - `http://localhost:5080` — API
 - `http://localhost:5080/scalar` — Interactive docs
 - `http://localhost:5080/health` — Health check (JSON)
 - `http://localhost:8082` — Adminer (DB browser)
+
+Running the dashboard dev server (`wasmJsBrowserDevelopmentRun`) alongside the API needs the two on
+different ports — `appsettings.Development.json` pins the API to **`http://localhost:5090`** in
+Development so it never collides with the dashboard dev server's own `5080` (`build.gradle.kts`); the
+dashboard's dev-only webpack proxy (`webpack.config.d/proxy.js`) defaults `NNZ_DEV_BACKEND` to
+`http://localhost:5090` for exactly this reason. See *Running the Frontend* below.
 
 ### Running Tests
 
@@ -360,14 +366,19 @@ dotnet test tests/NomNomzBot.Domain.Tests      # one project
 From `app/` (Windows: `.\gradlew.bat` instead of `./gradlew`):
 
 ```bash
-./gradlew :composeApp:wasmJsBrowserDevelopmentRun --watch-fs -t   # web dev server (hot reload)
+./gradlew :composeApp:wasmJsBrowserDevelopmentRun --watch-fs -t   # web dev server (hot reload), http://localhost:5080
 ./gradlew :composeApp:run                                         # desktop (dev)
 ./gradlew :composeApp:wasmJsBrowserDistribution                    # prod web bundle (use --rerun-tasks for a clean prod build)
 ./gradlew :composeApp:packageDistributionForCurrentOS              # desktop installer (MSI/DMG/DEB)
 ```
 
-The prod web bundle is bundled automatically into the API publish and Docker image; the deploy
-script's `--app` flag wraps the installer task (see `DEPLOY.md`).
+The web dev server listens on `5080`; run it alongside a plain `dotnet run` API (Development →
+`5090`, see *Running the Backend*) with **no flags or env vars needed** — the dev server's webpack
+proxy forwards `/api` + `/hubs` to `http://localhost:5090` by default (`webpack.config.d/proxy.js`,
+override with `NNZ_DEV_BACKEND` to point at a different backend). `start.sh` runs both together this
+way. The prod web bundle is bundled automatically into the API publish and Docker image (that build
+serves everything from one origin — no proxy, no port split); the deploy script's `--app` flag wraps
+the installer task (see `DEPLOY.md`).
 
 ---
 

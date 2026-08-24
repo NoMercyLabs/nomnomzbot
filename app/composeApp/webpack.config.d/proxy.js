@@ -11,10 +11,13 @@
 // resources keep being served locally, so a Kotlin edit hot-reloads in seconds instead of a 25-min image build.
 //
 // Auth: mint a session and open http://localhost:5080/#access_token=<jwt>&expires_in=3600 (the OAuth-return
-// arm in main.kt bootstraps the session from that fragment). Point NNZ_DEV_BACKEND elsewhere to target a
-// different backend (e.g. a local `dotnet run` on another port).
+// arm in main.kt bootstraps the session from that fragment). Point NNZ_DEV_BACKEND elsewhere (e.g. a remote
+// NoMercy-hosted instance) only if you explicitly want that; the default targets your OWN local API.
+//
+// Local dev port layout (see start.sh / CLAUDE.md): dashboard dev server = 5080, API (Development) = 5090
+// (appsettings.Development.json). The two run side by side with zero flags/env vars — no collision.
 
-const target = process.env.NNZ_DEV_BACKEND || "https://dev.nomnomz.bot";
+const target = process.env.NNZ_DEV_BACKEND || "http://localhost:5090";
 
 config.devServer = config.devServer || {};
 config.devServer.proxy = [
