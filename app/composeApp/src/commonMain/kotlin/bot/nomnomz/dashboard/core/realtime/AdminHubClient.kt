@@ -33,13 +33,19 @@ import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.long
 
 // ASP.NET Core SignalR JSON Hub Protocol — record separator byte (0x1E) between frames.
 private const val RECORD_SEPARATOR: Char = ''
 
+// SignalR message types, incl. the stateful-reconnect Ack/Sequence pair — see DashboardHubClient for the
+// spec reference and the full rationale (mirrored here 1:1; this hub just has no outbound invocations to
+// buffer, so its outbound Sequence is always sent with an empty resend list).
 private const val TYPE_INVOCATION: Int = 1
 private const val TYPE_PING: Int = 6
 private const val TYPE_CLOSE: Int = 7
+private const val TYPE_ACK: Int = 8
+private const val TYPE_SEQUENCE: Int = 9
 
 private const val PingIntervalMillis: Long = 15_000
 
@@ -47,6 +53,9 @@ private const val PingIntervalMillis: Long = 15_000
 // (e.g. the origin container replaced during a deploy); without a read-timeout the reconnect loop never
 // runs again because hubSocket.receive() can suspend forever.
 private const val ReceiveTimeoutMillis: Long = PingIntervalMillis * 4
+
+// See DashboardHubClient.ResumeConfirmTimeoutMillis.
+private const val ResumeConfirmTimeoutMillis: Long = 5_000
 
 /**
  * SignalR hub client for the platform-operator hub `AdminHub` at `/hubs/admin`. Unlike [DashboardHubClient]
@@ -59,13 +68,29 @@ private const val ReceiveTimeoutMillis: Long = PingIntervalMillis * 4
  * - `ReceiveLog` on operator-notable events (tenant suspensions).
  *
  * The raw text transport is a [HubSocket] (browser-native WebSocket on wasmJs — Ktor WS never opens a socket
- * there; Ktor CIO on jvm/desktop). Reconnects with exponential back-off (cap 30 s); only [disconnect] stops it.
+ * there; Ktor CIO on jvm/desktop).
+ *
+ * Reconnection & stateful resume: mirrors [DashboardHubClient] — the handshake opts in with
+ * `useStatefulReconnect: true`, and a reconnect after a prior successful connection sends the hub protocol's
+ * `Sequence` message (type 9) first (this hub has nothing outbound worth buffering, so nothing is resent) and
+ * numbers inbound pushes so a duplicate resent after a resume is dropped, not redelivered to [events]. A
+ * resume that never proves itself alive within [ResumeConfirmTimeoutMillis] falls back to a plain fresh
+ * connect on the next attempt — never a stuck or falsely-resumed connection. Exponential back-off (cap 30 s);
+ * only [disconnect] stops the loop.
  */
 class AdminHubClient {
 
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var connectJob: Job? = null
     private var socket: HubSocket? = null
+
+    // This hub has no client→server invocations at all today (no Join/Leave equivalent), so the outbound
+    // buffer is always empty — kept for protocol symmetry: the Sequence message is still required on every
+    // resume regardless of whether there's anything to resend.
+    private var nextOutboundSeq: Long = 1
+    private var hasEstablishedBefore: Boolean = false
+    private var inboundNextExpected: Long = 1
+    private var inboundHighestProcessed: Long = 0
 
     private val _events: MutableSharedFlow<AdminHubEvent> = MutableSharedFlow(extraBufferCapacity = 64)
 
@@ -89,6 +114,9 @@ class AdminHubClient {
         refreshToken: (suspend () -> Boolean)? = null,
     ) {
         if (connectJob?.isActive == true) return
+        resetResumeState()
+        inboundNextExpected = 1
+        inboundHighestProcessed = 0
         connectJob =
             scope.launch {
                 var backoffMs: Long = 1_000
@@ -102,7 +130,10 @@ class AdminHubClient {
                         }
                         .onFailure { /* swallowed — the reconnect loop handles it */ }
                     isConnected = false
-                    if (!established) refreshToken?.invoke()
+                    if (!established) {
+                        resetResumeState()
+                        refreshToken?.invoke()
+                    }
                     delay(backoffMs)
                     backoffMs = (backoffMs * 2).coerceAtMost(30_000)
                 }
@@ -113,6 +144,7 @@ class AdminHubClient {
     fun disconnect() {
         connectJob?.cancel()
         connectJob = null
+        resetResumeState()
         socket?.close()
         socket = null
         isConnected = false
@@ -123,6 +155,11 @@ class AdminHubClient {
     }
 
     // ─── Internals ───────────────────────────────────────────────────────────
+
+    private fun resetResumeState() {
+        hasEstablishedBefore = false
+        nextOutboundSeq = 1
+    }
 
     private suspend fun openSession(
         baseUrl: String,
@@ -144,7 +181,7 @@ class AdminHubClient {
         try {
             hubSocket.open("$wsBase/hubs/admin?access_token=$accessToken")
 
-            hubSocket.send("""{"protocol":"json","version":1}$RECORD_SEPARATOR""")
+            hubSocket.send("""{"protocol":"json","version":1,"useStatefulReconnect":true}$RECORD_SEPARATOR""")
 
             val handshakeFrame: String = hubSocket.receive() ?: return
             val handshakeMsg: String = handshakeFrame.trimEnd(RECORD_SEPARATOR)
@@ -152,8 +189,24 @@ class AdminHubClient {
                 runCatching { Json.parseToJsonElement(handshakeMsg).jsonObject }.getOrNull()
             if (handshake?.containsKey("error") == true) return
 
-            isConnected = true
-            onConnected()
+            if (hasEstablishedBefore) {
+                // ── Resume — Sequence first (hub protocol spec), nothing to resend on this hub. ──
+                hubSocket.send("""{"type":$TYPE_SEQUENCE,"sequenceId":$nextOutboundSeq}$RECORD_SEPARATOR""")
+                val confirmFrame: String =
+                    withTimeoutOrNull(ResumeConfirmTimeoutMillis) { hubSocket.receive() }
+                        ?: return // refused/dead — established stays false, caller resets resume state.
+
+                isConnected = true
+                onConnected()
+                for (segment: String in confirmFrame.split(RECORD_SEPARATOR)) {
+                    if (segment.isBlank()) continue
+                    dispatchSegment(hubSocket, segment)
+                }
+            } else {
+                isConnected = true
+                onConnected()
+            }
+            hasEstablishedBefore = true
 
             coroutineScope {
                 val pingJob: Job =
@@ -170,7 +223,7 @@ class AdminHubClient {
                             withTimeoutOrNull(ReceiveTimeoutMillis) { hubSocket.receive() } ?: break
                         for (segment: String in raw.split(RECORD_SEPARATOR)) {
                             if (segment.isBlank()) continue
-                            dispatchSegment(segment)
+                            dispatchSegment(hubSocket, segment)
                         }
                     }
                 } finally {
@@ -184,7 +237,7 @@ class AdminHubClient {
         }
     }
 
-    private fun dispatchSegment(segment: String) {
+    private suspend fun dispatchSegment(hubSocket: HubSocket, segment: String) {
         val json: JsonElement =
             runCatching { Json.parseToJsonElement(segment) }.getOrNull() ?: return
         val obj: JsonObject = json.jsonObject
@@ -192,15 +245,26 @@ class AdminHubClient {
 
         when (type) {
             TYPE_INVOCATION -> {
-                val target: String = obj["target"]?.jsonPrimitive?.content ?: return
-                val args: JsonArray = obj["arguments"]?.jsonArray ?: return
-                val event: AdminHubEvent? = AdminHubEvent.from(target, args)
-                if (event != null) _events.tryEmit(event)
+                // See DashboardHubClient.dispatchSegment — same inbound dedup: a resend at or below the
+                // highest id we've ever actually dispatched is dropped, not redelivered.
+                val id: Long = inboundNextExpected
+                inboundNextExpected += 1
+                val isDuplicate: Boolean = id <= inboundHighestProcessed
+                if (!isDuplicate) {
+                    inboundHighestProcessed = id
+                    val target: String = obj["target"]?.jsonPrimitive?.content ?: return
+                    val args: JsonArray = obj["arguments"]?.jsonArray ?: return
+                    val event: AdminHubEvent? = AdminHubEvent.from(target, args)
+                    if (event != null) _events.tryEmit(event)
+                }
+                hubSocket.send("""{"type":$TYPE_ACK,"sequenceId":$id}$RECORD_SEPARATOR""")
+            }
+            TYPE_ACK -> Unit // nothing outbound is ever buffered on this hub — no-op is correct
+            TYPE_SEQUENCE -> {
+                val startId: Long = obj["sequenceId"]?.jsonPrimitive?.long ?: return
+                inboundNextExpected = startId
             }
             TYPE_PING -> Unit
-            // S035b: see DashboardHubClient's TYPE_CLOSE handling — same rationale applies here. No stateful
-            // resume handshake is implemented (unverifiable wire protocol from this environment); a close
-            // always degrades to a full clean reconnect, never a stuck/falsely-connected state.
             TYPE_CLOSE -> isConnected = false
         }
     }

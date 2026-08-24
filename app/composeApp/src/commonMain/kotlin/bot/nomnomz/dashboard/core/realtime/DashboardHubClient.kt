@@ -32,14 +32,18 @@ import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.long
 
 // ASP.NET Core SignalR JSON Hub Protocol — record separator byte between frames.
 private const val RECORD_SEPARATOR: Char = ''
 
-// SignalR message types (hub protocol spec).
+// SignalR message types (hub protocol spec, incl. the stateful-reconnect Ack/Sequence pair —
+// https://github.com/dotnet/aspnetcore/blob/main/src/SignalR/docs/specs/HubProtocol.md).
 private const val TYPE_INVOCATION: Int = 1
 private const val TYPE_PING: Int = 6
 private const val TYPE_CLOSE: Int = 7
+private const val TYPE_ACK: Int = 8
+private const val TYPE_SEQUENCE: Int = 9
 
 // Client keep-alive cadence. The SignalR server evicts a connection it hasn't heard from within its
 // ClientTimeoutInterval (default 30 s) — and server→client frames do NOT reset that timer, only client→server
@@ -52,6 +56,11 @@ private const val PingIntervalMillis: Long = 15_000
 // looks "open" locally while the server side is long gone (the exact "no reconnect after a server reboot"
 // symptom). Generous multiple of the ping cadence so ordinary network jitter never trips it.
 private const val ReceiveTimeoutMillis: Long = PingIntervalMillis * 4
+
+// How long a resumed connection has to prove itself alive (one confirming frame from the server) before we
+// give up on the resume attempt and fall back to a fresh connect. Short — a resume that's going to work
+// responds almost immediately; a longer wait would just delay the clean-fallback path on a truly refused resume.
+private const val ResumeConfirmTimeoutMillis: Long = 5_000
 
 /**
  * Thin SignalR hub client targeting the backend `DashboardHub` at `/hubs/dashboard`.
@@ -66,10 +75,21 @@ private const val ReceiveTimeoutMillis: Long = PingIntervalMillis * 4
  * - Collect [events] to receive hub invocations dispatched by the server.
  * - Call [disconnect] to close gracefully (or let the scope cancel).
  *
- * Reconnection: the client reconnects with exponential back-off (cap 30 s) whenever the socket
- * closes unexpectedly. Only a deliberate [disconnect] stops the loop.
+ * Reconnection & stateful resume: the server runs `WithStatefulReconnect()` (861caccf). This client opts in
+ * on the handshake (`useStatefulReconnect: true`) and implements the hub protocol's Ack/Sequence pair
+ * (types 8/9): outbound invocations (JoinChannel/LeaveChannel) are numbered and buffered until acked; a
+ * reconnect after a prior successful connection sends a `Sequence` message FIRST and resends only the
+ * still-unacked buffered invocations, instead of rejoining from scratch — the server's persisted hub
+ * context means groups already joined don't need to be rejoined. Inbound invocations are numbered the same
+ * way so a message the server resends after a resume (it doesn't know exactly what got through) is
+ * recognised as a duplicate and dropped without being redelivered to [events]. If the resumed connection
+ * never proves itself alive within [ResumeConfirmTimeoutMillis], the resume state is reset and the NEXT
+ * attempt falls back to a plain fresh connect (full JoinChannel replay) — never a stuck or falsely-resumed
+ * connection. Back-off is exponential, capped at 30 s; only a deliberate [disconnect] stops the loop.
  *
- * Thread safety: all mutations are confined to the internal [scope] launched on [Dispatchers.Default].
+ * Thread safety: all mutations are confined to the internal [scope] launched on [Dispatchers.Default]; the
+ * outbound sequence/buffer state is additionally guarded by [outboundMutex] since [join]/[leave] send from
+ * their own launched coroutines concurrently with the connect loop.
  */
 class DashboardHubClient {
 
@@ -81,10 +101,32 @@ class DashboardHubClient {
     // The set of channel groups this ONE connection is subscribed to. A single-channel consumer leaves it at
     // {primary}; the multi-watch surface adds more via [join] / drops them via [leave]. Guarded by [joinMutex]
     // because it is read on the connect coroutine (to (re)join every channel after a handshake) and mutated from
-    // [join]/[leave]/[connect]. On any reconnect the FULL set is re-joined, so a dropped socket restores every
-    // watched channel, not just the last one.
+    // [join]/[leave]/[connect]. On any FRESH (non-resumed) connect the FULL set is re-joined, so a dropped socket
+    // restores every watched channel, not just the last one.
     private val joinMutex: Mutex = Mutex()
     private val joinedChannels: MutableSet<String> = mutableSetOf()
+
+    // ── Stateful-reconnect bookkeeping (hub protocol Ack/Sequence, types 8/9) ─────────────────────────────
+    // Outbound: every tracked invocation (Join/Leave — NOT pings, which carry no state worth resending) gets
+    // the next sequence id and is buffered until an inbound Ack covers it. On a resumed connect the buffer is
+    // resent verbatim, in order, after our own Sequence(nextOutboundSeq) message.
+    private val outboundMutex: Mutex = Mutex()
+    private var nextOutboundSeq: Long = 1
+    private val outboundBuffer: ArrayDeque<Pair<Long, String>> = ArrayDeque()
+
+    // True once ANY connection attempt has fully established (handshake + join/resume + confirmed alive).
+    // The NEXT attempt is treated as a resume candidate only while this stays true; a failed resume attempt
+    // resets it (see [resetResumeState]) so the following attempt falls back to a plain fresh connect.
+    private var hasEstablishedBefore: Boolean = false
+
+    // Inbound: the id we expect the NEXT invocation frame to carry, seeded from the server's own Sequence
+    // message on a resumed connection (absent on a fresh connection — inbound numbering then starts at 1
+    // implicitly). [inboundHighestProcessed] is the highest id ever actually dispatched to [events]; an
+    // incoming id at or below it is a resend of something we already delivered and must be dropped, not
+    // redelivered — this state survives across reconnects (never reset by [resetResumeState]) since it
+    // records what the APPLICATION has seen, not the connection's health.
+    private var inboundNextExpected: Long = 1
+    private var inboundHighestProcessed: Long = 0
 
     private val _events: MutableSharedFlow<HubEvent> = MutableSharedFlow(extraBufferCapacity = 64)
 
@@ -101,7 +143,8 @@ class DashboardHubClient {
      *
      * Re-entrant per channel: a repeat call for the SAME channel while connected is a no-op; a call for a
      * DIFFERENT channel tears down the current connection and rejoins the new channel's group (so the feed
-     * follows the operator's active channel instead of staying stuck on the first one it ever joined).
+     * follows the operator's active channel instead of staying stuck on the first one it ever joined) — this
+     * is a deliberate new session, so it also resets all stateful-reconnect bookkeeping.
      *
      * [tokenProvider] is read on EVERY (re)connect, never captured once: the REST layer rotates the JWT on a
      * 401, so a reconnect must send the CURRENT token or the socket strands on a stale one and every retry 401s.
@@ -123,11 +166,16 @@ class DashboardHubClient {
         connectJob =
             scope.launch {
                 // Reset the joined set to just this primary channel — a fresh connect targets one channel; the
-                // multi-watch surface layers extra channels on top afterwards via [join].
+                // multi-watch surface layers extra channels on top afterwards via [join]. A deliberate new
+                // session also resets stateful-reconnect bookkeeping — there is nothing to resume across a
+                // channel switch.
                 joinMutex.withLock {
                     joinedChannels.clear()
                     joinedChannels.add(channelId)
                 }
+                outboundMutex.withLock { resetResumeStateLocked() }
+                inboundNextExpected = 1
+                inboundHighestProcessed = 0
                 var backoffMs: Long = 1_000
                 while (true) {
                     var established = false
@@ -142,10 +190,12 @@ class DashboardHubClient {
                         .onFailure { /* swallowed — the reconnect loop below handles it */ }
                     isConnected = false
                     // The session never established this attempt — overwhelmingly an expired/absent JWT (the
-                    // handshake upgrade 401s). Refresh the token before the next attempt so an idle session
-                    // recovers on the next reconnect. A network failure also trips this; the refresh is a cheap
-                    // idempotent no-op there (it just fails and we retry on back-off anyway).
-                    if (!established) refreshToken?.invoke()
+                    // handshake upgrade 401s), or a refused resume. Reset resume bookkeeping so the NEXT attempt
+                    // falls back to a plain fresh connect instead of retrying a resume the server won't honour.
+                    if (!established) {
+                        outboundMutex.withLock { resetResumeStateLocked() }
+                        refreshToken?.invoke()
+                    }
                     // Reconnect loop — honour back-off so we don't spam the server on flaky networks.
                     delay(backoffMs)
                     backoffMs = (backoffMs * 2).coerceAtMost(30_000)
@@ -163,7 +213,8 @@ class DashboardHubClient {
         scope.launch {
             val added: Boolean = joinMutex.withLock { joinedChannels.add(channelId) }
             if (added && isConnected) {
-                joinMutex.withLock { socket }?.send(joinInvocation(channelId))
+                val hubSocket: HubSocket? = joinMutex.withLock { socket }
+                hubSocket?.let { sendTracked(it, joinInvocation(channelId)) }
             }
         }
     }
@@ -176,7 +227,8 @@ class DashboardHubClient {
         scope.launch {
             val removed: Boolean = joinMutex.withLock { joinedChannels.remove(channelId) }
             if (removed && isConnected) {
-                joinMutex.withLock { socket }?.send(leaveInvocation(channelId))
+                val hubSocket: HubSocket? = joinMutex.withLock { socket }
+                hubSocket?.let { sendTracked(it, leaveInvocation(channelId)) }
             }
         }
     }
@@ -186,7 +238,10 @@ class DashboardHubClient {
         connectJob?.cancel()
         connectJob = null
         currentChannelId = null
-        scope.launch { joinMutex.withLock { joinedChannels.clear() } }
+        scope.launch {
+            joinMutex.withLock { joinedChannels.clear() }
+            outboundMutex.withLock { resetResumeStateLocked() }
+        }
         socket?.close()
         socket = null
         isConnected = false
@@ -224,8 +279,11 @@ class DashboardHubClient {
             hubSocket.open("$wsBase/hubs/dashboard?access_token=$accessToken")
 
             // ── Handshake ──────────────────────────────────────────────
-            // Send the JSON hub protocol handshake request, terminated with the record separator.
-            hubSocket.send("""{"protocol":"json","version":1}$RECORD_SEPARATOR""")
+            // Send the JSON hub protocol handshake request, terminated with the record separator. The
+            // "useStatefulReconnect" field is the raw-websocket opt-in equivalent of the JS client's
+            // `.withStatefulReconnect(...)` negotiation — this client skips negotiate entirely, so the
+            // handshake is the only place left to signal it.
+            hubSocket.send("""{"protocol":"json","version":1,"useStatefulReconnect":true}$RECORD_SEPARATOR""")
 
             // The first frame back is the handshake response. In the SignalR JSON hub protocol a SUCCESS
             // response is the EMPTY OBJECT `{}`; a rejection carries `{"error":"…"}`. Bail ONLY when an "error"
@@ -237,23 +295,54 @@ class DashboardHubClient {
                 runCatching { Json.parseToJsonElement(handshakeMsg).jsonObject }.getOrNull()
             if (handshake?.containsKey("error") == true) return
 
-            // ── JoinChannel invocation(s) ──────────────────────────────
-            // Tell the hub which channel group(s) we want to subscribe to. Join EVERY channel in the watched set
-            // (the primary plus any multi-watch additions), so a reconnect restores all of them — not just the
-            // last one. A single-channel consumer joins exactly its one channel.
-            val channelsToJoin: List<String> = joinMutex.withLock { joinedChannels.toList() }
-            for (id: String in channelsToJoin) {
-                hubSocket.send(joinInvocation(id))
-            }
+            val isResume: Boolean = hasEstablishedBefore
+            if (isResume) {
+                // ── Resume ──────────────────────────────────────────────
+                // Per the hub protocol spec, Sequence is the FIRST message either party sends on a reconnect.
+                // Resend only what the server never acked — the group memberships already acked (or never
+                // buffered because they predate this feature) persist server-side in the resumed hub context,
+                // so they do NOT need to be rejoined.
+                val (startSeq: Long, pending: List<String>) =
+                    outboundMutex.withLock { nextOutboundSeq to outboundBuffer.map { it.second } }
+                hubSocket.send("""{"type":$TYPE_SEQUENCE,"sequenceId":$startSeq}$RECORD_SEPARATOR""")
+                for (framed: String in pending) hubSocket.send(framed)
 
-            isConnected = true
-            onConnected()
+                // The resume must prove itself alive before we trust it — the server may simply refuse a
+                // resume it doesn't recognise by dropping the socket. A confirming frame can be anything
+                // (its own Sequence, an Ack, an invocation, a ping) — we just need SOMETHING back.
+                val confirmFrame: String =
+                    withTimeoutOrNull(ResumeConfirmTimeoutMillis) { hubSocket.receive() }
+                        ?: return // refused/dead — openSession returns, established stays false, caller
+                // resets resume state so the NEXT attempt falls back to a plain fresh connect.
+
+                isConnected = true
+                onConnected()
+                for (segment: String in confirmFrame.split(RECORD_SEPARATOR)) {
+                    if (segment.isBlank()) continue
+                    dispatchSegment(hubSocket, segment)
+                }
+            } else {
+                // ── Fresh connect: JoinChannel invocation(s) ───────────────
+                // Tell the hub which channel group(s) we want to subscribe to. Join EVERY channel in the
+                // watched set (the primary plus any multi-watch additions), so a reconnect restores all of
+                // them — not just the last one. A single-channel consumer joins exactly its one channel. Each
+                // join is tracked/buffered so a LATER resume can resend it if it's still unacked.
+                val channelsToJoin: List<String> = joinMutex.withLock { joinedChannels.toList() }
+                for (id: String in channelsToJoin) {
+                    sendTracked(hubSocket, joinInvocation(id))
+                }
+
+                isConnected = true
+                onConnected()
+            }
+            hasEstablishedBefore = true
 
             coroutineScope {
                 // ── Keep-alive ping ────────────────────────────────────────
                 // Send our own SignalR ping under the server's ClientTimeoutInterval; without it the hub evicts
                 // us every ~30 s (server→client chat frames don't reset that timer) and the feed goes silent
-                // until the next reconnect. Cancelled when the receive loop ends (the finally below).
+                // until the next reconnect. Cancelled when the receive loop ends (the finally below). Pings are
+                // NOT sequence-tracked — they carry no state worth resending after a drop.
                 val pingJob: Job =
                     launch {
                         while (true) {
@@ -272,7 +361,7 @@ class DashboardHubClient {
                             withTimeoutOrNull(ReceiveTimeoutMillis) { hubSocket.receive() } ?: break
                         for (segment: String in raw.split(RECORD_SEPARATOR)) {
                             if (segment.isBlank()) continue
-                            dispatchSegment(segment)
+                            dispatchSegment(hubSocket, segment)
                         }
                     }
                 } finally {
@@ -286,13 +375,29 @@ class DashboardHubClient {
         }
     }
 
+    /** Resets ONLY the outbound resume bookkeeping — must be called under [outboundMutex]. */
+    private fun resetResumeStateLocked() {
+        hasEstablishedBefore = false
+        nextOutboundSeq = 1
+        outboundBuffer.clear()
+    }
+
+    /** Sends a tracked (Join/Leave) invocation: assigns it the next outbound sequence id and buffers it. */
+    private suspend fun sendTracked(hubSocket: HubSocket, invocation: String) {
+        outboundMutex.withLock {
+            outboundBuffer.addLast(nextOutboundSeq to invocation)
+            nextOutboundSeq += 1
+        }
+        hubSocket.send(invocation)
+    }
+
     private fun joinInvocation(channelId: String): String =
         """{"type":1,"target":"JoinChannel","arguments":["$channelId"]}$RECORD_SEPARATOR"""
 
     private fun leaveInvocation(channelId: String): String =
         """{"type":1,"target":"LeaveChannel","arguments":["$channelId"]}$RECORD_SEPARATOR"""
 
-    private fun dispatchSegment(segment: String) {
+    private suspend fun dispatchSegment(hubSocket: HubSocket, segment: String) {
         val json: JsonElement =
             runCatching { Json.parseToJsonElement(segment) }.getOrNull() ?: return
         val obj: JsonObject = json.jsonObject
@@ -300,22 +405,32 @@ class DashboardHubClient {
 
         when (type) {
             TYPE_INVOCATION -> {
-                val target: String = obj["target"]?.jsonPrimitive?.content ?: return
-                val args: JsonArray = obj["arguments"]?.jsonArray ?: return
-                val event: HubEvent? = HubEvent.from(target, args)
-                if (event != null) {
-                    _events.tryEmit(event)
+                // Assign this invocation the next expected inbound id (seeded by the server's own Sequence
+                // message on a resume; implicitly 1, 2, 3, … on a fresh connection). An id at or below the
+                // highest we've ever actually dispatched is a resend of something already delivered — the
+                // server doesn't know precisely what got through before the drop — so it's dropped here,
+                // never re-emitted to [events], while still advancing the counter and sending its Ack.
+                val id: Long = inboundNextExpected
+                inboundNextExpected += 1
+                val isDuplicate: Boolean = id <= inboundHighestProcessed
+                if (!isDuplicate) {
+                    inboundHighestProcessed = id
+                    val target: String = obj["target"]?.jsonPrimitive?.content ?: return
+                    val args: JsonArray = obj["arguments"]?.jsonArray ?: return
+                    val event: HubEvent? = HubEvent.from(target, args)
+                    if (event != null) _events.tryEmit(event)
                 }
+                hubSocket.send("""{"type":$TYPE_ACK,"sequenceId":$id}$RECORD_SEPARATOR""")
+            }
+            TYPE_ACK -> {
+                val acked: Long = obj["sequenceId"]?.jsonPrimitive?.long ?: return
+                outboundMutex.withLock { outboundBuffer.removeAll { it.first <= acked } }
+            }
+            TYPE_SEQUENCE -> {
+                val startId: Long = obj["sequenceId"]?.jsonPrimitive?.long ?: return
+                inboundNextExpected = startId
             }
             TYPE_PING -> Unit // pong is automatic — nothing to do on an inbound ping
-            // S035b: the server now runs WithStatefulReconnect() (861caccf), but this hand-rolled JSON hub
-            // protocol client does not implement the SignalR resume handshake (the "useStatefulReconnect"
-            // handshake opt-in plus the Sequence/Ack message pair) — that wire protocol cannot be verified
-            // against a live server from this environment, and a hand-rolled guess at it risks silently
-            // mis-claiming a resumed connection that never actually resumed. So a close, recoverable or not,
-            // always falls through to the existing full-reconnect loop below (real isConnected=false here,
-            // socket torn down in openSession's finally, fresh handshake + rejoin on the next attempt) — never
-            // a stuck or falsely-connected state. See DashboardHubClientReconnectTest.
             TYPE_CLOSE -> {
                 isConnected = false
             }
