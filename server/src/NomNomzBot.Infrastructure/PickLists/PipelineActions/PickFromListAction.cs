@@ -49,7 +49,7 @@ public sealed class PickFromListAction : ICommandAction
         ActionDefinition action
     )
     {
-        string? list = action.GetString("list") ?? action.GetString("name");
+        string? list = action.GetString("list");
         if (string.IsNullOrWhiteSpace(list))
             return ActionResult.Failure(
                 "pick_from_list requires a 'list' parameter (a pick-list name)."

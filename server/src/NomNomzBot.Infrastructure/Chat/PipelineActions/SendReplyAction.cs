@@ -35,7 +35,7 @@ public sealed class SendReplyAction : ICommandAction
         ActionDefinition action
     )
     {
-        string template = action.GetString("message") ?? action.GetString("text") ?? string.Empty;
+        string template = action.GetString("message") ?? string.Empty;
         if (string.IsNullOrEmpty(template))
             return ActionResult.Failure("send_reply requires a 'message' parameter");
 

@@ -42,7 +42,7 @@ public sealed class SendWebhookAction : ICommandAction
         ActionDefinition action
     )
     {
-        string? endpointRaw = action.GetString("endpoint") ?? action.GetString("endpoint_id");
+        string? endpointRaw = action.GetString("endpoint");
         if (
             string.IsNullOrWhiteSpace(endpointRaw)
             || !Guid.TryParse(endpointRaw, out Guid endpointId)

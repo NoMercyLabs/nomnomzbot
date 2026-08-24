@@ -22,7 +22,22 @@ namespace NomNomzBot.Infrastructure.Billing.PipelineActions;
 /// </summary>
 public sealed class RequireTierAction(IBillingTierService tiers) : ICommandAction
 {
+    /// <summary>
+    /// The global, seeded billing-tier keys (monetization-billing.md N.1;
+    /// <see cref="NomNomzBot.Infrastructure.Content.Billing.BillingTierSeeder"/> is the seed source of truth) — <c>free</c> is the
+    /// non-public self-host/unbilled marker, <c>base</c>/<c>pro</c>/<c>premium</c> are the hosted cloud plans.
+    /// Global reference data, not tenant-configured, so this is a genuinely closed set (S045b) rather than a
+    /// <see cref="PipelineActionFieldKind.ResourceId"/> lookup.
+    /// </summary>
+    private static readonly string[] TierKeys = ["free", "base", "pro", "premium"];
+
     public string ActionType => "require_tier";
+
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new("min_tier", PipelineActionFieldKind.Enum, Required: true, Options: TierKeys),
+            new("denied_message", PipelineActionFieldKind.Text),
+        ];
 
     public async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
