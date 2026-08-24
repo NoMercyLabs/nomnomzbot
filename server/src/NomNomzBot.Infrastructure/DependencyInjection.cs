@@ -770,6 +770,15 @@ public static class DependencyInjection
             Platform.Configuration.SystemCredentialsProvider
         >();
 
+        // Per-channel BYOC credential resolution (S-BYOC-spotify-a) — layers a channel's own OAuth app
+        // credentials over the system-level ones above, on the same DB-scoped-per-read pattern. Singleton
+        // for the same reason: it creates its own scope per read so it never shares a DbContext with its
+        // caller.
+        services.AddSingleton<
+            Application.Common.Interfaces.IChannelCredentialsResolver,
+            Platform.Configuration.ChannelCredentialsResolver
+        >();
+
         // Generic OAuth connect (integrations-oauth §3.2) — provider descriptors registry (singleton, stateless).
         services.AddSingleton<
             Application.Integrations.Services.IOAuthProviderRegistry,

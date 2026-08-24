@@ -166,6 +166,27 @@ internal static class AuthTestBuilder
             configuration
         );
     }
+
+    /// <summary>
+    /// A real <see cref="IChannelCredentialsResolver"/> over the test context + REAL token protector, layered
+    /// over the given <paramref name="systemCredentials"/> — so a test proves the channel-own-wins →
+    /// app-level-fallback → not-configured resolution for real (no stub).
+    /// </summary>
+    public static IChannelCredentialsResolver ChannelCredentialsResolver(
+        AuthDbContext db,
+        ITokenProtector protector,
+        ISystemCredentialsProvider systemCredentials
+    )
+    {
+        ServiceCollection services = new();
+        services.AddSingleton<IApplicationDbContext>(db);
+        services.AddSingleton<ITokenProtector>(protector);
+        ServiceProvider sp = services.BuildServiceProvider();
+        return new NomNomzBot.Infrastructure.Platform.Configuration.ChannelCredentialsResolver(
+            sp.GetRequiredService<IServiceScopeFactory>(),
+            systemCredentials
+        );
+    }
 }
 
 /// <summary>Records every published domain event so a test can assert the side effect actually fired.</summary>

@@ -77,6 +77,7 @@ public sealed class SpotifyMusicProvider
     private readonly IApplicationDbContext _db;
     private readonly IIntegrationTokenVault _vault;
     private readonly ISystemCredentialsProvider _credentials;
+    private readonly IChannelCredentialsResolver? _channelCredentials;
     private readonly IIntegrationCapabilityStore _capabilities;
     private readonly ILastActiveSpotifyDeviceTracker _lastActiveDevice;
     private readonly HttpClient _http;
@@ -93,7 +94,8 @@ public sealed class SpotifyMusicProvider
         TimeProvider timeProvider,
         ILogger<SpotifyMusicProvider> logger,
         ISystemCredentialsProvider credentials,
-        Identity.IConnectionRefreshGate refreshGate
+        Identity.IConnectionRefreshGate refreshGate,
+        IChannelCredentialsResolver? channelCredentials = null
     )
     {
         _db = db;
@@ -105,6 +107,7 @@ public sealed class SpotifyMusicProvider
         _logger = logger;
         _credentials = credentials;
         _refreshGate = refreshGate;
+        _channelCredentials = channelCredentials;
     }
 
     public string Provider => ProviderName;
@@ -1360,7 +1363,10 @@ public sealed class SpotifyMusicProvider
         if (refresh.IsFailure)
             return null;
 
-        SystemAppCredentials? app = await _credentials.GetAsync(ProviderName, cancellationToken);
+        SystemAppCredentials? app = await ResolveAppCredentialsAsync(
+            broadcasterId,
+            cancellationToken
+        );
         if (app is null)
         {
             _logger.LogWarning(
@@ -1443,6 +1449,29 @@ public sealed class SpotifyMusicProvider
             );
             return null;
         }
+    }
+
+    /// <summary>
+    /// Resolves the app credentials for this broadcaster's Spotify refresh: the channel's own client id +
+    /// secret (BYOC) when configured, else the platform's app-level credentials — the single resolution seam
+    /// every Spotify OAuth path shares (<see cref="IChannelCredentialsResolver"/>). When no resolver is
+    /// wired (older callers that construct this provider directly), resolution falls back unchanged to the
+    /// app-level-only path this member always used.
+    /// </summary>
+    private async Task<SystemAppCredentials?> ResolveAppCredentialsAsync(
+        Guid broadcasterId,
+        CancellationToken cancellationToken
+    )
+    {
+        if (_channelCredentials is null)
+            return await _credentials.GetAsync(ProviderName, cancellationToken);
+
+        Result<SystemAppCredentials> resolved = await _channelCredentials.ResolveAsync(
+            broadcasterId,
+            ProviderName,
+            cancellationToken
+        );
+        return resolved.IsSuccess ? resolved.Value : null;
     }
 
     // ─── HTTP helpers ────────────────────────────────────────────────────────

@@ -43,7 +43,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
     private readonly IIntegrationTokenVault _vault;
     private readonly IDiscordGuildService _discord;
     private readonly IIntegrationCapabilityStore _capabilities;
-    private readonly ISystemCredentialsProvider _credentials;
+    private readonly IChannelCredentialsResolver _channelCredentials;
     private readonly IMusicProviderTokenMirror _musicTokenMirror;
     private readonly ICacheService _cache;
     private readonly HttpClient _http;
@@ -56,7 +56,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
         IIntegrationTokenVault vault,
         IDiscordGuildService discord,
         IIntegrationCapabilityStore capabilities,
-        ISystemCredentialsProvider credentials,
+        IChannelCredentialsResolver channelCredentials,
         IMusicProviderTokenMirror musicTokenMirror,
         ICacheService cache,
         IHttpClientFactory httpClientFactory,
@@ -69,7 +69,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
         _vault = vault;
         _discord = discord;
         _capabilities = capabilities;
-        _credentials = credentials;
+        _channelCredentials = channelCredentials;
         _musicTokenMirror = musicTokenMirror;
         _cache = cache;
         _http = httpClientFactory.CreateClient("integration-oauth");
@@ -115,12 +115,14 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
                 );
         }
 
-        SystemAppCredentials? app = await _credentials.GetAsync(provider, cancellationToken);
-        if (app is null)
-            return Result.Failure<OAuthStartDto>(
-                $"{provider} app credentials are not configured.",
-                "PROVIDER_NOT_CONFIGURED"
-            );
+        Result<SystemAppCredentials> appResult = await _channelCredentials.ResolveAsync(
+            broadcasterId,
+            provider,
+            cancellationToken
+        );
+        if (appResult.IsFailure)
+            return appResult.WithValue<OAuthStartDto>(null!);
+        SystemAppCredentials app = appResult.Value;
 
         string state = Base64UrlBytes(RandomNumberGenerator.GetBytes(32));
         string codeVerifier = Base64UrlBytes(RandomNumberGenerator.GetBytes(32));
@@ -206,12 +208,14 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
             return descriptorResult.WithValue<OAuthCallbackResultDto>(null!);
         OAuthProviderDescriptor descriptor = descriptorResult.Value;
 
-        SystemAppCredentials? app = await _credentials.GetAsync(provider, cancellationToken);
-        if (app is null)
-            return Result.Failure<OAuthCallbackResultDto>(
-                $"{provider} app credentials are not configured.",
-                "PROVIDER_NOT_CONFIGURED"
-            );
+        Result<SystemAppCredentials> callbackAppResult = await _channelCredentials.ResolveAsync(
+            entry.BroadcasterId,
+            provider,
+            cancellationToken
+        );
+        if (callbackAppResult.IsFailure)
+            return callbackAppResult.WithValue<OAuthCallbackResultDto>(null!);
+        SystemAppCredentials app = callbackAppResult.Value;
 
         TokenExchangeResult? tokens = await ExchangeCodeAsync(
             descriptor,

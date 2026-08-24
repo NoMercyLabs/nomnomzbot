@@ -30,6 +30,7 @@ using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
+using ConfigEntity = NomNomzBot.Domain.Platform.Entities.Configuration;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity;
 
@@ -598,6 +599,247 @@ public sealed class IntegrationOAuthServiceTests
         replay.ErrorCode.Should().Be("INVALID_STATE");
     }
 
+    // ─── BYOC (S-BYOC-spotify-a): channel-own Spotify credentials win over the app-level fallback ──
+
+    /// <summary>
+    /// Proves the resolution order the OAuth authorize step uses: with a channel-own Spotify client id +
+    /// secret stored (sealed at rest, exactly like the system-level rows), the authorize URL carries the
+    /// CHANNEL's client id — not the app-level env fallback the sibling test above proves.
+    /// </summary>
+    [Fact]
+    public async Task StartConnect_UsesChannelOwnClientId_WhenBothFieldsAreStored()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        ITokenProtector protector = AuthTestBuilder.RealTokenProtector(db, out _);
+        await SeedChannelSpotifyCredentialsAsync(
+            db,
+            protector,
+            Tenant,
+            "channel-own-client",
+            "channel-own-secret"
+        );
+        (IntegrationOAuthService service, _, _, _) = BuildWith(db, protector, new());
+
+        Result<OAuthStartDto> start = await service.StartConnectAsync(
+            Tenant,
+            AuthEnums.IntegrationProvider.Spotify,
+            "spotify.playback",
+            returnUrl: null,
+            Actor,
+            publicOrigin: "https://bot-dev.nomercy.tv"
+        );
+
+        start.IsSuccess.Should().BeTrue(start.ErrorMessage);
+        start.Value.AuthorizeUrl.Should().Contain("client_id=channel-own-client");
+        start.Value.AuthorizeUrl.Should().NotContain("client_id=spotify-client");
+    }
+
+    /// <summary>
+    /// Proves the resolution order the token-exchange step uses: the callback's POST to Spotify's token
+    /// endpoint carries the CHANNEL's own client id + secret, not the app-level ones — the exact seam
+    /// SpotifyMusicProvider's own refresh later reuses for the same connection.
+    /// </summary>
+    [Fact]
+    public async Task HandleCallback_SendsChannelOwnClientCredentials_InTheTokenExchange()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        ITokenProtector protector = AuthTestBuilder.RealTokenProtector(db, out _);
+        await SeedChannelSpotifyCredentialsAsync(
+            db,
+            protector,
+            Tenant,
+            "channel-own-client",
+            "channel-own-secret"
+        );
+        StubHandler handler = new()
+        {
+            TokenJson =
+                """{"access_token":"spot-access","refresh_token":"spot-refresh","expires_in":3600,"scope":"user-modify-playback-state"}""",
+        };
+        (IntegrationOAuthService service, AuthDbContext resultDb, _, _) = BuildWith(
+            db,
+            protector,
+            handler
+        );
+
+        Result<OAuthStartDto> start = await service.StartConnectAsync(
+            Tenant,
+            AuthEnums.IntegrationProvider.Spotify,
+            "spotify.playback",
+            returnUrl: null,
+            Actor,
+            publicOrigin: "https://bot-dev.nomercy.tv"
+        );
+        start.IsSuccess.Should().BeTrue(start.ErrorMessage);
+
+        Result<OAuthCallbackResultDto> callback = await service.HandleCallbackAsync(
+            AuthEnums.IntegrationProvider.Spotify,
+            new("the-auth-code", start.Value.State, null, null)
+        );
+
+        callback.IsSuccess.Should().BeTrue(callback.ErrorMessage);
+        handler.LastTokenRequestBody.Should().Contain("client_id=channel-own-client");
+        handler.LastTokenRequestBody.Should().Contain("client_secret=channel-own-secret");
+        handler.LastTokenRequestBody.Should().NotContain("spotify-client");
+
+        // The vaulted connection remembers the channel's own client id (S003 no-Service-row-read
+        // contract) — proves the persisted state actually reflects the channel-own credential, not
+        // just the one outbound HTTP call.
+        IntegrationConnection connection = await resultDb
+            .IntegrationConnections.AsNoTracking()
+            .SingleAsync();
+        connection.ClientId.Should().Be("channel-own-client");
+    }
+
+    /// <summary>Encrypted-at-rest: the channel's sealed Spotify secret column never contains the plaintext,
+    /// and the resolver only ever opens it back through the real AAD-bound protector.</summary>
+    [Fact]
+    public async Task ChannelCredential_SecretIsSealedAtRest_NotPlaintext()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        ITokenProtector protector = AuthTestBuilder.RealTokenProtector(db, out _);
+        await SeedChannelSpotifyCredentialsAsync(
+            db,
+            protector,
+            Tenant,
+            "channel-own-client",
+            "super-secret-value"
+        );
+
+        ConfigEntity row = db.Configurations.Single(c => c.Key == "spotify.client_secret");
+        row.SecureValue.Should().NotBeNullOrEmpty();
+        row.SecureValue.Should().NotContain("super-secret-value");
+    }
+
+    /// <summary>With neither a channel-own nor an app-level credential configured, the resolver fails
+    /// closed — never a silently-wrong client id.</summary>
+    [Fact]
+    public async Task StartConnect_Fails_WhenNeitherChannelNorAppLevelCredentialsAreConfigured()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        ITokenProtector protector = AuthTestBuilder.RealTokenProtector(db, out _);
+        IConfiguration emptyConfig = new ConfigurationBuilder()
+            .AddInMemoryCollection(
+                new Dictionary<string, string?> { ["App:BaseUrl"] = "https://api.example.test" }
+            )
+            .Build();
+        (IntegrationOAuthService service, _, _, _) = BuildWith(db, protector, new(), emptyConfig);
+
+        Result<OAuthStartDto> start = await service.StartConnectAsync(
+            Tenant,
+            AuthEnums.IntegrationProvider.Spotify,
+            "spotify.playback",
+            returnUrl: null,
+            Actor,
+            publicOrigin: "https://bot-dev.nomercy.tv"
+        );
+
+        start.IsFailure.Should().BeTrue();
+        start.ErrorCode.Should().Be("PROVIDER_NOT_CONFIGURED");
+    }
+
+    private static async Task SeedChannelSpotifyCredentialsAsync(
+        AuthDbContext db,
+        ITokenProtector protector,
+        Guid channelId,
+        string clientId,
+        string clientSecret
+    )
+    {
+        db.Configurations.Add(
+            new()
+            {
+                BroadcasterId = channelId,
+                Key = "spotify.client_id",
+                Value = clientId,
+            }
+        );
+        db.Configurations.Add(
+            new()
+            {
+                BroadcasterId = channelId,
+                Key = "spotify.client_secret",
+                SecureValue = await protector.ProtectAsync(
+                    clientSecret,
+                    NomNomzBot.Infrastructure.Platform.Configuration.ChannelCredentialsResolver.ContextFor(
+                        channelId,
+                        "spotify"
+                    )
+                ),
+            }
+        );
+        await db.SaveChangesAsync();
+    }
+
+    private static (
+        IntegrationOAuthService Service,
+        AuthDbContext Db,
+        IIntegrationTokenVault Vault,
+        FakeCache Cache
+    ) BuildWith(
+        AuthDbContext db,
+        ITokenProtector protector,
+        StubHandler handler,
+        IConfiguration? config = null
+    )
+    {
+        // A fresh protector/key-service pair over the SAME db is functionally interchangeable with the
+        // caller's own `protector` instance (both derive the same deterministic KEK and read/write the same
+        // persisted CryptoKey rows) — this just needs an ISubjectKeyService for the vault's constructor.
+        AuthTestBuilder.RealTokenProtector(db, out ISubjectKeyService keys);
+        IIntegrationTokenVault vault = new IntegrationTokenVault(
+            db,
+            protector,
+            keys,
+            new PassthroughScopeGrant(),
+            new RecordingEventBus(),
+            TimeProvider.System,
+            NullLogger<IntegrationTokenVault>.Instance
+        );
+
+        config ??= new ConfigurationBuilder()
+            .AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["App:BaseUrl"] = "https://api.example.test",
+                    ["Spotify:ClientId"] = "spotify-client",
+                    ["Spotify:ClientSecret"] = "spotify-secret",
+                }
+            )
+            .Build();
+
+        OAuthProviderRegistry registry = new(config);
+        ISystemCredentialsProvider credentials = AuthTestBuilder.CredentialsProvider(
+            db,
+            protector,
+            config
+        );
+        IChannelCredentialsResolver channelCredentials = AuthTestBuilder.ChannelCredentialsResolver(
+            db,
+            protector,
+            credentials
+        );
+        FakeCache cache = new();
+        IntegrationOAuthService service = new(
+            registry,
+            vault,
+            new FakeDiscordGuildService(),
+            new InMemoryIntegrationCapabilityStore(),
+            channelCredentials,
+            new MusicProviderTokenMirror(
+                db,
+                protector,
+                NullLogger<MusicProviderTokenMirror>.Instance
+            ),
+            cache,
+            new SingleClientFactory(handler),
+            config,
+            TimeProvider.System,
+            NullLogger<IntegrationOAuthService>.Instance
+        );
+        return (service, db, vault, cache);
+    }
+
     [Fact]
     public async Task HandleCallback_ProviderError_FailsClosed()
     {
@@ -742,13 +984,18 @@ public sealed class IntegrationOAuthServiceTests
             protector,
             config
         );
+        IChannelCredentialsResolver channelCredentials = AuthTestBuilder.ChannelCredentialsResolver(
+            db,
+            protector,
+            credentials
+        );
         FakeCache cache = new();
         IntegrationOAuthService service = new(
             registry,
             vault,
             discord,
             new InMemoryIntegrationCapabilityStore(),
-            credentials,
+            channelCredentials,
             new MusicProviderTokenMirror(
                 db,
                 protector,

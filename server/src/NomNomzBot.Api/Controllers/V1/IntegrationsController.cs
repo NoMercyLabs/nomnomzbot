@@ -34,18 +34,80 @@ public class IntegrationsController : BaseController
     private readonly IConfiguration _config;
     private readonly IDiscordGuildService _discord;
     private readonly IIntegrationStatusService _integrationStatus;
+    private readonly IChannelSpotifyCredentialsService _spotifyCredentials;
 
     public IntegrationsController(
         IApplicationDbContext db,
         IConfiguration config,
         IDiscordGuildService discord,
-        IIntegrationStatusService integrationStatus
+        IIntegrationStatusService integrationStatus,
+        IChannelSpotifyCredentialsService spotifyCredentials
     )
     {
         _db = db;
         _config = config;
         _discord = discord;
         _integrationStatus = integrationStatus;
+        _spotifyCredentials = spotifyCredentials;
+    }
+
+    // ── Spotify BYOC credentials (S-BYOC-spotify-a) ─────────────────────────────
+    // The streamer's own Spotify app (client id + secret), layered over the platform's app-level
+    // credentials by IChannelCredentialsResolver — every live Spotify OAuth path (authorize, token
+    // exchange, refresh) resolves through that one seam. Reuses the integration:read/write action keys
+    // (same gate as the rest of this controller's per-channel integration surface).
+
+    /// <summary>The channel's stored Spotify BYOC state: client id (safe to show) + whether a secret is
+    /// configured. Never returns the secret itself.</summary>
+    [RequireAction("integration:read")]
+    [HttpGet("spotify/credentials")]
+    [ProducesResponseType<StatusResponseDto<ChannelSpotifyCredentialsDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetSpotifyCredentials(string channelId, CancellationToken ct)
+    {
+        if (!Guid.TryParse(channelId, out Guid tenantId))
+            return BadRequestResponse("Invalid channel id.");
+        Result<ChannelSpotifyCredentialsDto> result = await _spotifyCredentials.GetAsync(
+            tenantId,
+            ct
+        );
+        return ResultResponse(result);
+    }
+
+    /// <summary>Store the channel's own Spotify client id + secret (BYOC). Sealed at rest; never echoed
+    /// back in plaintext.</summary>
+    [RequireAction("integration:write")]
+    [HttpPut("spotify/credentials")]
+    [ProducesResponseType<StatusResponseDto<ChannelSpotifyCredentialsDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SetSpotifyCredentials(
+        string channelId,
+        [FromBody] SetChannelSpotifyCredentialsDto request,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid tenantId))
+            return BadRequestResponse("Invalid channel id.");
+        Result<ChannelSpotifyCredentialsDto> result = await _spotifyCredentials.SetAsync(
+            tenantId,
+            request,
+            ct
+        );
+        return ResultResponse(result);
+    }
+
+    /// <summary>Remove the channel's own Spotify credentials — Spotify OAuth falls back to the app-level
+    /// configuration.</summary>
+    [RequireAction("integration:write")]
+    [HttpDelete("spotify/credentials")]
+    [ProducesResponseType<StatusResponseDto<ChannelSpotifyCredentialsDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ClearSpotifyCredentials(string channelId, CancellationToken ct)
+    {
+        if (!Guid.TryParse(channelId, out Guid tenantId))
+            return BadRequestResponse("Invalid channel id.");
+        Result<ChannelSpotifyCredentialsDto> result = await _spotifyCredentials.ClearAsync(
+            tenantId,
+            ct
+        );
+        return ResultResponse(result);
     }
 
     // ── DTOs ──────────────────────────────────────────────────────────────────
