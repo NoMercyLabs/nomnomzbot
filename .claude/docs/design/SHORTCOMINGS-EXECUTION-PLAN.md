@@ -134,10 +134,6 @@ stable — without dropping the planned requirements behind them.
   is audible in OBS from a fresh channel with no widget install.
 - **S055** Discord rule editor — channel/role pickers via `GuildPickerField`, trigger dropdown, ping
   role, embed, helper link + preview; names in list (U·A6 i1). Done-when: no snowflake typed.
-- **S058** Widget runtime fixes — field-name alignment for `recent_followers`/`top_cheerers`/
-  `sub_train`/`goal_bar`/`labels`/`alerts`/`event_ticker`; goal events routed; contract test;
-  `redemption_alert` sound wired or removed; `socials` help text = parser (W·§1/§8 i1). Done-when: every
-  W·§5 row reads "solid" against real DTOs.
 - **S060** Editor fire-bar — real per-event samples (`WidgetTestSamples`), chat variants, events from
   subscriptions not regex, desktop gets the bar (W·§3/§8 i3, U·B5).
 - **S061** `chat_box.vue` layout batch — line break, truncation, avatar, contrast, emote size, arrival
