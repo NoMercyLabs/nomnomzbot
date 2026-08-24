@@ -11,7 +11,9 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using NomNomzBot.Api.Authorization;
+using NomNomzBot.Api.Extensions;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Billing;
@@ -32,7 +34,8 @@ public class BillingController(
     ISubscriptionService subscriptions,
     IBillingTierService tiers,
     IUsageMeteringService metering,
-    IInviteCodeService invites
+    IInviteCodeService invites,
+    IConfiguration configuration
 ) : BaseController
 {
     /// <summary>Get the channel's current subscription state.</summary>
@@ -116,7 +119,14 @@ public class BillingController(
     {
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
-        return ResultResponse(await subscriptions.StartCheckoutAsync(broadcasterId, request, ct));
+        return ResultResponse(
+            await subscriptions.StartCheckoutAsync(
+                broadcasterId,
+                request,
+                Request.ResolvePublicOrigin(configuration),
+                ct
+            )
+        );
     }
 
     /// <summary>Change the channel's subscription to another tier, immediately or at period end.</summary>
@@ -166,7 +176,11 @@ public class BillingController(
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
         return ResultResponse(
-            await subscriptions.CreateBillingPortalSessionAsync(broadcasterId, ct)
+            await subscriptions.CreateBillingPortalSessionAsync(
+                broadcasterId,
+                Request.ResolvePublicOrigin(configuration),
+                ct
+            )
         );
     }
 

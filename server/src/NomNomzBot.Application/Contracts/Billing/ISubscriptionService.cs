@@ -33,10 +33,17 @@ public interface ISubscriptionService
         CancellationToken ct = default
     );
 
-    /// <summary>Begins a Stripe Checkout for a target tier (SaaS only); the webhook activates it.</summary>
+    /// <summary>
+    /// Begins a Stripe Checkout for a target tier (SaaS only); the webhook activates it.
+    /// <paramref name="publicOrigin"/> is the caller-resolved public origin (deployment-distribution §6,
+    /// <c>PublicOriginExtensions.ResolvePublicOrigin</c>) used to build the default success/cancel return
+    /// URLs when <see cref="StartCheckoutRequest.SuccessUrl"/>/<see cref="StartCheckoutRequest.CancelUrl"/>
+    /// are not supplied; falls back to the configured <c>App:BaseUrl</c> when omitted.
+    /// </summary>
     Task<Result<CheckoutSessionDto>> StartCheckoutAsync(
         Guid broadcasterId,
         StartCheckoutRequest request,
+        string? publicOrigin = null,
         CancellationToken ct = default
     );
 
@@ -57,9 +64,15 @@ public interface ISubscriptionService
     /// <summary>Reverses a pending at-period-end cancellation. VALIDATION_FAILED if not pending-cancel.</summary>
     Task<Result<SubscriptionDto>> ResumeAsync(Guid broadcasterId, CancellationToken ct = default);
 
-    /// <summary>A short-lived Stripe Billing Portal URL for self-serve management; SaaS only.</summary>
+    /// <summary>
+    /// A short-lived Stripe Billing Portal URL for self-serve management; SaaS only.
+    /// <paramref name="publicOrigin"/> is the caller-resolved public origin (deployment-distribution §6,
+    /// <c>PublicOriginExtensions.ResolvePublicOrigin</c>) used to build the portal's return URL; falls back
+    /// to the configured <c>App:BaseUrl</c> when omitted.
+    /// </summary>
     Task<Result<BillingPortalDto>> CreateBillingPortalSessionAsync(
         Guid broadcasterId,
+        string? publicOrigin = null,
         CancellationToken ct = default
     );
 

@@ -422,6 +422,133 @@ public sealed class SubscriptionServiceTests
     }
 
     [Fact]
+    public async Task StartCheckout_with_a_forwarded_tunnel_origin_builds_return_urls_from_it()
+    {
+        IStripeGateway gateway = Substitute.For<IStripeGateway>();
+        gateway
+            .CreateCheckoutSessionAsync(
+                "price_pro",
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(new CheckoutSessionDto("https://checkout.stripe/abc", "cs_1")));
+        (SubscriptionService sut, AuthDbContext db, _) = Build(gateway);
+        await SeedAsync(db);
+        BillingTier pro = await db.BillingTiers.FirstAsync(t => t.Key == "pro");
+        pro.StripePriceId = "price_pro";
+        await db.SaveChangesAsync();
+
+        // Config carries the loopback-ish App:BaseUrl ("https://bot.example" per Build()) — the forwarded
+        // tunnel origin passed in explicitly must win over it, matching PublicOriginExtensions precedence.
+        await sut.StartCheckoutAsync(
+            Channel,
+            new("pro", null, null),
+            publicOrigin: "https://bot-dev.nomercy.tv"
+        );
+
+        await gateway
+            .Received()
+            .CreateCheckoutSessionAsync(
+                "price_pro",
+                Channel.ToString(),
+                "https://bot-dev.nomercy.tv/billing/success",
+                "https://bot-dev.nomercy.tv/billing/cancel",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task StartCheckout_with_no_forwarded_origin_falls_back_to_the_configured_base_url()
+    {
+        IStripeGateway gateway = Substitute.For<IStripeGateway>();
+        gateway
+            .CreateCheckoutSessionAsync(
+                "price_pro",
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(new CheckoutSessionDto("https://checkout.stripe/abc", "cs_1")));
+        (SubscriptionService sut, AuthDbContext db, _) = Build(gateway);
+        await SeedAsync(db);
+        BillingTier pro = await db.BillingTiers.FirstAsync(t => t.Key == "pro");
+        pro.StripePriceId = "price_pro";
+        await db.SaveChangesAsync();
+
+        // No publicOrigin supplied — behaviour is unchanged: falls back to the configured App:BaseUrl
+        // ("https://bot.example" per Build()).
+        await sut.StartCheckoutAsync(Channel, new("pro", null, null));
+
+        await gateway
+            .Received()
+            .CreateCheckoutSessionAsync(
+                "price_pro",
+                Channel.ToString(),
+                "https://bot.example/billing/success",
+                "https://bot.example/billing/cancel",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task BillingPortal_with_a_forwarded_tunnel_origin_builds_the_return_url_from_it()
+    {
+        IStripeGateway gateway = Substitute.For<IStripeGateway>();
+        gateway
+            .CreateBillingPortalSessionAsync(
+                "sub_live_1",
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(new BillingPortalDto("https://billing.stripe/portal/xyz")));
+        (SubscriptionService sut, AuthDbContext db, _) = Build(gateway);
+        await SeedAsync(db);
+        await SeedStripeSubscriptionAsync(db, tierKey: "pro");
+
+        await sut.CreateBillingPortalSessionAsync(
+            Channel,
+            publicOrigin: "https://bot-dev.nomercy.tv"
+        );
+
+        await gateway
+            .Received()
+            .CreateBillingPortalSessionAsync(
+                "sub_live_1",
+                "https://bot-dev.nomercy.tv/billing",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task BillingPortal_with_no_forwarded_origin_falls_back_to_the_configured_base_url()
+    {
+        IStripeGateway gateway = Substitute.For<IStripeGateway>();
+        gateway
+            .CreateBillingPortalSessionAsync(
+                "sub_live_1",
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(new BillingPortalDto("https://billing.stripe/portal/xyz")));
+        (SubscriptionService sut, AuthDbContext db, _) = Build(gateway);
+        await SeedAsync(db);
+        await SeedStripeSubscriptionAsync(db, tierKey: "pro");
+
+        await sut.CreateBillingPortalSessionAsync(Channel);
+
+        await gateway
+            .Received()
+            .CreateBillingPortalSessionAsync(
+                "sub_live_1",
+                "https://bot.example/billing",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
     public async Task BillingPortal_without_a_stripe_subscription_is_not_found()
     {
         (SubscriptionService sut, AuthDbContext db, _) = Build();

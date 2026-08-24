@@ -82,6 +82,7 @@ public sealed class SubscriptionService(
     public async Task<Result<CheckoutSessionDto>> StartCheckoutAsync(
         Guid broadcasterId,
         StartCheckoutRequest request,
+        string? publicOrigin = null,
         CancellationToken ct = default
     )
     {
@@ -97,7 +98,10 @@ public sealed class SubscriptionService(
                 "VALIDATION_FAILED"
             );
 
-        string baseUrl = configuration["App:BaseUrl"]?.TrimEnd('/') ?? string.Empty;
+        // The caller-resolved public origin (PublicOriginExtensions.ResolvePublicOrigin) wins over the
+        // configured App:BaseUrl, so a tunnel/LAN-reached dashboard bounces back to itself, not loopback.
+        string baseUrl =
+            (publicOrigin ?? configuration["App:BaseUrl"])?.TrimEnd('/') ?? string.Empty;
         return await stripe.CreateCheckoutSessionAsync(
             tier.StripePriceId,
             broadcasterId.ToString(),
@@ -231,6 +235,7 @@ public sealed class SubscriptionService(
 
     public async Task<Result<BillingPortalDto>> CreateBillingPortalSessionAsync(
         Guid broadcasterId,
+        string? publicOrigin = null,
         CancellationToken ct = default
     )
     {
@@ -241,7 +246,10 @@ public sealed class SubscriptionService(
                 "NOT_FOUND"
             );
 
-        string baseUrl = configuration["App:BaseUrl"]?.TrimEnd('/') ?? string.Empty;
+        // The caller-resolved public origin wins over the configured App:BaseUrl (same precedence as
+        // StartCheckoutAsync above and every other redirect_uri site — deployment-distribution §6).
+        string baseUrl =
+            (publicOrigin ?? configuration["App:BaseUrl"])?.TrimEnd('/') ?? string.Empty;
         return await stripe.CreateBillingPortalSessionAsync(
             sub.StripeSubscriptionId,
             $"{baseUrl}/billing",
