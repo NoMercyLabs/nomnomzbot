@@ -363,7 +363,7 @@ public sealed class SpotifyMusicProvider
         CancellationToken cancellationToken = default
     )
     {
-        string? trackId = ExtractId(uriOrId, "track");
+        string? trackId = ExtractId(uriOrId, "track", requireIdShapeForBareInput: true);
         if (trackId is null)
             return (null, MusicProviderFailureReason.None); // not a link — legitimately nothing to resolve.
 
@@ -1867,7 +1867,22 @@ public sealed class SpotifyMusicProvider
 
     /// <summary>Extracts a Spotify id of <paramref name="type"/> from a <c>spotify:{type}:…</c> URI,
     /// an <c>open.spotify.com/{type}/…</c> URL (with or without locale segment), or a bare id.</summary>
-    private static string? ExtractId(string uriOrId, string type)
+    // A real Spotify catalogue id (track/artist/album/playlist/…) is always exactly 22 base62
+    // characters, but management call-sites (playlist/track/artist ids the dashboard already holds)
+    // legitimately pass bare ids of any length/shape and must keep working unconditionally — Spotify
+    // itself is the one that rejects a malformed id, with a precise API error. The length check below
+    // applies only when a caller opts in via requireIdShapeForBareInput: ResolveTrackAsync is the one
+    // spot where a bare, unprefixed word is ambiguous between "a real id someone pasted" and "a plain
+    // search term" (the common case) — accepting any all-alphanumeric string there (the
+    // pre-2026-08-24 behaviour) meant a plain one-word search term like "fabienk" was mistaken for a
+    // bare id, sent straight to GET /tracks/{id}, 400'd, and never fell through to search.
+    private const int SpotifyIdLength = 22;
+
+    private static string? ExtractId(
+        string uriOrId,
+        string type,
+        bool requireIdShapeForBareInput = false
+    )
     {
         if (string.IsNullOrWhiteSpace(uriOrId))
             return null;
@@ -1894,8 +1909,12 @@ public sealed class SpotifyMusicProvider
             return id.Length > 0 && id.All(char.IsLetterOrDigit) ? id : null;
         }
 
-        // Bare id — Spotify ids are base62 alphanumerics.
-        return value.All(char.IsLetterOrDigit) ? value : null;
+        // Bare, unprefixed id — Spotify ids are base62 alphanumerics. When the caller needs to
+        // disambiguate free text from a real id (search resolution), also require the real 22-char
+        // shape; trusted management callers keep the permissive, length-agnostic check.
+        if (!value.All(char.IsLetterOrDigit))
+            return null;
+        return requireIdShapeForBareInput && value.Length != SpotifyIdLength ? null : value;
     }
 
     /// <summary>Any accepted track input form → canonical <c>spotify:track:{id}</c> URI (falls back

@@ -131,6 +131,35 @@ public sealed class SpotifyMusicProviderResolveTrackTests
     }
 
     [Theory]
+    // 2026-08-24 live incident: "!sr fabienk" resolved GET /tracks/fabienk (Spotify: 400 Bad
+    // Request, mapped to Unavailable) and never fell through to search — a plain one-word search
+    // term is not a track id and must not be sent to the tracks endpoint. Real Spotify ids are a
+    // fixed 22-character base62 string; a short/long all-alphanumeric word is not one.
+    [InlineData("fabienk")]
+    [InlineData("a")]
+    [InlineData("thisisdefinitelynotarealspotifytrackidatall")]
+    public async Task Plain_word_search_terms_are_not_mistaken_for_a_bare_track_id(string input)
+    {
+        (SpotifyMusicProvider provider, RecordingHttpHandler handler) = Build(connectSpotify: true);
+
+        (TrackInfo? track, MusicProviderFailureReason failure) = await provider.ResolveTrackAsync(
+            ChannelId,
+            input
+        );
+
+        track.Should().BeNull();
+        failure
+            .Should()
+            .Be(
+                MusicProviderFailureReason.None,
+                "a plain search word must fall through to search, not be treated as an id"
+            );
+        handler
+            .RequestUrls.Should()
+            .BeEmpty("a plain search word must never be sent to GET /tracks/{id}");
+    }
+
+    [Theory]
     [InlineData("")]
     [InlineData("   ")]
     [InlineData("https://example.com/track/abc")]
