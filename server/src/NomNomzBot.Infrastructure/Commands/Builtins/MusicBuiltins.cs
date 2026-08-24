@@ -125,10 +125,24 @@ public sealed class VolumeBuiltin(IMusicService music) : IBuiltinCommand
         CancellationToken ct = default
     )
     {
-        if (
-            string.IsNullOrWhiteSpace(context.Args)
-            || !int.TryParse(context.Args.Trim(), out int level)
-        )
+        if (string.IsNullOrWhiteSpace(context.Args))
+        {
+            // No argument — report the current volume instead of the old "do nothing but print
+            // usage" behaviour. Read from the same place the dashboard reads it from (NowPlaying),
+            // the only volume accessor the provider surface exposes; when that can't be read (no
+            // active track / provider doesn't report it) say so truthfully — never guess a number.
+            NowPlaying? nowPlaying = await music.GetNowPlayingAsync(
+                context.BroadcasterId.ToString(),
+                ct
+            );
+            return Result.Success(
+                nowPlaying is not null
+                    ? $"Volume is at {nowPlaying.Volume}%."
+                    : "Can't read the current volume right now — nothing is playing."
+            );
+        }
+
+        if (!int.TryParse(context.Args.Trim(), out int level))
             return Result.Success("Usage: !volume <0-100>");
 
         level = Math.Clamp(level, 0, 100);
