@@ -103,6 +103,23 @@ public sealed class ScopeNotificationServiceTests
     }
 
     [Fact]
+    public async Task GetMissingScopes_ModeratedChannelsGap_CarriesItsOwnFeatureAttribution()
+    {
+        // aa506ff1 trimmed the login base to 3 scopes, so `user:read:moderated_channels` (needed by "channels I
+        // moderate", GET /helix/moderation/channels) is now unheld on every fresh login. It must surface here
+        // with its own named feature — not as a bare, undescribed scope string in the banner.
+        (ScopeNotificationService service, AuthDbContext db, _, _) = Build();
+        await SeedTwitchConnectionAsync(db, "user:read:chat", "user:write:chat", "user:read:email");
+
+        Result<MissingScopesDto> result = await service.GetMissingScopesAsync(Tenant);
+
+        MissingScopeDto moderated = result.Value.Scopes.Single(s =>
+            s.Scope == "user:read:moderated_channels"
+        );
+        moderated.Features.Should().Contain("moderated_channels");
+    }
+
+    [Fact]
     public async Task GetMissingScopes_WhenAllOfferedScopesGranted_IsEmpty()
     {
         (ScopeNotificationService service, AuthDbContext db, _, _) = Build();

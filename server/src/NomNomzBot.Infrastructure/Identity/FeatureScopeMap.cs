@@ -46,6 +46,10 @@ public static class FeatureScopeMap
         // so these entries mainly give a stale-token streamer a NAMED gap to grant rather than a raw scope row.
         ["management_roles"] = ["channel:read:editors"],
         ["bot_moderator"] = ["channel:manage:moderators"],
+        // Not a toggle the operator enables — it names the gap behind the channel switcher's "channels you
+        // moderate" list (aa506ff1 trimmed it out of the login base). Giving it a feature key here is what makes
+        // the existing generic missing-scope banner describe the gap instead of showing a bare scope string.
+        ["moderated_channels"] = ["user:read:moderated_channels"],
     };
 
     /// <summary>
@@ -82,6 +86,7 @@ public static class FeatureScopeMap
         ["chat_emotes"] = "show the emotes you can use across every channel you're subscribed to",
         ["management_roles"] = "sync your Twitch channel editors into dashboard roles",
         ["bot_moderator"] = "let your bot moderate chat by making it a channel moderator",
+        ["moderated_channels"] = "show the other channels you moderate in the channel switcher",
     };
 
     /// <summary>The scopes <paramref name="featureKey"/> needs, or an empty list when the feature is unknown.</summary>
