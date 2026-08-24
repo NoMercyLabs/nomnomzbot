@@ -238,6 +238,8 @@ internal sealed class QuoteTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineStepCondition> PipelineStepConditions =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineTrigger> PipelineTriggers =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineExecution> PipelineExecutions =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.ChannelBuiltinCommand> ChannelBuiltinCommands =>

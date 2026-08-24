@@ -270,6 +270,7 @@ internal sealed class SupporterTestDbContext : DbContext, IApplicationDbContext
     public DbSet<Pipeline> Pipelines => Set<Pipeline>();
     public DbSet<PipelineStep> PipelineSteps => throw new NotSupportedException();
     public DbSet<PipelineStepCondition> PipelineStepConditions => throw new NotSupportedException();
+    public DbSet<PipelineTrigger> PipelineTriggers => throw new NotSupportedException();
     public DbSet<PipelineExecution> PipelineExecutions => throw new NotSupportedException();
     public DbSet<ChannelBuiltinCommand> ChannelBuiltinCommands => throw new NotSupportedException();
     public DbSet<CommandCooldownState> CommandCooldownStates => throw new NotSupportedException();

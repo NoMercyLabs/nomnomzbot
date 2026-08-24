@@ -25,7 +25,26 @@ public class PipelineStepCondition : BaseEntity, ITenantScoped
     public Guid PipelineStepId { get; set; }
     public Guid BroadcasterId { get; set; }
 
-    /// <summary>Condition kind: user_role | random | var_compare | cooldown.</summary>
+    /// <summary>
+    /// Self-FK to the parent condition-tree node; null = root of this step's condition tree.
+    /// Schema: pipeline-tree-and-editor.md §1.2 (E2).
+    /// </summary>
+    public Guid? ParentConditionId { get; set; }
+
+    /// <summary>
+    /// Combinator for a group node's children: and | or. Set only on a group node (a row with
+    /// children and no <see cref="ConditionType"/>); null on a leaf node.
+    /// </summary>
+    [MaxLength(3)]
+    public string? GroupOp { get; set; }
+
+    /// <summary>
+    /// Condition kind: user_role | random | var_compare | cooldown. Empty string on a group node
+    /// (kept non-nullable — the column stays <c>NOT NULL</c> — so the existing engine/read-path
+    /// code that treats <see cref="ConditionType"/> as a required <see cref="string"/> keeps
+    /// compiling unmodified; a group node is identified by <see cref="GroupOp"/> being non-null,
+    /// not by a null <see cref="ConditionType"/>).
+    /// </summary>
     [MaxLength(40)]
     public string ConditionType { get; set; } = null!;
 

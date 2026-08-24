@@ -58,6 +58,13 @@ internal sealed class PipelineTestRunDbContext : DbContext, IApplicationDbContex
             e.HasKey(p => p.Id);
             e.Ignore(p => p.Channel);
             e.Ignore(p => p.Steps);
+            e.Ignore(p => p.Triggers);
+        });
+
+        b.Entity<PipelineTrigger>(e =>
+        {
+            e.HasKey(t => t.Id);
+            e.Ignore(t => t.Pipeline);
         });
 
         b.Entity<PipelineStep>(e =>
@@ -84,6 +91,7 @@ internal sealed class PipelineTestRunDbContext : DbContext, IApplicationDbContex
         typeof(NomNomzBot.Domain.Commands.Entities.Pipeline),
         typeof(PipelineStep),
         typeof(PipelineStepCondition),
+        typeof(PipelineTrigger),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -215,6 +223,7 @@ internal sealed class PipelineTestRunDbContext : DbContext, IApplicationDbContex
         Set<NomNomzBot.Domain.Commands.Entities.Pipeline>();
     public DbSet<PipelineStep> PipelineSteps => Set<PipelineStep>();
     public DbSet<PipelineStepCondition> PipelineStepConditions => Set<PipelineStepCondition>();
+    public DbSet<PipelineTrigger> PipelineTriggers => Set<PipelineTrigger>();
     public DbSet<PipelineExecution> PipelineExecutions => throw new NotSupportedException();
     public DbSet<ChannelBuiltinCommand> ChannelBuiltinCommands => throw new NotSupportedException();
     public DbSet<CommandCooldownState> CommandCooldownStates => throw new NotSupportedException();

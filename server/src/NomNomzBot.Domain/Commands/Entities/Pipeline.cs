@@ -54,6 +54,12 @@ public class Pipeline : SoftDeletableEntity, ITenantScoped
 
     public virtual ICollection<PipelineStep> Steps { get; set; } = [];
 
+    /// <summary>N independent trigger bindings (E1) — the source of truth once populated; see
+    /// <see cref="PipelineTrigger"/>. Empty until the pipeline is first saved by the new tree
+    /// editor (pipeline-tree-and-editor.md §6.1) — <see cref="TriggerKind"/> stays authoritative
+    /// for the dispatcher until then.</summary>
+    public virtual ICollection<PipelineTrigger> Triggers { get; set; } = [];
+
     [ForeignKey(nameof(BroadcasterId))]
     public virtual Channel Channel { get; set; } = null!;
 }

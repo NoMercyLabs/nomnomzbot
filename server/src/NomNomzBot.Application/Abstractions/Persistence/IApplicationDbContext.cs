@@ -126,6 +126,7 @@ public interface IApplicationDbContext
     DbSet<ScheduledPipelineTask> ScheduledPipelineTasks { get; }
     DbSet<PipelineStep> PipelineSteps { get; }
     DbSet<PipelineStepCondition> PipelineStepConditions { get; }
+    DbSet<PipelineTrigger> PipelineTriggers { get; }
     DbSet<PipelineExecution> PipelineExecutions { get; }
     DbSet<ChannelBuiltinCommand> ChannelBuiltinCommands { get; }
     DbSet<CommandCooldownState> CommandCooldownStates { get; }

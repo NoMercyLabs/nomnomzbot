@@ -22,7 +22,8 @@ public class PipelineStepConditionConfiguration : IEntityTypeConfiguration<Pipel
 
         builder.Property(e => e.PipelineStepId).IsRequired();
         builder.Property(e => e.BroadcasterId).IsRequired();
-        builder.Property(e => e.ConditionType).IsRequired().HasMaxLength(40);
+        builder.Property(e => e.ConditionType).IsRequired().HasMaxLength(40).HasDefaultValue("");
+        builder.Property(e => e.GroupOp).HasMaxLength(3);
         builder.Property(e => e.Operator).HasMaxLength(20);
         builder.Property(e => e.LeftOperand).HasMaxLength(500);
         builder.Property(e => e.RightOperand).HasMaxLength(500);
@@ -35,6 +36,18 @@ public class PipelineStepConditionConfiguration : IEntityTypeConfiguration<Pipel
             .HasForeignKey(e => e.PipelineStepId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        // Condition-tree self-FK (pipeline-tree-and-editor.md §1.2, E2). Restrict, not cascade —
+        // a parent-group delete goes through explicit subtree removal in the service layer, never
+        // an implicit multi-path cascade off the same table.
+        builder
+            .HasOne<PipelineStepCondition>()
+            .WithMany()
+            .HasForeignKey(e => e.ParentConditionId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasIndex(e => e.PipelineStepId).HasDatabaseName("IX_PipelineStepCondition_StepId");
+        builder
+            .HasIndex(e => e.ParentConditionId)
+            .HasDatabaseName("IX_PipelineStepCondition_ParentConditionId");
     }
 }

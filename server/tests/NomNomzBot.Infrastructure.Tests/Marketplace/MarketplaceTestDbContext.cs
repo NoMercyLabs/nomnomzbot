@@ -324,6 +324,7 @@ internal sealed class MarketplaceTestDbContext : DbContext, IApplicationDbContex
     public DbSet<WatchStreak> WatchStreaks => throw new NotSupportedException();
     public DbSet<PipelineStep> PipelineSteps => throw new NotSupportedException();
     public DbSet<PipelineStepCondition> PipelineStepConditions => throw new NotSupportedException();
+    public DbSet<PipelineTrigger> PipelineTriggers => throw new NotSupportedException();
     public DbSet<PipelineExecution> PipelineExecutions => throw new NotSupportedException();
     public DbSet<ChannelBuiltinCommand> ChannelBuiltinCommands => throw new NotSupportedException();
     public DbSet<CommandCooldownState> CommandCooldownStates => throw new NotSupportedException();
