@@ -89,10 +89,6 @@ stable — without dropping the planned requirements behind them.
 - **S043** "All helpers" dialog — shared `TemplateHelpersLink` + `Dialog` (search, namespace groups,
   insert) in every template field (commands, event responses, timers, rewards, pipelines, chat
   triggers, giveaways, Discord); en + nl descriptions; remove chip scroller (U·A7, W·§8 i7).
-- **S045** Action field schema — `PipelineActionDescriptorDto` carries fields/kinds/options; kinds
-  `number`, repeatable/segment, resource pickers (`discord_channel`, `discord_role`, `twitch_user`,
-  `reward`, `widget`, `voice`, `sound_clip`, `asset`); step form renders them (U·A6 i5, U·A5 i3,
-  U·B1 authoring). Done-when: no id/enum/number field in the catalogue renders as free text.
 - **S046** Authoring ergonomics — regex compile check in chat-trigger dialog; create-and-bind pipeline
   everywhere; timer picker + interval presets + `LastFiredAt`/next index; command rename; `code` tier
   links to Code Scripts; branching (`ParentStepId`/`Branch`) in the step dialog (U·B1, W·§6/§8 i6).
