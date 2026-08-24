@@ -35,10 +35,17 @@ import bot.nomnomz.dashboard.core.network.MissingScopes
 import bot.nomnomz.dashboard.core.network.SystemApi
 import bot.nomnomz.dashboard.core.network.SystemStatus
 import bot.nomnomz.dashboard.core.network.TwitchDiagnosticsApi
+import kotlinx.coroutines.CompletableJob
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.selects.select
 
 // The Connect screen's state-holder (frontend.md §4 — a plain holder, not a ViewModel). It owns the
 // backend-URL field + connect status and runs the REAL Twitch streamer onboarding:
@@ -94,6 +101,16 @@ class ConnectController(
     // The profile the user is onboarding against, pinned when the flow routes to setup so [signInStreamer]
     // can run the streamer OAuth against the same backend once the wizard finishes.
     private var pendingProfile: ConnectionProfile? = null
+
+    // The cancel signal for a pending web-redirect wait (the browser-back trap): "Continue with Twitch"
+    // navigates the page away, and on web the launcher call never resolves in-page — the session arrives on
+    // reload instead (see [ConnectLauncher.authorizeStreamer]). If the operator comes BACK via the browser's
+    // Back button, the page is NOT reloaded (bfcache), so that suspended call is still pinned in
+    // [ConnectStatus.AwaitingRedirect] forever unless something releases it. [awaitRedirectSession] races the
+    // launcher call against this signal (an explicit [cancelPendingLogin], or the operator starting the
+    // device-code flow instead — [connect]'s `forceDevice` path) and a hard timeout, so the wait can never
+    // become an unrecoverable dead end.
+    private var redirectCancelSignal: CompletableJob? = null
 
     /** The editable backend-URL field (frontend-structure.md §8 — default localhost, editable). */
     val baseUrl: StateFlow<String> = _baseUrl.asStateFlow()
@@ -202,9 +219,15 @@ class ConnectController(
      * the Setup wizard (fresh self-host). Errors surface on [status] and the gate stays on Connect.
      */
     suspend fun connect(forceDevice: Boolean = false) {
-        // Single-flight: never start a second device login while one is already in flight — a second poll loop
-        // would double the rate we hit the backend (and Twitch). The button is also disabled while busy.
-        if (loginInProgress()) return
+        // The device-code escape hatch always wins: it must be able to preempt a stuck web-redirect wait
+        // (the browser-back trap) rather than being refused by the single-flight guard below.
+        if (forceDevice) {
+            cancelPendingLogin()
+        } else if (loginInProgress()) {
+            // Single-flight: never start a second device login while one is already in flight — a second poll
+            // loop would double the rate we hit the backend (and Twitch). The button is also disabled while busy.
+            return
+        }
 
         val normalized: String? = normalizeBaseUrl(_baseUrl.value)
         if (normalized == null) {
@@ -301,9 +324,26 @@ class ConnectController(
         sessionStore.disconnect()
     }
 
-    /** True while a device login is connecting or awaiting approval — used to refuse a second concurrent login. */
+    /**
+     * True while a login is connecting, awaiting device approval, or waiting on a web redirect — used to
+     * refuse a second concurrent login. [connect]'s `forceDevice` path bypasses this via [cancelPendingLogin]
+     * so the device-code escape hatch is never blocked by a stuck redirect wait.
+     */
     private fun loginInProgress(): Boolean =
-        _status.value is ConnectStatus.Connecting || _status.value is ConnectStatus.AwaitingApproval
+        _status.value is ConnectStatus.Connecting ||
+            _status.value is ConnectStatus.AwaitingApproval ||
+            _status.value is ConnectStatus.AwaitingRedirect
+
+    /**
+     * Explicit escape hatch for a pending web-redirect wait — the browser-back trap: the operator hit
+     * browser Back after "Continue with Twitch" (or just gives up waiting) and needs a way out that isn't a
+     * permanent spinner. Releases [awaitRedirectSession]'s race, which returns the card to [ConnectStatus.Idle]
+     * with both sign-in options available again. A no-op when no redirect wait is pending (safe to wire to a
+     * Cancel affordance that only renders during [ConnectStatus.AwaitingRedirect]).
+     */
+    fun cancelPendingLogin() {
+        redirectCancelSignal?.complete()
+    }
 
     /**
      * The single onboarding flow shared by the typed ([connect]) and discovered ([connectTo]) paths: the
@@ -513,14 +553,7 @@ class ConnectController(
 
     /** Run the streamer OAuth dance against [profile] and establish the session on success. */
     private suspend fun runStreamerOAuth(profile: ConnectionProfile): Boolean =
-        when (val authResult: ApiResult<SessionTokens> = connectLauncher.authorizeStreamer(profile.baseUrl)) {
-            is ApiResult.Failure -> {
-                _status.value = ConnectStatus.Error(ConnectError.Auth(authResult.error.message))
-                false
-            }
-
-            is ApiResult.Ok -> establishSession(profile, authResult.value)
-        }
+        awaitRedirectSession(profile) { connectLauncher.authorizeStreamer(profile.baseUrl) }
 
     /**
      * Run the generic per-provider login redirect for [providerKey] against [profile] and establish the
@@ -529,17 +562,70 @@ class ConnectController(
      * reload; on desktop the loopback resolves with the tokens.
      */
     private suspend fun runProviderOAuth(profile: ConnectionProfile, providerKey: String): Boolean =
-        when (
-            val authResult: ApiResult<SessionTokens> =
-                connectLauncher.authorizeProvider(profile.baseUrl, providerKey)
-        ) {
-            is ApiResult.Failure -> {
-                _status.value = ConnectStatus.Error(ConnectError.Auth(authResult.error.message))
+        awaitRedirectSession(profile) { connectLauncher.authorizeProvider(profile.baseUrl, providerKey) }
+
+    /**
+     * Run [startRedirect] (a desktop-loopback OR web-redirect authorize call) as a bounded, cancellable wait:
+     * shows [ConnectStatus.AwaitingRedirect] and races the call against a hard timeout and
+     * [redirectCancelSignal] (armed for the duration of the wait). On web the call itself never resolves after
+     * a browser Back (the page is frozen, not reloaded — the real trap this guards against), so EITHER
+     * external release is what keeps the card from spinning forever:
+     *   - timeout: the operator never came back at all (a dead redirect — unregistered URI, a Twitch 502, ...)
+     *     → an honest [ConnectError.RedirectTimedOut], never an indefinite spinner.
+     *   - cancel: [cancelPendingLogin] (explicit "never mind") or [connect]'s `forceDevice` escape hatch
+     *     (start the device-code flow instead) → back to [ConnectStatus.Idle].
+     * The status guard at the end never clobbers a status a concurrent flow (the forceDevice escape hatch)
+     * already advanced past this wait.
+     */
+    private suspend fun awaitRedirectSession(
+        profile: ConnectionProfile,
+        startRedirect: suspend () -> ApiResult<SessionTokens>,
+    ): Boolean {
+        val cancelSignal: CompletableJob = Job()
+        redirectCancelSignal = cancelSignal
+        _status.value = ConnectStatus.AwaitingRedirect
+
+        val outcome: RedirectOutcome =
+            coroutineScope {
+                val redirectResult: Deferred<ApiResult<SessionTokens>> = async { startRedirect() }
+                val timeoutJob: Job = launch { delay(REDIRECT_WAIT_TIMEOUT_MS) }
+                select<RedirectOutcome> {
+                    redirectResult.onAwait { RedirectOutcome.Completed(it) }
+                    timeoutJob.onJoin { RedirectOutcome.TimedOut }
+                    cancelSignal.onJoin { RedirectOutcome.Cancelled }
+                }.also {
+                    redirectResult.cancel()
+                    timeoutJob.cancel()
+                }
+            }
+
+        if (redirectCancelSignal === cancelSignal) redirectCancelSignal = null
+
+        // A concurrent flow already resolved [status] past this wait (the forceDevice escape hatch runs its
+        // own login and sets AwaitingApproval/Idle before this coroutine gets to run again) — never clobber it.
+        if (_status.value !is ConnectStatus.AwaitingRedirect) return false
+
+        return when (outcome) {
+            is RedirectOutcome.Completed ->
+                when (val result: ApiResult<SessionTokens> = outcome.result) {
+                    is ApiResult.Ok -> establishSession(profile, result.value)
+                    is ApiResult.Failure -> {
+                        _status.value = ConnectStatus.Error(ConnectError.Auth(result.error.message))
+                        false
+                    }
+                }
+
+            RedirectOutcome.TimedOut -> {
+                _status.value = ConnectStatus.Error(ConnectError.RedirectTimedOut)
                 false
             }
 
-            is ApiResult.Ok -> establishSession(profile, authResult.value)
+            RedirectOutcome.Cancelled -> {
+                _status.value = ConnectStatus.Idle
+                false
+            }
         }
+    }
 
     /**
      * Complete a session from tokens captured outside the in-app launcher — the web post-redirect
@@ -704,7 +790,21 @@ class ConnectController(
         // The backend's IntegrationConnection.Status string when the Twitch token is dead/expired
         // (server-side AuthEnums.NeedsReauth) — the proactive reconnect prompt's trigger.
         const val TWITCH_NEEDS_REAUTH: String = "needs_reauth"
+
+        // The bound on [awaitRedirectSession]'s wait — long enough for a real Twitch approval (including
+        // typing 2FA), short enough that a dead redirect (unregistered URI, a Twitch 502, ...) resolves to an
+        // honest error within a session rather than spinning until the operator gives up and reloads.
+        const val REDIRECT_WAIT_TIMEOUT_MS: Long = 3 * 60 * 1_000
     }
+}
+
+/** How [ConnectController.awaitRedirectSession]'s race between the launcher call, a timeout, and an explicit cancel resolved. */
+private sealed interface RedirectOutcome {
+    data class Completed(val result: ApiResult<SessionTokens>) : RedirectOutcome
+
+    data object TimedOut : RedirectOutcome
+
+    data object Cancelled : RedirectOutcome
 }
 
 private fun CurrentUser.toSessionUser(): SessionUser =
@@ -728,6 +828,14 @@ sealed interface ConnectStatus {
      */
     data class AwaitingApproval(val userCode: String, val verificationUri: String) : ConnectStatus
 
+    /**
+     * Waiting on a redirect (Authorization Code) login: desktop resolves via the loopback; web navigates the
+     * page to Twitch and returns on reload — a browser Back resumes the frozen page WITHOUT that resolving
+     * (the trap this status exists to make escapable, not hide). The screen must keep the device-code option
+     * usable and offer an explicit cancel while in this state — see [ConnectController.cancelPendingLogin].
+     */
+    data object AwaitingRedirect : ConnectStatus
+
     data class Error(val error: ConnectError) : ConnectStatus
 }
 
@@ -745,6 +853,9 @@ sealed interface ConnectError {
 
     /** The login failed for an unexpected reason (malformed/authorized-without-tokens). */
     data object LoginFailed : ConnectError
+
+    /** A redirect (Authorization Code) login wasn't completed within [ConnectController]'s wait bound. */
+    data object RedirectTimedOut : ConnectError
 }
 
 /** Accept a host with or without a scheme; reject blanks. Returns the normalized `scheme://host[:port]`. */

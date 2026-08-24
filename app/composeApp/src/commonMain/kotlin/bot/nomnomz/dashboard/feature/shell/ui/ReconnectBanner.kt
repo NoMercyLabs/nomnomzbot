@@ -61,6 +61,7 @@ fun ReconnectBanner(
     val active: Boolean =
         status is ConnectStatus.Connecting ||
             status is ConnectStatus.AwaitingApproval ||
+            status is ConnectStatus.AwaitingRedirect ||
             status is ConnectStatus.Error
 
     AnimatedVisibility(visible = active, modifier = modifier) {

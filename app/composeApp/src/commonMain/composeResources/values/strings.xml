@@ -46,6 +46,8 @@
     <string name="connect_error_login_expired">The code expired before you approved it. Try again.</string>
     <string name="connect_error_login_denied">The login was declined on Twitch.</string>
     <string name="connect_error_login_failed">Login failed. Please try again.</string>
+    <string name="connect_error_redirect_timeout">Sign-in wasn't completed. Try again.</string>
+    <string name="connect_redirect_cancel">Cancel and try another way</string>
     <string name="connect_logo_cd_app">NomNomzBot logo</string>
     <string name="connect_modal_logo_separator_cd">connects to</string>
     <string name="connect_modal_back">Back</string>

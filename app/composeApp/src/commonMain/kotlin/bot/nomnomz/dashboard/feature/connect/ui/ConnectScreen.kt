@@ -72,7 +72,9 @@ import nomnomzbot.composeapp.generated.resources.connect_error_invalid_url
 import nomnomzbot.composeapp.generated.resources.connect_error_login_denied
 import nomnomzbot.composeapp.generated.resources.connect_error_login_expired
 import nomnomzbot.composeapp.generated.resources.connect_error_login_failed
+import nomnomzbot.composeapp.generated.resources.connect_error_redirect_timeout
 import nomnomzbot.composeapp.generated.resources.connect_modal_heading_first_login
+import nomnomzbot.composeapp.generated.resources.connect_redirect_cancel
 import nomnomzbot.composeapp.generated.resources.connect_saved_active_label
 import nomnomzbot.composeapp.generated.resources.connect_saved_add
 import nomnomzbot.composeapp.generated.resources.connect_saved_forget
@@ -109,7 +111,14 @@ fun ConnectScreen(controller: ConnectController) {
     val savedConnections: List<SavedConnection> by controller.savedConnections.collectAsStateWithLifecycle()
     val activeSavedConnectionId: String? by controller.activeSavedConnectionId.collectAsStateWithLifecycle()
     val busy: Boolean =
-        status is ConnectStatus.Connecting || status is ConnectStatus.AwaitingApproval
+        status is ConnectStatus.Connecting ||
+            status is ConnectStatus.AwaitingApproval ||
+            status is ConnectStatus.AwaitingRedirect
+
+    // The browser-back trap escape hatch (owner-reported): a pending web-redirect wait must never be a dead
+    // end. While it's live, the device-code option stays clickable (it preempts the wait — see
+    // ConnectController.connect's forceDevice path) even though everything else on the card is disabled.
+    val awaitingRedirect: Boolean = status is ConnectStatus.AwaitingRedirect
 
     // Endpoint-driven login: ask the backend which providers to offer (GET /api/v1/auth/providers) on first
     // composition, so the card renders one button per ENABLED provider instead of a hardcoded Twitch button.
@@ -211,12 +220,21 @@ fun ConnectScreen(controller: ConnectController) {
 
                 // Secondary path: force the device-code login even when the redirect flow is available. It needs
                 // no registered redirect URL on the Twitch app, so it's the resilient way in when the redirect
-                // callback isn't set up yet — the operator approves a code at twitch.tv/activate.
+                // callback isn't set up yet — the operator approves a code at twitch.tv/activate. Stays enabled
+                // during a pending redirect wait: it's the escape hatch out of it, not just an alternative.
                 TextButton(
                     onClick = { scope.launch { controller.connect(forceDevice = true) } },
-                    enabled = !busy,
+                    enabled = !busy || awaitingRedirect,
                 ) {
                     Text(stringResource(Res.string.connect_use_device_code))
+                }
+
+                // Explicit "never mind" for the same wait — returns the card to Idle without picking a new
+                // sign-in path, rather than leaving the operator with only a spinner and no way out.
+                if (awaitingRedirect) {
+                    TextButton(onClick = controller::cancelPendingLogin) {
+                        Text(stringResource(Res.string.connect_redirect_cancel))
+                    }
                 }
             }
 
@@ -549,7 +567,10 @@ private fun ConnectStatusRow(status: ConnectStatus) {
     val typography = LocalTypography.current
 
     when (status) {
-        is ConnectStatus.Connecting ->
+        // The redirect wait renders the SAME waiting indicator as generic Connecting — the operator can't
+        // tell (or need to) which phase of the dance is running; what matters is the escape hatch rendered
+        // alongside it above (device-code button stays enabled + the explicit cancel).
+        is ConnectStatus.Connecting, is ConnectStatus.AwaitingRedirect ->
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Spinner(modifier = Modifier.size(spacing.s6))
                 Text(
@@ -574,6 +595,8 @@ private fun ConnectStatusRow(status: ConnectStatus) {
                         stringResource(Res.string.connect_error_login_denied)
                     is ConnectError.LoginFailed ->
                         stringResource(Res.string.connect_error_login_failed)
+                    is ConnectError.RedirectTimedOut ->
+                        stringResource(Res.string.connect_error_redirect_timeout)
                 }
             Text(
                 text = message,

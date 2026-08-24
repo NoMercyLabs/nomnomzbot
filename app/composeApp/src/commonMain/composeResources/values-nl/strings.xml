@@ -43,6 +43,8 @@
     <string name="connect_error_login_expired">De code is verlopen voordat je hem goedkeurde. Probeer het opnieuw.</string>
     <string name="connect_error_login_denied">De aanmelding is op Twitch geweigerd.</string>
     <string name="connect_error_login_failed">Aanmelden mislukt. Probeer het opnieuw.</string>
+    <string name="connect_error_redirect_timeout">Aanmelden is niet voltooid. Probeer het opnieuw.</string>
+    <string name="connect_redirect_cancel">Annuleren en iets anders proberen</string>
     <string name="connect_logo_cd_app">NomNomzBot-logo</string>
     <string name="connect_modal_logo_separator_cd">maakt verbinding met</string>
     <string name="connect_modal_back">Terug</string>
