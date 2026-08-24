@@ -49555,6 +49555,162 @@
         }
       }
     },
+    "/api/v{version}/pipelines/options/{kind}": {
+      "get": {
+        "tags": [
+          "Pipelines"
+        ],
+        "summary": "The option list for one resource-picker kind (`reward`, `widget`, `voice`,\r\n`sound_clip`, `discord_channel`, `discord_role`, `twitch_user`, `asset`), paged\r\nand optionally search-filtered. A source that is not connected or could not be read comes back with\r\n`sourceAvailable: false` and a `unavailableReason` — never collapsed into an empty list.",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Page",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "Take",
+            "in": "query",
+            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "Sort",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Order",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfPipelineOptionListResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/pipelines": {
       "get": {
         "tags": [
@@ -75959,6 +76115,10 @@
           },
           "managed": {
             "type": "boolean"
+          },
+          "mentionable": {
+            "type": "boolean",
+            "default": false
           }
         },
         "description": "A live guild role, for the notify-role picker. `Managed` roles cannot be self-assigned."
@@ -83563,6 +83723,95 @@
         },
         "description": "Lightweight pipeline summary for list views."
       },
+      "PipelineOption": {
+        "required": [
+          "value",
+          "label",
+          "secondaryText",
+          "imageUrl",
+          "state"
+        ],
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string",
+            "description": "The stable id actually stored in the action's parameter (what gets persisted)."
+          },
+          "label": {
+            "type": "string",
+            "description": "Human-readable name shown in the picker."
+          },
+          "secondaryText": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "What genuinely identifies this item in context beyond the label (cost, locale, duration, login vs display\r\nname, …) — kind-specific, populated from the real source, never fabricated."
+          },
+          "imageUrl": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Optional preview/avatar/icon url; null when the source has none."
+          },
+          "state": {
+            "description": "Whether the item is currently pickable.",
+            "$ref": "#/components/schemas/PipelineOptionState"
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Populated when PipelineOptionState PipelineOption.State is PipelineOptionState.Unavailable."
+          }
+        },
+        "description": "One item a resource-picker field can offer, in the ONE generic shape every\r\nPipelineActionFieldKind resource-picker kind returns — never a bespoke DTO per kind."
+      },
+      "PipelineOptionListResult": {
+        "required": [
+          "sourceAvailable",
+          "unavailableReason",
+          "items",
+          "totalCount"
+        ],
+        "type": "object",
+        "properties": {
+          "sourceAvailable": {
+            "type": "boolean",
+            "description": "False when the underlying source is not connected/reachable for this tenant."
+          },
+          "unavailableReason": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Populated when bool PipelineOptionListResult.SourceAvailable is false."
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PipelineOption"
+            },
+            "description": "The page of options; empty (with bool PipelineOptionListResult.SourceAvailable true) is a real empty list."
+          },
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Total items matching the search, for pagination — 0 when unavailable.",
+            "format": "int32"
+          }
+        },
+        "description": "The result of resolving a picker kind's option list. bool PipelineOptionListResult.SourceAvailable distinguishes a\r\ngenuinely empty list (the tenant has zero rewards) from a source that could not be read at all (Discord not\r\nlinked, the guild call failed) — never collapsed into the same empty response (truthful-data rule)."
+      },
+      "PipelineOptionState": {
+        "type": "integer",
+        "description": "Whether one option can currently be picked (S-RICH-PICKERS)."
+      },
       "PipelineStepInput": {
         "required": [
           "actionType",
@@ -90466,6 +90715,36 @@
               },
               {
                 "$ref": "#/components/schemas/PipelineExecutionDetailDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfPipelineOptionListResult": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PipelineOptionListResult"
               }
             ]
           },

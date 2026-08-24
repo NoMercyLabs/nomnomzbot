@@ -250,6 +250,18 @@ public static class DependencyInjection
         );
         services.AddImplementationsOf<ICommandCondition>(infrastructure, ServiceLifetime.Transient);
 
+        // Pipeline resource-picker option providers (scoped — multi-binding consumed by the registry below,
+        // S-RICH-PICKERS). One implementation per PipelineActionFieldKind resource-picker kind; the registry
+        // keys them by Kind at construction, never a hand-written switch.
+        services.AddImplementationsOf<Application.Contracts.Pipeline.IPipelineOptionProvider>(
+            infrastructure,
+            ServiceLifetime.Scoped
+        );
+        services.AddScoped<
+            Application.Contracts.Pipeline.IPipelineOptionRegistry,
+            Platform.Pipeline.PipelineOptionRegistry
+        >();
+
         // Music providers (scoped — multi-binding consumed as IEnumerable<IMusicProvider>).
         services.AddImplementationsOf<IMusicProvider>(infrastructure, ServiceLifetime.Scoped);
 
