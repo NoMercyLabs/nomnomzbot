@@ -42,8 +42,6 @@ Slice IDs are stable; the order is the queue.
 
 ## Phase 2 — existing platforms made to work (Kick / YouTube are shipped features that are broken) — only the spine pieces these fixes REQUIRE
 
-- **S020** Registry bootstrap provider-agnostic + ctx ensured on the first message of any kind on
-  every ingest (U·C0/C2/C3). Done-when: Kick-only chatter gets welcome/triggers/timers without a `!cmd`.
 - **S021** Chat router by origin — `IChatProvider` platform-keyed, reply/send target = message
   provider, unknown provider = honest failure, never cached as Twitch (U·C0/C1). Done-when: a Kick
   `!uptime` answers on Kick while Twitch is also live.
