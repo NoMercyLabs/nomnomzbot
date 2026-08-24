@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
@@ -53,7 +54,8 @@ public sealed class AuthControllerDeviceLoginTests
             [impl],
             [],
             ext,
-            Substitute.For<ISessionService>()
+            Substitute.For<ISessionService>(),
+            Substitute.For<ISystemCredentialsProvider>()
         )
         {
             ControllerContext = new() { HttpContext = new DefaultHttpContext() },

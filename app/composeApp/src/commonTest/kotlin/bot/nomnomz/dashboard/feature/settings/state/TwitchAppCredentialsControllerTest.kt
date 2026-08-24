@@ -209,7 +209,7 @@ private class FakeSystemApi(
             return ApiResult.Failure(ApiError(status = 0, code = "X", message = statusError))
         }
         val twitch: Boolean = twitchConfiguredAfter ?: twitchConfigured
-        return ApiResult.Ok(SystemStatus(ready = twitch, checks = checks(twitch)))
+        return ApiResult.Ok(SystemStatus(onboardingComplete = twitch, checks = checks(twitch)))
     }
 
     override suspend fun saveTwitchCredentials(
@@ -228,13 +228,7 @@ private class FakeSystemApi(
 
     override suspend fun wizard(): ApiResult<SetupWizard> = ApiResult.Ok(SetupWizard(complete = false))
 
-    override suspend fun saveSpotifyCredentials(clientId: String, clientSecret: String): ApiResult<Unit> =
-        ApiResult.Ok(Unit)
-
-    override suspend fun saveYouTubeCredentials(clientId: String, clientSecret: String): ApiResult<Unit> =
-        ApiResult.Ok(Unit)
-
-    override suspend fun saveDiscordCredentials(clientId: String, clientSecret: String): ApiResult<Unit> =
+    override suspend fun saveCredentials(provider: String, clientId: String, clientSecret: String): ApiResult<Unit> =
         ApiResult.Ok(Unit)
 
     override suspend fun botOAuthUrl(): ApiResult<BotOAuthUrl> = ApiResult.Ok(BotOAuthUrl("https://unused"))

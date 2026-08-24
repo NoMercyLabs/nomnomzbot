@@ -99,24 +99,42 @@ public sealed class SetupWizardTests
     }
 
     [Fact]
-    public void Build_is_complete_with_a_secret_free_twitch_client_plus_the_bot()
+    public void Build_is_complete_on_a_secret_free_twitch_client_id_alone_with_no_bot()
     {
-        // The whole wizard is complete with a client id (no secret) + the bot authorized — a secret is never
-        // required for the system to be set up.
+        // Onboarding (Complete) is deployment-level configuration ONLY: a client id makes it done, full stop.
+        // The bot is per-channel work that happens after login — it must never gate onboarding completion,
+        // even though the wizard's own "platform_bot" step still separately tracks its own live state.
         SetupWizardDto wizard = SetupWizard.Build(
             hasTwitchClientId: true,
             hasTwitchSecret: false,
-            hasPlatformBot: true,
+            hasPlatformBot: false,
             hasSpotify: false,
             hasDiscord: false,
             hasYouTube: false,
             "https://bot.example"
         );
 
-        wizard.Complete.Should().BeTrue(); // both required steps done, secret-free
+        wizard.Complete.Should().BeTrue();
         wizard.Steps.Single(s => s.Key == "twitch_app").Complete.Should().BeTrue();
-        wizard.Steps.Single(s => s.Key == "platform_bot").Status.Should().Be("connected");
+        wizard.Steps.Single(s => s.Key == "platform_bot").Complete.Should().BeFalse();
+        wizard.Steps.Single(s => s.Key == "platform_bot").Status.Should().Be("disconnected");
         wizard.Steps.Single(s => s.Key == "spotify").Complete.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Build_is_not_complete_with_no_platform_credentials_at_all()
+    {
+        SetupWizardDto wizard = SetupWizard.Build(
+            hasTwitchClientId: false,
+            hasTwitchSecret: false,
+            hasPlatformBot: false,
+            hasSpotify: false,
+            hasDiscord: false,
+            hasYouTube: false,
+            "https://bot.example"
+        );
+
+        wizard.Complete.Should().BeFalse();
     }
 
     [Fact]

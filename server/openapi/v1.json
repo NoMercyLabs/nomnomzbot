@@ -5606,7 +5606,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Begin the bot-account device login (no secret). The operator approves the bot's own Twitch account at\r\ntwitch.tv/activate and the client polls until connected. Admin-gated — the streamer is already signed in\r\nwhen they add a bot account (Streamer.bot parity).",
+        "summary": "Begin the bot-account device login (no secret). The operator approves the bot's own Twitch account at\r\ntwitch.tv/activate and the client polls until connected. Admin-gated once setup is complete (adding/\r\nreplacing a bot later, from Settings) — but the first-time setup wizard authorizes the bot BEFORE the\r\nstreamer signs in, so this stays anonymous during that bootstrap window, exactly the same \"open until\r\nsetup finishes\" gate SystemController's setup/* endpoints already use.",
         "parameters": [
           {
             "name": "version",
@@ -5696,7 +5696,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Poll a bot device login once; on `authorized` the shared bot account is connected + vaulted.",
+        "summary": "Poll a bot device login once; on `authorized` the shared bot account is connected + vaulted. Open\r\nduring the same setup bootstrap window as Task&lt;IActionResult&gt; AuthController.StartBotDeviceLogin(CancellationToken ct) — see its remarks.",
         "parameters": [
           {
             "name": "version",
@@ -92436,18 +92436,19 @@
       },
       "SystemStatusDto": {
         "required": [
-          "ready",
+          "onboardingComplete",
           "checks"
         ],
         "type": "object",
         "properties": {
-          "ready": {
+          "onboardingComplete": {
             "type": "boolean"
           },
           "checks": {
             "$ref": "#/components/schemas/SystemChecks"
           }
-        }
+        },
+        "description": "bool SystemStatusDto.OnboardingComplete is the ONLY gate the client routes onboarding vs. login off. It means\r\nexactly \"at least one platform's app credentials are configured\" — deployment-level setup, not who is\r\nsigned in and not whether the platform bot is authorized. Bot authorization is per-channel work that\r\nhappens after login; its live state is CheckItem SystemChecks.PlatformBot, reported separately so\r\nthe wizard can still show it without it ever blocking the client from reaching the login screen."
       },
       "TenantAccessGrantDto": {
         "required": [

@@ -129,6 +129,21 @@ class SetupControllerTest {
     }
 
     @Test
+    fun ready_to_sign_in_never_requires_the_platform_bot() = runTest {
+        // Onboarding (the wizard's Complete gate) is deployment config ONLY: a Twitch client id makes the
+        // flow ready to sign in even with the bot never authorized — bot authorization is per-channel work
+        // that happens after login, not a reason to keep the operator from reaching sign-in.
+        val api = FakeSystemApi(wizard = wizard(twitch = true, bot = false), ready = false)
+        val controller = controller(api)
+
+        controller.load()
+
+        val steps: SetupState.Steps = controller.state.value as SetupState.Steps
+        assertTrue(steps.ready)
+        assertFalse(steps.steps.first { it.key == "platform_bot" }.complete)
+    }
+
+    @Test
     fun with_a_client_id_already_stored_the_form_never_re_asks_and_a_reload_keeps_it_that_way() = runTest {
         // Once the backend reports the Twitch app step complete (a client id is already stored), the wizard
         // must never re-present the credentials form — it reads the DONE state straight from the backend
@@ -162,7 +177,7 @@ class SetupControllerTest {
         // The steps are rendered verbatim from the backend wizard (the self-describing contract).
         assertEquals(listOf("twitch_app", "platform_bot", "spotify"), steps.steps.map { it.key })
         assertFalse(steps.steps.first { it.key == "twitch_app" }.complete)
-        // status.ready==false ⇒ the streamer sign-in must NOT be enabled yet (the gap being closed).
+        // wizard.complete==false ⇒ the streamer sign-in must NOT be enabled yet (the gap being closed).
         assertFalse(steps.ready)
     }
 
@@ -544,7 +559,7 @@ private fun wizard(twitch: Boolean, bot: Boolean, spotify: Boolean = false): Set
     val saveCreds = SetupAction("save_credentials", "PUT", "/api/v1/system/setup/credentials/twitch", null)
     val botAction = SetupAction("oauth_redirect", "GET", "/api/v1/system/setup/bot/oauth-url", "/api/v1/system/setup/bot/status")
     return SetupWizard(
-        complete = twitch && bot,
+        complete = twitch,
         steps =
             listOf(
                 SetupStep(
@@ -627,7 +642,7 @@ private class FakeSystemApi(
         val w: SetupWizard = wizardAfter ?: wizard
         val twitch: Boolean = w.steps.first { it.key == "twitch_app" }.complete
         val bot: Boolean = w.steps.first { it.key == "platform_bot" }.complete
-        return ApiResult.Ok(SystemStatus(ready = isReady, checks = checks(twitch, bot)))
+        return ApiResult.Ok(SystemStatus(onboardingComplete = isReady, checks = checks(twitch, bot)))
     }
 
     override suspend fun wizard(): ApiResult<SetupWizard> = ApiResult.Ok(wizardAfter ?: wizard)
@@ -643,16 +658,10 @@ private class FakeSystemApi(
         return ApiResult.Ok(Unit)
     }
 
-    override suspend fun saveSpotifyCredentials(clientId: String, clientSecret: String): ApiResult<Unit> {
-        savedSpotify = clientId to clientSecret
+    override suspend fun saveCredentials(provider: String, clientId: String, clientSecret: String): ApiResult<Unit> {
+        if (provider == "spotify") savedSpotify = clientId to clientSecret
         return ApiResult.Ok(Unit)
     }
-
-    override suspend fun saveYouTubeCredentials(clientId: String, clientSecret: String): ApiResult<Unit> =
-        ApiResult.Ok(Unit)
-
-    override suspend fun saveDiscordCredentials(clientId: String, clientSecret: String): ApiResult<Unit> =
-        ApiResult.Ok(Unit)
 
     override suspend fun botOAuthUrl(): ApiResult<BotOAuthUrl> = ApiResult.Ok(BotOAuthUrl(botOAuthUrl))
 

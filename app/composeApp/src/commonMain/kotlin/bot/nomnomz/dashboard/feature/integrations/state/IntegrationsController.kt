@@ -211,9 +211,7 @@ class IntegrationsController(
 
         val result: ApiResult<Unit> =
             when (provider.lowercase()) {
-                "spotify" -> systemApi.saveSpotifyCredentials(id, clientSecret.trim())
-                "youtube" -> systemApi.saveYouTubeCredentials(id, clientSecret.trim())
-                "discord" -> systemApi.saveDiscordCredentials(id, clientSecret.trim())
+                "spotify", "youtube", "discord" -> systemApi.saveCredentials(provider.lowercase(), id, clientSecret.trim())
                 else -> return false
             }
 

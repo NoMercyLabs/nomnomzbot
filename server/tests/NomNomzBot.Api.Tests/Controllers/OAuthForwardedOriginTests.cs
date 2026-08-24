@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Api.Controllers.V1;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
 using NomNomzBot.Application.Identity.Services;
@@ -64,7 +65,8 @@ public sealed class OAuthForwardedOriginTests
             [],
             [],
             Substitute.For<IExternalLoginService>(),
-            Substitute.For<ISessionService>()
+            Substitute.For<ISessionService>(),
+            Substitute.For<ISystemCredentialsProvider>()
         )
         {
             ControllerContext = ForwardedContext(),
@@ -122,7 +124,8 @@ public sealed class OAuthForwardedOriginTests
             [],
             [],
             Substitute.For<IExternalLoginService>(),
-            Substitute.For<ISessionService>()
+            Substitute.For<ISessionService>(),
+            Substitute.For<ISystemCredentialsProvider>()
         )
         {
             ControllerContext = ForwardedContext(),

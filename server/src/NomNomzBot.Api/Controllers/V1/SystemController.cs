@@ -64,7 +64,14 @@ public class SystemController : BaseController
 
     // ── DTOs ──────────────────────────────────────────────────────────────────
 
-    public record SystemStatusDto(bool Ready, SystemChecks Checks);
+    /// <summary>
+    /// <see cref="OnboardingComplete"/> is the ONLY gate the client routes onboarding vs. login off. It means
+    /// exactly "at least one platform's app credentials are configured" — deployment-level setup, not who is
+    /// signed in and not whether the platform bot is authorized. Bot authorization is per-channel work that
+    /// happens after login; its live state is <see cref="SystemChecks.PlatformBot"/>, reported separately so
+    /// the wizard can still show it without it ever blocking the client from reaching the login screen.
+    /// </summary>
+    public record SystemStatusDto(bool OnboardingComplete, SystemChecks Checks);
 
     public record SystemChecks(
         CheckItem TwitchApp,
@@ -103,10 +110,12 @@ public class SystemController : BaseController
         bool hasDiscord = st.HasDiscord;
         bool hasYouTube = st.HasYouTube;
 
-        // The system is ready once Twitch is USABLE (a client id — the bot logs in and talks via the secret-free
-        // Device Code Flow) and the platform bot is authorized. A client secret is NOT required for readiness; it
-        // only adds the one-tap redirect sign-in. A missing client id is still not-ready; a missing secret is not.
-        bool ready = hasTwitchClientId && hasPlatformBot;
+        // Onboarding is deployment-level configuration ONLY: at least one platform's app credentials configured
+        // (today just Twitch — kick/youtube/twitter join this OR as they land). It is NOT gated on the platform
+        // bot: bot authorization is per-channel work that belongs after login, never a reason to keep the
+        // operator locked out of the login screen. A client secret is never required either — the client id
+        // alone is enough via the secret-free Device Code Flow.
+        bool onboardingComplete = hasTwitchClientId;
 
         SystemChecks checks = new(
             // Ok = redirect-capable (secret present); Ready = usable now (client id present → device-code works).
@@ -160,7 +169,9 @@ public class SystemController : BaseController
             )
         );
 
-        return Ok(new StatusResponseDto<SystemStatusDto> { Data = new(ready, checks) });
+        return Ok(
+            new StatusResponseDto<SystemStatusDto> { Data = new(onboardingComplete, checks) }
+        );
     }
 
     /// <summary>

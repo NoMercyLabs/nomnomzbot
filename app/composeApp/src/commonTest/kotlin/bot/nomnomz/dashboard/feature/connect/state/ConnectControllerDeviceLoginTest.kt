@@ -641,7 +641,7 @@ private class FakeSystemApi(
         } else {
             ApiResult.Ok(
                 SystemStatus(
-                    ready = ready,
+                    onboardingComplete = ready,
                     checks =
                         SystemChecks(
                             twitchApp =
@@ -669,17 +669,8 @@ private class FakeSystemApi(
         botUsername: String?,
     ): ApiResult<Unit> = ApiResult.Ok(Unit)
 
-    override suspend fun saveSpotifyCredentials(
-        clientId: String,
-        clientSecret: String,
-    ): ApiResult<Unit> = ApiResult.Ok(Unit)
-
-    override suspend fun saveYouTubeCredentials(
-        clientId: String,
-        clientSecret: String,
-    ): ApiResult<Unit> = ApiResult.Ok(Unit)
-
-    override suspend fun saveDiscordCredentials(
+    override suspend fun saveCredentials(
+        provider: String,
         clientId: String,
         clientSecret: String,
     ): ApiResult<Unit> = ApiResult.Ok(Unit)

@@ -327,11 +327,12 @@ class ConnectController(
             }
 
             is ApiResult.Ok -> {
-                // A fresh self-host bot whose Twitch app (and/or platform bot) isn't configured yet can't start
-                // ANY Twitch OAuth — `ready == false` is the single gate that routes onboarding to the first-run
-                // Setup wizard instead (SystemStatusDto.ready). `pendingProfile` is already pinned above, so the
-                // wizard's finish() → [signInStreamer] runs this same streamer OAuth once the backend reports ready.
-                if (!statusResult.value.ready) {
+                // A fresh self-host bot with NO platform app configured yet can't start ANY Twitch OAuth —
+                // `onboardingComplete == false` is the single gate that routes to the first-run Setup wizard
+                // instead (SystemStatusDto.OnboardingComplete — deployment config only, never gated on the
+                // platform bot). `pendingProfile` is already pinned above, so the wizard's finish() →
+                // [signInStreamer] runs this same streamer OAuth once the backend reports onboarding done.
+                if (!statusResult.value.onboardingComplete) {
                     _status.value = ConnectStatus.Idle
                     sessionStore.enterSetup(profile)
                     return

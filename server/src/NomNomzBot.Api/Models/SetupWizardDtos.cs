@@ -211,6 +211,10 @@ public static class SetupWizard
             ),
         ];
 
-        return new(hasTwitchClientId && hasPlatformBot, steps);
+        // Complete = onboarding done = at least one platform's app credentials configured (today just Twitch's
+        // client id — a secret is optional). Mirrors SystemController.GetStatus's OnboardingComplete exactly;
+        // the platform bot is NOT part of this — it's per-channel work the wizard's own "platform_bot" step
+        // still tracks (see its own Complete/Status above), never a reason to keep onboarding "not done".
+        return new(hasTwitchClientId, steps);
     }
 }

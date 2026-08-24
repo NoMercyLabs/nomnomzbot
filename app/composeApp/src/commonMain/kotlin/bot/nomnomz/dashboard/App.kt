@@ -106,19 +106,23 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
             delay(SPLASH_HOLD_MS)
             restore?.join()
 
-            // Self-host BYOC-first gate: before the operator ever sees a Twitch sign-in affordance
-            // (Landing's "Get started" -> Connect's login button), find out whether the bot's Twitch app
-            // is even configured. A fresh self-host has no client id yet, so its login can't work at
-            // all — probe readiness now (web is single-origin: servedOriginProfile() is exactly the
-            // backend that served this page) and route straight to the Setup wizard instead of ever
-            // rendering the sign-in affordance. Native's multi-origin picker has no fixed backend to probe
-            // here, so it still falls through to Connect where the operator types one first.
+            // Onboarding-first gate: before the operator ever sees a Twitch sign-in affordance (Landing's
+            // "Get started" -> Connect's login button), find out whether deployment-level onboarding — at
+            // least one platform's app credentials — is even done. A fresh self-host has none yet, so its
+            // login can't work at all — probe onboarding status now (web is single-origin:
+            // servedOriginProfile() is exactly the backend that served this page) and route straight to the
+            // Setup wizard instead of ever rendering the sign-in affordance. Once onboarding is done this
+            // ALWAYS falls through to the normal auth tiers below (remembered session -> login) — it is never
+            // gated on the platform bot, which is per-channel work that happens after login. Native's
+            // multi-origin picker has no fixed backend to probe here, so it still falls through to Connect
+            // where the operator types one first.
             if (graph.sessionStore.phase.value == SessionPhase.NotConnected) {
                 val servedProfile = servedOriginProfile()
                 if (servedProfile != null) {
                     graph.sessionStore.pin(servedProfile)
                     when (val result: ApiResult<SystemStatus> = graph.systemApi.status()) {
-                        is ApiResult.Ok -> if (!result.value.ready) graph.sessionStore.enterSetup(servedProfile)
+                        is ApiResult.Ok ->
+                            if (!result.value.onboardingComplete) graph.sessionStore.enterSetup(servedProfile)
                         is ApiResult.Failure -> Unit
                     }
                 }

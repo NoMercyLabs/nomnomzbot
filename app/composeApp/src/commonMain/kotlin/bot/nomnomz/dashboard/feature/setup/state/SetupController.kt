@@ -22,7 +22,6 @@ import bot.nomnomz.dashboard.core.network.DeviceCodeStart
 import bot.nomnomz.dashboard.core.network.SetupStep
 import bot.nomnomz.dashboard.core.network.SetupWizard
 import bot.nomnomz.dashboard.core.network.SystemApi
-import bot.nomnomz.dashboard.core.network.SystemStatus
 import bot.nomnomz.dashboard.core.network.UpdateBasicsBody
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,14 +32,15 @@ import kotlinx.coroutines.flow.asStateFlow
 // the self-describing wizard (loaded from the backend), the per-step credential inputs, and the busy /
 // error state, and runs the REAL onboarding against the chosen backend through the typed [SystemApi]:
 //
-//   load() → GET …/setup/wizard + GET …/status  (the steps + the ready gate, rendered verbatim)
+//   load() → GET …/setup/wizard  (the steps + the wizard's own Complete gate, rendered verbatim)
 //   saveCredentials(step) → PUT …/setup/credentials/{provider} → reload (the step flips to complete)
 //   connectBot() → GET …/setup/bot/oauth-url → open it → poll …/setup/bot/status → reload
 //   finish() → run the streamer OAuth via [onReadyToSignIn] → POST …/setup/complete
 //
-// Nothing is faked: a step is "complete" only when the backend's reloaded wizard/status says so — never an
-// optimistic local flip. The flow advances to the streamer sign-in only once [SystemStatus.ready] is true
-// (Twitch app + platform bot both configured), which the backend computes.
+// Nothing is faked: a step is "complete" only when the backend's reloaded wizard says so — never an
+// optimistic local flip. The flow advances to the streamer sign-in only once [SetupWizard.complete] is true
+// (a platform's app credentials configured — never gated on the platform bot, which the wizard's own
+// "platform_bot" step tracks separately), which the backend computes.
 class SetupController(
     private val systemApi: SystemApi,
     private val connectLauncher: ConnectLauncher,
@@ -128,19 +128,19 @@ class SetupController(
             return
         }
 
+        // Twitch is the one step with a shape of its own (secret-optional + a bot-username field); every other
+        // `save_credentials` step — spotify/discord/youtube today, a future kick/twitter/… login platform's
+        // app-credential step tomorrow — saves through the SAME generic provider call keyed by step.key, so
+        // adding one is a backend wizard-step registration, never a new branch here.
         val result: ApiResult<Unit> =
-            when (step.key) {
-                STEP_TWITCH ->
-                    systemApi.saveTwitchCredentials(
-                        clientId = clientId,
-                        clientSecret = clientSecret,
-                        botUsername = valueOf(step.key, FIELD_BOT_USERNAME).trim().ifEmpty { null },
-                    )
-                STEP_SPOTIFY -> systemApi.saveSpotifyCredentials(clientId, clientSecret)
-                STEP_YOUTUBE -> systemApi.saveYouTubeCredentials(clientId, clientSecret)
-                STEP_DISCORD -> systemApi.saveDiscordCredentials(clientId, clientSecret)
-                else -> ApiResult.Failure(saveUnsupported(step.key))
-            }
+            if (step.key == STEP_TWITCH)
+                systemApi.saveTwitchCredentials(
+                    clientId = clientId,
+                    clientSecret = clientSecret,
+                    botUsername = valueOf(step.key, FIELD_BOT_USERNAME).trim().ifEmpty { null },
+                )
+            else
+                systemApi.saveCredentials(step.key, clientId, clientSecret)
 
         when (result) {
             is ApiResult.Failure -> _state.value = current.copy(busy = null, error = SetupError.Save(step.key, result.error.message))
@@ -287,11 +287,10 @@ class SetupController(
                 is ApiResult.Ok -> result.value
             }
 
-        val ready: Boolean =
-            when (val result: ApiResult<SystemStatus> = systemApi.status()) {
-                is ApiResult.Failure -> wizard.complete
-                is ApiResult.Ok -> result.value.ready
-            }
+        // The wizard's own [SetupWizardDto.Complete] (a client id present) IS the ready-to-sign-in gate —
+        // never gated on the platform bot, which is per-channel work the "platform_bot" step tracks on its
+        // own. No separate status() call is needed here; the wizard's re-read is already the source of truth.
+        val ready: Boolean = wizard.complete
 
         // Keep the user on their current step across a reload; clamp in case the step count shrank.
         val priorStep: Int = (_state.value as? SetupState.Steps)?.currentStep ?: 0

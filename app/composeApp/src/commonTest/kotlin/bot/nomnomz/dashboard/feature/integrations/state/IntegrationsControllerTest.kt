@@ -725,7 +725,7 @@ private class FakeSystemApi(
     override suspend fun status(): ApiResult<SystemStatus> =
         ApiResult.Ok(
             SystemStatus(
-                ready = true,
+                onboardingComplete = true,
                 checks =
                     SystemChecks(
                         twitchApp =
@@ -749,23 +749,19 @@ private class FakeSystemApi(
         botUsername: String?,
     ): ApiResult<Unit> = ApiResult.Ok(Unit)
 
-    override suspend fun saveSpotifyCredentials(clientId: String, clientSecret: String): ApiResult<Unit> {
+    override suspend fun saveCredentials(provider: String, clientId: String, clientSecret: String): ApiResult<Unit> {
         if (!saveSucceeds) return ApiResult.Failure(ApiError(403, "FORBIDDEN", "Not allowed."))
-        savedSpotify = clientId to clientSecret
-        spotifyOk = true
-        return ApiResult.Ok(Unit)
-    }
-
-    override suspend fun saveYouTubeCredentials(clientId: String, clientSecret: String): ApiResult<Unit> {
-        if (!saveSucceeds) return ApiResult.Failure(ApiError(403, "FORBIDDEN", "Not allowed."))
-        savedYouTube = clientId to clientSecret
-        return ApiResult.Ok(Unit)
-    }
-
-    override suspend fun saveDiscordCredentials(clientId: String, clientSecret: String): ApiResult<Unit> {
-        if (!saveSucceeds) return ApiResult.Failure(ApiError(403, "FORBIDDEN", "Not allowed."))
-        savedDiscord = clientId to clientSecret
-        discordOk = true
+        when (provider) {
+            "spotify" -> {
+                savedSpotify = clientId to clientSecret
+                spotifyOk = true
+            }
+            "youtube" -> savedYouTube = clientId to clientSecret
+            "discord" -> {
+                savedDiscord = clientId to clientSecret
+                discordOk = true
+            }
+        }
         return ApiResult.Ok(Unit)
     }
 

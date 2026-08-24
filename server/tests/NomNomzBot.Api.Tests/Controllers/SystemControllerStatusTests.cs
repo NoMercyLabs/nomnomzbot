@@ -45,7 +45,7 @@ public sealed class SystemControllerStatusTests
 
         SystemController.SystemStatusDto status = await ReadStatus(controller);
 
-        status.Ready.Should().BeTrue();
+        status.OnboardingComplete.Should().BeTrue();
         status.Checks.TwitchApp.Ready.Should().BeTrue();
         status.Checks.TwitchApp.Ok.Should().BeFalse(); // no secret ⇒ no redirect login, only device-code
         status.Checks.TwitchApp.Status.Should().Be("ready_device");
@@ -63,7 +63,7 @@ public sealed class SystemControllerStatusTests
 
         SystemController.SystemStatusDto status = await ReadStatus(controller);
 
-        status.Ready.Should().BeTrue();
+        status.OnboardingComplete.Should().BeTrue();
         status.Checks.TwitchApp.Ready.Should().BeTrue();
         status.Checks.TwitchApp.Ok.Should().BeTrue();
         status.Checks.TwitchApp.Status.Should().Be("ready_redirect");
@@ -78,16 +78,19 @@ public sealed class SystemControllerStatusTests
 
         SystemController.SystemStatusDto status = await ReadStatus(controller);
 
-        status.Ready.Should().BeFalse();
+        status.OnboardingComplete.Should().BeFalse();
         status.Checks.TwitchApp.Ready.Should().BeFalse();
         status.Checks.TwitchApp.Ok.Should().BeFalse();
         status.Checks.TwitchApp.Status.Should().Be("missing");
     }
 
     [Fact]
-    public async Task Status_is_not_ready_when_the_bot_is_not_authorized_even_with_a_client_id()
+    public async Task Onboarding_is_complete_with_a_client_id_alone_even_with_no_bot_authorized()
     {
-        // Readiness still requires the platform bot; a usable Twitch client alone is not enough.
+        // The keystone of the login-lockout fix: onboarding (OnboardingComplete) is deployment-level
+        // configuration ONLY. Bot authorization is per-channel work that happens after login, so it must
+        // NEVER gate reaching the login screen — even though the bot's own live state is still reported,
+        // separately and honestly, in PlatformBot.
         (SystemController controller, _) = Build(
             clientId: "abc123",
             secret: null,
@@ -96,9 +99,20 @@ public sealed class SystemControllerStatusTests
 
         SystemController.SystemStatusDto status = await ReadStatus(controller);
 
-        status.Ready.Should().BeFalse();
-        status.Checks.TwitchApp.Ready.Should().BeTrue(); // Twitch itself is usable...
-        status.Checks.PlatformBot.Ok.Should().BeFalse(); // ...but the bot isn't connected.
+        status.OnboardingComplete.Should().BeTrue();
+        status.Checks.TwitchApp.Ready.Should().BeTrue();
+        status.Checks.PlatformBot.Ok.Should().BeFalse();
+        status.Checks.PlatformBot.Status.Should().Be("disconnected");
+    }
+
+    [Fact]
+    public async Task Onboarding_is_not_complete_with_no_platform_credentials_at_all()
+    {
+        (SystemController controller, _) = Build(clientId: null, secret: null, botConnected: false);
+
+        SystemController.SystemStatusDto status = await ReadStatus(controller);
+
+        status.OnboardingComplete.Should().BeFalse();
     }
 
     // ─── scaffolding ───────────────────────────────────────────────────────────

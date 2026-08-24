@@ -17,37 +17,38 @@ package bot.nomnomz.dashboard.core.network
 // so it fakes the API in tests without HTTP.
 //
 // Backend routes (SystemController, all [AllowAnonymous] during the first-run window):
-//   GET  /api/v1/system/status                         → StatusResponseDto<SystemStatusDto>
-//   GET  /api/v1/system/setup/wizard                   → StatusResponseDto<SetupWizardDto>
-//   PUT  /api/v1/system/setup/credentials/twitch       (clientId, clientSecret, botUsername?)
-//   PUT  /api/v1/system/setup/credentials/spotify      (clientId, clientSecret)
-//   PUT  /api/v1/system/setup/credentials/youtube      (clientId, clientSecret)
-//   PUT  /api/v1/system/setup/credentials/discord      (clientId, clientSecret)
-//   GET  /api/v1/system/setup/bot/oauth-url            → StatusResponseDto<{ oauthUrl }>
-//   GET  /api/v1/system/setup/bot/status               → StatusResponseDto<BotStatusDto>
+//   GET  /api/v1/system/status                          → StatusResponseDto<SystemStatusDto>
+//   GET  /api/v1/system/setup/wizard                    → StatusResponseDto<SetupWizardDto>
+//   PUT  /api/v1/system/setup/credentials/twitch        (clientId, clientSecret, botUsername?)
+//   PUT  /api/v1/system/setup/credentials/{provider}    (clientId, clientSecret) — spotify/discord/youtube
+//                                                          today; a future login platform (kick/twitter/…)
+//                                                          registers the SAME shape, no new client code.
+//   GET  /api/v1/system/setup/bot/oauth-url             → StatusResponseDto<{ oauthUrl }>
+//   GET  /api/v1/system/setup/bot/status                → StatusResponseDto<BotStatusDto>
 //   POST /api/v1/system/setup/complete
 interface SystemApi {
-    /** System readiness — the [SystemStatus.ready] gate the onboarding flow routes on. */
+    /** System readiness — the [SystemStatus.onboardingComplete] gate the app routes onboarding vs. login off. */
     suspend fun status(): ApiResult<SystemStatus>
 
     /** The self-describing wizard the UI renders the whole first-run flow from. */
     suspend fun wizard(): ApiResult<SetupWizard>
 
-    /** Save the platform Twitch app credentials (Client ID/Secret + optional bot username). */
+    /** Save the platform Twitch app credentials (Client ID/Secret + optional bot username) — the one step with
+     * a shape of its own (secret-optional, extra bot-username field). */
     suspend fun saveTwitchCredentials(
         clientId: String,
         clientSecret: String,
         botUsername: String?,
     ): ApiResult<Unit>
 
-    /** Save the optional Spotify app credentials. */
-    suspend fun saveSpotifyCredentials(clientId: String, clientSecret: String): ApiResult<Unit>
-
-    /** Save the optional YouTube app credentials. */
-    suspend fun saveYouTubeCredentials(clientId: String, clientSecret: String): ApiResult<Unit>
-
-    /** Save the optional Discord app credentials. */
-    suspend fun saveDiscordCredentials(clientId: String, clientSecret: String): ApiResult<Unit>
+    /**
+     * Save a generic provider's app credentials by its step [provider] key (`spotify`, `discord`, `youtube`
+     * today). PUTs to `/api/v1/system/setup/credentials/{provider}` — the same route shape every
+     * `save_credentials` step in the wizard uses, so a NEW step (a future kick/twitter/youtube LOGIN
+     * platform's app-credential step) needs no new method here: the backend adding the step to its wizard
+     * response is enough for the client to render and save it.
+     */
+    suspend fun saveCredentials(provider: String, clientId: String, clientSecret: String): ApiResult<Unit>
 
     /** The authorize URL to open for the platform bot account; the callback vaults the token server-side. */
     suspend fun botOAuthUrl(): ApiResult<BotOAuthUrl>
@@ -84,22 +85,7 @@ class RestSystemApi(private val client: ApiClient) : SystemApi {
             ),
         )
 
-    override suspend fun saveSpotifyCredentials(
-        clientId: String,
-        clientSecret: String,
-    ): ApiResult<Unit> = saveGenericCredentials("spotify", clientId, clientSecret)
-
-    override suspend fun saveYouTubeCredentials(
-        clientId: String,
-        clientSecret: String,
-    ): ApiResult<Unit> = saveGenericCredentials("youtube", clientId, clientSecret)
-
-    override suspend fun saveDiscordCredentials(
-        clientId: String,
-        clientSecret: String,
-    ): ApiResult<Unit> = saveGenericCredentials("discord", clientId, clientSecret)
-
-    private suspend fun saveGenericCredentials(
+    override suspend fun saveCredentials(
         provider: String,
         clientId: String,
         clientSecret: String,

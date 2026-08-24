@@ -18,13 +18,15 @@ import kotlinx.serialization.Serializable
 // be configurable before any user can sign in, so no bearer is attached for these endpoints.
 
 /**
- * System readiness (`GET /api/v1/system/status` → StatusResponseDto<SystemStatusDto>). [ready] is the
- * single gate the onboarding flow routes on: false ⇒ the Twitch app (and/or platform bot) is not yet
- * configured, so the wizard must run before any Twitch OAuth can start.
+ * System readiness (`GET /api/v1/system/status` → StatusResponseDto<SystemStatusDto>). [onboardingComplete]
+ * is the ONLY gate the app routes onboarding vs. login off: false ⇒ no platform app is configured yet, so
+ * the wizard must run before any sign-in can start. It means deployment-level setup ONLY — it is never
+ * gated on the platform bot (per-channel work that happens after login); the bot's own live state is
+ * [SystemChecks.platformBot], reported separately so the wizard can still show it.
  */
 @Serializable
 data class SystemStatus(
-    val ready: Boolean,
+    val onboardingComplete: Boolean,
     val checks: SystemChecks,
 )
 
