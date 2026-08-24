@@ -130,9 +130,69 @@ public sealed class KickAccessTokenProvider : IKickAccessTokenProvider
         if (!expiring)
             return new(access.Value.Value, kickUserId);
 
+        if (!await ShouldAttemptRefreshAsync(connectionId, cancellationToken))
+        {
+            _logger.LogDebug(
+                "Skipping Kick refresh for connection {ConnectionId}: needs_reauth or backing off",
+                connectionId
+            );
+            return null;
+        }
+
         string? refreshed = await RefreshAsync(connectionId, cancellationToken);
         return refreshed is null ? null : new KickAccess(refreshed, kickUserId);
     }
+
+    /// <summary>
+    /// Retry-storm guard for the routine "is my token still good" refresh check: a connection already
+    /// flagged <c>needs_reauth</c> cannot be fixed by retrying — only a fresh OAuth grant (a deliberate
+    /// re-connect through <see cref="IIntegrationTokenVault.StoreTokensAsync"/>) clears it — so hammering
+    /// Kick's token endpoint on every routine call just re-confirms the same dead refresh token forever (the
+    /// same shape that ran the Spotify path's ConsecutiveFailureCount to 4653, fixed in 07f60a1c). Skip the
+    /// refresh entirely once needs_reauth, and back off exponentially between attempts before that
+    /// threshold so a flaky-but-alive connection isn't hammered at full call cadence either. A deliberate
+    /// re-auth does not go through this routine path at all — it calls <c>StoreTokensAsync</c> directly.
+    /// </summary>
+    private static readonly TimeSpan[] RefreshBackoffSchedule =
+    [
+        TimeSpan.FromSeconds(30),
+        TimeSpan.FromMinutes(2),
+        TimeSpan.FromMinutes(10),
+    ];
+
+    private async Task<bool> ShouldAttemptRefreshAsync(Guid connectionId, CancellationToken ct)
+    {
+        IntegrationConnectionStatusSnapshot? connection = await _db
+            .IntegrationConnections.AsNoTracking()
+            .Where(c => c.Id == connectionId)
+            .Select(c => new IntegrationConnectionStatusSnapshot(
+                c.Status,
+                c.ConsecutiveFailureCount,
+                c.LastErrorAt
+            ))
+            .FirstOrDefaultAsync(ct);
+        if (connection is null)
+            return false;
+
+        // Dead beyond retry — needs a human to re-auth; retrying cannot fix it and only burns the rate limit.
+        if (connection.Status == AuthEnums.IntegrationStatus.NeedsReauth)
+            return false;
+
+        if (connection.ConsecutiveFailureCount <= 0)
+            return true;
+
+        TimeSpan backoff = RefreshBackoffSchedule[
+            Math.Min(connection.ConsecutiveFailureCount - 1, RefreshBackoffSchedule.Length - 1)
+        ];
+        DateTime now = _clock.GetUtcNow().UtcDateTime;
+        return connection.LastErrorAt is null || now >= connection.LastErrorAt.Value + backoff;
+    }
+
+    private sealed record IntegrationConnectionStatusSnapshot(
+        string Status,
+        int ConsecutiveFailureCount,
+        DateTime? LastErrorAt
+    );
 
     private async Task<string?> RefreshAsync(Guid connectionId, CancellationToken ct)
     {
