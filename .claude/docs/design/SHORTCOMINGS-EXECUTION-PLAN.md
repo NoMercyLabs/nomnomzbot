@@ -122,6 +122,34 @@ stable — without dropping the planned requirements behind them.
   the safety baseline; (6) raising a tier immediately raises the ceiling with no re-login
   ([[never-logout-for-scope-or-schema-changes]]).
 
+- **S-MOD-PERMS** (owner, 2026-08-25) Moderators are over-restricted on bot tooling. Owner, acting as a
+  mod on other channels: "i feel super restricted... open up those permissions just a little bit to
+  things that make my job as moderator easier." Mechanism (established by grep): 187 `[RequireAction]`
+  keys; defaults seeded in `Content/Identity/ActionDefinitionSeeder.cs` as `DefaultLevel`/`FloorLevel`;
+  effective = `clamp(override ?? default, floor, Broadcaster)` (`ActionAuthorizationService.cs:157`).
+  So this is a CLASSIFICATION problem in seed data, not an architecture problem.
+  **The rule, applied to every key:**
+  1. **Twitch-native** (ban/timeout, title/category, ads, raids, rewards, polls, clips, VIP/mod grants)
+     -> mirror Twitch's OWN role rules exactly. The bot must never grant more authority than Twitch does.
+  2. **Bot-internal tooling** (commands, pipelines, event responses, timers, chat triggers, quotes, music
+     + song requests, sound clips, code scripts, widget config, giveaways, counters, templates)
+     -> **Moderator by default**. These change the bot's behaviour, are reversible and audited, and are
+     the moderator's actual job. This is where the owner is blocked today.
+  3. **Restricted regardless** -> money (billing/subscriptions), identity/credentials (OAuth, tokens,
+     BYOC secrets, connect/disconnect), privilege (`roles:manage`, action overrides, automation tokens,
+     impersonation), destructive-irreversible (channel delete, GDPR erasure), platform admin.
+  **Why category 3 can stay tight without obstructing the SaaS owner (owner, explicit):** impersonation
+  is the red button for owner intervention — already shipped in Phase 0-S with a support-session gate,
+  clamped lifetime, revoke-on-end, dual-actor journalling, owner notification and a required written
+  justification. Break-glass with a paper trail, deliberately NOT a convenience path. So there is no case
+  for loosening money/credential/privilege defaults.
+  Done-when: every key classified (guard test enumerates from the catalogue — a new key with no
+  classification FAILS); a mod can create a command / control music / write a code script on a channel
+  they do NOT own; the same mod cannot touch billing, integrations, action permissions or automation
+  tokens; per-channel overrides still win; and re-seeding an existing install APPLIES the new defaults
+  without clobbering deliberate overrides (a seeder that only inserts would leave live channels stale and
+  fix nothing).
+
 - **S-RICH-PICKERS** (owner, 2026-08-25) "item pickers get a rich item list and not just a template
   string or something not easily understandable." S045 shipped the picker KINDS (`reward`, `widget`,
   `voice`, `sound_clip`, `discord_channel`, `discord_role`, `twitch_user`, `asset`); this makes the
