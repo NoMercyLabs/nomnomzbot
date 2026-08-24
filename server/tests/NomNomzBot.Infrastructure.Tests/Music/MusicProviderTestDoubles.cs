@@ -8,7 +8,9 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Collections.Concurrent;
 using System.Net;
+using System.Runtime.CompilerServices;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -62,19 +64,29 @@ internal sealed class SingleHandlerClientFactory(HttpMessageHandler handler) : I
 /// </summary>
 internal sealed class FakeIntegrationTokenVault : IIntegrationTokenVault
 {
-    // Keyed by connection id (a fresh Guid.CreateVersion7() per seeded connection, so cross-test
-    // collisions are not a real concern) rather than held per-instance: several production call sites
-    // build a NEW SpotifyMusicProvider/MusicService per simulated DI scope over the SAME db — exactly
-    // like the real container handing out scoped instances per request — and each of those scopes
-    // constructs its OWN FakeIntegrationTokenVault. A per-instance dictionary would make a token
-    // "vaulted" in scope 1 invisible to scope 2 even though they share the same db, defeating the
-    // cross-scope tests this double exists to support (S001/S003).
-    private static readonly Dictionary<
-        Guid,
-        (string Access, string? Refresh, DateTime? ExpiresAt)
-    > _tokens = [];
+    // Keyed by connection id, but the backing dictionary itself is scoped PER DB INSTANCE (not
+    // per-FakeIntegrationTokenVault-instance, and not process-global either): several production call
+    // sites build a NEW SpotifyMusicProvider/MusicService per simulated DI scope over the SAME db —
+    // exactly like the real container handing out scoped instances per request — and each of those
+    // scopes constructs its OWN FakeIntegrationTokenVault. A purely per-instance dictionary would make
+    // a token "vaulted" in scope 1 invisible to scope 2 even though they share the same db, defeating
+    // the cross-scope tests this double exists to support (S001/S003). A single process-global
+    // dictionary (the prior shape) went further than that and let UNRELATED test classes — different
+    // dbs entirely — see and corrupt each other's tokens under parallel xUnit execution. Routing
+    // through a ConditionalWeakTable keyed by the db instance gets both: same-db scopes still share
+    // state, different-db test classes never do, and entries are GC'd with their db. The table + its
+    // per-db ConcurrentDictionary are both thread-safe, covering same-scope concurrent access too.
+    private static readonly ConditionalWeakTable<
+        IApplicationDbContext,
+        ConcurrentDictionary<Guid, (string Access, string? Refresh, DateTime? ExpiresAt)>
+    > _tokensByDb = [];
 
     private readonly IApplicationDbContext _db;
+
+    private ConcurrentDictionary<
+        Guid,
+        (string Access, string? Refresh, DateTime? ExpiresAt)
+    > _tokens => _tokensByDb.GetValue(_db, static _ => new());
 
     public FakeIntegrationTokenVault(IApplicationDbContext db)
     {
