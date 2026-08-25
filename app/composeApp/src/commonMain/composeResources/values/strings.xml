@@ -1468,6 +1468,7 @@
     <string name="feedback_dismiss">Dismiss</string>
     <string name="feedback_connected">Connected</string>
     <string name="feedback_connect_failed">Couldn't connect: %1$s</string>
+    <string name="feedback_regrant_failed">Couldn't start the permission request: %1$s</string>
     <string name="feedback_disconnected">Disconnected</string>
     <string name="feedback_disconnect_failed">Couldn't disconnect: %1$s</string>
     <string name="feedback_credentials_saved">App credentials saved</string>

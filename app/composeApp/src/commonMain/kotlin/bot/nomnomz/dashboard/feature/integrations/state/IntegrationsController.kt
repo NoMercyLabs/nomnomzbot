@@ -42,6 +42,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_connect_failed
+import nomnomzbot.composeapp.generated.resources.feedback_regrant_failed
 import nomnomzbot.composeapp.generated.resources.feedback_credentials_saved
 import nomnomzbot.composeapp.generated.resources.feedback_disconnect_failed
 import nomnomzbot.composeapp.generated.resources.feedback_disconnected
@@ -370,6 +371,23 @@ class IntegrationsController(
         val ready: IntegrationsState.Ready = _state.value as? IntegrationsState.Ready ?: return
         if (ready.regrant != null) return // single-flight: a device re-grant is already in progress.
 
+        // The `regrant` panel above only exists once a start SUCCEEDED, so it cannot guard the start
+        // itself: every click used to fire another startRegrant(), which is how spamming the button
+        // earned a rate-limit instead of an answer. This flag covers the in-flight start too.
+        if (regrantStarting) return
+        regrantStarting = true
+        try {
+            regrantScopesInner(ready)
+        } finally {
+            regrantStarting = false
+        }
+    }
+
+    /** Guards the START call itself — see [regrantScopes]. */
+    private var regrantStarting: Boolean = false
+
+    private suspend fun regrantScopesInner(ready: IntegrationsState.Ready) {
+
         // On WEB, the streamer IS the logged-in account, so prefer the seamless REDIRECT re-grant when a client
         // secret is configured (twitchApp.ok): one tap → Twitch → back, re-vaulting the full scope set with no
         // code to type. The secret-less public client (which can't exchange a code) — and ALWAYS the desktop
@@ -401,7 +419,11 @@ class IntegrationsController(
      */
     private suspend fun regrantScopesViaDevice(ready: IntegrationsState.Ready) {
         when (val start: ApiResult<ScopeRegrantStart> = diagnosticsApi.startRegrant()) {
-            is ApiResult.Failure -> return // e.g. NO_MISSING_SCOPES / no connection — nothing to grant.
+            // NEVER a silent return. A button that reports nothing is indistinguishable from a broken
+            // one, so the streamer clicks again and again — which is exactly how this earned a rate-limit
+            // instead of an explanation. Surface the real backend reason.
+            is ApiResult.Failure ->
+                feedback.error(Res.string.feedback_regrant_failed, start.error.message)
             is ApiResult.Ok -> {
                 _state.value =
                     ready.copy(

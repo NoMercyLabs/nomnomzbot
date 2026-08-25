@@ -1465,6 +1465,7 @@
     <string name="feedback_dismiss">Sluiten</string>
     <string name="feedback_connected">Verbonden</string>
     <string name="feedback_connect_failed">Verbinden mislukt: %1$s</string>
+    <string name="feedback_regrant_failed">Kon de rechtenaanvraag niet starten: %1$s</string>
     <string name="feedback_disconnected">Verbinding verbroken</string>
     <string name="feedback_disconnect_failed">Verbinding verbreken mislukt: %1$s</string>
     <string name="feedback_credentials_saved">App-gegevens opgeslagen</string>
