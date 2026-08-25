@@ -1,0 +1,193 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Labs.
+//
+//  This file is part of NomNomzBot, free software licensed under the GNU Affero
+//  General Public License v3.0 or later. You may redistribute and/or modify it
+//  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+//
+//  SPDX-License-Identifier: AGPL-3.0-or-later
+// -----------------------------------------------------------------------------
+
+using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Application.Abstractions.Content;
+using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Domain.Commands.Entities;
+using NomNomzBot.Domain.Identity.Enums;
+
+namespace NomNomzBot.Infrastructure.Content.Commands;
+
+/// <summary>
+/// Seeds the <c>!raid</c> raid-out flow as an ORDINARY editable pipeline built purely from generic
+/// blocks — <c>start_raid</c>, <c>obs_switch_scene</c>, <c>send_message</c>, <c>wait</c>,
+/// <c>obs_streaming</c>, <c>music_pause</c>. Nothing here is a bespoke "raid feature": every step is a
+/// block the pipeline builder already offers, so the streamer can reorder it, retime it, swap the OBS
+/// scene, drop the emote lines, or delete the whole thing.
+/// <para>
+/// The timing is the part that is NOT arbitrary. Twitch's <c>POST /raids</c> starts a fixed
+/// <b>90-second</b> server-side timer and there is no API to commit the raid earlier — it auto-fires at
+/// exactly T+90s. So the raid call goes FIRST and the countdown is built to land just before that
+/// moment; a countdown that finishes early leaves viewers watching silence, and one that overruns
+/// announces a raid that has already happened. The waits below sum to ~88s for that reason.
+/// </para>
+/// </summary>
+/// <remarks>
+/// Idempotent: upserts by the natural key <c>(BroadcasterId, NameNormalized)</c>. A channel that already
+/// has a <c>raid</c> command is left completely alone — the streamer's own edits are never overwritten.
+/// Order 82 — after <see cref="DefaultCommandsSeeder"/> (80), because it FK-references Channel rows.
+/// </remarks>
+public sealed class RaidFlowSeeder : ISeeder
+{
+    private readonly IApplicationDbContext _db;
+
+    public RaidFlowSeeder(IApplicationDbContext db) => _db = db;
+
+    public int Order => 82;
+
+    private const string CommandName = "raid";
+
+    /// <summary>Twitch's fixed server-side raid window; the raid auto-fires at T+90s.</summary>
+    private const int TwitchRaidWindowSeconds = 90;
+
+    /// <summary>The startup <see cref="ISeeder"/> pass: seeds every channel.</summary>
+    public Task SeedAsync(CancellationToken ct = default) => SeedAsync(broadcasterId: null, ct);
+
+    /// <summary>
+    /// Seeds the raid flow for a single channel or, when <paramref name="broadcasterId"/> is null, every
+    /// channel that does not already have a <c>raid</c> command.
+    /// </summary>
+    public async Task SeedAsync(Guid? broadcasterId, CancellationToken ct = default)
+    {
+        List<Guid> channelIds = broadcasterId is { } id
+            ? [id]
+            : await _db.Channels.Select(c => c.Id).ToListAsync(ct);
+
+        if (channelIds.Count == 0)
+            return;
+
+        HashSet<Guid> alreadyHave =
+        [
+            .. await _db
+                .Commands.Where(c =>
+                    channelIds.Contains(c.BroadcasterId) && c.NameNormalized == CommandName
+                )
+                .Select(c => c.BroadcasterId)
+                .ToListAsync(ct),
+        ];
+
+        foreach (Guid channelId in channelIds)
+        {
+            if (alreadyHave.Contains(channelId))
+                continue;
+
+            Pipeline pipeline = new()
+            {
+                Id = Guid.CreateVersion7(),
+                BroadcasterId = channelId,
+                Name = "Raid out",
+                Description =
+                    "Starts a Twitch raid, switches OBS to the ending scene, counts down in chat, "
+                    + "then stops the stream and pauses the music. Every step is an ordinary block — "
+                    + "reorder, retime or remove any of it.",
+                TriggerKind = "command",
+                IsEnabled = true,
+            };
+            _db.Pipelines.Add(pipeline);
+
+            int order = 0;
+            foreach ((string ActionType, string ConfigJson) step in BuildSteps())
+            {
+                _db.PipelineSteps.Add(
+                    new()
+                    {
+                        Id = Guid.CreateVersion7(),
+                        PipelineId = pipeline.Id,
+                        BroadcasterId = channelId,
+                        ActionType = step.ActionType,
+                        ConfigJson = step.ConfigJson,
+                        Order = order++,
+                        IsEnabled = true,
+                    }
+                );
+            }
+
+            _db.Commands.Add(
+                new()
+                {
+                    Id = Guid.CreateVersion7(),
+                    BroadcasterId = channelId,
+                    Name = CommandName,
+                    NameNormalized = CommandName,
+                    Description = "Raid another live channel with a chat countdown.",
+                    Tier = "pipeline",
+                    PipelineId = pipeline.Id,
+                    // Raiding hands your entire audience to someone else and ends the stream — the
+                    // broadcaster alone decides that, never a moderator.
+                    MinPermissionLevel = PermissionLevel.Broadcaster.ToLevelValue(),
+                    IsEnabled = true,
+                }
+            );
+        }
+
+        await _db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
+    /// The flow, in order. The raid fires first because Twitch's 90s timer starts the moment it returns;
+    /// everything after it is chat theatre timed to land just before Twitch pulls the audience across.
+    /// The OBS scene switch sits second so the ending screen is already up while the countdown runs.
+    /// </summary>
+    private static IEnumerable<(string ActionType, string ConfigJson)> BuildSteps()
+    {
+        yield return ("start_raid", """{"target":"{args.1}"}""");
+        yield return ("obs_switch_scene", """{"scene":"Ending"}""");
+        yield return (
+            "send_message",
+            $$"""{"message":"RAID INCOMING to {{"{{args.1}}"}}! Raiding in {{TwitchRaidWindowSeconds - 2}} seconds..."}"""
+        );
+        yield return ("wait", """{"seconds":1}""");
+        yield return (
+            "send_message",
+            """{"message":"Big bird raid stoney90Hmmm Big bird raid stoney90Hmmm Big bird raid stoney90Hmmm"}"""
+        );
+        yield return ("wait", """{"seconds":1}""");
+        yield return (
+            "send_message",
+            """{"message":"Big bird raid 🦅 Big bird raid 🦅 Big bird raid 🦅"}"""
+        );
+
+        // Countdown. Only the last stretch is announced — a "45 seconds left" line this early reads as
+        // spam, so the earlier waits are silent and the chat only starts counting at 15s.
+        // 2s of intro lines have already elapsed, and the announced countdown must open at T+73 so
+        // "Raid in 15" is genuinely 15 seconds before Twitch fires at T+90 (less the 2s safety margin).
+        yield return ("wait", """{"seconds":40}""");
+        yield return ("wait", """{"seconds":31}""");
+        foreach (int secondsLeft in new[] { 15, 10, 5, 3, 2, 1 })
+        {
+            yield return (
+                "send_message",
+                $$"""{"message":"Raid in {{secondsLeft}} second{{(secondsLeft == 1 ? "" : "s")}}..."}"""
+            );
+            yield return ("wait", $$"""{"seconds":{{WaitAfter(secondsLeft)}}}""");
+        }
+
+        yield return (
+            "send_message",
+            """{"message":"RAID LIVE! We're heading over now! Let's go!"}"""
+        );
+        yield return ("obs_streaming", """{"action":"stop"}""");
+        yield return ("music_pause", "{}");
+    }
+
+    /// <summary>How long to wait after announcing <paramref name="secondsLeft"/> before the next line —
+    /// the gap to the following countdown mark, and for the final "1" the last second itself.</summary>
+    private static int WaitAfter(int secondsLeft) =>
+        secondsLeft switch
+        {
+            15 => 5,
+            10 => 5,
+            5 => 2,
+            3 => 1,
+            2 => 1,
+            _ => 1,
+        };
+}
