@@ -207,20 +207,17 @@ stable — without dropping the planned requirements behind them.
   list; and a guard test fails if a NEW picker kind is added without a rich option provider — enumerate
   the kinds from the enum, do not hand-list them.
 
-- **S-SCHEMA-I18N-b** (mechanism CORRECT as of 51c084ab — `LocalizedText` is a KEY only, translations
-  live in `values/strings.xml` + `values-nl/` (146 keys, both languages), guarded by the committed
-  manifest `server/i18n/schema-i18n-keys.manifest.json` + paired backend/jvmTest guards. The earlier
-  inline-en/nl shape was a design error the owner caught — see [[translations-never-in-code]].)
-  THREE REMAINDERS, and (a) is the same defect class so it must be swept whole, not per-provider:
-  (a) User-facing English STILL LIVES IN C# for the string kinds a00b848e never covered:
-  `WidgetSettingsFieldOption.Label` (every dropdown option), `EventOptions`, `ProviderOptions`, and the
-  group constants ("Content"/"Appearance"/...). Enumerate EVERY user-facing string kind served to the
-  dashboard from the real source and migrate the lot; a guard must fail on a new one.
-  (b) `PipelineActionFieldDto` (Commands/Dtos/PipelineDtos.cs) has NO wire field for Description at all,
-  so action field help text physically cannot reach the dashboard. Wire it, then render it.
-  (c) Only 8 of ~46 `ICommandAction` files author help text. Decide whether Description becomes REQUIRED
-  (preferred — an optional field nothing enforces is the "guard that cannot move" defect) and sweep all
-  ~46 with en+nl keys. Help text must say what the field DOES and what changes ([[consequences-must-be-visible]]).
+- **S-SCHEMA-I18N-c** (mechanism correct 51c084ab; widget-side sweep DONE 17991a45 — group constants +
+  38 dropdown option labels migrated, `SchemaDtoStringShapeTests` now reflects over the wire DTOs and
+  FAILS LOUD on any bare human-facing string, machine values being an explicit exception list) TWO LEFT:
+  (a) `PipelineActionFieldDto` (Commands/Dtos/PipelineDtos.cs) has NO wire field for Description, so
+  action field help text physically cannot reach the dashboard. Wire it, render it, and extend
+  `SchemaDtoStringShapeTests` to cover the pipeline wire DTOs the way it now covers the widget ones.
+  (b) Only 8 of ~46 `ICommandAction` files author help text. Make Description REQUIRED (an optional field
+  nothing enforces is the "guard that cannot move" defect) and author en+nl keys for every field on every
+  action. Help text says what the field DOES and what changes ([[consequences-must-be-visible]]).
+  KNOWN, deliberately excluded: `WidgetSettingsSchema.Name` is seeded catalogue data currently unrendered
+  by the settings form (the tenant's own `widget.name` is shown) — if it ever renders, it needs a key.
 
 - **S-CODE-EDITOR** The code-scripts surface gets a **VS Code-for-web grade editor that functions like
   one** — Monaco-class: completion, hover types, go-to-definition, diagnostics, multi-file — loading a
