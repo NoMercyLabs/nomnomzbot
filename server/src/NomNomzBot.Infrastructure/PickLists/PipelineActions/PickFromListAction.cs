@@ -38,6 +38,8 @@ public sealed class PickFromListAction : ICommandAction
 
     public string ActionType => "pick_from_list";
 
+    public bool ResolvesOwnTemplates => true;
+
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new("list", PipelineActionFieldKind.ResourceId, Required: true),

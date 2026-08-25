@@ -33,5 +33,15 @@ public interface ICommandAction
     /// </summary>
     IReadOnlyList<PipelineActionFieldDescriptor> Fields => [];
 
+    /// <summary>
+    /// True when this action already resolves its own <see cref="PipelineActionFieldDescriptor.Templated"/>
+    /// fields internally (via its own injected template resolver) before this method returns — e.g.
+    /// <c>play_tts</c> resolving its text/voice, the chat send actions resolving their message. When true,
+    /// the pipeline engine's leaf executor skips its own template-resolution pass for this action entirely,
+    /// so a field is never resolved twice (S-PIPE-TREE-d2b(b)). Defaults to <c>false</c> — the common case,
+    /// where the engine's central pass does the resolving and the action reads already-rendered values.
+    /// </summary>
+    bool ResolvesOwnTemplates => false;
+
     Task<ActionResult> ExecuteAsync(PipelineExecutionContext ctx, ActionDefinition action);
 }

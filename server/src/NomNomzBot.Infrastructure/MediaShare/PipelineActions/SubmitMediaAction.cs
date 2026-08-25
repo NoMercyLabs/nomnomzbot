@@ -30,8 +30,10 @@ public sealed class SubmitMediaAction(
 {
     public string ActionType => "submit_media";
 
+    public bool ResolvesOwnTemplates => true;
+
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
-        [new("url", PipelineActionFieldKind.Text, Required: true)];
+        [new("url", PipelineActionFieldKind.Text, Required: true, Templated: true)];
 
     public async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,

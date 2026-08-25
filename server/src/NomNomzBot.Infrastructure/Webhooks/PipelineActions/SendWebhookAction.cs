@@ -34,7 +34,11 @@ public sealed class SendWebhookAction : ICommandAction
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new("endpoint", PipelineActionFieldKind.ResourceId, Required: true),
-            new("event_type", PipelineActionFieldKind.Text),
+            // Deliberately NOT templated (S-PIPE-TREE-d2b(b)): a receiving endpoint's subscription
+            // matches this value verbatim, so a literal double-brace placeholder a channel owner types
+            // here (an unusual but legal event-type string) must reach the dispatcher unchanged rather
+            // than being silently run through the resolver.
+            new("event_type", PipelineActionFieldKind.Text, Templated: false),
         ];
 
     public async Task<ActionResult> ExecuteAsync(

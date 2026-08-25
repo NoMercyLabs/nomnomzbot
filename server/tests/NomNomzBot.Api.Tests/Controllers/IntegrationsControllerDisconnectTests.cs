@@ -21,7 +21,6 @@ using NomNomzBot.Application.Integrations.Dtos;
 using NomNomzBot.Application.Integrations.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Integrations.Entities;
-using NomNomzBot.Domain.Platform.Entities;
 
 namespace NomNomzBot.Api.Tests.Controllers;
 
@@ -87,7 +86,7 @@ public sealed class IntegrationsControllerDisconnectTests
             .IntegrationConnections.IgnoreQueryFilters()
             .FirstOrDefaultAsync(c => c.Id == connectionId);
         afterDisconnect.Should().NotBeNull();
-        afterDisconnect!.Status.Should().Be(AuthEnums.IntegrationStatus.Revoked);
+        afterDisconnect.Status.Should().Be(AuthEnums.IntegrationStatus.Revoked);
 
         // A subsequent resolve (the same query YouTubeAccessTokenProvider/IntegrationStatusService run)
         // no longer finds a non-revoked connection — YouTube reads back as disconnected.

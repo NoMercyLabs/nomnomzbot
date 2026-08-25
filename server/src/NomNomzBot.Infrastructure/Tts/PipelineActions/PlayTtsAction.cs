@@ -34,10 +34,12 @@ public sealed class PlayTtsAction : ICommandAction
 
     public string ActionType => "play_tts";
 
+    public bool ResolvesOwnTemplates => true;
+
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("text", PipelineActionFieldKind.Text, Required: true),
-            new("voice", PipelineActionFieldKind.Voice),
+            new("text", PipelineActionFieldKind.Text, Required: true, Templated: true),
+            new("voice", PipelineActionFieldKind.Voice, Templated: true),
         ];
 
     public async Task<ActionResult> ExecuteAsync(

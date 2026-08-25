@@ -88,7 +88,7 @@ public sealed class SongRequestQueueRestoreRunOnceTests
         // Instance B lost the race: a clean no-op — its own in-memory store never got the restore pass.
         storeB.GetOrCreate(ChannelId).GetSnapshot().Should().BeEmpty();
 
-        await preHeldLease!.DisposeAsync();
+        await preHeldLease.DisposeAsync();
 
         (SongRequestQueueRestoreHostedService serviceA, ISongRequestQueueStore storeA) =
             BuildInstance(fixture, new SharedFakeRunOnceGuard(sharedLeaseStore));

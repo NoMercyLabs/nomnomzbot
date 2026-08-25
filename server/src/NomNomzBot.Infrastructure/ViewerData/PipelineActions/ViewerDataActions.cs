@@ -35,10 +35,12 @@ public sealed class SetViewerDataAction(
 {
     public string ActionType => "set_viewer_data";
 
+    public bool ResolvesOwnTemplates => true;
+
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new("key", PipelineActionFieldKind.Text, Required: true),
-            new("value", PipelineActionFieldKind.Text),
+            new("value", PipelineActionFieldKind.Text, Templated: true),
             new("target", PipelineActionFieldKind.TwitchUser),
         ];
 

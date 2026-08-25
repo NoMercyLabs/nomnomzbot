@@ -69,13 +69,15 @@ public sealed class ShoutoutAction : ICommandAction
 
     public string ActionType => "shoutout";
 
+    public bool ResolvesOwnTemplates => true;
+
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new("user_id", PipelineActionFieldKind.TwitchUser, Required: true),
             new("cooldown_minutes", PipelineActionFieldKind.Number),
             new("global_cooldown_minutes", PipelineActionFieldKind.Number),
             new("tts", PipelineActionFieldKind.Boolean),
-            new("template", PipelineActionFieldKind.Text),
+            new("template", PipelineActionFieldKind.Text, Templated: true),
         ];
 
     public ShoutoutAction(

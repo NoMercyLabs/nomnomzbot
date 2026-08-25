@@ -26,7 +26,6 @@ using NomNomzBot.Infrastructure.Rewards.Pipeline;
 using NomNomzBot.Infrastructure.Sound.Pipeline;
 using NomNomzBot.Infrastructure.Tts.Pipeline;
 using NomNomzBot.Infrastructure.Widgets.Pipeline;
-using Xunit;
 
 namespace NomNomzBot.Infrastructure.Tests.Platform.Pipeline;
 

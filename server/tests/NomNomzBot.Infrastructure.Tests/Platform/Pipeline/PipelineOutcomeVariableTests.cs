@@ -66,6 +66,7 @@ public sealed class PipelineOutcomeVariableTests
             registry,
             actions,
             conditions,
+            new StubResolver(),
             NullLogger<PipelineEngine>.Instance,
             TimeProvider.System
         );

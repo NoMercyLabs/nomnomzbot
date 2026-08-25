@@ -11,7 +11,6 @@
 using System.Text.Json;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Common.Models;
@@ -81,6 +80,7 @@ public sealed class PipelineServiceWriteSymmetryTests
                 new FakeAction { ActionType = "shoutout" },
             ],
             [],
+            NSubstitute.Substitute.For<NomNomzBot.Application.Abstractions.Templating.ITemplateResolver>(),
             NSubstitute.Substitute.For<Microsoft.Extensions.Logging.ILogger<PipelineEngine>>(),
             TimeProvider.System
         );

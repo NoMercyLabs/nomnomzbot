@@ -12,7 +12,6 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
-using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Platform.Pipeline;
@@ -141,21 +140,23 @@ public sealed class PipelineEngineTreeExecutionTests
     private static PipelineEngine CreateEngine(
         PipelineTreeExecutionTestDbContext db,
         IEnumerable<ICommandAction> extraActions,
-        Func<double>? randomSource = null
+        Func<double>? randomSource = null,
+        ITemplateResolver? resolverOverride = null
     )
     {
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
         registry.Get(Arg.Any<Guid>()).Returns((ChannelContext?)null);
 
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(ci => Task.FromResult((string)ci[0]));
+        ITemplateResolver resolver = resolverOverride ?? Substitute.For<ITemplateResolver>();
+        if (resolverOverride is null)
+            resolver
+                .ResolveAsync(
+                    Arg.Any<string>(),
+                    Arg.Any<IDictionary<string, string>>(),
+                    Arg.Any<Guid?>(),
+                    Arg.Any<CancellationToken>()
+                )
+                .Returns(ci => Task.FromResult((string)ci[0]));
 
         List<ICommandAction> actions =
         [
@@ -176,6 +177,7 @@ public sealed class PipelineEngineTreeExecutionTests
             registry,
             actions,
             conditions,
+            resolver,
             NullLogger<PipelineEngine>.Instance,
             TimeProvider.System,
             randomSource

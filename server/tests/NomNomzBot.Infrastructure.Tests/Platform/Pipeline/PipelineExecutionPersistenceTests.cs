@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Platform.Pipeline;
@@ -43,7 +44,25 @@ public sealed class PipelineExecutionPersistenceTests : IDisposable
         ICommandAction[] actions = [new StopAction(), new SetVariableAction()];
         ICommandCondition[] conditions = [];
 
-        return new(db, registry, actions, conditions, NullLogger<PipelineEngine>.Instance, time);
+        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
+        resolver
+            .ResolveAsync(
+                Arg.Any<string>(),
+                Arg.Any<IDictionary<string, string>>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(ci => Task.FromResult((string)ci[0]));
+
+        return new(
+            db,
+            registry,
+            actions,
+            conditions,
+            resolver,
+            NullLogger<PipelineEngine>.Instance,
+            time
+        );
     }
 
     private static PipelineRequest BuildRequest(string json, Guid? pipelineId = null) =>

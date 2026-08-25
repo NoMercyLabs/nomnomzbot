@@ -10,7 +10,6 @@
 
 using System.Text.Json;
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Common.Models;
@@ -221,7 +220,7 @@ public sealed class PipelineServiceLegacyStepsTests
             apiOptions
         );
         create.Should().NotBeNull();
-        create!
+        create
             .GraphJsonCache.Should()
             .NotBeNull(
                 "the dashboard's create/update request body sends the field as \"graph\"; the DTO must bind it"

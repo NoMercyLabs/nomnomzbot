@@ -14,5 +14,15 @@
     <!-- Warnings are errors across the whole solution: compiler, analyzer, and NuGet (incl. the NU1903
          vulnerability audit) warnings all fail the build, keeping it clean. -->
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- S-cleanup: IDE0005 (unnecessary usings) only fires when the compiler emits a documentation
+         model, and EnforceCodeStyleInBuild is required for any IDE0xxx code-style rule to run as part
+         of `dotnet build` (not just `dotnet format`). We don't want XML doc comments, so CS1591
+         (missing XML comment) is suppressed everywhere. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <!-- Turning on GenerateDocumentationFile also surfaces pre-existing malformed XML doc comments
+         (bad <see cref>/<paramref> targets) as build errors even though we don't want doc output at
+         all — suppress the whole missing/malformed-doc-comment family, not just CS1591. -->
+    <NoWarn>$(NoWarn);CS1591;CS1570;CS1571;CS1572;CS1573;CS1574;CS1580;CS1581;CS1584;CS1658</NoWarn>
   </PropertyGroup>
 </Project>

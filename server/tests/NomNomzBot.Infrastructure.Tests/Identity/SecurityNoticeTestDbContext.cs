@@ -29,7 +29,6 @@ using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
-using NomNomzBot.Infrastructure.Platform.Persistence.Converters;
 
 namespace NomNomzBot.Infrastructure.Tests.Identity;
 

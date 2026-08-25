@@ -15,9 +15,9 @@ namespace NomNomzBot.Infrastructure.Platform.Pipeline.CoreActions;
 /// <summary>Sets the current run's return value, read by a <c>run_pipeline inline</c> caller into
 /// <c>{{call.result}}</c> (pipeline-tree-and-editor.md §2.5). Implicitly also <c>stop</c>s the
 /// pipeline — a return ends execution, matching every language's <c>return</c> semantics and
-/// sparing an author a trailing <c>stop</c> they'd otherwise forget. Follows <see cref="SetVariableAction"/>'s
-/// convention of storing the raw configured value — no template-rendering pass exists at this layer
-/// yet for any core action (out of this slice's scope).</summary>
+/// sparing an author a trailing <c>stop</c> they'd otherwise forget. <c>value</c> is templated
+/// (S-PIPE-TREE-d2b(b)) — resolved centrally by the pipeline engine's leaf executor before
+/// <see cref="ExecuteAsync"/> runs, same as <see cref="SetVariableAction"/>'s <c>value</c>.</summary>
 public sealed class ReturnValueAction : ICommandAction
 {
     public string ActionType => "return_value";
@@ -25,7 +25,7 @@ public sealed class ReturnValueAction : ICommandAction
     public string Category => "flow";
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
-        [new("value", PipelineActionFieldKind.Text)];
+        [new("value", PipelineActionFieldKind.Text, Templated: true)];
 
     public Task<ActionResult> ExecuteAsync(PipelineExecutionContext ctx, ActionDefinition action)
     {

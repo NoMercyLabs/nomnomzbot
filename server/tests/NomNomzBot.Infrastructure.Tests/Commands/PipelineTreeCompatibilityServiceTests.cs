@@ -9,7 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Infrastructure.Commands;
 

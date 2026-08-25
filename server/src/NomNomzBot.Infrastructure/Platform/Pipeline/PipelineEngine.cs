@@ -14,6 +14,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -64,6 +65,7 @@ public sealed class PipelineEngine : IPipelineEngine
     private readonly IChannelRegistry _registry;
     private readonly IEnumerable<ICommandAction> _actions;
     private readonly IEnumerable<ICommandCondition> _conditions;
+    private readonly ITemplateResolver _templateResolver;
     private readonly ILogger<PipelineEngine> _logger;
     private readonly TimeProvider _timeProvider;
 
@@ -81,6 +83,7 @@ public sealed class PipelineEngine : IPipelineEngine
         IChannelRegistry registry,
         IEnumerable<ICommandAction> actions,
         IEnumerable<ICommandCondition> conditions,
+        ITemplateResolver templateResolver,
         ILogger<PipelineEngine> logger,
         TimeProvider timeProvider,
         Func<double>? randomSource = null
@@ -90,6 +93,7 @@ public sealed class PipelineEngine : IPipelineEngine
         _registry = registry;
         _actions = actions;
         _conditions = conditions;
+        _templateResolver = templateResolver;
         _logger = logger;
         _timeProvider = timeProvider;
         _randomSource = randomSource ?? Random.Shared.NextDouble;
@@ -455,7 +459,96 @@ public sealed class PipelineEngine : IPipelineEngine
             return ActionResult.Failure($"Unknown action type '{action.Type}'");
         }
 
-        return await executor.ExecuteAsync(ctx, action);
+        ActionDefinition resolvedAction = await ResolveTemplatedFieldsAsync(executor, ctx, action);
+        return await executor.ExecuteAsync(ctx, resolvedAction);
+    }
+
+    /// <summary>
+    /// S-PIPE-TREE-d2b(b): the ONE seam every core/side-effecting action's <c>Templated</c> fields get
+    /// rendered through, uniformly, before <see cref="ICommandAction.ExecuteAsync"/> ever sees them —
+    /// rather than each action hand-rolling its own resolve call (the systemic gap: <c>set_variable</c>,
+    /// <c>return_value</c>, and <c>run_pipeline</c>'s args stored their configured value raw, with no
+    /// resolution pass at this layer for ANY action). Skipped entirely for an action whose
+    /// <see cref="ICommandAction.ResolvesOwnTemplates"/> is true (e.g. <c>play_tts</c>, the chat send
+    /// actions, <c>wait</c>) — those already call the resolver themselves, so running this pass too would
+    /// resolve the same field twice, corrupting a literal <c>{{</c> a user typed deliberately into the
+    /// FIRST resolved value. Only string- and string-array-valued parameters are touched; a field of any
+    /// other JSON shape (number, bool, object) is left as-is regardless of its descriptor.
+    /// </summary>
+    private async Task<ActionDefinition> ResolveTemplatedFieldsAsync(
+        ICommandAction executor,
+        PipelineExecutionContext ctx,
+        ActionDefinition action
+    )
+    {
+        if (
+            executor.ResolvesOwnTemplates
+            || action.Parameters is null
+            || action.Parameters.Count == 0
+        )
+            return action;
+
+        List<PipelineActionFieldDescriptor> templatedFields =
+        [
+            .. executor.Fields.Where(f => f.Templated),
+        ];
+        if (templatedFields.Count == 0)
+            return action;
+
+        Dictionary<string, JsonElement>? resolvedParams = null;
+        foreach (PipelineActionFieldDescriptor field in templatedFields)
+        {
+            if (!action.Parameters.TryGetValue(field.Name, out JsonElement raw))
+                continue;
+
+            switch (raw.ValueKind)
+            {
+                case JsonValueKind.String:
+                {
+                    string template = raw.GetString() ?? string.Empty;
+                    if (template.Length == 0)
+                        continue;
+                    string resolved = await _templateResolver.ResolveAsync(
+                        template,
+                        ctx.Variables,
+                        ctx.BroadcasterId,
+                        ctx.CancellationToken
+                    );
+                    resolvedParams ??= new Dictionary<string, JsonElement>(action.Parameters);
+                    resolvedParams[field.Name] = JsonSerializer.SerializeToElement(resolved);
+                    break;
+                }
+                case JsonValueKind.Array:
+                {
+                    JsonElement[] items = [.. raw.EnumerateArray()];
+                    bool changed = false;
+                    for (int i = 0; i < items.Length; i++)
+                    {
+                        if (items[i].ValueKind != JsonValueKind.String)
+                            continue;
+                        string itemTemplate = items[i].GetString() ?? string.Empty;
+                        string itemResolved = await _templateResolver.ResolveAsync(
+                            itemTemplate,
+                            ctx.Variables,
+                            ctx.BroadcasterId,
+                            ctx.CancellationToken
+                        );
+                        items[i] = JsonSerializer.SerializeToElement(itemResolved);
+                        changed = true;
+                    }
+                    if (changed)
+                    {
+                        resolvedParams ??= new Dictionary<string, JsonElement>(action.Parameters);
+                        resolvedParams[field.Name] = JsonSerializer.SerializeToElement(items);
+                    }
+                    break;
+                }
+            }
+        }
+
+        return resolvedParams is null
+            ? action
+            : new ActionDefinition { Type = action.Type, Parameters = resolvedParams };
     }
 
     // ─── Step resolution helpers ─────────────────────────────────────────────

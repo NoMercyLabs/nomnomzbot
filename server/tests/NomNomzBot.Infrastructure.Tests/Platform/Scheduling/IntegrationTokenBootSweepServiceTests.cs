@@ -15,7 +15,6 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Contracts.Kick;
 using NomNomzBot.Application.Contracts.YouTube;
 using NomNomzBot.Domain.Identity.Enums;
-using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Infrastructure.Platform.Scheduling;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;

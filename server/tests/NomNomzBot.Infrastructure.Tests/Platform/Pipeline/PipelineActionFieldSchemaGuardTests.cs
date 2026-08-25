@@ -15,7 +15,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using NomNomzBot.Application;
 using NomNomzBot.Application.Abstractions.Pipeline;
-using NomNomzBot.Application.Common.Models;
 
 namespace NomNomzBot.Infrastructure.Tests.Platform.Pipeline;
 

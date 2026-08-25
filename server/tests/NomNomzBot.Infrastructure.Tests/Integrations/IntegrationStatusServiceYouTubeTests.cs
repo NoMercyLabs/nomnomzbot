@@ -13,7 +13,6 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Integrations.Dtos;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Identity.Enums;
-using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;

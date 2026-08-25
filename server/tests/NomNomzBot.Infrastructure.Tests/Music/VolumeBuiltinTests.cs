@@ -64,7 +64,7 @@ public sealed class VolumeBuiltinTests
         // Relay the reply through a fake chat provider, exactly like ChatMessageHandler does with
         // every builtin's returned string, and assert on what actually landed in chat.
         IChatProvider chat = Substitute.For<IChatProvider>();
-        await chat.SendReplyAsync(Broadcaster, "msg-1", result.Value!, CancellationToken.None);
+        await chat.SendReplyAsync(Broadcaster, "msg-1", result.Value, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Contain("40");

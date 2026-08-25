@@ -58,7 +58,7 @@ public sealed class SocialsWidgetHelpTextTests
 
         WidgetSettingsSchema? schema = Provider.GetByKey("socials");
         schema.Should().NotBeNull();
-        WidgetSettingsField handlesField = schema!
+        WidgetSettingsField handlesField = schema
             .Fields.Should()
             .ContainSingle(f => f.Key == "handles")
             .Subject;

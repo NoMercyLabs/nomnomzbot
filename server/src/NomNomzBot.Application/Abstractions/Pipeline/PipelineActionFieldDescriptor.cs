@@ -45,12 +45,22 @@ public enum PipelineActionFieldKind
 /// For <see cref="PipelineActionFieldKind.Enum"/> fields, the closed set of allowed values. Null for every
 /// other kind.
 /// </param>
+/// <param name="Templated">
+/// Whether this field's stored value is a template (<c>{{user.name}}</c>-style placeholders get resolved
+/// against the run's variables) rather than literal text (S-PIPE-TREE-d2b(b)). Defaults to <c>false</c> —
+/// safe-by-default, so a field only renders when an action deliberately opts in; a regex, a raw id, or a
+/// routing key where <c>{{</c> is legitimate literal content stays untouched. Visible to the dashboard's step
+/// form via the <c>GET pipelines/actions</c> catalogue, so an author can tell which fields accept templates.
+/// When <see cref="ICommandAction.ResolvesOwnTemplates"/> is true the action resolves this field itself
+/// instead of the engine's central pass — either way the field is templated exactly once.
+/// </param>
 public sealed record PipelineActionFieldDescriptor(
     string Name,
     PipelineActionFieldKind Kind,
     bool Required = false,
     bool Repeatable = false,
-    IReadOnlyList<string>? Options = null
+    IReadOnlyList<string>? Options = null,
+    bool Templated = false
 );
 
 /// <summary>Converts a <see cref="PipelineActionFieldKind"/> to its snake_case wire name for the catalogue DTO.</summary>

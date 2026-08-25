@@ -26,10 +26,12 @@ public sealed class WaitAction : ICommandAction
 
     public string ActionType => "wait";
 
+    public bool ResolvesOwnTemplates => true;
+
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("milliseconds", PipelineActionFieldKind.Number),
-            new("seconds", PipelineActionFieldKind.Number),
+            new("milliseconds", PipelineActionFieldKind.Number, Templated: true),
+            new("seconds", PipelineActionFieldKind.Number, Templated: true),
         ];
 
     public WaitAction(ITemplateResolver resolver) => _resolver = resolver;

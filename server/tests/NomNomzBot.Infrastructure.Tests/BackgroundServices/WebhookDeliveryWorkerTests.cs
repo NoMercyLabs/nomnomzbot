@@ -10,20 +10,14 @@
 
 using System.Collections.Concurrent;
 using System.Net;
-using System.Net.Http;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
-using NomNomzBot.Application.Contracts.Webhooks;
-using NomNomzBot.Application.DTOs.Webhooks;
-using NomNomzBot.Domain.Platform.Interfaces;
-using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Webhooks.Enums;
 using NomNomzBot.Infrastructure.BackgroundServices;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -186,7 +180,7 @@ public sealed class WebhookDeliveryWorkerTests
             );
 
         // Instance A's tick finishes and releases the lease — the next tick is free again.
-        await preHeldLease!.DisposeAsync();
+        await preHeldLease.DisposeAsync();
 
         await workerB.RunIterationAsync(CancellationToken.None);
 

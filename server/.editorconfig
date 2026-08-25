@@ -124,3 +124,17 @@ resharper_web_config_wrong_module_highlighting = warning
 # auto-insert it on new files. Generated to match the AGPL banner in CLAUDE.md byte-for-byte.
 file_header_template = -----------------------------------------------------------------------------\n Copyright (c) NoMercy Labs.\n\n This file is part of NomNomzBot, free software licensed under the GNU Affero\n General Public License v3.0 or later. You may redistribute and/or modify it\n under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.\n\n SPDX-License-Identifier: AGPL-3.0-or-later\n-----------------------------------------------------------------------------
 dotnet_diagnostic.IDE0073.severity = suggestion
+
+# Automated cleanup rules (S-cleanup): these mirror the Rider inspections the owner was fixing by
+# hand — "Remove unused directives", "Remove redundant suppression", "Merge into pattern". They are
+# enforced at `warning` (build fails via TreatWarningsAsErrors) and are auto-fixed by
+# `dotnet format style --severity warn` — wired into the same gate as `dotnet csharpier format .`
+# (see server/.config CSharpier pin + the pre-commit convention in CLAUDE.md).
+dotnet_diagnostic.IDE0005.severity = warning   # Remove unnecessary using directives (requires GenerateDocumentationFile — see Directory.Build.props)
+dotnet_diagnostic.IDE0080.severity = warning   # Remove redundant nullable-suppression (!) operator
+dotnet_diagnostic.IDE0078.severity = warning   # Use pattern matching (merge 'is'/type checks into a pattern)
+dotnet_diagnostic.IDE0083.severity = warning   # Use pattern matching ('is' vs '==' for constants)
+csharp_style_prefer_pattern_matching = true:warning
+csharp_style_prefer_not_pattern = true:warning
+csharp_style_pattern_matching_over_as_with_null_check = true:warning
+csharp_style_pattern_matching_over_is_with_cast_check = true:warning

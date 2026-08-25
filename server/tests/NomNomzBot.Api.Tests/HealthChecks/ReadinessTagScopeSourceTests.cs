@@ -104,6 +104,6 @@ public sealed class ReadinessTagScopeSourceTests
         }
 
         found.Should().NotBeNull("must locate the repo's server/src/NomNomzBot.Api/Program.cs");
-        return File.ReadAllText(found!);
+        return File.ReadAllText(found);
     }
 }

@@ -64,7 +64,13 @@ public sealed class RunPipelineAction : ICommandAction
                 Required: false,
                 Options: ["inline", "detached"]
             ),
-            new("args", PipelineActionFieldKind.Text, Required: false),
+            new(
+                "args",
+                PipelineActionFieldKind.Text,
+                Required: false,
+                Repeatable: true,
+                Templated: true
+            ),
             new("wait", PipelineActionFieldKind.Boolean, Required: false),
         ];
 

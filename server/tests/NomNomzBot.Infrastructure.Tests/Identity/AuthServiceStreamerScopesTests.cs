@@ -59,7 +59,7 @@ public sealed class AuthServiceStreamerScopesTests
             .Split('&')
             .FirstOrDefault(pair => pair.StartsWith("scope=", StringComparison.Ordinal));
         scopeQueryPair.Should().NotBeNull();
-        string scopeParam = Uri.UnescapeDataString(scopeQueryPair!["scope=".Length..]);
+        string scopeParam = Uri.UnescapeDataString(scopeQueryPair["scope=".Length..]);
         string[] requestedScopes = scopeParam.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
         requestedScopes

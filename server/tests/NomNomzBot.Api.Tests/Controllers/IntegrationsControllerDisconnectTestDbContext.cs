@@ -101,6 +101,7 @@ internal sealed class IntegrationsControllerDisconnectTestDbContext
     ];
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
+    public DbSet<SecurityNotice> SecurityNotices => throw new NotSupportedException();
     public DbSet<User> Users => throw new NotSupportedException();
     public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
     public DbSet<ConsentRecord> ConsentRecords => throw new NotSupportedException();

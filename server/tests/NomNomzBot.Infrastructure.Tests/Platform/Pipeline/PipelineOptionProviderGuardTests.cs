@@ -13,7 +13,6 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Pipeline;
 using NomNomzBot.Infrastructure.Rewards.Pipeline;
-using Xunit;
 
 namespace NomNomzBot.Infrastructure.Tests.Platform.Pipeline;
 

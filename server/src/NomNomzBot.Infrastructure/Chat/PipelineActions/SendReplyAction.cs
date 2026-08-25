@@ -21,8 +21,10 @@ public sealed class SendReplyAction : ICommandAction
 
     public string ActionType => "send_reply";
 
+    public bool ResolvesOwnTemplates => true;
+
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
-        [new("message", PipelineActionFieldKind.Text, Required: true)];
+        [new("message", PipelineActionFieldKind.Text, Required: true, Templated: true)];
 
     public SendReplyAction(IChatProvider chat, ITemplateResolver resolver)
     {

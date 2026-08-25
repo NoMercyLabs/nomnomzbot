@@ -8,7 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using FluentAssertions;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Supporters.Events;
 using NomNomzBot.Domain.Widgets.Entities;
@@ -196,10 +195,13 @@ public sealed class SupporterWidgetEventHandlerTests
         payload is SupporterAlertPayload p && p.Kind == kind;
 
     private static bool IsExpectedTipPayload(object? payload) =>
-        payload is SupporterAlertPayload p
-        && p.Kind == "tip"
-        && p.SupporterDisplayName == "GenerousGoat"
-        && p.AmountMinor == 500
-        && p.Currency == "USD"
-        && p.MessageText == "keep it up!";
+        payload
+            is SupporterAlertPayload
+            {
+                Kind: "tip",
+                SupporterDisplayName: "GenerousGoat",
+                AmountMinor: 500,
+                Currency: "USD",
+                MessageText: "keep it up!"
+            };
 }

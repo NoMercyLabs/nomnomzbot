@@ -26,7 +26,6 @@ using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Sound.Services;
 using NomNomzBot.Domain.Chat.Events;
-using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Commands.Events;
 using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Entities;

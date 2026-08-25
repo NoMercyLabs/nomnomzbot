@@ -19,7 +19,7 @@ public sealed class SetVariableAction : ICommandAction
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new("name", PipelineActionFieldKind.Text, Required: true),
-            new("value", PipelineActionFieldKind.Text),
+            new("value", PipelineActionFieldKind.Text, Templated: true),
         ];
 
     public Task<ActionResult> ExecuteAsync(PipelineExecutionContext ctx, ActionDefinition action)

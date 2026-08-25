@@ -11,7 +11,6 @@
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
-using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Infrastructure.Platform.Deployment;
 
 namespace NomNomzBot.Infrastructure.Tests.Platform.Deployment;
@@ -102,7 +101,7 @@ public sealed class PostgresRunOnceGuardTests
         blockedAttempt.Should().BeNull();
 
         // The holder's process/connection goes away (dispose = the crash/shutdown path releasing the session).
-        await firstLease!.DisposeAsync();
+        await firstLease.DisposeAsync();
 
         IAsyncDisposable? afterRelease = await second.TryAcquireAsync(
             resourceName,

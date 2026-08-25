@@ -88,7 +88,15 @@ public sealed class PipelineTestRunService(
 
         // A fresh engine over the SAME real dependencies but the capture action-set — the real engine logic
         // (step order, conditions, {last.*} wiring, concurrency/timeout) is exercised unchanged.
-        PipelineEngine engine = new(db, registry, captureActions, conditions, logger, timeProvider);
+        PipelineEngine engine = new(
+            db,
+            registry,
+            captureActions,
+            conditions,
+            resolver,
+            logger,
+            timeProvider
+        );
 
         // Pass BOTH the id and the graph: the engine uses PipelineStep rows when they exist and falls back
         // to PipelineJson otherwise (its own resolution order). Real pipelines are graph-only, so the graph

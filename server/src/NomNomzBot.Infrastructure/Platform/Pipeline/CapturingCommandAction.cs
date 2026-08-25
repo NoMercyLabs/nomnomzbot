@@ -37,6 +37,13 @@ public sealed class CapturingCommandAction(
     public string Description => inner.Description;
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields => inner.Fields;
 
+    // Preview mode handles its own resolution below (send_message/send_reply only, for the captured chat
+    // line); every other captured field is intentionally left raw in the recorded preview. If this were
+    // false the engine's central pass would pre-resolve inner's Templated fields (S-PIPE-TREE-d2b(b))
+    // before ExecuteAsync below ever ran — double-resolving the very same "message" field this class
+    // already resolves itself, and silently changing the raw-JSON preview for every OTHER captured action.
+    public bool ResolvesOwnTemplates => true;
+
     public async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
         ActionDefinition action

@@ -14,7 +14,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Interfaces;
-using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Platform;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -97,7 +96,7 @@ public sealed class ChannelRegistryBootstrapRunOnceTests
         // Instance B lost the race: a clean no-op — its OWN registry never got the bootstrap pass.
         registryB.Count.Should().Be(0);
 
-        await preHeldLease!.DisposeAsync();
+        await preHeldLease.DisposeAsync();
 
         (ChannelRegistryBootstrapService serviceA, IChannelRegistry registryA) = BuildInstance(
             AuthTestBuilder.NewContext(databaseName),

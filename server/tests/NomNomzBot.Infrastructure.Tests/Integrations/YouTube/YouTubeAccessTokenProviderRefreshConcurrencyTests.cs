@@ -22,7 +22,6 @@ using NomNomzBot.Application.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Infrastructure.Identity;
-using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Integrations.YouTube;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NomNomzBot.Infrastructure.Tests.Music;

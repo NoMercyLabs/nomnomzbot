@@ -14,7 +14,6 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
 using NomNomzBot.Domain.Discord.Entities;
-using NomNomzBot.Domain.Identity.Entities;
 
 namespace NomNomzBot.Infrastructure.Discord;
 

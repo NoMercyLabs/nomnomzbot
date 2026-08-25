@@ -61,6 +61,7 @@ public class InfraPipelineEngineTests
             registry,
             actions,
             conditions,
+            resolver,
             NullLogger<PipelineEngine>.Instance,
             TimeProvider.System
         );
@@ -148,11 +149,22 @@ public class InfraPipelineEngineTests
         NomNomzBot.Application.Abstractions.Persistence.IApplicationDbContext db =
             Substitute.For<NomNomzBot.Application.Abstractions.Persistence.IApplicationDbContext>();
 
+        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
+        resolver
+            .ResolveAsync(
+                Arg.Any<string>(),
+                Arg.Any<IDictionary<string, string>>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(ci => Task.FromResult((string)ci[0]));
+
         PipelineEngine engine = new(
             db,
             registry,
             [recorded],
             [],
+            resolver,
             NullLogger<PipelineEngine>.Instance,
             TimeProvider.System
         );
@@ -391,6 +403,7 @@ public class InfraPipelineEngineTests
             registry,
             [new NomNomzBot.Infrastructure.Chat.PipelineActions.SendMessageAction(chat, resolver)],
             [],
+            resolver,
             NullLogger<PipelineEngine>.Instance,
             TimeProvider.System
         );
