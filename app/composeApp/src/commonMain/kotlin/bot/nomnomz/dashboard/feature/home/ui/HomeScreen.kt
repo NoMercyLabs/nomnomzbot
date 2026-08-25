@@ -114,7 +114,9 @@ import nomnomzbot.composeapp.generated.resources.home_activity_event
 import nomnomzbot.composeapp.generated.resources.home_activity_follow
 import nomnomzbot.composeapp.generated.resources.home_activity_mod_add
 import nomnomzbot.composeapp.generated.resources.home_activity_mod_remove
+import nomnomzbot.composeapp.generated.resources.home_activity_cheer_with_bits
 import nomnomzbot.composeapp.generated.resources.home_activity_raid
+import nomnomzbot.composeapp.generated.resources.home_activity_raid_with_viewers
 import nomnomzbot.composeapp.generated.resources.home_activity_redemption
 import nomnomzbot.composeapp.generated.resources.home_activity_redemption_named
 import nomnomzbot.composeapp.generated.resources.home_activity_resub
@@ -690,6 +692,17 @@ private fun rewardTitleFromData(data: String?): String? =
         }
         ?.takeIf { it.isNotBlank() }
 
+// Pull a numeric field out of an event's JSON data payload. Tolerant in the same way as
+// [rewardTitleFromData]: an absent field, a non-number, or unparseable JSON yields null and the row falls
+// back to its countless wording rather than rendering a wrong or zero figure.
+private fun intFromData(data: String?, field: String): Int? =
+    data
+        ?.takeIf { it.isNotBlank() }
+        ?.let {
+            runCatching { Json.parseToJsonElement(it).jsonObject[field]?.jsonPrimitive?.contentOrNull?.toIntOrNull() }
+                .getOrNull()
+        }
+
 @Composable
 private fun ActivityRow(event: ActivityEvent) {
     val tokens = LocalTokens.current
@@ -700,13 +713,28 @@ private fun ActivityRow(event: ActivityEvent) {
     // A redemption carries its reward name in the {"rewardTitle":…} data payload — show WHICH reward, not just
     // that one was redeemed. Absent/unparseable → the generic wording.
     val rewardTitle: String? = rewardTitleFromData(event.data)
+    // A raid's whole point is how many people arrived, and a cheer's is how many bits — the backend already
+    // records both on the event payload, so showing "Raided by X" alone threw away the number the streamer
+    // actually reads the feed for.
+    val viewerCount: Int? = intFromData(event.data, "viewerCount")
+    val bits: Int? = intFromData(event.data, "bits")
     val label: String = when (event.type) {
         "channel.follow" -> stringResource(Res.string.home_activity_follow, who)
         "channel.subscribe" -> stringResource(Res.string.home_activity_subscribe, who)
         "channel.subscription.message" -> stringResource(Res.string.home_activity_resub, who)
         "channel.subscription.gift" -> stringResource(Res.string.home_activity_subscription_gift, who)
-        "channel.cheer" -> stringResource(Res.string.home_activity_cheer, who)
-        "channel.raid" -> stringResource(Res.string.home_activity_raid, who)
+        "channel.cheer" ->
+            if (bits != null) {
+                stringResource(Res.string.home_activity_cheer_with_bits, who, bits)
+            } else {
+                stringResource(Res.string.home_activity_cheer, who)
+            }
+        "channel.raid" ->
+            if (viewerCount != null) {
+                stringResource(Res.string.home_activity_raid_with_viewers, who, viewerCount)
+            } else {
+                stringResource(Res.string.home_activity_raid, who)
+            }
         "channel.channel_points_custom_reward_redemption.add" ->
             if (rewardTitle != null) {
                 stringResource(Res.string.home_activity_redemption_named, who, rewardTitle)

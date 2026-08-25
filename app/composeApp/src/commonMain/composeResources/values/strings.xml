@@ -277,6 +277,8 @@
     <string name="home_activity_subscription_gift">%1$s gifted subs</string>
     <string name="home_activity_cheer">%1$s cheered</string>
     <string name="home_activity_raid">Raided by %1$s</string>
+    <string name="home_activity_raid_with_viewers">Raided by %1$s with %2$d viewers</string>
+    <string name="home_activity_cheer_with_bits">%1$s cheered %2$d bits</string>
     <string name="home_activity_redemption">%1$s redeemed a reward</string>
     <string name="home_activity_redemption_named">%1$s redeemed %2$s</string>
     <string name="home_activity_ban">%1$s was banned</string>

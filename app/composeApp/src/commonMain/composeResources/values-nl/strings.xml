@@ -274,6 +274,8 @@
     <string name="home_activity_subscription_gift">%1$s gaf abonnementen</string>
     <string name="home_activity_cheer">%1$s gaf bits</string>
     <string name="home_activity_raid">Geraaid door %1$s</string>
+    <string name="home_activity_raid_with_viewers">Geraid door %1$s met %2$d kijkers</string>
+    <string name="home_activity_cheer_with_bits">%1$s cheerde %2$d bits</string>
     <string name="home_activity_redemption">%1$s loste een beloning in</string>
     <string name="home_activity_redemption_named">%1$s loste %2$s in</string>
     <string name="home_activity_ban">%1$s is verbannen</string>
