@@ -69,6 +69,20 @@ public sealed class SongRequestQueueReconciler : IEventHandler<PlaybackStateChan
             string.Equals(e.TrackUri, @event.TrackUri, StringComparison.OrdinalIgnoreCase)
         );
 
+        // RemoveThrough stops at the FIRST match, so a second copy of the very track that just started
+        // survives and returns to the head — the track then plays again, and again. That is the
+        // "same songs over and over" loop seen live on 2026-08-25: the copy left behind kept the queue
+        // circular, and because in-flight pointed at the copy that WAS removed, "Now playing" also lost
+        // its requester and degraded to "someone". A track that is playing right now is by definition no
+        // longer pending, in every copy — TryEnqueueUnique keeps new duplicates out, and this keeps the
+        // ones already persisted before that gate existed from circulating forever.
+        while (
+            queue.RemoveFirst(e =>
+                string.Equals(e.TrackUri, @event.TrackUri, StringComparison.OrdinalIgnoreCase)
+            )
+        )
+            dropped++;
+
         SongRequestEntry? inFlight = _queueStore.GetInFlight(broadcasterId);
         bool inFlightIsGone =
             inFlight is not null

@@ -113,6 +113,37 @@ public sealed class SongRequestQueueReconcilerTests
         bus.Published.OfType<SongRequestQueueChangedEvent>().Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task Every_copy_of_the_track_that_just_started_leaves_the_queue()
+    {
+        (
+            SongRequestQueueReconciler sut,
+            FairQueue<SongRequestEntry> queue,
+            _,
+            SongRequestQueueStore store,
+            RecordingHandover handover
+        ) = Build("a", "b");
+        // A second viewer had already queued track "a" before the duplicate gate existed, so the
+        // persisted queue carries two copies of it.
+        queue.Enqueue(
+            "viewer-late",
+            new("spotify:track:a", "Track a", "Artist", null, 200000, "viewer-late")
+        );
+        // In-flight is the FIRST copy — the one actually handed to the provider.
+        store.SetInFlight(
+            ChannelId.ToString(),
+            queue.GetSnapshot().First(e => e.Item.TrackUri == "spotify:track:a").Item
+        );
+
+        await sut.HandleAsync(PlaybackOf("spotify:track:a"));
+
+        // Only "b" may remain. Leaving the second copy behind put it straight back at the head, so the
+        // track that had just played was handed over again on the next tick — the same song forever.
+        Titles(queue).Should().Equal("Track b");
+        store.GetInFlight(ChannelId.ToString()).Should().BeNull();
+        handover.Calls.Should().ContainSingle();
+    }
+
     private static PlaybackStateChangedEvent PlaybackOf(string trackUri) =>
         new()
         {
