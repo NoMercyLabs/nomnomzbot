@@ -54,47 +54,7 @@ class RowLabelGuardTest {
     // corrected regex. GiveawaysScreen.kt was fixed in THIS pass (giveaway.title row/edit/delete/close/
     // draw + code-pool name/delete) and its count is the one that actually moved this time.
     private val rawRenderedAssignmentBaseline: Map<String, Int> =
-        mapOf(
-            "admin/ui/AdminIamTab.kt" to 2,
-            "admin/ui/AdminScreen.kt" to 4,
-            "admin/ui/AdminTenantsTab.kt" to 2,
-            "analytics/ui/AnalyticsScreen.kt" to 2,
-            "assets/ui/AssetsScreen.kt" to 2,
-            "automation/ui/AutomationScreen.kt" to 2,
-            "bundles/ui/BundlesScreen.kt" to 4,
-            "chat/ui/ChatScreen.kt" to 1,
-            "codescripts/state/CodeScriptsController.kt" to 1,
-            "codescripts/ui/CodeScriptsScreen.kt" to 3,
-            "commands/ui/CommandsScreen.kt" to 2,
-            "community/ui/CommunityScreen.kt" to 1,
-            "connect/ui/ConnectScreen.kt" to 2,
-            "customevents/ui/CustomEventsScreen.kt" to 4,
-            "discord/ui/DiscordScreen.kt" to 1,
-            "economy/state/EconomyController.kt" to 2,
-            "economy/ui/EconomyScreen.kt" to 3,
-            "features/ui/FeaturesScreen.kt" to 1,
-            "federation/ui/FederationScreen.kt" to 1,
-            "games/ui/GamesScreen.kt" to 1,
-            "giveaways/ui/GiveawaysScreen.kt" to 2,
-            "home/state/HomeController.kt" to 1,
-            "language/ui/LanguagePicker.kt" to 2,
-            "mediashare/ui/MediaShareScreen.kt" to 1,
-            "obs/ui/ObsScreen.kt" to 2,
-            "participant/ui/LeaderboardsScreen.kt" to 1,
-            "participant/ui/ParticipantShell.kt" to 3,
-            "participant/ui/PointsAndStoreScreen.kt" to 2,
-            "pipelines/ui/PipelinesScreen.kt" to 1,
-            "settings/ui/SettingsScreen.kt" to 1,
-            "setup/ui/SetupWizardScreen.kt" to 1,
-            "shell/ui/ShellScreen.kt" to 2,
-            "sound/ui/SoundScreen.kt" to 2,
-            "timers/ui/TimersScreen.kt" to 1,
-            "tts/ui/TtsScreen.kt" to 2,
-            "webhooks/ui/WebhooksScreen.kt" to 3,
-            "widgets/ui/WidgetGalleryReview.kt" to 2,
-            "widgets/ui/WidgetSettingsForms.kt" to 2,
-            "widgets/ui/WidgetsScreen.kt" to 2,
-        )
+        mapOf()
 
     // Editor/state-controller constructor form-seeds — an `edit(summary)` factory populating an
     // EDITABLE field's default value (e.g. `name = command.name` in CommandEditor.edit()). Never

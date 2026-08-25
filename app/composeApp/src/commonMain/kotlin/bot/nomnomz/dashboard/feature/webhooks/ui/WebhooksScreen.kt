@@ -38,6 +38,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
@@ -509,7 +510,13 @@ private fun InboundRow(
             horizontalArrangement = Arrangement.spacedBy(spacing.s3),
         ) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-                Text(text = ep.name, style = typography.base, color = tokens.cardForeground, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    text = resolveRowLabel(ep.name, typeLabel = "Webhook", discriminatorSource = ep.id),
+                    style = typography.base,
+                    color = tokens.cardForeground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
                 Text(
                     text = "${stringResource(Res.string.webhooks_adapter_label)}: ${adapterLabel(ep.adapter)} · ${stringResource(Res.string.webhooks_receive_count, ep.receiveCount)}",
                     style = typography.xs,
@@ -591,7 +598,13 @@ private fun OutboundRow(
             horizontalArrangement = Arrangement.spacedBy(spacing.s3),
         ) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-                Text(text = ep.name, style = typography.base, color = tokens.cardForeground, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    text = resolveRowLabel(ep.name, typeLabel = "Webhook", discriminatorSource = ep.id),
+                    style = typography.base,
+                    color = tokens.cardForeground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
                 Text(
                     text = "${ep.fqdn}${ep.path ?: ""}",
                     style = typography.xs,
@@ -1181,7 +1194,13 @@ private fun EventChecklist(
                                     onCheckedChange = { onToggleEvent(entry.eventType, it) },
                                 )
                                 Text(
-                                    text = entry.label,
+                                    text =
+                                        resolveRowLabel(
+                                            entry.label,
+                                            secondary = entry.eventType,
+                                            typeLabel = "Event",
+                                            discriminatorSource = entry.eventType,
+                                        ),
                                     style = typography.sm,
                                     color = tokens.foreground,
                                     modifier = Modifier.weight(1f),

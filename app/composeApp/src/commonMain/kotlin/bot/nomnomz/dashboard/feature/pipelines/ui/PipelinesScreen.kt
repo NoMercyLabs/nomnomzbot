@@ -1139,7 +1139,17 @@ private fun OptionPicker(
             DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                 for (option in options) {
                     DropdownMenuItem(
-                        text = { Text(text = option.label, color = tokens.popoverForeground) },
+                        text = {
+                            Text(
+                                text =
+                                    resolveRowLabel(
+                                        option.label,
+                                        typeLabel = "Option",
+                                        discriminatorSource = option.value,
+                                    ),
+                                color = tokens.popoverForeground,
+                            )
+                        },
                         onClick = {
                             onSelect(option.value)
                             expanded = false

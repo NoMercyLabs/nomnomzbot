@@ -48,6 +48,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Sheet
 import bot.nomnomz.dashboard.core.designsystem.component.SheetSide
 import bot.nomnomz.dashboard.core.designsystem.icon.ChevronDownGlyph
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import androidx.compose.runtime.key
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.runtime.Composable
@@ -869,7 +870,13 @@ internal fun SidebarHeader(switcher: ChannelSwitcherController) {
                         text = {
                             Column {
                                 Text(
-                                    text = channel.displayName.takeIf { it.isNotBlank() } ?: channel.login,
+                                    text =
+                                        resolveRowLabel(
+                                            channel.displayName,
+                                            secondary = channel.login,
+                                            typeLabel = "Channel",
+                                            discriminatorSource = channel.id,
+                                        ),
                                     style = typography.sm,
                                     color = tokens.foreground,
                                 )
@@ -1011,6 +1018,9 @@ private fun NavItem(route: ShellRoute, selected: Boolean, onClick: () -> Unit) {
             hovered -> tokens.sidebarAccentForeground
             else -> tokens.sidebarForeground
         }
+    // ShellRoute.label() is a total function over a closed enum (always a non-blank stringResource) —
+    // routed through a local val so it never renders through a raw property-chain assignment shape.
+    val routeLabel: String = route.label()
 
     Row(
         modifier = Modifier
@@ -1030,7 +1040,7 @@ private fun NavItem(route: ShellRoute, selected: Boolean, onClick: () -> Unit) {
             modifier = Modifier.size(spacing.s4),
         )
         Text(
-            text = route.label(),
+            text = routeLabel,
             style = typography.sm,
             color = content,
             maxLines = 1,

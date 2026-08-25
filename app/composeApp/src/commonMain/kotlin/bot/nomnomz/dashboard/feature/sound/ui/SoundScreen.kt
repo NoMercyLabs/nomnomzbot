@@ -52,6 +52,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
@@ -265,9 +266,11 @@ private fun ClipRow(
     val tokens = LocalTokens.current
     val typography = LocalTypography.current
 
-    val previewLabel: String = stringResource(Res.string.sound_clips_preview_action, clip.displayName)
-    val editLabel: String = stringResource(Res.string.sound_clips_edit_action, clip.displayName)
-    val deleteLabel: String = stringResource(Res.string.sound_clips_delete_action, clip.displayName)
+    val displayName: String =
+        resolveRowLabel(clip.displayName, secondary = clip.name, typeLabel = "Sound clip", discriminatorSource = clip.id)
+    val previewLabel: String = stringResource(Res.string.sound_clips_preview_action, displayName)
+    val editLabel: String = stringResource(Res.string.sound_clips_edit_action, displayName)
+    val deleteLabel: String = stringResource(Res.string.sound_clips_delete_action, displayName)
 
     Row(
         modifier = Modifier
@@ -285,7 +288,7 @@ private fun ClipRow(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = clip.displayName,
+                    text = displayName,
                     style = typography.sm,
                     color = tokens.foreground,
                     maxLines = 1,
@@ -313,7 +316,13 @@ private fun ClipRow(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = clip.name,
+                    text =
+                        resolveRowLabel(
+                            clip.name,
+                            secondary = clip.displayName,
+                            typeLabel = "Sound clip",
+                            discriminatorSource = clip.id,
+                        ),
                     style = typography.xs,
                     color = tokens.mutedForeground,
                     maxLines = 1,

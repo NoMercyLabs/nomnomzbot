@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
 import bot.nomnomz.dashboard.core.designsystem.component.PickerRef
 import bot.nomnomz.dashboard.core.designsystem.component.SearchPickerField
@@ -787,7 +788,18 @@ private fun VoiceBrowserRow(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(spacing.s2),
             ) {
-                Text(text = voice.displayName, style = typography.sm, color = tokens.cardForeground, maxLines = 1)
+                Text(
+                    text =
+                        resolveRowLabel(
+                            voice.displayName,
+                            secondary = voice.name,
+                            typeLabel = "Voice",
+                            discriminatorSource = voice.id,
+                        ),
+                    style = typography.sm,
+                    color = tokens.cardForeground,
+                    maxLines = 1,
+                )
                 if (isCurrent) {
                     Text(
                         text = stringResource(Res.string.tts_voices_current_tag),
@@ -1435,8 +1447,10 @@ private fun VoiceMatchRow(voice: TtsVoice, manage: ManageDecision, onUse: () -> 
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    val useLabel: String = stringResource(Res.string.tts_voices_use_action, voice.displayName)
-    val rowDescription: String = "${voice.displayName}, ${voice.locale}, ${voice.provider}"
+    val displayName: String =
+        resolveRowLabel(voice.displayName, secondary = voice.name, typeLabel = "Voice", discriminatorSource = voice.id)
+    val useLabel: String = stringResource(Res.string.tts_voices_use_action, displayName)
+    val rowDescription: String = "$displayName, ${voice.locale}, ${voice.provider}"
 
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
@@ -1450,7 +1464,7 @@ private fun VoiceMatchRow(voice: TtsVoice, manage: ManageDecision, onUse: () -> 
             verticalArrangement = Arrangement.spacedBy(spacing.s1),
         ) {
             Text(
-                text = voice.displayName,
+                text = displayName,
                 style = typography.sm,
                 color = tokens.cardForeground,
                 maxLines = 1,

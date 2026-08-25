@@ -25,6 +25,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.OutlinedButton
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
@@ -433,7 +434,7 @@ private fun ReviewRow(step: SetupStep) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = step.title,
+            text = resolveRowLabel(step.title, typeLabel = "Step", discriminatorSource = step.key),
             style = typography.sm,
             color = tokens.cardForeground,
             maxLines = 1,

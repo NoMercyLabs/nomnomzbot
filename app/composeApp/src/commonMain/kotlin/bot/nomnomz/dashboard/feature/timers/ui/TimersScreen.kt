@@ -43,6 +43,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
@@ -326,9 +327,11 @@ private fun TimerTableRow(
         stringResource(if (timer.isEnabled) Res.string.timers_enabled else Res.string.timers_disabled)
     // Announced only for one-shot timers, so the row's a11y node conveys the fire-once state the badge shows.
     val onceLabel: String = if (timer.fireOnce) ", ${stringResource(Res.string.timers_badge_once)}" else ""
-    val toggleLabel: String = stringResource(Res.string.timers_toggle, timer.name)
-    val editLabel: String = stringResource(Res.string.timers_edit, timer.name)
-    val deleteLabel: String = stringResource(Res.string.timers_delete, timer.name)
+    val displayName: String =
+        resolveRowLabel(timer.name, typeLabel = "Timer", discriminatorSource = timer.id)
+    val toggleLabel: String = stringResource(Res.string.timers_toggle, displayName)
+    val editLabel: String = stringResource(Res.string.timers_edit, displayName)
+    val deleteLabel: String = stringResource(Res.string.timers_delete, displayName)
 
     Row(
         modifier = Modifier
@@ -343,12 +346,12 @@ private fun TimerTableRow(
                 .weight(1f)
                 .clearAndSetSemantics {
                     contentDescription =
-                        "${timer.name}, $intervalText, $messagesText, $statusLabel$onceLabel"
+                        "$displayName, $intervalText, $messagesText, $statusLabel$onceLabel"
                 },
             verticalArrangement = Arrangement.spacedBy(spacing.s1),
         ) {
             Text(
-                text = timer.name,
+                text = displayName,
                 style = typography.sm,
                 color = tokens.cardForeground,
                 maxLines = 1,

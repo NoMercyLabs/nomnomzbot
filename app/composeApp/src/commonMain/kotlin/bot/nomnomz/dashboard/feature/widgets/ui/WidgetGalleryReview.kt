@@ -28,6 +28,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
@@ -371,7 +372,11 @@ private fun ReviewRow(item: GalleryItemSummary, onOpen: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(spacing.s2),
             ) {
-                Text(text = item.name, style = typography.base, color = tokens.cardForeground)
+                Text(
+                    text = resolveRowLabel(item.name, typeLabel = "Widget", discriminatorSource = item.id),
+                    style = typography.base,
+                    color = tokens.cardForeground,
+                )
                 Badge(variant = BadgeVariant.Secondary) { Text(text = item.framework) }
             }
             item.description?.let {
@@ -401,7 +406,11 @@ private fun ReviewDetailPanel(
         modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
-        Text(text = detail.name, style = typography.lg, color = tokens.cardForeground)
+        Text(
+            text = resolveRowLabel(detail.name, typeLabel = "Widget", discriminatorSource = detail.id),
+            style = typography.lg,
+            color = tokens.cardForeground,
+        )
         detail.gitHubRepoUrl?.let {
             Text(text = stringResource(Res.string.widgets_review_repo, it), style = typography.sm, color = tokens.mutedForeground)
         }

@@ -26,6 +26,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
@@ -534,13 +535,15 @@ private fun WidgetRow(
             if (widget.isEnabled) Res.string.widgets_badge_enabled
             else Res.string.widgets_badge_disabled
         )
-    val toggleLabel: String = stringResource(Res.string.widgets_toggle_action, widget.name)
-    val deleteLabel: String = stringResource(Res.string.widgets_delete_action, widget.name)
-    val renameLabel: String = stringResource(Res.string.widgets_rename_action, widget.name)
-    val cloneLabel: String = stringResource(Res.string.widgets_clone_action, widget.name)
-    val editCodeLabel: String = stringResource(Res.string.widgets_edit_code_action, widget.name)
-    val settingsLabel: String = stringResource(Res.string.widgets_settings_action, widget.name)
-    val versionsLabel: String = stringResource(Res.string.widgets_versions_action, widget.name)
+    val widgetDisplayName: String =
+        resolveRowLabel(widget.name, typeLabel = "Widget", discriminatorSource = widget.id)
+    val toggleLabel: String = stringResource(Res.string.widgets_toggle_action, widgetDisplayName)
+    val deleteLabel: String = stringResource(Res.string.widgets_delete_action, widgetDisplayName)
+    val renameLabel: String = stringResource(Res.string.widgets_rename_action, widgetDisplayName)
+    val cloneLabel: String = stringResource(Res.string.widgets_clone_action, widgetDisplayName)
+    val editCodeLabel: String = stringResource(Res.string.widgets_edit_code_action, widgetDisplayName)
+    val settingsLabel: String = stringResource(Res.string.widgets_settings_action, widgetDisplayName)
+    val versionsLabel: String = stringResource(Res.string.widgets_versions_action, widgetDisplayName)
     val urlLabel: String = stringResource(Res.string.widgets_url_label)
 
     Column(
@@ -558,11 +561,11 @@ private fun WidgetRow(
                 modifier = Modifier
                     .weight(1f)
                     // One node for the text block: "Alerts, vanilla, enabled.".
-                    .clearAndSetSemantics { contentDescription = "${widget.name}, ${widget.framework}, $stateLabel." },
+                    .clearAndSetSemantics { contentDescription = "$widgetDisplayName, ${widget.framework}, $stateLabel." },
                 verticalArrangement = Arrangement.spacedBy(spacing.s1),
             ) {
                 Text(
-                    text = widget.name,
+                    text = widgetDisplayName,
                     style = typography.lg,
                     color = tokens.cardForeground,
                     maxLines = 1,
@@ -1164,8 +1167,10 @@ private fun GalleryItemCard(
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    val installLabel: String = stringResource(Res.string.widgets_gallery_install_action, item.name)
-    val cloneLabel: String = stringResource(Res.string.widgets_gallery_clone_action, item.name)
+    val itemDisplayName: String =
+        resolveRowLabel(item.name, typeLabel = "Widget", discriminatorSource = item.id)
+    val installLabel: String = stringResource(Res.string.widgets_gallery_install_action, itemDisplayName)
+    val cloneLabel: String = stringResource(Res.string.widgets_gallery_clone_action, itemDisplayName)
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -1173,7 +1178,7 @@ private fun GalleryItemCard(
             verticalArrangement = Arrangement.spacedBy(spacing.s2),
         ) {
             Text(
-                text = item.name,
+                text = itemDisplayName,
                 style = typography.base,
                 color = tokens.cardForeground,
                 maxLines = 1,

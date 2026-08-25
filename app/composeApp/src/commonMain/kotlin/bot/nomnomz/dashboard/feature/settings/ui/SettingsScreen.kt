@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.Button
@@ -2066,7 +2067,7 @@ private fun TierRow(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = tier.displayName,
+                text = resolveRowLabel(tier.displayName, typeLabel = "Tier", discriminatorSource = tier.id),
                 style = typography.sm.copy(fontWeight = FontWeight.SemiBold),
                 color = tokens.cardForeground,
                 maxLines = 1,

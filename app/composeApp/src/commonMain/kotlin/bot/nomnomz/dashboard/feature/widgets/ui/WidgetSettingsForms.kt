@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.Button
@@ -262,7 +263,11 @@ private fun FieldControl(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(text = field.label, style = typography.base, color = tokens.cardForeground)
+                    Text(
+                        text = resolveRowLabel(field.label, typeLabel = "Field", discriminatorSource = field.key),
+                        style = typography.base,
+                        color = tokens.cardForeground,
+                    )
                     field.help?.takeIf { it.isNotBlank() }?.let {
                         Text(text = it, style = typography.xs, color = tokens.mutedForeground)
                     }
@@ -327,7 +332,11 @@ private fun FieldControl(
 
         "multiselect" ->
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-                Text(text = field.label, style = typography.sm, color = tokens.foreground)
+                Text(
+                    text = resolveRowLabel(field.label, typeLabel = "Field", discriminatorSource = field.key),
+                    style = typography.sm,
+                    color = tokens.foreground,
+                )
                 field.options.orEmpty().chunked(2).forEach { rowOptions ->
                     Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
                         rowOptions.forEach { option ->
