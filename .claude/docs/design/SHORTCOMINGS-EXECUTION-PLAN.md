@@ -195,17 +195,22 @@ stable — without dropping the planned requirements behind them.
   Note this generalises: ANY security-relevant alert delivered only via transient SignalR has the same
   hole — sweep that class, do not fix impersonation alone.
 
-- **S-NAMELESS-ROWS-b** (paused mid-work 2026-08-25 when parallelism was throttled) The shared mechanism
-  `resolveRowLabel` (core/designsystem/RowLabel.kt) and the worked example `PickListsScreen` shipped in
-  fa9391a3; `RowLabelGuardTest` holds a burn-down BASELINE of unfixed sites so no NEW raw site can appear.
-  18 files still need wiring: CommandsScreen, GiveawaysScreen, RewardsScreen, WidgetSettingsForms,
-  PipelinesScreen, PipelinesController, HomeController, ModerationController, EconomyController,
-  CommunityController, ScheduleController, TtsController, RolesScreen, ParticipantShell, ShellScreen,
-  AutomationScreen, ConnectScreen, AnalyticsScreen, CodeScriptsController.
-  **UNCOMMITTED PARTIAL WORK SITS IN THE TREE:** `feature/commands/ui/CommandsScreen.kt` is mid-wiring and
-  both `strings.xml` files already carry its new keys — RESUME from there rather than restarting that
-  file, and check the en/nl keys are not duplicated. Remove each fixed file from the guard baseline as
-  you go; a file left in the baseline that no longer needs it is a lie.
+- **S-NAMELESS-ROWS-b** (17 of 19 files remain; Commands + Rewards done in 8c349816, jvmTest 702/702)
+  Mechanism `resolveRowLabel` + `RowLabelGuardTest` shipped in fa9391a3; `PickListsScreen` is the worked
+  example. REMAINING: GiveawaysScreen, WidgetSettingsForms, PipelinesScreen, PipelinesController,
+  HomeController, ModerationController, EconomyController, CommunityController, ScheduleController,
+  TtsController, RolesScreen, ParticipantShell, ShellScreen, AutomationScreen, CodeScriptsController.
+  CONFIRMED NOT blank-capable (skip): AnalyticsScreen `tile.label` and ConnectScreen `cta.label` — static
+  literals with no row actions.
+  **TWO DEFECTS IN THE SLICE ITSELF, fix these before grinding more files:**
+  (a) `RowLabelGuardTest`'s regex counts the WRONG population — it matches edit-FORM seeds (never
+  rendered) as well as rendered row labels, so its baseline did not shrink even though both files were
+  fully fixed. A guard whose number does not move when the defect is fixed cannot measure progress.
+  Narrow it to rendered row/action/confirm sites, or split the baseline into rendered vs form-seed.
+  (b) NO behavioural test exists for Commands/Rewards — the slice's own done-when (a blank name renders an
+  identifying label; two blank items do not render identically; a destructive confirm names the item) is
+  unproven for the files already "fixed". Add a table-driven rendered-text test covering every fixed
+  screen, so finishing a file automatically means proving it.
 
 - **S-DISCORD-LIVEROLE-spec** (the one thing the live-role slice could not finish) `discord.md` was NOT
   extended with the live-role section — the builder ran out of budget after the `git stash` incident
