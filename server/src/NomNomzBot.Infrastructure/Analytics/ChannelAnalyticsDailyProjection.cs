@@ -497,7 +497,12 @@ public sealed class ChannelAnalyticsDailyProjection(
     /// <summary>
     /// Inserts a fresh daily row, tolerating a concurrent writer (the driver's tick vs. a manual rebuild)
     /// minting the same (BroadcasterId, ActivityDate) row first — the unique index then rejects ours, which
-    /// used to surface as an Npgsql 23505 duplicate-key violation instead of being absorbed here.
+    /// used to surface as an Npgsql 23505 duplicate-key violation instead of being absorbed here. Same
+    /// conflict-tolerant-raw-insert mechanism as <see cref="TryInsertAnchorAsync"/>: a tracked <c>Add</c> +
+    /// <c>SaveChangesAsync</c> that lets the unique-index violation reach the database has EF's relational
+    /// command diagnostics log the failing command at Error BEFORE the exception is thrown — catching it
+    /// does not stop the log. The provider-native "ON CONFLICT DO NOTHING" / "INSERT OR IGNORE" insert never
+    /// reports a constraint failure at all, so this expected, benign race never surfaces as an error log.
     /// </summary>
     private async Task EnsureDailyRowExistsAsync(
         Guid broadcasterId,
@@ -511,6 +516,58 @@ public sealed class ChannelAnalyticsDailyProjection(
         if (exists)
             return;
 
+        if (db is not DbContext dbContext)
+        {
+            // No real DbContext to issue provider-native raw SQL against (e.g. a hand-written test fake) —
+            // fall back to the tracked insert; a losing race here still lands correctly, it simply keeps
+            // the pre-existing error-level log in that fallback case.
+            await EnsureDailyRowExistsViaTrackedSaveAsync(broadcasterId, date, ct);
+            return;
+        }
+
+        // Every NOT NULL counter column has no SQL-level DEFAULT, so it must be listed explicitly — SQLite's
+        // "INSERT OR IGNORE" silently ignores ANY constraint failure (not just the unique-index collision
+        // this is meant to tolerate), so an omitted NOT NULL column would make the insert a silent no-op
+        // instead of minting the row. The values mirror the entity's own CLR defaults (zero counters, no
+        // peak-viewers sample yet).
+        if (dbContext.Database.IsNpgsql())
+            await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                INSERT INTO "ChannelAnalyticsDailies"
+                    ("BroadcasterId", "ActivityDate", "UniqueChatters", "TotalMessages", "TotalWatchSeconds",
+                     "NewFollowers", "NewSubscribers", "BitsCheered", "CommandsRun", "RedemptionsCount",
+                     "SongRequests", "CurrencyEarnedTotal", "CurrencySpentTotal", "GamesPlayed", "PeakViewers")
+                VALUES
+                    ({broadcasterId}, {date}, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, NULL)
+                ON CONFLICT ("BroadcasterId", "ActivityDate") DO NOTHING
+                """,
+                ct
+            );
+        else
+            await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                INSERT OR IGNORE INTO "ChannelAnalyticsDailies"
+                    ("BroadcasterId", "ActivityDate", "UniqueChatters", "TotalMessages", "TotalWatchSeconds",
+                     "NewFollowers", "NewSubscribers", "BitsCheered", "CommandsRun", "RedemptionsCount",
+                     "SongRequests", "CurrencyEarnedTotal", "CurrencySpentTotal", "GamesPlayed", "PeakViewers")
+                VALUES
+                    ({broadcasterId}, {date}, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, NULL)
+                """,
+                ct
+            );
+    }
+
+    /// <summary>
+    /// Pre-existing tracked-insert fallback (used only when <c>db</c> isn't a real <see cref="DbContext"/>):
+    /// still correct, but a losing race here surfaces the collision as an error-level EF log — see the
+    /// caller's remarks.
+    /// </summary>
+    private async Task EnsureDailyRowExistsViaTrackedSaveAsync(
+        Guid broadcasterId,
+        DateOnly date,
+        CancellationToken ct
+    )
+    {
         ChannelAnalyticsDaily row = new() { BroadcasterId = broadcasterId, ActivityDate = date };
         db.ChannelAnalyticsDailies.Add(row);
         try

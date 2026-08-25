@@ -340,6 +340,90 @@ public sealed class ChannelAnalyticsDailyProjectionTests
     }
 
     [Fact]
+    public async Task First_fold_of_the_day_mints_the_daily_row_without_an_error_level_log()
+    {
+        // A first fold on a channel with no daily row yet goes through EnsureDailyRowExistsAsync's
+        // insert path. Even on a single, uncontested writer this must never touch the tracked-insert
+        // fallback that lets a duplicate-key violation reach EF's relational diagnostics logger.
+        CapturingLoggerProvider logs = new();
+        using ILoggerFactory loggerFactory = new LoggerFactory(new[] { logs });
+        string dbName = $"dailyrow-first-fold-{Guid.NewGuid()}";
+        using SqliteConnection keepAlive = OpenSharedCacheKeepAlive(dbName);
+        using AuthDbContext db = NewLoggingContext(dbName, loggerFactory);
+        ILiveWindowResolver liveWindow = Substitute.For<ILiveWindowResolver>();
+        liveWindow
+            .GetCoveringStreamIdAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<DateTime>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns("stream-1");
+        ChannelAnalyticsDailyProjection sut = new(db, liveWindow);
+
+        await sut.ApplyAsync(Event("CheerEvent", Channel, "{\"Bits\":100}"));
+
+        logs.Entries.Where(e => e.Level >= LogLevel.Error)
+            .Should()
+            .BeEmpty("minting the first daily row of the day is normal operation, not a failure");
+
+        ChannelAnalyticsDaily row = db.ChannelAnalyticsDailies.AsNoTracking().Single();
+        row.BroadcasterId.Should().Be(Channel);
+        row.ActivityDate.Should().Be(DateOnly.FromDateTime(Now));
+        row.BitsCheered.Should().Be(100);
+    }
+
+    [Fact]
+    public async Task Two_concurrent_first_folds_of_the_day_collide_silently_and_still_land_correctly()
+    {
+        // Two independent contexts over the SAME shared-cache SQLite store, both racing to mint the SAME
+        // (BroadcasterId, ActivityDate) daily row on their first fold of the day — the real-DB analogue of
+        // two API instances processing the first events of the day concurrently.
+        CapturingLoggerProvider logs = new();
+        using ILoggerFactory loggerFactory = new LoggerFactory(new[] { logs });
+        string dbName = $"dailyrow-race-{Guid.NewGuid()}";
+        using SqliteConnection keepAlive = OpenSharedCacheKeepAlive(dbName);
+        using AuthDbContext dbA = NewLoggingContext(dbName, loggerFactory);
+        using AuthDbContext dbB = NewLoggingContext(dbName, loggerFactory);
+
+        ILiveWindowResolver liveWindowA = Substitute.For<ILiveWindowResolver>();
+        liveWindowA
+            .GetCoveringStreamIdAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<DateTime>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns("stream-1");
+        ILiveWindowResolver liveWindowB = Substitute.For<ILiveWindowResolver>();
+        liveWindowB
+            .GetCoveringStreamIdAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<DateTime>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns("stream-1");
+
+        ChannelAnalyticsDailyProjection sutA = new(dbA, liveWindowA);
+        ChannelAnalyticsDailyProjection sutB = new(dbB, liveWindowB);
+
+        await Task.WhenAll(
+            sutA.ApplyAsync(Event("CheerEvent", Channel, "{\"Bits\":100}")),
+            sutB.ApplyAsync(Event("SongRequestedEvent", Channel))
+        );
+
+        logs.Entries.Where(e => e.Level >= LogLevel.Error)
+            .Should()
+            .BeEmpty(
+                "the daily-row unique-index collision is an expected, handled race — it must never surface as an error-level log"
+            );
+
+        ChannelAnalyticsDaily row = dbA
+            .ChannelAnalyticsDailies.AsNoTracking()
+            .Single(r => r.BroadcasterId == Channel);
+        row.BitsCheered.Should().Be(100);
+        row.SongRequests.Should().Be(1);
+    }
+
+    [Fact]
     public async Task A_genuine_save_failure_on_the_context_is_still_logged_at_error_level()
     {
         CapturingLoggerProvider logs = new();
