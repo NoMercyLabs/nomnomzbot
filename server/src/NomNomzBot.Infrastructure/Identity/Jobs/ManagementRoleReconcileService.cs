@@ -57,7 +57,7 @@ public sealed class ManagementRoleReconcileService : BackgroundService
             {
                 await ReconcileAllAsync(stoppingToken);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
             {
                 _logger.LogError(
                     ex,
@@ -107,7 +107,7 @@ public sealed class ManagementRoleReconcileService : BackgroundService
                         result.ErrorCode
                     );
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!ct.IsCancellationRequested)
             {
                 _logger.LogWarning(
                     ex,

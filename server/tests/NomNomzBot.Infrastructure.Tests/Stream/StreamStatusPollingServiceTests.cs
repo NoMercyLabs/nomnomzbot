@@ -9,11 +9,17 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Stream.Jobs;
+using NomNomzBot.Infrastructure.Tests.Identity;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Stream;
 
@@ -273,5 +279,108 @@ public sealed class StreamStatusPollingServiceTests
             StreamStatusPollingService.BuildViewerCountSample(Guid.NewGuid(), Offline());
 
         sample.Should().BeNull("no stream, no sample — offline polls must not journal noise");
+    }
+
+    /// <summary>
+    /// The 2026-08-25 outage shape, reproduced at the poll-tick seam: a Helix Get Streams call can raise
+    /// <see cref="TaskCanceledException"/> on its own timeout — a subclass of
+    /// <see cref="OperationCanceledException"/> that an `ex is not OperationCanceledException` filter would
+    /// let straight through, aborting the tick and (via BackgroundServiceExceptionBehavior.StopHost)
+    /// taking the whole bot down. Both the per-channel and the outer tick catch must survive it, and the
+    /// per-channel catch must keep polling every other channel in the same tick.
+    /// </summary>
+    [Fact]
+    public async Task A_provider_timeout_for_one_channel_is_survived_and_the_other_channel_still_polls()
+    {
+        Guid timingOutChannel = Guid.Parse("0192f000-0000-7000-8000-0000000000a1");
+        Guid healthyChannel = Guid.Parse("0192f000-0000-7000-8000-0000000000a2");
+        Guid owner = Guid.Parse("0192f000-0000-7000-8000-0000000000a9");
+
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Channels.Add(
+            new()
+            {
+                Id = timingOutChannel,
+                OwnerUserId = owner,
+                Provider = AuthEnums.Platform.Twitch,
+                ExternalChannelId = "tw-1",
+                TwitchChannelId = "tw-1",
+                Name = "streamer1",
+                NameNormalized = "streamer1",
+                IsOnboarded = true,
+                DeploymentMode = AuthEnums.DeploymentMode.Saas,
+                BillingTierKey = "free",
+            }
+        );
+        db.Channels.Add(
+            new()
+            {
+                Id = healthyChannel,
+                OwnerUserId = owner,
+                Provider = AuthEnums.Platform.Twitch,
+                ExternalChannelId = "tw-2",
+                TwitchChannelId = "tw-2",
+                Name = "streamer2",
+                NameNormalized = "streamer2",
+                IsOnboarded = true,
+                DeploymentMode = AuthEnums.DeploymentMode.Saas,
+                BillingTierKey = "free",
+            }
+        );
+        db.SaveChanges();
+
+        IChannelRegistry channels = Substitute.For<IChannelRegistry>();
+        channels
+            .GetAll()
+            .Returns(
+                new List<ChannelContext>
+                {
+                    new()
+                    {
+                        BroadcasterId = timingOutChannel,
+                        TwitchChannelId = "tw-1",
+                        ChannelName = "streamer1",
+                        IsLive = false,
+                    },
+                    new()
+                    {
+                        BroadcasterId = healthyChannel,
+                        TwitchChannelId = "tw-2",
+                        ChannelName = "streamer2",
+                        IsLive = false,
+                    },
+                }
+            );
+
+        IPlatformBotReadinessGate gate = Substitute.For<IPlatformBotReadinessGate>();
+        gate.IsPlatformBotConfiguredAsync(Arg.Any<CancellationToken>()).Returns(true);
+
+        ITwitchStreamsApi streams = Substitute.For<ITwitchStreamsApi>();
+        streams
+            .GetStreamAsync(timingOutChannel, Arg.Any<CancellationToken>())
+            .Returns<Task<Result<TwitchStream>>>(_ =>
+                throw new TaskCanceledException(
+                    "The request was canceled due to the configured HttpClient.Timeout of 100 seconds elapsing."
+                )
+            );
+        streams.GetStreamAsync(healthyChannel, Arg.Any<CancellationToken>()).Returns(Offline());
+
+        ServiceProvider provider = new ServiceCollection()
+            .AddSingleton<IApplicationDbContext>(db)
+            .AddSingleton(gate)
+            .AddSingleton(streams)
+            .AddSingleton(Substitute.For<IEventBus>())
+            .BuildServiceProvider();
+
+        StreamStatusPollingService sut = new(
+            channels,
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            NullLogger<StreamStatusPollingService>.Instance
+        );
+
+        Func<Task> act = () => sut.PollAllAsync(CancellationToken.None);
+
+        await act.Should().NotThrowAsync("a timeout on one channel must not abort the poll tick");
+        await streams.Received(1).GetStreamAsync(healthyChannel, Arg.Any<CancellationToken>());
     }
 }

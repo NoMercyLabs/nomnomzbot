@@ -75,7 +75,7 @@ internal sealed class SupporterSocketHostedService : BackgroundService, IAsyncDi
                 {
                     await ReconcileOnceAsync(stoppingToken);
                 }
-                catch (Exception ex) when (ex is not OperationCanceledException)
+                catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
                 {
                     _logger.LogError(ex, "Supporter socket reconcile failed");
                 }
@@ -344,7 +344,7 @@ internal sealed class SupporterSocketHostedService : BackgroundService, IAsyncDi
                     ingested.ErrorMessage
                 );
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             _logger.LogError(
                 ex,
@@ -370,7 +370,7 @@ internal sealed class SupporterSocketHostedService : BackgroundService, IAsyncDi
             connection.Status = "error";
             await db.SaveChangesAsync(ct);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             _logger.LogDebug(ex, "Could not persist socket error status for {Id}.", connectionId);
         }

@@ -73,7 +73,7 @@ public sealed class SupporterPollHostedService : BackgroundService
                 {
                     await PollOnceAsync(stoppingToken);
                 }
-                catch (Exception ex) when (ex is not OperationCanceledException)
+                catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
                 {
                     _logger.LogError(ex, "Supporter poll tick failed");
                 }
@@ -197,7 +197,7 @@ public sealed class SupporterPollHostedService : BackgroundService
             if (response.Headers.ETag is { Tag: { } newTag })
                 _etagsByConnection[connection.Id] = newTag;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             connection.Status = "error";
             _logger.LogWarning(

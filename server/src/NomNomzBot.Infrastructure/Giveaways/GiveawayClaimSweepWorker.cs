@@ -55,7 +55,7 @@ public sealed class GiveawayClaimSweepWorker : BackgroundService
                 {
                     await SweepAsync(stoppingToken);
                 }
-                catch (Exception ex) when (ex is not OperationCanceledException)
+                catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
                 {
                     _logger.LogError(ex, "Giveaway claim sweep failed");
                 }

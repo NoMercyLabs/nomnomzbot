@@ -43,7 +43,7 @@ public class TokenRefreshService : BackgroundService
                     scope.ServiceProvider.GetRequiredService<ITwitchAuthService>();
                 await authService.RefreshExpiringTokensAsync(stoppingToken);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
             {
                 _logger.LogError(ex, "Error refreshing OAuth tokens.");
             }

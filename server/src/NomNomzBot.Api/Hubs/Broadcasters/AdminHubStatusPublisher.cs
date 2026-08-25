@@ -49,7 +49,7 @@ public sealed class AdminHubStatusPublisher(
                     new { System = system.Value, Stats = stats.Value }
                 );
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
             {
                 logger.LogWarning(ex, "AdminHub status publish failed; continuing");
             }

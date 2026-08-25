@@ -148,7 +148,7 @@ public sealed class UserProfileHydrationService : BackgroundService
                 );
             }
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             _logger.LogError(
                 ex,

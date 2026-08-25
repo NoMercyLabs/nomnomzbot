@@ -93,7 +93,7 @@ public sealed class ChatDecorationRefreshService : BackgroundService
             int warmed = await _warmer.WarmGlobalAsync(ct);
             _logger.LogDebug("Refreshed {Count} global third-party emote set(s).", warmed);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             _logger.LogError(
                 ex,
@@ -128,7 +128,7 @@ public sealed class ChatDecorationRefreshService : BackgroundService
                     active.Count
                 );
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             _logger.LogError(
                 ex,
@@ -187,7 +187,7 @@ public sealed class ChatDecorationRefreshService : BackgroundService
         {
             // Host is shutting down — the scope factory is already disposed. Exit cleanly.
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             _logger.LogError(
                 ex,

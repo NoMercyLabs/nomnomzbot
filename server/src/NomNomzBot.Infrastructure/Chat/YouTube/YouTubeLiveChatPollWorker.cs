@@ -86,7 +86,7 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
                 {
                     await TickAsync(stoppingToken);
                 }
-                catch (Exception ex) when (ex is not OperationCanceledException)
+                catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
                 {
                     // The delay MUST still run on a throwing tick — otherwise a persistent failure (DB down,
                     // etc.) spins the loop hot with zero backoff, hammering whatever just failed.
@@ -149,7 +149,7 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
             {
                 await PollChannelAsync(scope.ServiceProvider, broadcasterId, state, ct);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!ct.IsCancellationRequested)
             {
                 _logger.LogError(
                     ex,

@@ -81,7 +81,7 @@ internal sealed class CustomDataSocketHostedService : BackgroundService, IAsyncD
                 {
                     await ReconcileOnceAsync(stoppingToken);
                 }
-                catch (Exception ex) when (ex is not OperationCanceledException)
+                catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
                 {
                     _logger.LogError(ex, "Custom data socket reconcile failed");
                 }
@@ -301,7 +301,7 @@ internal sealed class CustomDataSocketHostedService : BackgroundService, IAsyncD
                     ingested.ErrorMessage
                 );
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             _logger.LogError(
                 ex,

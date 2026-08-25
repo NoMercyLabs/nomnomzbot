@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
@@ -266,5 +267,82 @@ public sealed class KickEventSubscriptionWorkerTests
         await client
             .Received(1)
             .ListEventSubscriptionsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>
+    /// The 2026-08-25 outage shape, reproduced for Kick: the Helix/Kick HTTP client can raise
+    /// <see cref="TaskCanceledException"/> on its own timeout — a subclass of
+    /// <see cref="OperationCanceledException"/> that an `ex is not OperationCanceledException` filter would
+    /// let straight through, aborting TickAsync and (via BackgroundServiceExceptionBehavior.StopHost)
+    /// killing the whole bot. The per-connection catch must survive it AND keep reconciling every other
+    /// connected streamer in the same tick.
+    /// </summary>
+    [Fact]
+    public async Task A_provider_timeout_for_one_connection_is_survived_and_the_other_still_reconciles()
+    {
+        (
+            KickEventSubscriptionWorker worker,
+            AuthDbContext db,
+            IPlatformChannelProvisioner provisioner,
+            IKickApiClient client
+        ) = Build();
+
+        Guid secondChannel = Guid.Parse("0192e000-0000-7000-8000-0000000000b1");
+        db.Channels.Add(
+            new()
+            {
+                Id = secondChannel,
+                OwnerUserId = Owner,
+                Provider = AuthEnums.Platform.Twitch,
+                ExternalChannelId = "tw-2",
+                TwitchChannelId = "tw-2",
+                Name = "streamer2",
+                NameNormalized = "streamer2",
+                IsOnboarded = true,
+                DeploymentMode = AuthEnums.DeploymentMode.Saas,
+                BillingTierKey = "free",
+            }
+        );
+        db.IntegrationConnections.Add(
+            new()
+            {
+                BroadcasterId = secondChannel,
+                Provider = AuthEnums.IntegrationProvider.Kick,
+                ProviderAccountId = "67890",
+                ProviderAccountName = "StreamerTwo",
+                Status = "connected",
+                Scopes = ["chat:write", "events:subscribe"],
+            }
+        );
+        SeedConnection(db, PrimaryChannel);
+
+        // Both connections resolve to the SAME Kick tenant/token in this fixture (Build()'s default
+        // Arg.Any GetOrCreateAsync/tokens stubs already cover it) — the point under test is per-connection
+        // isolation of the HTTP call failure, not tenant provisioning.
+        // The FIRST reconciled connection times out; the second must still be fully processed.
+        int listCalls = 0;
+        client
+            .ListEventSubscriptionsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                listCalls++;
+                if (listCalls == 1)
+                    throw new TaskCanceledException(
+                        "The request was canceled due to the configured HttpClient.Timeout of 100 seconds elapsing."
+                    );
+                return Result.Success<IReadOnlyList<KickEventSubscription>>([]);
+            });
+
+        Func<Task> act = () => worker.TickAsync(CancellationToken.None);
+
+        await act.Should().NotThrowAsync("a timeout on one connection must not abort the tick");
+        System.Console.WriteLine($"listCalls={listCalls}");
+        await client
+            .Received(1)
+            .SubscribeAsync(
+                Arg.Any<string>(),
+                Arg.Any<IReadOnlyList<KickEventRequest>>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 }

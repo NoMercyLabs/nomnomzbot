@@ -172,7 +172,7 @@ public sealed class BotLifecycleService : BackgroundService
             {
                 await SyncChannelsAsync(stoppingToken);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
             {
                 _logger.LogError(ex, "BotLifecycleService: Error syncing channels");
             }
@@ -221,7 +221,7 @@ public sealed class BotLifecycleService : BackgroundService
                 await RetireLegacyPerChannelWhisperSubsAsync(db, eventSub, ct);
                 await eventSub.EnsureSubscribedAsync(Guid.Empty, PlatformEventTypes, ct);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!ct.IsCancellationRequested)
             {
                 _logger.LogError(
                     ex,
@@ -257,7 +257,7 @@ public sealed class BotLifecycleService : BackgroundService
                 // already live when we first subscribe, so we must poll once to set the initial state.
                 await BootstrapLiveStatusAsync(db, streams, channel.Id, ct);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!ct.IsCancellationRequested)
             {
                 _logger.LogError(
                     ex,
@@ -281,7 +281,7 @@ public sealed class BotLifecycleService : BackgroundService
                     channelId
                 );
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!ct.IsCancellationRequested)
             {
                 _logger.LogError(
                     ex,
@@ -371,7 +371,7 @@ public sealed class BotLifecycleService : BackgroundService
                 channel.IsLive
             );
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             _logger.LogWarning(
                 ex,

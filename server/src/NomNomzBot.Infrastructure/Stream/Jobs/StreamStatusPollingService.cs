@@ -79,7 +79,9 @@ public sealed class StreamStatusPollingService : BackgroundService
         }
     }
 
-    private async Task PollAllAsync(CancellationToken ct)
+    // Internal (not private) so tests can drive a single deterministic tick —
+    // InternalsVisibleTo(NomNomzBot.Infrastructure.Tests) is already wired for exactly this seam.
+    internal async Task PollAllAsync(CancellationToken ct)
     {
         IReadOnlyCollection<ChannelContext> channels = _channels.GetAll();
         if (channels.Count == 0)
@@ -144,7 +146,7 @@ public sealed class StreamStatusPollingService : BackgroundService
                             changed++;
                     }
                 }
-                catch (Exception ex) when (ex is not OperationCanceledException)
+                catch (Exception ex) when (!ct.IsCancellationRequested)
                 {
                     _logger.LogWarning(
                         ex,
@@ -160,7 +162,7 @@ public sealed class StreamStatusPollingService : BackgroundService
                 _logger.LogDebug("Stream status poll reconciled {Count} channel(s).", changed);
             }
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             _logger.LogError(
                 ex,

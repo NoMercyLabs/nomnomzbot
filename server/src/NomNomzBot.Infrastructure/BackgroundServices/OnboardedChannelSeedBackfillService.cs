@@ -82,7 +82,7 @@ public sealed class OnboardedChannelSeedBackfillService : BackgroundService
                 events.Count
             );
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
         {
             _logger.LogError(ex, "Onboarding seed backfill failed.");
         }

@@ -537,6 +537,64 @@ public sealed class YouTubeLiveChatPollWorkerTests
             );
     }
 
+    /// <summary>
+    /// The 2026-08-25 outage shape, reproduced for the YouTube poller: the liveness HTTP call can raise
+    /// <see cref="TaskCanceledException"/> on its own timeout — a subclass of
+    /// <see cref="OperationCanceledException"/> that an `ex is not OperationCanceledException` filter would
+    /// let straight through, aborting TickAsync and (via BackgroundServiceExceptionBehavior.StopHost)
+    /// taking the whole bot down. The per-channel catch must survive it AND keep polling every other
+    /// connected channel in the same tick.
+    /// </summary>
+    [Fact]
+    public async Task A_provider_timeout_for_one_channel_is_survived_and_the_other_channel_still_polls()
+    {
+        (
+            YouTubeLiveChatPollWorker worker,
+            ScriptedLiveChatClient client,
+            RecordingEventBus _,
+            AuthDbContext db,
+            FakeTimeProvider _,
+            YouTubeLiveChatSessionRegistry _
+        ) = await BuildConnectedAsync();
+
+        Guid secondBroadcaster = Guid.Parse("0199b000-0000-7000-8000-0000000000c1");
+        db.Channels.Add(
+            new()
+            {
+                Id = secondBroadcaster,
+                OwnerUserId = Owner,
+                Provider = AuthEnums.Platform.Twitch,
+                TwitchChannelId = "tw456",
+                ExternalChannelId = "tw456",
+                Name = "streamer2",
+                NameNormalized = "streamer2",
+                IsOnboarded = true,
+                DeploymentMode = AuthEnums.DeploymentMode.Saas,
+                BillingTierKey = "free",
+            }
+        );
+        db.IntegrationConnections.Add(
+            new()
+            {
+                BroadcasterId = secondBroadcaster,
+                Provider = AuthEnums.IntegrationProvider.YouTube,
+                ProviderAccountId = "yt-poller-candidate-2",
+                Status = AuthEnums.IntegrationStatus.Connected,
+            }
+        );
+        await db.SaveChangesAsync();
+
+        // The FIRST-polled channel's liveness call times out; the second must still be checked.
+        client.ThrowTaskCanceledOnLivenessCallNumber = 1;
+
+        Func<Task> act = () => worker.TickAsync(CancellationToken.None);
+
+        await act.Should().NotThrowAsync("a timeout on one channel must not abort the tick");
+        client
+            .LivenessCalls.Should()
+            .Be(2, "the timed-out channel must not stop the sweep from reaching the other channel");
+    }
+
     // ── shared scaffolding ──────────────────────────────────────────────────
 
     private static async Task<(
@@ -633,12 +691,20 @@ public sealed class YouTubeLiveChatPollWorkerTests
         public int PageCalls { get; private set; }
         public List<string?> PageTokensSeen { get; } = [];
 
+        // 1-based liveness call number to raise a TaskCanceledException on (reproduces an HttpClient
+        // timeout for exactly one channel in a multi-channel tick); null = never throw.
+        public int? ThrowTaskCanceledOnLivenessCallNumber { get; set; }
+
         public Task<Result<YouTubeActiveChat?>> GetActiveLiveChatAsync(
             string accessToken,
             CancellationToken cancellationToken = default
         )
         {
             LivenessCalls++;
+            if (ThrowTaskCanceledOnLivenessCallNumber == LivenessCalls)
+                throw new TaskCanceledException(
+                    "The request was canceled due to the configured HttpClient.Timeout of 100 seconds elapsing."
+                );
             return Task.FromResult(
                 LivenessResults.Count > 0
                     ? LivenessResults.Dequeue()

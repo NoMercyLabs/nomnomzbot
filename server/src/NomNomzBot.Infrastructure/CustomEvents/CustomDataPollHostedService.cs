@@ -69,7 +69,7 @@ public sealed class CustomDataPollHostedService(
                         scope.ServiceProvider.GetRequiredService<ICustomDataPollService>();
                     await poll.PollDueSourcesAsync(stoppingToken);
                 }
-                catch (Exception ex) when (ex is not OperationCanceledException)
+                catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
                 {
                     logger.LogError(ex, "Custom data poll scan tick failed; retrying next tick.");
                 }

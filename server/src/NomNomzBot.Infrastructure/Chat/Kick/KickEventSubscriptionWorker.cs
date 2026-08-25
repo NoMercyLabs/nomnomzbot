@@ -87,7 +87,7 @@ public sealed class KickEventSubscriptionWorker : BackgroundService
                 {
                     await TickAsync(stoppingToken);
                 }
-                catch (Exception ex) when (ex is not OperationCanceledException)
+                catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
                 {
                     _logger.LogError(ex, "Kick subscription reconcile tick failed");
                 }
@@ -135,7 +135,7 @@ public sealed class KickEventSubscriptionWorker : BackgroundService
                     ct
                 );
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!ct.IsCancellationRequested)
             {
                 _logger.LogError(
                     ex,

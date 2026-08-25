@@ -80,7 +80,7 @@ public sealed class TimerService : BackgroundService
                 {
                     await TickAsync(stoppingToken);
                 }
-                catch (Exception ex) when (ex is not OperationCanceledException)
+                catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
                 {
                     // The delay MUST still run on a throwing tick — otherwise a persistent failure spins the
                     // loop hot with zero backoff, hammering whatever just failed.
