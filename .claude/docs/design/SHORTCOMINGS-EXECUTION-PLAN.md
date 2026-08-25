@@ -113,11 +113,19 @@ stable — without dropping the planned requirements behind them.
   enclosing `try`; outside a loop it is an honest recorded outcome, never a silent abort. No new entity,
   no migration, no test-fake churn. IN PROGRESS.
 
-- **S-PIPE-TREE-d2** `run_pipeline` sub-pipeline calls + `return_value` — call another pipeline with
-  arguments, get a value back into the caller's scope. Enforce `MaxRecursionDepth = 8` ACROSS pipeline
-  boundaries (A->B->A aborts cleanly with a recorded reason, never a stack overflow mid-stream), and
-  tenant-scope it so a pipeline cannot call another channel's pipeline (assert the failure AND that
-  nothing ran). Likely needs no new entity.
+- **S-PIPE-TREE-d2b** (scope narrowings the sub-pipeline slice reported honestly; 5d82f69c shipped the
+  core: args in, `return_value` out, `CallDepth` spanning pipeline boundaries, tenant-scoped, try-catchable,
+  4108 tests green) TWO REAL LIMITATIONS REMAIN:
+  (a) `run_pipeline` arguments are POSITIONAL-ONLY. Named parameters need `Pipeline.ParameterNamesJson`
+  (a new column, hence BOTH EF migration sets + ~40 test fakes). Positional args are a usability trap in
+  an authoring UI — the editor cannot label what argument 2 means. Done-when: a sub-pipeline declares
+  NAMED parameters, the caller binds by name, and the editor can render them as labelled fields.
+  (b) `return_value`'s value and `run_pipeline`'s params are stored RAW — no template rendering happens at
+  the core-action layer for ANY action (this matches `SetVariableAction`, so it is a pre-existing systemic
+  gap, not a regression). Consequence: you cannot pass `{{user.name}}` as a sub-pipeline argument.
+  Done-when: decide where template resolution belongs for core actions (the leaf executor, or per-action)
+  and apply it as ONE mechanism across every core action rather than per-action patches — then a templated
+  argument and a templated return value both resolve, proven by tests.
 
 - **S-PIPE-TREE-d3** `wait_for_event` / resume-later — THE BIG ONE, size it accordingly and split again if
   needed. A run SUSPENDS with its full state persisted (variable bag, tree position, loop/switch cursors)
