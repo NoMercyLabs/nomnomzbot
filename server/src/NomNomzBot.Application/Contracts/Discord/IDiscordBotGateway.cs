@@ -105,4 +105,27 @@ public interface IDiscordBotGateway
         string roleId,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// Every guild role, each carrying whether the bot can assign it right now — the same hierarchy/permission
+    /// check as <see cref="ValidateRoleAssignableAsync"/>, evaluated once against the bot's own role state
+    /// instead of one Discord round-trip per role (S055c: turns the picker's type-only disabling into an
+    /// honest, actionable one).
+    /// </summary>
+    Task<Result<IReadOnlyList<DiscordAssignableRoleDto>>> GetAssignableGuildRolesAsync(
+        Guid broadcasterId,
+        string guildId,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// Every guild channel, each carrying whether the bot can post in it right now — computed from the bot's
+    /// effective permissions in that channel, honoring per-channel permission overwrites (a channel-level deny
+    /// can override a guild-level allow; guild permissions alone are not enough) (S055c).
+    /// </summary>
+    Task<Result<IReadOnlyList<DiscordPostableChannelDto>>> GetPostableGuildChannelsAsync(
+        Guid broadcasterId,
+        string guildId,
+        CancellationToken ct = default
+    );
 }

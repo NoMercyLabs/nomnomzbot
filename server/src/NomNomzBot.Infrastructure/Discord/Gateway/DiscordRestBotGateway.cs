@@ -294,11 +294,150 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
     /// <summary>Discord's Manage Roles permission bit (1 &lt;&lt; 28).</summary>
     private const ulong ManageRolesPermission = 0x10000000;
 
+    /// <summary>Discord's Administrator permission bit (1 &lt;&lt; 3) — bypasses every channel overwrite.</summary>
+    private const ulong AdministratorPermission = 0x8;
+
+    /// <summary>Discord's View Channel permission bit (1 &lt;&lt; 10).</summary>
+    private const ulong ViewChannelPermission = 0x400;
+
+    /// <summary>Discord's Send Messages permission bit (1 &lt;&lt; 11).</summary>
+    private const ulong SendMessagesPermission = 0x800;
+
     public async Task<Result> ValidateRoleAssignableAsync(
         Guid broadcasterId,
         string guildId,
         string roleId,
         CancellationToken ct = default
+    )
+    {
+        Result<BotRoleContext> context = await ResolveBotRoleContextAsync(
+            broadcasterId,
+            guildId,
+            ct
+        );
+        if (context.IsFailure)
+            return Result.Failure(context.ErrorMessage, context.ErrorCode, context.ErrorDetail);
+
+        DiscordGuildRoleDto? targetRole = context.Value.GuildRoles.FirstOrDefault(r =>
+            r.Id == roleId
+        );
+        if (targetRole is null)
+            return Result.Failure(
+                "The configured live role no longer exists in this Discord server.",
+                "DISCORD_NOT_FOUND"
+            );
+
+        return EvaluateRoleAssignability(context.Value, targetRole);
+    }
+
+    public async Task<Result<IReadOnlyList<DiscordAssignableRoleDto>>> GetAssignableGuildRolesAsync(
+        Guid broadcasterId,
+        string guildId,
+        CancellationToken ct = default
+    )
+    {
+        Result<BotRoleContext> context = await ResolveBotRoleContextAsync(
+            broadcasterId,
+            guildId,
+            ct
+        );
+        if (context.IsFailure)
+            return Result.Failure<IReadOnlyList<DiscordAssignableRoleDto>>(
+                context.ErrorMessage,
+                context.ErrorCode,
+                context.ErrorDetail
+            );
+
+        List<DiscordAssignableRoleDto> dtos = [];
+        foreach (DiscordGuildRoleDto role in context.Value.GuildRoles)
+        {
+            Result assignable = EvaluateRoleAssignability(context.Value, role);
+            dtos.Add(
+                new(
+                    role.Id,
+                    role.Name,
+                    role.Color,
+                    role.Position,
+                    role.Managed,
+                    role.Mentionable,
+                    role.Permissions,
+                    assignable.IsSuccess,
+                    assignable.IsFailure ? assignable.ErrorCode : null,
+                    assignable.IsFailure ? assignable.ErrorMessage : null
+                )
+            );
+        }
+        return Result.Success<IReadOnlyList<DiscordAssignableRoleDto>>(dtos);
+    }
+
+    public async Task<
+        Result<IReadOnlyList<DiscordPostableChannelDto>>
+    > GetPostableGuildChannelsAsync(
+        Guid broadcasterId,
+        string guildId,
+        CancellationToken ct = default
+    )
+    {
+        Result<BotRoleContext> context = await ResolveBotRoleContextAsync(
+            broadcasterId,
+            guildId,
+            ct
+        );
+        if (context.IsFailure)
+            return Result.Failure<IReadOnlyList<DiscordPostableChannelDto>>(
+                context.ErrorMessage,
+                context.ErrorCode,
+                context.ErrorDetail
+            );
+
+        Result<List<DiscordGuildChannelWire>> channels = await GetAsync<
+            List<DiscordGuildChannelWire>
+        >(broadcasterId, $"guilds/{Uri.EscapeDataString(guildId)}/channels", ct);
+        if (channels.IsFailure)
+            return Result.Failure<IReadOnlyList<DiscordPostableChannelDto>>(
+                channels.ErrorMessage,
+                channels.ErrorCode,
+                channels.ErrorDetail
+            );
+
+        List<DiscordPostableChannelDto> dtos = [];
+        foreach (DiscordGuildChannelWire channel in channels.Value)
+        {
+            (bool canView, bool canSend) = EvaluateChannelPermissions(
+                context.Value,
+                guildId,
+                channel.PermissionOverwrites
+            );
+            bool canPost = canView && canSend;
+            (string? code, string? reason) = canPost
+                ? (null, null)
+                : BuildChannelUnavailableReason(canView, canSend, channel.Name ?? channel.Id);
+            dtos.Add(
+                new(
+                    channel.Id,
+                    channel.Name,
+                    channel.Type,
+                    channel.ParentId,
+                    channel.Position,
+                    canPost,
+                    code,
+                    reason
+                )
+            );
+        }
+        return Result.Success<IReadOnlyList<DiscordPostableChannelDto>>(dtos);
+    }
+
+    /// <summary>
+    /// Resolves the bot's own guild-member state once — its user id, the roles it holds (plus @everyone, whose
+    /// permissions apply to every member including the bot), their combined permission bitfield, and its
+    /// highest role position — so a role/channel listing spends 3 Discord round-trips total instead of 3 per
+    /// item.
+    /// </summary>
+    private async Task<Result<BotRoleContext>> ResolveBotRoleContextAsync(
+        Guid broadcasterId,
+        string guildId,
+        CancellationToken ct
     )
     {
         Result<DiscordCurrentUserWire> currentUser = await GetAsync<DiscordCurrentUserWire>(
@@ -307,7 +446,7 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
             ct
         );
         if (currentUser.IsFailure)
-            return Result.Failure(
+            return Result.Failure<BotRoleContext>(
                 currentUser.ErrorMessage,
                 currentUser.ErrorCode,
                 currentUser.ErrorDetail
@@ -319,7 +458,7 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
             ct
         );
         if (botMember.IsFailure)
-            return Result.Failure(
+            return Result.Failure<BotRoleContext>(
                 botMember.ErrorMessage,
                 botMember.ErrorCode,
                 botMember.ErrorDetail
@@ -331,7 +470,7 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
             ct
         );
         if (guildRoles.IsFailure)
-            return Result.Failure(
+            return Result.Failure<BotRoleContext>(
                 guildRoles.ErrorMessage,
                 guildRoles.ErrorCode,
                 guildRoles.ErrorDetail
@@ -349,22 +488,34 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
             if (ulong.TryParse(role.Permissions, out ulong bits))
                 permissionBits |= bits;
 
-        if ((permissionBits & ManageRolesPermission) == 0)
+        int botHighestPosition = botRoles.Count == 0 ? 0 : botRoles.Max(r => r.Position);
+
+        return Result.Success(
+            new BotRoleContext(
+                currentUser.Value.Id,
+                botRoleIds,
+                permissionBits,
+                botHighestPosition,
+                [.. guildRoles.Value]
+            )
+        );
+    }
+
+    /// <summary>The hierarchy/permission check shared by <see cref="ValidateRoleAssignableAsync"/> and
+    /// <see cref="GetAssignableGuildRolesAsync"/> — never reimplemented a second time.</summary>
+    private static Result EvaluateRoleAssignability(
+        BotRoleContext context,
+        DiscordGuildRoleDto targetRole
+    )
+    {
+        if ((context.PermissionBits & ManageRolesPermission) == 0)
             return Result.Failure(
                 "The bot needs the Manage Roles permission in this Discord server to manage the "
                     + "live role. Grant Manage Roles to the bot's role in Server Settings > Roles.",
                 "DISCORD_MISSING_MANAGE_ROLES"
             );
 
-        DiscordGuildRoleDto? targetRole = guildRoles.Value.FirstOrDefault(r => r.Id == roleId);
-        if (targetRole is null)
-            return Result.Failure(
-                "The configured live role no longer exists in this Discord server.",
-                "DISCORD_NOT_FOUND"
-            );
-
-        int botHighestPosition = botRoles.Count == 0 ? 0 : botRoles.Max(r => r.Position);
-        if (botHighestPosition <= targetRole.Position)
+        if (context.BotHighestPosition <= targetRole.Position)
             return Result.Failure(
                 $"The bot's role must be above '{targetRole.Name}' in Server Settings > Roles for "
                     + "the bot to apply or remove the live role.",
@@ -373,6 +524,95 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
 
         return Result.Success();
     }
+
+    /// <summary>
+    /// The bot's effective View Channel / Send Messages permissions in one channel: starts from the bot's
+    /// combined role permissions, then applies Discord's own overwrite precedence — @everyone overwrite, then
+    /// the bot's role overwrites (OR'd together), then a bot-specific member overwrite — exactly as Discord
+    /// itself resolves it, so a channel-level deny wins over a guild-level allow.
+    /// </summary>
+    private static (bool CanView, bool CanSend) EvaluateChannelPermissions(
+        BotRoleContext context,
+        string guildId,
+        IReadOnlyList<DiscordPermissionOverwriteWire>? overwrites
+    )
+    {
+        if ((context.PermissionBits & AdministratorPermission) != 0)
+            return (true, true);
+
+        ulong permissions = context.PermissionBits;
+        if (overwrites is { Count: > 0 })
+        {
+            DiscordPermissionOverwriteWire? everyoneOverwrite = overwrites.FirstOrDefault(o =>
+                o.Type == 0 && o.Id == guildId
+            );
+            if (everyoneOverwrite is not null)
+            {
+                permissions &= ~ParsePermissionBits(everyoneOverwrite.Deny);
+                permissions |= ParsePermissionBits(everyoneOverwrite.Allow);
+            }
+
+            ulong roleAllow = 0;
+            ulong roleDeny = 0;
+            foreach (
+                DiscordPermissionOverwriteWire overwrite in overwrites.Where(o =>
+                    o.Type == 0 && o.Id != guildId && context.BotRoleIds.Contains(o.Id)
+                )
+            )
+            {
+                roleAllow |= ParsePermissionBits(overwrite.Allow);
+                roleDeny |= ParsePermissionBits(overwrite.Deny);
+            }
+            permissions &= ~roleDeny;
+            permissions |= roleAllow;
+
+            DiscordPermissionOverwriteWire? memberOverwrite = overwrites.FirstOrDefault(o =>
+                o.Type == 1 && o.Id == context.BotUserId
+            );
+            if (memberOverwrite is not null)
+            {
+                permissions &= ~ParsePermissionBits(memberOverwrite.Deny);
+                permissions |= ParsePermissionBits(memberOverwrite.Allow);
+            }
+        }
+
+        return (
+            (permissions & ViewChannelPermission) != 0,
+            (permissions & SendMessagesPermission) != 0
+        );
+    }
+
+    private static ulong ParsePermissionBits(string value) =>
+        ulong.TryParse(value, out ulong bits) ? bits : 0;
+
+    private static (string Code, string Reason) BuildChannelUnavailableReason(
+        bool canView,
+        bool canSend,
+        string channelLabel
+    )
+    {
+        string missing = (canView, canSend) switch
+        {
+            (false, false) => "View Channel and Send Messages",
+            (false, true) => "View Channel",
+            _ => "Send Messages",
+        };
+        return (
+            "DISCORD_CHANNEL_PERMISSION_DENIED",
+            $"The bot is missing {missing} permission in #{channelLabel} — a permission overwrite on "
+                + "that channel blocks it even though the bot's server-wide role would otherwise allow "
+                + "it. Check the channel's Permissions tab in Discord and allow it for the bot's role."
+        );
+    }
+
+    /// <summary>The bot's own resolved guild-member state, computed once per directory read (S055c).</summary>
+    private sealed record BotRoleContext(
+        string BotUserId,
+        HashSet<string> BotRoleIds,
+        ulong PermissionBits,
+        int BotHighestPosition,
+        List<DiscordGuildRoleDto> GuildRoles
+    );
 
     // ─── Core HTTP ───────────────────────────────────────────────────────────
 
@@ -706,7 +946,18 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
         [property: JsonPropertyName("name")] string? Name,
         [property: JsonPropertyName("type")] int Type,
         [property: JsonPropertyName("parent_id")] string? ParentId = null,
-        [property: JsonPropertyName("position")] int Position = 0
+        [property: JsonPropertyName("position")] int Position = 0,
+        [property: JsonPropertyName("permission_overwrites")]
+            IReadOnlyList<DiscordPermissionOverwriteWire>? PermissionOverwrites = null
+    );
+
+    /// <summary>A channel's permission overwrite (<c>type</c> 0 = role, 1 = member); <c>allow</c>/<c>deny</c>
+    /// are Discord's decimal permission bitfields as strings (53-bit-safe wire format).</summary>
+    private sealed record DiscordPermissionOverwriteWire(
+        [property: JsonPropertyName("id")] string Id,
+        [property: JsonPropertyName("type")] int Type,
+        [property: JsonPropertyName("allow")] string Allow = "0",
+        [property: JsonPropertyName("deny")] string Deny = "0"
     );
 
     private sealed record DiscordCurrentUserWire([property: JsonPropertyName("id")] string Id);

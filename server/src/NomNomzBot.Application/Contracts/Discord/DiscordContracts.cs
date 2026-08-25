@@ -198,6 +198,44 @@ public sealed record DiscordGuildChannelDto(
     int Position
 );
 
+/// <summary>
+/// A live guild role carrying whether the BOT CAN ASSIGN IT right now (S055c) — the hierarchy/permission check
+/// from <see cref="IDiscordBotGateway.ValidateRoleAssignableAsync"/>, evaluated once for every role in the guild
+/// instead of one Discord round-trip per role. <see cref="CanAssign"/> false always carries a non-null
+/// <see cref="UnavailableReasonCode"/>/<see cref="UnavailableReason"/> (<c>DISCORD_MISSING_MANAGE_ROLES</c> or
+/// <c>DISCORD_ROLE_HIERARCHY</c>) — never a bare disabled flag with no explanation.
+/// </summary>
+public sealed record DiscordAssignableRoleDto(
+    string Id,
+    string Name,
+    int Color,
+    int Position,
+    bool Managed,
+    bool Mentionable,
+    string Permissions,
+    bool CanAssign,
+    string? UnavailableReasonCode,
+    string? UnavailableReason
+);
+
+/// <summary>
+/// A live guild channel carrying whether the BOT CAN POST IN IT right now (S055c) — computed from the bot's
+/// effective permissions in that specific channel, including per-channel permission overwrites (a channel
+/// overwrite can deny View Channel/Send Messages even when the bot's guild-level role permissions would allow
+/// it). <see cref="CanPost"/> false always carries a non-null <see cref="UnavailableReasonCode"/>/
+/// <see cref="UnavailableReason"/>.
+/// </summary>
+public sealed record DiscordPostableChannelDto(
+    string Id,
+    string? Name,
+    int Type,
+    string? ParentId,
+    int Position,
+    bool CanPost,
+    string? UnavailableReasonCode,
+    string? UnavailableReason
+);
+
 // ── Controller request DTOs (discord.md §5) ──────────────────────────────────
 
 public sealed record ServerConsentRequest(string ApprovedByDiscordUserId);

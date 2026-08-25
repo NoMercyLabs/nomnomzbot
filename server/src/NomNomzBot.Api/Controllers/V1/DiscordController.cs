@@ -163,6 +163,39 @@ public class DiscordController : BaseController
         CancellationToken ct
     ) => ResultResponse(await _directory.GetGuildChannelsAsync(channelId, connectionId, ct));
 
+    /// <summary>
+    /// List the linked guild's live roles, each carrying whether the bot can actually assign it right now
+    /// (S055c) — a role sitting above the bot in the hierarchy, or a bot missing Manage Roles, is flagged with
+    /// the actionable reason instead of looking selectable and silently failing at go-live time.
+    /// </summary>
+    [RequireAction("discord:role:read")]
+    [HttpGet("connections/{connectionId:guid}/guild/roles/assignable")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<DiscordAssignableRoleDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> GetAssignableGuildRoles(
+        Guid channelId,
+        Guid connectionId,
+        CancellationToken ct
+    ) => ResultResponse(await _directory.GetAssignableGuildRolesAsync(channelId, connectionId, ct));
+
+    /// <summary>
+    /// List the linked guild's live channels, each carrying whether the bot can actually post in it right now
+    /// (S055c) — computed from the bot's effective permissions in that channel, including per-channel
+    /// permission overwrites that guild-level permissions alone would not catch.
+    /// </summary>
+    [RequireAction("discord:connection:read")]
+    [HttpGet("connections/{connectionId:guid}/guild/channels/postable")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<DiscordPostableChannelDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> GetPostableGuildChannels(
+        Guid channelId,
+        Guid connectionId,
+        CancellationToken ct
+    ) =>
+        ResultResponse(await _directory.GetPostableGuildChannelsAsync(channelId, connectionId, ct));
+
     // ── Notification configs ──────────────────────────────────────────────────
 
     /// <summary>List the notification rules configured on a guild connection.</summary>

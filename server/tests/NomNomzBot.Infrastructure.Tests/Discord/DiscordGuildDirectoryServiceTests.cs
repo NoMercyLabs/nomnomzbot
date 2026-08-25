@@ -110,11 +110,113 @@ public sealed class DiscordGuildDirectoryServiceTests
         gateway.GuildReads.Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task GetAssignableGuildRolesAsync_And_PostableChannels_ProxyThroughTheConnectionsGuildId()
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        (Guid channel, Guid connectionId) = await SeedAsync(database, guildId: "guild-777");
+        RecordingGateway gateway = new()
+        {
+            NextAssignableRolesResult = Result.Success<IReadOnlyList<DiscordAssignableRoleDto>>([
+                new("role-1", "Live", 0, 2, false, false, "0", true, null, null),
+            ]),
+            NextPostableChannelsResult = Result.Success<IReadOnlyList<DiscordPostableChannelDto>>([
+                new("chan-1", "general", 0, null, 0, true, null, null),
+            ]),
+        };
+
+        await using DiscordTestDbContext db = database.NewContext();
+        DiscordGuildDirectoryService service = new(db, gateway);
+
+        Result<IReadOnlyList<DiscordAssignableRoleDto>> roles =
+            await service.GetAssignableGuildRolesAsync(channel, connectionId);
+        Result<IReadOnlyList<DiscordPostableChannelDto>> channels =
+            await service.GetPostableGuildChannelsAsync(channel, connectionId);
+
+        roles.IsSuccess.Should().BeTrue(roles.ErrorMessage);
+        roles.Value.Should().ContainSingle().Which.CanAssign.Should().BeTrue();
+        channels.IsSuccess.Should().BeTrue(channels.ErrorMessage);
+        channels.Value.Should().ContainSingle().Which.CanPost.Should().BeTrue();
+        gateway
+            .GuildReads.Should()
+            .Equal("assignable-roles:guild-777", "postable-channels:guild-777");
+    }
+
+    [Fact]
+    public async Task GetAssignableGuildRolesAsync_InactiveLink_FailsDistinctly_AndNeverReachesTheGateway()
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        (Guid channel, Guid connectionId) = await SeedAsync(
+            database,
+            guildId: "guild-777",
+            streamerEnabled: false
+        );
+        RecordingGateway gateway = new();
+
+        await using DiscordTestDbContext db = database.NewContext();
+        DiscordGuildDirectoryService service = new(db, gateway);
+
+        Result<IReadOnlyList<DiscordAssignableRoleDto>> result =
+            await service.GetAssignableGuildRolesAsync(channel, connectionId);
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("DISCORD_LINK_INACTIVE"); // distinct from NOT_FOUND and from an empty list
+        gateway.GuildReads.Should().BeEmpty(); // never reached the unreachable/inactive guild over the wire
+    }
+
+    [Fact]
+    public async Task GetAssignableGuildRolesAsync_OtherTenantConnection_IsNotFound_AndNeverReachesTheGateway()
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        (_, Guid connectionId) = await SeedAsync(database, guildId: "guild-777");
+        RecordingGateway gateway = new();
+
+        await using DiscordTestDbContext db = database.NewContext();
+        DiscordGuildDirectoryService service = new(db, gateway);
+
+        Result<IReadOnlyList<DiscordAssignableRoleDto>> otherTenant =
+            await service.GetAssignableGuildRolesAsync(Guid.CreateVersion7(), connectionId);
+        Result<IReadOnlyList<DiscordPostableChannelDto>> absent =
+            await service.GetPostableGuildChannelsAsync(
+                Guid.CreateVersion7(),
+                Guid.CreateVersion7()
+            );
+
+        otherTenant.IsFailure.Should().BeTrue();
+        otherTenant.ErrorCode.Should().Be("NOT_FOUND");
+        absent.IsFailure.Should().BeTrue();
+        absent.ErrorCode.Should().Be("NOT_FOUND");
+        gateway.GuildReads.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetAssignableGuildRolesAsync_ActiveLinkWithNoRoles_ReturnsEmptyList_NotFailure()
+    {
+        // Proves the third state is distinct from the other two: a reachable, active link with nothing to show
+        // returns Success([]) — never DISCORD_LINK_INACTIVE, never NOT_FOUND.
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        (Guid channel, Guid connectionId) = await SeedAsync(database, guildId: "guild-777");
+        RecordingGateway gateway = new()
+        {
+            NextAssignableRolesResult = Result.Success<IReadOnlyList<DiscordAssignableRoleDto>>([]),
+        };
+
+        await using DiscordTestDbContext db = database.NewContext();
+        DiscordGuildDirectoryService service = new(db, gateway);
+
+        Result<IReadOnlyList<DiscordAssignableRoleDto>> result =
+            await service.GetAssignableGuildRolesAsync(channel, connectionId);
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Should().BeEmpty();
+    }
+
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
     private static async Task<(Guid Channel, Guid ConnectionId)> SeedAsync(
         DiscordSqliteTestDatabase database,
-        string guildId
+        string guildId,
+        bool streamerEnabled = true
     )
     {
         Guid channelId = Guid.CreateVersion7();
@@ -137,7 +239,7 @@ public sealed class DiscordGuildDirectoryServiceTests
                 BroadcasterId = channelId,
                 GuildId = guildId,
                 ServerConsentStatus = "approved",
-                StreamerEnabled = true,
+                StreamerEnabled = streamerEnabled,
                 BotInstalled = true,
             }
         );

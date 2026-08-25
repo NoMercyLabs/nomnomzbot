@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
+using NomNomzBot.Domain.Discord.Entities;
 
 namespace NomNomzBot.Infrastructure.Discord;
 
@@ -87,4 +88,67 @@ public sealed class DiscordGuildDirectoryService : IDiscordGuildDirectoryService
             )
             .Select(c => c.GuildId)
             .FirstOrDefaultAsync(ct);
+
+    public async Task<Result<IReadOnlyList<DiscordAssignableRoleDto>>> GetAssignableGuildRolesAsync(
+        Guid broadcasterId,
+        Guid connectionId,
+        CancellationToken ct = default
+    )
+    {
+        Result<string> guildId = await ResolveActiveGuildIdAsync(broadcasterId, connectionId, ct);
+        if (guildId.IsFailure)
+            return Result.Failure<IReadOnlyList<DiscordAssignableRoleDto>>(
+                guildId.ErrorMessage,
+                guildId.ErrorCode,
+                guildId.ErrorDetail
+            );
+        return await _gateway.GetAssignableGuildRolesAsync(broadcasterId, guildId.Value, ct);
+    }
+
+    public async Task<
+        Result<IReadOnlyList<DiscordPostableChannelDto>>
+    > GetPostableGuildChannelsAsync(
+        Guid broadcasterId,
+        Guid connectionId,
+        CancellationToken ct = default
+    )
+    {
+        Result<string> guildId = await ResolveActiveGuildIdAsync(broadcasterId, connectionId, ct);
+        if (guildId.IsFailure)
+            return Result.Failure<IReadOnlyList<DiscordPostableChannelDto>>(
+                guildId.ErrorMessage,
+                guildId.ErrorCode,
+                guildId.ErrorDetail
+            );
+        return await _gateway.GetPostableGuildChannelsAsync(broadcasterId, guildId.Value, ct);
+    }
+
+    /// <summary>
+    /// Resolves the tenant's connection and its guild id, failing distinctly (<c>DISCORD_LINK_INACTIVE</c>)
+    /// when the both-opt-in handshake is not fully active — the honest-unavailable state a picker must render
+    /// differently from "empty" and from a per-item "the bot can't use this one" (S055c).
+    /// </summary>
+    private async Task<Result<string>> ResolveActiveGuildIdAsync(
+        Guid broadcasterId,
+        Guid connectionId,
+        CancellationToken ct
+    )
+    {
+        DiscordGuildConnection? connection = await _db
+            .DiscordGuildConnections.Where(c =>
+                c.Id == connectionId && c.BroadcasterId == broadcasterId
+            )
+            .FirstOrDefaultAsync(ct);
+        if (connection is null)
+            return Errors.NotFound<string>("Discord connection", connectionId.ToString());
+
+        if (connection.ServerConsentStatus != "approved" || !connection.StreamerEnabled)
+            return Result.Failure<string>(
+                "This Discord guild link is not active — both the server admin's consent and the "
+                    + "streamer's toggle must be on before the bot can check role/channel permissions.",
+                "DISCORD_LINK_INACTIVE"
+            );
+
+        return Result.Success(connection.GuildId);
+    }
 }

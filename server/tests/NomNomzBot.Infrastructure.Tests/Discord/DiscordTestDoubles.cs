@@ -244,4 +244,32 @@ internal sealed class RecordingGateway : IDiscordBotGateway
                 : Result.Success()
         );
     }
+
+    public Result<IReadOnlyList<DiscordAssignableRoleDto>> NextAssignableRolesResult { get; set; } =
+        Result.Success<IReadOnlyList<DiscordAssignableRoleDto>>([]);
+
+    public Task<Result<IReadOnlyList<DiscordAssignableRoleDto>>> GetAssignableGuildRolesAsync(
+        Guid broadcasterId,
+        string guildId,
+        CancellationToken ct = default
+    )
+    {
+        GuildReads.Add($"assignable-roles:{guildId}");
+        return Task.FromResult(NextAssignableRolesResult);
+    }
+
+    public Result<
+        IReadOnlyList<DiscordPostableChannelDto>
+    > NextPostableChannelsResult { get; set; } =
+        Result.Success<IReadOnlyList<DiscordPostableChannelDto>>([]);
+
+    public Task<Result<IReadOnlyList<DiscordPostableChannelDto>>> GetPostableGuildChannelsAsync(
+        Guid broadcasterId,
+        string guildId,
+        CancellationToken ct = default
+    )
+    {
+        GuildReads.Add($"postable-channels:{guildId}");
+        return Task.FromResult(NextPostableChannelsResult);
+    }
 }

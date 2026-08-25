@@ -40,4 +40,26 @@ public interface IDiscordGuildDirectoryService
         Guid connectionId,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// The guild's live role list, each carrying whether the bot can assign it right now (S055c). Fails with
+    /// <c>DISCORD_LINK_INACTIVE</c> when the guild link's both-opt-in handshake is not fully active — distinct
+    /// from an empty role list and from a per-role "the bot can't use this one".
+    /// </summary>
+    Task<Result<IReadOnlyList<DiscordAssignableRoleDto>>> GetAssignableGuildRolesAsync(
+        Guid broadcasterId,
+        Guid connectionId,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// The guild's live channel list, each carrying whether the bot can post in it right now (S055c). Fails
+    /// with <c>DISCORD_LINK_INACTIVE</c> when the guild link's both-opt-in handshake is not fully active —
+    /// distinct from an empty channel list and from a per-channel "the bot can't use this one".
+    /// </summary>
+    Task<Result<IReadOnlyList<DiscordPostableChannelDto>>> GetPostableGuildChannelsAsync(
+        Guid broadcasterId,
+        Guid connectionId,
+        CancellationToken ct = default
+    );
 }

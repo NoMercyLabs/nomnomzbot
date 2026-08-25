@@ -326,6 +326,144 @@ public sealed class DiscordRestBotGatewayTests
             );
     }
 
+    [Fact]
+    public async Task GetAssignableGuildRolesAsync_FlagsRoleAboveBot_Assignable_AndRoleBelow_NotAssignable_WithHierarchyReason()
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        Guid connectionId = await SeedDiscordConnectionAsync(database);
+        IIntegrationTokenVault vault = VaultReturning(connectionId, DecryptedToken);
+
+        // Bot role at position 3 with Manage Roles (268435456). "below-role" sits under the bot (position 1) —
+        // assignable. "above-role" sits over the bot (position 5) — not assignable, hierarchy reason.
+        SequencedHandler handler = new(
+            JsonResponse("""{"id":"bot-id-1"}"""),
+            JsonResponse("""{"roles":["bot-role"]}"""),
+            JsonResponse(
+                """[{"id":"guild1","name":"@everyone","color":0,"position":0,"managed":false,"permissions":"0"},{"id":"bot-role","name":"Bot","color":0,"position":3,"managed":false,"permissions":"268435456"},{"id":"below-role","name":"Below","color":0,"position":1,"managed":false,"permissions":"0"},{"id":"above-role","name":"Above","color":0,"position":5,"managed":false,"permissions":"0"}]"""
+            )
+        );
+        await using DiscordTestDbContext db = database.NewContext();
+        DiscordRestBotGateway gateway = NewGateway(handler, db, vault);
+
+        Result<IReadOnlyList<DiscordAssignableRoleDto>> result =
+            await gateway.GetAssignableGuildRolesAsync(Channel, "guild1");
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        DiscordAssignableRoleDto below = result.Value.Single(r => r.Id == "below-role");
+        DiscordAssignableRoleDto above = result.Value.Single(r => r.Id == "above-role");
+
+        below.CanAssign.Should().BeTrue();
+        below.UnavailableReasonCode.Should().BeNull();
+        below.UnavailableReason.Should().BeNull();
+
+        above.CanAssign.Should().BeFalse();
+        above.UnavailableReasonCode.Should().Be("DISCORD_ROLE_HIERARCHY");
+        above
+            .UnavailableReason.Should()
+            .Be(
+                "The bot's role must be above 'Above' in Server Settings > Roles for the bot to "
+                    + "apply or remove the live role."
+            );
+    }
+
+    [Fact]
+    public async Task GetAssignableGuildRolesAsync_MissingManageRoles_FlagsEveryRole_WithThatReason()
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        Guid connectionId = await SeedDiscordConnectionAsync(database);
+        IIntegrationTokenVault vault = VaultReturning(connectionId, DecryptedToken);
+
+        SequencedHandler handler = new(
+            JsonResponse("""{"id":"bot-id-1"}"""),
+            JsonResponse("""{"roles":["bot-role"]}"""),
+            JsonResponse(
+                """[{"id":"guild1","name":"@everyone","color":0,"position":0,"managed":false,"permissions":"0"},{"id":"bot-role","name":"Bot","color":0,"position":5,"managed":false,"permissions":"0"},{"id":"role-a","name":"A","color":0,"position":1,"managed":false,"permissions":"0"},{"id":"role-b","name":"B","color":0,"position":2,"managed":false,"permissions":"0"}]"""
+            )
+        );
+        await using DiscordTestDbContext db = database.NewContext();
+        DiscordRestBotGateway gateway = NewGateway(handler, db, vault);
+
+        Result<IReadOnlyList<DiscordAssignableRoleDto>> result =
+            await gateway.GetAssignableGuildRolesAsync(Channel, "guild1");
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result
+            .Value.Where(r => r.Id is "role-a" or "role-b")
+            .Should()
+            .OnlyContain(r =>
+                !r.CanAssign && r.UnavailableReasonCode == "DISCORD_MISSING_MANAGE_ROLES"
+            );
+    }
+
+    [Fact]
+    public async Task GetPostableGuildChannelsAsync_ChannelOverwriteDenyingSendMessages_WinsOverGuildLevelAllow()
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        Guid connectionId = await SeedDiscordConnectionAsync(database);
+        IIntegrationTokenVault vault = VaultReturning(connectionId, DecryptedToken);
+
+        // Bot's role grants View Channel + Send Messages at guild level (0xc00 = 3072). The "locked" channel
+        // carries a role-overwrite denying Send Messages (0x800) for that same role — the overwrite must win
+        // even though the guild-level role permission would otherwise allow posting. The "open" channel has no
+        // overwrite touching the bot's role, so guild-level permissions apply unmodified.
+        SequencedHandler handler = new(
+            JsonResponse("""{"id":"bot-id-1"}"""),
+            JsonResponse("""{"roles":["bot-role"]}"""),
+            JsonResponse(
+                """[{"id":"guild1","name":"@everyone","color":0,"position":0,"managed":false,"permissions":"0"},{"id":"bot-role","name":"Bot","color":0,"position":3,"managed":false,"permissions":"3072"}]"""
+            ),
+            JsonResponse(
+                """[{"id":"locked-chan","name":"locked","type":0,"position":0,"permission_overwrites":[{"id":"bot-role","type":0,"allow":"0","deny":"2048"}]},{"id":"open-chan","name":"open","type":0,"position":1,"permission_overwrites":[]}]"""
+            )
+        );
+        await using DiscordTestDbContext db = database.NewContext();
+        DiscordRestBotGateway gateway = NewGateway(handler, db, vault);
+
+        Result<IReadOnlyList<DiscordPostableChannelDto>> result =
+            await gateway.GetPostableGuildChannelsAsync(Channel, "guild1");
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        DiscordPostableChannelDto locked = result.Value.Single(c => c.Id == "locked-chan");
+        DiscordPostableChannelDto open = result.Value.Single(c => c.Id == "open-chan");
+
+        locked.CanPost.Should().BeFalse(); // overwrite denies Send Messages despite guild-level allow
+        locked.UnavailableReasonCode.Should().Be("DISCORD_CHANNEL_PERMISSION_DENIED");
+        locked.UnavailableReason.Should().Contain("Send Messages").And.Contain("locked");
+
+        open.CanPost.Should().BeTrue(); // no overwrite touches the bot's role — guild-level permissions apply
+        open.UnavailableReasonCode.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetAssignableGuildRolesAsync_DiscordUnreachable_FailsDistinctly_NotAnEmptyList()
+    {
+        // The "Discord cannot be used right now" state must be distinct on the wire from "there are none": a
+        // non-2xx from Discord's own API maps to Result.Failure, never Result.Success([]) — the client can tell
+        // "unavailable" apart from "empty" by checking IsSuccess before ever looking at the list.
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        Guid connectionId = await SeedDiscordConnectionAsync(database);
+        IIntegrationTokenVault vault = VaultReturning(connectionId, DecryptedToken);
+
+        CapturingHandler handler = new(
+            new(HttpStatusCode.Forbidden)
+            {
+                Content = new StringContent(
+                    """{"message":"Missing Access","code":50001}""",
+                    Encoding.UTF8,
+                    "application/json"
+                ),
+            }
+        );
+        await using DiscordTestDbContext db = database.NewContext();
+        DiscordRestBotGateway gateway = NewGateway(handler, db, vault);
+
+        Result<IReadOnlyList<DiscordAssignableRoleDto>> result =
+            await gateway.GetAssignableGuildRolesAsync(Channel, "guild1");
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("DISCORD_UNAUTHORIZED");
+    }
+
     private static HttpResponseMessage JsonResponse(string json) =>
         new(HttpStatusCode.OK)
         {

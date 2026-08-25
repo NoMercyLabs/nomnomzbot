@@ -521,6 +521,18 @@ public sealed class PipelineOptionProviderTests
             Guid connectionId,
             CancellationToken ct = default
         ) => throw new InvalidOperationException("Should not be reached — no active connection.");
+
+        public Task<Result<IReadOnlyList<DiscordAssignableRoleDto>>> GetAssignableGuildRolesAsync(
+            Guid broadcasterId,
+            Guid connectionId,
+            CancellationToken ct = default
+        ) => throw new InvalidOperationException("Should not be reached — no active connection.");
+
+        public Task<Result<IReadOnlyList<DiscordPostableChannelDto>>> GetPostableGuildChannelsAsync(
+            Guid broadcasterId,
+            Guid connectionId,
+            CancellationToken ct = default
+        ) => throw new InvalidOperationException("Should not be reached — no active connection.");
     }
 
     private sealed class FailingDirectory : IDiscordGuildDirectoryService
@@ -546,6 +558,18 @@ public sealed class PipelineOptionProviderTests
             Guid connectionId,
             CancellationToken ct = default
         ) => Task.FromResult(Result.Failure<IReadOnlyList<DiscordGuildChannelDto>>(_message));
+
+        public Task<Result<IReadOnlyList<DiscordAssignableRoleDto>>> GetAssignableGuildRolesAsync(
+            Guid broadcasterId,
+            Guid connectionId,
+            CancellationToken ct = default
+        ) => Task.FromResult(Result.Failure<IReadOnlyList<DiscordAssignableRoleDto>>(_message));
+
+        public Task<Result<IReadOnlyList<DiscordPostableChannelDto>>> GetPostableGuildChannelsAsync(
+            Guid broadcasterId,
+            Guid connectionId,
+            CancellationToken ct = default
+        ) => Task.FromResult(Result.Failure<IReadOnlyList<DiscordPostableChannelDto>>(_message));
     }
 
     private sealed class FakeDirectory : IDiscordGuildDirectoryService
@@ -582,5 +606,47 @@ public sealed class PipelineOptionProviderTests
             Guid connectionId,
             CancellationToken ct = default
         ) => Task.FromResult(Result.Success(_channels));
+
+        public Task<Result<IReadOnlyList<DiscordAssignableRoleDto>>> GetAssignableGuildRolesAsync(
+            Guid broadcasterId,
+            Guid connectionId,
+            CancellationToken ct = default
+        ) =>
+            Task.FromResult(
+                Result.Success<IReadOnlyList<DiscordAssignableRoleDto>>([
+                    .. _roles.Select(r => new DiscordAssignableRoleDto(
+                        r.Id,
+                        r.Name,
+                        r.Color,
+                        r.Position,
+                        r.Managed,
+                        r.Mentionable,
+                        r.Permissions,
+                        CanAssign: true,
+                        UnavailableReasonCode: null,
+                        UnavailableReason: null
+                    )),
+                ])
+            );
+
+        public Task<Result<IReadOnlyList<DiscordPostableChannelDto>>> GetPostableGuildChannelsAsync(
+            Guid broadcasterId,
+            Guid connectionId,
+            CancellationToken ct = default
+        ) =>
+            Task.FromResult(
+                Result.Success<IReadOnlyList<DiscordPostableChannelDto>>([
+                    .. _channels.Select(c => new DiscordPostableChannelDto(
+                        c.Id,
+                        c.Name,
+                        c.Type,
+                        c.ParentId,
+                        c.Position,
+                        CanPost: true,
+                        UnavailableReasonCode: null,
+                        UnavailableReason: null
+                    )),
+                ])
+            );
     }
 }
