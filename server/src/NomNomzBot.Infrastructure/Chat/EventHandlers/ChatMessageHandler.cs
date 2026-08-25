@@ -140,7 +140,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         if (featureIgnored)
             return;
 
-        string? text = @event.Message?.Trim();
+        string text = @event.Message.Trim();
         if (string.IsNullOrEmpty(text))
             return;
 
@@ -403,7 +403,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                     TriggeredByUserId = @event.UserId,
                     TriggeredByDisplayName = @event.UserDisplayName,
                     MessageId = @event.MessageId,
-                    RawMessage = @event.Message ?? string.Empty,
+                    RawMessage = @event.Message,
                     InitialVariables = variables,
                 };
 
@@ -738,14 +738,58 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         CancellationToken ct
     )
     {
-        Result<string> result = await builtin.ExecuteAsync(builtinCtx, ct);
-        if (!result.IsSuccess)
+        Result<string> result;
+        try
+        {
+            result = await builtin.ExecuteAsync(builtinCtx, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // A throwing builtin used to take the whole chat handler down with it: the message was never
+            // answered, nothing named the command, and the failure was indistinguishable from the command
+            // not existing. One built-in failing must never silence the rest of chat.
+            _logger.LogError(
+                ex,
+                "Built-in {Builtin} threw for {User} in {Channel}",
+                builtin.BuiltinKey,
+                @event.UserDisplayName,
+                @event.BroadcasterId
+            );
             return BuiltinOutcome.ExecutionFailed;
+        }
+
+        if (!result.IsSuccess)
+        {
+            // Previously returned in silence, so a built-in that refused left NO trace anywhere — which is
+            // exactly why `!update` answering nothing could not be diagnosed from the box.
+            _logger.LogWarning(
+                "Built-in {Builtin} failed for {User} in {Channel}: {Error}",
+                builtin.BuiltinKey,
+                @event.UserDisplayName,
+                @event.BroadcasterId,
+                result.ErrorMessage
+            );
+            return BuiltinOutcome.ExecutionFailed;
+        }
 
         if (string.IsNullOrEmpty(result.Value))
+        {
+            _logger.LogDebug(
+                "Built-in {Builtin} ran for {User} in {Channel} and chose to say nothing",
+                builtin.BuiltinKey,
+                @event.UserDisplayName,
+                @event.BroadcasterId
+            );
             return BuiltinOutcome.Success;
+        }
 
         bool sent = await SendResponseAsync(@event, result.Value, ct);
+        if (!sent)
+            _logger.LogWarning(
+                "Built-in {Builtin} answered but the reply never reached chat in {Channel}",
+                builtin.BuiltinKey,
+                @event.BroadcasterId
+            );
         return sent ? BuiltinOutcome.Success : BuiltinOutcome.SendFailed;
     }
 
@@ -1139,7 +1183,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                     TriggeredByUserId = @event.UserId,
                     TriggeredByDisplayName = @event.UserDisplayName,
                     MessageId = @event.MessageId,
-                    RawMessage = @event.Message ?? string.Empty,
+                    RawMessage = @event.Message,
                     InitialVariables = variables,
                 },
                 ct

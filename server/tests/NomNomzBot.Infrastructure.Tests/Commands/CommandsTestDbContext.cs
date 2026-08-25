@@ -110,6 +110,7 @@ internal sealed class CommandsTestDbContext : DbContext, IApplicationDbContext
         typeof(DomainTimer),
         typeof(Channel),
         typeof(NomNomzBot.Domain.Platform.Entities.Record),
+        typeof(User),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -124,8 +125,10 @@ internal sealed class CommandsTestDbContext : DbContext, IApplicationDbContext
             .Where(t => !Mapped.Contains(t)),
     ];
 
+    /// <summary>Mapped: <c>!update</c> writes the refreshed Twitch profile onto the viewer's row.</summary>
+    public DbSet<User> Users => Set<User>();
+
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
-    public DbSet<User> Users => throw new NotSupportedException();
     public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
     public DbSet<ConsentRecord> ConsentRecords => throw new NotSupportedException();
     public DbSet<ErasureRequest> ErasureRequests => throw new NotSupportedException();

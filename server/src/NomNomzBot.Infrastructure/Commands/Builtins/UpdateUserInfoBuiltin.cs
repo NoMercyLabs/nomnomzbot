@@ -78,7 +78,14 @@ public sealed class UpdateUserInfoBuiltin : IBuiltinCommand
             [login],
             ct
         );
-        TwitchUser? twitchUser = lookup.IsSuccess ? lookup.Value.FirstOrDefault() : null;
+        // A failed CALL and a login that genuinely does not exist are different facts. Reporting a Helix
+        // timeout as "no such user" tells the viewer their account is gone when Twitch simply did not answer.
+        if (lookup.IsFailure)
+            return Result.Success(
+                $"@{context.TriggeringUserDisplayName} Twitch did not answer just now — try again in a moment."
+            );
+
+        TwitchUser? twitchUser = lookup.Value.FirstOrDefault();
         if (twitchUser is null)
             return Result.Success($"Could not find user '{login}' on Twitch.");
 
