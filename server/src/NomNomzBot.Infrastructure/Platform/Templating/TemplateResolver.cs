@@ -77,7 +77,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
         if (string.IsNullOrEmpty(template))
             return string.Empty;
 
-        return VariablePattern()
+        string substituted = VariablePattern()
             .Replace(
                 template,
                 match =>
@@ -91,6 +91,8 @@ public sealed partial class TemplateResolver : ITemplateResolver
                     return match.Value; // leave unknown variables as-is
                 }
             );
+
+        return ApplyTransforms(substituted);
     }
 
     /// <summary>Full async resolve with lazy DB lookups for built-in variables.</summary>
@@ -139,7 +141,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
 
         // Final substitution — a pronoun-grammar placeholder whose own first letter is uppercase
         // (e.g. {Subject}, {User.Subject}, {Target.GenderedTerm}) capitalizes the resolved value.
-        return VariablePattern()
+        string substituted = VariablePattern()
             .Replace(
                 template,
                 match =>
@@ -152,6 +154,11 @@ public sealed partial class TemplateResolver : ITemplateResolver
                         : val;
                 }
             );
+
+        // {transform.<name>:<text>} / {transform.truncate.<length>:<text>} — resolved last, so any variable
+        // placeholder nested inside the transformed text (e.g. {transform.upper:{user.name}}) is already a
+        // plain value by the time the transform runs. Depth-bounded loop lets transforms chain/compose.
+        return ApplyTransforms(substituted);
     }
 
     /// <summary>
@@ -314,6 +321,50 @@ public sealed partial class TemplateResolver : ITemplateResolver
             );
             return null;
         }
+    }
+
+    /// <summary>
+    /// Expands every self-contained <c>{transform.&lt;name&gt;:&lt;text&gt;}</c> token via
+    /// <see cref="TextTransformCatalog.Apply"/>. Runs depth-bounded and repeatedly: because
+    /// <see cref="VariablePattern"/> only ever matches brace-free content, a nested/chained transform
+    /// (e.g. <c>{transform.upper:{transform.reverse:hi}}</c>) resolves innermost-token-first — one loop
+    /// iteration peels the innermost transform down to plain text, which makes the next transform out
+    /// self-contained for the following iteration. An unknown transform name (or a bad argument, e.g. a
+    /// non-numeric truncate length) is a recorded, visible failure — logged and rendered as an
+    /// unmistakable <c>[transform error: …]</c> marker — never a silent pass-through of the input.
+    /// </summary>
+    private string ApplyTransforms(string text)
+    {
+        const int maxDepth = 10;
+        string current = text;
+        for (int depth = 0; depth < maxDepth; depth++)
+        {
+            if (!TransformPattern().IsMatch(current))
+                return current;
+
+            current = TransformPattern()
+                .Replace(
+                    current,
+                    match =>
+                    {
+                        string name = match.Groups[1].Value;
+                        string? argument = match.Groups[2].Success ? match.Groups[2].Value : null;
+                        string content = match.Groups[3].Value;
+
+                        Result<string> result = TextTransformCatalog.Apply(name, content, argument);
+                        if (result.IsSuccess)
+                            return result.Value;
+
+                        _logger.LogError(
+                            "Template transform '{Transform}' failed: {Error}",
+                            name,
+                            result.ErrorMessage
+                        );
+                        return $"[transform error: {result.ErrorMessage}]";
+                    }
+                );
+        }
+        return current;
     }
 
     // ─── Built-in resolution ──────────────────────────────────────────────────
@@ -1249,6 +1300,9 @@ public sealed partial class TemplateResolver : ITemplateResolver
 
     [GeneratedRegex(@"\{custom\.([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)\}", RegexOptions.IgnoreCase)]
     private static partial Regex CustomDataPattern();
+
+    [GeneratedRegex(@"\{transform\.([A-Za-z]+)(?:\.([0-9]+))?:([^{}]*)\}", RegexOptions.IgnoreCase)]
+    private static partial Regex TransformPattern();
 
     [GeneratedRegex(@"\{([^{}]+)\}")]
     private static partial Regex VariablePattern();
