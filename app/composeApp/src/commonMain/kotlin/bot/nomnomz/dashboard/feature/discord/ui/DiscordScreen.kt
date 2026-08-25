@@ -75,6 +75,7 @@ import bot.nomnomz.dashboard.core.network.DiscordNotificationConfig
 import bot.nomnomz.dashboard.core.network.DiscordNotificationRole
 import bot.nomnomz.dashboard.feature.discord.state.DiscordController
 import bot.nomnomz.dashboard.feature.discord.state.DiscordState
+import bot.nomnomz.dashboard.feature.discord.state.FieldUpdate
 import bot.nomnomz.dashboard.feature.discord.state.GuildNotifications
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
@@ -154,9 +155,7 @@ import nomnomzbot.composeapp.generated.resources.discord_preview_ping_label
 import nomnomzbot.composeapp.generated.resources.discord_preview_title
 import nomnomzbot.composeapp.generated.resources.discord_retry
 import nomnomzbot.composeapp.generated.resources.discord_roles_add
-import nomnomzbot.composeapp.generated.resources.discord_roles_button_channel_id
 import nomnomzbot.composeapp.generated.resources.discord_roles_channel_picker
-import nomnomzbot.composeapp.generated.resources.discord_roles_button_channel_required
 import nomnomzbot.composeapp.generated.resources.discord_roles_button_post
 import nomnomzbot.composeapp.generated.resources.discord_roles_cancel
 import nomnomzbot.composeapp.generated.resources.discord_roles_create
@@ -166,7 +165,6 @@ import nomnomzbot.composeapp.generated.resources.discord_roles_delete_cancel
 import nomnomzbot.composeapp.generated.resources.discord_roles_delete_confirm
 import nomnomzbot.composeapp.generated.resources.discord_roles_delete_message
 import nomnomzbot.composeapp.generated.resources.discord_roles_delete_title
-import nomnomzbot.composeapp.generated.resources.discord_roles_discord_role_id
 import nomnomzbot.composeapp.generated.resources.discord_roles_dm_badge
 import nomnomzbot.composeapp.generated.resources.discord_roles_dm_hint
 import nomnomzbot.composeapp.generated.resources.discord_roles_dm_label
@@ -391,8 +389,8 @@ fun DiscordScreen(controller: DiscordController, role: ManagementRole?) {
                             channelId,
                             message,
                             enabled,
-                            pingRoleId = pingRoleId,
-                            embedConfig = embed,
+                            pingRoleId = FieldUpdate.Value(pingRoleId),
+                            embedConfig = FieldUpdate.Value(embed),
                         )
                     } else {
                         controller.createConfig(
@@ -1257,7 +1255,7 @@ private fun RolePickerField(
                                                 modifier = Modifier
                                                     .size(spacing.s2)
                                                     .clip(CircleShape)
-                                                    .background(Color(0xFF000000 or role.color.toLong()))
+                                                    .background(Color(role.color).copy(alpha = 1f))
                                             )
                                             Text(text = role.name, style = typography.sm, color = tokens.cardForeground)
                                         }
@@ -1560,47 +1558,60 @@ private fun CreateRoleDialog(
     var roleName: String by remember { mutableStateOf("") }
     var selfAssign: Boolean by remember { mutableStateOf(false) }
     var dmEnabled: Boolean by remember { mutableStateOf(false) }
-    val roleIdError: Boolean = discordRoleId.isBlank()
 
     // The guild's assignable roles, so the operator picks instead of pasting a snowflake. Managed (bot/integration)
-    // roles are filtered out — they can't be self-assigned. Empty until loaded, or when the fetch fails (missing
-    // permission / bot not in the guild) — in which case the dialog falls back to manual id entry.
-    var guildRoles: List<DiscordGuildRole> by remember(connectionId) { mutableStateOf(emptyList()) }
-    LaunchedEffect(connectionId) {
-        guildRoles =
-            when (val result: ApiResult<List<DiscordGuildRole>> = loadRoles(connectionId)) {
-                is ApiResult.Ok -> result.value.filter { !it.managed }
-                is ApiResult.Failure -> emptyList()
-            }
+    // roles are filtered out — they can't be self-assigned. Loading/Error/Loaded are kept distinct so an upstream
+    // failure (missing permission / bot not in the guild) never collapses to the same "no roles" look as a guild
+    // that genuinely has none — there is no manual-id fallback, the operator can only pick or retry.
+    var rolesState: PickerState<List<DiscordGuildRole>> by remember(connectionId) { mutableStateOf(PickerState.Loading) }
+    suspend fun reload() {
+        rolesState = PickerState.Loading
+        rolesState = loadRoles(connectionId).toPickerState()
     }
+    LaunchedEffect(connectionId) { reload() }
+    val scope = rememberCoroutineScope()
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(Res.string.discord_roles_create_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                if (guildRoles.isNotEmpty()) {
-                    GuildPickerField(
-                        label = stringResource(Res.string.discord_roles_role_picker),
-                        options = guildRoles.map { it.id to it.name },
-                        selectedId = discordRoleId,
-                        onSelect = { id ->
-                            discordRoleId = id
-                            // Seed the display name from the picked role unless the operator already typed one.
-                            if (roleName.isBlank()) {
-                                roleName = guildRoles.firstOrNull { it.id == id }?.name.orEmpty()
+                when (val state = rolesState) {
+                    is PickerState.Loading -> CenteredMessage(stringResource(Res.string.discord_picker_loading))
+                    is PickerState.Error ->
+                        Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                            Text(
+                                text = stringResource(Res.string.discord_error, state.detail),
+                                style = LocalTypography.current.sm,
+                                color = tokens.mutedForeground,
+                            )
+                            TextButton(onClick = { scope.launch { reload() } }) {
+                                Text(text = stringResource(Res.string.discord_retry))
                             }
-                        },
-                    )
-                } else {
-                    AppTextField(
-                        value = discordRoleId,
-                        onValueChange = { discordRoleId = it },
-                        label = stringResource(Res.string.discord_roles_discord_role_id),
-                        isError = roleIdError && discordRoleId.isNotEmpty(),
-                        errorText = stringResource(Res.string.discord_roles_role_id_required),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                        }
+                    is PickerState.Loaded -> {
+                        val assignableRoles: List<DiscordGuildRole> = state.value.filter { !it.managed }
+                        if (assignableRoles.isEmpty()) {
+                            Text(
+                                text = stringResource(Res.string.discord_picker_empty_roles),
+                                style = LocalTypography.current.sm,
+                                color = tokens.mutedForeground,
+                            )
+                        } else {
+                            GuildPickerField(
+                                label = stringResource(Res.string.discord_roles_role_picker),
+                                options = assignableRoles.map { it.id to it.name },
+                                selectedId = discordRoleId,
+                                onSelect = { id ->
+                                    discordRoleId = id
+                                    // Seed the display name from the picked role unless the operator already typed one.
+                                    if (roleName.isBlank()) {
+                                        roleName = assignableRoles.firstOrNull { it.id == id }?.name.orEmpty()
+                                    }
+                                },
+                            )
+                        }
+                    }
                 }
                 AppTextField(
                     value = roleName,
@@ -1731,40 +1742,54 @@ private fun PostButtonDialog(
     val spacing = LocalSpacing.current
 
     var channelId: String by remember { mutableStateOf("") }
-    val channelError: Boolean = channelId.isBlank()
 
-    // The guild's TEXT channels (type 0) — the button can only be posted to a text channel. Empty until loaded,
-    // or when the fetch fails — then the dialog falls back to manual channel-id entry.
-    var textChannels: List<DiscordGuildChannel> by remember(connectionId) { mutableStateOf(emptyList()) }
-    LaunchedEffect(connectionId) {
-        textChannels =
-            when (val result: ApiResult<List<DiscordGuildChannel>> = loadChannels(connectionId)) {
-                is ApiResult.Ok -> result.value.filter { it.type == 0 }
-                is ApiResult.Failure -> emptyList()
-            }
+    // The guild's TEXT channels (type 0) — the button can only be posted to a text channel. Loading/Error/Loaded
+    // are kept distinct so an upstream failure never collapses to the same "no channels" look as a guild that
+    // genuinely has none — there is no manual channel-id fallback, the operator can only pick or retry.
+    var channelsState: PickerState<List<DiscordGuildChannel>> by
+        remember(connectionId) { mutableStateOf(PickerState.Loading) }
+    suspend fun reload() {
+        channelsState = PickerState.Loading
+        channelsState = loadChannels(connectionId).toPickerState()
     }
+    LaunchedEffect(connectionId) { reload() }
+    val scope = rememberCoroutineScope()
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(Res.string.discord_roles_post_button_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                if (textChannels.isNotEmpty()) {
-                    GuildPickerField(
-                        label = stringResource(Res.string.discord_roles_channel_picker),
-                        options = textChannels.map { it.id to ("# " + (it.name ?: it.id)) },
-                        selectedId = channelId,
-                        onSelect = { channelId = it },
-                    )
-                } else {
-                    AppTextField(
-                        value = channelId,
-                        onValueChange = { channelId = it },
-                        label = stringResource(Res.string.discord_roles_button_channel_id),
-                        isError = channelError && channelId.isNotEmpty(),
-                        errorText = stringResource(Res.string.discord_roles_button_channel_required),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                when (val state = channelsState) {
+                    is PickerState.Loading -> CenteredMessage(stringResource(Res.string.discord_picker_loading))
+                    is PickerState.Error ->
+                        Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                            Text(
+                                text = stringResource(Res.string.discord_error, state.detail),
+                                style = LocalTypography.current.sm,
+                                color = tokens.mutedForeground,
+                            )
+                            TextButton(onClick = { scope.launch { reload() } }) {
+                                Text(text = stringResource(Res.string.discord_retry))
+                            }
+                        }
+                    is PickerState.Loaded -> {
+                        val textChannels: List<DiscordGuildChannel> = state.value.filter { it.type == 0 }
+                        if (textChannels.isEmpty()) {
+                            Text(
+                                text = stringResource(Res.string.discord_picker_empty_channels),
+                                style = LocalTypography.current.sm,
+                                color = tokens.mutedForeground,
+                            )
+                        } else {
+                            GuildPickerField(
+                                label = stringResource(Res.string.discord_roles_channel_picker),
+                                options = textChannels.map { it.id to ("# " + (it.name ?: it.id)) },
+                                selectedId = channelId,
+                                onSelect = { channelId = it },
+                            )
+                        }
+                    }
                 }
             }
         },

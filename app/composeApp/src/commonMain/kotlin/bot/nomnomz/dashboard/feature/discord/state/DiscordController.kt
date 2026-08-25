@@ -128,8 +128,8 @@ class DiscordController(
         targetChannelId: String,
         messageTemplate: String,
         enabled: Boolean,
-        pingRoleId: String? = null,
-        embedConfig: DiscordEmbed? = null,
+        pingRoleId: FieldUpdate<String?> = FieldUpdate.Unspecified,
+        embedConfig: FieldUpdate<DiscordEmbed?> = FieldUpdate.Unspecified,
     ) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
         val current: DiscordNotificationConfig =
@@ -142,8 +142,8 @@ class DiscordController(
                     enabled = enabled,
                     targetChannelId = targetChannelId,
                     messageTemplate = messageTemplate,
-                    pingRoleId = pingRoleId,
-                    embedConfig = embedConfig,
+                    pingRoleId = pingRoleId.orElse(current.pingRoleId),
+                    embedConfig = embedConfig.orElse(current.embedConfig),
                 ),
             )
         )
@@ -333,6 +333,24 @@ class DiscordController(
  * [enabled]; an edit passes [enabled] + [targetChannelId] + [messageTemplate]. Every other field (ping / embed
  * / milestone) is carried unchanged, so a partial edit never silently drops configured extras.
  */
+/**
+ * Distinguishes "the caller didn't touch this field" (preserve the row's current value) from an explicit
+ * [Value] carrying `null` (clear it) — a plain nullable default can't tell the two apart, which is exactly
+ * how [DiscordController.updateConfig] used to silently drop a configured embed whenever a caller edited
+ * only the channel/message/enabled fields and left ping/embed unspecified.
+ */
+sealed interface FieldUpdate<out T> {
+    data object Unspecified : FieldUpdate<Nothing>
+
+    data class Value<T>(val value: T) : FieldUpdate<T>
+}
+
+private fun <T> FieldUpdate<T>.orElse(current: T): T =
+    when (this) {
+        is FieldUpdate.Unspecified -> current
+        is FieldUpdate.Value -> value
+    }
+
 private fun DiscordNotificationConfig.toUpdateBody(
     enabled: Boolean = this.enabled,
     targetChannelId: String = this.targetChannelId,
