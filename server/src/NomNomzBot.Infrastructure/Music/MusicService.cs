@@ -478,7 +478,33 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
 
         // Add to fair queue — via the singleton store, so this entry is visible to every later
         // DI scope (next chat command, next dashboard request), not just this one.
-        queue.Enqueue(requestedBy ?? "anonymous", entry);
+        //
+        // ATOMIC re-check. CheckDuplicateAsync above already refused the obvious case, but it ran OUTSIDE
+        // the queue's lock and it awaits a provider probe in the middle — so two requests for the same
+        // track can both clear it and both insert. That is not hypothetical: on 2026-08-25 two API
+        // instances were briefly live, every chat command was handled twice, and the queue reached 2,644
+        // rows for five distinct tracks. This is the last gate before insertion and it decides under the
+        // same lock, so a duplicate cannot slip through however the caller got here.
+        bool inserted = queue.TryEnqueueUnique(
+            requestedBy ?? "anonymous",
+            entry,
+            queued => string.Equals(queued.TrackUri, trackUri, StringComparison.OrdinalIgnoreCase)
+        );
+        if (!inserted)
+        {
+            (SongRequestEntry Item, int Rank, string OwnerKey) alreadyQueued = queue
+                .GetSnapshot()
+                .FirstOrDefault(e =>
+                    string.Equals(e.Item.TrackUri, trackUri, StringComparison.OrdinalIgnoreCase)
+                );
+            // ErrorDetail carries the ORIGINAL requester as a structured value, so the chat layer can
+            // name them in a toned message without parsing it back out of the sentence above.
+            return Result.Failure(
+                $"\"{trackInfo.TrackName}\" is already in the queue (requested by {alreadyQueued.Item?.RequestedBy ?? "someone"}).",
+                "DUPLICATE_TRACK",
+                alreadyQueued.Item?.RequestedBy ?? "someone"
+            );
+        }
         await SyncPersistedQueueAsync(broadcasterId, queue, cancellationToken);
 
         // ONE track at a time reaches the provider. The fair queue is the authority on order, and it can

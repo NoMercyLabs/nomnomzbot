@@ -78,6 +78,36 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
                 return Result.Success(notFound);
             }
 
+            // A duplicate is the ONE refusal that is about the channel's vibe rather than a fault, and
+            // it is the one viewers trigger most — so it speaks in the channel's chosen tone (sassy gets
+            // to be sassy) instead of a flat sentence. The original requester is named so chat can see
+            // someone genuinely got there first and it is not the bot glitching.
+            if (requested.ErrorCode == "DUPLICATE_TRACK")
+            {
+                string duplicate = await _composer.ComposeAsync(
+                    new()
+                    {
+                        BroadcasterId = context.BroadcasterId,
+                        Personality = context.Personality,
+                        BuiltinKey = BuiltinKey,
+                        Slot = BuiltinResponseSlots.SongRequest.Duplicate,
+                        NeutralFallback = requested.ErrorMessage!,
+                        // ErrorDetail is the original requester, set structurally by MusicService — the
+                        // track title is NOT available here (the resolve failed), so the toned templates
+                        // deliberately speak without it rather than parsing it back out of the sentence.
+                        Variables = new Dictionary<string, string>
+                        {
+                            ["user"] = context.TriggeringUserDisplayName,
+                            ["requested.by"] = string.IsNullOrWhiteSpace(requested.ErrorDetail)
+                                ? "someone"
+                                : requested.ErrorDetail,
+                        },
+                    },
+                    ct
+                );
+                return Result.Success(duplicate);
+            }
+
             // Functional failures — stay neutral. Sent as a reply, so no "@user" prefix. Each refusal
             // reason gets its own honest wording rather than one blanket "could not add": a blocked
             // track carries its typed reason straight through, and anything else (a genuinely erroring

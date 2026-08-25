@@ -104,12 +104,23 @@ public sealed class SongRequestQueueStore : ISongRequestQueueStore
             _inFlight[broadcasterId] = entry;
     }
 
+    /// <summary>
+    /// REPLACES the channel's queue with the persisted set — it must never append.
+    /// <para>This appended, and the effect compounded: the restored rows were stacked on top of whatever
+    /// was already in memory, that larger queue was synced straight back to
+    /// <c>SongRequestQueueItems</c>, and the next restore stacked the now-bigger set again. On the live
+    /// box (2026-08-25) one channel reached 2,644 rows for FIVE distinct tracks, and the dashboard showed
+    /// the same songs over and over — cleaning the table did nothing, because the in-memory queue simply
+    /// wrote its duplicates back. Restore is a REPLACE by definition: the persisted rows ARE the queue,
+    /// not an addition to it, which also makes a second restore idempotent.</para>
+    /// </summary>
     public void Restore(
         string broadcasterId,
         IReadOnlyList<(string OwnerKey, SongRequestEntry Entry)> orderedEntries
     )
     {
         FairQueue<SongRequestEntry> queue = GetOrCreate(broadcasterId);
+        queue.Clear();
         foreach ((string ownerKey, SongRequestEntry entry) in orderedEntries)
             queue.Enqueue(ownerKey, entry);
     }

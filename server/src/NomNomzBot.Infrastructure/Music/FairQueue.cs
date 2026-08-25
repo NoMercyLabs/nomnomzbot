@@ -45,31 +45,60 @@ public sealed class FairQueue<T> : IFairQueue<T>
         }
     }
 
+    /// <summary>
+    /// Atomic "reject if already present, otherwise enqueue". Returns <c>false</c> (and enqueues nothing)
+    /// when <paramref name="isDuplicate"/> matches an item already queued.
+    /// <para>A separate "is it already there?" read followed by <see cref="Enqueue"/> is NOT enough: the
+    /// gap between them is a race, and two near-simultaneous requests for the same track both pass the
+    /// check and both enqueue. On the live box (2026-08-25) two API instances were briefly running and
+    /// every request was processed twice, which made that race certain rather than occasional. Deciding
+    /// and inserting under the SAME lock closes it for good.</para>
+    /// </summary>
+    public bool TryEnqueueUnique(string ownerKey, T item, Func<T, bool> isDuplicate)
+    {
+        lock (_lock)
+        {
+            if (_queue.Any(e => isDuplicate(e.Item)))
+                return false;
+
+            EnqueueUnderLock(ownerKey, item);
+            return true;
+        }
+    }
+
     public void Enqueue(string ownerKey, T item)
     {
         lock (_lock)
         {
-            // Rank = number of items this owner already has in the queue + 1
-            int ownerCount = _queue.Count(e => e.OwnerKey == ownerKey);
-            int rank = ownerCount + 1;
+            EnqueueUnderLock(ownerKey, item);
+        }
+    }
 
-            QueueEntry entry = new(ownerKey, item, rank);
+    /// <summary>The insertion itself. Callers MUST already hold <c>_lock</c> — shared by
+    /// <see cref="Enqueue"/> and <see cref="TryEnqueueUnique"/> so the fair-ranking rule lives in exactly
+    /// one place.</summary>
+    private void EnqueueUnderLock(string ownerKey, T item)
+    {
+        // Rank = number of items this owner already has in the queue + 1
+        int ownerCount = _queue.Count(e => e.OwnerKey == ownerKey);
+        int rank = ownerCount + 1;
 
-            // Insert after all entries with rank <= this rank (stable FIFO within same rank)
-            int insertAt = _queue.Count;
-            for (int i = _queue.Count - 1; i >= 0; i--)
+        QueueEntry entry = new(ownerKey, item, rank);
+
+        // Insert after all entries with rank <= this rank (stable FIFO within same rank)
+        int insertAt = _queue.Count;
+        for (int i = _queue.Count - 1; i >= 0; i--)
+        {
+            if (_queue[i].Rank <= rank)
             {
-                if (_queue[i].Rank <= rank)
-                {
-                    insertAt = i + 1;
-                    break;
-                }
-
-                insertAt = i;
+                insertAt = i + 1;
+                break;
             }
 
-            _queue.Insert(insertAt, entry);
+            insertAt = i;
         }
+
+        _queue.Insert(insertAt, entry);
     }
 
     public T? Dequeue()

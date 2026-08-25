@@ -19,6 +19,14 @@ public interface IFairQueue<T>
     /// <summary>Enqueues an item with an associated owner key for fairness.</summary>
     void Enqueue(string ownerKey, T item);
 
+    /// <summary>
+    /// Atomically rejects a duplicate or enqueues. Returns <c>false</c> and enqueues NOTHING when
+    /// <paramref name="isDuplicate"/> matches an already-queued item. Checking first and calling
+    /// <see cref="Enqueue"/> after is a race: two simultaneous requests for the same item both pass the
+    /// check and both insert. Deciding and inserting under one lock is what makes the queue linear.
+    /// </summary>
+    bool TryEnqueueUnique(string ownerKey, T item, Func<T, bool> isDuplicate);
+
     /// <summary>Dequeues the next item using fair scheduling across owners.</summary>
     T? Dequeue();
 

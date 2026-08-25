@@ -64,6 +64,14 @@ public static class BuiltinResponseSlots
 
         /// <summary>No track matched the query; <c>{query}</c>/<c>{user}</c> are set.</summary>
         public const string NotFound = "notfound";
+
+        /// <summary>The track is ALREADY pending in the queue; <c>{track.name}</c>/<c>{track.artist}</c>/
+        /// <c>{user}</c>/<c>{requested.by}</c> (whoever queued it first) are set.</summary>
+        public const string Duplicate = "duplicate";
+
+        /// <summary>The track is playing RIGHT NOW; <c>{track.name}</c>/<c>{track.artist}</c>/<c>{user}</c>
+        /// are set.</summary>
+        public const string AlreadyPlaying = "alreadyplaying";
     }
 
     /// <summary><c>!skip</c> — skip the current track (mods+).</summary>

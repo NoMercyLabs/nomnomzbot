@@ -215,4 +215,46 @@ public class FairQueueTests
 
         q.Count.Should().Be(10 * iterations);
     }
+
+    /// <summary>
+    /// The 2026-08-25 duplicate-queue incident, as a test. Two API instances were briefly live, so the
+    /// SAME song request was processed twice at once; the old code checked "is it already queued?" and
+    /// then enqueued in a separate step, so both passes cleared the check and both inserted. One channel
+    /// reached 2,644 rows for five distinct tracks and the dashboard showed the same songs repeatedly.
+    /// Deciding and inserting under one lock must make exactly ONE of N concurrent attempts win.
+    /// </summary>
+    [Fact]
+    public void TryEnqueueUnique_under_concurrency_admits_exactly_one_copy()
+    {
+        FairQueue<string> queue = new();
+        const string track = "spotify:track:duplicate";
+        int admitted = 0;
+
+        Parallel.For(
+            0,
+            64,
+            _ =>
+            {
+                if (queue.TryEnqueueUnique("viewer", track, queued => queued == track))
+                    Interlocked.Increment(ref admitted);
+            }
+        );
+
+        admitted.Should().Be(1, "only the first of 64 concurrent attempts may be admitted");
+        queue
+            .GetSnapshot()
+            .Should()
+            .HaveCount(1, "the queue must hold exactly one copy of the track");
+    }
+
+    [Fact]
+    public void TryEnqueueUnique_admits_a_genuinely_different_track()
+    {
+        FairQueue<string> queue = new();
+
+        queue.TryEnqueueUnique("viewer", "track:a", q => q == "track:a").Should().BeTrue();
+        queue.TryEnqueueUnique("viewer", "track:b", q => q == "track:b").Should().BeTrue();
+
+        queue.GetSnapshot().Should().HaveCount(2, "deduping must not block distinct tracks");
+    }
 }
