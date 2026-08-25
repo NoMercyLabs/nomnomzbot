@@ -46,25 +46,6 @@ Read this block first. It is the only summary; everything below is detail.
 
 ---
 
-## INTERRUPTED BY A SESSION LIMIT — 2026-08-25 ~04:00 CEST (resets 4am Amsterdam)
-
-Three agents were killed mid-slice by an API session limit. State captured so nothing is lost:
-
-- **S055c (picker capability endpoint) — SALVAGED, PARTIAL, COMMITTED `e1ddbdbe`.** The killed builder
-  had already written ~10 files (DiscordController, Discord contracts, `IDiscordBotGateway`,
-  `IDiscordGuildDirectoryService`, `DiscordGuildDirectoryService`, `DiscordRestBotGateway`, + tests).
-  I verified it myself before committing: solution BUILDS clean, Discord + PipelineOptionProvider tests
-  **104/104 green**, csharpier formatted. **NOT verified against the slice's done-when list** — above all
-  the CHANNEL PERMISSION-OVERWRITE case (a per-channel overwrite can deny the bot even when guild-level
-  permission allows it; a naive implementation reads only the guild permission and confidently lies).
-  Resume by checking that case first, then the three-states-on-the-wire requirement.
-- **S-PIPE-TREE-d2 (`run_pipeline` + `return_value`) — NOT STARTED.** The builder died while still
-  reading `PipelineEngine.cs`. No code written, nothing to salvage.
-- **S-PIPE-TREE-d1 verification — NOT COMPLETED.** `bd41974f` is committed and the BUILDER reported
-  4095/0 with the flat path untouched, but the independent verifier died before running. Outstanding
-  adversarial check it never got to: **`break` inside a `switch` inside a loop** — if break is captured
-  by the switch rather than the loop, the existing tests still pass while the behaviour is wrong.
-
 ## FOUND ON THE LIVE BOX — 2026-08-25 (after the first successful deploy)
 
 ## LIVE OUTAGE 2026-08-25 — root cause fixed, two follow-ups
@@ -159,15 +140,6 @@ stable — without dropping the planned requirements behind them.
   **SIZING NOTE:** a single brief bundling d1+d2+d3 was correctly REFUSED by a builder as multi-day work.
   That refusal was right and the orchestrator's bundling was the error — keep these three separate.
 
-- **S-PIPE-WRITE-SYMMETRY** (from the S-PIPE-BLANK post-mortem) Pipeline writes and reads use two
-  representations that can silently diverge: `GetAsync` falls back to normalized `PipelineStep` rows,
-  but `CreateAsync`/`UpdateAsync` write ONLY `GraphJsonCache` (zero step-row writes). That asymmetry is
-  what turned the wire-name bug into UNRECOVERABLE loss — dashboard-saved pipelines had an empty cache
-  and no rows to rebuild from. Done-when: the two representations provably cannot diverge (a guard test
-  that fails if either write path is skipped), removals included; or, if the cache is genuinely
-  authoritative, the misleading "only a performance cache" comment is corrected and a write can never
-  leave both empty.
-
 - **S-BUDGETS** (owner, 2026-08-25) "a proper budget system to track the payment tiers — most of it is
   based on resource usage, hence the amount of files you can store or commands you can register."
   ESTABLISHED BY GREP: the plumbing already exists — `TierLimit` (TierId/LimitKey/LimitValue),
@@ -201,23 +173,6 @@ stable — without dropping the planned requirements behind them.
   S-CONSEQ; (5) self-host is not crippled — proven by a test that a self-host deployment enforces only
   the safety baseline; (6) raising a tier immediately raises the ceiling with no re-login
   ([[never-logout-for-scope-or-schema-changes]]).
-
-- **S-IMPERSONATION-NOTICE** (owner question, 2026-08-25 — "i invoked that 2 or 3 times on qtkitte, what
-  did she actually see and where?") ANSWER ESTABLISHED FROM CODE: most likely NOTHING. (a) The notifier
-  `ImpersonationBroadcastHandlers` only landed 2026-08-23 05:07 (9d7d05b0) — earlier sessions had zero
-  consumers for `ImpersonationStartedEvent`. (b) Delivery is TRANSIENT: `SendAlertAsync` ->
-  `BaseGroup(broadcasterId).AlertTriggered(dto)`, a live SignalR push only. No email, no chat message, no
-  persisted notification, no inbox — if the tenant owner did not have that channel's dashboard open at
-  that exact second, the notice is gone forever. (c) Only the `EventJournal` dual-actor row persists, and
-  that is an audit record she must go hunting for, not a notification.
-  A break-glass whose notice can silently miss its subject is not accountable. Done-when: an
-  impersonation start/end produces a DURABLE notice the tenant owner can see after the fact (persisted,
-  unread-until-acknowledged), delivered on at least one channel that does not require the dashboard to be
-  open at that moment; the notice names the operator, the reason, the scope and the expiry; a test proves
-  the notice survives the owner being offline for the whole session; and the channel owner can review
-  every past impersonation of their channel from the dashboard without reading raw journal rows.
-  Note this generalises: ANY security-relevant alert delivered only via transient SignalR has the same
-  hole — sweep that class, do not fix impersonation alone.
 
 - **S-NAMELESS-ROWS-b** (17 of 19 files remain; Commands + Rewards done in 8c349816, jvmTest 702/702)
   Mechanism `resolveRowLabel` + `RowLabelGuardTest` shipped in fa9391a3; `PickListsScreen` is the worked
