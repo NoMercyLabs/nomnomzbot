@@ -75,14 +75,6 @@ The deployed bot was crash-looping (11 restarts) with a 502/503 dashboard, and t
 poller's `catch (Exception ex) when (ex is not OperationCanceledException)` did NOT catch it. It escaped
 `ExecuteAsync` and `BackgroundServiceExceptionBehavior.StopHost` killed the whole host.
 
-- **S-SR-INFLIGHT-DURABLE** The song-request in-flight marker lives only in memory
-  (`_queueStore.GetInFlight` in `Music/SongRequestQueueReconciler.cs`). Any process restart loses it, so
-  `HandOverNextAsync` re-hands the FIRST queued request and the same song plays again — which is exactly
-  what the owner saw multiplied by 11 crashes. Fixing the crash stops the visible symptom, but ANY
-  restart (deploy, blue/green switchover, OOM) still replays the current song. Done-when: the in-flight
-  request survives a process restart — proven by a test that hands over, simulates a restart, and asserts
-  the SAME request is not handed over twice and the queue resumes at the next one.
-
 ## BLOCKED ON THE OWNER — cannot be solved from this side
 
 **ANSWERED 2026-08-25c (owner, via AskUserQuestion) — these three are no longer blocked:**
