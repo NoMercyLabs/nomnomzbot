@@ -175,7 +175,7 @@ class DashboardHubClientReconnectTest {
                 }
             }
             awaitDisconnected(client)
-            withTimeout(5_000) { while (received.size < 1) delay(20) }
+            withTimeout(LIVENESS_TIMEOUT_MS) { while (received.size < 1) delay(20) }
             assertEquals(1, received.size, "the original push must be delivered exactly once")
 
             withContext(Dispatchers.IO) {
@@ -259,16 +259,23 @@ class DashboardHubClientReconnectTest {
         sendText("{}")
     }
 
+    // These are LIVENESS waits — how long to let a real socket handshake/reconnect happen — not the thing
+    // under assertion. 5s was enough locally and expired on a loaded CI runner, turning a slow machine into
+    // a red build. Raising the ceiling changes no assertion; a genuine hang still fails, just later.
+    private companion object {
+        const val LIVENESS_TIMEOUT_MS = 30_000L
+    }
+
     private suspend fun awaitDisconnected(client: DashboardHubClient) {
         withContext(Dispatchers.Default) {
-            withTimeout(5_000) { while (client.isConnected) delay(20) }
+            withTimeout(LIVENESS_TIMEOUT_MS) { while (client.isConnected) delay(20) }
         }
         assertFalse(client.isConnected)
     }
 
     private suspend fun awaitConnected(client: DashboardHubClient) {
         withContext(Dispatchers.Default) {
-            withTimeout(5_000) { while (!client.isConnected) delay(20) }
+            withTimeout(LIVENESS_TIMEOUT_MS) { while (!client.isConnected) delay(20) }
         }
         assertTrue(client.isConnected)
     }

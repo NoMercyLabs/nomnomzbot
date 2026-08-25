@@ -78,7 +78,11 @@ Write-Host "SHIP: watching CI run $runId for $($Sha.Substring(0,8))..."
 # call is a transient blip to be retried, and ONLY an actual non-success conclusion is red.
 function Get-RunState([string]$id) {
     # "status|conclusion" on success, or $null when the API call itself failed (a blip to retry, not red).
-    $json = gh run view $id --json status, conclusion 2>$null
+    # NO SPACE after the comma: PowerShell splits `status, conclusion` into TWO arguments, gh rejects it
+    # with "accepts at most 1 arg(s)", every poll returns $null, and the loop then spends its whole
+    # transient budget before reporting a GitHub outage that never happened. This script had never once
+    # watched a run successfully because of that one space.
+    $json = gh run view $id --json status,conclusion 2>$null
     if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($json)) { return $null }
     try { $o = $json | ConvertFrom-Json } catch { return $null }
     return "$($o.status)|$($o.conclusion)"
@@ -89,6 +93,12 @@ $pollSec = 15
 $heartbeatSec = 120        # Silence during a normal ~25min wait is indistinguishable from a hang -
                             # this is what actually got the script killed mid-run twice. Say something.
 $maxTransient = 40         # ~10 min of consecutive API failures before we give up (never as "red").
+# Prove the query works ONCE before entering the wait: a malformed gh call is indistinguishable from an
+# outage inside the loop, and a wrong argument must not cost 10 minutes to surface.
+if (-not (Get-RunState $runId)) {
+    Fail "cannot read run $runId state - check the gh query itself before blaming the API (try: gh run view $runId --json status,conclusion)"
+}
+
 $status = ""; $conclusion = ""; $transient = 0; $lastHeartbeat = 0
 for ($elapsed = 0; $elapsed -lt ($deadlineMin * 60); $elapsed += $pollSec) {
     if (($elapsed - $lastHeartbeat) -ge $heartbeatSec) {
@@ -151,14 +161,31 @@ echo "image_created=`$(docker inspect --format '{{.Created}}' ghcr.io/nomercylab
 echo "image_digest=`$(docker inspect --format '{{index .RepoDigests 0}}' ghcr.io/nomercylabs/nomnomzbot:latest)"
 echo "container=`$(docker ps --filter name=nomnomzbot-api --format '{{.Status}}')"
 "@
-$deployResult = Invoke-NativeCommand "ssh -i `"$sshKey`" -o StrictHostKeyChecking=accept-new $sshTarget `"$remote`""
+# The remote script goes over STDIN to `bash -s`, never inside a command STRING. Invoke-NativeCommand runs
+# its argument through Invoke-Expression, so PowerShell re-parses whatever it is given: every `>/dev/null`
+# in the script above became a LOCAL redirect and the deploy died on "Could not find a part of the path
+# 'C:/dev/null'". Piping the script in means bash is the only thing that ever parses bash.
+$ErrorActionPreference = "Continue"
+$deployOutput = ($remote | & ssh -i $sshKey -o StrictHostKeyChecking=accept-new $sshTarget "bash -s" 2>&1 | Out-String)
+$deployExit = $LASTEXITCODE
+$ErrorActionPreference = "Stop"
+$deployResult = @{ Output = $deployOutput.TrimEnd("`r", "`n"); ExitCode = $deployExit }
 if ($deployResult.ExitCode -ne 0) { Fail "ssh deploy step failed: $($deployResult.Output)" }
 $deployOut = $deployResult.Output
 
-$health = ($deployOut | Select-String '^health=(\d+)').Matches.Groups[1].Value
-$imageCreated = ($deployOut | Select-String '^image_created=(.+)').Matches.Groups[1].Value
-$imageDigest = ($deployOut | Select-String '^image_digest=(.+)').Matches.Groups[1].Value
-$container = ($deployOut | Select-String '^container=(.+)').Matches.Groups[1].Value
+# Split to LINES first: the output is one multi-line string, and `^` against a single blob only ever
+# matches its very first line — so every field after the first silently came back null.
+$deployLines = $deployOut -split "`r?`n"
+function Get-Field([string]$name) {
+    $match = $deployLines | Select-String -Pattern "^$name=(.+)$" | Select-Object -First 1
+    if (-not $match) { Fail "deploy output carried no '$name=' line - remote script output was:`n$deployOut" }
+    return $match.Matches.Groups[1].Value
+}
+
+$health = Get-Field 'health'
+$imageCreated = Get-Field 'image_created'
+$imageDigest = Get-Field 'image_digest'
+$container = Get-Field 'container'
 if ($health -ne "200") { Fail "API did not become ready (health=$health) after deploy" }
 
 # `docker compose pull` succeeded, so the host now runs EXACTLY the registry's :latest — which the
