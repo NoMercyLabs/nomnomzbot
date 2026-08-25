@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Api.Extensions;
+
 namespace NomNomzBot.Api.Middleware;
 
 /// <summary>
@@ -66,16 +68,24 @@ public sealed class SecurityHeadersMiddleware
 
     private readonly RequestDelegate _next;
     private readonly bool _isDevelopment;
+    private readonly IConfiguration _configuration;
 
-    public SecurityHeadersMiddleware(RequestDelegate next, IHostEnvironment environment)
+    public SecurityHeadersMiddleware(
+        RequestDelegate next,
+        IHostEnvironment environment,
+        IConfiguration configuration
+    )
     {
         _next = next;
         _isDevelopment = environment.IsDevelopment();
+        _configuration = configuration;
     }
 
     public Task InvokeAsync(HttpContext context)
     {
-        if (!_isDevelopment && context.Request.IsHttps)
+        // The browser's scheme, not the last internal hop's: behind a TLS-terminating proxy Request.IsHttps
+        // is false, so HSTS was never sent on any proxied https deployment.
+        if (!_isDevelopment && context.Request.IsPublicOriginHttps(_configuration))
             context.Response.Headers["Strict-Transport-Security"] = HstsHeaderValue;
 
         if (IsEligibleForDashboardCsp(context.Request.Path))

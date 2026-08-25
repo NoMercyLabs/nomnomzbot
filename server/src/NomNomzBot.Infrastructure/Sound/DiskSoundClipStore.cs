@@ -97,10 +97,28 @@ internal sealed class DiskSoundClipStore : ISoundClipStore
         HttpContext? ctx = _httpContextAccessor.HttpContext;
         string baseUrl =
             !string.IsNullOrWhiteSpace(configuredBaseUrl) ? configuredBaseUrl
-            : ctx is not null ? $"{ctx.Request.Scheme}://{ctx.Request.Host}"
+            : ctx is not null ? ForwardedOrigin(ctx.Request)
             : "http://localhost:5080";
 
         string url = $"{baseUrl}/api/v1/sound-clips/stream/{Uri.EscapeDataString(storageKey)}";
         return Task.FromResult(Result<string>.Success(url));
+    }
+
+    /// <summary>
+    /// The origin the BROWSER used, honouring the reverse proxy's <c>X-Forwarded-Proto</c>/<c>-Host</c>.
+    /// Falling back to the raw request scheme yields <c>http://</c> behind a TLS-terminating proxy, and the
+    /// overlay's CSP (<c>media-src 'self' https:</c>) then blocks every clip.
+    /// </summary>
+    private static string ForwardedOrigin(HttpRequest request)
+    {
+        string forwardedHost = request.Headers["X-Forwarded-Host"].ToString();
+        string forwardedProto = request.Headers["X-Forwarded-Proto"].ToString();
+        string host = !string.IsNullOrWhiteSpace(forwardedHost)
+            ? forwardedHost.Split(',')[0].Trim()
+            : request.Host.ToString();
+        string scheme = !string.IsNullOrWhiteSpace(forwardedProto)
+            ? forwardedProto.Split(',')[0].Trim()
+            : request.Scheme;
+        return $"{scheme}://{host}";
     }
 }

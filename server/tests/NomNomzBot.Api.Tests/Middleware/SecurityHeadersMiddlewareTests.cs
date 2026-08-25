@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.Extensions.Configuration;
 using NomNomzBot.Api.Middleware;
 using NSubstitute;
 // IHostEnvironment is in Microsoft.Extensions.Hosting.Abstractions
@@ -25,7 +26,8 @@ public class SecurityHeadersMiddlewareTests
     {
         IHostEnvironment environment = Substitute.For<IHostEnvironment>();
         environment.EnvironmentName.Returns(isDevelopment ? "Development" : "Production");
-        return new(next, environment);
+        IConfiguration configuration = new ConfigurationBuilder().Build();
+        return new(next, environment, configuration);
     }
 
     private static DefaultHttpContext CreateContext(string path, bool isHttps = true)
@@ -33,6 +35,9 @@ public class SecurityHeadersMiddlewareTests
         DefaultHttpContext context = new();
         context.Request.Path = path;
         context.Request.Scheme = isHttps ? "https" : "http";
+        // A host is required: the public-origin resolution falls back to the loopback default when the
+        // request carries none, and HSTS is correctly withheld from a loopback origin.
+        context.Request.Host = new("dash.example.test");
         context.Response.Body = new MemoryStream();
         return context;
     }

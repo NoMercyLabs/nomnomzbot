@@ -72,10 +72,14 @@ x-api-service: &api-service
     - Encryption__Key=${ENCRYPTION_KEY}
     - App__BaseUrl=${API_BASE_URL:-http://localhost:5080}
     - App__InitialAdminTwitchId=${INITIAL_ADMIN_TWITCH_ID:-}
-    # Trust X-Forwarded-* only from the proxy in front of the API. Caddy now reaches the API over
-    # the bridge network, not loopback, so TRUSTED_PROXY_NETWORKS must cover the compose network
-    # (e.g. 172.16.0.0/12) for the real client IP to be trusted — see .env.example.
-    - ForwardedHeaders__KnownNetworks__0=${TRUSTED_PROXY_NETWORKS:-}
+    # Trust X-Forwarded-* only from the proxy in front of the API. Caddy reaches the API over the
+    # compose bridge, NOT loopback, so the loopback-only framework default meant X-Forwarded-Proto
+    # was ignored on every deploy of this stack: Request.Scheme stayed "http" while the browser was
+    # on https, the refresh cookie lost `Secure`, HSTS was never sent, and — worst — the cookie
+    # refresh was rejected as a cross-origin request, throwing the operator back to login after
+    # EVERY deploy. The API container publishes no port (only caddy does), so nothing outside this
+    # network can reach it to forge a header; the docker private-bridge range is the correct default.
+    - ForwardedHeaders__KnownNetworks__0=${TRUSTED_PROXY_NETWORKS:-172.16.0.0/12}
     - Twitch__ClientId=${TWITCH_CLIENT_ID}
     - Twitch__ClientSecret=${TWITCH_CLIENT_SECRET}
     - Twitch__BotUsername=${TWITCH_BOT_USERNAME}

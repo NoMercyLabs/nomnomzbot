@@ -482,9 +482,7 @@ public class AuthController : BaseController
                 return Redirect($"{mobileRedirectUri}?custom_bot_connected=true");
 
             // Route through /oauth-relay so popup windows can postMessage the parent and close.
-            return Redirect(
-                $"{Request.Scheme}://{Request.Host}/oauth-relay?custom_bot_connected=true"
-            );
+            return Redirect($"{GetPublicBaseUrl()}/oauth-relay?custom_bot_connected=true");
         }
 
         Result<AuthResultDto> result = await _authService.HandleTwitchCallbackAsync(
@@ -587,7 +585,7 @@ public class AuthController : BaseController
                 HttpOnly = true,
                 // Secure when actually served over HTTPS (production / the dev tunnel); relaxed for a plain
                 // http://localhost self-host so the cookie still works there. localhost is a trusted origin.
-                Secure = Request.IsHttps,
+                Secure = Request.IsPublicOriginHttps(_config),
                 SameSite = SameSiteMode.Lax,
                 Path = "/api/v1/auth",
                 Expires = _timeProvider.GetUtcNow().AddDays(30),
@@ -606,7 +604,7 @@ public class AuthController : BaseController
             new()
             {
                 HttpOnly = true,
-                Secure = Request.IsHttps,
+                Secure = Request.IsPublicOriginHttps(_config),
                 SameSite = SameSiteMode.Lax,
                 Path = "/api/v1/auth",
             }
@@ -1152,8 +1150,17 @@ public class AuthController : BaseController
         if (string.IsNullOrEmpty(origin))
             return false;
 
-        string servingOrigin = $"{Request.Scheme}://{Request.Host.Value}";
-        if (string.Equals(servingOrigin, origin, StringComparison.OrdinalIgnoreCase))
+        // The PUBLIC origin, not Request.Scheme://Request.Host: behind a TLS-terminating proxy the request
+        // reaches Kestrel as plain http, so the raw comparison pitted "https://host" against "http://host"
+        // and rejected the dashboard's own same-origin refresh on every load of every proxied deployment.
+        if (
+            string.Equals(GetPublicBaseUrl(), origin, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(
+                $"{Request.Scheme}://{Request.Host.Value}",
+                origin,
+                StringComparison.OrdinalIgnoreCase
+            )
+        )
             return true;
 
         // Development runs the dashboard dev server and the API on different loopback ports, and that port

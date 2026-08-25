@@ -71,6 +71,21 @@ public static class PublicOriginExtensions
         return (configuredBaseUrl ?? DefaultLoopbackOrigin).TrimEnd('/');
     }
 
+    /// <summary>
+    /// True when the BROWSER reached the bot over https — read from the resolved public origin rather than
+    /// <c>Request.IsHttps</c>, which only describes the last internal hop. Behind a TLS-terminating proxy
+    /// (the compose Caddy, a Cloudflare tunnel, an operator's nginx) that hop is plain http, so anything
+    /// gated on <c>Request.IsHttps</c> silently behaves as if the whole deployment were insecure: session
+    /// cookies lose <c>Secure</c> and HSTS is never emitted.
+    /// </summary>
+    public static bool IsPublicOriginHttps(
+        this HttpRequest request,
+        IConfiguration configuration
+    ) =>
+        request
+            .ResolvePublicOrigin(configuration)
+            .StartsWith("https://", StringComparison.OrdinalIgnoreCase);
+
     /// <summary>True if <paramref name="url"/> parses to a loopback host (<c>localhost</c> / <c>127.0.0.1</c> / <c>[::1]</c>).</summary>
     private static bool IsLoopback(string url) =>
         Uri.TryCreate(url, UriKind.Absolute, out Uri? uri)

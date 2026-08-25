@@ -133,6 +133,78 @@ public sealed class AuthControllerRefreshCustodyTests
         result.Should().NotBeOfType<OkObjectResult>();
     }
 
+    /// <summary>
+    /// The shipped deployment puts a TLS-terminating reverse proxy (the compose Caddy, a Cloudflare tunnel,
+    /// any operator's nginx) in front of the API, so the request REACHES Kestrel as plain <c>http</c> on an
+    /// internal hop while the browser is on <c>https</c>. Comparing the browser's Origin against
+    /// <c>Request.Scheme</c> therefore compared "https://host" to "http://host" and rejected the dashboard's
+    /// own same-origin refresh — every load, on every deployment behind a proxy. The session was silently
+    /// destroyed and the owner was thrown back to the device-code login after every single deploy.
+    /// <para>
+    /// The origin the comparison must use is the PUBLIC one (forwarded-proto aware), which is the same
+    /// resolution every OAuth redirect_uri already uses.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task CookieBorneRefresh_BehindATlsTerminatingProxy_IsAccepted()
+    {
+        (AuthController controller, IAuthService auth) = Build(
+            allowedOrigin: "https://some-other-dashboard.example"
+        );
+        // What Kestrel sees on the internal hop...
+        controller.Request.Scheme = "http";
+        controller.Request.Host = new("dev.nomnomz.bot");
+        // ...and what the proxy states the browser actually used.
+        controller.Request.Headers["X-Forwarded-Proto"] = "https";
+        controller.Request.Headers.Origin = "https://dev.nomnomz.bot";
+        controller.Request.Headers.Cookie = "nnz_refresh_token=old-ref-tok";
+        auth.RefreshTokenAsync(
+                "old-ref-tok",
+                Arg.Any<AuthContextDto>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(Auth("new-acc-tok", "new-ref-tok")));
+
+        IActionResult result = await controller.RefreshToken(null, null, default);
+
+        result
+            .Should()
+            .BeOfType<OkObjectResult>(
+                "the dashboard's own origin is trusted whether or not TLS terminated before Kestrel"
+            );
+    }
+
+    /// <summary>
+    /// The rotated cookie must carry <c>Secure</c> whenever the BROWSER is on https, not merely when the
+    /// internal hop was: behind a TLS-terminating proxy <c>Request.IsHttps</c> is false, which silently
+    /// downgraded the session cookie of every proxied deployment to one a plain-http request could carry.
+    /// </summary>
+    [Fact]
+    public async Task RotatedCookie_IsSecure_WhenTheBrowserIsOnHttps_BehindAProxy()
+    {
+        (AuthController controller, IAuthService auth) = Build();
+        controller.Request.Scheme = "http";
+        controller.Request.Host = new("dev.nomnomz.bot");
+        controller.Request.Headers["X-Forwarded-Proto"] = "https";
+        controller.Request.Headers.Origin = "https://dev.nomnomz.bot";
+        controller.Request.Headers.Cookie = "nnz_refresh_token=old-ref-tok";
+        auth.RefreshTokenAsync(
+                "old-ref-tok",
+                Arg.Any<AuthContextDto>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(Auth("new-acc-tok", "new-ref-tok")));
+
+        await controller.RefreshToken(null, null, default);
+
+        controller
+            .Response.Headers["Set-Cookie"]
+            .ToString()
+            .ToLowerInvariant()
+            .Should()
+            .Contain("secure");
+    }
+
     [Fact]
     public async Task CookieBorneRefresh_ForeignOrigin_IsRejected()
     {
