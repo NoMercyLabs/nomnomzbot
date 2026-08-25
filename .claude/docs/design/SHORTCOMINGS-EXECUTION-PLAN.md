@@ -67,16 +67,6 @@ Three agents were killed mid-slice by an API session limit. State captured so no
 
 ## FOUND ON THE LIVE BOX — 2026-08-25 (after the first successful deploy)
 
-- **S-CHATTERDAY-LOGNOISE-b** (sibling of the closed chatterday slice; found while verifying it)
-  `ChannelAnalyticsDailyProjection.EnsureDailyRowExistsAsync` (server/src/NomNomzBot.Infrastructure/
-  Analytics/ChannelAnalyticsDailyProjection.cs:502-530) still uses tracked-insert-then-catch for the
-  `ChannelAnalyticsDailies` row itself, so EF logs THAT race at Error before the exception is caught —
-  the same defect the anchor insert already fixed with provider-dispatched `ON CONFLICT DO NOTHING` /
-  `INSERT OR IGNORE`. Sweep the whole class in this file, not one method.
-  Done-when: a first-fold-of-the-day on a channel with no daily row produces NO error-level log while the
-  daily row and counters still land, proven by a test asserting both, with the existing negative control
-  (a genuine save failure IS still logged at error) still green.
-
 ## LIVE OUTAGE 2026-08-25 — root cause fixed, two follow-ups
 
 The deployed bot was crash-looping (11 restarts) with a 502/503 dashboard, and the music queue
