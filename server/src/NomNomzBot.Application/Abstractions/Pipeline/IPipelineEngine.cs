@@ -72,6 +72,14 @@ public enum PipelineOutcome
     PartiallyFailed,
     TimedOut,
     Cancelled,
+
+    /// <summary>
+    /// A tree-execution safety cap tripped (recursion depth, loop iteration count, or loop runtime
+    /// guard) — the run was aborted cleanly rather than being allowed to wedge the bot mid-stream
+    /// (pipeline-control-flow.md D6, pipeline-tree-and-editor.md §2.4/§2.6). The tripped cap's
+    /// reason is recorded on <see cref="PipelineExecutionResult.ErrorMessage"/>.
+    /// </summary>
+    AbortedBudget,
 }
 
 public class StepExecutionLog
