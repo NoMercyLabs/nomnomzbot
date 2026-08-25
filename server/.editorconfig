@@ -126,15 +126,29 @@ file_header_template = ---------------------------------------------------------
 dotnet_diagnostic.IDE0073.severity = suggestion
 
 # Automated cleanup rules (S-cleanup): these mirror the Rider inspections the owner was fixing by
-# hand — "Remove unused directives", "Remove redundant suppression", "Merge into pattern". They are
-# enforced at `warning` (build fails via TreatWarningsAsErrors) and are auto-fixed by
-# `dotnet format style --severity warn` — wired into the same gate as `dotnet csharpier format .`
-# (see server/.config CSharpier pin + the pre-commit convention in CLAUDE.md).
-dotnet_diagnostic.IDE0005.severity = warning   # Remove unnecessary using directives (requires GenerateDocumentationFile — see Directory.Build.props)
-dotnet_diagnostic.IDE0080.severity = warning   # Remove redundant nullable-suppression (!) operator
-dotnet_diagnostic.IDE0078.severity = warning   # Use pattern matching (merge 'is'/type checks into a pattern)
-dotnet_diagnostic.IDE0083.severity = warning   # Use pattern matching ('is' vs '==' for constants)
-csharp_style_prefer_pattern_matching = true:warning
-csharp_style_prefer_not_pattern = true:warning
-csharp_style_pattern_matching_over_as_with_null_check = true:warning
-csharp_style_pattern_matching_over_is_with_cast_check = true:warning
+# hand — "Remove unused directives", "Remove redundant suppression", "Merge into pattern".
+#
+# IDE0005 is VERIFIED live: it is auto-fixed by `dotnet format style --severity warn` (wired into
+# the same gate as `dotnet csharpier format .`, see server/.config CSharpier pin + CLAUDE.md), and
+# enforced at build time (requires GenerateDocumentationFile — see Directory.Build.props), so it is
+# `warning` under TreatWarningsAsErrors.
+#
+# IDE0080 ("redundant nullable-suppression `!`") and IDE0078/IDE0083 (pattern-matching merges) were
+# tested against real repro cases (double-bang `x!!`, a null-checked-then-suppressed reference, an
+# `&&`-chained property/negation condition) — none were flagged or fixed by either `dotnet build` or
+# `dotnet format style/analyzers` on this SDK (10.0.111). They are left at `suggestion` (not
+# build-enforced) so the config states intent without silently failing to gate anything. Rider's
+# "Remove redundant suppression" and "Merge into pattern" inspections are ReSharper-only in this
+# case — run Rider's bulk cleanup profile for those two until a working Roslyn equivalent is found.
+dotnet_diagnostic.IDE0005.severity = warning
+dotnet_diagnostic.IDE0080.severity = suggestion
+dotnet_diagnostic.IDE0078.severity = suggestion
+dotnet_diagnostic.IDE0083.severity = suggestion
+csharp_style_prefer_pattern_matching = true:suggestion
+
+# EF Core-GENERATED migrations: scaffolded by `dotnet ef migrations add`, regenerated wholesale, and
+# their using directives are emitted by the tool rather than hand-maintained. Enforcing IDE0005 there
+# fails the Release build on files nobody edits (and that the next scaffold would re-break). The gate
+# stays ON for all hand-written code.
+[**/Migrations/*.cs]
+dotnet_diagnostic.IDE0005.severity = none

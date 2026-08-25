@@ -22,7 +22,7 @@ namespace NomNomzBot.Infrastructure.Platform.Deployment;
 /// though: two async call sites in the same process can race for the same named resource (e.g. the projection
 /// driver's periodic tick and an operator's manual replay/rebuild hitting the same projection+channel — S004g). A
 /// named, non-reentrant in-process lock — held from acquire to lease dispose — covers that race without needing a
-/// database round-trip; <paramref name="ttl"/> is unused because release is always explicit (the lease is
+/// database round-trip; <c>ttl</c> is unused because release is always explicit (the lease is
 /// disposed, never abandoned, on every code path that acquires it).
 /// </summary>
 public sealed class NoOpRunOnceGuard : IRunOnceGuard

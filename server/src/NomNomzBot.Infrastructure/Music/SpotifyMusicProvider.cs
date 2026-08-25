@@ -1865,7 +1865,7 @@ public sealed class SpotifyMusicProvider
 
     // ─── Mapping ─────────────────────────────────────────────────────────────
 
-    /// <summary>Extracts a Spotify id of <paramref name="type"/> from a <c>spotify:{type}:…</c> URI,
+    /// <summary>Extracts a Spotify id of <c>type</c> from a <c>spotify:{type}:…</c> URI,
     /// an <c>open.spotify.com/{type}/…</c> URL (with or without locale segment), or a bare id.</summary>
     // A real Spotify catalogue id (track/artist/album/playlist/…) is always exactly 22 base62
     // characters, but management call-sites (playlist/track/artist ids the dashboard already holds)

@@ -22,7 +22,7 @@ namespace NomNomzBot.Infrastructure.PickLists;
 
 /// <summary>
 /// The generic named pick-list service. Writes are single-table (no sequence, no transaction) so they save
-/// directly through the DbContext; every query goes through <see cref="EntityFrameworkQueryableExtensions.IgnoreQueryFilters"/>
+/// directly through the DbContext; every query goes through <c>IgnoreQueryFilters</c>
 /// with an explicit <c>BroadcasterId</c> + <c>DeletedAt == null</c> predicate, so an operator acting on a channel
 /// they moderate is never blinded by the global tenant filter (unique-index-audit) — the scoping is explicit.
 /// </summary>

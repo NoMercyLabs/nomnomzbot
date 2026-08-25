@@ -20,7 +20,7 @@ namespace NomNomzBot.Infrastructure.CustomEvents.Sockets;
 /// stream to a fully-resolved <c>wss://</c> endpoint and yield its inbound text frames until the peer closes or
 /// cancellation. A seam so <see cref="CustomDataSocketHostedService"/> is provable without a live provider
 /// socket; the production implementation is <see cref="ClientWebSocketDataFrameSource"/>. The auth secret is
-/// already baked into <paramref name="endpoint"/> (Pulsoid/HypeRate carry it as a query parameter), so the
+/// already baked into <c>endpoint</c> (Pulsoid/HypeRate carry it as a query parameter), so the
 /// transport needs only the URI. Transport failures throw — the runner owns backoff/reconnect.
 /// </summary>
 internal interface ICustomDataSocketFrameSource

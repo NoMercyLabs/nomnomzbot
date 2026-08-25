@@ -20,7 +20,7 @@ namespace NomNomzBot.Infrastructure.Tts.Pipeline;
 /// <summary>
 /// Supplies the seeded/synced TTS voice catalogue for the <c>voice</c> resource-picker kind (S-RICH-PICKERS).
 /// The catalogue is global (not tenant-scoped — every channel shares the same provider voices), so
-/// <paramref name="broadcasterId"/> is accepted for interface symmetry but not filtered on.
+/// <c>broadcasterId</c> is accepted for interface symmetry but not filtered on.
 /// <see cref="PipelineOption.SecondaryText"/> is locale, gender and provider — the fields that actually tell
 /// two voices apart.
 /// </summary>

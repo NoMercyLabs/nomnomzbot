@@ -24,7 +24,7 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence;
 /// <para>
 /// Running the whole transaction through <see cref="DatabaseFacade.CreateExecutionStrategy"/> is EF
 /// Core's sanctioned answer: the strategy owns the retry loop, and each attempt gets its own fresh
-/// transaction. <paramref name="operation"/> can therefore run MORE THAN ONCE — it must be
+/// transaction. <c>operation</c> can therefore run MORE THAN ONCE — it must be
 /// idempotent, must derive nothing from state captured before the first attempt, and must not fire
 /// outward side effects (events, HTTP calls, chat messages); those belong after the call returns.
 /// </para>
