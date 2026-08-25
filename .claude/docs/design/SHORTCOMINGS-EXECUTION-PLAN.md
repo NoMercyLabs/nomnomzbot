@@ -46,6 +46,13 @@ Read this block first. It is the only summary; everything below is detail.
 
 ---
 
+## MILESTONE 2026-08-25c — candidate for the first milestone push
+
+Owner's cadence is milestone pushes. This batch qualifies: the live box currently replays the current
+song on every restart (S-SR-INFLIGHT-DURABLE, 169a52e4) and logs errors during normal operation
+(S-CHATTERDAY-LOGNOISE-b, 79b6baba) — both user-visible on stream. Verify HEAD in a throwaway worktree,
+then push + `scripts/ship.ps1` + watch.
+
 ## FOUND ON THE LIVE BOX — 2026-08-25 (after the first successful deploy)
 
 ## LIVE OUTAGE 2026-08-25 — root cause fixed, two follow-ups
