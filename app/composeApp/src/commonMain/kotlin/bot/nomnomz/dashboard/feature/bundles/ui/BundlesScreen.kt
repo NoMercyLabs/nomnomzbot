@@ -357,7 +357,13 @@ private fun ExportGroup(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(
-                    text = label,
+                    // The controller maps these straight from `it.name`, which can be blank — an
+                    // export row with a checkbox and no name is unpickable.
+                    text = resolveRowLabel(
+                        primary = label,
+                        typeLabel = title,
+                        discriminatorSource = id,
+                    ),
                     style = typography.sm,
                     color = tokens.cardForeground,
                     maxLines = 1,
