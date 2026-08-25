@@ -218,16 +218,6 @@ stable — without dropping the planned requirements behind them.
   locale. Done-when: a widget settings form and a pipeline action field both render Dutch under an nl
   locale, proven by a jvmTest.
 
-- **S-TEXT-TRANSFORM** (generic primitive; requested by the parallel session porting the old bot's
-  commands) `!yell`, `!dramatic`, `!slow`, `!whisper`, `!mock` all transform the CALLER'S OWN message
-  (uppercase, s p a c e d, sPoNgEbOb, ...). We have no text-transform template helper and no case action.
-  Build the GENERIC primitive, never five bespoke commands: `{text.upper:...}` / `lower` / `title` /
-  `spaced` / `alternating` / `reverse` and a trim/truncate, in the existing template-helper namespace
-  ([[template-helpers-rich-structured]], [[generic-primitives-not-bespoke-features]]). Done-when: each
-  transform is proven by a test over real input INCLUDING non-ASCII (Dutch/emoji must not be mangled) and
-  an over-long line, transforms compose, an unknown transform name fails honestly rather than silently
-  returning the input, and the five old-bot commands are expressible with zero new primitives.
-
 - **S-CODE-EDITOR** The code-scripts surface gets a **VS Code-for-web grade editor that functions like
   one** — Monaco-class: completion, hover types, go-to-definition, diagnostics, multi-file — loading a
   **REAL fully-typed SDK from npm** (the actual published types, not hand-written `.d.ts`
