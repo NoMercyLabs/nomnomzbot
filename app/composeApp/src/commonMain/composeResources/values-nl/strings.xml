@@ -364,6 +364,7 @@
     <string name="commands_badge_enabled">Ingeschakeld</string>
     <string name="commands_badge_disabled">Uitgeschakeld</string>
     <string name="commands_no_description">Geen beschrijving</string>
+    <string name="commands_row_type">Opdracht</string>
     <string name="commands_builtins_section">Ingebouwde opdrachten</string>
     <string name="commands_builtins_toggle">%1$s in-/uitschakelen</string>
     <string name="timers_loading">Je timers laden…</string>
@@ -551,6 +552,7 @@
     <string name="rewards_enabled">Ingeschakeld</string>
     <string name="rewards_disabled">Uitgeschakeld</string>
     <string name="rewards_row_description">%1$s, %2$s, %3$s</string>
+    <string name="rewards_row_type">Beloning</string>
     <string name="songrequests_loading">De wachtrij laden…</string>
     <string name="songrequests_empty">De wachtrij is leeg</string>
     <string name="songrequests_error">Kon de wachtrij niet laden: %1$s</string>

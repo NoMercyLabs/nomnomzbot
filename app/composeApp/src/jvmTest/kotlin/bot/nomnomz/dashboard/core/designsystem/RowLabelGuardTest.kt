@@ -27,6 +27,11 @@ class RowLabelGuardTest {
 
     // Captured 2026-08-25 after wiring PickListsScreen.kt's rendered rows through resolveRowLabel().
     // PickListsScreen.kt's remaining 1 is PickListEditor.edit()'s form-seed (not a rendered row label).
+    //
+    // CommandsScreen.kt and RewardsScreen.kt are also fully wired (row text, semantics, action labels,
+    // and the delete ConfirmDialog all resolve through resolveRowLabel()); each file's remaining 1 is
+    // its own edit()-form-seed constructor (CommandEditor.edit() / RewardEditor.edit()) — the same
+    // non-rendered-row exception as PickListsScreen.kt above, not an unaddressed site.
     private val rawAssignmentBaseline: Map<String, Int> =
         mapOf(
             "commands/ui/CommandsScreen.kt" to 1,

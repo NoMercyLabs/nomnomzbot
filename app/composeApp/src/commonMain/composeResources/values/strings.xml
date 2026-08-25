@@ -367,6 +367,7 @@
     <string name="commands_badge_enabled">Enabled</string>
     <string name="commands_badge_disabled">Disabled</string>
     <string name="commands_no_description">No description</string>
+    <string name="commands_row_type">Command</string>
     <string name="commands_builtins_section">Built-in Commands</string>
     <string name="commands_builtins_toggle">Toggle %1$s</string>
     <string name="timers_loading">Loading your timers…</string>
@@ -554,6 +555,7 @@
     <string name="rewards_enabled">Enabled</string>
     <string name="rewards_disabled">Disabled</string>
     <string name="rewards_row_description">%1$s, %2$s, %3$s</string>
+    <string name="rewards_row_type">Reward</string>
     <string name="songrequests_loading">Loading the song queue…</string>
     <string name="songrequests_empty">The queue is empty</string>
     <string name="songrequests_error">Could not load the song queue: %1$s</string>

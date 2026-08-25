@@ -66,6 +66,7 @@ import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.network.BuiltinCommand
 import bot.nomnomz.dashboard.core.network.CommandSummary
 import bot.nomnomz.dashboard.core.network.PipelineSummary
@@ -132,6 +133,7 @@ import nomnomzbot.composeapp.generated.resources.commands_new_action
 import nomnomzbot.composeapp.generated.resources.commands_perm_broadcaster
 import nomnomzbot.composeapp.generated.resources.commands_perm_everyone
 import nomnomzbot.composeapp.generated.resources.commands_perm_moderator
+import nomnomzbot.composeapp.generated.resources.commands_row_type
 import nomnomzbot.composeapp.generated.resources.commands_perm_subscriber
 import nomnomzbot.composeapp.generated.resources.commands_perm_vip
 import nomnomzbot.composeapp.generated.resources.commands_prefix_custom
@@ -161,7 +163,7 @@ fun CommandsScreen(
     val manage: ManageDecision = rememberManageDecision(role, ShellRoute.Commands)
 
     var editor: CommandEditor? by remember { mutableStateOf(null) }
-    var pendingDelete: String? by remember { mutableStateOf(null) }
+    var pendingDelete: CommandSummary? by remember { mutableStateOf(null) }
 
     LaunchedEffect(Unit) { controller.load() }
     if (hubEvents != null) {
@@ -185,7 +187,7 @@ fun CommandsScreen(
                     onToggle = { command, enabled ->
                         scope.launch { controller.toggleCommand(command.name, enabled) }
                     },
-                    onDelete = { command -> pendingDelete = command.name },
+                    onDelete = { command -> pendingDelete = command },
                     onToggleBuiltin = { builtinKey, enabled ->
                         scope.launch { controller.toggleBuiltin(builtinKey, enabled) }
                     },
@@ -202,7 +204,7 @@ fun CommandsScreen(
                     onToggle = { command, enabled ->
                         scope.launch { controller.toggleCommand(command.name, enabled) }
                     },
-                    onDelete = { command -> pendingDelete = command.name },
+                    onDelete = { command -> pendingDelete = command },
                     onToggleBuiltin = { builtinKey, enabled ->
                         scope.launch { controller.toggleBuiltin(builtinKey, enabled) }
                     },
@@ -236,16 +238,23 @@ fun CommandsScreen(
         )
     }
 
-    pendingDelete?.let { name ->
+    pendingDelete?.let { command ->
+        val resolvedName: String =
+            resolveRowLabel(
+                primary = command.name,
+                secondary = command.matchPattern,
+                typeLabel = stringResource(Res.string.commands_row_type),
+                discriminatorSource = command.id,
+            )
         ConfirmDialog(
             title = stringResource(Res.string.commands_delete_title),
-            message = stringResource(Res.string.commands_delete_message, name),
+            message = stringResource(Res.string.commands_delete_message, resolvedName),
             confirmLabel = stringResource(Res.string.commands_delete_confirm),
             dismissLabel = stringResource(Res.string.commands_delete_cancel),
             destructive = true,
             onConfirm = {
                 pendingDelete = null
-                scope.launch { controller.deleteCommand(name) }
+                scope.launch { controller.deleteCommand(command.name) }
             },
             onDismiss = { pendingDelete = null },
         )
@@ -412,9 +421,16 @@ private fun CommandTableRow(
             ?: command.templateResponse?.takeIf { it.isNotBlank() }
             ?: stringResource(Res.string.commands_no_description)
 
-    val toggleLabel: String = stringResource(Res.string.commands_toggle_action, command.name)
-    val editLabel: String = stringResource(Res.string.commands_edit_action, command.name)
-    val deleteLabel: String = stringResource(Res.string.commands_delete_action, command.name)
+    val displayName: String =
+        resolveRowLabel(
+            primary = command.name,
+            secondary = command.matchPattern,
+            typeLabel = stringResource(Res.string.commands_row_type),
+            discriminatorSource = command.id,
+        )
+    val toggleLabel: String = stringResource(Res.string.commands_toggle_action, displayName)
+    val editLabel: String = stringResource(Res.string.commands_edit_action, displayName)
+    val deleteLabel: String = stringResource(Res.string.commands_delete_action, displayName)
 
     Row(
         modifier = Modifier
@@ -426,11 +442,11 @@ private fun CommandTableRow(
         Column(
             modifier = Modifier
                 .weight(1f)
-                .clearAndSetSemantics { contentDescription = "${command.name}. $snippet" },
+                .clearAndSetSemantics { contentDescription = "$displayName. $snippet" },
             verticalArrangement = Arrangement.spacedBy(spacing.s0_5),
         ) {
             Text(
-                text = command.name,
+                text = displayName,
                 style = typography.sm.copy(fontFamily = FontFamily.Monospace),
                 color = tokens.primary,
                 maxLines = 1,

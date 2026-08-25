@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
@@ -121,6 +122,7 @@ import nomnomzbot.composeapp.generated.resources.rewards_queue_row
 import nomnomzbot.composeapp.generated.resources.rewards_queue_title
 import nomnomzbot.composeapp.generated.resources.rewards_retry
 import nomnomzbot.composeapp.generated.resources.rewards_row_description
+import nomnomzbot.composeapp.generated.resources.rewards_row_type
 import nomnomzbot.composeapp.generated.resources.rewards_title
 import nomnomzbot.composeapp.generated.resources.rewards_toggle_action
 import bot.nomnomz.dashboard.core.realtime.HubEvent
@@ -296,9 +298,16 @@ fun RewardsScreen(
     }
 
     pendingDelete?.let { reward ->
+        val resolvedTitle: String =
+            resolveRowLabel(
+                primary = reward.title,
+                secondary = stringResource(Res.string.rewards_cost, reward.cost),
+                typeLabel = stringResource(Res.string.rewards_row_type),
+                discriminatorSource = reward.id,
+            )
         ConfirmDialog(
             title = stringResource(Res.string.rewards_delete_title),
-            message = stringResource(Res.string.rewards_delete_message, reward.title),
+            message = stringResource(Res.string.rewards_delete_message, resolvedTitle),
             confirmLabel = stringResource(Res.string.rewards_delete_confirm),
             dismissLabel = stringResource(Res.string.rewards_delete_cancel),
             destructive = true,
@@ -739,11 +748,18 @@ private fun RewardRow(
     val costLabel: String = stringResource(Res.string.rewards_cost, reward.cost)
     val stateLabel: String =
         stringResource(if (reward.isEnabled) Res.string.rewards_enabled else Res.string.rewards_disabled)
+    val displayTitle: String =
+        resolveRowLabel(
+            primary = reward.title,
+            secondary = costLabel,
+            typeLabel = stringResource(Res.string.rewards_row_type),
+            discriminatorSource = reward.id,
+        )
     val rowDescription: String =
-        stringResource(Res.string.rewards_row_description, reward.title, costLabel, stateLabel)
-    val toggleLabel: String = stringResource(Res.string.rewards_toggle_action, reward.title)
-    val editLabel: String = stringResource(Res.string.rewards_edit_action, reward.title)
-    val deleteLabel: String = stringResource(Res.string.rewards_delete_action, reward.title)
+        stringResource(Res.string.rewards_row_description, displayTitle, costLabel, stateLabel)
+    val toggleLabel: String = stringResource(Res.string.rewards_toggle_action, displayTitle)
+    val editLabel: String = stringResource(Res.string.rewards_edit_action, displayTitle)
+    val deleteLabel: String = stringResource(Res.string.rewards_delete_action, displayTitle)
     val recreateLabel: String = stringResource(Res.string.rewards_recreate_action)
 
     // Twitch reality: the bot can only edit/toggle/delete rewards ITS OWN client created. An EXTERNAL reward
@@ -770,7 +786,7 @@ private fun RewardRow(
             verticalArrangement = Arrangement.spacedBy(spacing.s1),
         ) {
             EmojiText(
-                text = reward.title,
+                text = displayTitle,
                 style = typography.lg,
                 color = tokens.cardForeground,
                 maxLines = 1,
