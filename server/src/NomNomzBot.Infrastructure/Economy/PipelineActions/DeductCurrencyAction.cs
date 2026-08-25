@@ -32,20 +32,12 @@ public sealed class DeductCurrencyAction(ICurrencyAccountService accounts) : ICo
                 "amount",
                 PipelineActionFieldKind.Number,
                 Required: true,
-                Description: new(
-                    "pipeline.deduct_currency.amount.help",
-                    "How much of the channel's currency to deduct from the viewer's balance.",
-                    "Hoeveel van de valuta van het kanaal van het saldo van de kijker wordt afgetrokken."
-                )
+                Description: new("pipeline.deduct_currency.amount.help")
             ),
             new(
                 "reason",
                 PipelineActionFieldKind.Text,
-                Description: new(
-                    "pipeline.deduct_currency.reason.help",
-                    "Shown on the viewer's transaction history.",
-                    "Wordt getoond in de transactiegeschiedenis van de kijker."
-                )
+                Description: new("pipeline.deduct_currency.reason.help")
             ),
         ];
 

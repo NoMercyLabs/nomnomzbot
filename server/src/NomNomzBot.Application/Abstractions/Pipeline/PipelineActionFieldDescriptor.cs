@@ -57,9 +57,10 @@ public enum PipelineActionFieldKind
 /// instead of the engine's central pass — either way the field is templated exactly once.
 /// </param>
 /// <param name="Description">
-/// Optional operator-facing help text for the step form's field (S-SCHEMA-I18N) — e.g. what a non-obvious
-/// field controls, or a format the field expects. <see cref="LocalizedText"/> so it carries both en and nl;
-/// null when the field's <see cref="Kind"/>/<see cref="Name"/> is self-explanatory and needs no extra copy.
+/// Optional operator-facing help text for the step form's field (S-SCHEMA-I18N-redesign) — e.g. what a
+/// non-obvious field controls, or a format the field expects. <see cref="LocalizedText"/> is a translation KEY
+/// only (resolved against <c>strings.xml</c> in the dashboard); null when the field's <see cref="Kind"/>/
+/// <see cref="Name"/> is self-explanatory and needs no extra copy.
 /// </param>
 public sealed record PipelineActionFieldDescriptor(
     string Name,

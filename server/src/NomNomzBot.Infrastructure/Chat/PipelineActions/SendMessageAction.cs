@@ -30,11 +30,7 @@ public sealed class SendMessageAction : ICommandAction
                 PipelineActionFieldKind.Text,
                 Required: true,
                 Templated: true,
-                Description: new(
-                    "pipeline.send_message.message.help",
-                    "The chat message to send. Supports template variables (e.g. {{user.name}}).",
-                    "Het chatbericht om te versturen. Ondersteunt sjabloonvariabelen (bijv. {{user.name}})."
-                )
+                Description: new("pipeline.send_message.message.help")
             ),
         ];
 

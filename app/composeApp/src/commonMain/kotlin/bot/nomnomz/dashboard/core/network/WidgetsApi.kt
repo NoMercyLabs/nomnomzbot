@@ -333,16 +333,18 @@ data class WidgetSettingsSchemaDto(
  * One editable setting (backend `WidgetSettingsField`). [type] picks the control: `bool` (switch), `number`
  * (slider when [min]/[max]/[step] are all set, else a numeric field), `text` (field), `color` (hex field + swatch),
  * `select` (dropdown over [options]), `multiselect` (chips over [options]), `json` (raw-JSON textarea). [default] is
- * the widget's catalogue default for the key (any JSON shape); [group] sections the form.
+ * the widget's catalogue default for the key (any JSON shape); [group] sections the form. [label]/[help] carry a
+ * translation KEY only (S-SCHEMA-I18N-redesign) — resolve them with `resolveSchemaString` (`core/i18n`), which
+ * looks the key up against the same `strings.xml`/`values-nl/strings.xml` every other dashboard string comes from.
  */
 @Serializable
 data class WidgetSettingsFieldDto(
     val key: String = "",
-    val label: String = "",
+    val label: LocalizedTextDto = LocalizedTextDto(),
     val type: String = "",
     val group: String = "",
     val default: JsonElement? = null,
-    val help: String? = null,
+    val help: LocalizedTextDto? = null,
     val options: List<WidgetSettingsFieldOptionDto>? = null,
     val min: Double? = null,
     val max: Double? = null,
@@ -352,6 +354,15 @@ data class WidgetSettingsFieldDto(
 /** A single choice for a `select`/`multiselect` field (backend `WidgetSettingsFieldOption`). */
 @Serializable
 data class WidgetSettingsFieldOptionDto(val value: String = "", val label: String = "")
+
+/**
+ * A backend-authored, user-facing translation KEY (backend `LocalizedText`, S-SCHEMA-I18N-redesign) — carries no
+ * English/Dutch text itself; the dashboard resolves [key] against `strings.xml` for the viewer's locale (see
+ * `resolveSchemaString` in `core/i18n`). A dot-separated key (e.g. `widget.alerts.events.label`) maps to the
+ * Compose Resources string name `widget_alerts_events_label`.
+ */
+@Serializable
+data class LocalizedTextDto(val key: String = "")
 
 /**
  * A starter widget template the create flow offers (backend `WidgetTemplate`): a working, SDK-using [source] to

@@ -11,18 +11,18 @@
 namespace NomNomzBot.Application.Abstractions.Localization;
 
 /// <summary>
-/// A backend-authored, user-facing string carried in both supported locales (S-SCHEMA-I18N). Backend schema
+/// A typed reference to a backend-authored, user-facing translation KEY (S-SCHEMA-I18N-redesign). Backend schema
 /// authors (widget settings fields, pipeline action field descriptors) construct one of these per label/help
-/// string instead of a bare English literal, so the dashboard can render the viewer's locale without a second,
-/// hand-maintained translation pipeline on the backend. <see cref="Key"/> identifies the string for tooling/tests
-/// (not shown to the user); <see cref="En"/> and <see cref="Nl"/> are the resolved values for the two supported
-/// languages (en/nl per CLAUDE.md i18n). Both are required — an author who forgets a translation gets a compile
-/// error, not a silently-English UI; a guard test additionally rejects a blank value that only satisfies the
-/// compiler (e.g. an empty-string placeholder).
+/// string instead of a bare English literal or string parameter, so a schema-authoring call site cannot
+/// accidentally pass raw English text where a translation key belongs. It carries no English or Dutch text —
+/// translations live exclusively in the dashboard's existing i18n home
+/// (<c>app/composeApp/src/commonMain/composeResources/values/strings.xml</c> for <c>en</c>, <c>values-nl/</c> for
+/// <c>nl</c>), the single place a translator can find and edit every user-facing string in the product. The
+/// dashboard resolves <see cref="Key"/> to display text via <c>core/i18n</c> (dots replaced with underscores to
+/// match the Compose Resources string-name convention, e.g. <c>widget.alerts.events.label</c> →
+/// <c>widget_alerts_events_label</c>). A committed key manifest (<c>server/i18n/schema-i18n-keys.manifest.json</c>)
+/// plus paired backend/frontend guard tests fail the build if a key is authored here without both a <c>en</c> and
+/// an <c>nl</c> entry in <c>strings.xml</c> — so a missing translation is caught at test time, never shipped as a
+/// silent English fallback or, worse, an empty label.
 /// </summary>
-public sealed record LocalizedText(string Key, string En, string Nl)
-{
-    /// <summary>Resolves to <see cref="Nl"/> for a Dutch locale tag (<c>nl</c>, <c>nl-NL</c>, …), else <see cref="En"/>.</summary>
-    public string Resolve(string locale) =>
-        locale.StartsWith("nl", StringComparison.OrdinalIgnoreCase) ? Nl : En;
-}
+public sealed record LocalizedText(string Key);

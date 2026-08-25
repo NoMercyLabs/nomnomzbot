@@ -21,9 +21,11 @@ namespace NomNomzBot.Infrastructure.Content.Widgets;
 /// ships. A structural map/list a form can't flatten (goal colours, socials handles, redemption reward filter) is
 /// exposed as a <c>json</c> field (raw-JSON textarea) so every settings key stays covered; <see cref="WidgetSettingsSchemaTests"/>
 /// fails the build if a type or a key is left un-schematised. Every field's <c>Label</c>/<c>Help</c> is a
-/// <see cref="LocalizedText"/> (S-SCHEMA-I18N) — the English literal passed to each field factory below is looked
-/// up in <see cref="NlTranslations"/> for its Dutch counterpart; a missing entry resolves to an empty Dutch string,
-/// which <c>WidgetSettingsSchemaI18nTests</c> fails the build on (fail loud, never a silent English fallback).
+/// <see cref="LocalizedText"/> KEY ONLY (S-SCHEMA-I18N-redesign) — <see cref="LabelKey"/>/<see cref="HelpKey"/>
+/// derive it deterministically from <c>widget.{widgetKey}.{fieldKey}.{label|help}</c>; the English and Dutch text
+/// itself lives in <c>strings.xml</c>/<c>values-nl/strings.xml</c>, never inline in this file. A committed key
+/// manifest (<c>SchemaLocalizationManifestTests</c>) sweeps the REAL schema this class produces and fails the
+/// build if a key drifts from what the dashboard's translation files declare.
 /// </summary>
 public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
 {
@@ -63,115 +65,6 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
         new("7tv", "7TV"),
     ];
 
-    // Dutch translations for every field Label/Help authored below, keyed "{widgetKey}.{fieldKey}.{label|help}".
-    // Looked up by Loc(); WidgetSettingsSchemaI18nTests enumerates the REAL schema (Provider.GetAll()) and fails
-    // the build if any field's resolved Nl is blank, so this table cannot silently fall behind the English copy.
-    private static readonly IReadOnlyDictionary<string, string> NlTranslations = new Dictionary<
-        string,
-        string
-    >(StringComparer.Ordinal)
-    {
-        ["alerts.events.label"] = "Waarschuwingstypen",
-        ["alerts.textTemplate.label"] = "Tekstsjabloon",
-        ["alerts.textTemplate.help"] =
-            "Optionele overschrijving; leeg gebruikt de ingebouwde tekst.",
-        ["alerts.durationMs.label"] = "Weergavetijd (ms)",
-        ["alerts.minBits.label"] = "Minimum bits",
-        ["alerts.minGiftCount.label"] = "Minimum aantal gift-subs",
-        ["alerts.minAmount.label"] = "Minimumbedrag van supporter",
-        ["goal_bar.metric.label"] = "Metriek",
-        ["goal_bar.target.label"] = "Doel",
-        ["goal_bar.start.label"] = "Startwaarde",
-        ["goal_bar.resetCadence.label"] = "Label voor resetinterval",
-        ["goal_bar.resetCadence.help"] = "Wordt naast de balk getoond, bijv. \"deze maand\".",
-        ["goal_bar.colors.label"] = "Kleuren",
-        ["goal_bar.colors.help"] = "Optionele kleuroverschrijvingen als JSON-object.",
-        ["goal_bar.labels.label"] = "Labels",
-        ["goal_bar.labels.help"] =
-            "Optionele labeloverschrijvingen (bijv. een eigen titel) als JSON-object.",
-        ["labels.label.label"] = "Statistiek",
-        ["labels.formatString.label"] = "Opmaakstring",
-        ["labels.formatString.help"] = "Optioneel; gebruik {value} als plaatshouder.",
-        ["drop_game.hideAfterMs.label"] = "Verbergen na (ms)",
-        ["raffle.hideAfterMs.label"] = "Verbergen na (ms)",
-        ["heist.hideAfterMs.label"] = "Verbergen na (ms)",
-        ["crash.hideAfterMs.label"] = "Verbergen na (ms)",
-        ["event_ticker.events.label"] = "Gebeurtenistypen",
-        ["event_ticker.speed.label"] = "Scrollsnelheid",
-        ["event_ticker.count.label"] = "Aantal bewaarde items",
-        ["chat_box.theme.label"] = "Thema",
-        ["chat_box.fontFamily.label"] = "Lettertype",
-        ["chat_box.fontFamily.help"] = "Leeg gebruikt de standaard van de overlay.",
-        ["chat_box.fontSize.label"] = "Lettergrootte",
-        ["chat_box.background.label"] = "Achtergrond",
-        ["chat_box.background.help"] = "Leeg gebruikt de achtergrond van het thema.",
-        ["chat_box.backgroundOpacity.label"] = "Achtergrondtransparantie",
-        ["chat_box.showTimestamps.label"] = "Tijdstempels tonen",
-        ["chat_box.maxMessages.label"] = "Max. aantal berichten",
-        ["chat_box.fadeAfterMs.label"] = "Vervagen na (ms, 0 = nooit)",
-        ["chat_box.showBadges.label"] = "Badges tonen",
-        ["chat_box.showEmotes.label"] = "Emotes tonen",
-        ["chat_box.hideCommands.label"] = "Commandoberichten verbergen",
-        ["chat_box.hideBots.label"] = "Botberichten verbergen",
-        ["now_playing.layout.label"] = "Lay-out",
-        ["now_playing.showArt.label"] = "Albumhoes tonen",
-        ["now_playing.showProgressBar.label"] = "Voortgangsbalk tonen",
-        ["now_playing.provider.label"] = "Providerfilter",
-        ["now_playing.provider.help"] = "Leeg toont alle; bijv. spotify.",
-        ["now_playing.enableAudio.label"] =
-            "Spotify-audioapparaat (uitschakelen zodat deze widget niet langer als Spotify Connect-apparaat fungeert)",
-        ["now_playing.youtubeMode.label"] = "YouTube-tracks weergeven als",
-        ["sr_queue.count.label"] = "Aantal getoonde items",
-        ["sr_queue.showRequester.label"] = "Aanvrager tonen",
-        ["sr_queue.showDuration.label"] = "Duur tonen",
-        ["tts_audio.showIndicator.label"] = "Spreekindicator tonen (alleen instellen)",
-        ["tts_caption.showText.label"] = "Ondertiteltekst tonen",
-        ["tts_caption.voiceLabel.label"] = "Stemlabel tonen",
-        ["tts_caption.position.label"] = "Positie",
-        ["poll_prediction.position.label"] = "Positie",
-        ["poll_prediction.colors.label"] = "Kleuren",
-        ["poll_prediction.colors.help"] =
-            "Optionele kleuroverschrijvingen per uitkomst als JSON-object.",
-        ["redemption_alert.rewards.label"] = "Beloningsfilter",
-        ["redemption_alert.rewards.help"] =
-            "Optionele lijst met beloning-id's om te tonen (JSON-array); leeg toont alles.",
-        ["redemption_alert.textTemplate.label"] = "Tekstsjabloon",
-        ["redemption_alert.textTemplate.help"] = "Optionele overschrijving voor de pop-uptekst.",
-        ["redemption_alert.durationMs.label"] = "Weergavetijd (ms)",
-        ["redemption_alert.soundClipId.label"] = "Waarschuwingsgeluid",
-        ["redemption_alert.soundClipId.help"] =
-            "Speelt dit fragment uit je Sound Clips-bibliotheek af telkens wanneer de waarschuwing afgaat "
-            + "— voer de id of naam van het fragment in. Laat leeg en de waarschuwing blijft stil.",
-        ["countdown_timer.target.label"] = "Doeltijd",
-        ["countdown_timer.target.help"] =
-            "ISO-datumtijd om naartoe af te tellen; leeg gebruikt de duur.",
-        ["countdown_timer.durationMs.label"] = "Duur (ms)",
-        ["countdown_timer.label.label"] = "Label",
-        ["countdown_timer.onCompleteText.label"] = "Tekst bij voltooiing",
-        ["emote_wall.density.label"] = "Dichtheid",
-        ["emote_wall.size.label"] = "Emote-grootte (px)",
-        ["emote_wall.animation.label"] = "Animatie",
-        ["emote_wall.providers.label"] = "Emote-providers",
-        ["custom_data.source.label"] = "Bron",
-        ["custom_data.source.help"] = "De sleutel van de aangepaste databron, bijv. heartrate.",
-        ["custom_data.field.label"] = "Veld",
-        ["custom_data.field.help"] = "Het veld binnen de bron, bijv. bpm.",
-        ["custom_data.render.label"] = "Weergeven als",
-        ["custom_data.label.label"] = "Label",
-        ["custom_data.min.label"] = "Minimum van de meter",
-        ["custom_data.max.label"] = "Maximum van de meter",
-        ["recent_followers.count.label"] = "Aantal getoonde volgers",
-        ["recent_followers.title.label"] = "Titel",
-        ["sub_train.windowMs.label"] = "Venster (ms)",
-        ["socials.handles.label"] = "Accounts",
-        ["socials.handles.help"] =
-            "De social-accounts om te laten rouleren, als JSON-array van { label, handle } objecten — bijv. "
-            + """[{"label":"Twitter","handle":"@you"}]. Een item met een lege handle wordt genegeerd.""",
-        ["socials.rotateMs.label"] = "Rotatie-interval (ms)",
-        ["top_cheerers.count.label"] = "Aantal getoonde cheerers",
-        ["top_cheerers.title.label"] = "Titel",
-    };
-
     private readonly IReadOnlyList<WidgetSettingsSchema> _all;
     private readonly Dictionary<string, WidgetSettingsSchema> _byKey;
 
@@ -201,18 +94,12 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
         {
             "alerts" =>
             [
-                Multi(d, "events", "Alert types", Content, EventOptions),
-                Text(
-                    d,
-                    "textTemplate",
-                    "Text template",
-                    Content,
-                    "Optional override; blank uses the built-in copy."
-                ),
-                NumberField(d, "durationMs", "On-screen time (ms)", Behaviour, min: 0, step: 100),
-                NumberField(d, "minBits", "Minimum bits", Behaviour, min: 0),
-                NumberField(d, "minGiftCount", "Minimum gift count", Behaviour, min: 0),
-                NumberField(d, "minAmount", "Minimum supporter amount", Behaviour, min: 0),
+                Multi(d, "events", Content, EventOptions),
+                Text(d, "textTemplate", Content, help: true),
+                NumberField(d, "durationMs", Behaviour, min: 0, step: 100),
+                NumberField(d, "minBits", Behaviour, min: 0),
+                NumberField(d, "minGiftCount", Behaviour, min: 0),
+                NumberField(d, "minAmount", Behaviour, min: 0),
                 Accent(d),
             ],
             "goal_bar" =>
@@ -220,40 +107,20 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
                 SelectField(
                     d,
                     "metric",
-                    "Metric",
                     Content,
                     Opts(("followers", "Followers"), ("subs", "Subscribers"), ("bits", "Bits"))
                 ),
-                NumberField(d, "target", "Target", Content, min: 0),
-                NumberField(d, "start", "Starting value", Content, min: 0),
-                Text(
-                    d,
-                    "resetCadence",
-                    "Reset cadence label",
-                    Content,
-                    "Shown beside the bar, e.g. \"this month\"."
-                ),
-                JsonField(
-                    d,
-                    "colors",
-                    "Colours",
-                    Appearance,
-                    "Optional colour overrides as a JSON object."
-                ),
-                JsonField(
-                    d,
-                    "labels",
-                    "Labels",
-                    Appearance,
-                    "Optional label overrides (e.g. a custom title) as a JSON object."
-                ),
+                NumberField(d, "target", Content, min: 0),
+                NumberField(d, "start", Content, min: 0),
+                Text(d, "resetCadence", Content, help: true),
+                JsonField(d, "colors", Appearance, help: true),
+                JsonField(d, "labels", Appearance, help: true),
             ],
             "labels" =>
             [
                 SelectField(
                     d,
                     "label",
-                    "Stat",
                     Content,
                     Opts(
                         ("latest_follower", "Latest follower"),
@@ -263,25 +130,19 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
                         ("top_cheerer", "Top cheerer")
                     )
                 ),
-                Text(
-                    d,
-                    "formatString",
-                    "Format string",
-                    Content,
-                    "Optional; use {value} as the placeholder."
-                ),
+                Text(d, "formatString", Content, help: true),
                 Accent(d),
             ],
             "drop_game" or "raffle" or "heist" or "crash" =>
             [
-                NumberField(d, "hideAfterMs", "Hide after (ms)", Behaviour, min: 0, step: 100),
+                NumberField(d, "hideAfterMs", Behaviour, min: 0, step: 100),
                 Accent(d),
             ],
             "event_ticker" =>
             [
-                Multi(d, "events", "Event types", Content, EventOptions),
-                NumberField(d, "speed", "Scroll speed", Behaviour, min: 0),
-                NumberField(d, "count", "Items kept", Behaviour, min: 1, max: 50, step: 1),
+                Multi(d, "events", Content, EventOptions),
+                NumberField(d, "speed", Behaviour, min: 0),
+                NumberField(d, "count", Behaviour, min: 1, max: 50, step: 1),
                 Accent(d),
             ],
             "chat_box" =>
@@ -289,66 +150,32 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
                 SelectField(
                     d,
                     "theme",
-                    "Theme",
                     Appearance,
                     Opts(("dark", "Dark"), ("light", "Light"), ("transparent", "Transparent"))
                 ),
-                Text(d, "fontFamily", "Font family", Appearance, "Blank uses the overlay default."),
-                NumberField(d, "fontSize", "Font size", Appearance, min: 8, max: 48, step: 1),
-                ColorField(
-                    d,
-                    "background",
-                    "Background",
-                    Appearance,
-                    "Blank uses the theme background."
-                ),
-                NumberField(
-                    d,
-                    "backgroundOpacity",
-                    "Background opacity",
-                    Appearance,
-                    min: 0,
-                    max: 1,
-                    step: 0.01
-                ),
-                Bool(d, "showTimestamps", "Show timestamps", Content),
-                NumberField(d, "maxMessages", "Max messages", Behaviour, min: 1),
-                NumberField(
-                    d,
-                    "fadeAfterMs",
-                    "Fade after (ms, 0 = never)",
-                    Behaviour,
-                    min: 0,
-                    step: 100
-                ),
-                Bool(d, "showBadges", "Show badges", Content),
-                Bool(d, "showEmotes", "Show emotes", Content),
-                Bool(d, "hideCommands", "Hide command messages", Content),
-                Bool(d, "hideBots", "Hide bot messages", Content),
+                Text(d, "fontFamily", Appearance, help: true),
+                NumberField(d, "fontSize", Appearance, min: 8, max: 48, step: 1),
+                ColorField(d, "background", Appearance, help: true),
+                NumberField(d, "backgroundOpacity", Appearance, min: 0, max: 1, step: 0.01),
+                Bool(d, "showTimestamps", Content),
+                NumberField(d, "maxMessages", Behaviour, min: 1),
+                NumberField(d, "fadeAfterMs", Behaviour, min: 0, step: 100),
+                Bool(d, "showBadges", Content),
+                Bool(d, "showEmotes", Content),
+                Bool(d, "hideCommands", Content),
+                Bool(d, "hideBots", Content),
                 Accent(d),
             ],
             "now_playing" =>
             [
-                SelectField(
-                    d,
-                    "layout",
-                    "Layout",
-                    Appearance,
-                    Opts(("pill", "Pill"), ("card", "Card"))
-                ),
-                Bool(d, "showArt", "Show album art", Content),
-                Bool(d, "showProgressBar", "Show progress bar", Content),
-                Text(d, "provider", "Provider filter", Content, "Blank shows any; e.g. spotify."),
-                Bool(
-                    d,
-                    "enableAudio",
-                    "Spotify audio device (turn off to stop this widget acting as a Spotify Connect device)",
-                    Behaviour
-                ),
+                SelectField(d, "layout", Appearance, Opts(("pill", "Pill"), ("card", "Card"))),
+                Bool(d, "showArt", Content),
+                Bool(d, "showProgressBar", Content),
+                Text(d, "provider", Content, help: true),
+                Bool(d, "enableAudio", Behaviour),
                 SelectField(
                     d,
                     "youtubeMode",
-                    "YouTube tracks render as",
                     Content,
                     Opts(("card", "Compact card"), ("video", "Video"))
                 ),
@@ -356,146 +183,86 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
             ],
             "sr_queue" =>
             [
-                NumberField(d, "count", "Items shown", Content, min: 1, max: 50, step: 1),
-                Bool(d, "showRequester", "Show requester", Content),
-                Bool(d, "showDuration", "Show duration", Content),
+                NumberField(d, "count", Content, min: 1, max: 50, step: 1),
+                Bool(d, "showRequester", Content),
+                Bool(d, "showDuration", Content),
                 Accent(d),
             ],
-            "tts_audio" =>
-            [
-                Bool(d, "showIndicator", "Show a speaking dot (setup only)", Content),
-                Accent(d),
-            ],
+            "tts_audio" => [Bool(d, "showIndicator", Content), Accent(d)],
             "tts_caption" =>
             [
-                Bool(d, "showText", "Show caption text", Content),
-                Bool(d, "voiceLabel", "Show voice label", Content),
-                SelectField(
-                    d,
-                    "position",
-                    "Position",
-                    Appearance,
-                    Opts(("top", "Top"), ("bottom", "Bottom"))
-                ),
+                Bool(d, "showText", Content),
+                Bool(d, "voiceLabel", Content),
+                SelectField(d, "position", Appearance, Opts(("top", "Top"), ("bottom", "Bottom"))),
                 Accent(d),
             ],
             "poll_prediction" =>
             [
-                SelectField(
-                    d,
-                    "position",
-                    "Position",
-                    Appearance,
-                    Opts(("left", "Left"), ("right", "Right"))
-                ),
-                JsonField(
-                    d,
-                    "colors",
-                    "Colours",
-                    Appearance,
-                    "Optional per-outcome colour overrides as a JSON object."
-                ),
+                SelectField(d, "position", Appearance, Opts(("left", "Left"), ("right", "Right"))),
+                JsonField(d, "colors", Appearance, help: true),
                 Accent(d),
             ],
             "redemption_alert" =>
             [
-                JsonField(
-                    d,
-                    "rewards",
-                    "Reward filter",
-                    Content,
-                    "Optional list of reward ids to show (JSON array); blank shows all."
-                ),
-                Text(
-                    d,
-                    "textTemplate",
-                    "Text template",
-                    Content,
-                    "Optional override for the popup copy."
-                ),
-                NumberField(d, "durationMs", "On-screen time (ms)", Behaviour, min: 0, step: 100),
-                Text(
-                    d,
-                    "soundClipId",
-                    "Alert sound",
-                    Behaviour,
-                    "Plays this clip from your Sound Clips library every time the alert fires — enter the "
-                        + "clip's id or name. Leave blank and the alert stays silent."
-                ),
+                JsonField(d, "rewards", Content, help: true),
+                Text(d, "textTemplate", Content, help: true),
+                NumberField(d, "durationMs", Behaviour, min: 0, step: 100),
+                Text(d, "soundClipId", Behaviour, help: true),
                 Accent(d),
             ],
             "countdown_timer" =>
             [
-                Text(
-                    d,
-                    "target",
-                    "Target time",
-                    Content,
-                    "ISO date-time to count down to; blank uses the duration."
-                ),
-                NumberField(d, "durationMs", "Duration (ms)", Content, min: 0, step: 1000),
-                Text(d, "label", "Label", Content),
-                Text(d, "onCompleteText", "On-complete text", Content),
+                Text(d, "target", Content, help: true),
+                NumberField(d, "durationMs", Content, min: 0, step: 1000),
+                Text(d, "label", Content),
+                Text(d, "onCompleteText", Content),
                 Accent(d),
             ],
             "emote_wall" =>
             [
-                NumberField(d, "density", "Density", Behaviour, min: 1, max: 100, step: 1),
-                NumberField(d, "size", "Emote size (px)", Appearance, min: 8, max: 128, step: 1),
+                NumberField(d, "density", Behaviour, min: 1, max: 100, step: 1),
+                NumberField(d, "size", Appearance, min: 8, max: 128, step: 1),
                 SelectField(
                     d,
                     "animation",
-                    "Animation",
                     Appearance,
                     Opts(("float", "Float up"), ("rain", "Rain down"))
                 ),
-                Multi(d, "providers", "Emote providers", Content, ProviderOptions),
+                Multi(d, "providers", Content, ProviderOptions),
                 Accent(d),
             ],
             "custom_data" =>
             [
-                Text(d, "source", "Source", Data, "The custom data source key, e.g. heartrate."),
-                Text(d, "field", "Field", Data, "The field within the source, e.g. bpm."),
+                Text(d, "source", Data, help: true),
+                Text(d, "field", Data, help: true),
                 SelectField(
                     d,
                     "render",
-                    "Render as",
                     Appearance,
                     Opts(("number", "Number"), ("gauge", "Gauge"), ("text", "Text"))
                 ),
-                Text(d, "label", "Label", Content),
-                NumberField(d, "min", "Gauge minimum", Data),
-                NumberField(d, "max", "Gauge maximum", Data),
+                Text(d, "label", Content),
+                NumberField(d, "min", Data),
+                NumberField(d, "max", Data),
                 Accent(d),
             ],
             "recent_followers" =>
             [
-                NumberField(d, "count", "Followers shown", Content, min: 1, max: 50, step: 1),
-                Text(d, "title", "Title", Content),
+                NumberField(d, "count", Content, min: 1, max: 50, step: 1),
+                Text(d, "title", Content),
                 Accent(d),
             ],
-            "sub_train" =>
-            [
-                NumberField(d, "windowMs", "Window (ms)", Behaviour, min: 0, step: 1000),
-                Accent(d),
-            ],
+            "sub_train" => [NumberField(d, "windowMs", Behaviour, min: 0, step: 1000), Accent(d)],
             "socials" =>
             [
-                JsonField(
-                    d,
-                    "handles",
-                    "Handles",
-                    Content,
-                    "The social accounts to rotate, as a JSON array of { label, handle } objects — e.g. "
-                        + """[{"label":"Twitter","handle":"@you"}]. An entry with a blank handle is dropped."""
-                ),
-                NumberField(d, "rotateMs", "Rotate interval (ms)", Behaviour, min: 0, step: 500),
+                JsonField(d, "handles", Content, help: true),
+                NumberField(d, "rotateMs", Behaviour, min: 0, step: 500),
                 Accent(d),
             ],
             "top_cheerers" =>
             [
-                NumberField(d, "count", "Cheerers shown", Content, min: 1, max: 50, step: 1),
-                Text(d, "title", "Title", Content),
+                NumberField(d, "count", Content, min: 1, max: 50, step: 1),
+                Text(d, "title", Content),
                 Accent(d),
             ],
             _ => throw new InvalidOperationException(
@@ -508,48 +275,38 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
     private static object? DefaultOf(FirstPartyWidgetDefinition d, string key) =>
         d.DefaultSettings.TryGetValue(key, out object? value) ? value : null;
 
-    // Resolves the English literal authored inline at each call site to a LocalizedText carrying its Dutch
-    // counterpart from NlTranslations. A missing table entry resolves to an empty Dutch string rather than
-    // throwing here — WidgetSettingsSchemaI18nTests is the single place that fails the build on it, so every
-    // gap surfaces as one readable test failure instead of an opaque constructor-time crash.
-    private static LocalizedText Loc(
-        FirstPartyWidgetDefinition d,
-        string fieldKey,
-        string suffix,
-        string en
-    )
-    {
-        string translationKey = $"{d.Key}.{fieldKey}.{suffix}";
-        string nl = NlTranslations.TryGetValue(translationKey, out string? value)
-            ? value
-            : string.Empty;
-        return new LocalizedText($"widget.{translationKey}", en, nl);
-    }
+    // Deterministic translation-key convention (S-SCHEMA-I18N-redesign): `widget.{widgetKey}.{fieldKey}.label` /
+    // `.help`. No English/Dutch text is ever authored here — SchemaLocalizationManifestTests sweeps the REAL
+    // schema this class produces and fails the build if a key it emits has no matching entry in strings.xml /
+    // values-nl/strings.xml.
+    private static LocalizedText LabelKey(FirstPartyWidgetDefinition d, string fieldKey) =>
+        new($"widget.{d.Key}.{fieldKey}.label");
+
+    private static LocalizedText HelpKey(FirstPartyWidgetDefinition d, string fieldKey) =>
+        new($"widget.{d.Key}.{fieldKey}.help");
 
     private static WidgetSettingsField Bool(
         FirstPartyWidgetDefinition d,
         string key,
-        string label,
         string group
-    ) => new(key, Loc(d, key, "label", label), "bool", group, DefaultOf(d, key));
+    ) => new(key, LabelKey(d, key), "bool", group, DefaultOf(d, key));
 
     private static WidgetSettingsField NumberField(
         FirstPartyWidgetDefinition d,
         string key,
-        string label,
         string group,
         double? min = null,
         double? max = null,
         double? step = null,
-        string? help = null
+        bool help = false
     ) =>
         new(
             key,
-            Loc(d, key, "label", label),
+            LabelKey(d, key),
             Number,
             group,
             DefaultOf(d, key),
-            help is null ? null : Loc(d, key, "help", help),
+            help ? HelpKey(d, key) : null,
             null,
             min,
             max,
@@ -559,41 +316,24 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
     private static WidgetSettingsField Text(
         FirstPartyWidgetDefinition d,
         string key,
-        string label,
         string group,
-        string? help = null
+        bool help = false
     ) =>
-        new(
-            key,
-            Loc(d, key, "label", label),
-            "text",
-            group,
-            DefaultOf(d, key),
-            help is null ? null : Loc(d, key, "help", help)
-        );
+        new(key, LabelKey(d, key), "text", group, DefaultOf(d, key), help ? HelpKey(d, key) : null);
 
     private static WidgetSettingsField ColorField(
         FirstPartyWidgetDefinition d,
         string key,
-        string label,
         string group,
-        string? help = null
-    ) =>
-        new(
-            key,
-            Loc(d, key, "label", label),
-            Color,
-            group,
-            DefaultOf(d, key),
-            help is null ? null : Loc(d, key, "help", help)
-        );
+        bool help = false
+    ) => new(key, LabelKey(d, key), Color, group, DefaultOf(d, key), help ? HelpKey(d, key) : null);
 
-    // The accent colour field is identical (key/label/no-help) on every widget that has one, so it is translated
-    // directly rather than through NlTranslations.
+    // The accent colour field is identical (key/no-help) on every widget that has one, but still gets its own
+    // per-widget translation key (widget.{widgetKey}.accentColor.label) so a future widget can override the copy.
     private static WidgetSettingsField Accent(FirstPartyWidgetDefinition d) =>
         new(
             "accentColor",
-            new LocalizedText($"widget.{d.Key}.accentColor.label", "Accent colour", "Accentkleur"),
+            LabelKey(d, "accentColor"),
             Color,
             Appearance,
             DefaultOf(d, "accentColor")
@@ -602,35 +342,23 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
     private static WidgetSettingsField SelectField(
         FirstPartyWidgetDefinition d,
         string key,
-        string label,
         string group,
         IReadOnlyList<WidgetSettingsFieldOption> options
-    ) => new(key, Loc(d, key, "label", label), Select, group, DefaultOf(d, key), null, options);
+    ) => new(key, LabelKey(d, key), Select, group, DefaultOf(d, key), null, options);
 
     private static WidgetSettingsField Multi(
         FirstPartyWidgetDefinition d,
         string key,
-        string label,
         string group,
         IReadOnlyList<WidgetSettingsFieldOption> options
-    ) =>
-        new(key, Loc(d, key, "label", label), Multiselect, group, DefaultOf(d, key), null, options);
+    ) => new(key, LabelKey(d, key), Multiselect, group, DefaultOf(d, key), null, options);
 
     private static WidgetSettingsField JsonField(
         FirstPartyWidgetDefinition d,
         string key,
-        string label,
         string group,
-        string? help = null
-    ) =>
-        new(
-            key,
-            Loc(d, key, "label", label),
-            Json,
-            group,
-            DefaultOf(d, key),
-            help is null ? null : Loc(d, key, "help", help)
-        );
+        bool help = false
+    ) => new(key, LabelKey(d, key), Json, group, DefaultOf(d, key), help ? HelpKey(d, key) : null);
 
     private static IReadOnlyList<WidgetSettingsFieldOption> Opts(
         params (string Value, string Label)[] options

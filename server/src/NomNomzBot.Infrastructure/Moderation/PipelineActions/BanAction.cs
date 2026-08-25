@@ -24,21 +24,12 @@ public sealed class BanAction : ICommandAction
             new(
                 "user_id",
                 PipelineActionFieldKind.TwitchUser,
-                Description: new(
-                    "pipeline.ban.user_id.help",
-                    "The viewer to ban. Blank targets the user who triggered this pipeline.",
-                    "De kijker die verbannen wordt. Leeg richt zich op de gebruiker die deze pipeline "
-                        + "activeerde."
-                )
+                Description: new("pipeline.ban.user_id.help")
             ),
             new(
                 "reason",
                 PipelineActionFieldKind.Text,
-                Description: new(
-                    "pipeline.ban.reason.help",
-                    "Shown to the viewer and logged in the moderation history.",
-                    "Wordt aan de kijker getoond en vastgelegd in de moderatiegeschiedenis."
-                )
+                Description: new("pipeline.ban.reason.help")
             ),
         ];
 

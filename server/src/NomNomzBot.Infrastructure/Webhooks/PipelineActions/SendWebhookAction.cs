@@ -37,11 +37,7 @@ public sealed class SendWebhookAction : ICommandAction
                 "endpoint",
                 PipelineActionFieldKind.ResourceId,
                 Required: true,
-                Description: new(
-                    "pipeline.send_webhook.endpoint.help",
-                    "The webhook endpoint to deliver this event to.",
-                    "Het webhook-eindpunt waarnaar deze gebeurtenis wordt afgeleverd."
-                )
+                Description: new("pipeline.send_webhook.endpoint.help")
             ),
             // Deliberately NOT templated (S-PIPE-TREE-d2b(b)): a receiving endpoint's subscription
             // matches this value verbatim, so a literal double-brace placeholder a channel owner types
@@ -51,13 +47,7 @@ public sealed class SendWebhookAction : ICommandAction
                 "event_type",
                 PipelineActionFieldKind.Text,
                 Templated: false,
-                Description: new(
-                    "pipeline.send_webhook.event_type.help",
-                    "The event type string the endpoint's subscription matches. Sent verbatim — not "
-                        + "resolved as a template, even if it contains {{ }}.",
-                    "De event-type-string waarop het abonnement van het eindpunt matcht. Wordt letterlijk "
-                        + "verzonden — niet verwerkt als sjabloon, ook niet als het {{ }} bevat."
-                )
+                Description: new("pipeline.send_webhook.event_type.help")
             ),
         ];
 

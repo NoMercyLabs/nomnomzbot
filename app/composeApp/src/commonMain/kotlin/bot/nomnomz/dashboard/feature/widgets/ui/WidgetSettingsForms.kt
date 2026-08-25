@@ -53,6 +53,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.i18n.resolveSchemaString
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.WidgetSettingsFieldDto
 import bot.nomnomz.dashboard.core.network.WidgetSettingsSchemaDto
@@ -255,6 +256,11 @@ private fun FieldControl(
     val tokens = LocalTokens.current
     val typography = LocalTypography.current
 
+    // The backend serves only a translation KEY for label/help (S-SCHEMA-I18N-redesign); resolve both once here
+    // against strings.xml for the viewer's locale, so the control renders below read plain strings same as before.
+    val label: String = resolveSchemaString(field.label)
+    val help: String? = resolveSchemaString(field.help).takeIf { it.isNotBlank() }
+
     when (field.type) {
         "bool" ->
             Row(
@@ -264,11 +270,11 @@ private fun FieldControl(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = resolveRowLabel(field.label, typeLabel = "Field", discriminatorSource = field.key),
+                        text = resolveRowLabel(label, typeLabel = "Field", discriminatorSource = field.key),
                         style = typography.base,
                         color = tokens.cardForeground,
                     )
-                    field.help?.takeIf { it.isNotBlank() }?.let {
+                    help?.let {
                         Text(text = it, style = typography.xs, color = tokens.mutedForeground)
                     }
                 }
@@ -287,7 +293,7 @@ private fun FieldControl(
                 val current: Float = (rawValue.toFloatOrNull() ?: min).coerceIn(min, maxValue)
                 Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
                     Text(
-                        text = "${field.label}: ${formatNumber(current, step)}",
+                        text = "$label: ${formatNumber(current, step)}",
                         style = typography.sm,
                         color = tokens.mutedForeground,
                     )
@@ -303,8 +309,8 @@ private fun FieldControl(
                 AppTextField(
                     value = rawValue,
                     onValueChange = onRawChange,
-                    label = field.label,
-                    supportingText = field.help,
+                    label = label,
+                    supportingText = help,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -315,8 +321,8 @@ private fun FieldControl(
             AppTextField(
                 value = rawValue,
                 onValueChange = onRawChange,
-                label = field.label,
-                supportingText = field.help,
+                label = label,
+                supportingText = help,
                 placeholder = "#RRGGBB",
                 trailingIcon = { ColorSwatch(rawValue) },
                 modifier = Modifier.fillMaxWidth(),
@@ -324,7 +330,7 @@ private fun FieldControl(
 
         "select" ->
             SelectControl(
-                label = field.label,
+                label = label,
                 options = field.options.orEmpty().map { it.value to it.label },
                 selectedValue = selectValue,
                 onSelect = onSelectChange,
@@ -333,7 +339,7 @@ private fun FieldControl(
         "multiselect" ->
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
                 Text(
-                    text = resolveRowLabel(field.label, typeLabel = "Field", discriminatorSource = field.key),
+                    text = resolveRowLabel(label, typeLabel = "Field", discriminatorSource = field.key),
                     style = typography.sm,
                     color = tokens.foreground,
                 )
@@ -355,8 +361,8 @@ private fun FieldControl(
             Textarea(
                 value = rawValue,
                 onValueChange = onRawChange,
-                label = field.label,
-                supportingText = field.help,
+                label = label,
+                supportingText = help,
                 isError = jsonError,
                 errorText = invalidJsonText,
                 minLines = 2,
@@ -368,8 +374,8 @@ private fun FieldControl(
             AppTextField(
                 value = rawValue,
                 onValueChange = onRawChange,
-                label = field.label,
-                supportingText = field.help,
+                label = label,
+                supportingText = help,
                 modifier = Modifier.fillMaxWidth(),
             )
     }

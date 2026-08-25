@@ -43,21 +43,13 @@ public sealed class PlayTtsAction : ICommandAction
                 PipelineActionFieldKind.Text,
                 Required: true,
                 Templated: true,
-                Description: new(
-                    "pipeline.play_tts.text.help",
-                    "The text to speak. Supports template variables (e.g. {{user.name}}).",
-                    "De tekst die wordt uitgesproken. Ondersteunt sjabloonvariabelen (bijv. {{user.name}})."
-                )
+                Description: new("pipeline.play_tts.text.help")
             ),
             new(
                 "voice",
                 PipelineActionFieldKind.Voice,
                 Templated: true,
-                Description: new(
-                    "pipeline.play_tts.voice.help",
-                    "Blank uses the channel's default TTS voice.",
-                    "Leeg gebruikt de standaard TTS-stem van het kanaal."
-                )
+                Description: new("pipeline.play_tts.voice.help")
             ),
         ];
 

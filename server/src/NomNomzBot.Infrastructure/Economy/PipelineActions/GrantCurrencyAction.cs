@@ -31,20 +31,12 @@ public sealed class GrantCurrencyAction(ICurrencyAccountService accounts) : ICom
                 "amount",
                 PipelineActionFieldKind.Number,
                 Required: true,
-                Description: new(
-                    "pipeline.grant_currency.amount.help",
-                    "How much of the channel's currency to add to the viewer's balance.",
-                    "Hoeveel van de valuta van het kanaal wordt toegevoegd aan het saldo van de kijker."
-                )
+                Description: new("pipeline.grant_currency.amount.help")
             ),
             new(
                 "reason",
                 PipelineActionFieldKind.Text,
-                Description: new(
-                    "pipeline.grant_currency.reason.help",
-                    "Shown on the viewer's transaction history.",
-                    "Wordt getoond in de transactiegeschiedenis van de kijker."
-                )
+                Description: new("pipeline.grant_currency.reason.help")
             ),
         ];
 

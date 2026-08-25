@@ -12,6 +12,7 @@ using System.Text.RegularExpressions;
 using FluentAssertions;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Infrastructure.Content.Widgets;
+using NomNomzBot.Infrastructure.Tests.Localization;
 
 namespace NomNomzBot.Infrastructure.Tests.Widgets;
 
@@ -63,14 +64,22 @@ public sealed class SocialsWidgetHelpTextTests
             .ContainSingle(f => f.Key == "handles")
             .Subject;
 
-        handlesField
-            .Help!.En.Should()
+        DashboardStringsXmlCatalog catalog = new();
+        catalog
+            .TryGetEnglish(handlesField.Help!.Key, out string helpEnglish)
+            .Should()
+            .BeTrue(
+                $"'{handlesField.Help.Key}' should have an English entry in values/strings.xml"
+            );
+
+        helpEnglish
+            .Should()
             .Contain(
                 handleProperty,
                 "the help text must document the property the parser actually reads"
             );
-        handlesField
-            .Help!.En.Should()
+        helpEnglish
+            .Should()
             .NotContain(
                 "label + url",
                 "the old help text claimed a `url` field the parser never reads"
