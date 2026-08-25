@@ -38,8 +38,27 @@ public sealed class PlayTtsAction : ICommandAction
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("text", PipelineActionFieldKind.Text, Required: true, Templated: true),
-            new("voice", PipelineActionFieldKind.Voice, Templated: true),
+            new(
+                "text",
+                PipelineActionFieldKind.Text,
+                Required: true,
+                Templated: true,
+                Description: new(
+                    "pipeline.play_tts.text.help",
+                    "The text to speak. Supports template variables (e.g. {{user.name}}).",
+                    "De tekst die wordt uitgesproken. Ondersteunt sjabloonvariabelen (bijv. {{user.name}})."
+                )
+            ),
+            new(
+                "voice",
+                PipelineActionFieldKind.Voice,
+                Templated: true,
+                Description: new(
+                    "pipeline.play_tts.voice.help",
+                    "Blank uses the channel's default TTS voice.",
+                    "Leeg gebruikt de standaard TTS-stem van het kanaal."
+                )
+            ),
         ];
 
     public async Task<ActionResult> ExecuteAsync(

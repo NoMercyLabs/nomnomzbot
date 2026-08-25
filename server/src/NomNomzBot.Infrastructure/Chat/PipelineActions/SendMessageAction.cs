@@ -24,7 +24,19 @@ public sealed class SendMessageAction : ICommandAction
     public bool ResolvesOwnTemplates => true;
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
-        [new("message", PipelineActionFieldKind.Text, Required: true, Templated: true)];
+        [
+            new(
+                "message",
+                PipelineActionFieldKind.Text,
+                Required: true,
+                Templated: true,
+                Description: new(
+                    "pipeline.send_message.message.help",
+                    "The chat message to send. Supports template variables (e.g. {{user.name}}).",
+                    "Het chatbericht om te versturen. Ondersteunt sjabloonvariabelen (bijv. {{user.name}})."
+                )
+            ),
+        ];
 
     public SendMessageAction(IChatProvider chat, ITemplateResolver resolver)
     {

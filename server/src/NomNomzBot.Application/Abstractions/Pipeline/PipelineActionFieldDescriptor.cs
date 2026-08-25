@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Abstractions.Localization;
+
 namespace NomNomzBot.Application.Abstractions.Pipeline;
 
 /// <summary>
@@ -54,13 +56,19 @@ public enum PipelineActionFieldKind
 /// When <see cref="ICommandAction.ResolvesOwnTemplates"/> is true the action resolves this field itself
 /// instead of the engine's central pass — either way the field is templated exactly once.
 /// </param>
+/// <param name="Description">
+/// Optional operator-facing help text for the step form's field (S-SCHEMA-I18N) — e.g. what a non-obvious
+/// field controls, or a format the field expects. <see cref="LocalizedText"/> so it carries both en and nl;
+/// null when the field's <see cref="Kind"/>/<see cref="Name"/> is self-explanatory and needs no extra copy.
+/// </param>
 public sealed record PipelineActionFieldDescriptor(
     string Name,
     PipelineActionFieldKind Kind,
     bool Required = false,
     bool Repeatable = false,
     IReadOnlyList<string>? Options = null,
-    bool Templated = false
+    bool Templated = false,
+    LocalizedText? Description = null
 );
 
 /// <summary>Converts a <see cref="PipelineActionFieldKind"/> to its snake_case wire name for the catalogue DTO.</summary>

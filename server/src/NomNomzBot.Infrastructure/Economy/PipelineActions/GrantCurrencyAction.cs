@@ -27,8 +27,25 @@ public sealed class GrantCurrencyAction(ICurrencyAccountService accounts) : ICom
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("amount", PipelineActionFieldKind.Number, Required: true),
-            new("reason", PipelineActionFieldKind.Text),
+            new(
+                "amount",
+                PipelineActionFieldKind.Number,
+                Required: true,
+                Description: new(
+                    "pipeline.grant_currency.amount.help",
+                    "How much of the channel's currency to add to the viewer's balance.",
+                    "Hoeveel van de valuta van het kanaal wordt toegevoegd aan het saldo van de kijker."
+                )
+            ),
+            new(
+                "reason",
+                PipelineActionFieldKind.Text,
+                Description: new(
+                    "pipeline.grant_currency.reason.help",
+                    "Shown on the viewer's transaction history.",
+                    "Wordt getoond in de transactiegeschiedenis van de kijker."
+                )
+            ),
         ];
 
     public async Task<ActionResult> ExecuteAsync(

@@ -24,7 +24,21 @@ public sealed class SendReplyAction : ICommandAction
     public bool ResolvesOwnTemplates => true;
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
-        [new("message", PipelineActionFieldKind.Text, Required: true, Templated: true)];
+        [
+            new(
+                "message",
+                PipelineActionFieldKind.Text,
+                Required: true,
+                Templated: true,
+                Description: new(
+                    "pipeline.send_reply.message.help",
+                    "The reply text, threaded under the triggering message. Supports template variables "
+                        + "(e.g. {{user.name}}).",
+                    "De antwoordtekst, geplaatst als reactie op het triggerende bericht. Ondersteunt "
+                        + "sjabloonvariabelen (bijv. {{user.name}})."
+                )
+            ),
+        ];
 
     public SendReplyAction(IChatProvider chat, ITemplateResolver resolver)
     {

@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 
@@ -19,7 +20,10 @@ namespace NomNomzBot.Infrastructure.Content.Widgets;
 /// is read back from the catalogue's <c>DefaultSettings</c> — so a default can never drift from what the seeder
 /// ships. A structural map/list a form can't flatten (goal colours, socials handles, redemption reward filter) is
 /// exposed as a <c>json</c> field (raw-JSON textarea) so every settings key stays covered; <see cref="WidgetSettingsSchemaTests"/>
-/// fails the build if a type or a key is left un-schematised.
+/// fails the build if a type or a key is left un-schematised. Every field's <c>Label</c>/<c>Help</c> is a
+/// <see cref="LocalizedText"/> (S-SCHEMA-I18N) — the English literal passed to each field factory below is looked
+/// up in <see cref="NlTranslations"/> for its Dutch counterpart; a missing entry resolves to an empty Dutch string,
+/// which <c>WidgetSettingsSchemaI18nTests</c> fails the build on (fail loud, never a silent English fallback).
 /// </summary>
 public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
 {
@@ -58,6 +62,115 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
         new("ffz", "FrankerFaceZ"),
         new("7tv", "7TV"),
     ];
+
+    // Dutch translations for every field Label/Help authored below, keyed "{widgetKey}.{fieldKey}.{label|help}".
+    // Looked up by Loc(); WidgetSettingsSchemaI18nTests enumerates the REAL schema (Provider.GetAll()) and fails
+    // the build if any field's resolved Nl is blank, so this table cannot silently fall behind the English copy.
+    private static readonly IReadOnlyDictionary<string, string> NlTranslations = new Dictionary<
+        string,
+        string
+    >(StringComparer.Ordinal)
+    {
+        ["alerts.events.label"] = "Waarschuwingstypen",
+        ["alerts.textTemplate.label"] = "Tekstsjabloon",
+        ["alerts.textTemplate.help"] =
+            "Optionele overschrijving; leeg gebruikt de ingebouwde tekst.",
+        ["alerts.durationMs.label"] = "Weergavetijd (ms)",
+        ["alerts.minBits.label"] = "Minimum bits",
+        ["alerts.minGiftCount.label"] = "Minimum aantal gift-subs",
+        ["alerts.minAmount.label"] = "Minimumbedrag van supporter",
+        ["goal_bar.metric.label"] = "Metriek",
+        ["goal_bar.target.label"] = "Doel",
+        ["goal_bar.start.label"] = "Startwaarde",
+        ["goal_bar.resetCadence.label"] = "Label voor resetinterval",
+        ["goal_bar.resetCadence.help"] = "Wordt naast de balk getoond, bijv. \"deze maand\".",
+        ["goal_bar.colors.label"] = "Kleuren",
+        ["goal_bar.colors.help"] = "Optionele kleuroverschrijvingen als JSON-object.",
+        ["goal_bar.labels.label"] = "Labels",
+        ["goal_bar.labels.help"] =
+            "Optionele labeloverschrijvingen (bijv. een eigen titel) als JSON-object.",
+        ["labels.label.label"] = "Statistiek",
+        ["labels.formatString.label"] = "Opmaakstring",
+        ["labels.formatString.help"] = "Optioneel; gebruik {value} als plaatshouder.",
+        ["drop_game.hideAfterMs.label"] = "Verbergen na (ms)",
+        ["raffle.hideAfterMs.label"] = "Verbergen na (ms)",
+        ["heist.hideAfterMs.label"] = "Verbergen na (ms)",
+        ["crash.hideAfterMs.label"] = "Verbergen na (ms)",
+        ["event_ticker.events.label"] = "Gebeurtenistypen",
+        ["event_ticker.speed.label"] = "Scrollsnelheid",
+        ["event_ticker.count.label"] = "Aantal bewaarde items",
+        ["chat_box.theme.label"] = "Thema",
+        ["chat_box.fontFamily.label"] = "Lettertype",
+        ["chat_box.fontFamily.help"] = "Leeg gebruikt de standaard van de overlay.",
+        ["chat_box.fontSize.label"] = "Lettergrootte",
+        ["chat_box.background.label"] = "Achtergrond",
+        ["chat_box.background.help"] = "Leeg gebruikt de achtergrond van het thema.",
+        ["chat_box.backgroundOpacity.label"] = "Achtergrondtransparantie",
+        ["chat_box.showTimestamps.label"] = "Tijdstempels tonen",
+        ["chat_box.maxMessages.label"] = "Max. aantal berichten",
+        ["chat_box.fadeAfterMs.label"] = "Vervagen na (ms, 0 = nooit)",
+        ["chat_box.showBadges.label"] = "Badges tonen",
+        ["chat_box.showEmotes.label"] = "Emotes tonen",
+        ["chat_box.hideCommands.label"] = "Commandoberichten verbergen",
+        ["chat_box.hideBots.label"] = "Botberichten verbergen",
+        ["now_playing.layout.label"] = "Lay-out",
+        ["now_playing.showArt.label"] = "Albumhoes tonen",
+        ["now_playing.showProgressBar.label"] = "Voortgangsbalk tonen",
+        ["now_playing.provider.label"] = "Providerfilter",
+        ["now_playing.provider.help"] = "Leeg toont alle; bijv. spotify.",
+        ["now_playing.enableAudio.label"] =
+            "Spotify-audioapparaat (uitschakelen zodat deze widget niet langer als Spotify Connect-apparaat fungeert)",
+        ["now_playing.youtubeMode.label"] = "YouTube-tracks weergeven als",
+        ["sr_queue.count.label"] = "Aantal getoonde items",
+        ["sr_queue.showRequester.label"] = "Aanvrager tonen",
+        ["sr_queue.showDuration.label"] = "Duur tonen",
+        ["tts_audio.showIndicator.label"] = "Spreekindicator tonen (alleen instellen)",
+        ["tts_caption.showText.label"] = "Ondertiteltekst tonen",
+        ["tts_caption.voiceLabel.label"] = "Stemlabel tonen",
+        ["tts_caption.position.label"] = "Positie",
+        ["poll_prediction.position.label"] = "Positie",
+        ["poll_prediction.colors.label"] = "Kleuren",
+        ["poll_prediction.colors.help"] =
+            "Optionele kleuroverschrijvingen per uitkomst als JSON-object.",
+        ["redemption_alert.rewards.label"] = "Beloningsfilter",
+        ["redemption_alert.rewards.help"] =
+            "Optionele lijst met beloning-id's om te tonen (JSON-array); leeg toont alles.",
+        ["redemption_alert.textTemplate.label"] = "Tekstsjabloon",
+        ["redemption_alert.textTemplate.help"] = "Optionele overschrijving voor de pop-uptekst.",
+        ["redemption_alert.durationMs.label"] = "Weergavetijd (ms)",
+        ["redemption_alert.soundClipId.label"] = "Waarschuwingsgeluid",
+        ["redemption_alert.soundClipId.help"] =
+            "Speelt dit fragment uit je Sound Clips-bibliotheek af telkens wanneer de waarschuwing afgaat "
+            + "— voer de id of naam van het fragment in. Laat leeg en de waarschuwing blijft stil.",
+        ["countdown_timer.target.label"] = "Doeltijd",
+        ["countdown_timer.target.help"] =
+            "ISO-datumtijd om naartoe af te tellen; leeg gebruikt de duur.",
+        ["countdown_timer.durationMs.label"] = "Duur (ms)",
+        ["countdown_timer.label.label"] = "Label",
+        ["countdown_timer.onCompleteText.label"] = "Tekst bij voltooiing",
+        ["emote_wall.density.label"] = "Dichtheid",
+        ["emote_wall.size.label"] = "Emote-grootte (px)",
+        ["emote_wall.animation.label"] = "Animatie",
+        ["emote_wall.providers.label"] = "Emote-providers",
+        ["custom_data.source.label"] = "Bron",
+        ["custom_data.source.help"] = "De sleutel van de aangepaste databron, bijv. heartrate.",
+        ["custom_data.field.label"] = "Veld",
+        ["custom_data.field.help"] = "Het veld binnen de bron, bijv. bpm.",
+        ["custom_data.render.label"] = "Weergeven als",
+        ["custom_data.label.label"] = "Label",
+        ["custom_data.min.label"] = "Minimum van de meter",
+        ["custom_data.max.label"] = "Maximum van de meter",
+        ["recent_followers.count.label"] = "Aantal getoonde volgers",
+        ["recent_followers.title.label"] = "Titel",
+        ["sub_train.windowMs.label"] = "Venster (ms)",
+        ["socials.handles.label"] = "Accounts",
+        ["socials.handles.help"] =
+            "De social-accounts om te laten rouleren, als JSON-array van { label, handle } objecten — bijv. "
+            + """[{"label":"Twitter","handle":"@you"}]. Een item met een lege handle wordt genegeerd.""",
+        ["socials.rotateMs.label"] = "Rotatie-interval (ms)",
+        ["top_cheerers.count.label"] = "Aantal getoonde cheerers",
+        ["top_cheerers.title.label"] = "Titel",
+    };
 
     private readonly IReadOnlyList<WidgetSettingsSchema> _all;
     private readonly Dictionary<string, WidgetSettingsSchema> _byKey;
@@ -395,12 +508,30 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
     private static object? DefaultOf(FirstPartyWidgetDefinition d, string key) =>
         d.DefaultSettings.TryGetValue(key, out object? value) ? value : null;
 
+    // Resolves the English literal authored inline at each call site to a LocalizedText carrying its Dutch
+    // counterpart from NlTranslations. A missing table entry resolves to an empty Dutch string rather than
+    // throwing here — WidgetSettingsSchemaI18nTests is the single place that fails the build on it, so every
+    // gap surfaces as one readable test failure instead of an opaque constructor-time crash.
+    private static LocalizedText Loc(
+        FirstPartyWidgetDefinition d,
+        string fieldKey,
+        string suffix,
+        string en
+    )
+    {
+        string translationKey = $"{d.Key}.{fieldKey}.{suffix}";
+        string nl = NlTranslations.TryGetValue(translationKey, out string? value)
+            ? value
+            : string.Empty;
+        return new LocalizedText($"widget.{translationKey}", en, nl);
+    }
+
     private static WidgetSettingsField Bool(
         FirstPartyWidgetDefinition d,
         string key,
         string label,
         string group
-    ) => new(key, label, "bool", group, DefaultOf(d, key));
+    ) => new(key, Loc(d, key, "label", label), "bool", group, DefaultOf(d, key));
 
     private static WidgetSettingsField NumberField(
         FirstPartyWidgetDefinition d,
@@ -411,7 +542,19 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
         double? max = null,
         double? step = null,
         string? help = null
-    ) => new(key, label, Number, group, DefaultOf(d, key), help, null, min, max, step);
+    ) =>
+        new(
+            key,
+            Loc(d, key, "label", label),
+            Number,
+            group,
+            DefaultOf(d, key),
+            help is null ? null : Loc(d, key, "help", help),
+            null,
+            min,
+            max,
+            step
+        );
 
     private static WidgetSettingsField Text(
         FirstPartyWidgetDefinition d,
@@ -419,7 +562,15 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
         string label,
         string group,
         string? help = null
-    ) => new(key, label, "text", group, DefaultOf(d, key), help);
+    ) =>
+        new(
+            key,
+            Loc(d, key, "label", label),
+            "text",
+            group,
+            DefaultOf(d, key),
+            help is null ? null : Loc(d, key, "help", help)
+        );
 
     private static WidgetSettingsField ColorField(
         FirstPartyWidgetDefinition d,
@@ -427,10 +578,26 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
         string label,
         string group,
         string? help = null
-    ) => new(key, label, Color, group, DefaultOf(d, key), help);
+    ) =>
+        new(
+            key,
+            Loc(d, key, "label", label),
+            Color,
+            group,
+            DefaultOf(d, key),
+            help is null ? null : Loc(d, key, "help", help)
+        );
 
+    // The accent colour field is identical (key/label/no-help) on every widget that has one, so it is translated
+    // directly rather than through NlTranslations.
     private static WidgetSettingsField Accent(FirstPartyWidgetDefinition d) =>
-        new("accentColor", "Accent colour", Color, Appearance, DefaultOf(d, "accentColor"));
+        new(
+            "accentColor",
+            new LocalizedText($"widget.{d.Key}.accentColor.label", "Accent colour", "Accentkleur"),
+            Color,
+            Appearance,
+            DefaultOf(d, "accentColor")
+        );
 
     private static WidgetSettingsField SelectField(
         FirstPartyWidgetDefinition d,
@@ -438,7 +605,7 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
         string label,
         string group,
         IReadOnlyList<WidgetSettingsFieldOption> options
-    ) => new(key, label, Select, group, DefaultOf(d, key), null, options);
+    ) => new(key, Loc(d, key, "label", label), Select, group, DefaultOf(d, key), null, options);
 
     private static WidgetSettingsField Multi(
         FirstPartyWidgetDefinition d,
@@ -446,7 +613,8 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
         string label,
         string group,
         IReadOnlyList<WidgetSettingsFieldOption> options
-    ) => new(key, label, Multiselect, group, DefaultOf(d, key), null, options);
+    ) =>
+        new(key, Loc(d, key, "label", label), Multiselect, group, DefaultOf(d, key), null, options);
 
     private static WidgetSettingsField JsonField(
         FirstPartyWidgetDefinition d,
@@ -454,7 +622,15 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
         string label,
         string group,
         string? help = null
-    ) => new(key, label, Json, group, DefaultOf(d, key), help);
+    ) =>
+        new(
+            key,
+            Loc(d, key, "label", label),
+            Json,
+            group,
+            DefaultOf(d, key),
+            help is null ? null : Loc(d, key, "help", help)
+        );
 
     private static IReadOnlyList<WidgetSettingsFieldOption> Opts(
         params (string Value, string Label)[] options

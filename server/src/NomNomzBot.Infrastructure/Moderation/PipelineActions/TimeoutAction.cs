@@ -21,9 +21,35 @@ public sealed class TimeoutAction : ICommandAction
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("user_id", PipelineActionFieldKind.TwitchUser),
-            new("duration", PipelineActionFieldKind.Number, Required: true),
-            new("reason", PipelineActionFieldKind.Text),
+            new(
+                "user_id",
+                PipelineActionFieldKind.TwitchUser,
+                Description: new(
+                    "pipeline.timeout.user_id.help",
+                    "The viewer to time out. Blank targets the user who triggered this pipeline.",
+                    "De kijker die een timeout krijgt. Leeg richt zich op de gebruiker die deze pipeline "
+                        + "activeerde."
+                )
+            ),
+            new(
+                "duration",
+                PipelineActionFieldKind.Number,
+                Required: true,
+                Description: new(
+                    "pipeline.timeout.duration.help",
+                    "How long the timeout lasts, in seconds.",
+                    "Hoe lang de timeout duurt, in seconden."
+                )
+            ),
+            new(
+                "reason",
+                PipelineActionFieldKind.Text,
+                Description: new(
+                    "pipeline.timeout.reason.help",
+                    "Shown to the viewer and logged in the moderation history.",
+                    "Wordt aan de kijker getoond en vastgelegd in de moderatiegeschiedenis."
+                )
+            ),
         ];
 
     public TimeoutAction(IChatProvider chat) => _chat = chat;

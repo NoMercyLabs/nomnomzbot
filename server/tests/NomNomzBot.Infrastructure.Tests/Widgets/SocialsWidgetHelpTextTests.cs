@@ -64,13 +64,13 @@ public sealed class SocialsWidgetHelpTextTests
             .Subject;
 
         handlesField
-            .Help.Should()
+            .Help!.En.Should()
             .Contain(
                 handleProperty,
                 "the help text must document the property the parser actually reads"
             );
         handlesField
-            .Help.Should()
+            .Help!.En.Should()
             .NotContain(
                 "label + url",
                 "the old help text claimed a `url` field the parser never reads"

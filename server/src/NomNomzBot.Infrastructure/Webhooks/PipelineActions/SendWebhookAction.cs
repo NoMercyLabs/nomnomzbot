@@ -33,12 +33,32 @@ public sealed class SendWebhookAction : ICommandAction
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("endpoint", PipelineActionFieldKind.ResourceId, Required: true),
+            new(
+                "endpoint",
+                PipelineActionFieldKind.ResourceId,
+                Required: true,
+                Description: new(
+                    "pipeline.send_webhook.endpoint.help",
+                    "The webhook endpoint to deliver this event to.",
+                    "Het webhook-eindpunt waarnaar deze gebeurtenis wordt afgeleverd."
+                )
+            ),
             // Deliberately NOT templated (S-PIPE-TREE-d2b(b)): a receiving endpoint's subscription
             // matches this value verbatim, so a literal double-brace placeholder a channel owner types
             // here (an unusual but legal event-type string) must reach the dispatcher unchanged rather
             // than being silently run through the resolver.
-            new("event_type", PipelineActionFieldKind.Text, Templated: false),
+            new(
+                "event_type",
+                PipelineActionFieldKind.Text,
+                Templated: false,
+                Description: new(
+                    "pipeline.send_webhook.event_type.help",
+                    "The event type string the endpoint's subscription matches. Sent verbatim — not "
+                        + "resolved as a template, even if it contains {{ }}.",
+                    "De event-type-string waarop het abonnement van het eindpunt matcht. Wordt letterlijk "
+                        + "verzonden — niet verwerkt als sjabloon, ook niet als het {{ }} bevat."
+                )
+            ),
         ];
 
     public async Task<ActionResult> ExecuteAsync(

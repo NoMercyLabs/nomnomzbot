@@ -104,7 +104,7 @@ public sealed class WidgetSettingsSchemaTests
                     );
 
                 field
-                    .Label.Should()
+                    .Label.En.Should()
                     .NotBeNullOrWhiteSpace($"'{definition.Key}.{field.Key}' needs a label");
                 field
                     .Group.Should()
