@@ -1255,4 +1255,95 @@ public sealed class PipelineEngineTreeExecutionTests
         result.StepLogs.Should().HaveCount(2);
         result.Total.Should().Be(2);
     }
+
+    /// <summary>Adversarial case the original break/continue slice did not cover: a <c>break</c> inside a
+    /// <c>switch</c> that is itself inside a <c>loop</c>. In many engines break is captured by the nearest
+    /// enclosing construct, so it would exit only the SWITCH and let the loop keep iterating — the existing
+    /// tests would still pass while the behaviour is wrong. Here the loop must stop.</summary>
+    [Fact]
+    public async Task Break_InsideSwitchInsideLoop_ExitsTheLoop_NotJustTheSwitch()
+    {
+        using PipelineTreeExecutionTestDbContext db = PipelineTreeExecutionTestDbContext.New();
+        Guid pipelineId = Guid.NewGuid();
+
+        PipelineStep loopStep = NewStep(
+            pipelineId,
+            null,
+            null,
+            "loop",
+            """{"mode":"repeat","count":5}""",
+            0
+        );
+        PipelineStep switchStep = NewStep(
+            pipelineId,
+            loopStep.Id,
+            null,
+            "switch",
+            """{"value":"go"}""",
+            0
+        );
+        PipelineStep caseStep = NewStep(
+            pipelineId,
+            switchStep.Id,
+            null,
+            "switch_case",
+            """{"match":"go"}""",
+            0
+        );
+        PipelineStep recordLeaf = NewLeaf(
+            pipelineId,
+            caseStep.Id,
+            null,
+            0,
+            "record_inner",
+            "{\"type\":\"record_inner\"}"
+        );
+        PipelineStep breakLeaf = NewLeaf(
+            pipelineId,
+            caseStep.Id,
+            null,
+            1,
+            "break_at_index",
+            """{"type":"break_at_index","target":"0"}"""
+        );
+        // Sits AFTER the switch inside the loop body: if break only escaped the switch, this would still
+        // run on every iteration and the loop would complete all 5 passes.
+        PipelineStep afterSwitchLeaf = NewLeaf(
+            pipelineId,
+            loopStep.Id,
+            null,
+            1,
+            "record_outer",
+            "{\"type\":\"record_outer\"}"
+        );
+
+        db.PipelineSteps.AddRange(
+            loopStep,
+            switchStep,
+            caseStep,
+            recordLeaf,
+            breakLeaf,
+            afterSwitchLeaf
+        );
+        await db.SaveChangesAsync();
+
+        CountingAction innerRecorder = new() { ActionType = "record_inner" };
+        CountingAction afterRecorder = new() { ActionType = "record_outer" };
+        PipelineEngine engine = CreateEngine(
+            db,
+            [innerRecorder, afterRecorder, new ConditionalBreakAction()]
+        );
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(pipelineId));
+
+        result.Outcome.Should().Be(PipelineOutcome.Completed);
+        innerRecorder
+            .Count.Should()
+            .Be(1, "the switch case body runs once, on the only iteration before the break");
+        afterRecorder
+            .Count.Should()
+            .Be(
+                0,
+                "break must exit the LOOP, so the step after the switch never runs; if break only escaped the switch this would be 5"
+            );
+    }
 }
