@@ -64,9 +64,12 @@ public sealed class CommandFlowImporterTests
             },
             Branches:
             [
-                new(new("{args.1}", "eq", ""), "no_target"),
-                new(new("{args.1}", "eq", "{user.name}"), "self"),
-                new(null, "target"),
+                new(new("{args.1}", "eq", ""), new([new("no_target", "pick")], "{{pick}}", false)),
+                new(
+                    new("{args.1}", "eq", "{user.name}"),
+                    new([new("self", "pick")], "{{pick}}", false)
+                ),
+                new(null, new([new("target", "pick")], "{{pick}}", false)),
             ]
         );
 
@@ -257,7 +260,10 @@ public sealed class CommandFlowImporterTests
         (CommandFlowImporter importer, SeedTestDbContext db) = Build();
         CommandFlowSpec noFallback = HugSpec() with
         {
-            Branches = [new(new("{args.1}", "eq", ""), "no_target")],
+            Branches =
+            [
+                new(new("{args.1}", "eq", ""), new([new("no_target", "pick")], "{{pick}}", false)),
+            ],
         };
 
         Result<CommandFlowImportReport> result = await importer.ImportAsync(Tenant, [noFallback]);
@@ -285,5 +291,94 @@ public sealed class CommandFlowImporterTests
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("EMPTY_POOL");
+    }
+
+    [Fact]
+    public async Task A_multi_pick_branch_rolls_each_pool_into_its_own_variable_and_composes_the_message()
+    {
+        (CommandFlowImporter importer, SeedTestDbContext db) = Build();
+        CommandFlowSpec spec = new(
+            Command: "roast",
+            Description: "Roast someone.",
+            Pools: new Dictionary<string, IReadOnlyList<string>>
+            {
+                ["opener"] = ["Oh {target},"],
+                ["body"] = ["you absolute disaster."],
+            },
+            Branches:
+            [
+                new(
+                    null,
+                    new(
+                        [new("opener", "opener"), new("body", "body")],
+                        "{{opener}} {{body}}",
+                        false
+                    )
+                ),
+            ]
+        );
+
+        Result<CommandFlowImportReport> result = await importer.ImportAsync(Tenant, [spec]);
+
+        result.IsSuccess.Should().BeTrue();
+        List<PipelineStep> steps = Steps(db);
+        List<PipelineStep> picks = [.. steps.Where(s => s.ActionType == "pick_from_list")];
+        picks.Should().HaveCount(2, "one roll per pool the answer draws from");
+        picks[0].ConfigJson.Should().Contain("roast.opener").And.Contain("\"opener\"");
+        picks[1].ConfigJson.Should().Contain("roast.body").And.Contain("\"body\"");
+
+        PipelineStep send = steps.Single(s => s.ActionType == "send_message");
+        send.ConfigJson.Should().Contain("{{opener}} {{body}}");
+        // The picks are rolled BEFORE the message that composes them, in the order declared.
+        picks[0].Order.Should().BeLessThan(picks[1].Order);
+        picks[1].Order.Should().BeLessThan(send.Order);
+    }
+
+    [Fact]
+    public async Task Speak_true_emits_a_play_tts_step_after_the_message()
+    {
+        (CommandFlowImporter importer, SeedTestDbContext db) = Build();
+        CommandFlowSpec spec = HugSpec() with
+        {
+            Command = "hug-speaks",
+            Branches = [new(null, new([new("target", "pick")], "{{pick}}", true))],
+        };
+
+        await importer.ImportAsync(Tenant, [spec]);
+
+        List<PipelineStep> steps = Steps(db);
+        steps
+            .Select(s => s.ActionType)
+            .Should()
+            .ContainInOrder("pick_from_list", "send_message", "play_tts");
+        PipelineStep tts = steps.Single(s => s.ActionType == "play_tts");
+        tts.ConfigJson.Should().Contain("{{pick}}");
+    }
+
+    [Fact]
+    public async Task Speak_false_emits_no_play_tts_step()
+    {
+        (CommandFlowImporter importer, SeedTestDbContext db) = Build();
+
+        await importer.ImportAsync(Tenant, [HugSpec()]);
+
+        Steps(db).Should().NotContain(s => s.ActionType == "play_tts");
+    }
+
+    [Fact]
+    public async Task Aliases_and_min_permission_level_land_on_the_imported_command()
+    {
+        (CommandFlowImporter importer, SeedTestDbContext db) = Build();
+        CommandFlowSpec spec = HugSpec() with
+        {
+            Aliases = ["squeeze", "embrace"],
+            MinPermissionLevel = 10,
+        };
+
+        await importer.ImportAsync(Tenant, [spec]);
+
+        Command created = db.Commands.Single(c => c.NameNormalized == "hug");
+        created.Aliases.Should().BeEquivalentTo(["squeeze", "embrace"]);
+        created.MinPermissionLevel.Should().Be(10);
     }
 }

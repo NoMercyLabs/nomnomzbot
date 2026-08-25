@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Commands.Import;
@@ -138,17 +139,26 @@ public sealed class CommandFlowImporter
 
         foreach (CommandFlowBranch branch in spec.Branches)
         {
-            if (!spec.Pools.TryGetValue(branch.Pool, out IReadOnlyList<string>? lines))
+            if (string.IsNullOrWhiteSpace(branch.Answer.Message))
                 return Result.Failure(
-                    $"branch references pool '{branch.Pool}', which the spec does not define.",
-                    "UNKNOWN_POOL"
+                    "a branch has no message, so it would match and say nothing.",
+                    "EMPTY_MESSAGE"
                 );
 
-            if (lines.Count == 0)
-                return Result.Failure(
-                    $"pool '{branch.Pool}' is empty, so that branch would answer nothing.",
-                    "EMPTY_POOL"
-                );
+            foreach (CommandFlowPick pick in branch.Answer.Picks)
+            {
+                if (!spec.Pools.TryGetValue(pick.Pool, out IReadOnlyList<string>? lines))
+                    return Result.Failure(
+                        $"branch references pool '{pick.Pool}', which the spec does not define.",
+                        "UNKNOWN_POOL"
+                    );
+
+                if (lines.Count == 0)
+                    return Result.Failure(
+                        $"pool '{pick.Pool}' is empty, so that branch would answer nothing.",
+                        "EMPTY_POOL"
+                    );
+            }
         }
 
         return Result.Success();
@@ -232,7 +242,7 @@ public sealed class CommandFlowImporter
                 AddAnswer(
                     broadcasterId,
                     pipeline,
-                    branch.Pool,
+                    branch.Answer,
                     spec.Command,
                     parentId,
                     branchLane,
@@ -273,7 +283,7 @@ public sealed class CommandFlowImporter
             AddAnswer(
                 broadcasterId,
                 pipeline,
-                branch.Pool,
+                branch.Answer,
                 spec.Command,
                 ifStep.Id,
                 "then",
@@ -285,46 +295,86 @@ public sealed class CommandFlowImporter
         }
     }
 
-    /// <summary>One answer: roll a line from the pool, then say the rolled line. Two ordinary blocks.</summary>
+    /// <summary>
+    /// One answer: roll each pool it needs, say the composed line, and — when the command speaks — read the
+    /// same line aloud. Every one of these is an ordinary block, in the order a person would place them.
+    /// </summary>
     private void AddAnswer(
         Guid broadcasterId,
         Pipeline pipeline,
-        string pool,
+        CommandFlowAnswer answer,
         string command,
         Guid? parentId,
         string? branchLane,
         ref int order
     )
     {
-        _db.PipelineSteps.Add(
-            new()
-            {
-                Id = Guid.CreateVersion7(),
-                PipelineId = pipeline.Id,
-                BroadcasterId = broadcasterId,
-                ParentStepId = parentId,
-                Branch = branchLane,
-                ActionType = "pick_from_list",
-                ConfigJson = $$"""{"list":"{{ListName(command, pool)}}","variable":"pick"}""",
-                Order = order++,
-                IsEnabled = true,
-            }
+        foreach (CommandFlowPick pick in answer.Picks)
+            AddStep(
+                broadcasterId,
+                pipeline,
+                parentId,
+                branchLane,
+                "pick_from_list",
+                Config(("list", ListName(command, pick.Pool)), ("variable", pick.Variable)),
+                ref order
+            );
+
+        AddStep(
+            broadcasterId,
+            pipeline,
+            parentId,
+            branchLane,
+            "send_message",
+            Config(("message", answer.Message)),
+            ref order
         );
-        _db.PipelineSteps.Add(
-            new()
-            {
-                Id = Guid.CreateVersion7(),
-                PipelineId = pipeline.Id,
-                BroadcasterId = broadcasterId,
-                ParentStepId = parentId,
-                Branch = branchLane,
-                ActionType = "send_message",
-                ConfigJson = """{"message":"{{pick}}"}""",
-                Order = order++,
-                IsEnabled = true,
-            }
-        );
+
+        // The narrative line is spoken as well as printed — these commands talk on stream, and a port that
+        // only printed them would be a quieter, different bot.
+        if (answer.Speak)
+            AddStep(
+                broadcasterId,
+                pipeline,
+                parentId,
+                branchLane,
+                "play_tts",
+                Config(("text", answer.Message)),
+                ref order
+            );
     }
+
+    private void AddStep(
+        Guid broadcasterId,
+        Pipeline pipeline,
+        Guid? parentId,
+        string? branchLane,
+        string actionType,
+        string configJson,
+        ref int order
+    ) =>
+        _db.PipelineSteps.Add(
+            new()
+            {
+                Id = Guid.CreateVersion7(),
+                PipelineId = pipeline.Id,
+                BroadcasterId = broadcasterId,
+                ParentStepId = parentId,
+                Branch = branchLane,
+                ActionType = actionType,
+                ConfigJson = configJson,
+                Order = order++,
+                IsEnabled = true,
+            }
+        );
+
+    /// <summary>
+    /// Builds a step's config with the real serializer rather than string concatenation: a streamer's own
+    /// wording contains quotes, backslashes and emoji, and hand-escaping that into JSON is exactly how an
+    /// imported command ends up with config the engine cannot parse.
+    /// </summary>
+    private static string Config(params (string Key, string Value)[] fields) =>
+        JsonSerializer.Serialize(fields.ToDictionary(f => f.Key, f => f.Value));
 
     private void AttachCommand(
         Guid broadcasterId,
@@ -354,6 +404,8 @@ public sealed class CommandFlowImporter
                 Description = spec.Description,
                 Tier = "pipeline",
                 PipelineId = pipeline.Id,
+                Aliases = spec.Aliases is { Count: > 0 } aliases ? [.. aliases] : [],
+                MinPermissionLevel = spec.MinPermissionLevel ?? 0,
                 IsEnabled = true,
             }
         );
