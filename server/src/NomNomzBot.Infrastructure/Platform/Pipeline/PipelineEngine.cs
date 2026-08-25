@@ -1531,7 +1531,21 @@ public sealed class PipelineEngine : IPipelineEngine
             // rejected row must also be DETACHED: it would otherwise stay tracked on this shared
             // scoped DbContext and poison every subsequent SaveChangesAsync on the same scope
             // (e.g. ChatMessagePersistenceHandler saving on the same request).
-            _db.Entry(row).State = EntityState.Detached;
+            // Best-effort, and it MUST stay that way: this runs inside the catch that guarantees
+            // telemetry never takes down command execution, so anything thrown here would defeat the
+            // very guarantee it is protecting.
+            try
+            {
+                _db.Entry(row).State = EntityState.Detached;
+            }
+            catch (Exception detachEx)
+            {
+                _logger.LogDebug(
+                    detachEx,
+                    "Could not detach the rejected PipelineExecution row for channel {BroadcasterId}.",
+                    request.BroadcasterId
+                );
+            }
             _logger.LogError(
                 ex,
                 "Failed to persist PipelineExecution for pipeline {PipelineId} in channel {BroadcasterId}",
