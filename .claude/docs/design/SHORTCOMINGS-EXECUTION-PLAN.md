@@ -186,11 +186,6 @@ stable — without dropping the planned requirements behind them.
   authoritative, the misleading "only a performance cache" comment is corrected and a write can never
   leave both empty.
 
-- **S-PIPE-BLANK-b** An HTTP-level round-trip test through the pipelines controller — the `f275fdf7`
-  proof is unit-level only, so a future binding/serialization regression at the controller seam (exactly
-  the class of bug that caused the loss) would not be caught. Done-when: a TestServer round-trip saves a
-  pipeline graph and reads it back with steps intact.
-
 - **S-BUDGETS** (owner, 2026-08-25) "a proper budget system to track the payment tiers — most of it is
   based on resource usage, hence the amount of files you can store or commands you can register."
   ESTABLISHED BY GREP: the plumbing already exists — `TierLimit` (TierId/LimitKey/LimitValue),
