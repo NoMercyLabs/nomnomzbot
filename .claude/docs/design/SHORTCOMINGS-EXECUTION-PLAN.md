@@ -207,20 +207,26 @@ stable — without dropping the planned requirements behind them.
   list; and a guard test fails if a NEW picker kind is added without a rich option provider — enumerate
   the kinds from the enum, do not hand-list them.
 
-- **S-SCHEMA-I18N** (systemic, found by S058b) Widget-settings schema field labels and help text have
-  NO i18n mechanism at all — `WidgetSettingsSchemaProvider.cs` serves backend-authored plain English
-  straight to the dashboard form renderer, entirely outside the `strings.xml` en/nl pipeline. Every
-  backend-authored, user-facing schema string is affected, not just widgets: the same question applies to
-  the pipeline action field descriptors (S045) and any other server-supplied label/help/reason text.
-  This blocks the S-CONSEQ law, which requires every control's purpose and effect text in en AND nl.
-  CONFIRMED SECOND SITE (found by S-TTS-TEMPLATED-VOICE): `PipelineActionFieldDescriptor`
-  (Application/Abstractions/Pipeline/PipelineActionFieldDescriptor.cs:48) has **no Description/help-text
-  property at all** — so a pipeline action field physically cannot carry the purpose/effect text the law
-  requires. Same root cause as the widget-schema gap; fix both in the one sweep.
-  Done-when: backend-authored user-facing schema strings resolve through a translation mechanism with
-  en + nl, the dashboard renders the viewer's locale, and a guard test fails on a schema string that has
-  no translation entry. Sweep the WHOLE class in one pass — widgets, action descriptors, and any other
-  server-supplied user-facing text — not one provider at a time.
+- **S-SCHEMA-I18N-b** (mechanism SHIPPED a00b848e — `LocalizedText {key,en,nl}`, `WidgetSettingsSchemaProvider`
+  fully translated 71 fields/21 widgets, `PipelineActionFieldDescriptor` now carries Description, two
+  REFLECTION guard tests that fail on a blank en or nl) TWO REMAINDERS:
+  (a) only 8 of ~46 `ICommandAction` files carry a Description — the other ~38 declare fields with no help
+  text. Description is optional so the guard passes, which means the guard cannot see the gap: either sweep
+  all ~46 or make Description REQUIRED so the guard fails loud on a missing one. Prefer required — an
+  optional field that nothing enforces is the "guard that cannot move" defect again.
+  (b) the dashboard still renders a bare string: Kotlin must consume `{key,en,nl}` and pick the viewer's
+  locale. Done-when: a widget settings form and a pipeline action field both render Dutch under an nl
+  locale, proven by a jvmTest.
+
+- **S-TEXT-TRANSFORM** (generic primitive; requested by the parallel session porting the old bot's
+  commands) `!yell`, `!dramatic`, `!slow`, `!whisper`, `!mock` all transform the CALLER'S OWN message
+  (uppercase, s p a c e d, sPoNgEbOb, ...). We have no text-transform template helper and no case action.
+  Build the GENERIC primitive, never five bespoke commands: `{text.upper:...}` / `lower` / `title` /
+  `spaced` / `alternating` / `reverse` and a trim/truncate, in the existing template-helper namespace
+  ([[template-helpers-rich-structured]], [[generic-primitives-not-bespoke-features]]). Done-when: each
+  transform is proven by a test over real input INCLUDING non-ASCII (Dutch/emoji must not be mangled) and
+  an over-long line, transforms compose, an unknown transform name fails honestly rather than silently
+  returning the input, and the five old-bot commands are expressible with zero new primitives.
 
 - **S-CODE-EDITOR** The code-scripts surface gets a **VS Code-for-web grade editor that functions like
   one** — Monaco-class: completion, hover types, go-to-definition, diagnostics, multi-file — loading a
