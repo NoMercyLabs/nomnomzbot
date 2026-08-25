@@ -38,6 +38,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Card
@@ -676,7 +677,13 @@ private fun ViewerSearchField(
             searchViewers(query).map { user ->
                 PickerOption(
                     id = user.id,
-                    label = user.displayName.ifBlank { user.username }.ifBlank { user.id },
+                    label =
+                        resolveRowLabel(
+                            user.displayName,
+                            secondary = user.username,
+                            typeLabel = "Viewer",
+                            discriminatorSource = user.id,
+                        ),
                     sublabel = user.username,
                 )
             }

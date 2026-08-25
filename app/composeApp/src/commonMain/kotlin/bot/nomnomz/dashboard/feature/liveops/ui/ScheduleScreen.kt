@@ -35,6 +35,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
@@ -175,7 +176,16 @@ fun ScheduleScreen(
     pendingDelete?.let { segment ->
         ConfirmDialog(
             title = stringResource(Res.string.schedule_delete_title),
-            message = stringResource(Res.string.schedule_delete_message, segment.title),
+            message =
+                stringResource(
+                    Res.string.schedule_delete_message,
+                    resolveRowLabel(
+                        segment.title,
+                        secondary = segment.category?.name,
+                        typeLabel = "Segment",
+                        discriminatorSource = segment.id,
+                    ),
+                ),
             confirmLabel = stringResource(Res.string.schedule_delete),
             dismissLabel = stringResource(Res.string.schedule_dialog_cancel),
             destructive = true,
@@ -295,7 +305,13 @@ private fun SegmentRow(
         verticalArrangement = Arrangement.spacedBy(spacing.s1),
     ) {
         Text(
-            text = segment.title.ifBlank { segment.category?.name ?: segment.id },
+            text =
+                resolveRowLabel(
+                    segment.title,
+                    secondary = segment.category?.name,
+                    typeLabel = "Segment",
+                    discriminatorSource = segment.id,
+                ),
             style = typography.base,
             color = tokens.cardForeground,
             maxLines = 1,

@@ -28,6 +28,7 @@ import bot.nomnomz.dashboard.core.network.SoundApi
 import bot.nomnomz.dashboard.core.network.SoundClip
 import bot.nomnomz.dashboard.core.network.TtsApi
 import bot.nomnomz.dashboard.core.network.TtsVoice
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CreatePipelineBody
 import bot.nomnomz.dashboard.core.network.OutboundWebhook
@@ -202,25 +203,25 @@ class PipelinesController(
     private suspend fun loadEditorOptions(channel: String): EditorOptions {
         val endpoints: List<PickerOption> =
             when (val result: ApiResult<List<OutboundWebhook>> = webhooksApi.listOutbound(channel)) {
-                is ApiResult.Ok -> result.value.map { PickerOption(value = it.id, label = it.name) }
+                is ApiResult.Ok -> result.value.map { labeledOption(it.id, it.name, "Webhook") }
                 is ApiResult.Failure -> emptyList()
             }
         val pickLists: List<PickerOption> =
             when (val result: ApiResult<List<PickList>> = pickListsApi.list()) {
-                is ApiResult.Ok -> result.value.map { PickerOption(value = it.name, label = it.name) }
+                is ApiResult.Ok -> result.value.map { labeledOption(it.name, it.name, "Pick list") }
                 is ApiResult.Failure -> emptyList()
             }
         // The channel's overlay widgets (for `widget_event`). Absent widgetsApi or a failed fetch → empty → the
         // widget field falls back to free-text id entry.
         val widgets: List<PickerOption> =
             when (val result: ApiResult<List<WidgetSummary>>? = widgetsApi?.list(channel)) {
-                is ApiResult.Ok -> result.value.map { PickerOption(value = it.id, label = it.name) }
+                is ApiResult.Ok -> result.value.map { labeledOption(it.id, it.name, "Widget") }
                 else -> emptyList()
             }
         // The channel's pipelines by NAME (for `schedule_pipeline`) — the action resolves the pipeline by its name.
         val pipelines: List<PickerOption> =
             when (val result: ApiResult<List<PipelineSummary>> = pipelinesApi.list(channel)) {
-                is ApiResult.Ok -> result.value.map { PickerOption(value = it.name, label = it.name) }
+                is ApiResult.Ok -> result.value.map { labeledOption(it.name, it.name, "Pipeline") }
                 is ApiResult.Failure -> emptyList()
             }
         // The remaining cross-feature entity references the step editor can pick (play_sound, play_tts,
@@ -228,27 +229,27 @@ class PipelinesController(
         // yields an empty list and that field simply shows an empty picker.
         val soundClips: List<PickerOption> =
             when (val result: ApiResult<List<SoundClip>>? = soundApi?.list()) {
-                is ApiResult.Ok -> result.value.map { PickerOption(value = it.id, label = it.name) }
+                is ApiResult.Ok -> result.value.map { labeledOption(it.id, it.name, "Sound clip") }
                 else -> emptyList()
             }
         val ttsVoices: List<PickerOption> =
             when (val result: ApiResult<List<TtsVoice>>? = ttsApi?.voices(channel)) {
-                is ApiResult.Ok -> result.value.map { PickerOption(value = it.id, label = it.name) }
+                is ApiResult.Ok -> result.value.map { labeledOption(it.id, it.name, "Voice") }
                 else -> emptyList()
             }
         val jars: List<PickerOption> =
             when (val result: ApiResult<List<SavingsJar>>? = economyApi?.savingsJars(channel)) {
-                is ApiResult.Ok -> result.value.map { PickerOption(value = it.id, label = it.name) }
+                is ApiResult.Ok -> result.value.map { labeledOption(it.id, it.name, "Savings jar") }
                 else -> emptyList()
             }
         val codeScripts: List<PickerOption> =
             when (val result: ApiResult<List<CodeScriptSummary>>? = codeScriptsApi?.list()) {
-                is ApiResult.Ok -> result.value.map { PickerOption(value = it.id, label = it.name) }
+                is ApiResult.Ok -> result.value.map { labeledOption(it.id, it.name, "Code script") }
                 else -> emptyList()
             }
         val giveaways: List<PickerOption> =
             when (val result: ApiResult<List<Giveaway>>? = giveawaysApi?.list()) {
-                is ApiResult.Ok -> result.value.map { PickerOption(value = it.id, label = it.title) }
+                is ApiResult.Ok -> result.value.map { labeledOption(it.id, it.title, "Giveaway") }
                 else -> emptyList()
             }
         val quotes: List<PickerOption> =
@@ -422,6 +423,14 @@ sealed interface PipelinesState {
 
 /** One entry in a builder dropdown: the [value] written into the param, and the [label] shown to the user. */
 data class PickerOption(val value: String, val label: String)
+
+/**
+ * Builds a [PickerOption] for a cross-feature dropdown, routing the label through [resolveRowLabel]
+ * so a blank-named entity (name/title empty or null from the backend) never renders as an unreadable
+ * blank row a user could still select — it falls back to a typed placeholder discriminated by [id].
+ */
+private fun labeledOption(id: String, name: String?, typeLabel: String): PickerOption =
+    PickerOption(value = id, label = resolveRowLabel(name, typeLabel = typeLabel, discriminatorSource = id))
 
 /**
  * The cross-feature dropdown sources the chain editor offers for specific fields: the channel's outbound

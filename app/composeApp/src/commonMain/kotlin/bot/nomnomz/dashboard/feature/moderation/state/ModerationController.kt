@@ -11,6 +11,7 @@
 package bot.nomnomz.dashboard.feature.moderation.state
 
 import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
@@ -110,7 +111,11 @@ class ModerationController(
         ) {
             is ApiResult.Ok ->
                 result.value.map {
-                    PickerOption(id = it.id, label = it.displayName.ifBlank { it.login }, sublabel = it.login)
+                    PickerOption(
+                        id = it.id,
+                        label = resolveRowLabel(it.displayName, secondary = it.login, typeLabel = "Channel", discriminatorSource = it.id),
+                        sublabel = it.login,
+                    )
                 }
             is ApiResult.Failure -> emptyList()
         }

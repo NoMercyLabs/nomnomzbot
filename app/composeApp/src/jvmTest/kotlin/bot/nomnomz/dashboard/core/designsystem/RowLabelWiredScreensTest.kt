@@ -85,6 +85,36 @@ class RowLabelWiredScreensTest {
                 secondaryB = null,
                 idB = "pool-bbb",
             ),
+            // PipelinesScreen.kt PipelineRow — row text/toggle/edit/delete labels + contentDescription +
+            // delete ConfirmDialog message; no secondary identity field, falls to the typed placeholder.
+            WiredRowCase(
+                screen = "PipelinesScreen.pipeline",
+                typeLabel = "Pipeline",
+                secondaryA = null,
+                idA = "pipeline-aaa",
+                secondaryB = null,
+                idB = "pipeline-bbb",
+            ),
+            // ModerationScreen.kt RuleRow — row text/toggle/delete labels + contentDescription + delete
+            // ConfirmDialog message; secondary identity is the rule's type (e.g. "blocked_word").
+            WiredRowCase(
+                screen = "ModerationScreen.rule",
+                typeLabel = "Rule",
+                secondaryA = "blocked_word",
+                idA = "1",
+                secondaryB = "banned_link",
+                idB = "2",
+            ),
+            // ScheduleScreen.kt SegmentRow — row text + delete ConfirmDialog message; secondary identity is
+            // the segment's category name (previously fell back to the raw segment id — fixed).
+            WiredRowCase(
+                screen = "ScheduleScreen.segment",
+                typeLabel = "Segment",
+                secondaryA = "Just Chatting",
+                idA = "segment-aaa",
+                secondaryB = "Software and Game Development",
+                idB = "segment-bbb",
+            ),
         )
 
     @Test

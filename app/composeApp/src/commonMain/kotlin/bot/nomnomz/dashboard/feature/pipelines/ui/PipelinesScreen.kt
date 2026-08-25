@@ -66,6 +66,7 @@ import bot.nomnomz.dashboard.core.designsystem.icon.ArrowUpGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.EditLineGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -415,7 +416,11 @@ private fun ListContent(
     pendingDelete?.let { pipeline ->
         ConfirmDialog(
             title = stringResource(Res.string.pipelines_delete_title),
-            message = stringResource(Res.string.pipelines_delete_message, pipeline.name),
+            message =
+                stringResource(
+                    Res.string.pipelines_delete_message,
+                    resolveRowLabel(pipeline.name, typeLabel = "Pipeline", discriminatorSource = pipeline.id),
+                ),
             confirmLabel = stringResource(Res.string.pipelines_delete_confirm),
             dismissLabel = stringResource(Res.string.pipelines_delete_cancel),
             destructive = true,
@@ -477,10 +482,12 @@ private fun PipelineRow(
             if (pipeline.isEnabled) Res.string.pipelines_badge_enabled
             else Res.string.pipelines_badge_disabled
         )
-    val toggleLabel: String = stringResource(Res.string.pipelines_toggle_action, pipeline.name)
-    val editChainLabel: String = stringResource(Res.string.pipelines_edit_chain_action, pipeline.name)
-    val renameLabel: String = stringResource(Res.string.pipelines_rename_action, pipeline.name)
-    val deleteLabel: String = stringResource(Res.string.pipelines_delete_action, pipeline.name)
+    val displayName: String =
+        resolveRowLabel(pipeline.name, typeLabel = "Pipeline", discriminatorSource = pipeline.id)
+    val toggleLabel: String = stringResource(Res.string.pipelines_toggle_action, displayName)
+    val editChainLabel: String = stringResource(Res.string.pipelines_edit_chain_action, displayName)
+    val renameLabel: String = stringResource(Res.string.pipelines_rename_action, displayName)
+    val deleteLabel: String = stringResource(Res.string.pipelines_delete_action, displayName)
 
     Row(
         modifier =
@@ -492,12 +499,12 @@ private fun PipelineRow(
         Column(
             modifier =
                 Modifier.weight(1f).clearAndSetSemantics {
-                    contentDescription = "${pipeline.name}, $stateLabel. $snippet"
+                    contentDescription = "$displayName, $stateLabel. $snippet"
                 },
             verticalArrangement = Arrangement.spacedBy(spacing.s1),
         ) {
             Text(
-                text = pipeline.name,
+                text = displayName,
                 style = typography.lg,
                 color = tokens.cardForeground,
                 maxLines = 1,
@@ -575,7 +582,8 @@ private fun ChainEditor(
                 Text(text = backLabel, color = tokens.primary, maxLines = 1)
             }
             Text(
-                text = editing.name,
+                text =
+                    resolveRowLabel(editing.name, typeLabel = "Pipeline", discriminatorSource = editing.pipelineId),
                 style = typography.xl2,
                 color = tokens.foreground,
                 maxLines = 1,

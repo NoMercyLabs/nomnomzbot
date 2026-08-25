@@ -55,6 +55,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
 import bot.nomnomz.dashboard.core.designsystem.component.TabsList
 import bot.nomnomz.dashboard.core.designsystem.component.TabsTrigger
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -1007,7 +1008,16 @@ private fun BansList(
     pendingDeleteRule?.let { rule ->
         ConfirmDialog(
             title = stringResource(Res.string.moderation_rules_delete_title),
-            message = stringResource(Res.string.moderation_rules_delete_message, rule.name),
+            message =
+                stringResource(
+                    Res.string.moderation_rules_delete_message,
+                    resolveRowLabel(
+                        rule.name,
+                        secondary = rule.type,
+                        typeLabel = "Rule",
+                        discriminatorSource = rule.id.toString(),
+                    ),
+                ),
             confirmLabel = stringResource(Res.string.moderation_rules_delete_confirm),
             dismissLabel = stringResource(Res.string.moderation_rules_delete_dismiss),
             destructive = true,
@@ -2022,14 +2032,16 @@ private fun RuleRow(
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
+    val displayName: String =
+        resolveRowLabel(rule.name, secondary = rule.type, typeLabel = "Rule", discriminatorSource = rule.id.toString())
     val toggleLabel: String =
         stringResource(
             if (rule.isEnabled) Res.string.moderation_rules_disable_action
             else Res.string.moderation_rules_enable_action,
-            rule.name,
+            displayName,
         )
-    val deleteLabel: String = stringResource(Res.string.moderation_rules_delete_action, rule.name)
-    val rowDescription: String = "${rule.name}, ${rule.type}"
+    val deleteLabel: String = stringResource(Res.string.moderation_rules_delete_action, displayName)
+    val rowDescription: String = "$displayName, ${rule.type}"
 
     Row(
         modifier = Modifier
@@ -2045,7 +2057,7 @@ private fun RuleRow(
             verticalArrangement = Arrangement.spacedBy(spacing.s1),
         ) {
             Text(
-                text = rule.name,
+                text = displayName,
                 style = typography.base,
                 color = tokens.cardForeground,
                 maxLines = 1,
