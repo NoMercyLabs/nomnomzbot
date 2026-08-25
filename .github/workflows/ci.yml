@@ -155,25 +155,65 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
+          # BLUE/GREEN. There is no `api` service: docker-compose.yml fronts TWO api-* services with
+          # Caddy, which routes to whichever passes health (see scripts/switchover.ps1, the same
+          # procedure this mirrors for the Linux/SSH deploy path). Deploying `api` failed with
+          # "no such service: api" and left the box serving nothing.
           # set -e: a failed pull/up must fail the job, not silently fall through to the health poll.
           script: |
             set -e
             docker pull ghcr.io/nomercylabs/nomnomzbot:latest
             cd /opt/nomnomzbot
-            API_IMAGE=ghcr.io/nomercylabs/nomnomzbot:latest \
-              docker compose up -d --no-deps --pull always api
-            docker compose logs api --tail=20
+            # api-green is profiled so a bare `up -d` cannot start both colours; export the profile so
+            # every compose call below can still address green explicitly.
+            export COMPOSE_PROFILES=green
 
-            # Fail the job (not just the container) on a deploy that never comes up healthy — CI green with
-            # a broken container running in prod is worse than no deploy at all.
+            # Which colour is live? Ask docker rather than tracking state, so a re-run after a failed
+            # attempt converges instead of double-switching.
+            ps_out=$(docker ps --filter name=nomnomzbot-api- --format '{{.Names}}' || true)
+            blue_up=$(echo "$ps_out" | grep -c 'nomnomzbot-api-blue' || true)
+            green_up=$(echo "$ps_out" | grep -c 'nomnomzbot-api-green' || true)
+
+            if [ "$blue_up" -gt 0 ] && [ "$green_up" -gt 0 ]; then
+              echo "Both api-blue and api-green are running — ambiguous state from a half-finished switchover."
+              echo "Resolve manually (stop the one Caddy is NOT routing to) before deploying again."
+              exit 1
+            fi
+
+            # Neither running (first deploy on this host) -> treat blue as live so we bring up green.
+            if [ "$green_up" -gt 0 ]; then live=green; idle=blue; else live=blue; idle=green; fi
+            echo "Live colour: api-$live -> deploying api-$idle"
+
+            API_IMAGE=ghcr.io/nomercylabs/nomnomzbot:latest \
+              docker compose up -d --no-deps --pull always "api-$idle"
+            docker compose logs "api-$idle" --tail=20
+
+            # Wait for the NEW colour's own /health/ready, in-container rather than through Caddy, so a
+            # still-healthy old instance cannot make a broken new one look ready.
+            ready=0
             for i in $(seq 1 30); do
-              status=$(docker inspect --format '{{.State.Health.Status}}' nomnomzbot-api 2>/dev/null || echo "starting")
-              if [ "$status" = "healthy" ]; then
-                echo "Deploy healthy after ${i}0s"
-                exit 0
+              code=$(docker exec "nomnomzbot-api-$idle" curl -s -o /dev/null -w '%{http_code}' \
+                http://localhost:5000/health/ready 2>/dev/null || echo "000")
+              if [ "$code" = "200" ]; then
+                echo "api-$idle ready after ${i}0s"
+                ready=1
+                break
               fi
               sleep 10
             done
-            echo "Container never reported healthy — deploy FAILED"
-            docker compose logs api --tail=100
-            exit 1
+
+            if [ "$ready" != "1" ]; then
+              echo "api-$idle never passed /health/ready — leaving api-$live serving, nothing cut over."
+              docker compose logs "api-$idle" --tail=100
+              docker compose stop "api-$idle" || true
+              exit 1
+            fi
+
+            # Only now drain the old colour. The app fails /health/ready on SIGTERM so Caddy stops
+            # routing to it immediately; -t is the drain window for in-flight requests.
+            if [ "$blue_up" -gt 0 ] || [ "$green_up" -gt 0 ]; then
+              docker compose stop -t 25 "api-$live"
+              echo "api-$live stopped (drained)"
+            else
+              echo "First deploy on this host — no previous colour to stop."
+            fi

@@ -164,7 +164,7 @@ function Start-ComposeStack {
     }
 
     Write-Host ''
-    Write-Error 'The API did not become ready within 3 minutes — inspect it with: docker compose logs -f api'
+    Write-Error 'The API did not become ready within 3 minutes — inspect it with: docker compose logs -f api-blue api-green'
     exit 1
 }
 

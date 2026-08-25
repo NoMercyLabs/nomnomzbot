@@ -119,16 +119,34 @@ $imageJob = gh run view $runId --json jobs --jq '[.jobs[] | select(.name | test(
 if ([string]::IsNullOrWhiteSpace($imageJob)) { $imageJob = "success" }
 Write-Host "SHIP: CI green (image job: $imageJob)."
 
-# ── 3. Deploy: pull + restart the API, poll readiness, verify image freshness ─
+# ── 3. Deploy: blue/green switchover, poll readiness, verify image freshness ─
+# There is no `api` service — docker-compose.yml fronts api-blue/api-green with Caddy, which routes to
+# whichever passes health. `docker compose up -d api` fails with "no such service: api" and deploys
+# nothing (it did exactly that on 2026-08-25). Pick the idle colour, start it, then drain the old one.
 $remote = @"
-cd $deployDir && docker compose pull -q api && docker compose up -d api >/dev/null 2>&1
+cd $deployDir
+export COMPOSE_PROFILES=green
+ps_out=`$(docker ps --filter name=nomnomzbot-api- --format '{{.Names}}' || true)
+blue_up=`$(echo "`$ps_out" | grep -c 'nomnomzbot-api-blue' || true)
+green_up=`$(echo "`$ps_out" | grep -c 'nomnomzbot-api-green' || true)
+if [ "`$blue_up" -gt 0 ] && [ "`$green_up" -gt 0 ]; then
+  echo "health=000"; echo "ambiguous=both-colours-running"; exit 0
+fi
+if [ "`$green_up" -gt 0 ]; then live=green; idle=blue; else live=blue; idle=green; fi
+docker compose pull -q "api-`$idle" && docker compose up -d --no-deps "api-`$idle" >/dev/null 2>&1
 code=000
 for i in `$(seq 1 $([math]::Ceiling($HealthTimeoutSec / 8))); do
-  code=`$(curl -s -o /dev/null -w '%{http_code}' http://localhost:5080/health/ready)
+  code=`$(docker exec "nomnomzbot-api-`$idle" curl -s -o /dev/null -w '%{http_code}' http://localhost:5000/health/ready 2>/dev/null || echo 000)
   [ "`$code" = "200" ] && break
   sleep 8
 done
 echo "health=`$code"
+echo "deployed_colour=`$idle"
+if [ "`$code" = "200" ]; then
+  if [ "`$blue_up" -gt 0 ] || [ "`$green_up" -gt 0 ]; then docker compose stop -t 25 "api-`$live" >/dev/null 2>&1; fi
+else
+  docker compose stop "api-`$idle" >/dev/null 2>&1 || true
+fi
 echo "image_created=`$(docker inspect --format '{{.Created}}' ghcr.io/nomercylabs/nomnomzbot:latest)"
 echo "image_digest=`$(docker inspect --format '{{index .RepoDigests 0}}' ghcr.io/nomercylabs/nomnomzbot:latest)"
 echo "container=`$(docker ps --filter name=nomnomzbot-api --format '{{.Status}}')"

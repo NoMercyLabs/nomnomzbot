@@ -137,7 +137,7 @@ compose_up_and_wait() {
   done
 
   echo
-  die "the API did not become ready within 3 minutes — inspect it with: docker compose logs -f api"
+  die "the API did not become ready within 3 minutes — inspect it with: docker compose logs -f api-blue api-green"
 }
 
 # --- scenario: desktop (self_host_lite — single-file binary) -------------------

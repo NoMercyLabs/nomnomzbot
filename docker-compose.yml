@@ -133,9 +133,12 @@ services:
       - "${API_HTTP_PORT:-5080}:80"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    # Only blue is a startup dependency. api-green is profiled (see below), and a depends_on entry
+    # for a profiled service makes the DEFAULT project invalid ("depends on undefined service").
+    # Caddy needs no such dependency anyway: it actively health-checks both colours and forwards to
+    # whichever passes, logging a harmless "no such host" for a colour that is not currently running.
     depends_on:
       - api-blue
-      - api-green
     restart: unless-stopped
     networks:
       - nomnomzbot
@@ -147,6 +150,13 @@ services:
   api-green:
     <<: *api-service
     container_name: nomnomzbot-api-green
+    # Profiled so a bare `docker compose up -d` (deploy.sh / deploy.ps1, the first-run path) starts
+    # ONLY blue. Without this both colours come up at once, which means two bots on the same channel —
+    # duplicate EventSub subscriptions and duplicate chat replies — and it also wedges the blue/green
+    # switchover, which refuses to act when it cannot tell which colour is live.
+    # The deploy paths address green explicitly with COMPOSE_PROFILES=green (see ci.yml, ship.ps1,
+    # switchover.ps1); blue needs no profile because it is the default live colour.
+    profiles: ["green"]
 
   postgres:
     image: postgres:16-alpine

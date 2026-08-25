@@ -80,9 +80,15 @@ function Invoke-NativeCommand([string]$cmd) {
     return @{ Output = $out.TrimEnd("`r", "`n"); ExitCode = $LASTEXITCODE }
 }
 
+# Local runs need the same profile visible to compose (see the remote branch below).
+$env:COMPOSE_PROFILES = "green"
+
 function Invoke-Target([string]$cmd) {
     if ($remoteMode) {
-        $full = "cd $deployDir && $cmd"
+        # api-green is profiled in docker-compose.yml so a bare `up -d` cannot start BOTH
+        # colours (two bots = duplicate EventSub + duplicate chat). Export it so the colour
+        # commands below can still address green explicitly.
+        $full = "cd $deployDir && export COMPOSE_PROFILES=green && $cmd"
         $result = Invoke-NativeCommand "ssh -i $sshKey -o StrictHostKeyChecking=accept-new $sshTarget `"$full`""
         if ($result.ExitCode -ne 0) { Fail "remote command failed (`"$cmd`"): $($result.Output)" }
         Write-Host $result.Output
@@ -104,7 +110,7 @@ function Invoke-Target([string]$cmd) {
 # yet" / "not running yet" is an expected, retried outcome, not a hard error.
 function Invoke-TargetSoft([string]$cmd) {
     if ($remoteMode) {
-        $full = "cd $deployDir && $cmd"
+        $full = "cd $deployDir && export COMPOSE_PROFILES=green && $cmd"
         return (Invoke-NativeCommand "ssh -i $sshKey -o StrictHostKeyChecking=accept-new $sshTarget `"$full`"").Output
     }
     else {
