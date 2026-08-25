@@ -90,18 +90,22 @@ stable — without dropping the planned requirements behind them.
   review without its purpose text, its effect text and — where it destroys or disables — its counted
   blast radius; a guard test fails on a control that ships without them.
 
-- **S-PIPE-TREE** Pipelines become a TREE, designed before any code is written (owner: "gets truly
-  thought about before you make any code for it"). N triggers per pipeline (add/remove/reorder);
-  nested `If / Else-if / Else` blocks containing their own sub-chains at any depth; a boolean
-  condition TREE per branch (`(A and B) or (C and not D)`), groupable and re-groupable; loops
-  (repeat-N and for-each, with execution caps + timeout guards); wait-for-event / resume-later
-  (pipeline runs become long-lived persisted state); sub-pipeline calls with arguments and a return
-  value. Editor = **nested block list** with indentation, drag to reorder and drag into/out of a
-  branch — NOT a node graph (a graph may later be a second renderer over the same tree, never a
-  second model). Everything generic and composable, no bespoke blocks. Input: the old-bot capability
-  analysis (`old-bot-pipeline-capability-analysis.md`) — his real behaviours, and the old bot's bugs,
-  are requirements. Done-when: the model + editor express every behaviour in that analysis's gap list
-  without a bespoke block, proven by round-tripping his real imported pipelines.
+- **S-PIPE-TREE-d** (the tree's remaining execution features; a/b/c are DONE + verified)
+  SHIPPED SO FAR: design spec settled (2d9ace73) - schema + N-triggers + condition-tree columns
+  (a0c15f9f, 1ab030a9) - `BlockKind`/`BlockConfigJson` + parent/child arms (8d1602b4) - ENGINE EXECUTES
+  THE TREE (f9368199, verified 4082/4084): `if`, `switch`, `switch_case`, `loop` (repeat/foreach/while),
+  `random_branch`, `random_case`, `try`, `detached_step`, condition trees over a full truth table,
+  3-level nesting, `MaxRecursionDepth=8`, runaway loops stopped by BOTH an iteration cap and a wall-clock
+  guard. Flat pipelines route through the ORIGINAL unmodified path (`RunStepsAsync` body unchanged, only
+  its callsite gated) so the owner's imported pipelines are untouched.
+  STILL TO BUILD: (1) `wait_for_event` / resume-later — runs become long-lived PERSISTED state in
+  `PipelineRunState` (variable bag, tree position, loop/switch cursors) surviving process restart, with
+  timeouts, cancellation on stream-offline, and suspended wall-clock NOT counting against `MaxRuntime`;
+  (2) `run_pipeline` sub-pipeline calls with arguments and a return value (`return_value`), honouring the
+  recursion depth limit; (3) `break`/`continue` actions inside loops. Follow
+  `.claude/docs/design/spec/pipeline-tree-and-editor.md` — all three are already specced.
+  THEN: the nested block-list EDITOR (add/remove/reorder, drag into and out of a branch, condition-tree
+  grouping, consequence + blast-radius surfaces) — that is its own slice and the owner's actual ask.
 
 - **S-PIPE-WRITE-SYMMETRY** (from the S-PIPE-BLANK post-mortem) Pipeline writes and reads use two
   representations that can silently diverge: `GetAsync` falls back to normalized `PipelineStep` rows,
