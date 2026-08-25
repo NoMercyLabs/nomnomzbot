@@ -168,6 +168,18 @@ stable — without dropping the planned requirements behind them.
   Note this generalises: ANY security-relevant alert delivered only via transient SignalR has the same
   hole — sweep that class, do not fix impersonation alone.
 
+- **S-NAMELESS-ROWS-b** (paused mid-work 2026-08-25 when parallelism was throttled) The shared mechanism
+  `resolveRowLabel` (core/designsystem/RowLabel.kt) and the worked example `PickListsScreen` shipped in
+  fa9391a3; `RowLabelGuardTest` holds a burn-down BASELINE of unfixed sites so no NEW raw site can appear.
+  18 files still need wiring: CommandsScreen, GiveawaysScreen, RewardsScreen, WidgetSettingsForms,
+  PipelinesScreen, PipelinesController, HomeController, ModerationController, EconomyController,
+  CommunityController, ScheduleController, TtsController, RolesScreen, ParticipantShell, ShellScreen,
+  AutomationScreen, ConnectScreen, AnalyticsScreen, CodeScriptsController.
+  **UNCOMMITTED PARTIAL WORK SITS IN THE TREE:** `feature/commands/ui/CommandsScreen.kt` is mid-wiring and
+  both `strings.xml` files already carry its new keys — RESUME from there rather than restarting that
+  file, and check the en/nl keys are not duplicated. Remove each fixed file from the guard baseline as
+  you go; a file left in the baseline that no longer needs it is a lie.
+
 - **S-RICH-PICKERS** (owner, 2026-08-25) "item pickers get a rich item list and not just a template
   string or something not easily understandable." S045 shipped the picker KINDS (`reward`, `widget`,
   `voice`, `sound_clip`, `discord_channel`, `discord_role`, `twitch_user`, `asset`); this makes the
