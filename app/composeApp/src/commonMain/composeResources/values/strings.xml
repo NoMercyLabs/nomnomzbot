@@ -285,6 +285,17 @@
     <string name="home_activity_timeout">%1$s was timed out</string>
     <string name="home_activity_mod_add">%1$s added as moderator</string>
     <string name="home_activity_mod_remove">%1$s removed as moderator</string>
+    <string name="home_activity_subscribe_tier">%1$s subscribed at Tier %2$s</string>
+    <string name="home_activity_resub_months">%1$s resubscribed — %2$d months at Tier %3$s</string>
+    <string name="home_activity_resub_months_streak">%1$s resubscribed — %2$d months (%3$d in a row) at Tier %4$s</string>
+    <string name="home_activity_gift_count">%1$s gifted %2$d Tier %3$s subs</string>
+    <string name="home_activity_gift_anonymous">An anonymous gifter gave %1$d Tier %2$s subs</string>
+    <string name="home_activity_redemption_named_cost">%1$s redeemed %2$s for %3$d points</string>
+    <string name="home_activity_timeout_duration">%1$s was timed out for %2$s</string>
+    <string name="home_activity_duration_seconds">%1$ds</string>
+    <string name="home_activity_duration_minutes">%1$dm</string>
+    <string name="home_activity_duration_hours">%1$dh</string>
+    <string name="home_activity_duration_days">%1$dd</string>
     <string name="home_activity_event">Channel event</string>
 
     <!-- Top commands panel on Home -->

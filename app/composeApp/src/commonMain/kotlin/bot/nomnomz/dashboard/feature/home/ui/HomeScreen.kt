@@ -115,6 +115,17 @@ import nomnomzbot.composeapp.generated.resources.home_activity_follow
 import nomnomzbot.composeapp.generated.resources.home_activity_mod_add
 import nomnomzbot.composeapp.generated.resources.home_activity_mod_remove
 import nomnomzbot.composeapp.generated.resources.home_activity_cheer_with_bits
+import nomnomzbot.composeapp.generated.resources.home_activity_duration_days
+import nomnomzbot.composeapp.generated.resources.home_activity_duration_hours
+import nomnomzbot.composeapp.generated.resources.home_activity_duration_minutes
+import nomnomzbot.composeapp.generated.resources.home_activity_duration_seconds
+import nomnomzbot.composeapp.generated.resources.home_activity_gift_anonymous
+import nomnomzbot.composeapp.generated.resources.home_activity_gift_count
+import nomnomzbot.composeapp.generated.resources.home_activity_redemption_named_cost
+import nomnomzbot.composeapp.generated.resources.home_activity_resub_months
+import nomnomzbot.composeapp.generated.resources.home_activity_resub_months_streak
+import nomnomzbot.composeapp.generated.resources.home_activity_subscribe_tier
+import nomnomzbot.composeapp.generated.resources.home_activity_timeout_duration
 import nomnomzbot.composeapp.generated.resources.home_activity_raid
 import nomnomzbot.composeapp.generated.resources.home_activity_raid_with_viewers
 import nomnomzbot.composeapp.generated.resources.home_activity_redemption
@@ -703,6 +714,47 @@ private fun intFromData(data: String?, field: String): Int? =
                 .getOrNull()
         }
 
+// Payload readers, all tolerant in the same way: an absent field, a wrong type, or unparseable JSON yields
+// null so the row falls back to its figureless wording rather than showing a wrong or zero value.
+private fun stringFromData(data: String?, field: String): String? =
+    data
+        ?.takeIf { it.isNotBlank() }
+        ?.let {
+            runCatching { Json.parseToJsonElement(it).jsonObject[field]?.jsonPrimitive?.contentOrNull }
+                .getOrNull()
+        }
+        ?.takeIf { it.isNotBlank() }
+
+private fun boolFromData(data: String?, field: String): Boolean? =
+    stringFromData(data, field)?.lowercase()?.let {
+        when (it) {
+            "true" -> true
+            "false" -> false
+            else -> null
+        }
+    }
+
+// Twitch reports sub tiers as "1000"/"2000"/"3000". Showing the raw number would read as a price.
+@Composable
+private fun tierLabel(tier: String?): String =
+    when (tier) {
+        "1000" -> "1"
+        "2000" -> "2"
+        "3000" -> "3"
+        null, "" -> "1"
+        else -> tier
+    }
+
+// Compact, largest sensible unit — a 600-second timeout reads as "10m", not "600s".
+@Composable
+private fun formatDuration(seconds: Int): String =
+    when {
+        seconds >= 86_400 -> stringResource(Res.string.home_activity_duration_days, seconds / 86_400)
+        seconds >= 3_600 -> stringResource(Res.string.home_activity_duration_hours, seconds / 3_600)
+        seconds >= 60 -> stringResource(Res.string.home_activity_duration_minutes, seconds / 60)
+        else -> stringResource(Res.string.home_activity_duration_seconds, seconds)
+    }
+
 @Composable
 private fun ActivityRow(event: ActivityEvent) {
     val tokens = LocalTokens.current
@@ -713,16 +765,44 @@ private fun ActivityRow(event: ActivityEvent) {
     // A redemption carries its reward name in the {"rewardTitle":…} data payload — show WHICH reward, not just
     // that one was redeemed. Absent/unparseable → the generic wording.
     val rewardTitle: String? = rewardTitleFromData(event.data)
-    // A raid's whole point is how many people arrived, and a cheer's is how many bits — the backend already
-    // records both on the event payload, so showing "Raided by X" alone threw away the number the streamer
-    // actually reads the feed for.
+    // Every figure the backend records on an event (TwitchChannelEventLogProjection) — the feed used to
+    // render bare labels and discard all of it, so "QTkittE resubscribed" hid the month count that is the
+    // entire reason anyone reads a resub line.
     val viewerCount: Int? = intFromData(event.data, "viewerCount")
     val bits: Int? = intFromData(event.data, "bits")
+    val cumulativeMonths: Int? = intFromData(event.data, "cumulativeMonths")
+    val streakMonths: Int? = intFromData(event.data, "streakMonths")
+    val giftCount: Int? = intFromData(event.data, "giftCount")
+    val cost: Int? = intFromData(event.data, "cost")
+    val durationSeconds: Int? = intFromData(event.data, "durationSeconds")
+    val isAnonymous: Boolean = boolFromData(event.data, "isAnonymous") == true
+    val tier: String = tierLabel(stringFromData(event.data, "tier"))
+    val duration: String? = durationSeconds?.let { formatDuration(it) }
     val label: String = when (event.type) {
         "channel.follow" -> stringResource(Res.string.home_activity_follow, who)
-        "channel.subscribe" -> stringResource(Res.string.home_activity_subscribe, who)
-        "channel.subscription.message" -> stringResource(Res.string.home_activity_resub, who)
-        "channel.subscription.gift" -> stringResource(Res.string.home_activity_subscription_gift, who)
+        "channel.subscribe" -> stringResource(Res.string.home_activity_subscribe_tier, who, tier)
+        "channel.subscription.message" ->
+            when {
+                cumulativeMonths != null && streakMonths != null && streakMonths > 1 ->
+                    stringResource(
+                        Res.string.home_activity_resub_months_streak,
+                        who,
+                        cumulativeMonths,
+                        streakMonths,
+                        tier,
+                    )
+                cumulativeMonths != null ->
+                    stringResource(Res.string.home_activity_resub_months, who, cumulativeMonths, tier)
+                else -> stringResource(Res.string.home_activity_resub, who)
+            }
+        "channel.subscription.gift" ->
+            when {
+                isAnonymous && giftCount != null ->
+                    stringResource(Res.string.home_activity_gift_anonymous, giftCount, tier)
+                giftCount != null ->
+                    stringResource(Res.string.home_activity_gift_count, who, giftCount, tier)
+                else -> stringResource(Res.string.home_activity_subscription_gift, who)
+            }
         "channel.cheer" ->
             if (bits != null) {
                 stringResource(Res.string.home_activity_cheer_with_bits, who, bits)
@@ -736,13 +816,25 @@ private fun ActivityRow(event: ActivityEvent) {
                 stringResource(Res.string.home_activity_raid, who)
             }
         "channel.channel_points_custom_reward_redemption.add" ->
-            if (rewardTitle != null) {
-                stringResource(Res.string.home_activity_redemption_named, who, rewardTitle)
-            } else {
-                stringResource(Res.string.home_activity_redemption, who)
+            when {
+                rewardTitle != null && cost != null ->
+                    stringResource(
+                        Res.string.home_activity_redemption_named_cost,
+                        who,
+                        rewardTitle,
+                        cost,
+                    )
+                rewardTitle != null ->
+                    stringResource(Res.string.home_activity_redemption_named, who, rewardTitle)
+                else -> stringResource(Res.string.home_activity_redemption, who)
             }
         "channel.ban" -> stringResource(Res.string.home_activity_ban, who)
-        "channel.timeout" -> stringResource(Res.string.home_activity_timeout, who)
+        "channel.timeout" ->
+            if (duration != null) {
+                stringResource(Res.string.home_activity_timeout_duration, who, duration)
+            } else {
+                stringResource(Res.string.home_activity_timeout, who)
+            }
         "channel.moderator.add" -> stringResource(Res.string.home_activity_mod_add, who)
         "channel.moderator.remove" -> stringResource(Res.string.home_activity_mod_remove, who)
         else -> stringResource(Res.string.home_activity_event)
