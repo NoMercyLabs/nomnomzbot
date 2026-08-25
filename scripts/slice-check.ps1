@@ -60,6 +60,15 @@ try {
     dotnet csharpier check @resolvedPaths
     if ($LASTEXITCODE -ne 0) { throw 'csharpier check failed on slice files' }
 
+    Write-Host '== cleanup (unused usings, slice files only) =='
+    # IDE0005 only (S-cleanup, server/.editorconfig): csharpier is formatting-only and never touches
+    # this. Scoped to the slice's own paths for the same reason as the csharpier calls above — don't
+    # let one slice fix files another in-flight session owns. Migrations are excluded in .editorconfig
+    # itself ([**/Migrations/*.cs] -> IDE0005 = none), not here, so this include list stays simple.
+    [string[]]$relativePaths = $resolvedPaths | ForEach-Object { [System.IO.Path]::GetRelativePath($server, $_) }
+    dotnet format style NomNomzBot.slnx --include @relativePaths --severity warn --no-restore
+    if ($LASTEXITCODE -ne 0) { throw 'dotnet format style failed on slice files' }
+
     Write-Host 'SLICE CHECK OK - safe to commit with: git commit --only -m "..." -- <paths>'
 }
 finally {

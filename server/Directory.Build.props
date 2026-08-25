@@ -23,6 +23,6 @@
     <!-- Turning on GenerateDocumentationFile also surfaces pre-existing malformed XML doc comments
          (bad <see cref>/<paramref> targets) as build errors even though we don't want doc output at
          all — suppress the whole missing/malformed-doc-comment family, not just CS1591. -->
-    <NoWarn>$(NoWarn);CS1591;CS1570;CS1571;CS1572;CS1573;CS1574;CS1580;CS1581;CS1584;CS1658</NoWarn>
+    <NoWarn>$(NoWarn);CS1591;CS1570;CS1571;CS1572;CS1573;CS1574;CS1580;CS1581;CS1584;CS1658;CS1734;CS0419</NoWarn>
   </PropertyGroup>
 </Project>

@@ -156,7 +156,12 @@ internal sealed class FakeIntegrationTokenVault : IIntegrationTokenVault
         CancellationToken cancellationToken = default
     )
     {
-        if (!_tokens.TryGetValue(connectionId, out var entry))
+        if (
+            !_tokens.TryGetValue(
+                connectionId,
+                out (string Access, string? Refresh, DateTime? ExpiresAt) entry
+            )
+        )
             return Task.FromResult(
                 Result.Failure<DecryptedTokenDto>("No such token.", "NOT_FOUND")
             );
@@ -179,7 +184,12 @@ internal sealed class FakeIntegrationTokenVault : IIntegrationTokenVault
         CancellationToken cancellationToken = default
     )
     {
-        if (!_tokens.TryGetValue(connectionId, out var entry) || entry.Refresh is null)
+        if (
+            !_tokens.TryGetValue(
+                connectionId,
+                out (string Access, string? Refresh, DateTime? ExpiresAt) entry
+            ) || entry.Refresh is null
+        )
             return Task.FromResult(
                 Result.Failure<DecryptedTokenDto>("No refresh token on file.", "NOT_FOUND")
             );
@@ -198,7 +208,10 @@ internal sealed class FakeIntegrationTokenVault : IIntegrationTokenVault
         CancellationToken cancellationToken = default
     )
     {
-        _tokens.TryGetValue(connectionId, out var existing);
+        _tokens.TryGetValue(
+            connectionId,
+            out (string Access, string? Refresh, DateTime? ExpiresAt) existing
+        );
         _tokens[connectionId] = (
             tokens.AccessToken,
             tokens.RefreshToken ?? existing.Refresh,
