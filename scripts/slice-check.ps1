@@ -101,9 +101,18 @@ try {
             --output="$inspectReport" --severity=WARNING
     }
 
-    [string[]]$gated = @('RedundantSuppressNullableWarningExpression', 'MergeIntoPattern')
+    # Gate by CATEGORY, not by a list of ids. The owner's examples (a redundant `!`, a mergeable
+    # pattern) are two members of two families; a hardcoded pair would just hand him the siblings
+    # instead. CodeRedundancy + LanguageUsage are the families those two live in. Unused-symbol
+    # noise (UnusedMember/UnusedType/...) is deliberately NOT gated: a symbol used only by a
+    # not-yet-written caller is normal mid-slice, and failing on it would make the gate lie.
+    [string[]]$gatedCategories = @('CodeRedundancy', 'LanguageUsage')
     [xml]$inspected = Get-Content $inspectReport
-    [object[]]$hits = $inspected.SelectNodes('//Issue') | Where-Object { $gated -contains $_.TypeId }
+    [hashtable]$categoryOf = @{}
+    foreach ($type in $inspected.SelectNodes('//IssueType')) { $categoryOf[$type.Id] = $type.CategoryId }
+    [object[]]$hits = $inspected.SelectNodes('//Issue') | Where-Object {
+        $gatedCategories -contains $categoryOf[$_.TypeId]
+    }
     if ($hits.Count -gt 0) {
         $hits | ForEach-Object { Write-Host ("  {0}:{1} {2}" -f $_.File, $_.Line, $_.Message) }
         throw "ReSharper found $($hits.Count) gated issue(s) - fix them before committing"
