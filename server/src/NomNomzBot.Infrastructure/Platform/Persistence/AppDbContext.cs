@@ -255,6 +255,7 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<IamPrincipal> IamPrincipals => Set<IamPrincipal>();
     public DbSet<IamRoleAssignment> IamRoleAssignments => Set<IamRoleAssignment>();
     public DbSet<IamAuditLog> IamAuditLogs => Set<IamAuditLog>();
+    public DbSet<SecurityNotice> SecurityNotices => Set<SecurityNotice>();
 
     // Economy — currency core (economy.md K.1-K.3)
     public DbSet<Domain.Economy.Entities.CurrencyConfig> CurrencyConfigs =>

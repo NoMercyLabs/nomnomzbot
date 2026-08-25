@@ -14,6 +14,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Identity.Dtos;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Events;
 using NSubstitute;
 
@@ -39,6 +42,34 @@ public sealed class ImpersonationBroadcastHandlerTests
     private static readonly Guid UnknownGrantId = Guid.Parse(
         "0192f200-0000-7000-8000-00000000f999"
     );
+
+    /// <summary>A stub that always durably records successfully — these tests assert the TRANSIENT
+    /// SignalR path; the durable-record path itself is proven by SecurityNoticeServiceTests
+    /// (Infrastructure.Tests).</summary>
+    private static ISecurityNoticeService StubSecurityNotices()
+    {
+        ISecurityNoticeService stub = Substitute.For<ISecurityNoticeService>();
+        stub.RecordAsync(Arg.Any<RecordSecurityNoticeRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new SecurityNoticeDto(
+                        Guid.NewGuid(),
+                        "stub",
+                        "stub",
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        DateTime.UtcNow,
+                        null,
+                        null
+                    )
+                )
+            );
+        return stub;
+    }
 
     private static async Task<ImpersonationTestDbContext> SeedGrantAsync(
         Guid? scopeChannelId,
@@ -84,6 +115,7 @@ public sealed class ImpersonationBroadcastHandlerTests
         DateTime expiresAt = new(2026, 8, 24, 0, 0, 0, DateTimeKind.Utc);
         await new ImpersonationStartedBroadcastHandler(
             notifier,
+            StubSecurityNotices(),
             db,
             NullLogger<ImpersonationStartedBroadcastHandler>.Instance
         ).HandleAsync(
@@ -141,6 +173,7 @@ public sealed class ImpersonationBroadcastHandlerTests
 
         await new ImpersonationEndedBroadcastHandler(
             notifier,
+            StubSecurityNotices(),
             db,
             NullLogger<ImpersonationEndedBroadcastHandler>.Instance
         ).HandleAsync(
@@ -195,6 +228,7 @@ public sealed class ImpersonationBroadcastHandlerTests
 
         await new ImpersonationEndedBroadcastHandler(
             notifier,
+            StubSecurityNotices(),
             db,
             NullLogger<ImpersonationEndedBroadcastHandler>.Instance
         ).HandleAsync(
@@ -229,6 +263,7 @@ public sealed class ImpersonationBroadcastHandlerTests
 
         await new ImpersonationStartedBroadcastHandler(
             notifier,
+            StubSecurityNotices(),
             db,
             NullLogger<ImpersonationStartedBroadcastHandler>.Instance
         ).HandleAsync(
@@ -260,7 +295,12 @@ public sealed class ImpersonationBroadcastHandlerTests
             ILogger<ImpersonationEndedBroadcastHandler>
         >();
 
-        await new ImpersonationEndedBroadcastHandler(notifier, db, logger).HandleAsync(
+        await new ImpersonationEndedBroadcastHandler(
+            notifier,
+            StubSecurityNotices(),
+            db,
+            logger
+        ).HandleAsync(
             new()
             {
                 BroadcasterId = Guid.Empty,

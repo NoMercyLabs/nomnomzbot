@@ -169,6 +169,7 @@ public interface IApplicationDbContext
     DbSet<IamPrincipal> IamPrincipals { get; }
     DbSet<IamRoleAssignment> IamRoleAssignments { get; }
     DbSet<IamAuditLog> IamAuditLogs { get; }
+    DbSet<SecurityNotice> SecurityNotices { get; }
 
     // Economy — currency core (economy.md K.1-K.3) + catalog (K.10-K.11).
     DbSet<CurrencyConfig> CurrencyConfigs { get; }

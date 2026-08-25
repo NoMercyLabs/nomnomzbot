@@ -12,6 +12,9 @@ using FluentAssertions;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Identity.Dtos;
+using NomNomzBot.Application.Identity.Services;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Hubs;
@@ -28,6 +31,34 @@ public sealed class TenantAccessGrantedBroadcastHandlerTests
     private static readonly Guid Principal = Guid.Parse("0192f100-0000-7000-8000-00000000e001");
     private static readonly Guid GrantId = Guid.Parse("0192f100-0000-7000-8000-00000000f001");
 
+    /// <summary>A stub that always durably records successfully — these tests assert the TRANSIENT
+    /// SignalR path; the durable-record path itself is proven by SecurityNoticeServiceTests
+    /// (Infrastructure.Tests).</summary>
+    private static ISecurityNoticeService StubSecurityNotices()
+    {
+        ISecurityNoticeService stub = Substitute.For<ISecurityNoticeService>();
+        stub.RecordAsync(Arg.Any<RecordSecurityNoticeRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new SecurityNoticeDto(
+                        Guid.NewGuid(),
+                        "stub",
+                        "stub",
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        DateTime.UtcNow,
+                        null,
+                        null
+                    )
+                )
+            );
+        return stub;
+    }
+
     [Fact]
     public async Task Grant_notifies_only_the_target_tenant_with_the_grant_details()
     {
@@ -43,7 +74,7 @@ public sealed class TenantAccessGrantedBroadcastHandlerTests
             .Returns(Task.CompletedTask);
 
         DateTime expiresAt = new(2026, 8, 24, 0, 0, 0, DateTimeKind.Utc);
-        await new TenantAccessGrantedBroadcastHandler(notifier).HandleAsync(
+        await new TenantAccessGrantedBroadcastHandler(notifier, StubSecurityNotices()).HandleAsync(
             new()
             {
                 BroadcasterId = Guid.Empty,
@@ -77,7 +108,7 @@ public sealed class TenantAccessGrantedBroadcastHandlerTests
             )
             .Returns(Task.CompletedTask);
 
-        await new TenantAccessGrantedBroadcastHandler(notifier).HandleAsync(
+        await new TenantAccessGrantedBroadcastHandler(notifier, StubSecurityNotices()).HandleAsync(
             new()
             {
                 BroadcasterId = Guid.Empty,

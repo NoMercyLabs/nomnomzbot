@@ -53,6 +53,7 @@ internal sealed class ImpersonationTestDbContext : DbContext, IApplicationDbCont
         );
 
     public DbSet<IamRoleAssignment> IamRoleAssignments => Set<IamRoleAssignment>();
+    public DbSet<SecurityNotice> SecurityNotices => throw new NotSupportedException();
 
     protected override void OnModelCreating(ModelBuilder b)
     {

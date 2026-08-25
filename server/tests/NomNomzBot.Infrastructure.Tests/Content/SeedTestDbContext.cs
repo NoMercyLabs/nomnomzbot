@@ -196,6 +196,7 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
     public DbSet<IamRolePermission> IamRolePermissions => Set<IamRolePermission>();
     public DbSet<IamPrincipal> IamPrincipals => Set<IamPrincipal>();
     public DbSet<IamRoleAssignment> IamRoleAssignments => Set<IamRoleAssignment>();
+    public DbSet<SecurityNotice> SecurityNotices => throw new NotSupportedException();
     public DbSet<IamAuditLog> IamAuditLogs => Set<IamAuditLog>();
     public DbSet<NomNomzBot.Domain.Economy.Entities.CurrencyConfig> CurrencyConfigs =>
         Set<NomNomzBot.Domain.Economy.Entities.CurrencyConfig>();

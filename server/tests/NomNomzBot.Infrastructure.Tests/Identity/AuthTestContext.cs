@@ -705,6 +705,7 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<IamRolePermission> IamRolePermissions => Set<IamRolePermission>();
     public DbSet<IamPrincipal> IamPrincipals => Set<IamPrincipal>();
     public DbSet<IamRoleAssignment> IamRoleAssignments => Set<IamRoleAssignment>();
+    public DbSet<SecurityNotice> SecurityNotices => throw new NotSupportedException();
     public DbSet<IamAuditLog> IamAuditLogs => Set<IamAuditLog>();
 
     // Economy — currency core (mapped so the economy-service tests can seed/query through this harness).

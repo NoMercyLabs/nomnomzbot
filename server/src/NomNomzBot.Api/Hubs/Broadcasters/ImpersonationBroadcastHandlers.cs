@@ -10,6 +10,8 @@
 
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Identity.Dtos;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -27,6 +29,7 @@ namespace NomNomzBot.Api.Hubs.Broadcasters;
 /// </summary>
 public sealed class ImpersonationStartedBroadcastHandler(
     IDashboardNotifier notifier,
+    ISecurityNoticeService securityNotices,
     IApplicationDbContext db,
     ILogger<ImpersonationStartedBroadcastHandler> logger
 ) : IEventHandler<ImpersonationStartedEvent>
@@ -43,11 +46,30 @@ public sealed class ImpersonationStartedBroadcastHandler(
         if (grant is null)
             return;
 
+        const string summary = "A NomNomzBot operator started acting as a user on your channel.";
+
+        // Durable half first: this is the one that must survive the owner being offline for the whole
+        // session, so it must not depend on the transient SignalR push below ever landing.
+        await securityNotices.RecordAsync(
+            new RecordSecurityNoticeRequest(
+                grant.ScopeChannelId,
+                "impersonation_started",
+                summary,
+                @event.OperatorPrincipalId,
+                @event.TargetUserId,
+                @event.AccessGrantId,
+                grant.Reason,
+                "channel",
+                @event.ExpiresAt
+            ),
+            ct
+        );
+
         await notifier.SendAlertAsync(
             grant.ScopeChannelId.ToString(),
             new(
                 "impersonation_started",
-                "A NomNomzBot operator started acting as a user on your channel.",
+                summary,
                 new
                 {
                     @event.OperatorPrincipalId,
@@ -73,6 +95,7 @@ public sealed class ImpersonationStartedBroadcastHandler(
 /// </summary>
 public sealed class ImpersonationEndedBroadcastHandler(
     IDashboardNotifier notifier,
+    ISecurityNoticeService securityNotices,
     IApplicationDbContext db,
     ILogger<ImpersonationEndedBroadcastHandler> logger
 ) : IEventHandler<ImpersonationEndedEvent>
@@ -89,11 +112,28 @@ public sealed class ImpersonationEndedBroadcastHandler(
         if (grant is null)
             return;
 
+        const string summary = "A NomNomzBot operator stopped acting as a user on your channel.";
+
+        await securityNotices.RecordAsync(
+            new RecordSecurityNoticeRequest(
+                grant.ScopeChannelId,
+                "impersonation_ended",
+                summary,
+                @event.OperatorPrincipalId,
+                @event.TargetUserId,
+                @event.AccessGrantId,
+                grant.Reason,
+                "channel",
+                null
+            ),
+            ct
+        );
+
         await notifier.SendAlertAsync(
             grant.ScopeChannelId.ToString(),
             new(
                 "impersonation_ended",
-                "A NomNomzBot operator stopped acting as a user on your channel.",
+                summary,
                 new
                 {
                     @event.OperatorPrincipalId,

@@ -254,6 +254,7 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
     public DbSet<IamRolePermission> IamRolePermissions => Set<IamRolePermission>();
     public DbSet<IamPrincipal> IamPrincipals => Set<IamPrincipal>();
     public DbSet<IamRoleAssignment> IamRoleAssignments => Set<IamRoleAssignment>();
+    public DbSet<SecurityNotice> SecurityNotices => throw new NotSupportedException();
     public DbSet<IamAuditLog> IamAuditLogs => Set<IamAuditLog>();
     public DbSet<CurrencyConfig> CurrencyConfigs => throw new NotSupportedException();
     public DbSet<EarningRule> EarningRules => throw new NotSupportedException();

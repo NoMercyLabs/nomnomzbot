@@ -294,6 +294,7 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
     public DbSet<IamRolePermission> IamRolePermissions => throw new NotSupportedException();
     public DbSet<IamPrincipal> IamPrincipals => throw new NotSupportedException();
     public DbSet<IamRoleAssignment> IamRoleAssignments => throw new NotSupportedException();
+    public DbSet<SecurityNotice> SecurityNotices => throw new NotSupportedException();
     public DbSet<IamAuditLog> IamAuditLogs => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Economy.Entities.CurrencyConfig> CurrencyConfigs =>
         throw new NotSupportedException();

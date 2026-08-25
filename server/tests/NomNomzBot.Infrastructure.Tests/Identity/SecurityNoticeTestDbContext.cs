@@ -29,47 +29,64 @@ using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
-using DomainTimer = NomNomzBot.Domain.Commands.Entities.Timer;
+using NomNomzBot.Infrastructure.Platform.Persistence.Converters;
 
-namespace NomNomzBot.Infrastructure.Tests.Commands;
+namespace NomNomzBot.Infrastructure.Tests.Identity;
 
 /// <summary>
-/// A focused <see cref="IApplicationDbContext"/> over only <see cref="PipelineExecution"/> — on the EF
-/// Core InMemory provider — for <c>PipelineExecutionQueryServiceTests</c>. Everything else throws, since
-/// those tests never reach it. Mirrors the "declare every DbSet, auto-ignore the unmapped ones" shape of
-/// the other focused test contexts in this project (e.g. <c>CommandsTestDbContext</c>).
+/// A focused <see cref="IApplicationDbContext"/> over only <see cref="Channel"/> and
+/// <see cref="NomNomzBot.Domain.Identity.Entities.SecurityNotice"/> — on the EF Core InMemory provider — for
+/// the S-IMPERSONATION-NOTICE durable-notice tests (<see cref="Infrastructure.Identity.SecurityNoticeService"/>).
+/// Everything else throws, since those tests never reach it.
 /// </summary>
-internal sealed class PipelineExecutionQueryTestDbContext : DbContext, IApplicationDbContext
+internal sealed class SecurityNoticeTestDbContext : DbContext, IApplicationDbContext
 {
-    private PipelineExecutionQueryTestDbContext(
-        DbContextOptions<PipelineExecutionQueryTestDbContext> options
-    )
+    private SecurityNoticeTestDbContext(DbContextOptions<SecurityNoticeTestDbContext> options)
         : base(options) { }
 
-    public static PipelineExecutionQueryTestDbContext New() =>
+    public static SecurityNoticeTestDbContext New() =>
         new(
-            new DbContextOptionsBuilder<PipelineExecutionQueryTestDbContext>()
+            new DbContextOptionsBuilder<SecurityNoticeTestDbContext>()
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
                 .Options
         );
 
-    public DbSet<PipelineExecution> PipelineExecutions => Set<PipelineExecution>();
+    public DbSet<Channel> Channels => Set<Channel>();
+    public DbSet<NomNomzBot.Domain.Commands.Entities.Command> Commands =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Commands.Entities.Timer> Timers =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Platform.Entities.Record> Records =>
+        throw new NotSupportedException();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
-        b.Entity<PipelineExecution>(e =>
+        b.Entity<Channel>(e =>
         {
-            e.HasKey(x => x.Id);
-            e.Ignore(x => x.Pipeline);
+            e.HasKey(c => c.Id);
+            e.Ignore(c => c.Tags);
+            e.Ignore(c => c.ContentLabels);
+            e.Ignore(c => c.User);
+            e.Ignore(c => c.Moderators);
+            e.Ignore(c => c.Streams);
+            e.Ignore(c => c.Events);
         });
 
-        // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing
-        // getter bodies below; ignore every entity these tests do not exercise so the model stays minimal.
+        b.ApplyConfiguration(
+            new NomNomzBot.Infrastructure.Identity.Persistence.SecurityNoticeConfiguration()
+        );
+
+        // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
+        // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
     }
 
-    private static readonly HashSet<Type> Mapped = [typeof(PipelineExecution)];
+    private static readonly HashSet<Type> Mapped =
+    [
+        typeof(Channel),
+        typeof(NomNomzBot.Domain.Identity.Entities.SecurityNotice),
+    ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
     [
@@ -88,7 +105,6 @@ internal sealed class PipelineExecutionQueryTestDbContext : DbContext, IApplicat
     public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
     public DbSet<ConsentRecord> ConsentRecords => throw new NotSupportedException();
     public DbSet<ErasureRequest> ErasureRequests => throw new NotSupportedException();
-    public DbSet<Channel> Channels => throw new NotSupportedException();
     public DbSet<ChannelModerator> ChannelModerators => throw new NotSupportedException();
     public DbSet<Service> Services => throw new NotSupportedException();
     public DbSet<Reward> Rewards => throw new NotSupportedException();
@@ -117,8 +133,6 @@ internal sealed class PipelineExecutionQueryTestDbContext : DbContext, IApplicat
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes =>
         throw new NotSupportedException();
-    public DbSet<Command> Commands => throw new NotSupportedException();
-    public DbSet<DomainTimer> Timers => throw new NotSupportedException();
     public DbSet<Quote> Quotes => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Music.Entities.BlockedTrack> BlockedTracks =>
         throw new NotSupportedException();
@@ -148,11 +162,8 @@ internal sealed class PipelineExecutionQueryTestDbContext : DbContext, IApplicat
     public DbSet<ChannelEvent> ChannelEvents => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams =>
         throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Platform.Entities.Configuration> Configurations =>
-        throw new NotSupportedException();
+    public DbSet<Configuration> Configurations => throw new NotSupportedException();
     public DbSet<Storage> Storages => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Platform.Entities.Record> Records =>
-        throw new NotSupportedException();
     public DbSet<Permission> Permissions => throw new NotSupportedException();
     public DbSet<ChannelFeature> ChannelFeatures => throw new NotSupportedException();
     public DbSet<ChannelBotAuthorization> ChannelBotAuthorizations =>
@@ -178,11 +189,11 @@ internal sealed class PipelineExecutionQueryTestDbContext : DbContext, IApplicat
         throw new NotSupportedException();
     public DbSet<ChannelSubscription> ChannelSubscriptions => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Vts.Entities.VtsConnection> VtsConnections =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Vts.Entities.VtsConnection>();
     public DbSet<NomNomzBot.Domain.Obs.Entities.ObsConnection> ObsConnections =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Obs.Entities.ObsConnection>();
     public DbSet<Domain.Automation.Entities.AutomationApiToken> AutomationApiTokens =>
-        throw new NotSupportedException();
+        Set<Domain.Automation.Entities.AutomationApiToken>();
     public DbSet<TtsConfig> TtsConfigs => throw new NotSupportedException();
     public DbSet<TtsVoice> TtsVoices => throw new NotSupportedException();
     public DbSet<UserTtsVoice> UserTtsVoices => throw new NotSupportedException();
@@ -197,11 +208,11 @@ internal sealed class PipelineExecutionQueryTestDbContext : DbContext, IApplicat
     public DbSet<EventResponse> EventResponses => throw new NotSupportedException();
     public DbSet<WatchStreak> WatchStreaks => throw new NotSupportedException();
     public DbSet<ScheduledPipelineTask> ScheduledPipelineTasks => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Commands.Entities.Pipeline> Pipelines =>
-        throw new NotSupportedException();
+    public DbSet<Pipeline> Pipelines => throw new NotSupportedException();
     public DbSet<PipelineStep> PipelineSteps => throw new NotSupportedException();
     public DbSet<PipelineStepCondition> PipelineStepConditions => throw new NotSupportedException();
     public DbSet<PipelineTrigger> PipelineTriggers => throw new NotSupportedException();
+    public DbSet<PipelineExecution> PipelineExecutions => throw new NotSupportedException();
     public DbSet<ChannelBuiltinCommand> ChannelBuiltinCommands => throw new NotSupportedException();
     public DbSet<CommandCooldownState> CommandCooldownStates => throw new NotSupportedException();
     public DbSet<NamedCounter> NamedCounters => throw new NotSupportedException();
@@ -231,7 +242,7 @@ internal sealed class PipelineExecutionQueryTestDbContext : DbContext, IApplicat
     public DbSet<IamRolePermission> IamRolePermissions => throw new NotSupportedException();
     public DbSet<IamPrincipal> IamPrincipals => throw new NotSupportedException();
     public DbSet<IamRoleAssignment> IamRoleAssignments => throw new NotSupportedException();
-    public DbSet<SecurityNotice> SecurityNotices => throw new NotSupportedException();
+    public DbSet<SecurityNotice> SecurityNotices => Set<SecurityNotice>();
     public DbSet<IamAuditLog> IamAuditLogs => throw new NotSupportedException();
     public DbSet<CurrencyConfig> CurrencyConfigs => throw new NotSupportedException();
     public DbSet<EarningRule> EarningRules => throw new NotSupportedException();
