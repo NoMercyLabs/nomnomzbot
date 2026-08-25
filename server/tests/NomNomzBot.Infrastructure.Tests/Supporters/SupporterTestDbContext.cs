@@ -53,6 +53,30 @@ internal sealed class SupporterTestDbContext : DbContext, IApplicationDbContext
                 .Options
         );
 
+    /// <summary>
+    /// Mirrors <c>SoftDeleteInterceptor</c> (Platform.Persistence.Interceptors) for the one entity these
+    /// tests soft-delete: converts a tracked <c>EntityState.Deleted</c> <see cref="EventResponse"/> into a
+    /// modified row with <see cref="NomNomzBot.Domain.Platform.SoftDeletableEntity.DeletedAt"/> stamped,
+    /// instead of letting the InMemory provider hard-delete it — so <c>EventResponseService.DeleteAsync</c>'s
+    /// <c>Remove()</c> call behaves the same way here as it does against the real, interceptor-backed
+    /// <c>AppDbContext</c> (S048b).
+    /// </summary>
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        foreach (
+            Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<EventResponse> entry in ChangeTracker.Entries<EventResponse>()
+        )
+        {
+            if (entry.State != EntityState.Deleted)
+                continue;
+
+            entry.State = EntityState.Modified;
+            entry.Entity.DeletedAt = DateTime.UtcNow;
+        }
+
+        return base.SaveChangesAsync(cancellationToken);
+    }
+
     public DbSet<SupporterConnection> SupporterConnections => Set<SupporterConnection>();
     public DbSet<SupporterEvent> SupporterEvents => Set<SupporterEvent>();
     public DbSet<Channel> Channels => Set<Channel>();
@@ -108,6 +132,11 @@ internal sealed class SupporterTestDbContext : DbContext, IApplicationDbContext
             e.Ignore(r => r.Pipeline);
             e.Ignore(r => r.Channel);
             e.Ignore(r => r.MetadataJson);
+            // Mirrors the real AppDbContext's global soft-delete query filter for this one entity — the
+            // production filter (ApplyTenantAndSoftDeleteFilters) is Npgsql-model-wide and can't run on
+            // the InMemory provider, so EventResponseSeedingTests re-declares it here to exercise the same
+            // "soft-deleted rows are invisible unless IgnoreQueryFilters() is used" contract (S048b).
+            e.HasQueryFilter(r => r.DeletedAt == null);
         });
 
         b.Entity<ChannelEvent>(e =>

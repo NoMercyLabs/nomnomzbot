@@ -37,12 +37,6 @@ public class EventResponseService : IEventResponseService
         _tiers = tiers;
     }
 
-    // The canonical set of events a streamer can configure responses for — sourced from the preset
-    // catalog so the seeded rows, the dashboard's pre-fill presets, and the trigger sources can never
-    // drift apart. Seeded lazily (disabled + no message) when a broadcaster first visits the page.
-    private static readonly IReadOnlyList<string> DefaultEventTypes =
-        EventResponsePresetCatalog.EventTypes;
-
     public async Task<Result<PagedList<EventResponseListItem>>> ListAsync(
         string broadcasterId,
         PaginationParams pagination,
@@ -55,30 +49,9 @@ public class EventResponseService : IEventResponseService
                 "VALIDATION_FAILED"
             );
 
-        // Top-up seed: any catalog event type this channel doesn't have a row for yet gets its disabled
-        // default — so a channel seeded before a NEW trigger shipped still sees it on the page.
-        List<string> existingTypes = await _db
-            .EventResponses.Where(e => e.BroadcasterId == broadcaster)
-            .Select(e => e.EventType)
-            .ToListAsync(cancellationToken);
-        List<EventResponse> seeds =
-        [
-            .. DefaultEventTypes
-                .Where(et => !existingTypes.Contains(et))
-                .Select(et => new EventResponse
-                {
-                    BroadcasterId = broadcaster,
-                    EventType = et,
-                    IsEnabled = false,
-                    ResponseType = "chat_message",
-                }),
-        ];
-        if (seeds.Count > 0)
-        {
-            _db.EventResponses.AddRange(seeds);
-            await _db.SaveChangesAsync(cancellationToken);
-        }
-
+        // A GET performs NO writes (S048b): the catalog top-up seed used to run here as a side effect of
+        // reading — moved to EventResponseDefaultsSeeder (a real lifecycle point: full-startup ISeeder pass
+        // + immediate seed-on-onboarding), so this method only ever reads.
         IQueryable<EventResponse> query = _db.EventResponses.Where(e =>
             e.BroadcasterId == broadcaster
         );
@@ -138,14 +111,26 @@ public class EventResponseService : IEventResponseService
                 "VALIDATION_FAILED"
             );
 
-        EventResponse? entity = await _db.EventResponses.FirstOrDefaultAsync(
-            e => e.BroadcasterId == broadcaster && e.EventType == eventType,
-            cancellationToken
-        );
+        // IgnoreQueryFilters: a row the operator soft-deleted (DeleteAsync) is invisible to the normal,
+        // tenant/soft-delete-filtered query — but upserting that same event type is a DELIBERATE restore
+        // (S048b), so it must find and revive that row rather than leave it orphaned while a second,
+        // unrelated row gets created for the same natural key.
+        EventResponse? entity = await _db
+            .EventResponses.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(
+                e => e.BroadcasterId == broadcaster && e.EventType == eventType,
+                cancellationToken
+            );
+        bool isRestore = entity is { DeletedAt: not null };
+        if (isRestore)
+        {
+            entity!.DeletedAt = null;
+        }
 
         // Tier quota (monetization-billing §3.3): `event_responses` caps ENABLED responses, never raw
-        // rows — ListAsync lazily seeds a disabled row per catalog event type, so raw counts are always
-        // at catalog size. Gate only a write that ENABLES a currently-disabled (or new) response.
+        // rows — EventResponseDefaultsSeeder seeds a disabled row per catalog event type for every
+        // channel, so raw counts are always at catalog size. Gate only a write that ENABLES a currently-
+        // disabled (or new) response.
         bool wantsEnabled = request.IsEnabled ?? entity is null; // create default is enabled
         if (wantsEnabled && entity is not { IsEnabled: true })
         {

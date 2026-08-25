@@ -702,6 +702,10 @@ public static class DependencyInjection
         // full-startup ISeeder pass.
         services.AddScoped<Content.Commands.DefaultCommandsSeeder>();
 
+        // Same shape for event-response defaults (S048b): EventResponseDefaultsSeedOnOnboardingHandler
+        // injects the concrete seeder directly for the same immediate-seed-on-onboarding reason.
+        services.AddScoped<Content.Commands.EventResponseDefaultsSeeder>();
+
         // Service impls bound by their I<X>Service interface (scoped). Singletons,
         // deployment-variant, and special-construction interfaces stay explicit below
         // and are excluded so the scan never picks a wrong binding. Ambiguity (two
