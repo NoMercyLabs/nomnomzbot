@@ -610,7 +610,13 @@ public sealed class PipelineEngine : IPipelineEngine
 
         foreach (PipelineTreeNode node in nodes)
         {
-            if (state.AbortedBudget || state.FailedBreak || state.StoppedDeliberately)
+            if (
+                state.AbortedBudget
+                || state.FailedBreak
+                || state.StoppedDeliberately
+                || state.BreakLoop
+                || state.ContinueLoop
+            )
                 return;
 
             ct.ThrowIfCancellationRequested();
@@ -790,6 +796,22 @@ public sealed class PipelineEngine : IPipelineEngine
         {
             state.FailedBreak = true;
             return;
+        }
+
+        if (ctx.ShouldBreakLoop)
+        {
+            ctx.ShouldBreakLoop = false;
+            // Only a "break" with an enclosing loop to act on becomes control flow; outside a loop
+            // it is an honest no-op (pipeline-control-flow.md D3) — the step is already logged above.
+            if (ctx.LoopDepth > 0)
+                state.BreakLoop = true;
+        }
+
+        if (ctx.ShouldContinueLoop)
+        {
+            ctx.ShouldContinueLoop = false;
+            if (ctx.LoopDepth > 0)
+                state.ContinueLoop = true;
         }
 
         if (ctx.ShouldStop)
@@ -1066,7 +1088,15 @@ public sealed class PipelineEngine : IPipelineEngine
                 mode == "foreach" ? items.Count.ToString() : (config.Count ?? 0).ToString();
 
             PipelineTreeRunState iterationState = new();
-            await ExecuteNodesAsync(node.Children, ctx, iterationState, depth + 1, ct);
+            ctx.LoopDepth++;
+            try
+            {
+                await ExecuteNodesAsync(node.Children, ctx, iterationState, depth + 1, ct);
+            }
+            finally
+            {
+                ctx.LoopDepth--;
+            }
 
             state.Executed += iterationState.Executed;
             state.Skipped += iterationState.Skipped;
@@ -1075,6 +1105,12 @@ public sealed class PipelineEngine : IPipelineEngine
             {
                 state.AbortedBudget = true;
                 state.AbortReason = iterationState.AbortReason;
+                return;
+            }
+            if (iterationState.BreakLoop)
+            {
+                // Consumed by THIS loop — the innermost enclosing one. An outer loop, if any,
+                // keeps iterating; it never sees this flag (pipeline-control-flow.md D3).
                 return;
             }
             if (iterationState.FailedBreak)
@@ -1088,6 +1124,8 @@ public sealed class PipelineEngine : IPipelineEngine
                 return;
             }
 
+            // ContinueLoop is consumed implicitly: it already stopped the rest of this iteration's
+            // body (ExecuteNodesAsync's guard), so falling through here just advances to the next pass.
             previousItem = currentItem;
             index++;
         }
@@ -1163,6 +1201,15 @@ public sealed class PipelineEngine : IPipelineEngine
             // regardless of which block it tripped inside (pipeline-control-flow.md D6).
             state.AbortedBudget = true;
             state.AbortReason = bodyState.AbortReason;
+            return;
+        }
+
+        if (bodyState.BreakLoop || bodyState.ContinueLoop)
+        {
+            // Deliberate loop control flow is never caught as a failure — it bubbles straight past
+            // this try (and its catch arm never runs) to the enclosing loop that will consume it.
+            state.BreakLoop = bodyState.BreakLoop;
+            state.ContinueLoop = bodyState.ContinueLoop;
             return;
         }
 

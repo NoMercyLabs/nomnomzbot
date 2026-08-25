@@ -67,6 +67,58 @@ public sealed class PipelineEngineTreeExecutionTests
         ) => Task.FromResult(ActionResult.Failure("boom"));
     }
 
+    /// <summary>Fires <c>ctx.ShouldBreakLoop</c> only when <c>{{loop.index}}</c> equals the action's
+    /// <c>"target"</c> config value — lets a test drive a break mid-loop without needing the (stubbed)
+    /// template resolver to do real substitution.</summary>
+    private sealed class ConditionalBreakAction : ICommandAction
+    {
+        public string ActionType => "break_at_index";
+
+        public Task<ActionResult> ExecuteAsync(
+            PipelineExecutionContext ctx,
+            ActionDefinition action
+        )
+        {
+            if (ctx.Variables.GetValueOrDefault("loop.index") == action.GetString("target"))
+                ctx.ShouldBreakLoop = true;
+            return Task.FromResult(ActionResult.Success());
+        }
+    }
+
+    /// <summary>Fires <c>ctx.ShouldContinueLoop</c> only when <c>{{loop.index}}</c> equals the action's
+    /// <c>"target"</c> config value — same rationale as <see cref="ConditionalBreakAction"/>.</summary>
+    private sealed class ConditionalContinueAction : ICommandAction
+    {
+        public string ActionType => "continue_at_index";
+
+        public Task<ActionResult> ExecuteAsync(
+            PipelineExecutionContext ctx,
+            ActionDefinition action
+        )
+        {
+            if (ctx.Variables.GetValueOrDefault("loop.index") == action.GetString("target"))
+                ctx.ShouldContinueLoop = true;
+            return Task.FromResult(ActionResult.Success());
+        }
+    }
+
+    /// <summary>Records how many times it ran — used to prove an outer loop kept iterating (or a
+    /// step after a loop ran), independent of any inner loop's own <c>loop.*</c> bindings.</summary>
+    private sealed class CountingAction : ICommandAction
+    {
+        public required string ActionType { get; init; }
+        public int Count { get; private set; }
+
+        public Task<ActionResult> ExecuteAsync(
+            PipelineExecutionContext ctx,
+            ActionDefinition action
+        )
+        {
+            Count++;
+            return Task.FromResult(ActionResult.Success());
+        }
+    }
+
     private static PipelineEngine CreateEngine(
         PipelineTreeExecutionTestDbContext db,
         IEnumerable<ICommandAction> extraActions,
@@ -86,7 +138,14 @@ public sealed class PipelineEngineTreeExecutionTests
             )
             .Returns(ci => Task.FromResult((string)ci[0]));
 
-        List<ICommandAction> actions = [new StopAction(), new SetVariableAction(), .. extraActions];
+        List<ICommandAction> actions =
+        [
+            new StopAction(),
+            new SetVariableAction(),
+            new BreakAction(),
+            new ContinueAction(),
+            .. extraActions,
+        ];
         ICommandCondition[] conditions =
         [
             new UserRoleCondition(),
@@ -789,6 +848,331 @@ public sealed class PipelineEngineTreeExecutionTests
         result
             .StepLogs.Should()
             .ContainSingle("the run breaks after the failing step, never reaching the second");
+    }
+
+    // ─── break / continue (S-PIPE-TREE-d1, pipeline-control-flow.md D3) ────────
+
+    [Fact]
+    public async Task Break_StopsFurtherIterations_StepsAfterLoopStillRun()
+    {
+        using PipelineTreeExecutionTestDbContext db = PipelineTreeExecutionTestDbContext.New();
+        Guid pipelineId = Guid.NewGuid();
+
+        PipelineStep loopStep = NewStep(
+            pipelineId,
+            null,
+            null,
+            "loop",
+            """{"mode":"repeat","count":5}""",
+            0
+        );
+        PipelineStep recordLeaf = NewLeaf(
+            pipelineId,
+            loopStep.Id,
+            null,
+            0,
+            "record_loop",
+            "{\"type\":\"record_loop\"}"
+        );
+        PipelineStep breakLeaf = NewLeaf(
+            pipelineId,
+            loopStep.Id,
+            null,
+            1,
+            "break_at_index",
+            """{"type":"break_at_index","target":"2"}"""
+        );
+        PipelineStep afterLoop = NewLeaf(
+            pipelineId,
+            null,
+            null,
+            1,
+            "set_variable",
+            """{"type":"set_variable","name":"marker","value":"after"}"""
+        );
+
+        db.PipelineSteps.AddRange(loopStep, recordLeaf, breakLeaf, afterLoop);
+        await db.SaveChangesAsync();
+
+        RecordingLoopAction recorder = new();
+        PipelineEngine engine = CreateEngine(db, [recorder, new ConditionalBreakAction()]);
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(pipelineId));
+
+        result.Outcome.Should().Be(PipelineOutcome.Completed);
+        // The loop body still runs index 2 (break fires AFTER the record leaf) then stops — index 3
+        // and 4 never run.
+        recorder.Invocations.Select(i => i.Index).Should().Equal("0", "1", "2");
+        result
+            .StepLogs[^1]
+            .Output.Should()
+            .Be("marker=after", "a step after the loop must still run");
+    }
+
+    [Fact]
+    public async Task Continue_SkipsRemainingStepsOfThatIterationOnly_NextIterationRuns()
+    {
+        using PipelineTreeExecutionTestDbContext db = PipelineTreeExecutionTestDbContext.New();
+        Guid pipelineId = Guid.NewGuid();
+
+        PipelineStep loopStep = NewStep(
+            pipelineId,
+            null,
+            null,
+            "loop",
+            """{"mode":"repeat","count":3}""",
+            0
+        );
+        // continue check runs FIRST in the body — proves it skips the record leaf that follows it,
+        // for that iteration only.
+        PipelineStep continueLeaf = NewLeaf(
+            pipelineId,
+            loopStep.Id,
+            null,
+            0,
+            "continue_at_index",
+            """{"type":"continue_at_index","target":"1"}"""
+        );
+        PipelineStep recordLeaf = NewLeaf(
+            pipelineId,
+            loopStep.Id,
+            null,
+            1,
+            "record_loop",
+            "{\"type\":\"record_loop\"}"
+        );
+
+        db.PipelineSteps.AddRange(loopStep, continueLeaf, recordLeaf);
+        await db.SaveChangesAsync();
+
+        RecordingLoopAction recorder = new();
+        PipelineEngine engine = CreateEngine(db, [recorder, new ConditionalContinueAction()]);
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(pipelineId));
+
+        result.Outcome.Should().Be(PipelineOutcome.Completed);
+        // Index 1's record leaf was skipped by continue, but iterations 0 and 2 both ran normally.
+        recorder.Invocations.Select(i => i.Index).Should().Equal("0", "2");
+    }
+
+    [Fact]
+    public async Task NestedLoop_InnerBreak_LeavesOuterLoopStillIterating()
+    {
+        using PipelineTreeExecutionTestDbContext db = PipelineTreeExecutionTestDbContext.New();
+        Guid pipelineId = Guid.NewGuid();
+
+        PipelineStep outerLoop = NewStep(
+            pipelineId,
+            null,
+            null,
+            "loop",
+            """{"mode":"repeat","count":3}""",
+            0
+        );
+        PipelineStep innerLoop = NewStep(
+            pipelineId,
+            outerLoop.Id,
+            null,
+            "loop",
+            """{"mode":"repeat","count":3}""",
+            0
+        );
+        PipelineStep innerRecordLeaf = NewLeaf(
+            pipelineId,
+            innerLoop.Id,
+            null,
+            0,
+            "record_inner",
+            "{\"type\":\"record_inner\"}"
+        );
+        PipelineStep innerBreakLeaf = NewLeaf(
+            pipelineId,
+            innerLoop.Id,
+            null,
+            1,
+            "break_at_index",
+            """{"type":"break_at_index","target":"1"}"""
+        );
+        // Runs AFTER the inner loop finishes, once per outer iteration — proves the outer loop kept
+        // going despite the inner loop breaking early every single time.
+        PipelineStep outerRecordLeaf = NewLeaf(
+            pipelineId,
+            outerLoop.Id,
+            null,
+            1,
+            "record_outer",
+            "{\"type\":\"record_outer\"}"
+        );
+
+        db.PipelineSteps.AddRange(
+            outerLoop,
+            innerLoop,
+            innerRecordLeaf,
+            innerBreakLeaf,
+            outerRecordLeaf
+        );
+        await db.SaveChangesAsync();
+
+        CountingAction innerRecorder = new() { ActionType = "record_inner" };
+        CountingAction outerRecorder = new() { ActionType = "record_outer" };
+        PipelineEngine engine = CreateEngine(
+            db,
+            [innerRecorder, outerRecorder, new ConditionalBreakAction()]
+        );
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(pipelineId));
+
+        result.Outcome.Should().Be(PipelineOutcome.Completed);
+        outerRecorder.Count.Should().Be(3, "the outer loop must complete all 3 iterations");
+        innerRecorder
+            .Count.Should()
+            .Be(
+                6,
+                "each of the 3 outer passes re-runs the inner loop, which records index 0 and 1 (2x) before breaking at index 1"
+            );
+    }
+
+    [Fact]
+    public async Task Break_InsideTryInsideLoop_ExitsLoop_IsNotTreatedAsCaughtError()
+    {
+        using PipelineTreeExecutionTestDbContext db = PipelineTreeExecutionTestDbContext.New();
+        Guid pipelineId = Guid.NewGuid();
+
+        PipelineStep loopStep = NewStep(
+            pipelineId,
+            null,
+            null,
+            "loop",
+            """{"mode":"repeat","count":5}""",
+            0
+        );
+        PipelineStep tryStep = NewStep(pipelineId, loopStep.Id, null, "try", "{}", 0);
+        PipelineStep recordLeaf = NewLeaf(
+            pipelineId,
+            tryStep.Id,
+            "then",
+            0,
+            "record_loop",
+            "{\"type\":\"record_loop\"}"
+        );
+        PipelineStep breakLeaf = NewLeaf(
+            pipelineId,
+            tryStep.Id,
+            "then",
+            1,
+            "break_at_index",
+            """{"type":"break_at_index","target":"1"}"""
+        );
+        // The catch arm must NEVER run — a break is not a caught failure.
+        PipelineStep catchLeaf = NewLeaf(
+            pipelineId,
+            tryStep.Id,
+            "else",
+            0,
+            "set_variable",
+            """{"type":"set_variable","name":"marker","value":"caught"}"""
+        );
+
+        db.PipelineSteps.AddRange(loopStep, tryStep, recordLeaf, breakLeaf, catchLeaf);
+        await db.SaveChangesAsync();
+
+        RecordingLoopAction recorder = new();
+        PipelineEngine engine = CreateEngine(db, [recorder, new ConditionalBreakAction()]);
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(pipelineId));
+
+        result
+            .Outcome.Should()
+            .Be(PipelineOutcome.Completed, "a break is deliberate control flow, never a failure");
+        recorder.Invocations.Select(i => i.Index).Should().Equal("0", "1");
+        result
+            .StepLogs.Should()
+            .NotContain(
+                l => l.Output == "marker=caught",
+                "the catch arm must never run for a break"
+            );
+    }
+
+    [Fact]
+    public async Task Break_OutsideAnyLoop_IsAnHonestNoOp_SubsequentStepsStillRunAndOutcomeIsCompleted()
+    {
+        using PipelineTreeExecutionTestDbContext db = PipelineTreeExecutionTestDbContext.New();
+        Guid pipelineId = Guid.NewGuid();
+
+        PipelineStep breakLeaf = NewLeaf(
+            pipelineId,
+            null,
+            null,
+            0,
+            "break",
+            """{"type":"break"}"""
+        );
+        PipelineStep afterLeaf = NewLeaf(
+            pipelineId,
+            null,
+            null,
+            1,
+            "set_variable",
+            """{"type":"set_variable","name":"marker","value":"after"}"""
+        );
+
+        db.PipelineSteps.AddRange(breakLeaf, afterLeaf);
+        await db.SaveChangesAsync();
+
+        PipelineEngine engine = CreateEngine(db, []);
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(pipelineId));
+
+        result
+            .Outcome.Should()
+            .Be(
+                PipelineOutcome.Completed,
+                "no enclosing loop to break — an honest no-op, never a silent abort"
+            );
+        result.StepLogs.Should().HaveCount(2);
+        result.StepLogs[0].Succeeded.Should().BeTrue();
+        result
+            .StepLogs[1]
+            .Output.Should()
+            .Be("marker=after", "the step after the no-op break still runs");
+    }
+
+    [Fact]
+    public async Task Continue_OutsideAnyLoop_IsAnHonestNoOp_SubsequentStepsStillRunAndOutcomeIsCompleted()
+    {
+        using PipelineTreeExecutionTestDbContext db = PipelineTreeExecutionTestDbContext.New();
+        Guid pipelineId = Guid.NewGuid();
+
+        PipelineStep continueLeaf = NewLeaf(
+            pipelineId,
+            null,
+            null,
+            0,
+            "continue",
+            """{"type":"continue"}"""
+        );
+        PipelineStep afterLeaf = NewLeaf(
+            pipelineId,
+            null,
+            null,
+            1,
+            "set_variable",
+            """{"type":"set_variable","name":"marker","value":"after"}"""
+        );
+
+        db.PipelineSteps.AddRange(continueLeaf, afterLeaf);
+        await db.SaveChangesAsync();
+
+        PipelineEngine engine = CreateEngine(db, []);
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(pipelineId));
+
+        result
+            .Outcome.Should()
+            .Be(
+                PipelineOutcome.Completed,
+                "no enclosing loop to continue — an honest no-op, never a silent abort"
+            );
+        result.StepLogs.Should().HaveCount(2);
+        result.StepLogs[0].Succeeded.Should().BeTrue();
+        result
+            .StepLogs[1]
+            .Output.Should()
+            .Be("marker=after", "the step after the no-op continue still runs");
     }
 
     // ─── recursion depth ──────────────────────────────────────────────────────

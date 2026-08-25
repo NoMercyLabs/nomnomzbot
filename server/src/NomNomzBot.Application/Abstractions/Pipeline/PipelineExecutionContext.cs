@@ -35,6 +35,19 @@ public sealed class PipelineExecutionContext
     public int CurrentStepIndex { get; set; }
     public bool ShouldStop { get; set; }
 
+    /// <summary>Set by the <c>break</c> action; consumed by the innermost enclosing <c>loop</c> block.
+    /// Outside a loop (<see cref="LoopDepth"/> == 0) it is an honest no-op — the engine never sets it
+    /// (pipeline-control-flow.md D3).</summary>
+    public bool ShouldBreakLoop { get; set; }
+
+    /// <summary>Set by the <c>continue</c> action; consumed by the innermost enclosing <c>loop</c> block.
+    /// Outside a loop it is an honest no-op, same as <see cref="ShouldBreakLoop"/>.</summary>
+    public bool ShouldContinueLoop { get; set; }
+
+    /// <summary>Nesting depth of <c>loop</c> blocks currently being walked; 0 means "not inside a loop".
+    /// Used to decide whether a <c>break</c>/<c>continue</c> action has anywhere to act on.</summary>
+    public int LoopDepth { get; set; }
+
     /// <summary>Per-step execution logs accumulated during the run.</summary>
     public List<StepExecutionLog> StepLogs { get; } = [];
 }

@@ -37,6 +37,15 @@ internal sealed class PipelineTreeRunState
     public bool StoppedDeliberately;
     public bool AbortedBudget;
     public string? AbortReason;
+
+    /// <summary>A <c>break</c> action fired somewhere in this walk; bubbles up unconsumed until the
+    /// innermost enclosing <c>loop</c> block claims it (pipeline-control-flow.md D3). Distinct from
+    /// <see cref="FailedBreak"/> — this is deliberate control flow, never a caught failure.</summary>
+    public bool BreakLoop;
+
+    /// <summary>A <c>continue</c> action fired somewhere in this walk; bubbles up unconsumed until the
+    /// innermost enclosing <c>loop</c> block claims it.</summary>
+    public bool ContinueLoop;
 }
 
 // ─── Block-kind configuration DTOs (PipelineStep.BlockConfigJson) ────────────
