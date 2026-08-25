@@ -207,16 +207,20 @@ stable — without dropping the planned requirements behind them.
   list; and a guard test fails if a NEW picker kind is added without a rich option provider — enumerate
   the kinds from the enum, do not hand-list them.
 
-- **S-SCHEMA-I18N-b** (mechanism SHIPPED a00b848e — `LocalizedText {key,en,nl}`, `WidgetSettingsSchemaProvider`
-  fully translated 71 fields/21 widgets, `PipelineActionFieldDescriptor` now carries Description, two
-  REFLECTION guard tests that fail on a blank en or nl) TWO REMAINDERS:
-  (a) only 8 of ~46 `ICommandAction` files carry a Description — the other ~38 declare fields with no help
-  text. Description is optional so the guard passes, which means the guard cannot see the gap: either sweep
-  all ~46 or make Description REQUIRED so the guard fails loud on a missing one. Prefer required — an
-  optional field that nothing enforces is the "guard that cannot move" defect again.
-  (b) the dashboard still renders a bare string: Kotlin must consume `{key,en,nl}` and pick the viewer's
-  locale. Done-when: a widget settings form and a pipeline action field both render Dutch under an nl
-  locale, proven by a jvmTest.
+- **S-SCHEMA-I18N-b** (mechanism CORRECT as of 51c084ab — `LocalizedText` is a KEY only, translations
+  live in `values/strings.xml` + `values-nl/` (146 keys, both languages), guarded by the committed
+  manifest `server/i18n/schema-i18n-keys.manifest.json` + paired backend/jvmTest guards. The earlier
+  inline-en/nl shape was a design error the owner caught — see [[translations-never-in-code]].)
+  THREE REMAINDERS, and (a) is the same defect class so it must be swept whole, not per-provider:
+  (a) User-facing English STILL LIVES IN C# for the string kinds a00b848e never covered:
+  `WidgetSettingsFieldOption.Label` (every dropdown option), `EventOptions`, `ProviderOptions`, and the
+  group constants ("Content"/"Appearance"/...). Enumerate EVERY user-facing string kind served to the
+  dashboard from the real source and migrate the lot; a guard must fail on a new one.
+  (b) `PipelineActionFieldDto` (Commands/Dtos/PipelineDtos.cs) has NO wire field for Description at all,
+  so action field help text physically cannot reach the dashboard. Wire it, then render it.
+  (c) Only 8 of ~46 `ICommandAction` files author help text. Decide whether Description becomes REQUIRED
+  (preferred — an optional field nothing enforces is the "guard that cannot move" defect) and sweep all
+  ~46 with en+nl keys. Help text must say what the field DOES and what changes ([[consequences-must-be-visible]]).
 
 - **S-CODE-EDITOR** The code-scripts surface gets a **VS Code-for-web grade editor that functions like
   one** — Monaco-class: completion, hover types, go-to-definition, diagnostics, multi-file — loading a
