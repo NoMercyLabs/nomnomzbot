@@ -81,6 +81,37 @@ Three agents were killed mid-slice by an API session limit. State captured so no
   raised, or by scoping an EF log filter to exactly this expected path. Do NOT simply silence EF's update
   logging globally; that would hide genuine save failures.
 
+## LIVE OUTAGE 2026-08-25 — root cause fixed, two follow-ups
+
+The deployed bot was crash-looping (11 restarts) with a 502/503 dashboard, and the music queue
+"kept requeueing the same songs". ONE root cause, fixed in 27649f50: a Spotify call hit HttpClient's
+100s timeout -> `TaskCanceledException`, which DERIVES from `OperationCanceledException`, so the music
+poller's `catch (Exception ex) when (ex is not OperationCanceledException)` did NOT catch it. It escaped
+`ExecuteAsync` and `BackgroundServiceExceptionBehavior.StopHost` killed the whole host.
+
+- **S-BGSERVICE-CANCEL-FILTER** (class sweep — the same defect in 18 other services) Every
+  `BackgroundService.ExecuteAsync` using `ex is not OperationCanceledException` can be killed by any
+  HTTP timeout, because that filter excludes exactly the exception HttpClient raises. Affected:
+  AdminHubStatusPublisher, BotLifecycleService, OnboardedChannelSeedBackfillService,
+  KickEventSubscriptionWorker, YouTubeLiveChatPollWorker, ScheduledPipelineExpiryService, TimerService,
+  CustomDataPollHostedService, CustomDataSocketHostedService, GiveawayClaimSweepWorker,
+  CommunityStandingReconcileService, ManagementRoleReconcileService, UserProfileHydrationService,
+  TokenRefreshService, RedemptionTimerExpiryService, StreamStatusPollingService,
+  SupporterPollHostedService, SupporterSocketHostedService. Several of those do HTTP, so several can
+  take the bot down the same way. Done-when: every one filters on the cancellation TOKEN
+  (`when (!stoppingToken.IsCancellationRequested)`) instead of the exception type, each with a test
+  proving a `TaskCanceledException` timeout is survived — and a GUARD test that fails when a
+  `BackgroundService.ExecuteAsync` uses the type filter, enumerated from the assembly so a new service
+  cannot reintroduce it. Precedent + the outage test to copy: 27649f50.
+
+- **S-SR-INFLIGHT-DURABLE** The song-request in-flight marker lives only in memory
+  (`_queueStore.GetInFlight` in `Music/SongRequestQueueReconciler.cs`). Any process restart loses it, so
+  `HandOverNextAsync` re-hands the FIRST queued request and the same song plays again — which is exactly
+  what the owner saw multiplied by 11 crashes. Fixing the crash stops the visible symptom, but ANY
+  restart (deploy, blue/green switchover, OOM) still replays the current song. Done-when: the in-flight
+  request survives a process restart — proven by a test that hands over, simulates a restart, and asserts
+  the SAME request is not handed over twice and the queue resumes at the next one.
+
 ## BLOCKED ON THE OWNER — cannot be solved from this side
 
 These are not "not done"; they are done-as-far-as-code-can-go and need a real-world action or a call
