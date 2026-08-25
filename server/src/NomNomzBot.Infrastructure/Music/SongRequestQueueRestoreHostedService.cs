@@ -83,7 +83,7 @@ public sealed class SongRequestQueueRestoreHostedService : IHostedService
 
         foreach (RestoredSongRequestQueue channel in result.Channels)
         {
-            store.Restore(channel.BroadcasterId, channel.OrderedEntries);
+            store.Restore(channel.BroadcasterId, channel.OrderedEntries, channel.InFlightIndex);
             _logger.LogInformation(
                 "Restored {Count} pending song request(s) for channel {BroadcasterId} after restart",
                 channel.OrderedEntries.Count,

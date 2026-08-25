@@ -57,4 +57,16 @@ public class SongRequestQueueItem
     /// <summary>When this row was written — the freshness clock <c>SongRequestQueueRestoreService</c>
     /// checks a channel's oldest row against before trusting a restore.</summary>
     public DateTime CreatedAt { get; set; }
+
+    /// <summary>
+    /// True for the single row (per <see cref="BroadcasterId"/>, at most one) that mirrors
+    /// <c>SongRequestQueueStore.GetInFlight</c> — the request already handed to the provider and
+    /// awaited, not merely queued. Without this a restart forgets which entry was already handed over:
+    /// <c>SongRequestQueueReconciler</c> sees an empty in-flight slot and hands the same head entry to
+    /// the provider a second time, replaying the track that was already playing (the "same songs over
+    /// and over" loop seen live on 2026-08-25, multiplied by every crash-restart). The row itself is
+    /// never removed while in-flight — the provider hand-off does not dequeue — so this is purely a flag
+    /// on an otherwise-ordinary row, not a second table.
+    /// </summary>
+    public bool IsInFlight { get; set; }
 }

@@ -31,11 +31,15 @@ namespace NomNomzBot.Infrastructure.Music;
 public interface ISongRequestQueuePersistence
 {
     /// <summary>Replaces the persisted row set for <paramref name="broadcasterId"/> with the given
-    /// snapshot, atomically. An empty snapshot persists as "no rows" (a fully-drained queue).</summary>
+    /// snapshot, atomically. An empty snapshot persists as "no rows" (a fully-drained queue).
+    /// <paramref name="inFlight"/> — when given, the entry already handed to the provider (matched by
+    /// reference against <paramref name="snapshot"/>'s items) — is stamped onto its row so a restart can
+    /// tell that entry apart from one merely queued (S-SR-INFLIGHT-DURABLE).</summary>
     Task SyncAsync(
         string broadcasterId,
         IReadOnlyList<(SongRequestEntry Item, int Rank, string OwnerKey)> snapshot,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        SongRequestEntry? inFlight = null
     );
 
     /// <summary>
@@ -53,10 +57,15 @@ public interface ISongRequestQueuePersistence
 }
 
 /// <summary>One channel's restorable queue, in the exact insertion order it needs to be replayed
-/// through <c>FairQueue.Enqueue</c> to reproduce the original rank state.</summary>
+/// through <c>FairQueue.Enqueue</c> to reproduce the original rank state. <see cref="InFlightIndex"/>,
+/// when set, is the position within <see cref="OrderedEntries"/> of the entry already handed to the
+/// provider before the restart — the caller replays it through the SAME object reference so
+/// <c>SongRequestQueueStore.GetInFlight</c> and the reconciler's reference-equality check against the
+/// live queue keep working after restore.</summary>
 public sealed record RestoredSongRequestQueue(
     string BroadcasterId,
-    IReadOnlyList<(string OwnerKey, SongRequestEntry Entry)> OrderedEntries
+    IReadOnlyList<(string OwnerKey, SongRequestEntry Entry)> OrderedEntries,
+    int? InFlightIndex
 );
 
 public sealed record SongRequestQueueRestoreResult(
@@ -74,19 +83,21 @@ public sealed class SongRequestQueuePersistence : ISongRequestQueuePersistence
     public Task SyncAsync(
         string broadcasterId,
         IReadOnlyList<(SongRequestEntry Item, int Rank, string OwnerKey)> snapshot,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        SongRequestEntry? inFlight = null
     ) =>
         // Retriable unit — a bare Begin/Commit is rejected outright by Npgsql's retrying execution
         // strategy. Delete-then-insert of one channel's whole row set is idempotent, so a retried
         // attempt reproduces exactly the same end state.
         _db.ExecuteInTransactionAsync(
-            async token => await WriteSnapshotAsync(broadcasterId, snapshot, token),
+            async token => await WriteSnapshotAsync(broadcasterId, snapshot, inFlight, token),
             cancellationToken
         );
 
     private async Task WriteSnapshotAsync(
         string broadcasterId,
         IReadOnlyList<(SongRequestEntry Item, int Rank, string OwnerKey)> snapshot,
+        SongRequestEntry? inFlight,
         CancellationToken cancellationToken
     )
     {
@@ -112,6 +123,8 @@ public sealed class SongRequestQueuePersistence : ISongRequestQueuePersistence
                             ImageUrl = entry.Item.ImageUrl,
                             DurationMs = entry.Item.DurationMs,
                             CreatedAt = now,
+                            IsInFlight =
+                                inFlight is not null && ReferenceEquals(inFlight, entry.Item),
                         }
                 ),
             ];
@@ -150,26 +163,28 @@ public sealed class SongRequestQueuePersistence : ISongRequestQueuePersistence
                 continue;
             }
 
+            List<SongRequestQueueItem> orderedRows = [.. channel.OrderBy(r => r.Sequence)];
+            int inFlightIndex = orderedRows.FindIndex(r => r.IsInFlight);
+
             restored.Add(
                 new(
                     channel.Key,
                     [
-                        .. channel
-                            .OrderBy(r => r.Sequence)
-                            .Select(r =>
-                                (
-                                    r.OwnerKey,
-                                    new SongRequestEntry(
-                                        r.TrackUri,
-                                        r.TrackName,
-                                        r.Artist,
-                                        r.ImageUrl,
-                                        r.DurationMs,
-                                        r.OwnerKey
-                                    )
+                        .. orderedRows.Select(r =>
+                            (
+                                r.OwnerKey,
+                                new SongRequestEntry(
+                                    r.TrackUri,
+                                    r.TrackName,
+                                    r.Artist,
+                                    r.ImageUrl,
+                                    r.DurationMs,
+                                    r.OwnerKey
                                 )
-                            ),
-                    ]
+                            )
+                        ),
+                    ],
+                    inFlightIndex < 0 ? null : inFlightIndex
                 )
             );
         }

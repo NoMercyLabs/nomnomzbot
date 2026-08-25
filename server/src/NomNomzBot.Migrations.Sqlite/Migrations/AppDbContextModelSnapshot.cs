@@ -6942,6 +6942,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("IsInFlight")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("OwnerKey")
                         .IsRequired()
                         .HasMaxLength(100)

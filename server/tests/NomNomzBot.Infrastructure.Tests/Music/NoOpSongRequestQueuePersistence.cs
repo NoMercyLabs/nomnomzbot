@@ -26,7 +26,8 @@ public sealed class NoOpSongRequestQueuePersistence : ISongRequestQueuePersisten
     public Task SyncAsync(
         string broadcasterId,
         IReadOnlyList<(SongRequestEntry Item, int Rank, string OwnerKey)> snapshot,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        SongRequestEntry? inFlight = null
     ) => Task.CompletedTask;
 
     public Task<SongRequestQueueRestoreResult> LoadForRestoreAsync(

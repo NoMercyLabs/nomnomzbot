@@ -74,10 +74,18 @@ public interface ISongRequestQueueStore
     /// <see cref="FairQueue{T}.Enqueue"/> derives rank purely from insertion order, so replaying the
     /// same ordered (ownerKey, item) sequence reproduces the exact same rank state the queue had
     /// before the restart.
+    /// <para>
+    /// <paramref name="inFlightIndex"/> — the position within <paramref name="orderedEntries"/> of the
+    /// request already handed to the provider before the restart (S-SR-INFLIGHT-DURABLE) — is replayed
+    /// into <see cref="GetInFlight"/> using the SAME entry object reference that was just enqueued, so a
+    /// restart does not re-hand-over the track that was already playing, and the reconciler's
+    /// reference-equality cleanup keeps working against the restored queue.
+    /// </para>
     /// </summary>
     void Restore(
         string broadcasterId,
-        IReadOnlyList<(string OwnerKey, SongRequestEntry Entry)> orderedEntries
+        IReadOnlyList<(string OwnerKey, SongRequestEntry Entry)> orderedEntries,
+        int? inFlightIndex = null
     );
 }
 
@@ -116,13 +124,20 @@ public sealed class SongRequestQueueStore : ISongRequestQueueStore
     /// </summary>
     public void Restore(
         string broadcasterId,
-        IReadOnlyList<(string OwnerKey, SongRequestEntry Entry)> orderedEntries
+        IReadOnlyList<(string OwnerKey, SongRequestEntry Entry)> orderedEntries,
+        int? inFlightIndex = null
     )
     {
         FairQueue<SongRequestEntry> queue = GetOrCreate(broadcasterId);
         queue.Clear();
         foreach ((string ownerKey, SongRequestEntry entry) in orderedEntries)
             queue.Enqueue(ownerKey, entry);
+
+        SongRequestEntry? inFlight =
+            inFlightIndex is int index && index >= 0 && index < orderedEntries.Count
+                ? orderedEntries[index].Entry
+                : null;
+        SetInFlight(broadcasterId, inFlight);
     }
 }
 

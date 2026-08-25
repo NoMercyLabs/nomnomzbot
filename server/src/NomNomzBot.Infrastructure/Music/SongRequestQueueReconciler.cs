@@ -99,7 +99,12 @@ public sealed class SongRequestQueueReconciler : IEventHandler<PlaybackStateChan
         if (dropped == 0)
             return;
 
-        await _queuePersistence.SyncAsync(broadcasterId, queue.GetSnapshot(), cancellationToken);
+        await _queuePersistence.SyncAsync(
+            broadcasterId,
+            queue.GetSnapshot(),
+            cancellationToken,
+            _queueStore.GetInFlight(broadcasterId)
+        );
 
         await _eventBus.PublishAsync(
             new SongRequestQueueChangedEvent

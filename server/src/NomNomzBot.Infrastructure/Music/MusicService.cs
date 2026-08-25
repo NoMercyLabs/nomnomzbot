@@ -66,12 +66,20 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
 
     /// <summary>Write-through persistence checkpoint (S001b) — called immediately after every in-memory
     /// fair-queue mutation, before the caller sees success, so a hard kill right after never loses a
-    /// mutation the caller was told happened.</summary>
+    /// mutation the caller was told happened. Always re-reads the store's current in-flight entry
+    /// (rather than accepting one as a parameter) so every call site stamps the durable row set
+    /// correctly without having to track that state itself (S-SR-INFLIGHT-DURABLE).</summary>
     private Task SyncPersistedQueueAsync(
         string broadcasterId,
         FairQueue<SongRequestEntry> queue,
         CancellationToken cancellationToken
-    ) => _queuePersistence.SyncAsync(broadcasterId, queue.GetSnapshot(), cancellationToken);
+    ) =>
+        _queuePersistence.SyncAsync(
+            broadcasterId,
+            queue.GetSnapshot(),
+            cancellationToken,
+            _queueStore.GetInFlight(broadcasterId)
+        );
 
     public async Task<IReadOnlyList<MusicTrack>> SearchAsync(
         string broadcasterId,
@@ -585,6 +593,9 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         // This request is the one now waiting at the provider — remember it so the next request queues
         // behind it in OUR queue instead of being handed over too.
         _queueStore.SetInFlight(broadcasterId, entry);
+        // Re-sync so the persisted row set carries the in-flight flag too (S-SR-INFLIGHT-DURABLE) — the
+        // sync above (before this request's hand-off outcome was known) could not have stamped it yet.
+        await SyncPersistedQueueAsync(broadcasterId, queue, cancellationToken);
 
         await LogAndAnnounceAsync(
             tenantId,
@@ -1239,6 +1250,10 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         }
 
         _queueStore.SetInFlight(broadcasterId, next);
+        // Persist the in-flight flag immediately — without this a restart right after hand-over forgets
+        // that `next` was already pushed to the provider and re-hands it over a second time
+        // (S-SR-INFLIGHT-DURABLE).
+        await SyncPersistedQueueAsync(broadcasterId, queue!, cancellationToken);
     }
 
     /// <summary>Takes one rejected entry back out of the fair queue and returns the caller's failure —
