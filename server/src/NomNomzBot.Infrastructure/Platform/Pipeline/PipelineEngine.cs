@@ -14,6 +14,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 
@@ -564,6 +565,92 @@ public sealed class PipelineEngine : IPipelineEngine
             StepLogs = ctx.StepLogs,
             ErrorMessage = state.AbortReason,
         };
+    }
+
+    /// <summary>
+    /// <c>run_pipeline inline</c> (pipeline-control-flow.md D4, pipeline-tree-and-editor.md §2.5).
+    /// Walks the target pipeline's tree using the caller's OWN <see cref="PipelineExecutionContext"/> —
+    /// shared Run-scope variables, one shared <see cref="PipelineExecutionContext.CallDepth"/> counter
+    /// so a call chain that crosses pipeline boundaries (A → B → A → …) is bounded exactly like a
+    /// single deeply-nested pipeline would be. Uses its own child <see cref="PipelineTreeRunState"/>
+    /// (the "try" shape, not the "switch" shape — pipeline-control-flow.md D3/D7): a callee's own
+    /// <c>stop</c>/failure must never bleed into the caller's run state, only the pass/fail verdict
+    /// and the return value returned here.
+    /// </summary>
+    public async Task<Result<string?>> RunInlineSubPipelineAsync(
+        PipelineExecutionContext callerCtx,
+        Guid targetPipelineId,
+        IReadOnlyList<string>? args,
+        CancellationToken ct = default
+    )
+    {
+        if (callerCtx.CallDepth >= MaxRecursionDepth)
+            return Result.Failure<string?>(
+                "max_recursion_depth_exceeded",
+                "max_recursion_depth_exceeded"
+            );
+
+        // Tenant scoping: the callee must belong to the SAME channel as the caller — never rely
+        // solely on a possibly-absent ambient tenant filter for a background/EventSub-driven run
+        // (platform-conventions.md). A cross-tenant id fails closed before a single callee row loads.
+        bool owned = await _db
+            .Pipelines.AsNoTracking()
+            .AnyAsync(
+                p => p.Id == targetPipelineId && p.BroadcasterId == callerCtx.BroadcasterId,
+                ct
+            );
+        if (!owned)
+            return Result.Failure<string?>(
+                "pipeline not found in this channel",
+                "run_pipeline_cross_tenant"
+            );
+
+        List<PipelineStep> rows = await LoadStepRowsAsync(targetPipelineId, ct);
+        if (rows.Count == 0)
+            return Result.Success<string?>(null);
+
+        if (args is not null)
+            for (int i = 0; i < args.Count; i++)
+                callerCtx.Variables[$"args.{i + 1}"] = args[i];
+
+        callerCtx.CallDepth++;
+        string? previousReturnValue = callerCtx.ReturnValue;
+        callerCtx.ReturnValue = null;
+        try
+        {
+            List<PipelineTreeNode> calleeRoots = BuildTree(rows);
+            PipelineTreeRunState calleeState = new();
+            await ExecuteNodesAsync(calleeRoots, callerCtx, calleeState, depth: 0, ct);
+
+            if (calleeState.AbortedBudget)
+                return Result.Failure<string?>(
+                    calleeState.AbortReason ?? "aborted_budget",
+                    calleeState.AbortReason ?? "aborted_budget"
+                );
+
+            if (calleeState.FailedBreak)
+                return Result.Failure<string?>(
+                    "run_pipeline inline call failed",
+                    "run_pipeline_callee_failed"
+                );
+
+            return Result.Success<string?>(callerCtx.ReturnValue);
+        }
+        finally
+        {
+            callerCtx.CallDepth--;
+            // Restore the caller's own pending return value (if any) unless the callee set a new
+            // one — an inline call that never reaches `return_value` must not clobber a return the
+            // caller itself is still carrying from further up its own call chain.
+            callerCtx.ReturnValue ??= previousReturnValue;
+
+            // The callee's own `stop`/`return_value` already ended ITS tree walk (captured above as
+            // calleeState.StoppedDeliberately) and must never also end the CALLER's — this run_pipeline
+            // step is otherwise just another leaf. ExecuteLeafAsync never clears ShouldStop itself
+            // (a flat/non-call run relies on the walk stopping right there instead), so a call boundary
+            // must clear it explicitly or it leaks into the caller's own next ExecuteLeafAsync check.
+            callerCtx.ShouldStop = false;
+        }
     }
 
     private static List<PipelineTreeNode> BuildTree(List<PipelineStep> rows)

@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Common.Models;
+
 namespace NomNomzBot.Application.Abstractions.Pipeline;
 
 public interface IPipelineEngine
@@ -18,6 +20,23 @@ public interface IPipelineEngine
     );
     Task CancelAllForChannelAsync(Guid broadcasterId);
     int GetActiveCountForChannel(Guid broadcasterId);
+
+    /// <summary>
+    /// Invoked by the <c>run_pipeline</c> action in <c>inline</c> mode (pipeline-control-flow.md D4):
+    /// runs the target pipeline's tree using the CALLER's own <paramref name="callerCtx"/> — same Run
+    /// scope (<see cref="PipelineExecutionContext.Variables"/>), same <see cref="PipelineExecutionContext.CallDepth"/>
+    /// counter, so a chain of inline calls across any number of pipelines is bounded by one shared cap.
+    /// Fails closed (never runs a single step of the callee) when: the caller is already at the
+    /// recursion cap, or the target pipeline does not belong to the caller's own channel (tenant
+    /// scoping — <c>platform-conventions.md</c>). On success, returns the callee's <c>return_value</c>
+    /// (or <c>null</c> if it never returned one).
+    /// </summary>
+    Task<Result<string?>> RunInlineSubPipelineAsync(
+        PipelineExecutionContext callerCtx,
+        Guid targetPipelineId,
+        IReadOnlyList<string>? args,
+        CancellationToken ct = default
+    );
 }
 
 public class PipelineRequest

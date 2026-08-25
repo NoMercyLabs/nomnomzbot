@@ -119,6 +119,25 @@ public sealed class PipelineEngineTreeExecutionTests
         }
     }
 
+    /// <summary>Records the value of one named Run-scope variable each time it runs — used to prove
+    /// what a callee actually saw (an arg) or what a caller actually saw after a sub-pipeline call
+    /// (<c>{{call.result}}</c>), the state itself rather than "no exception".</summary>
+    private sealed class RecordingValueAction : ICommandAction
+    {
+        public required string ActionType { get; init; }
+        public required string VariableKey { get; init; }
+        public List<string> Seen { get; } = [];
+
+        public Task<ActionResult> ExecuteAsync(
+            PipelineExecutionContext ctx,
+            ActionDefinition action
+        )
+        {
+            Seen.Add(ctx.Variables.GetValueOrDefault(VariableKey, "<missing>"));
+            return Task.FromResult(ActionResult.Success());
+        }
+    }
+
     private static PipelineEngine CreateEngine(
         PipelineTreeExecutionTestDbContext db,
         IEnumerable<ICommandAction> extraActions,
@@ -152,7 +171,7 @@ public sealed class PipelineEngineTreeExecutionTests
             new ComparisonCondition(resolver),
         ];
 
-        return new(
+        PipelineEngine engine = new(
             db,
             registry,
             actions,
@@ -161,6 +180,17 @@ public sealed class PipelineEngineTreeExecutionTests
             TimeProvider.System,
             randomSource
         );
+
+        // `actions` is the SAME list instance the engine holds a reference to (never copied in the
+        // constructor), so it's safe to append these two after construction. RunPipelineAction takes
+        // IServiceProvider (never IPipelineEngine directly — see its own doc comment on the real DI
+        // circularity that would create); stub it to hand back this very engine.
+        IServiceProvider serviceProvider = Substitute.For<IServiceProvider>();
+        serviceProvider.GetService(typeof(IPipelineEngine)).Returns(engine);
+        actions.Add(new RunPipelineAction(serviceProvider, db));
+        actions.Add(new ReturnValueAction());
+
+        return engine;
     }
 
     private static PipelineRequest BuildRequest(
@@ -223,6 +253,22 @@ public sealed class PipelineEngineTreeExecutionTests
             actionType,
             configJson
         );
+
+    /// <summary>A minimal owned <see cref="NomNomzBot.Domain.Commands.Entities.Pipeline"/> row —
+    /// <c>run_pipeline</c>'s tenant-scoping check (S-PIPE-TREE-d2) looks this up by id + BroadcasterId
+    /// before ever loading the target's steps.</summary>
+    private static NomNomzBot.Domain.Commands.Entities.Pipeline NewPipelineRow(
+        Guid id,
+        Guid broadcasterId,
+        string name = "callee"
+    ) =>
+        new()
+        {
+            Id = id,
+            BroadcasterId = broadcasterId,
+            Name = name,
+            TriggerKind = "manual",
+        };
 
     private static PipelineStepCondition NewLeafCondition(
         Guid stepId,
@@ -1345,5 +1391,213 @@ public sealed class PipelineEngineTreeExecutionTests
                 0,
                 "break must exit the LOOP, so the step after the switch never runs; if break only escaped the switch this would be 5"
             );
+    }
+
+    // ─── S-PIPE-TREE-d2: run_pipeline (inline/detached) + return_value ────────
+
+    [Fact]
+    public async Task RunPipelineInline_PassesArgs_CalleeReturnsValue_CallerUsesItNextStep()
+    {
+        using PipelineTreeExecutionTestDbContext db = PipelineTreeExecutionTestDbContext.New();
+        Guid callerPipelineId = Guid.NewGuid();
+        Guid calleePipelineId = Guid.NewGuid();
+
+        db.Pipelines.Add(NewPipelineRow(calleePipelineId, TestChannel));
+
+        // Callee: records the arg it was called with, then returns "42".
+        PipelineStep calleeRecordArg = NewLeaf(
+            calleePipelineId,
+            null,
+            null,
+            0,
+            "record_arg",
+            """{"type":"record_arg"}"""
+        );
+        PipelineStep calleeReturn = NewLeaf(
+            calleePipelineId,
+            null,
+            null,
+            1,
+            "return_value",
+            """{"type":"return_value","value":"42"}"""
+        );
+
+        // Caller: run_pipeline inline (with one arg), then a step that reads {{call.result}}.
+        PipelineStep callerRunPipeline = NewLeaf(
+            callerPipelineId,
+            null,
+            null,
+            0,
+            "run_pipeline",
+            $$"""{"type":"run_pipeline","pipeline":"{{calleePipelineId}}","mode":"inline","args":["hello"]}"""
+        );
+        PipelineStep callerRecordResult = NewLeaf(
+            callerPipelineId,
+            null,
+            null,
+            1,
+            "record_result",
+            """{"type":"record_result"}"""
+        );
+
+        db.PipelineSteps.AddRange(
+            calleeRecordArg,
+            calleeReturn,
+            callerRunPipeline,
+            callerRecordResult
+        );
+        await db.SaveChangesAsync();
+
+        RecordingValueAction argRecorder = new()
+        {
+            ActionType = "record_arg",
+            VariableKey = "args.1",
+        };
+        RecordingValueAction resultRecorder = new()
+        {
+            ActionType = "record_result",
+            VariableKey = "call.result",
+        };
+        PipelineEngine engine = CreateEngine(db, [argRecorder, resultRecorder]);
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(callerPipelineId));
+
+        result.Outcome.Should().Be(PipelineOutcome.Completed);
+        argRecorder.Seen.Should().Equal("hello");
+        resultRecorder.Seen.Should().Equal("42");
+    }
+
+    [Fact]
+    public async Task RunPipelineInline_CrossChannelTarget_FailsAndNeverRunsTheOtherChannelsSteps()
+    {
+        using PipelineTreeExecutionTestDbContext db = PipelineTreeExecutionTestDbContext.New();
+        Guid otherChannel = Guid.Parse("0192a000-0000-7000-8000-0000000000f2");
+        Guid callerPipelineId = Guid.NewGuid();
+        Guid foreignPipelineId = Guid.NewGuid();
+
+        // Owned by a DIFFERENT channel than the caller.
+        db.Pipelines.Add(NewPipelineRow(foreignPipelineId, otherChannel));
+
+        PipelineStep foreignLeaf = NewLeaf(
+            foreignPipelineId,
+            null,
+            null,
+            0,
+            "record_foreign",
+            """{"type":"record_foreign"}"""
+        );
+        PipelineStep callerRunPipeline = NewLeaf(
+            callerPipelineId,
+            null,
+            null,
+            0,
+            "run_pipeline",
+            $$"""{"type":"run_pipeline","pipeline":"{{foreignPipelineId}}","mode":"inline"}"""
+        );
+
+        db.PipelineSteps.AddRange(foreignLeaf, callerRunPipeline);
+        await db.SaveChangesAsync();
+
+        CountingAction foreignRecorder = new() { ActionType = "record_foreign" };
+        PipelineEngine engine = CreateEngine(db, [foreignRecorder]);
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(callerPipelineId));
+
+        result.Outcome.Should().Be(PipelineOutcome.PartiallyFailed);
+        foreignRecorder.Count.Should().Be(0, "none of the other channel's steps may execute");
+    }
+
+    [Fact]
+    public async Task RunPipelineInline_SelfRecursion_AbortsAtMaxRecursionDepth_InnermostNeverRuns()
+    {
+        using PipelineTreeExecutionTestDbContext db = PipelineTreeExecutionTestDbContext.New();
+        Guid pipelineId = Guid.NewGuid();
+
+        db.Pipelines.Add(NewPipelineRow(pipelineId, TestChannel));
+
+        // A pipeline that calls ITSELF inline every time it runs — the classic unbounded-cycle shape
+        // control-flow D4 exists to bound. Every level records before recursing, so the recorder's
+        // count is exactly how many levels the engine actually entered.
+        PipelineStep countStep = NewLeaf(
+            pipelineId,
+            null,
+            null,
+            0,
+            "count_calls",
+            """{"type":"count_calls"}"""
+        );
+        PipelineStep recurseStep = NewLeaf(
+            pipelineId,
+            null,
+            null,
+            1,
+            "run_pipeline",
+            $$"""{"type":"run_pipeline","pipeline":"{{pipelineId}}","mode":"inline"}"""
+        );
+
+        db.PipelineSteps.AddRange(countStep, recurseStep);
+        await db.SaveChangesAsync();
+
+        CountingAction counter = new() { ActionType = "count_calls" };
+        PipelineEngine engine = CreateEngine(db, [counter]);
+
+        // Proof the run terminates at all (never hangs, never stack-overflows the test process) is
+        // that this call returns within the test's own timeout.
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(pipelineId));
+
+        result.Outcome.Should().Be(PipelineOutcome.PartiallyFailed);
+        counter
+            .Count.Should()
+            .Be(
+                9,
+                "the top-level run plus 8 nested inline calls (CallDepth 0..7 all proceed) is exactly "
+                    + "MaxRecursionDepth=8 levels of actual work; the 9th attempted call is rejected "
+                    + "before its own body — including its own count_calls leaf — ever runs"
+            );
+    }
+
+    [Fact]
+    public async Task RunPipelineInline_FailingCallee_CaughtByTryAtCallSite()
+    {
+        using PipelineTreeExecutionTestDbContext db = PipelineTreeExecutionTestDbContext.New();
+        Guid callerPipelineId = Guid.NewGuid();
+        Guid calleePipelineId = Guid.NewGuid();
+
+        db.Pipelines.Add(NewPipelineRow(calleePipelineId, TestChannel));
+
+        PipelineStep calleeFailingLeaf = NewLeaf(
+            calleePipelineId,
+            null,
+            null,
+            0,
+            "always_fail",
+            """{"type":"always_fail"}"""
+        );
+
+        PipelineStep tryStep = NewStep(callerPipelineId, null, null, "try", "{}", 0);
+        PipelineStep tryRunPipeline = NewLeaf(
+            callerPipelineId,
+            tryStep.Id,
+            "then",
+            0,
+            "run_pipeline",
+            $$"""{"type":"run_pipeline","pipeline":"{{calleePipelineId}}","mode":"inline"}"""
+        );
+        PipelineStep catchMarker = NewLeaf(
+            callerPipelineId,
+            tryStep.Id,
+            "else",
+            0,
+            "caught_marker",
+            """{"type":"caught_marker"}"""
+        );
+
+        db.PipelineSteps.AddRange(calleeFailingLeaf, tryStep, tryRunPipeline, catchMarker);
+        await db.SaveChangesAsync();
+
+        CountingAction caughtMarker = new() { ActionType = "caught_marker" };
+        PipelineEngine engine = CreateEngine(db, [new AlwaysFailAction(), caughtMarker]);
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(callerPipelineId));
+
+        result.Outcome.Should().Be(PipelineOutcome.Completed);
+        caughtMarker.Count.Should().Be(1, "the try's catch arm must run once the callee failed");
     }
 }

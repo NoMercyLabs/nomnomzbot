@@ -48,6 +48,20 @@ public sealed class PipelineExecutionContext
     /// Used to decide whether a <c>break</c>/<c>continue</c> action has anywhere to act on.</summary>
     public int LoopDepth { get; set; }
 
+    /// <summary>Number of <c>run_pipeline inline</c> frames currently open on THIS execution — spans
+    /// pipeline boundaries (A calls B calls A increments the same counter), because an inline call
+    /// shares this very context rather than creating a fresh one. Checked against
+    /// <c>PipelineEngine.MaxRecursionDepth</c> before each new inline call; a chain that would exceed
+    /// it is rejected before the callee's tree is even loaded (pipeline-control-flow.md D4).</summary>
+    public int CallDepth { get; set; }
+
+    /// <summary>Set by the <c>return_value</c> action; read by the caller's <c>run_pipeline inline</c>
+    /// step immediately after the callee's tree walk finishes, then handed to the caller as
+    /// <c>{{call.result}}</c> (pipeline-tree-and-editor.md §2.5). Cleared before each inline call so a
+    /// callee that never returns leaves the caller with <c>null</c>, not a stale value from an earlier
+    /// sibling call.</summary>
+    public string? ReturnValue { get; set; }
+
     /// <summary>Per-step execution logs accumulated during the run.</summary>
     public List<StepExecutionLog> StepLogs { get; } = [];
 }
