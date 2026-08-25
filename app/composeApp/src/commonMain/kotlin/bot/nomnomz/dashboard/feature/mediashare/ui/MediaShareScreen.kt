@@ -48,6 +48,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.component.TabsList
@@ -112,6 +113,7 @@ import nomnomzbot.composeapp.generated.resources.mediashare_status_rejected
 import nomnomzbot.composeapp.generated.resources.mediashare_status_skipped
 import nomnomzbot.composeapp.generated.resources.mediashare_submit_hint
 import nomnomzbot.composeapp.generated.resources.mediashare_subtitle
+import nomnomzbot.composeapp.generated.resources.mediashare_row_type
 import nomnomzbot.composeapp.generated.resources.mediashare_title
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
@@ -294,6 +296,13 @@ private fun QueueRow(
     val isApproved: Boolean = request.status == "approved"
     val actionable: Boolean = isPending || isApproved
     val position: Int? = request.queuePosition
+    val displayTitle: String =
+        resolveRowLabel(
+            primary = request.title,
+            secondary = request.mediaRef,
+            typeLabel = stringResource(Res.string.mediashare_row_type),
+            discriminatorSource = request.id,
+        )
 
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
@@ -303,7 +312,7 @@ private fun QueueRow(
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
                 Text(
-                    text = request.title ?: request.mediaRef,
+                    text = displayTitle,
                     style = typography.base,
                     color = tokens.cardForeground,
                     maxLines = 1,

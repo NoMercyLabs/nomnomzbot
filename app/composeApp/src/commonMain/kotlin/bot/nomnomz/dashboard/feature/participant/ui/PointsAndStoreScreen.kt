@@ -23,6 +23,7 @@ import androidx.compose.foundation.verticalScroll
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -48,6 +49,8 @@ import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.participant_loading
 import nomnomzbot.composeapp.generated.resources.participant_store_balance
+import nomnomzbot.composeapp.generated.resources.economy_catalog_row_type
+import nomnomzbot.composeapp.generated.resources.economy_jars_row_type
 import nomnomzbot.composeapp.generated.resources.participant_store_buy
 import nomnomzbot.composeapp.generated.resources.participant_store_catalog_empty
 import nomnomzbot.composeapp.generated.resources.participant_store_catalog_title
@@ -207,7 +210,14 @@ private fun CatalogRow(item: CatalogItem, frozen: Boolean, onPurchase: (String) 
     val typography = LocalTypography.current
 
     val soldOut: Boolean = item.stockRemaining != null && item.stockRemaining <= 0
-    val buyLabel: String = stringResource(Res.string.participant_store_buy, item.name)
+    val displayName: String =
+        resolveRowLabel(
+            primary = item.name,
+            secondary = item.cost.toString(),
+            typeLabel = stringResource(Res.string.economy_catalog_row_type),
+            discriminatorSource = item.id,
+        )
+    val buyLabel: String = stringResource(Res.string.participant_store_buy, displayName)
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -216,7 +226,7 @@ private fun CatalogRow(item: CatalogItem, frozen: Boolean, onPurchase: (String) 
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = item.name,
+                text = displayName,
                 style = typography.sm,
                 color = tokens.cardForeground,
                 maxLines = 1,
@@ -240,7 +250,7 @@ private fun CatalogRow(item: CatalogItem, frozen: Boolean, onPurchase: (String) 
                 enabled = !frozen,
                 modifier = Modifier.semantics { contentDescription = buyLabel },
             ) {
-                Text(text = stringResource(Res.string.participant_store_buy, item.name), maxLines = 1)
+                Text(text = buyLabel, maxLines = 1)
             }
         }
     }
@@ -276,10 +286,16 @@ private fun JarRow(jar: SavingsJar, frozen: Boolean, onContribute: (String, Long
     var amount: String by remember { mutableStateOf("") }
     val parsedAmount: Long? = amount.toLongOrNull()
     val enabled: Boolean = jar.isOpen && !frozen && parsedAmount != null && parsedAmount > 0
+    val displayName: String =
+        resolveRowLabel(
+            primary = jar.name,
+            typeLabel = stringResource(Res.string.economy_jars_row_type),
+            discriminatorSource = jar.id,
+        )
 
     Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
         Text(
-            text = jar.name,
+            text = displayName,
             style = typography.sm,
             color = tokens.cardForeground,
             maxLines = 1,

@@ -43,6 +43,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
@@ -90,6 +91,7 @@ import nomnomzbot.composeapp.generated.resources.federation_peer_revoke_message
 import nomnomzbot.composeapp.generated.resources.federation_peer_revoke_title
 import nomnomzbot.composeapp.generated.resources.federation_peer_status_revoked
 import nomnomzbot.composeapp.generated.resources.federation_peer_status_trusted
+import nomnomzbot.composeapp.generated.resources.federation_peer_row_type
 import nomnomzbot.composeapp.generated.resources.federation_peer_status_untrusted
 import nomnomzbot.composeapp.generated.resources.federation_peer_title
 import nomnomzbot.composeapp.generated.resources.federation_peer_trust
@@ -268,6 +270,13 @@ private fun PeerRow(
             else -> Res.string.federation_peer_status_untrusted
         }
     )
+    val displayName: String =
+        resolveRowLabel(
+            primary = peer.name,
+            secondary = peer.baseUrl,
+            typeLabel = stringResource(Res.string.federation_peer_row_type),
+            discriminatorSource = peer.id,
+        )
 
     Column(
         modifier = Modifier
@@ -281,7 +290,7 @@ private fun PeerRow(
             horizontalArrangement = Arrangement.spacedBy(spacing.s3),
         ) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-                Text(text = peer.name, style = typography.base, color = tokens.cardForeground, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(text = displayName, style = typography.base, color = tokens.cardForeground, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(text = peer.baseUrl, style = typography.xs, color = tokens.mutedForeground, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Text(

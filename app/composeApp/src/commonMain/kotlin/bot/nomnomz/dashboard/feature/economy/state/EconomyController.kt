@@ -13,6 +13,7 @@ package bot.nomnomz.dashboard.feature.economy.state
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.core.realtime.onConfigChange
 import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.CatalogItem
 import bot.nomnomz.dashboard.core.network.CatalogPurchase
@@ -458,7 +459,13 @@ class EconomyController(
                 result.value.map {
                     PickerOption(
                         id = it.id,
-                        label = it.displayName.ifBlank { it.username },
+                        label =
+                            resolveRowLabel(
+                                it.displayName,
+                                secondary = it.username,
+                                typeLabel = "Viewer",
+                                discriminatorSource = it.id,
+                            ),
                         sublabel = it.username,
                     )
                 }
@@ -476,7 +483,17 @@ class EconomyController(
         return when (val result: ApiResult<List<ChannelSearchResult>> = api.searchChannels(channel, query)) {
             is ApiResult.Ok ->
                 result.value.map {
-                    PickerOption(id = it.id, label = it.displayName.ifBlank { it.login }, sublabel = it.login)
+                    PickerOption(
+                        id = it.id,
+                        label =
+                            resolveRowLabel(
+                                it.displayName,
+                                secondary = it.login,
+                                typeLabel = "Channel",
+                                discriminatorSource = it.id,
+                            ),
+                        sublabel = it.login,
+                    )
                 }
             is ApiResult.Failure -> emptyList()
         }

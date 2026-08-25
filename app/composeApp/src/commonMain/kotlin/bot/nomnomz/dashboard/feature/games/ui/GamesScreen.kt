@@ -57,6 +57,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
@@ -111,6 +112,7 @@ import nomnomzbot.composeapp.generated.resources.games_empty
 import nomnomzbot.composeapp.generated.resources.games_enabled
 import nomnomzbot.composeapp.generated.resources.games_error
 import nomnomzbot.composeapp.generated.resources.games_loading
+import nomnomzbot.composeapp.generated.resources.games_row_type
 import nomnomzbot.composeapp.generated.resources.games_retry
 import nomnomzbot.composeapp.generated.resources.games_row_description
 import nomnomzbot.composeapp.generated.resources.games_toggle_action
@@ -463,6 +465,13 @@ private fun LiveGameRow(
     val keywords: String = entry.inputKeywords.joinToString(" ") { "!$it" }
     val playersLabel: String =
         stringResource(Res.string.games_live_players, entry.minPlayers, entry.maxPlayers)
+    val displayName: String =
+        resolveRowLabel(
+            primary = entry.displayName,
+            secondary = entry.gameKey,
+            typeLabel = stringResource(Res.string.games_row_type),
+            discriminatorSource = entry.gameKey,
+        )
 
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
@@ -474,7 +483,7 @@ private fun LiveGameRow(
             verticalArrangement = Arrangement.spacedBy(spacing.s1),
         ) {
             Text(
-                text = entry.displayName,
+                text = displayName,
                 style = typography.base,
                 color = tokens.cardForeground,
                 maxLines = 1,

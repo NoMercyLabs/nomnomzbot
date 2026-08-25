@@ -139,13 +139,14 @@ fun ParticipantShell(
 
     BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxWidth().background(tokens.background)) {
         val compact: Boolean = maxWidth < CompactBreakpoint
+        val selectedLabel: String = selected.label()
 
         if (compact) {
             var drawerOpen: Boolean by remember { mutableStateOf(false) }
 
             Column(modifier = Modifier.fillMaxSize()) {
                 TopBar(
-                    title = selected.label(),
+                    title = selectedLabel,
                     channelName = user?.displayName,
                     onMenu = { drawerOpen = true },
                 )
@@ -188,7 +189,7 @@ fun ParticipantShell(
                     onLogout = onLogout,
                 )
                 Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                    TopBar(title = selected.label(), channelName = user?.displayName, onMenu = null)
+                    TopBar(title = selectedLabel, channelName = user?.displayName, onMenu = null)
                     Content(
                         selected = selected,
                         controller = controller,
@@ -319,6 +320,7 @@ private fun NavItem(page: ParticipantPage, selected: Boolean, onClick: () -> Uni
 
     val container: Color = if (selected) tokens.sidebarPrimary else Color.Transparent
     val content: Color = if (selected) tokens.sidebarPrimaryForeground else tokens.sidebarForeground
+    val pageLabel: String = page.label()
 
     Box(
         modifier = Modifier
@@ -328,7 +330,7 @@ private fun NavItem(page: ParticipantPage, selected: Boolean, onClick: () -> Uni
             .selectable(selected = selected, role = Role.Tab, onClick = onClick)
             .padding(horizontal = spacing.s3, vertical = spacing.s2),
     ) {
-        Text(text = page.label(), style = typography.sm, color = content)
+        Text(text = pageLabel, style = typography.sm, color = content)
     }
 }
 

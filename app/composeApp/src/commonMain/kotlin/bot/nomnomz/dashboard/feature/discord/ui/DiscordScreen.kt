@@ -58,6 +58,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.icon.CheckCircleGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
@@ -108,6 +109,7 @@ import nomnomzbot.composeapp.generated.resources.discord_picker_empty_roles
 import nomnomzbot.composeapp.generated.resources.discord_picker_error
 import nomnomzbot.composeapp.generated.resources.discord_picker_loading
 import nomnomzbot.composeapp.generated.resources.discord_picker_retry
+import nomnomzbot.composeapp.generated.resources.discord_role_row_type
 import nomnomzbot.composeapp.generated.resources.discord_consent_approve
 import nomnomzbot.composeapp.generated.resources.discord_consent_approve_action
 import nomnomzbot.composeapp.generated.resources.discord_consent_approve_title
@@ -1227,8 +1229,16 @@ private fun RolePickerField(
                 } else {
                     var expanded: Boolean by remember { mutableStateOf(false) }
                     val noPingLabel: String = stringResource(Res.string.discord_dialog_ping_role_none)
+                    val roleTypeLabel: String = stringResource(Res.string.discord_role_row_type)
+                    val selectedRole: DiscordGuildRole? = roles.value.firstOrNull { it.id == selectedId }
                     val selectedLabel: String =
-                        roles.value.firstOrNull { it.id == selectedId }?.name ?: noPingLabel
+                        selectedRole?.let {
+                            resolveRowLabel(
+                                primary = it.name,
+                                typeLabel = roleTypeLabel,
+                                discriminatorSource = it.id,
+                            )
+                        } ?: noPingLabel
 
                     Box {
                         TextButton(onClick = { expanded = true }) {
@@ -1243,6 +1253,12 @@ private fun RolePickerField(
                                 },
                             )
                             roles.value.sortedByDescending { it.position }.forEach { role ->
+                                val roleLabel: String =
+                                    resolveRowLabel(
+                                        primary = role.name,
+                                        typeLabel = roleTypeLabel,
+                                        discriminatorSource = role.id,
+                                    )
                                 DropdownMenuItem(
                                     text = {
                                         Row(
@@ -1257,7 +1273,7 @@ private fun RolePickerField(
                                                     .clip(CircleShape)
                                                     .background(Color(role.color).copy(alpha = 1f))
                                             )
-                                            Text(text = role.name, style = typography.sm, color = tokens.cardForeground)
+                                            Text(text = roleLabel, style = typography.sm, color = tokens.cardForeground)
                                         }
                                     },
                                     onClick = {

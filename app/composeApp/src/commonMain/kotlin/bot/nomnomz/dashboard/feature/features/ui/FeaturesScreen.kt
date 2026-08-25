@@ -41,6 +41,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
@@ -66,6 +67,7 @@ import nomnomzbot.composeapp.generated.resources.features_regrant_scopes
 import nomnomzbot.composeapp.generated.resources.features_scopes_label
 import nomnomzbot.composeapp.generated.resources.features_subtitle
 import nomnomzbot.composeapp.generated.resources.shell_nav_features
+import nomnomzbot.composeapp.generated.resources.features_row_type
 import nomnomzbot.composeapp.generated.resources.features_toggle_action
 import org.jetbrains.compose.resources.stringResource
 
@@ -151,7 +153,14 @@ private fun FeatureRow(
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    val toggleLabel: String = stringResource(Res.string.features_toggle_action, feature.featureKey)
+    val displayName: String =
+        resolveRowLabel(
+            primary = feature.label,
+            secondary = feature.featureKey,
+            typeLabel = stringResource(Res.string.features_row_type),
+            discriminatorSource = feature.featureKey,
+        )
+    val toggleLabel: String = stringResource(Res.string.features_toggle_action, displayName)
     val scopesLabel: String = stringResource(Res.string.features_scopes_label)
 
     Column(
@@ -169,12 +178,12 @@ private fun FeatureRow(
                 modifier = Modifier
                     .weight(1f)
                     .clearAndSetSemantics {
-                        contentDescription = "${feature.label.ifEmpty { feature.featureKey }}, ${if (feature.isEnabled) "enabled" else "disabled"}."
+                        contentDescription = "$displayName, ${if (feature.isEnabled) "enabled" else "disabled"}."
                     },
                 verticalArrangement = Arrangement.spacedBy(spacing.s1),
             ) {
                 Text(
-                    text = feature.label.ifEmpty { feature.featureKey },
+                    text = displayName,
                     style = typography.base,
                     color = tokens.cardForeground,
                     maxLines = 1,

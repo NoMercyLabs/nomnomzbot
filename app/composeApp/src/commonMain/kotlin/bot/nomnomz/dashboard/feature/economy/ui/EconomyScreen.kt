@@ -62,6 +62,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
 import bot.nomnomz.dashboard.core.designsystem.component.PickerRef
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.SearchPickerField
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Spinner
@@ -126,6 +127,7 @@ import nomnomzbot.composeapp.generated.resources.economy_catalog_delete_confirm
 import nomnomzbot.composeapp.generated.resources.economy_catalog_delete_dismiss
 import nomnomzbot.composeapp.generated.resources.economy_catalog_delete_message
 import nomnomzbot.composeapp.generated.resources.economy_catalog_delete_title
+import nomnomzbot.composeapp.generated.resources.economy_catalog_row_type
 import nomnomzbot.composeapp.generated.resources.economy_catalog_description
 import nomnomzbot.composeapp.generated.resources.economy_catalog_enable
 import nomnomzbot.composeapp.generated.resources.economy_catalog_enable_action
@@ -223,6 +225,7 @@ import nomnomzbot.composeapp.generated.resources.economy_jars_name
 import nomnomzbot.composeapp.generated.resources.economy_jars_name_required
 import nomnomzbot.composeapp.generated.resources.economy_jars_open
 import nomnomzbot.composeapp.generated.resources.economy_jars_row_description
+import nomnomzbot.composeapp.generated.resources.economy_jars_row_type
 import nomnomzbot.composeapp.generated.resources.economy_jars_title
 import nomnomzbot.composeapp.generated.resources.economy_disable_confirm_confirm
 import nomnomzbot.composeapp.generated.resources.economy_disable_confirm_message
@@ -236,6 +239,7 @@ import nomnomzbot.composeapp.generated.resources.economy_label_max_balance
 import nomnomzbot.composeapp.generated.resources.economy_label_starting_balance
 import nomnomzbot.composeapp.generated.resources.economy_leaderboard_empty
 import nomnomzbot.composeapp.generated.resources.economy_leaderboard_row_description
+import nomnomzbot.composeapp.generated.resources.economy_participant_row_type
 import nomnomzbot.composeapp.generated.resources.economy_leaderboard_title
 import nomnomzbot.composeapp.generated.resources.economy_loading
 import nomnomzbot.composeapp.generated.resources.economy_name_invalid
@@ -905,12 +909,18 @@ private fun LeaderboardRow(entry: LeaderboardEntry) {
     val typography = LocalTypography.current
 
     val valueText: String = entry.points.toString()
+    val displayName: String =
+        resolveRowLabel(
+            primary = entry.displayName,
+            typeLabel = stringResource(Res.string.economy_participant_row_type),
+            discriminatorSource = entry.userId,
+        )
     // One node for screen readers describing the row: "#1, Stoney_Eagle, 1200".
     val rowDescription: String =
         stringResource(
             Res.string.economy_leaderboard_row_description,
             entry.rank,
-            entry.displayName,
+            displayName,
             valueText,
         )
 
@@ -930,7 +940,7 @@ private fun LeaderboardRow(entry: LeaderboardEntry) {
             modifier = Modifier.wrapContentWidth(),
         )
         Text(
-            text = entry.displayName,
+            text = displayName,
             style = typography.base,
             color = tokens.cardForeground,
             maxLines = 1,
@@ -1942,7 +1952,13 @@ private fun CatalogSection(
     }
 
     pendingDelete?.let { item ->
-        val name: String = item.name
+        val name: String =
+            resolveRowLabel(
+                primary = item.name,
+                secondary = item.cost.toString(),
+                typeLabel = stringResource(Res.string.economy_catalog_row_type),
+                discriminatorSource = item.id,
+            )
         ConfirmDialog(
             title = stringResource(Res.string.economy_catalog_delete_title),
             message = stringResource(Res.string.economy_catalog_delete_message, name),
@@ -1969,13 +1985,20 @@ private fun CatalogItemRow(
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
+    val displayName: String =
+        resolveRowLabel(
+            primary = item.name,
+            secondary = item.cost.toString(),
+            typeLabel = stringResource(Res.string.economy_catalog_row_type),
+            discriminatorSource = item.id,
+        )
     val rowDescription: String =
-        stringResource(Res.string.economy_catalog_row_description, item.name, item.cost)
+        stringResource(Res.string.economy_catalog_row_description, displayName, item.cost)
     val toggleLabel: String =
         stringResource(
             if (item.isEnabled) Res.string.economy_catalog_disable_action
             else Res.string.economy_catalog_enable_action,
-            item.name,
+            displayName,
         )
 
     Row(
@@ -1994,7 +2017,7 @@ private fun CatalogItemRow(
             horizontalArrangement = Arrangement.spacedBy(spacing.s3),
         ) {
             Text(
-                text = item.name,
+                text = displayName,
                 style = typography.base,
                 color = tokens.cardForeground,
                 maxLines = 1,
@@ -2255,8 +2278,14 @@ private fun SavingsJarRow(
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
+    val displayName: String =
+        resolveRowLabel(
+            primary = jar.name,
+            typeLabel = stringResource(Res.string.economy_jars_row_type),
+            discriminatorSource = jar.id,
+        )
     val rowDescription: String =
-        stringResource(Res.string.economy_jars_row_description, jar.name, jar.balance)
+        stringResource(Res.string.economy_jars_row_description, displayName, jar.balance)
 
     Row(
         modifier = Modifier
@@ -2268,7 +2297,7 @@ private fun SavingsJarRow(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = jar.name,
+                text = displayName,
                 style = typography.base,
                 color = tokens.cardForeground,
                 maxLines = 1,
@@ -2342,7 +2371,13 @@ private fun JarManageDialog(
         }
     }
 
-    val title: String = stringResource(Res.string.economy_jars_detail_title, jar.name)
+    val jarDisplayName: String =
+        resolveRowLabel(
+            primary = jar.name,
+            typeLabel = stringResource(Res.string.economy_jars_row_type),
+            discriminatorSource = jar.id,
+        )
+    val title: String = stringResource(Res.string.economy_jars_detail_title, jarDisplayName)
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -2657,7 +2692,13 @@ private fun JarHistoryDialog(
         if (result == null) error = true else entries = result
     }
 
-    val title: String = stringResource(Res.string.economy_jars_history_title, jar.name)
+    val jarDisplayName: String =
+        resolveRowLabel(
+            primary = jar.name,
+            typeLabel = stringResource(Res.string.economy_jars_row_type),
+            discriminatorSource = jar.id,
+        )
+    val title: String = stringResource(Res.string.economy_jars_history_title, jarDisplayName)
 
     AlertDialog(
         onDismissRequest = onDismiss,

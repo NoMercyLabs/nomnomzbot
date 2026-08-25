@@ -50,6 +50,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.RevealableSecretField
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Slider
@@ -110,6 +111,8 @@ import nomnomzbot.composeapp.generated.resources.obs_recording_start
 import nomnomzbot.composeapp.generated.resources.obs_recording_stop
 import nomnomzbot.composeapp.generated.resources.obs_retry
 import nomnomzbot.composeapp.generated.resources.obs_save
+import nomnomzbot.composeapp.generated.resources.obs_input_row_type
+import nomnomzbot.composeapp.generated.resources.obs_scene_row_type
 import nomnomzbot.composeapp.generated.resources.obs_scenes_label
 import nomnomzbot.composeapp.generated.resources.obs_status_disabled
 import nomnomzbot.composeapp.generated.resources.obs_status_enabled
@@ -450,16 +453,23 @@ private fun ControlCard(
             if (live.scenes.isEmpty()) {
                 Text(text = stringResource(Res.string.obs_no_scenes), style = typography.sm, color = tokens.mutedForeground)
             } else {
+                val sceneTypeLabel: String = stringResource(Res.string.obs_scene_row_type)
                 ManageGate(decision = controlManage) { gateEnabled ->
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                        live.scenes.forEach { scene ->
+                        live.scenes.forEachIndexed { index, scene ->
+                            val sceneLabel: String =
+                                resolveRowLabel(
+                                    primary = scene.name,
+                                    typeLabel = sceneTypeLabel,
+                                    discriminatorSource = "$index-${scene.name}",
+                                )
                             Badge(
                                 variant = if (scene.isCurrent) BadgeVariant.Default else BadgeVariant.Outline,
                                 selected = scene.isCurrent,
                                 enabled = gateEnabled,
                                 onClick = if (gateEnabled) ({ onSwitchScene(scene.name) }) else null,
                             ) {
-                                Text(text = scene.name, maxLines = 1)
+                                Text(text = sceneLabel, maxLines = 1)
                             }
                         }
                     }
@@ -570,7 +580,14 @@ private fun MixerRow(
         mutableStateOf((input.volumeDb ?: 0.0).toFloat().coerceIn(-60f, 0f))
     }
     val muted: Boolean = input.muted == true
-    val muteLabel: String = stringResource(Res.string.obs_mixer_mute_action, input.name)
+    val displayName: String =
+        resolveRowLabel(
+            primary = input.name,
+            secondary = input.kind,
+            typeLabel = stringResource(Res.string.obs_input_row_type),
+            discriminatorSource = input.name,
+        )
+    val muteLabel: String = stringResource(Res.string.obs_mixer_mute_action, displayName)
 
     Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
         Row(
@@ -579,7 +596,7 @@ private fun MixerRow(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
-                text = input.name,
+                text = displayName,
                 style = typography.sm,
                 color = tokens.cardForeground,
                 maxLines = 1,

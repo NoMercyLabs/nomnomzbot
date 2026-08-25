@@ -11,6 +11,7 @@
 package bot.nomnomz.dashboard.feature.home.state
 
 import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.network.ActivityEvent
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.Category
@@ -177,7 +178,10 @@ class HomeController(
     suspend fun searchCategories(query: String): List<PickerOption> {
         val channel: String = channelId ?: return emptyList()
         return when (val result: ApiResult<List<Category>> = streamApi.searchCategories(channel, query)) {
-            is ApiResult.Ok -> result.value.map { PickerOption(id = it.id, label = it.name) }
+            is ApiResult.Ok ->
+                result.value.map {
+                    PickerOption(id = it.id, label = resolveRowLabel(it.name, typeLabel = "Category", discriminatorSource = it.id))
+                }
             is ApiResult.Failure -> emptyList()
         }
     }

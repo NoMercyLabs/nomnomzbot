@@ -31,6 +31,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -39,6 +40,7 @@ import bot.nomnomz.dashboard.feature.participant.state.LeaderboardsState
 import bot.nomnomz.dashboard.feature.participant.state.ParticipantController
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.economy_participant_row_type
 import nomnomzbot.composeapp.generated.resources.participant_lb_consent_label
 import nomnomzbot.composeapp.generated.resources.participant_lb_empty
 import nomnomzbot.composeapp.generated.resources.participant_lb_row_description
@@ -146,11 +148,17 @@ private fun RankRow(entry: LeaderboardEntry) {
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
+    val displayName: String =
+        resolveRowLabel(
+            primary = entry.displayName,
+            typeLabel = stringResource(Res.string.economy_participant_row_type),
+            discriminatorSource = entry.userId,
+        )
     val description: String =
         stringResource(
             Res.string.participant_lb_row_description,
             entry.rank,
-            entry.displayName,
+            displayName,
             entry.points,
         )
 
@@ -164,7 +172,7 @@ private fun RankRow(entry: LeaderboardEntry) {
     ) {
         Text(text = "#${entry.rank}", style = typography.sm, color = tokens.mutedForeground)
         Text(
-            text = entry.displayName,
+            text = displayName,
             style = typography.sm,
             color = tokens.cardForeground,
             maxLines = 1,

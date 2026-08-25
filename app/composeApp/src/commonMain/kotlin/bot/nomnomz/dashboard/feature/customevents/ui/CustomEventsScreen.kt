@@ -52,6 +52,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -98,11 +99,14 @@ import nomnomzbot.composeapp.generated.resources.custom_events_field_source_kind
 import nomnomzbot.composeapp.generated.resources.custom_events_last_received
 import nomnomzbot.composeapp.generated.resources.custom_events_loading
 import nomnomzbot.composeapp.generated.resources.custom_events_new_source
+import nomnomzbot.composeapp.generated.resources.custom_events_option_row_type
 import nomnomzbot.composeapp.generated.resources.custom_events_presets_title
+import nomnomzbot.composeapp.generated.resources.custom_events_preset_row_type
 import nomnomzbot.composeapp.generated.resources.custom_events_purpose_body
 import nomnomzbot.composeapp.generated.resources.custom_events_purpose_example_body
 import nomnomzbot.composeapp.generated.resources.custom_events_purpose_example_title
 import nomnomzbot.composeapp.generated.resources.custom_events_purpose_title
+import nomnomzbot.composeapp.generated.resources.custom_events_row_type
 import nomnomzbot.composeapp.generated.resources.custom_events_search_label
 import nomnomzbot.composeapp.generated.resources.custom_events_search_placeholder
 import nomnomzbot.composeapp.generated.resources.custom_events_status_disabled
@@ -268,9 +272,16 @@ fun CustomEventsScreen(controller: CustomEventsController, role: ManagementRole?
         }
 
         deleteTarget?.let { target ->
+            val resolvedName: String =
+                resolveRowLabel(
+                    primary = target.displayName,
+                    secondary = target.name,
+                    typeLabel = stringResource(Res.string.custom_events_row_type),
+                    discriminatorSource = target.id,
+                )
             ConfirmDialog(
                 title = stringResource(Res.string.custom_events_delete_confirm_title),
-                message = stringResource(Res.string.custom_events_delete_confirm_body, target.displayName),
+                message = stringResource(Res.string.custom_events_delete_confirm_body, resolvedName),
                 confirmLabel = stringResource(Res.string.custom_events_delete_confirm),
                 dismissLabel = stringResource(Res.string.custom_events_delete_cancel),
                 onConfirm = { scope.launch { controller.delete(target.id) }; deleteTarget = null },
@@ -380,8 +391,15 @@ private fun SourceSearchPicker(
         )
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             for (option in options) {
+                val optionLabel: String =
+                    resolveRowLabel(
+                        primary = option.displayName,
+                        secondary = option.name,
+                        typeLabel = stringResource(Res.string.custom_events_option_row_type),
+                        discriminatorSource = option.id,
+                    )
                 DropdownMenuItem(
-                    text = { Text(text = option.displayName, color = tokens.popoverForeground) },
+                    text = { Text(text = optionLabel, color = tokens.popoverForeground) },
                     onClick = {
                         expanded = false
                         query = ""
@@ -421,7 +439,16 @@ private fun PresetsSection(
                         .padding(spacing.s3),
                     verticalArrangement = Arrangement.spacedBy(spacing.s2),
                 ) {
-                    Text(text = preset.displayName, style = typography.sm, color = tokens.cardForeground)
+                    Text(
+                        text =
+                            resolveRowLabel(
+                                primary = preset.displayName,
+                                typeLabel = stringResource(Res.string.custom_events_preset_row_type),
+                                discriminatorSource = preset.key,
+                            ),
+                        style = typography.sm,
+                        color = tokens.cardForeground,
+                    )
                     Text(text = preset.sourceKind, style = typography.xs, color = tokens.mutedForeground)
                     ManageGate(decision = manage) { enabled ->
                         Button(
@@ -451,6 +478,14 @@ private fun SourceRow(
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
+    val displayName: String =
+        resolveRowLabel(
+            primary = source.displayName,
+            secondary = source.name,
+            typeLabel = stringResource(Res.string.custom_events_row_type),
+            discriminatorSource = source.id,
+        )
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -468,7 +503,7 @@ private fun SourceRow(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = source.displayName,
+                        text = displayName,
                         style = typography.base,
                         color = tokens.cardForeground,
                         maxLines = 1,
@@ -751,10 +786,17 @@ private fun TestDialog(
         val mapStr: String = source.fieldMap.keys.joinToString(", ") { key -> "\"$key\": 0" }
         mutableStateOf("{$mapStr}")
     }
+    val displayName: String =
+        resolveRowLabel(
+            primary = source.displayName,
+            secondary = source.name,
+            typeLabel = stringResource(Res.string.custom_events_row_type),
+            discriminatorSource = source.id,
+        )
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(text = source.displayName, style = typography.lg) },
+        title = { Text(text = displayName, style = typography.lg) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
                 Textarea(

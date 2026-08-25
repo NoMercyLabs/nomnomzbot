@@ -658,6 +658,7 @@
     <string name="tts_error">Kon de TTS-instellingen niet laden: %1$s</string>
     <string name="tts_retry">Opnieuw proberen</string>
     <string name="games_loading">Je spellen laden…</string>
+    <string name="games_row_type">Spel</string>
     <string name="games_empty">Geen spellen geconfigureerd</string>
     <string name="games_error">Kon de spellen niet laden: %1$s</string>
     <string name="games_retry">Opnieuw</string>
@@ -1082,6 +1083,7 @@
     <string name="economy_leaderboard_title">Topbezitters</string>
     <string name="economy_leaderboard_empty">Nog geen bezitters</string>
     <string name="economy_leaderboard_row_description">#%1$d, %2$s, %3$s</string>
+    <string name="economy_participant_row_type">Deelnemer</string>
     <string name="economy_accounts_title">Accounts</string>
     <string name="economy_accounts_empty">Nog geen accounts</string>
     <string name="economy_accounts_prev">Vorige</string>
@@ -1118,6 +1120,7 @@
     <string name="economy_catalog_delete">Verwijderen</string>
     <string name="economy_catalog_delete_action">%1$s verwijderen</string>
     <string name="economy_catalog_delete_title">Dit item verwijderen?</string>
+    <string name="economy_catalog_row_type">Winkelitem</string>
     <string name="economy_catalog_delete_message">"%1$s" verwijderen? Dit kan niet ongedaan worden gemaakt.</string>
     <string name="economy_catalog_delete_confirm">Verwijderen</string>
     <string name="economy_catalog_delete_dismiss">Annuleren</string>
@@ -1157,6 +1160,7 @@
     <string name="economy_earning_source_raid">Raid</string>
     <string name="economy_earning_source_supporter">Supporter</string>
     <string name="economy_jars_title">Spaarpotten</string>
+    <string name="economy_jars_row_type">Spaarpot</string>
     <string name="economy_jars_empty">Nog geen spaarpotten</string>
     <string name="economy_jars_add">+ Nieuwe pot</string>
     <string name="economy_jars_create_title">Nieuwe spaarpot</string>
@@ -1343,6 +1347,7 @@
 
     <!-- Federation page -->
     <string name="federation_title">Federatie</string>
+    <string name="federation_peer_row_type">Peer</string>
     <string name="federation_subtitle">Verbind vertrouwde peer-bots en opt in voor gedeelde mogelijkheden tussen implementaties.</string>
     <string name="federation_loading">Federatiegegevens laden…</string>
     <string name="federation_error">Federatiegegevens laden mislukt: %1$s</string>
@@ -2022,6 +2027,7 @@
     <string name="discord_picker_retry">Opnieuw</string>
     <string name="discord_picker_empty_channels">Deze server heeft geen kanalen die de bot kan zien</string>
     <string name="discord_picker_empty_roles">Deze server heeft nog geen rollen</string>
+    <string name="discord_role_row_type">Rol</string>
     <string name="discord_channel_category_none">Geen categorie</string>
     <string name="discord_channel_not_postable">Geen tekstkanaal — kies een tekst- of aankondigingskanaal</string>
     <string name="discord_channel_type_text">Tekst</string>
@@ -2524,6 +2530,7 @@
 
     <!-- Features page -->
     <string name="features_title">Functies</string>
+    <string name="features_row_type">Functie</string>
     <string name="features_subtitle">Schakel optionele botfuncties in of uit voor jouw kanaal.</string>
     <string name="features_entitlement_upgrade">Upgrade naar %1$s om te ontgrendelen</string>
     <string name="features_entitlement_unavailable">Niet beschikbaar in dit abonnement</string>
@@ -2878,6 +2885,27 @@
     <string name="admin_iam_permission_keys">Rechtensleutels</string>
     <string name="admin_iam_empty">Nog geen principals.</string>
     <string name="admin_iam_roles_empty">Geen rollen beschikbaar.</string>
+    <string name="admin_iam_role_row_type">Rol</string>
+    <string name="admin_iam_principal_row_type">Principal</string>
+    <string name="admin_channel_row_type">Kanaal</string>
+    <string name="admin_user_row_type">Gebruiker</string>
+    <string name="admin_service_row_type">Dienst</string>
+    <string name="admin_tenant_row_type">Tenant</string>
+    <string name="analytics_viewer_row_type">Kijker</string>
+    <string name="assets_row_type">Asset</string>
+    <string name="automation_token_row_type">Token</string>
+    <string name="automation_pipeline_row_type">Pipeline</string>
+    <string name="bundles_manifest_row_type">Bundel</string>
+    <string name="bundles_item_row_type">Item</string>
+    <string name="bundles_installed_row_type">Bundel</string>
+    <string name="bundles_marketplace_row_type">Vermelding</string>
+    <string name="chat_suggestion_row_type">Suggestie</string>
+    <string name="scripts_row_type">Script</string>
+    <string name="scripts_effect_row_type">Effect</string>
+    <string name="commands_builtin_row_type">Opdracht</string>
+    <string name="community_chatter_row_type">Chatter</string>
+    <string name="connect_saved_row_type">Verbinding</string>
+    <string name="connect_discovered_row_type">Server</string>
     <!-- Tenants -->
     <string name="admin_tenant_search">Tenants zoeken</string>
     <string name="admin_tenant_filter_all">Alles</string>
@@ -3013,6 +3041,9 @@
     <string name="custom_events_test_action">Test uitvoeren</string>
     <string name="custom_events_test_success">Testgebeurtenis verzonden — controleer uw pipeline-logboeken.</string>
     <string name="custom_events_purpose_title">Wat is een gegevensbron?</string>
+    <string name="custom_events_row_type">Gegevensbron</string>
+    <string name="custom_events_option_row_type">Gegevensbron</string>
+    <string name="custom_events_preset_row_type">Voorinstelling</string>
     <string name="custom_events_purpose_body">Met een gegevensbron kan de bot een externe feed binnenhalen — een hartslagmeter, een sensorbord, een companion-app of een JSON/websocket-API. Elke binnenkomende waarde start een pipeline-trigger en wordt een sjabloonvariabele die u overal kunt gebruiken.</string>
     <string name="custom_events_purpose_example_title">Voorbeeld</string>
     <string name="custom_events_purpose_example_body">Poll een JSON-feed genaamd "heartrate" → gebruik {{custom.heartrate.bpm}} in een commando of overlay, of trigger custom.heartrate in een pipeline.</string>
@@ -3200,6 +3231,8 @@
     <string name="obs_not_reachable_detail">%1$s</string>
     <string name="obs_current_scene">Huidige scène: %1$s</string>
     <string name="obs_scenes_label">Scènes</string>
+    <string name="obs_scene_row_type">Scène</string>
+    <string name="obs_input_row_type">Invoer</string>
     <string name="obs_no_scenes">Geen scènes gemeld.</string>
     <string name="obs_streaming_start">Streamen starten</string>
     <string name="obs_streaming_stop">Streamen stoppen</string>
@@ -3400,6 +3433,7 @@
     <!-- Media delen (moderatiewachtrij voor kijkerclips) -->
     <string name="shell_nav_mediashare">Media delen</string>
     <string name="mediashare_title">Media delen</string>
+    <string name="mediashare_row_type">Clip</string>
     <string name="mediashare_subtitle">Beoordeel en modereer door kijkers ingezonden clips voordat ze op stream spelen.</string>
     <string name="mediashare_loading">Clip-wachtrij laden…</string>
     <string name="mediashare_error">Kon Media delen niet laden: %1$s</string>

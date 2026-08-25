@@ -1111,9 +1111,16 @@ private fun CodePoolPicker(pools: List<CodePool>, selectedId: String?, onSelect:
             color = tokens.mutedForeground,
         )
     }
+    val poolTypeLabel: String = stringResource(Res.string.giveaways_pool_row_type)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
         pools.forEach { pool ->
-            SelectChip(label = pool.name, selected = pool.id == selectedId, onClick = { onSelect(pool.id) })
+            val poolLabel: String =
+                resolveRowLabel(
+                    primary = pool.name,
+                    typeLabel = poolTypeLabel,
+                    discriminatorSource = pool.id,
+                )
+            SelectChip(label = poolLabel, selected = pool.id == selectedId, onClick = { onSelect(pool.id) })
         }
     }
 }
@@ -1434,13 +1441,15 @@ private fun MaskedCodeRow(code: MaskedCode) {
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
+    val codeLabel: String = code.label?.takeIf { it.isNotBlank() } ?: stringResource(Res.string.giveaways_code_unlabeled)
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
         Text(
-            text = code.label?.takeIf { it.isNotBlank() } ?: stringResource(Res.string.giveaways_code_unlabeled),
+            text = codeLabel,
             style = typography.sm,
             color = tokens.cardForeground,
             maxLines = 1,

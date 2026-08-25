@@ -47,10 +47,12 @@ fun LanguagePicker(controller: LanguageController, modifier: Modifier = Modifier
     val current: AppLanguage by controller.current.collectAsStateWithLifecycle()
     var expanded: Boolean by remember { mutableStateOf(false) }
 
+    val currentLanguageLabel: String = current.label()
+
     Box(modifier = modifier) {
         TextButton(onClick = { expanded = true }) {
             Text(
-                text = current.label(),
+                text = currentLanguageLabel,
                 style = typography.sm,
                 color = tokens.foreground,
             )
@@ -58,8 +60,9 @@ fun LanguagePicker(controller: LanguageController, modifier: Modifier = Modifier
 
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             AppLanguage.entries.forEach { language ->
+                val languageLabel: String = language.label()
                 DropdownMenuItem(
-                    text = { Text(text = language.label(), style = typography.sm) },
+                    text = { Text(text = languageLabel, style = typography.sm) },
                     onClick = {
                         controller.select(language)
                         expanded = false

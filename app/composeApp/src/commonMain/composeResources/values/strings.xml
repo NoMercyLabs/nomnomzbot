@@ -661,6 +661,7 @@
     <string name="tts_error">Could not load TTS settings: %1$s</string>
     <string name="tts_retry">Retry</string>
     <string name="games_loading">Loading your games…</string>
+    <string name="games_row_type">Game</string>
     <string name="games_empty">No games configured</string>
     <string name="games_error">Could not load the games: %1$s</string>
     <string name="games_retry">Retry</string>
@@ -1085,6 +1086,7 @@
     <string name="economy_leaderboard_title">Top holders</string>
     <string name="economy_leaderboard_empty">No holders yet</string>
     <string name="economy_leaderboard_row_description">#%1$d, %2$s, %3$s</string>
+    <string name="economy_participant_row_type">Participant</string>
     <string name="economy_accounts_title">Accounts</string>
     <string name="economy_accounts_empty">No accounts yet</string>
     <string name="economy_accounts_prev">Previous</string>
@@ -1121,6 +1123,7 @@
     <string name="economy_catalog_delete">Delete</string>
     <string name="economy_catalog_delete_action">Delete %1$s</string>
     <string name="economy_catalog_delete_title">Delete this item?</string>
+    <string name="economy_catalog_row_type">Store item</string>
     <string name="economy_catalog_delete_message">Delete "%1$s"? This cannot be undone.</string>
     <string name="economy_catalog_delete_confirm">Delete</string>
     <string name="economy_catalog_delete_dismiss">Cancel</string>
@@ -1160,6 +1163,7 @@
     <string name="economy_earning_source_raid">Raid</string>
     <string name="economy_earning_source_supporter">Supporter</string>
     <string name="economy_jars_title">Savings jars</string>
+    <string name="economy_jars_row_type">Savings jar</string>
     <string name="economy_jars_empty">No savings jars yet</string>
     <string name="economy_jars_add">+ New jar</string>
     <string name="economy_jars_create_title">New savings jar</string>
@@ -1346,6 +1350,7 @@
 
     <!-- Federation page -->
     <string name="federation_title">Federation</string>
+    <string name="federation_peer_row_type">Peer</string>
     <string name="federation_subtitle">Connect trusted peer bots and opt in to shared capabilities across deployments.</string>
     <string name="federation_loading">Loading federation data…</string>
     <string name="federation_error">Failed to load federation data: %1$s</string>
@@ -2026,6 +2031,7 @@
     <string name="discord_picker_retry">Retry</string>
     <string name="discord_picker_empty_channels">This server has no channels the bot can see</string>
     <string name="discord_picker_empty_roles">This server has no roles yet</string>
+    <string name="discord_role_row_type">Role</string>
     <string name="discord_channel_category_none">No category</string>
     <string name="discord_channel_not_postable">Not a text channel — pick a text or announcement channel</string>
     <string name="discord_channel_type_text">Text</string>
@@ -2538,6 +2544,7 @@
 
     <!-- Features page -->
     <string name="features_title">Features</string>
+    <string name="features_row_type">Feature</string>
     <string name="features_subtitle">Enable or disable optional bot capabilities for your channel.</string>
     <string name="features_entitlement_upgrade">Upgrade to %1$s to unlock</string>
     <string name="features_entitlement_unavailable">Not available on this plan</string>
@@ -2893,6 +2900,27 @@
     <string name="admin_iam_permission_keys">Permission keys</string>
     <string name="admin_iam_empty">No principals yet.</string>
     <string name="admin_iam_roles_empty">No roles available.</string>
+    <string name="admin_iam_role_row_type">Role</string>
+    <string name="admin_iam_principal_row_type">Principal</string>
+    <string name="admin_channel_row_type">Channel</string>
+    <string name="admin_user_row_type">User</string>
+    <string name="admin_service_row_type">Service</string>
+    <string name="admin_tenant_row_type">Tenant</string>
+    <string name="analytics_viewer_row_type">Viewer</string>
+    <string name="assets_row_type">Asset</string>
+    <string name="automation_token_row_type">Token</string>
+    <string name="automation_pipeline_row_type">Pipeline</string>
+    <string name="bundles_manifest_row_type">Bundle</string>
+    <string name="bundles_item_row_type">Item</string>
+    <string name="bundles_installed_row_type">Bundle</string>
+    <string name="bundles_marketplace_row_type">Listing</string>
+    <string name="chat_suggestion_row_type">Suggestion</string>
+    <string name="scripts_row_type">Script</string>
+    <string name="scripts_effect_row_type">Effect</string>
+    <string name="commands_builtin_row_type">Command</string>
+    <string name="community_chatter_row_type">Chatter</string>
+    <string name="connect_saved_row_type">Connection</string>
+    <string name="connect_discovered_row_type">Server</string>
     <!-- Tenants -->
     <string name="admin_tenant_search">Search tenants</string>
     <string name="admin_tenant_filter_all">All</string>
@@ -3028,6 +3056,9 @@
     <string name="custom_events_test_action">Fire Test</string>
     <string name="custom_events_test_success">Test event fired — check your pipeline logs.</string>
     <string name="custom_events_purpose_title">What is a data source?</string>
+    <string name="custom_events_row_type">Data source</string>
+    <string name="custom_events_option_row_type">Data source</string>
+    <string name="custom_events_preset_row_type">Preset</string>
     <string name="custom_events_purpose_body">A data source lets the bot ingest an external feed — a heart-rate monitor, a sensor board, a companion app, or any JSON/websocket API. Each value that arrives fires a pipeline trigger and becomes a template variable you can use anywhere.</string>
     <string name="custom_events_purpose_example_title">Example</string>
     <string name="custom_events_purpose_example_body">Poll a JSON feed named "heartrate" → reference {{custom.heartrate.bpm}} in a command or overlay, or trigger custom.heartrate in a pipeline.</string>
@@ -3215,6 +3246,8 @@
     <string name="obs_not_reachable_detail">%1$s</string>
     <string name="obs_current_scene">Current scene: %1$s</string>
     <string name="obs_scenes_label">Scenes</string>
+    <string name="obs_scene_row_type">Scene</string>
+    <string name="obs_input_row_type">Input</string>
     <string name="obs_no_scenes">No scenes reported.</string>
     <string name="obs_streaming_start">Start streaming</string>
     <string name="obs_streaming_stop">Stop streaming</string>
@@ -3415,6 +3448,7 @@
     <!-- Media Share (viewer clip/video mod queue) -->
     <string name="shell_nav_mediashare">Media Share</string>
     <string name="mediashare_title">Media Share</string>
+    <string name="mediashare_row_type">Clip</string>
     <string name="mediashare_subtitle">Review and moderate viewer-submitted clips before they play on stream.</string>
     <string name="mediashare_loading">Loading the clip queue…</string>
     <string name="mediashare_error">Could not load Media Share: %1$s</string>
