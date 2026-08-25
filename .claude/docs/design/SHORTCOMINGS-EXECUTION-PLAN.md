@@ -95,6 +95,21 @@ poller's `catch (Exception ex) when (ex is not OperationCanceledException)` did 
 
 ## BLOCKED ON THE OWNER — cannot be solved from this side
 
+**ANSWERED 2026-08-25c (owner, via AskUserQuestion) — these three are no longer blocked:**
+1. **Deploy = MILESTONE PUSHES.** Not every green slice, not never: push and ship at a milestone.
+   `tdd-local-no-ci` still governs day-to-day (local test-first); a milestone is the trigger to push +
+   `scripts/ship.ps1` + watch. The orchestrator decides when a batch constitutes a milestone and says so.
+2. **Discord: DISABLE STREAMCORD, TAKE OVER.** Owner turns off Streamcord's live-role and go-live
+   announcement for his channel; NomNomzBot becomes the sole driver of role `1388128843147120761`.
+   So the go-live ANNOUNCEMENT is now ours to own too, not just the role — Streamcord will no longer
+   post it. Still needs the physical steps in item 2 below (install, Manage Roles, role above target,
+   account linked, friends' links accepted).
+3. **S067 song-request pricing: FREE BY DEFAULT, COST OPTIONAL.** Ships with a max-duration cap and a
+   per-user cooldown enforced for everyone; the channel-currency cost is an opt-in per-channel setting,
+   default OFF. This is the near-free/abuse-floor side of [[limits-safety-baseline-then-tier]], not a
+   paid gate.
+
+
 These are not "not done"; they are done-as-far-as-code-can-go and need a real-world action or a call
 only Stoney can make. Do not burn agent time trying to work around them.
 
