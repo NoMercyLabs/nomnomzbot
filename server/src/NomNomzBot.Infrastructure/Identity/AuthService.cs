@@ -425,15 +425,22 @@ public sealed class AuthService : IAuthService
         // subscribe) are all documented idempotent — the same guarantee OnboardedChannelSeedBackfillService
         // relies on to safely re-fire this event for every onboarded channel at startup — so re-auth of an
         // EXISTING channel is a safe repair path that keeps their seeded state in sync without a restart.
-        await _eventBus.PublishAsync(
+        // FIRE-AND-FORGET, deliberately: awaiting this made SIGNING IN take 13-19 seconds on the live box.
+        // The handler set is a full repair sweep — rewards, moderator roster, memberships, standings, channel
+        // info, banned-user import, bot mod-join, default commands and the EventSub subscribe of ~74 topics
+        // (each failing one costing a round-trip) — and none of it is needed to hand the operator their
+        // tokens. The session below depends only on state already committed above, so the login returns at
+        // once and the repair completes behind it. Handler failures are logged, never propagated, and the
+        // whole set is idempotent (it re-fires on every sign-in and at startup), so nothing is lost if a
+        // handler dies mid-sweep.
+        _eventBus.PublishFireAndForget(
             new ChannelOnboardedEvent
             {
                 BroadcasterId = broadcasterId,
                 OwnerUserId = user.Id,
                 TwitchChannelId = twitchUser.Id,
                 Name = twitchUser.Login,
-            },
-            cancellationToken
+            }
         );
 
         // Open a session + issue the rotating refresh token + access JWT.

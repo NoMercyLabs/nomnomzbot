@@ -21,6 +21,7 @@ using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Enums.Deployment;
 using NomNomzBot.Domain.Identity.Events;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Identity;
 using NSubstitute;
 
@@ -100,7 +101,9 @@ public sealed class AuthServiceReAuthOnboardingRepublishTests
 
     // ─── scaffolding ───────────────────────────────────────────────────────────
 
-    private static AuthService Build(AuthDbContext db, RecordingEventBus bus)
+    /// <summary>Shared with <see cref="AuthServiceLoginDoesNotBlockOnOnboardingTests"/>, which needs the
+    /// same fully-wired AuthService but a different bus — hence <see cref="IEventBus"/>, not the recorder.</summary>
+    internal static AuthService Build(AuthDbContext db, IEventBus bus)
     {
         ISystemCredentialsProvider credentials = Substitute.For<ISystemCredentialsProvider>();
         credentials
