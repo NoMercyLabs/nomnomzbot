@@ -267,8 +267,18 @@ public sealed class ShoutoutAction : ICommandAction
         // a failed announcement must not be reported as a successful shoutout — previously `announceResult` was
         // logged but never folded into the returned ActionResult, so a broadcaster whose announcement silently
         // failed (e.g. missing user:write:chat scope) saw the pipeline step report success regardless.
+        // The NATIVE Helix shoutout is best-effort, never the verdict. Twitch enforces its own cooldowns
+        // (one shoutout per 2 minutes, one per target per 60 minutes) and answers 429 for a perfectly
+        // normal second `!so` — reporting that as "Twitch shoutout API failed" put a red error in chat
+        // while the announcement the viewer actually sees had already posted fine (live, 2026-08-25).
+        // The announcement (plus optional TTS) IS the shoutout; the native call only adds Twitch's own
+        // small banner. So only a failed ANNOUNCEMENT is a failed shoutout.
         if (!success)
-            return ActionResult.Failure($"Twitch shoutout API failed for {rawUserId}");
+            _logger.LogDebug(
+                "Native Twitch shoutout for {UserId} did not go through ({Error}) — the announcement carries it.",
+                rawUserId,
+                result.ErrorMessage
+            );
         if (announceResult.IsFailure)
             return ActionResult.Failure(
                 $"shoutout sent to {rawUserId} but the announcement failed: {announceResult.ErrorMessage}"
