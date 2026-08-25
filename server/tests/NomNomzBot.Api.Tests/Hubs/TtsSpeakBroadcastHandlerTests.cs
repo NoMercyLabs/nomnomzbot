@@ -9,9 +9,11 @@
 // -----------------------------------------------------------------------------
 
 using System.Text.Json;
+using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Widgets.Entities;
 using NSubstitute;
 
@@ -41,7 +43,13 @@ public sealed class TtsSpeakBroadcastHandlerTests
         };
         db.Widgets.Add(caption);
         await db.SaveChangesAsync();
-        TtsSpeakBroadcastHandler handler = new(db, widgets);
+        TtsSpeakBroadcastHandler handler = new(
+            db,
+            widgets,
+            Substitute.For<IOverlayPresenceRegistry>(),
+            Substitute.For<IDashboardNotifier>(),
+            NullLogger<TtsSpeakBroadcastHandler>.Instance
+        );
 
         await handler.HandleAsync(
             new()
@@ -89,7 +97,13 @@ public sealed class TtsSpeakBroadcastHandlerTests
         };
         db.Widgets.Add(bystander);
         await db.SaveChangesAsync();
-        TtsSpeakBroadcastHandler handler = new(db, widgets);
+        TtsSpeakBroadcastHandler handler = new(
+            db,
+            widgets,
+            Substitute.For<IOverlayPresenceRegistry>(),
+            Substitute.For<IDashboardNotifier>(),
+            NullLogger<TtsSpeakBroadcastHandler>.Instance
+        );
 
         await handler.HandleAsync(
             new()
@@ -105,9 +119,7 @@ public sealed class TtsSpeakBroadcastHandlerTests
             }
         );
 
-        await widgets
-            .DidNotReceiveWithAnyArgs()
-            .SendWidgetEventAsync(default!, default!, default!, default);
+        await widgets.DidNotReceiveWithAnyArgs().SendWidgetEventAsync(default!, default!, default!);
     }
 
     /// <summary>Asserts the anonymous-typed payload's shape via its JSON form — the same fields the wire carries.</summary>
@@ -121,5 +133,113 @@ public sealed class TtsSpeakBroadcastHandlerTests
             && json.GetProperty("user").GetString() == "u1"
             && json.GetProperty("durationMs").GetInt32() == 2500
             && json.GetProperty("audioUrl").GetString() == "data:audio/mpeg;base64,AQIDBA==";
+    }
+
+    /// <summary>
+    /// TTS reported every utterance as spoken whether or not a browser source was open on a subscribing
+    /// widget, so when the streamer had not added the TTS overlay the stream heard NOTHING while the bot,
+    /// the logs and the dashboard all looked healthy. That silence is now stated.
+    /// </summary>
+    [Fact]
+    public async Task An_utterance_with_no_attached_browser_source_is_reported_not_silently_dropped()
+    {
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid channel = Guid.CreateVersion7();
+        db.Widgets.Add(
+            new Widget
+            {
+                Id = Guid.NewGuid(),
+                BroadcasterId = channel,
+                Name = "TTS Audio",
+                IsEnabled = true,
+                EventSubscriptions = ["tts_speak"],
+            }
+        );
+        await db.SaveChangesAsync();
+
+        IOverlayPresenceRegistry presence = Substitute.For<IOverlayPresenceRegistry>();
+        presence.IsWidgetAttached(Arg.Any<Guid>(), Arg.Any<Guid>()).Returns(false);
+        IDashboardNotifier dashboard = Substitute.For<IDashboardNotifier>();
+
+        TtsSpeakBroadcastHandler handler = new(
+            db,
+            Substitute.For<IWidgetNotifier>(),
+            presence,
+            dashboard,
+            NullLogger<TtsSpeakBroadcastHandler>.Instance
+        );
+
+        await handler.HandleAsync(
+            new()
+            {
+                BroadcasterId = channel,
+                Text = "nobody can hear this",
+                VoiceId = "en-US-AvaNeural",
+                Provider = "azure",
+                CharacterCount = 20,
+                DurationMs = 1000,
+                RequestedByTwitchUserId = "u1",
+                DispatchMode = "self_host",
+                AudioUrl = "data:audio/mpeg;base64,AAAA",
+            }
+        );
+
+        await dashboard
+            .Received(1)
+            .SendAlertAsync(
+                channel.ToString(),
+                Arg.Is<AlertDto>(a => a.Type == "tts_no_output"),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    /// <summary>No alert when a browser source IS attached — the warning must not cry wolf every utterance.</summary>
+    [Fact]
+    public async Task An_utterance_with_an_attached_browser_source_raises_no_alert()
+    {
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid channel = Guid.CreateVersion7();
+        db.Widgets.Add(
+            new Widget
+            {
+                Id = Guid.NewGuid(),
+                BroadcasterId = channel,
+                Name = "TTS Audio",
+                IsEnabled = true,
+                EventSubscriptions = ["tts_speak"],
+            }
+        );
+        await db.SaveChangesAsync();
+
+        IOverlayPresenceRegistry presence = Substitute.For<IOverlayPresenceRegistry>();
+        presence.IsWidgetAttached(Arg.Any<Guid>(), Arg.Any<Guid>()).Returns(true);
+        IDashboardNotifier dashboard = Substitute.For<IDashboardNotifier>();
+
+        TtsSpeakBroadcastHandler handler = new(
+            db,
+            Substitute.For<IWidgetNotifier>(),
+            presence,
+            dashboard,
+            NullLogger<TtsSpeakBroadcastHandler>.Instance
+        );
+
+        await handler.HandleAsync(
+            new()
+            {
+                BroadcasterId = channel,
+                Text = "this one is audible",
+                VoiceId = "en-US-AvaNeural",
+                Provider = "azure",
+                CharacterCount = 19,
+                DurationMs = 1000,
+                RequestedByTwitchUserId = "u1",
+                DispatchMode = "self_host",
+                AudioUrl = "data:audio/mpeg;base64,AAAA",
+            }
+        );
+
+        await dashboard
+            .DidNotReceive()
+            .SendAlertAsync(Arg.Any<string>(), Arg.Any<AlertDto>(), Arg.Any<CancellationToken>());
     }
 }

@@ -8,7 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using System.Collections.Concurrent;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Hubs.Clients;
@@ -22,29 +21,24 @@ namespace NomNomzBot.Api.Hubs;
 
 public class OverlayHub : Hub<IOverlayClient>
 {
-    // connectionId -> the set of widget group names ("widget-{broadcasterId}-{widgetId}") this connection has
-    // joined. A single browser source can host MANY widgets on one page (S035 item 2) — the old single-value
-    // map remembered only the LAST widget joined, so earlier widgets on the same page silently stopped
-    // receiving events once a second widget joined, and a disconnect leaked every earlier group.
-    private static readonly ConcurrentDictionary<
-        string,
-        ConcurrentDictionary<string, byte>
-    > _connectionWidgets = new();
     private readonly IApplicationDbContext _db;
     private readonly IWidgetService _widgetService;
     private readonly IOverlayTicketService _tickets;
+    private readonly OverlayPresenceRegistry _presence;
     private readonly ILogger<OverlayHub> _logger;
 
     public OverlayHub(
         IApplicationDbContext db,
         IWidgetService widgetService,
         IOverlayTicketService tickets,
+        OverlayPresenceRegistry presence,
         ILogger<OverlayHub> logger
     )
     {
         _db = db;
         _widgetService = widgetService;
         _tickets = tickets;
+        _presence = presence;
         _logger = logger;
     }
 
@@ -71,14 +65,8 @@ public class OverlayHub : Hub<IOverlayClient>
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        if (
-            _connectionWidgets.TryRemove(
-                Context.ConnectionId,
-                out ConcurrentDictionary<string, byte>? widgetGroups
-            )
-        )
-            foreach (string groupName in widgetGroups.Keys)
-                await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
+        foreach (string groupName in _presence.Drop(Context.ConnectionId))
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
         await base.OnDisconnectedAsync(exception);
     }
 
@@ -87,13 +75,9 @@ public class OverlayHub : Hub<IOverlayClient>
         if (Context.Items["BroadcasterId"] is not Guid broadcasterId)
             return new(false, "Not authenticated", null);
 
-        string groupName = $"widget-{broadcasterId}-{widgetId}";
+        string groupName = OverlayPresenceRegistry.GroupName(broadcasterId, widgetId);
         await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
-        ConcurrentDictionary<string, byte> widgetGroups = _connectionWidgets.GetOrAdd(
-            Context.ConnectionId,
-            static _ => new(StringComparer.Ordinal)
-        );
-        widgetGroups[groupName] = 0;
+        _presence.Attach(Context.ConnectionId, groupName);
         _logger.LogDebug(
             "Overlay connection {C} joined widget {W}",
             Context.ConnectionId,
@@ -116,15 +100,9 @@ public class OverlayHub : Hub<IOverlayClient>
     {
         if (Context.Items["BroadcasterId"] is not Guid broadcasterId)
             return;
-        string groupName = $"widget-{broadcasterId}-{widgetId}";
+        string groupName = OverlayPresenceRegistry.GroupName(broadcasterId, widgetId);
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
-        if (
-            _connectionWidgets.TryGetValue(
-                Context.ConnectionId,
-                out ConcurrentDictionary<string, byte>? widgetGroups
-            )
-        )
-            widgetGroups.TryRemove(groupName, out _);
+        _presence.Detach(Context.ConnectionId, groupName);
     }
 
     public Task WidgetReady(string widgetId)

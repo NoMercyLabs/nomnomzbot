@@ -8,9 +8,12 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Tts.Events;
+using NomNomzBot.Domain.Widgets.Entities;
 
 namespace NomNomzBot.Api.Hubs.Broadcasters;
 
@@ -24,14 +27,21 @@ namespace NomNomzBot.Api.Hubs.Broadcasters;
 /// the shared subscription-matched dispatch so any widget declaring <c>tts_speak</c> can also react
 /// visually (a speaking indicator, auto-hide on duration) whether or not it plays the audio itself.
 /// </summary>
-public sealed class TtsSpeakBroadcastHandler(IApplicationDbContext db, IWidgetNotifier notifier)
-    : IEventHandler<TtsUtteranceDispatchedEvent>
+public sealed class TtsSpeakBroadcastHandler(
+    IApplicationDbContext db,
+    IWidgetNotifier notifier,
+    IOverlayPresenceRegistry presence,
+    IDashboardNotifier dashboard,
+    ILogger<TtsSpeakBroadcastHandler> logger
+) : IEventHandler<TtsUtteranceDispatchedEvent>
 {
-    public Task HandleAsync(
+    public async Task HandleAsync(
         TtsUtteranceDispatchedEvent @event,
         CancellationToken cancellationToken = default
-    ) =>
-        WidgetAlertDispatch.RouteAsync(
+    )
+    {
+        await ReportIfNothingIsListeningAsync(@event.BroadcasterId, cancellationToken);
+        await WidgetAlertDispatch.RouteAsync(
             db,
             notifier,
             @event.BroadcasterId,
@@ -46,4 +56,46 @@ public sealed class TtsSpeakBroadcastHandler(IApplicationDbContext db, IWidgetNo
             },
             cancellationToken
         );
+    }
+
+    /// <summary>
+    /// A dispatched utterance is delivered to every widget subscribing <c>tts_speak</c> whether or not a
+    /// browser source is actually open on one, so TTS reported success while the stream heard nothing at all —
+    /// which is exactly how it went unnoticed for days. If no subscribing widget is attached, say so: a
+    /// warning in the log and an alert on the dashboard, rather than silence that looks like success.
+    /// </summary>
+    private async Task ReportIfNothingIsListeningAsync(
+        Guid broadcasterId,
+        CancellationToken cancellationToken
+    )
+    {
+        List<Widget> widgets = await db
+            .Widgets.AsNoTracking()
+            .Where(w => w.BroadcasterId == broadcasterId)
+            .ToListAsync(cancellationToken);
+
+        List<Widget> subscribers = WidgetAlertRouting.Subscribers(widgets, "tts_speak").ToList();
+        if (subscribers.Any(w => presence.IsWidgetAttached(broadcasterId, w.Id)))
+            return;
+
+        string reason =
+            subscribers.Count == 0
+                ? "no widget on this channel subscribes tts_speak"
+                : "no browser source is open on the TTS widget";
+        logger.LogWarning(
+            "TTS spoke for channel {BroadcasterId} but nothing could play it: {Reason}. Add the TTS Audio "
+                + "overlay as a browser source in OBS.",
+            broadcasterId,
+            reason
+        );
+        await dashboard.SendAlertAsync(
+            broadcasterId.ToString(),
+            new(
+                "tts_no_output",
+                "TTS spoke but nothing played it — add the TTS Audio overlay as a browser source in OBS.",
+                new { reason, subscribingWidgets = subscribers.Count }
+            ),
+            cancellationToken
+        );
+    }
 }

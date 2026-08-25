@@ -160,6 +160,104 @@ public sealed class RaidFlowSeedingTests
         steps[stopIndex].ConfigJson.Should().Contain("stop");
     }
 
+    /// <summary>
+    /// The failure this actually hit on the owner's channel: he already had a <c>raid</c> command whose
+    /// pipeline was EMPTY — a stub he had created and never filled in. Skipping purely on "a command with
+    /// this name exists" meant the flow was never installed, so <c>!raid</c> ran an empty pipeline and did
+    /// nothing at all, silently, while the seeder reported itself satisfied.
+    /// <para>
+    /// A command whose pipeline has no steps is not "already seeded", it is a stub — so the flow fills it in.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task An_existing_raid_command_with_an_empty_pipeline_gets_the_flow_filled_in()
+    {
+        (RaidFlowSeeder seeder, SeedTestDbContext db) = Build();
+        Pipeline stub = new()
+        {
+            Id = Guid.CreateVersion7(),
+            BroadcasterId = Tenant,
+            Name = "Raid",
+            TriggerKind = "command",
+            IsEnabled = true,
+        };
+        db.Pipelines.Add(stub);
+        db.Commands.Add(
+            new Command
+            {
+                Id = Guid.CreateVersion7(),
+                BroadcasterId = Tenant,
+                Name = "raid",
+                NameNormalized = "raid",
+                Tier = "pipeline",
+                PipelineId = stub.Id,
+                IsEnabled = true,
+            }
+        );
+        db.SaveChanges();
+
+        await seeder.SeedAsync(Tenant);
+
+        db.Commands.Count(c => c.NameNormalized == "raid")
+            .Should()
+            .Be(1, "the streamer's own command row is kept, not duplicated");
+        List<PipelineStep> steps = StepsOf(db);
+        steps.Should().NotBeEmpty("an empty pipeline is a stub, not a finished flow");
+        steps[0].ActionType.Should().Be("start_raid");
+        steps
+            .Should()
+            .OnlyContain(
+                step => step.PipelineId == stub.Id,
+                "the flow fills in the pipeline the command already points at"
+            );
+    }
+
+    /// <summary>A pipeline the streamer HAS built is never touched, however few steps it has.</summary>
+    [Fact]
+    public async Task An_existing_raid_pipeline_that_has_steps_is_left_completely_alone()
+    {
+        (RaidFlowSeeder seeder, SeedTestDbContext db) = Build();
+        Pipeline mine = new()
+        {
+            Id = Guid.CreateVersion7(),
+            BroadcasterId = Tenant,
+            Name = "My raid",
+            TriggerKind = "command",
+            IsEnabled = true,
+        };
+        db.Pipelines.Add(mine);
+        db.PipelineSteps.Add(
+            new PipelineStep
+            {
+                Id = Guid.CreateVersion7(),
+                PipelineId = mine.Id,
+                BroadcasterId = Tenant,
+                ActionType = "send_message",
+                ConfigJson = """{"message":"bye"}""",
+                Order = 0,
+                IsEnabled = true,
+            }
+        );
+        db.Commands.Add(
+            new Command
+            {
+                Id = Guid.CreateVersion7(),
+                BroadcasterId = Tenant,
+                Name = "raid",
+                NameNormalized = "raid",
+                Tier = "pipeline",
+                PipelineId = mine.Id,
+                IsEnabled = true,
+            }
+        );
+        db.SaveChanges();
+
+        await seeder.SeedAsync(Tenant);
+
+        StepsOf(db).Should().HaveCount(1, "the streamer's own flow is never rewritten");
+        StepsOf(db)[0].ActionType.Should().Be("send_message");
+    }
+
     [Fact]
     public async Task Seeding_twice_never_duplicates_and_never_overwrites_the_streamers_own_edits()
     {

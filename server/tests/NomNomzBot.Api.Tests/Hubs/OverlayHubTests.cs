@@ -48,9 +48,9 @@ public sealed class OverlayHubTests
     /// (the hub reads the <c>ticket</c> query parameter from it) without booting a real Kestrel pipeline.</summary>
     private sealed class FakeHttpContextAccessor
     {
-        public Microsoft.AspNetCore.Http.HttpContext BuildContext(string? ticket)
+        public HttpContext BuildContext(string? ticket)
         {
-            Microsoft.AspNetCore.Http.DefaultHttpContext context = new();
+            DefaultHttpContext context = new();
             if (ticket != null)
                 context.Request.QueryString = new("?ticket=" + Uri.EscapeDataString(ticket));
             return context;
@@ -72,7 +72,7 @@ public sealed class OverlayHubTests
         IGroupManager groups = Substitute.For<IGroupManager>();
         IWidgetService widgetService = Substitute.For<IWidgetService>();
 
-        OverlayHub hub = new(db, widgetService, tickets, NullLogger<OverlayHub>.Instance)
+        OverlayHub hub = new(db, widgetService, tickets, new(), NullLogger<OverlayHub>.Instance)
         {
             Context = context,
             Groups = groups,

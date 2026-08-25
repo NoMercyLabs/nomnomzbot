@@ -64,34 +64,67 @@ public sealed class RaidFlowSeeder : ISeeder
         if (channelIds.Count == 0)
             return;
 
-        HashSet<Guid> alreadyHave =
+        List<Command> existing = await _db
+            .Commands.Where(c =>
+                channelIds.Contains(c.BroadcasterId) && c.NameNormalized == CommandName
+            )
+            .ToListAsync(ct);
+
+        // A command that already carries a BUILT pipeline is the streamer's own and is never touched. One
+        // whose pipeline has no steps is a STUB, not a finished flow: skipping it (the original rule, which
+        // looked only at whether the name existed) left `!raid` running an empty pipeline — the command
+        // answered nothing at all on stream while the seeder considered itself satisfied.
+        HashSet<Guid> pipelineIdsWithSteps =
         [
             .. await _db
-                .Commands.Where(c =>
-                    channelIds.Contains(c.BroadcasterId) && c.NameNormalized == CommandName
-                )
-                .Select(c => c.BroadcasterId)
+                .PipelineSteps.Where(s => channelIds.Contains(s.BroadcasterId))
+                .Select(s => s.PipelineId)
+                .Distinct()
                 .ToListAsync(ct),
+        ];
+
+        Dictionary<Guid, Command> stubs = existing
+            .Where(c => c.PipelineId is null || !pipelineIdsWithSteps.Contains(c.PipelineId.Value))
+            .GroupBy(c => c.BroadcasterId)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        HashSet<Guid> alreadyBuilt =
+        [
+            .. existing
+                .Where(c => c.PipelineId is { } pid && pipelineIdsWithSteps.Contains(pid))
+                .Select(c => c.BroadcasterId),
         ];
 
         foreach (Guid channelId in channelIds)
         {
-            if (alreadyHave.Contains(channelId))
+            if (alreadyBuilt.Contains(channelId))
                 continue;
 
-            Pipeline pipeline = new()
+            stubs.TryGetValue(channelId, out Command? stub);
+
+            Pipeline? pipeline = stub?.PipelineId is { } stubPipelineId
+                ? await _db.Pipelines.FirstOrDefaultAsync(
+                    p => p.Id == stubPipelineId && p.BroadcasterId == channelId,
+                    ct
+                )
+                : null;
+
+            if (pipeline is null)
             {
-                Id = Guid.CreateVersion7(),
-                BroadcasterId = channelId,
-                Name = "Raid out",
-                Description =
-                    "Starts a Twitch raid, switches OBS to the ending scene, counts down in chat, "
-                    + "then stops the stream and pauses the music. Every step is an ordinary block — "
-                    + "reorder, retime or remove any of it.",
-                TriggerKind = "command",
-                IsEnabled = true,
-            };
-            _db.Pipelines.Add(pipeline);
+                pipeline = new()
+                {
+                    Id = Guid.CreateVersion7(),
+                    BroadcasterId = channelId,
+                    Name = "Raid out",
+                    Description =
+                        "Starts a Twitch raid, switches OBS to the ending scene, counts down in chat, "
+                        + "then stops the stream and pauses the music. Every step is an ordinary block — "
+                        + "reorder, retime or remove any of it.",
+                    TriggerKind = "command",
+                    IsEnabled = true,
+                };
+                _db.Pipelines.Add(pipeline);
+            }
 
             int order = 0;
             foreach ((string ActionType, string ConfigJson) step in BuildSteps())
@@ -108,6 +141,16 @@ public sealed class RaidFlowSeeder : ISeeder
                         IsEnabled = true,
                     }
                 );
+            }
+
+            // The streamer's own stub row is kept (its name, wording and any tweaks) and simply pointed at
+            // the flow that now exists; only a channel with no raid command at all gets a new row.
+            if (stub is not null)
+            {
+                stub.PipelineId = pipeline.Id;
+                stub.Tier = "pipeline";
+                stub.IsEnabled = true;
+                continue;
             }
 
             _db.Commands.Add(
@@ -183,11 +226,8 @@ public sealed class RaidFlowSeeder : ISeeder
     private static int WaitAfter(int secondsLeft) =>
         secondsLeft switch
         {
-            15 => 5,
-            10 => 5,
+            15 or 10 => 5,
             5 => 2,
-            3 => 1,
-            2 => 1,
             _ => 1,
         };
 }

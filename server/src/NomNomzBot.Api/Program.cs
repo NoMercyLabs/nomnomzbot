@@ -118,7 +118,7 @@ try
         .Services.AddControllers(options =>
         {
             options.ModelBinderProviders.Insert(0, new UlidGuidModelBinderProvider());
-            options.Conventions.Add(new NomNomzBot.Api.RateLimiting.RateLimitReadTierConvention());
+            options.Conventions.Add(new RateLimitReadTierConvention());
         })
         .AddJsonOptions(o =>
         {
@@ -175,6 +175,12 @@ try
     // in-memory ticket/attempt state must survive across the scoped requests of a single instance (the
     // Redis-backed multi-replica variant is out of scope, owner decision, 🔒).
     builder.Services.AddSingleton<IOverlayTicketService, OverlayTicketService>();
+    // One instance: the hub writes attachments, TTS (and any other overlay-only output) reads them to tell
+    // whether a browser source is actually listening instead of reporting silence as success.
+    builder.Services.AddSingleton<OverlayPresenceRegistry>();
+    builder.Services.AddSingleton<NomNomzBot.Application.Widgets.Services.IOverlayPresenceRegistry>(
+        sp => sp.GetRequiredService<OverlayPresenceRegistry>()
+    );
     builder.Services.AddSingleton<IOverlayConnectionThrottle, OverlayConnectionThrottle>();
 
     // Hub notifiers
