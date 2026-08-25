@@ -8,7 +8,11 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Collections.Concurrent;
 using FluentAssertions;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Application.Contracts.EventStore;
 using NomNomzBot.Domain.Analytics.Entities;
@@ -262,4 +266,184 @@ public sealed class ChannelAnalyticsDailyProjectionTests
     /// <summary>A chat-shaped payload carrying the viewer identity the presence fold parses.</summary>
     private static string ChatPayload(string userId) =>
         $"{{\"UserId\":\"{userId}\",\"UserLogin\":\"{userId}\",\"UserDisplayName\":\"{userId}\"}}";
+
+    [Fact]
+    public async Task Two_concurrent_folds_of_the_same_chatter_collide_silently_and_still_land_correctly()
+    {
+        // Two independent contexts over the SAME shared-cache SQLite store — the real-DB analogue of two
+        // API instances racing on the same viewer's first message of the day. Both wired to one capturing
+        // logger factory so every EF log entry from either connection is visible to the assertion.
+        CapturingLoggerProvider logs = new();
+        using ILoggerFactory loggerFactory = new LoggerFactory(new[] { logs });
+        string dbName = $"chatterday-race-{Guid.NewGuid()}";
+        using SqliteConnection keepAlive = OpenSharedCacheKeepAlive(dbName);
+        using AuthDbContext dbA = NewLoggingContext(dbName, loggerFactory);
+        using AuthDbContext dbB = NewLoggingContext(dbName, loggerFactory);
+
+        ILiveWindowResolver liveWindowA = Substitute.For<ILiveWindowResolver>();
+        liveWindowA
+            .GetCoveringStreamIdAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<DateTime>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns("stream-1");
+        ILiveWindowResolver liveWindowB = Substitute.For<ILiveWindowResolver>();
+        liveWindowB
+            .GetCoveringStreamIdAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<DateTime>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns("stream-1");
+
+        ChannelAnalyticsDailyProjection sutA = new(dbA, liveWindowA);
+        ChannelAnalyticsDailyProjection sutB = new(dbB, liveWindowB);
+
+        DateTime earlier = Now;
+        DateTime later = Now.AddSeconds(90);
+        EventRecord first = Event(
+            "ChatMessageReceivedEvent",
+            Channel,
+            ChatPayload("racer"),
+            earlier
+        );
+        EventRecord second = Event(
+            "ChatMessageReceivedEvent",
+            Channel,
+            ChatPayload("racer"),
+            later
+        );
+
+        await Task.WhenAll(sutA.ApplyAsync(first), sutB.ApplyAsync(second));
+
+        logs.Entries.Where(e => e.Level >= LogLevel.Error)
+            .Should()
+            .BeEmpty(
+                "the anchor unique-index collision is an expected, handled race — it must never surface as an error-level log"
+            );
+
+        ChannelChatterDay anchor = dbA
+            .ChannelChatterDays.AsNoTracking()
+            .Single(a =>
+                a.BroadcasterId == Channel && a.ChatterHash == ChatterIdentityHashFor("racer")
+            );
+        anchor.Chatted.Should().BeTrue();
+        anchor.LastSeenAt.Should().Be(later); // the later of the two racing timestamps wins
+
+        ChannelAnalyticsDaily row = dbA
+            .ChannelAnalyticsDailies.AsNoTracking()
+            .Single(r => r.BroadcasterId == Channel);
+        row.UniqueChatters.Should().Be(1); // one viewer, counted exactly once despite the race
+        row.TotalMessages.Should().Be(2);
+        row.TotalWatchSeconds.Should().Be(90); // first→last span still folds across the two racing folds
+    }
+
+    [Fact]
+    public async Task A_genuine_save_failure_on_the_context_is_still_logged_at_error_level()
+    {
+        CapturingLoggerProvider logs = new();
+        using ILoggerFactory loggerFactory = new LoggerFactory(new[] { logs });
+        string dbName = $"chatterday-genuine-failure-{Guid.NewGuid()}";
+        using SqliteConnection keepAlive = OpenSharedCacheKeepAlive(dbName);
+        using AuthDbContext db = NewLoggingContext(dbName, loggerFactory);
+
+        // Seed one anchor directly (bypassing the projection's conflict-tolerant path entirely), then try to
+        // insert a SECOND row with the identical (BroadcasterId, ActivityDate, ChatterHash) key through the
+        // ordinary tracked Add + SaveChangesAsync path every other write in this context still uses. This is
+        // a genuine, un-tolerated constraint violation — proving the safety net was not silenced globally.
+        DateOnly day = DateOnly.FromDateTime(Now);
+        db.ChannelChatterDays.Add(
+            new()
+            {
+                BroadcasterId = Channel,
+                ActivityDate = day,
+                ChatterHash = "dup-hash",
+                Chatted = true,
+                FirstSeenAt = Now,
+                LastSeenAt = Now,
+            }
+        );
+        await db.SaveChangesAsync();
+
+        db.ChannelChatterDays.Add(
+            new()
+            {
+                BroadcasterId = Channel,
+                ActivityDate = day,
+                ChatterHash = "dup-hash",
+                Chatted = true,
+                FirstSeenAt = Now,
+                LastSeenAt = Now,
+            }
+        );
+
+        Func<Task> act = () => db.SaveChangesAsync();
+        await act.Should().ThrowAsync<DbUpdateException>();
+
+        logs.Entries.Should()
+            .Contain(
+                e => e.Level == LogLevel.Error,
+                "a real, un-tolerated constraint violation must still surface at error level"
+            );
+    }
+
+    private static string ChatterIdentityHashFor(string userId) =>
+        NomNomzBot.Infrastructure.Analytics.ChatterIdentityHash.Compute("twitch", userId);
+
+    private static SqliteConnection OpenSharedCacheKeepAlive(string dbName)
+    {
+        SqliteConnection connection = new(SharedCacheConnectionString(dbName));
+        connection.Open();
+        return connection;
+    }
+
+    private static AuthDbContext NewLoggingContext(string dbName, ILoggerFactory loggerFactory)
+    {
+        AuthDbContext db = new(
+            new DbContextOptionsBuilder<AuthDbContext>()
+                .UseSqlite(SharedCacheConnectionString(dbName))
+                .UseLoggerFactory(loggerFactory)
+                .Options
+        );
+        db.Database.OpenConnection();
+        db.Database.ExecuteSqlRaw("PRAGMA foreign_keys = OFF;");
+        db.Database.ExecuteSqlRaw("PRAGMA busy_timeout = 5000;");
+        db.Database.EnsureCreated();
+        return db;
+    }
+
+    private static string SharedCacheConnectionString(string dbName) =>
+        $"Data Source=file:{dbName}?mode=memory&cache=shared";
+
+    /// <summary>Captures every log entry EF emits through the attached <see cref="ILoggerFactory"/>.</summary>
+    private sealed class CapturingLoggerProvider : ILoggerProvider
+    {
+        public ConcurrentQueue<(LogLevel Level, string Category, string Message)> Entries { get; } =
+            new();
+
+        public ILogger CreateLogger(string categoryName) =>
+            new CapturingLogger(categoryName, Entries);
+
+        public void Dispose() { }
+
+        private sealed class CapturingLogger(
+            string category,
+            ConcurrentQueue<(LogLevel Level, string Category, string Message)> entries
+        ) : ILogger
+        {
+            public IDisposable? BeginScope<TState>(TState state)
+                where TState : notnull => null;
+
+            public bool IsEnabled(LogLevel logLevel) => true;
+
+            public void Log<TState>(
+                LogLevel logLevel,
+                EventId eventId,
+                TState state,
+                Exception? exception,
+                Func<TState, Exception?, string> formatter
+            ) => entries.Enqueue((logLevel, category, formatter(state, exception)));
+        }
+    }
 }

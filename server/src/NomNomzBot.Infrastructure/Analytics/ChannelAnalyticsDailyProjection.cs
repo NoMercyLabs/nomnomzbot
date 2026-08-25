@@ -388,9 +388,73 @@ public sealed class ChannelAnalyticsDailyProjection(
 
     /// <summary>
     /// Inserts a fresh (channel, day, viewer-hash) anchor row, tolerating a concurrent writer minting the
-    /// same key first (the unique index on BroadcasterId/ActivityDate/ChatterHash then rejects ours).
+    /// same key first. This collision is EXPECTED and BY DESIGN under concurrent first-message-of-the-day
+    /// folds — the caller's CAS retry loop in <c>FoldPresenceAsync</c> absorbs it — so it must never surface
+    /// as an error-level log. A tracked <c>Add</c> + <c>SaveChangesAsync</c> that lets the unique-index
+    /// violation reach the database raises a real <see cref="DbUpdateException"/>, and EF's relational
+    /// command diagnostics log the failing command at Error BEFORE that exception is thrown — catching it
+    /// here does not stop the log. Instead this issues a conflict-tolerant raw insert (native "ON CONFLICT
+    /// DO NOTHING" / "INSERT OR IGNORE") so the database never reports a constraint failure at all: no
+    /// exception, no error log, on either provider. A genuine save failure elsewhere in this projection
+    /// still goes through the normal tracked <c>SaveChangesAsync</c> path and is still logged at Error —
+    /// only this one known-benign race is silenced.
     /// </summary>
     private async Task<bool> TryInsertAnchorAsync(
+        Guid broadcasterId,
+        DateOnly date,
+        string hash,
+        bool isChat,
+        DateTime occurredAt,
+        string? streamId,
+        CancellationToken ct
+    )
+    {
+        if (db is not DbContext dbContext)
+        {
+            // No real DbContext to issue provider-native raw SQL against (e.g. a hand-written test fake) —
+            // fall back to the tracked insert; the caller's retry loop still tolerates the collision, it
+            // simply keeps the pre-existing error-level log in that fallback case.
+            return await TryInsertAnchorViaTrackedSaveAsync(
+                broadcasterId,
+                date,
+                hash,
+                isChat,
+                occurredAt,
+                streamId,
+                ct
+            );
+        }
+
+        int affected = dbContext.Database.IsNpgsql()
+            ? await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                INSERT INTO "ChannelChatterDays"
+                    ("BroadcasterId", "ActivityDate", "ChatterHash", "Chatted", "FirstSeenAt", "LastSeenAt", "LastStreamId")
+                VALUES
+                    ({broadcasterId}, {date}, {hash}, {isChat}, {occurredAt}, {occurredAt}, {streamId})
+                ON CONFLICT ("BroadcasterId", "ActivityDate", "ChatterHash") DO NOTHING
+                """,
+                ct
+            )
+            : await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"""
+                INSERT OR IGNORE INTO "ChannelChatterDays"
+                    ("BroadcasterId", "ActivityDate", "ChatterHash", "Chatted", "FirstSeenAt", "LastSeenAt", "LastStreamId")
+                VALUES
+                    ({broadcasterId}, {date}, {hash}, {isChat}, {occurredAt}, {occurredAt}, {streamId})
+                """,
+                ct
+            );
+
+        return affected > 0;
+    }
+
+    /// <summary>
+    /// Pre-existing tracked-insert fallback (used only when <c>db</c> isn't a real <see cref="DbContext"/>):
+    /// still correct, but a losing race here surfaces the collision as an error-level EF log — see the
+    /// caller's remarks.
+    /// </summary>
+    private async Task<bool> TryInsertAnchorViaTrackedSaveAsync(
         Guid broadcasterId,
         DateOnly date,
         string hash,
