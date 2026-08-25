@@ -15,15 +15,14 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                 table: "SongRequestQueueItems",
                 type: "INTEGER",
                 nullable: false,
-                defaultValue: false);
+                defaultValue: false
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "IsInFlight",
-                table: "SongRequestQueueItems");
+            migrationBuilder.DropColumn(name: "IsInFlight", table: "SongRequestQueueItems");
         }
     }
 }
