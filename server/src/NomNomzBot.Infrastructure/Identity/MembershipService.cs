@@ -168,8 +168,16 @@ public sealed class MembershipService(
         // synced-source ones. A user already holding a non-synced row (Owner / BotGrant) occupies that
         // (broadcaster, user) slot; blindly inserting a fresh synced-source row for the same user collided
         // with it (23505) instead of leaving the manual grant untouched.
+        // IgnoreQueryFilters + an EXPLICIT tenant/soft-delete predicate. This runs from the onboarding
+        // event handler, where there is no ambient tenant context for the channel being seeded — so the
+        // global TENANT filter reduced this lookup to nothing, `byUser` came back empty, and every member
+        // was re-INSERTed over rows a previous run had already created (23505 on
+        // IX_ChannelMemberships_BroadcasterId_UserId, which is partial on "DeletedAt IS NULL").
+        // Observed live on 2026-08-25: the host was crash-looping, so onboarding re-ran 11 times and this
+        // fired on every pass, failing the membership sync AND the default-commands seed batched with it.
         List<ChannelMembership> existingActive = await db
-            .ChannelMemberships.Where(m => m.BroadcasterId == broadcasterId)
+            .ChannelMemberships.IgnoreQueryFilters()
+            .Where(m => m.BroadcasterId == broadcasterId && m.DeletedAt == null)
             .ToListAsync(cancellationToken);
         List<ChannelMembership> existingSynced = existingActive
             .Where(m => SyncedSources.Contains(m.Source))
