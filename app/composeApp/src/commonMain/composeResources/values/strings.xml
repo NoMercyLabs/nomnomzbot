@@ -1765,6 +1765,8 @@
     <string name="chattriggers_dialog_cancel">Cancel</string>
 
     <!-- Giveaways page — campaigns + secret-safe code pools (giveaways.md §6). -->
+    <string name="giveaways_row_type">Giveaway</string>
+    <string name="giveaways_pool_row_type">Code pool</string>
     <string name="giveaways_loading">Loading giveaways…</string>
     <string name="giveaways_empty">No giveaways yet. Create the first one.</string>
     <string name="giveaways_error">Couldn't load giveaways: %1$s</string>

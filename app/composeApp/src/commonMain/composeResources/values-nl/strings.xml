@@ -1761,6 +1761,8 @@
     <string name="chattriggers_dialog_cancel">Annuleren</string>
 
     <!-- Giveaways-pagina — campagnes + veilige codevoorraden (giveaways.md §6). -->
+    <string name="giveaways_row_type">Weggeefactie</string>
+    <string name="giveaways_pool_row_type">Codepool</string>
     <string name="giveaways_loading">Weggeefacties laden…</string>
     <string name="giveaways_empty">Nog geen weggeefacties. Maak de eerste aan.</string>
     <string name="giveaways_error">Weggeefacties laden mislukt: %1$s</string>

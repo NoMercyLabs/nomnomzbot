@@ -49,6 +49,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.component.TabsList
@@ -141,6 +142,7 @@ import nomnomzbot.composeapp.generated.resources.giveaways_pool_delete_message
 import nomnomzbot.composeapp.generated.resources.giveaways_pool_delete_title
 import nomnomzbot.composeapp.generated.resources.giveaways_pool_dialog_description_label
 import nomnomzbot.composeapp.generated.resources.giveaways_pool_dialog_name_label
+import nomnomzbot.composeapp.generated.resources.giveaways_pool_row_type
 import nomnomzbot.composeapp.generated.resources.giveaways_pool_dialog_title
 import nomnomzbot.composeapp.generated.resources.giveaways_pool_manage_button
 import nomnomzbot.composeapp.generated.resources.giveaways_pool_manage_empty
@@ -160,6 +162,7 @@ import nomnomzbot.composeapp.generated.resources.giveaways_prize_code_pool
 import nomnomzbot.composeapp.generated.resources.giveaways_prize_currency
 import nomnomzbot.composeapp.generated.resources.giveaways_requires_write
 import nomnomzbot.composeapp.generated.resources.giveaways_retry
+import nomnomzbot.composeapp.generated.resources.giveaways_row_type
 import nomnomzbot.composeapp.generated.resources.giveaways_status_archived
 import nomnomzbot.composeapp.generated.resources.giveaways_status_closed
 import nomnomzbot.composeapp.generated.resources.giveaways_status_draft
@@ -317,9 +320,15 @@ fun GiveawaysScreen(controller: GiveawaysController, heldActionKeys: Set<String>
     }
 
     pendingDelete?.let { giveaway ->
+        val resolvedTitle: String =
+            resolveRowLabel(
+                primary = giveaway.title,
+                typeLabel = stringResource(Res.string.giveaways_row_type),
+                discriminatorSource = giveaway.id,
+            )
         ConfirmDialog(
             title = stringResource(Res.string.giveaways_delete_title),
-            message = stringResource(Res.string.giveaways_delete_message, giveaway.title),
+            message = stringResource(Res.string.giveaways_delete_message, resolvedTitle),
             confirmLabel = stringResource(Res.string.giveaways_delete_confirm),
             dismissLabel = stringResource(Res.string.giveaways_cancel),
             destructive = true,
@@ -333,12 +342,18 @@ fun GiveawaysScreen(controller: GiveawaysController, heldActionKeys: Set<String>
 
     pendingLifecycle?.let { confirm ->
         val isClose: Boolean = confirm.kind == LifecycleKind.Close
+        val resolvedLifecycleTitle: String =
+            resolveRowLabel(
+                primary = confirm.giveaway.title,
+                typeLabel = stringResource(Res.string.giveaways_row_type),
+                discriminatorSource = confirm.giveaway.id,
+            )
         ConfirmDialog(
             title = stringResource(if (isClose) Res.string.giveaways_close_title else Res.string.giveaways_draw_title),
             message =
                 stringResource(
                     if (isClose) Res.string.giveaways_close_message else Res.string.giveaways_draw_message,
-                    confirm.giveaway.title,
+                    resolvedLifecycleTitle,
                 ),
             confirmLabel =
                 stringResource(if (isClose) Res.string.giveaways_close_confirm else Res.string.giveaways_draw_confirm),
@@ -367,9 +382,15 @@ fun GiveawaysScreen(controller: GiveawaysController, heldActionKeys: Set<String>
     }
 
     pendingPoolDelete?.let { pool ->
+        val resolvedPoolName: String =
+            resolveRowLabel(
+                primary = pool.name,
+                typeLabel = stringResource(Res.string.giveaways_pool_row_type),
+                discriminatorSource = pool.id,
+            )
         ConfirmDialog(
             title = stringResource(Res.string.giveaways_pool_delete_title),
-            message = stringResource(Res.string.giveaways_pool_delete_message, pool.name),
+            message = stringResource(Res.string.giveaways_pool_delete_message, resolvedPoolName),
             confirmLabel = stringResource(Res.string.giveaways_delete_confirm),
             dismissLabel = stringResource(Res.string.giveaways_cancel),
             destructive = true,
@@ -521,8 +542,14 @@ private fun GiveawayRow(
             !editable -> ManageDecision.Denied(editReasonStatus)
             else -> ManageDecision.Allowed
         }
-    val editLabel: String = stringResource(Res.string.giveaways_edit_action, giveaway.title)
-    val deleteLabel: String = stringResource(Res.string.giveaways_delete_action, giveaway.title)
+    val displayTitle: String =
+        resolveRowLabel(
+            primary = giveaway.title,
+            typeLabel = stringResource(Res.string.giveaways_row_type),
+            discriminatorSource = giveaway.id,
+        )
+    val editLabel: String = stringResource(Res.string.giveaways_edit_action, displayTitle)
+    val deleteLabel: String = stringResource(Res.string.giveaways_delete_action, displayTitle)
 
     Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
@@ -534,7 +561,7 @@ private fun GiveawayRow(
             horizontalArrangement = Arrangement.spacedBy(spacing.s2),
         ) {
             Text(
-                text = giveaway.title,
+                text = displayTitle,
                 style = typography.base,
                 color = tokens.cardForeground,
                 maxLines = 1,
@@ -704,7 +731,13 @@ private fun CodePoolRow(pool: CodePool, onManage: () -> Unit, onDelete: () -> Un
     val counts: String =
         stringResource(Res.string.giveaways_pool_counts, pool.total, pool.available, pool.assigned)
     val description: String? = pool.description?.takeIf { it.isNotBlank() }
-    val deleteLabel: String = stringResource(Res.string.giveaways_pool_delete_action, pool.name)
+    val displayName: String =
+        resolveRowLabel(
+            primary = pool.name,
+            typeLabel = stringResource(Res.string.giveaways_pool_row_type),
+            discriminatorSource = pool.id,
+        )
+    val deleteLabel: String = stringResource(Res.string.giveaways_pool_delete_action, displayName)
 
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
@@ -713,7 +746,7 @@ private fun CodePoolRow(pool: CodePool, onManage: () -> Unit, onDelete: () -> Un
     ) {
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
             Text(
-                text = pool.name,
+                text = displayName,
                 style = typography.base,
                 color = tokens.cardForeground,
                 maxLines = 1,
