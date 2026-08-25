@@ -16,6 +16,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Transport;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Platform;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -131,11 +132,37 @@ public sealed class TwitchEventSubHostedService
             return;
         }
 
+        // A configured instance still may not simply connect: during a switchover BOTH colours are
+        // configured, so whoever loses the lease has to wait rather than open a second chat session. Losing
+        // it is not a fault — it re-checks on the same waiter as the dormant path.
+        _leadership = await TryAcquireLeadershipAsync(cancellationToken);
+        if (_leadership is null)
+        {
+            _logger.LogInformation(
+                "EventSub: another instance holds chat ingest (deploy overlap) — waiting for handover."
+            );
+            CancellationTokenSource waitCts = CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken
+            );
+            CancellationToken waitToken = waitCts.Token;
+            _dormancyCts = waitCts;
+            _dormancyWaiter = Task.Run(() => WaitForReadinessThenStartAsync(waitToken), waitToken);
+            return;
+        }
+
         await StartTransportAsync(cancellationToken);
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)
     {
+        // Release chat ingest FIRST: the incoming colour is already polling for it, so handing it back here
+        // is the difference between a seamless switchover and a gap the length of the lease TTL.
+        if (_leadership is not null)
+        {
+            await _leadership.DisposeAsync();
+            _leadership = null;
+        }
+
         // Cancel first, dispose only AFTER the waiter has been awaited — the waiter's PeriodicTimer
         // registers on the token, and registering against a disposed source throws.
         if (_dormancyCts is not null)
@@ -206,6 +233,16 @@ public sealed class TwitchEventSubHostedService
                 if (!await IsPlatformBotConfiguredAsync(ct))
                     continue;
 
+                // ONE instance reads chat. A blue/green switchover deliberately runs both colours at once
+                // (the new one must pass /health/ready before the old is drained), which is harmless for
+                // HTTP because Caddy picks one — but EventSub is not request-scoped: a second instance
+                // opens its own sessions, receives the same channel.chat.message, and answers every command
+                // a second time. That is the "two bots" the owner saw, on every deploy. TimerService already
+                // takes this same lease for the same reason; the chat ingest path never did.
+                _leadership = await TryAcquireLeadershipAsync(ct);
+                if (_leadership is null)
+                    continue;
+
                 await StartTransportAsync(ct);
                 return;
             }
@@ -215,6 +252,25 @@ public sealed class TwitchEventSubHostedService
             // Host is shutting down before onboarding completed — end the waiter quietly.
         }
     }
+
+    /// <summary>
+    /// The chat-ingest leadership lease. Held for as long as this instance owns EventSub and released on
+    /// shutdown, so the OUTGOING colour hands over cleanly: the incoming one keeps polling here and starts
+    /// only once the lease is genuinely free, instead of both talking at once.
+    /// </summary>
+    private IAsyncDisposable? _leadership;
+
+    private async Task<IAsyncDisposable?> TryAcquireLeadershipAsync(CancellationToken ct)
+    {
+        await using AsyncServiceScope scope = _scopeFactory.CreateAsyncScope();
+        IRunOnceGuard guard = scope.ServiceProvider.GetRequiredService<IRunOnceGuard>();
+        return await guard.TryAcquireAsync("eventsub-chat-ingest", LeadershipTtl, ct);
+    }
+
+    /// <summary>Nominal only: the Postgres guard backs this with an advisory lock on its OWN connection, so
+    /// the hold lasts as long as the process and a hard kill releases it automatically — there is no window
+    /// where a dead instance keeps chat hostage.</summary>
+    private static readonly TimeSpan LeadershipTtl = TimeSpan.FromMinutes(2);
 
     private async Task<bool> IsPlatformBotConfiguredAsync(CancellationToken ct)
     {
