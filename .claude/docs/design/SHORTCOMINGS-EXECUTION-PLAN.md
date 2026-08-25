@@ -304,8 +304,6 @@ stable — without dropping the planned requirements behind them.
   caption optional; TTS page shows URL / last-seen / test-through-overlay / queue controls;
   `tts_caption` out of the gallery (U·A3, spec `widgets-overlays.md` §1.2). Done-when: a TTS redeem
   is audible in OBS from a fresh channel with no widget install.
-- **S055** Discord rule editor — channel/role pickers via `GuildPickerField`, trigger dropdown, ping
-  role, embed, helper link + preview; names in list (U·A6 i1). Done-when: no snowflake typed.
 - **S060** Editor fire-bar — real per-event samples (`WidgetTestSamples`), chat variants, events from
   subscriptions not regex, desktop gets the bar (W·§3/§8 i3, U·B5).
 - **S061** `chat_box.vue` layout batch — line break, truncation, avatar, contrast, emote size, arrival
