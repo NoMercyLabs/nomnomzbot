@@ -15,7 +15,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 // The fixed 4dp-based spacing scale (frontend-design-system.md §1.3). Components use
-// `Space.*` only — never a raw `.dp` literal. Resolved dp: 0,2,4,6,8,12,16,24,32,48,64,96.
+// `Space.*` only — never a raw `.dp` literal. The 10dp step supports the medium-control
+// vertical padding; the rest retains the project's 4dp-based layout rhythm.
 @Immutable
 data class Spacing(
     val s0: Dp = 0.dp,
@@ -23,6 +24,7 @@ data class Spacing(
     val s1: Dp = 4.dp,
     val s1_5: Dp = 6.dp,
     val s2: Dp = 8.dp,
+    val s2_5: Dp = 10.dp,
     val s3: Dp = 12.dp,
     val s4: Dp = 16.dp,
     val s6: Dp = 24.dp,

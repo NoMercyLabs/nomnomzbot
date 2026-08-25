@@ -49,6 +49,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
+import bot.nomnomz.dashboard.core.designsystem.component.TabsList
+import bot.nomnomz.dashboard.core.designsystem.component.TabsTrigger
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
@@ -347,6 +349,15 @@ private fun ProviderTile(
                     modifier = Modifier.weight(1f),
                 )
                 ManageGate(decision = configManage) { enabled ->
+                    GlyphButton(
+                        imageVector = TrashGlyph,
+                        label = stringResource(Res.string.supporters_disconnect_action, name),
+                        onClick = onDisconnect,
+                        enabled = enabled,
+                        tint = tokens.destructive,
+                    )
+                }
+                ManageGate(decision = configManage) { enabled ->
                     Switch(
                         checked = connection.isEnabled,
                         onCheckedChange = onSetEnabled,
@@ -371,15 +382,6 @@ private fun ProviderTile(
                     value = url,
                     copyLabel = stringResource(Res.string.supporters_copy),
                     copiedLabel = stringResource(Res.string.supporters_copied),
-                )
-            }
-            ManageGate(decision = configManage) { enabled ->
-                GlyphButton(
-                    imageVector = TrashGlyph,
-                    label = stringResource(Res.string.supporters_disconnect_action, name),
-                    onClick = onDisconnect,
-                    enabled = enabled,
-                    tint = tokens.destructive,
                 )
             }
         } else {
@@ -510,20 +512,16 @@ private fun EventsSection(
 // documented domain, not the current adapter's subset. No source filter is shown while a single adapter exists.
 @Composable
 private fun KindFilterRow(selected: String?, onSelect: (String?) -> Unit) {
-    val spacing = LocalSpacing.current
-
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-        SelectChip(
-            label = stringResource(Res.string.supporters_filter_all),
+    TabsList {
+        TabsTrigger(
             selected = selected == null,
             onClick = { onSelect(null) },
-        )
+        ) { Text(stringResource(Res.string.supporters_filter_all), maxLines = 1) }
         KindFilters.forEach { kind ->
-            SelectChip(
-                label = kindLabel(kind),
+            TabsTrigger(
                 selected = selected == kind,
                 onClick = { onSelect(kind) },
-            )
+            ) { Text(kindLabel(kind), maxLines = 1) }
         }
     }
 }
@@ -660,12 +658,6 @@ private fun ErrorContent(message: String, retryLabel: String, onRetry: () -> Uni
             TextButton(onClick = onRetry) { Text(text = retryLabel) }
         }
     }
-}
-
-// A selectable chip (shadcn Badge in its selectable/toggle form) — one option in the kind filter.
-@Composable
-private fun SelectChip(label: String, selected: Boolean, onClick: () -> Unit) {
-    Badge(selected = selected, onClick = onClick) { Text(text = label) }
 }
 
 // ── Provider catalogue + label mappings ──────────────────────────────────────────

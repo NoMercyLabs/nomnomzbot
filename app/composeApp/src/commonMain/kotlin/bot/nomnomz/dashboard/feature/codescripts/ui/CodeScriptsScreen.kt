@@ -295,15 +295,6 @@ private fun ScriptRow(
                 }
             }
             ManageGate(manage) { enabled ->
-                Switch(
-                    checked = script.isEnabled,
-                    onCheckedChange = { onToggle() },
-                    enabled = enabled,
-                )
-            }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-            ManageGate(manage) { enabled ->
                 GlyphButton(
                     imageVector = EditLineGlyph,
                     label = stringResource(Res.string.scripts_editor_source_label),
@@ -319,6 +310,13 @@ private fun ScriptRow(
                     onClick = onDelete,
                     enabled = enabled,
                     tint = tokens.destructive,
+                )
+            }
+            ManageGate(manage) { enabled ->
+                Switch(
+                    checked = script.isEnabled,
+                    onCheckedChange = { onToggle() },
+                    enabled = enabled,
                 )
             }
         }

@@ -10,12 +10,17 @@
 
 package bot.nomnomz.dashboard.feature.chat.ui
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -47,8 +52,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
-import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
+import androidx.compose.ui.unit.sp
+import bot.nomnomz.dashboard.core.designsystem.component.InputFieldAction
+import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
+import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
+import bot.nomnomz.dashboard.core.designsystem.theme.ControlMetrics
+import bot.nomnomz.dashboard.core.designsystem.theme.ControlPalette
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.media.AnimatedNetworkImage
 import bot.nomnomz.dashboard.core.network.ChatEmoteCatalogue
@@ -69,19 +78,46 @@ internal fun EmoteComposerField(
     placeholder: String,
     enabled: Boolean,
     onPreviewKey: (KeyEvent) -> Boolean,
+    actionLabel: String,
+    actionDecision: ManageDecision,
+    actionEnabled: Boolean,
+    onActionClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
     val typography = LocalTypography.current
     val density = LocalDensity.current
 
-    val textStyle: TextStyle = typography.sm.copy(color = tokens.foreground)
+    val textStyle: TextStyle =
+        typography.base.copy(
+            color = ControlPalette.White,
+            fontSize = 16.sp,
+            lineHeight = 22.sp,
+            letterSpacing = (-0.0688).sp,
+        )
 
     val interactionSource: MutableInteractionSource = remember { MutableInteractionSource() }
     val focused: Boolean by interactionSource.collectIsFocusedAsState()
-    val borderColor = if (focused) tokens.ring else tokens.border
-    val shape = RoundedCornerShape(tokens.radius.md)
+    val hovered: Boolean by interactionSource.collectIsHoveredAsState()
+    val borderColor by
+        animateColorAsState(
+            targetValue =
+                when {
+                    focused -> ControlPalette.Focus
+                    hovered && enabled -> ControlPalette.BorderHover
+                    else -> ControlPalette.Border
+                },
+            animationSpec = tween(ComposerFieldTransitionMillis),
+            label = "composerBorder",
+        )
+    val backgroundColor by
+        animateColorAsState(
+            targetValue =
+                if (hovered && enabled && !focused) ControlPalette.SurfaceRaised
+                else ControlPalette.Surface,
+            animationSpec = tween(ComposerFieldTransitionMillis),
+            label = "composerBackground",
+        )
+    val shape = RoundedCornerShape(ControlMetrics.InputRadius)
 
     // Size the inline image to ~1.45× the font height (matching the feed's inline-emote scale) and reserve a blank
     // run about that wide. Space advance is measured trailing-space-safe (a lone " " has zero layout width).
@@ -109,28 +145,48 @@ internal fun EmoteComposerField(
         onValueChange = onValueChange,
         enabled = enabled,
         textStyle = textStyle,
-        cursorBrush = SolidColor(tokens.primary),
+        cursorBrush = SolidColor(ControlPalette.White),
         visualTransformation = composerVisualTransformation(transform),
         onTextLayout = { layoutResult = it },
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
         interactionSource = interactionSource,
         maxLines = ComposerMaxLines,
-        modifier = modifier.onPreviewKeyEvent(onPreviewKey),
+        modifier =
+            modifier
+                .hoverable(interactionSource, enabled = enabled)
+                .onPreviewKeyEvent(onPreviewKey),
         decorationBox = { innerTextField ->
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(width = FieldBorderWidth, color = borderColor, shape = shape)
-                    .clip(shape)
-                    .background(tokens.background)
-                    .padding(horizontal = spacing.s3, vertical = spacing.s2),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = ControlMetrics.InputHeight)
+                        .border(
+                            width = if (focused) ControlMetrics.InputFocusStroke else FieldBorderWidth,
+                            color = borderColor,
+                            shape = shape,
+                        )
+                        .clip(shape)
+                        .background(backgroundColor)
+                        .padding(
+                            start = ControlMetrics.InputHorizontalInset,
+                            end = ControlMetrics.InputTrailingInset,
+                            top = ControlMetrics.InputVerticalInset,
+                            bottom = ControlMetrics.InputVerticalInset,
+                        ),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(modifier = Modifier.weight(1f)) {
                     if (value.text.isEmpty()) {
                         Text(
                             text = placeholder,
-                            style = typography.sm.copy(color = tokens.mutedForeground),
+                            style =
+                                textStyle.copy(
+                                    color =
+                                        ControlPalette.White.copy(
+                                            alpha = if (hovered && enabled) 0.56f else 0.32f
+                                        )
+                                ),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -160,6 +216,15 @@ internal fun EmoteComposerField(
                         }
                     }
                 }
+                // Keep the permission gate on the Send action itself—not the editable composer—so
+                // denied users can still type/clear a draft and assistive tech announces why Send is inert.
+                ManageGate(decision = actionDecision) { permissionEnabled ->
+                    InputFieldAction(
+                        label = actionLabel,
+                        onClick = onActionClick,
+                        enabled = permissionEnabled && actionEnabled,
+                    )
+                }
             }
         },
     )
@@ -167,6 +232,7 @@ internal fun EmoteComposerField(
 
 // 1dp border stroke — a fixed visual stroke, not a layout spacing token (mirrors the design-system Input).
 private val FieldBorderWidth: Dp = 1.dp
+private const val ComposerFieldTransitionMillis: Int = 120
 
 // Inline image size relative to the font height; matches the feed's inline-emote scale so composer and feed agree.
 private const val EmoteScale: Float = 1.45f

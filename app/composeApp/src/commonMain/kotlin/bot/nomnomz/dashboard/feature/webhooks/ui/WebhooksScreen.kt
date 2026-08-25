@@ -518,23 +518,6 @@ private fun InboundRow(
                 )
             }
             ManageGate(manage) { enabled ->
-                Switch(
-                    checked = ep.isEnabled,
-                    onCheckedChange = { onToggle() },
-                    enabled = enabled,
-                )
-            }
-        }
-        Text(
-            text = routingText,
-            style = typography.xs,
-            color = if (ep.targetPipelineId == null && ep.targetEventType.isNullOrBlank()) tokens.mutedForeground else tokens.primary,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Text(text = "${stringResource(Res.string.webhooks_url_label)}: ${ep.ingestUrl}", style = typography.xs, color = tokens.mutedForeground, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-            ManageGate(manage) { enabled ->
                 GlyphButton(
                     imageVector = EditGlyph,
                     label = stringResource(Res.string.webhooks_edit),
@@ -561,7 +544,22 @@ private fun InboundRow(
                     tint = tokens.destructive,
                 )
             }
+            ManageGate(manage) { enabled ->
+                Switch(
+                    checked = ep.isEnabled,
+                    onCheckedChange = { onToggle() },
+                    enabled = enabled,
+                )
+            }
         }
+        Text(
+            text = routingText,
+            style = typography.xs,
+            color = if (ep.targetPipelineId == null && ep.targetEventType.isNullOrBlank()) tokens.mutedForeground else tokens.primary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(text = "${stringResource(Res.string.webhooks_url_label)}: ${ep.ingestUrl}", style = typography.xs, color = tokens.mutedForeground, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -609,23 +607,6 @@ private fun OutboundRow(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            ManageGate(manage) { enabled ->
-                Switch(
-                    checked = ep.isEnabled,
-                    onCheckedChange = { onToggle() },
-                    enabled = enabled,
-                )
-            }
-        }
-        if (ep.consecutiveFailureCount > 0 || ep.disabledReason != null) {
-            Text(
-                text = "${stringResource(Res.string.webhooks_failures_label, ep.consecutiveFailureCount)}${ep.disabledReason?.let { " — $it" } ?: ""}",
-                style = typography.xs,
-                color = tokens.destructive,
-                maxLines = 2,
-            )
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
             ManageGate(manage) { enabled ->
                 GlyphButton(
                     imageVector = EditGlyph,
@@ -679,6 +660,21 @@ private fun OutboundRow(
                     tint = tokens.destructive,
                 )
             }
+            ManageGate(manage) { enabled ->
+                Switch(
+                    checked = ep.isEnabled,
+                    onCheckedChange = { onToggle() },
+                    enabled = enabled,
+                )
+            }
+        }
+        if (ep.consecutiveFailureCount > 0 || ep.disabledReason != null) {
+            Text(
+                text = "${stringResource(Res.string.webhooks_failures_label, ep.consecutiveFailureCount)}${ep.disabledReason?.let { " — $it" } ?: ""}",
+                style = typography.xs,
+                color = tokens.destructive,
+                maxLines = 2,
+            )
         }
     }
 }

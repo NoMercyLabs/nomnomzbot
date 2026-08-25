@@ -11,7 +11,6 @@
 package bot.nomnomz.dashboard.core.designsystem.component
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.hoverable
@@ -27,6 +26,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
@@ -42,17 +44,18 @@ import bot.nomnomz.dashboard.core.designsystem.theme.Typography
 
 // Delay before the bubble appears on hover — matches shadcn's ~700ms open delay closely enough to
 // avoid flicker while sweeping the pointer across a toolbar of icon buttons.
-private const val TooltipDelayMillis: Long = 500L
+private const val TooltipDelayMillis: Long = 400L
 
 // Gap between the anchor and the bubble, in px (device-independent enough for a 1px-ish offset).
-private const val TooltipGapPx: Int = 8
+private const val TooltipGapPx: Int = 4
+private val TooltipElevation: Dp = 8.dp
 
 /**
  * shadcn/ui Tooltip ported to Compose (frontend-design-system.md §4, catalogue row — Foundation
  * `Popup`).
  *
  * Hover-triggered: wraps the anchor in [content], detects pointer hover via a Foundation
- * `InteractionSource`, and after a short delay shows a [Tokens.popover] bubble centered above the
+ * `InteractionSource`, and after a short delay shows the inverse-surface bubble centered above the
  * anchor in a `Popup`. No Material dependency, so it renders and triggers reliably on desktop and
  * web. The [text] is also the accessible name callers should set on the anchor itself.
  */
@@ -68,11 +71,14 @@ fun Tooltip(
 
     val interactionSource: MutableInteractionSource = remember { MutableInteractionSource() }
     val hovered: Boolean by interactionSource.collectIsHoveredAsState()
+    var focused: Boolean by remember { mutableStateOf(false) }
     var visible: Boolean by remember { mutableStateOf(false) }
 
-    // Debounce: only show after the pointer has rested on the anchor for the open delay.
-    LaunchedEffect(hovered) {
-        if (hovered) {
+    // Keyboard focus opens immediately; pointer hover retains the deliberate open delay.
+    LaunchedEffect(hovered, focused) {
+        if (focused) {
+            visible = true
+        } else if (hovered) {
             kotlinx.coroutines.delay(TooltipDelayMillis)
             visible = true
         } else {
@@ -80,19 +86,24 @@ fun Tooltip(
         }
     }
 
-    Box(modifier = modifier.hoverable(interactionSource)) {
+    Box(
+        modifier =
+            modifier
+                .onFocusChanged { focused = it.hasFocus }
+                .hoverable(interactionSource)
+    ) {
         content()
         if (visible) {
             Popup(popupPositionProvider = AboveAnchorPositionProvider) {
                 Box(
                     modifier =
                         Modifier
-                            .clip(RoundedCornerShape(tokens.radius.md))
-                            .background(tokens.popover)
-                            .border(1.dp, tokens.border, RoundedCornerShape(tokens.radius.md))
-                            .padding(horizontal = spacing.s2, vertical = spacing.s1),
+                            .shadow(TooltipElevation, RoundedCornerShape(tokens.radius.sm))
+                            .clip(RoundedCornerShape(tokens.radius.sm))
+                            .background(tokens.foreground)
+                            .padding(horizontal = spacing.s3, vertical = spacing.s1_5),
                 ) {
-                    Text(text = text, style = typography.xs, color = tokens.popoverForeground)
+                    Text(text = text, style = typography.xs, color = tokens.background)
                 }
             }
         }

@@ -577,14 +577,6 @@ private fun WidgetRow(
                 )
             }
 
-            ManageGate(decision = manage) { enabled ->
-                Switch(
-                    checked = widget.isEnabled,
-                    onCheckedChange = onToggle,
-                    enabled = enabled,
-                    modifier = Modifier.semantics { contentDescription = toggleLabel },
-                )
-            }
             // Typed settings (chat_box font/background/timestamps) — a focused form over the widget's config,
             // shown only for widget types that have a registered typed form. Gated by the Editor manage floor.
             if (hasTypedSettings) {
@@ -660,6 +652,14 @@ private fun WidgetRow(
                     onClick = onDelete,
                     enabled = enabled,
                     tint = tokens.destructive,
+                )
+            }
+            ManageGate(decision = manage) { enabled ->
+                Switch(
+                    checked = widget.isEnabled,
+                    onCheckedChange = onToggle,
+                    enabled = enabled,
+                    modifier = Modifier.semantics { contentDescription = toggleLabel },
                 )
             }
         }

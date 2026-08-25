@@ -732,14 +732,6 @@ private fun RuleRow(
         }
 
         ManageGate(decision = manage) { enabled ->
-            Switch(
-                checked = rule.enabled,
-                onCheckedChange = onToggle,
-                enabled = enabled,
-                modifier = Modifier.semantics { contentDescription = toggleLabel },
-            )
-        }
-        ManageGate(decision = manage) { enabled ->
             GlyphButton(imageVector = EditGlyph, label = editLabel, onClick = onEdit, enabled = enabled)
         }
         ManageGate(decision = manage) { enabled ->
@@ -756,6 +748,14 @@ private fun RuleRow(
                 text = stringResource(Res.string.discord_preview_action),
                 color = tokens.mutedForeground,
                 maxLines = 1,
+            )
+        }
+        ManageGate(decision = manage) { enabled ->
+            Switch(
+                checked = rule.enabled,
+                onCheckedChange = onToggle,
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = toggleLabel },
             )
         }
     }

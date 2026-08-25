@@ -54,6 +54,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.RadioButton
 import bot.nomnomz.dashboard.core.designsystem.component.Spinner
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
@@ -1151,38 +1152,11 @@ private fun ToneOption(tone: String, selected: Boolean, enabled: Boolean, onSele
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
-        RadioDot(selected = selected, enabled = enabled)
+        // The row owns selection semantics; the shared control supplies its visual state.
+        RadioButton(selected = selected, onClick = null, enabled = enabled)
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s0_5)) {
             Text(text = toneName(tone), style = typography.base, color = nameColor)
             Text(text = toneDescription(tone), style = typography.sm, color = tokens.mutedForeground)
-        }
-    }
-}
-
-// A filled/outlined circle standing in for a radio button, drawn with catalogue tokens (no Material RadioButton,
-// which carries its own colors). The row's `selectable` owns the a11y role, so this dot is purely visual.
-@Composable
-private fun RadioDot(selected: Boolean, enabled: Boolean) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-
-    val ringColor: Color =
-        when {
-            !enabled -> tokens.mutedForeground
-            selected -> tokens.primary
-            else -> tokens.border
-        }
-    Box(
-        modifier = Modifier.size(spacing.s4).clip(CircleShape).border(spacing.s0_5, ringColor, CircleShape),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (selected) {
-            Box(
-                modifier =
-                    Modifier.size(spacing.s2)
-                        .clip(CircleShape)
-                        .background(if (enabled) tokens.primary else tokens.mutedForeground)
-            )
         }
     }
 }

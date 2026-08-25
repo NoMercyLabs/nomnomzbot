@@ -348,21 +348,21 @@ private fun OptInRow(
                 Text(text = optIn.peerName, style = typography.xs, color = tokens.mutedForeground, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             ManageGate(manage) { enabled ->
+                GlyphButton(
+                    imageVector = TrashGlyph,
+                    label = stringResource(Res.string.federation_optin_remove_confirm),
+                    onClick = onRemove,
+                    enabled = enabled,
+                    tint = tokens.destructive,
+                )
+            }
+            ManageGate(manage) { enabled ->
                 Switch(
                     checked = optIn.isEnabled,
                     onCheckedChange = { onToggle() },
                     enabled = enabled,
                 )
             }
-        }
-        ManageGate(manage) { enabled ->
-            GlyphButton(
-                imageVector = TrashGlyph,
-                label = stringResource(Res.string.federation_optin_remove_confirm),
-                onClick = onRemove,
-                enabled = enabled,
-                tint = tokens.destructive,
-            )
         }
     }
 }

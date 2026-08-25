@@ -12,7 +12,7 @@ package bot.nomnomz.dashboard.core.designsystem.component
 
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -20,7 +20,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
-import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 
 // A labelled icon-only action button:
 //   • `label` is the visible tooltip on hover (via the DS [Tooltip]) and the contentDescription for
@@ -39,21 +38,17 @@ fun GlyphButton(
     enabled: Boolean = true,
     tint: Color? = null,
 ) {
-    val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
 
-    val iconTint: Color = when {
-        !enabled -> tokens.muted
-        tint != null -> tint
-        else -> tokens.foreground
-    }
-
     Tooltip(text = label, modifier = modifier) {
-        IconButton(
+        Button(
             onClick = onClick,
             enabled = enabled,
+            variant = ButtonVariant.Ghost,
+            size = ButtonSize.Icon,
             modifier = Modifier.clearAndSetSemantics { contentDescription = label },
         ) {
+            val iconTint: Color = tint ?: LocalContentColor.current
             Icon(
                 imageVector = imageVector,
                 contentDescription = null,

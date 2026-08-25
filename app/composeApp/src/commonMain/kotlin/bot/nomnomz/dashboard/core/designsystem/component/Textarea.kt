@@ -10,6 +10,8 @@
 
 package bot.nomnomz.dashboard.core.designsystem.component
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -34,6 +36,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -46,6 +49,8 @@ import bot.nomnomz.dashboard.core.designsystem.theme.Typography
 
 // 1dp border stroke — not a layout spacing value.
 private val FieldBorderWidth: Dp = 1.dp
+private val FocusedFieldBorderWidth: Dp = 2.dp
+private const val TextareaTransitionMillis: Int = 150
 
 /**
  * shadcn/ui Textarea ported to Compose (frontend-design-system.md §4, catalogue row).
@@ -82,16 +87,21 @@ fun Textarea(
     val interactionSource: MutableInteractionSource = remember { MutableInteractionSource() }
     val focused: Boolean by interactionSource.collectIsFocusedAsState()
 
-    val borderColor: Color =
+    val targetBorderColor: Color =
         when {
             isError -> tokens.destructive
             focused -> tokens.ring
             !enabled -> tokens.border.copy(alpha = 0.5f)
             else -> tokens.border
         }
+    val borderColor: Color by animateColorAsState(
+        targetValue = targetBorderColor,
+        animationSpec = tween(TextareaTransitionMillis),
+        label = "textareaBorder",
+    )
 
     val textColor: Color = if (enabled) tokens.foreground else tokens.mutedForeground
-    val shape: RoundedCornerShape = RoundedCornerShape(tokens.radius.md)
+    val shape: RoundedCornerShape = RoundedCornerShape(tokens.radius.sm)
     val fieldTextStyle =
         typography.sm.copy(
             color = textColor,
@@ -101,7 +111,8 @@ fun Textarea(
     Column(modifier = modifier) {
         if (label.isNotEmpty()) {
             CompositionLocalProvider(
-                LocalTextStyle provides typography.sm.copy(color = tokens.foreground)
+                LocalTextStyle provides
+                    typography.sm.copy(color = tokens.foreground, fontWeight = FontWeight.Medium)
             ) {
                 Text(text = label, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
@@ -130,10 +141,14 @@ fun Textarea(
                         Modifier
                             .then(if (fillHeight) Modifier.fillMaxHeight() else Modifier)
                             .fillMaxWidth()
-                            .border(width = FieldBorderWidth, color = borderColor, shape = shape)
+                            .border(
+                                width = if (focused || isError) FocusedFieldBorderWidth else FieldBorderWidth,
+                                color = borderColor,
+                                shape = shape,
+                            )
                             .clip(shape)
-                            .background(color = tokens.background)
-                            .padding(horizontal = spacing.s3, vertical = spacing.s2),
+                            .background(color = tokens.muted)
+                            .padding(horizontal = spacing.s4, vertical = spacing.s2_5),
                 ) {
                     if (value.isEmpty() && placeholder != null) {
                         CompositionLocalProvider(
@@ -154,7 +169,7 @@ fun Textarea(
                 else -> null
             }
         if (subText != null) {
-            Spacer(modifier = Modifier.height(spacing.s1))
+            Spacer(modifier = Modifier.height(spacing.s1_5))
             CompositionLocalProvider(
                 LocalTextStyle provides
                     typography.xs.copy(

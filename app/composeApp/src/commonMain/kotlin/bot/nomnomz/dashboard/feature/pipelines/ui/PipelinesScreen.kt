@@ -512,14 +512,6 @@ private fun PipelineRow(
             )
         }
 
-        ManageGate(decision = manage) { enabled ->
-            Switch(
-                checked = pipeline.isEnabled,
-                onCheckedChange = onToggle,
-                enabled = enabled,
-                modifier = Modifier.semantics { contentDescription = toggleLabel },
-            )
-        }
         // Opening the chain editor is navigation/read, not a write — stays enabled for everyone.
         GlyphButton(
             imageVector = EditLineGlyph,
@@ -537,6 +529,14 @@ private fun PipelineRow(
                 onClick = onDelete,
                 enabled = enabled,
                 tint = tokens.destructive,
+            )
+        }
+        ManageGate(decision = manage) { enabled ->
+            Switch(
+                checked = pipeline.isEnabled,
+                onCheckedChange = onToggle,
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = toggleLabel },
             )
         }
     }

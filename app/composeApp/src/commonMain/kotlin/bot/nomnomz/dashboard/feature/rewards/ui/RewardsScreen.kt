@@ -374,7 +374,6 @@ private fun Header(
     onSync: () -> Unit,
     onImport: () -> Unit,
 ) {
-    val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val newLabel: String = stringResource(Res.string.rewards_new_action)
     val syncLabel: String = stringResource(Res.string.rewards_sync_action)
@@ -390,27 +389,21 @@ private fun Header(
                 horizontalArrangement = Arrangement.spacedBy(spacing.s2),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                TextButton(
+                Button(
                     onClick = onSync,
                     enabled = enabled,
+                    variant = ButtonVariant.Ghost,
                     modifier = Modifier.semantics { contentDescription = syncLabel },
                 ) {
-                    Text(
-                        text = syncLabel,
-                        color = if (enabled) tokens.primary else tokens.mutedForeground,
-                        maxLines = 1,
-                    )
+                    Text(text = syncLabel, maxLines = 1)
                 }
-                TextButton(
+                Button(
                     onClick = onImport,
                     enabled = enabled,
+                    variant = ButtonVariant.Ghost,
                     modifier = Modifier.semantics { contentDescription = importLabel },
                 ) {
-                    Text(
-                        text = importLabel,
-                        color = if (enabled) tokens.primary else tokens.mutedForeground,
-                        maxLines = 1,
-                    )
+                    Text(text = importLabel, maxLines = 1)
                 }
                 Button(
                     onClick = onNew,
@@ -606,13 +599,6 @@ private fun RedemptionTimerRow(
                 }
             }
             ManageGate(decision = edit) { enabled ->
-                Button(
-                    onClick = { onAction(TimerAction.Complete) },
-                    enabled = enabled,
-                    size = ButtonSize.Sm,
-                ) { Text(text = stringResource(Res.string.rewards_timer_complete), maxLines = 1) }
-            }
-            ManageGate(decision = edit) { enabled ->
                 GlyphButton(
                     imageVector = RemoveGlyph,
                     label = stringResource(Res.string.rewards_timer_cancel),
@@ -620,6 +606,13 @@ private fun RedemptionTimerRow(
                     enabled = enabled,
                     tint = tokens.destructive,
                 )
+            }
+            ManageGate(decision = edit) { enabled ->
+                Button(
+                    onClick = { onAction(TimerAction.Complete) },
+                    enabled = enabled,
+                    size = ButtonSize.Sm,
+                ) { Text(text = stringResource(Res.string.rewards_timer_complete), maxLines = 1) }
             }
         }
     }
@@ -703,20 +696,20 @@ private fun RedemptionRow(
         // Fulfil / refund gate at the page's Editor manage floor; the backend re-checks reward:manage.
         ManageGate(decision = edit) { enabled ->
             GlyphButton(
-                imageVector = CheckCircleGlyph,
-                label = fulfillLabel,
-                onClick = onFulfill,
-                enabled = enabled,
-                tint = tokens.primary,
-            )
-        }
-        ManageGate(decision = edit) { enabled ->
-            GlyphButton(
                 imageVector = RemoveGlyph,
                 label = refundLabel,
                 onClick = onRefund,
                 enabled = enabled,
                 tint = tokens.destructive,
+            )
+        }
+        ManageGate(decision = edit) { enabled ->
+            GlyphButton(
+                imageVector = CheckCircleGlyph,
+                label = fulfillLabel,
+                onClick = onFulfill,
+                enabled = enabled,
+                tint = tokens.primary,
             )
         }
     }
@@ -800,16 +793,8 @@ private fun RewardRow(
             }
         }
 
-        // Toggle + edit gate at the page's Editor floor; delete is the Broadcaster-only lifecycle action. On an
-        // external reward all three collapse to Denied(externalReason) so they render disabled with the reason.
-        ManageGate(decision = rowEdit) { enabled ->
-            Switch(
-                checked = reward.isEnabled,
-                onCheckedChange = onToggle,
-                enabled = enabled,
-                modifier = Modifier.semantics { contentDescription = toggleLabel },
-            )
-        }
+        // Secondary actions precede the row's main enabled-state control, which stays at the far right.
+        // Edit/toggle gate at the Editor floor; delete is the Broadcaster-only lifecycle action.
         ManageGate(decision = rowEdit) { enabled ->
             GlyphButton(imageVector = EditGlyph, label = editLabel, onClick = onEdit, enabled = enabled)
         }
@@ -820,6 +805,14 @@ private fun RewardRow(
                 onClick = onDelete,
                 enabled = enabled,
                 tint = tokens.destructive,
+            )
+        }
+        ManageGate(decision = rowEdit) { enabled ->
+            Switch(
+                checked = reward.isEnabled,
+                onCheckedChange = onToggle,
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = toggleLabel },
             )
         }
     }

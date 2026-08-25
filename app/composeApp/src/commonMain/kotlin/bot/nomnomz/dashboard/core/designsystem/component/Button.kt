@@ -1,23 +1,24 @@
 // -----------------------------------------------------------------------------
 //  Copyright (c) NoMercy Labs.
 //
-//  This file is part of NomNomzBot, free software licensed under the GNU Affero
-//  General Public License v3.0 or later. You may redistribute and/or modify it
-//  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
-//
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
 package bot.nomnomz.dashboard.core.designsystem.component
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.defaultMinSize
@@ -32,7 +33,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
@@ -40,29 +43,36 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import bot.nomnomz.dashboard.core.designsystem.theme.ControlPalette
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.theme.Spacing
 import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
-import bot.nomnomz.dashboard.core.designsystem.theme.Typography
 
-// 1dp is a border stroke constant — not a layout spacing value and intentionally not in Space.*.
-private val StrokeWidth: Dp = 1.dp
+private val ButtonStroke: Dp = 1.dp
+private val ButtonFocusStroke: Dp = 3.dp
+private val ButtonRadius: Dp = 45.dp
+private val CompactButtonHeight: Dp = 44.dp
+private val FigmaButtonHeight: Dp = 60.dp
+private val FigmaIconButtonWidth: Dp = 88.dp
+private const val ButtonTransitionMillis: Int = 120
 
-// ─── Variant / size enums ─────────────────────────────────────────────────────
-
-/** shadcn Button variants (frontend-design-system.md §4, catalogue row). */
 enum class ButtonVariant {
+    /** Figma node 308:1607 — light primary pill. */
     Default,
+    /** Figma node 391:1787 — solid destructive pill. */
     Destructive,
     Outline,
+    /** Figma node 310:1526 — dark secondary pill. */
     Secondary,
+    /** Figma node 391:1892 — quiet destructive pill. */
+    DestructiveSecondary,
     Ghost,
     Link,
 }
 
-/** shadcn Button sizes (frontend-design-system.md §4, catalogue row). */
 enum class ButtonSize {
     Sm,
     Default,
@@ -70,261 +80,316 @@ enum class ButtonSize {
     Icon,
 }
 
-// ─── Style resolution ─────────────────────────────────────────────────────────
+internal val DefaultButtonVariant: ButtonVariant = ButtonVariant.Default
 
-private data class ButtonColors(
-    val container: Color,
+private data class ButtonVisuals(
+    val gradientTop: Color,
+    val gradientBottom: Color,
     val content: Color,
     val border: Color,
+    val focus: Color,
+    val iconContainer: Color,
+    val weight: FontWeight,
 )
 
-private fun resolveButtonColors(
+private fun buttonVisuals(
     variant: ButtonVariant,
-    enabled: Boolean,
     hovered: Boolean,
     pressed: Boolean,
     tokens: Tokens,
-): ButtonColors {
-    if (!enabled) {
-        return ButtonColors(
-            container = tokens.muted,
-            content = tokens.mutedForeground,
-            border = Color.Transparent,
-        )
-    }
-    // Hover/press darken the container slightly by blending with black (light theme) or
-    // white (dark theme). Since we have no "is dark scheme" param here, we use alpha: a
-    // semi-transparent black overlay at 8 % (hover) / 14 % (press) reads correctly on
-    // both schemes because the tokens already encode the right luminance.
-    val overlay: Float =
-        when {
-            pressed -> 0.14f
-            hovered -> 0.08f
-            else -> 0f
+): ButtonVisuals =
+    when (variant) {
+        ButtonVariant.Default -> {
+            val top: Color
+            val bottom: Color
+            when {
+                pressed -> {
+                    top = Color(0xFFE3E0FF)
+                    bottom = ControlPalette.White
+                }
+                hovered -> {
+                    top = ControlPalette.White.copy(alpha = 0.88f)
+                    bottom = ControlPalette.LilacWhite.copy(alpha = 0.88f)
+                }
+                else -> {
+                    top = ControlPalette.White
+                    bottom = ControlPalette.LilacWhite
+                }
+            }
+            ButtonVisuals(
+                gradientTop = top,
+                gradientBottom = bottom,
+                content = ControlPalette.Ink,
+                border = Color(0x331A2E22),
+                focus = ControlPalette.PrimaryFocus,
+                iconContainer = Color.Black.copy(alpha = 0.10f),
+                weight = FontWeight.ExtraBold,
+            )
         }
-
-    return when (variant) {
-        ButtonVariant.Default ->
-            ButtonColors(
-                container = tokens.primary.blend(Color.Black, overlay),
-                content = tokens.primaryForeground,
-                border = Color.Transparent,
+        ButtonVariant.Secondary -> {
+            val fill = when {
+                pressed -> Color.Black
+                hovered -> ControlPalette.SurfaceHover
+                else -> ControlPalette.SurfaceRaised
+            }
+            ButtonVisuals(
+                gradientTop = fill,
+                gradientBottom = fill,
+                content = ControlPalette.LilacWhite,
+                border = if (pressed) ControlPalette.SurfaceRaised else Color(0x33000000),
+                focus = ControlPalette.LilacWhite.copy(alpha = 0.64f),
+                iconContainer = ControlPalette.LilacWhite.copy(alpha = 0.10f),
+                weight = FontWeight.SemiBold,
             )
-        ButtonVariant.Destructive ->
-            ButtonColors(
-                container = tokens.destructive.blend(Color.Black, overlay),
-                content = tokens.destructiveForeground,
-                border = Color.Transparent,
+        }
+        ButtonVariant.Destructive -> {
+            val overlay = when {
+                pressed -> 0.32f
+                hovered -> 0f
+                else -> 0.16f
+            }
+            val fill = ControlPalette.Destructive.blend(Color.Black, overlay)
+            ButtonVisuals(
+                gradientTop = fill,
+                gradientBottom = fill,
+                content = ControlPalette.LilacWhite,
+                border = Color(0x331B1B1B),
+                focus = ControlPalette.LilacWhite,
+                iconContainer = Color.Black.copy(alpha = 0.10f),
+                weight = FontWeight.ExtraBold,
             )
-        ButtonVariant.Outline ->
-            ButtonColors(
-                container = if (hovered || pressed) tokens.accent else Color.Transparent,
+        }
+        ButtonVariant.DestructiveSecondary -> {
+            val opacity = when {
+                pressed -> 0.26f
+                hovered -> 0.20f
+                else -> 0.12f
+            }
+            val fill = ControlPalette.DestructiveTint.copy(alpha = opacity)
+            ButtonVisuals(
+                gradientTop = fill,
+                gradientBottom = fill,
+                content = ControlPalette.DestructiveContent,
+                border = if (pressed) ControlPalette.SurfaceRaised else Color(0x33000000),
+                focus = ControlPalette.DestructiveContent.copy(alpha = 0.64f),
+                iconContainer = ControlPalette.DestructiveTint.copy(alpha = 0.10f),
+                weight = FontWeight.SemiBold,
+            )
+        }
+        ButtonVariant.Outline -> {
+            val fill = if (hovered || pressed) tokens.accent else Color.Transparent
+            ButtonVisuals(
+                gradientTop = fill,
+                gradientBottom = fill,
                 content = if (hovered || pressed) tokens.accentForeground else tokens.foreground,
                 border = tokens.border,
+                focus = tokens.ring,
+                iconContainer = tokens.foreground.copy(alpha = 0.10f),
+                weight = FontWeight.SemiBold,
             )
-        ButtonVariant.Secondary ->
-            ButtonColors(
-                container = tokens.secondary.blend(Color.Black, overlay),
-                content = tokens.secondaryForeground,
+        }
+        ButtonVariant.Ghost -> {
+            val fill =
+                when {
+                    pressed -> ControlPalette.White.copy(alpha = 0.16f)
+                    hovered -> ControlPalette.White.copy(alpha = 0.10f)
+                    else -> Color.Transparent
+                }
+            ButtonVisuals(
+                gradientTop = fill,
+                gradientBottom = fill,
+                content = if (hovered || pressed) ControlPalette.White else tokens.foreground,
                 border = Color.Transparent,
+                focus = ControlPalette.LilacWhite.copy(alpha = 0.64f),
+                iconContainer = Color.Transparent,
+                weight = FontWeight.SemiBold,
             )
-        ButtonVariant.Ghost ->
-            ButtonColors(
-                container = if (hovered || pressed) tokens.accent else Color.Transparent,
-                content = if (hovered || pressed) tokens.accentForeground else tokens.foreground,
-                border = Color.Transparent,
-            )
+        }
         ButtonVariant.Link ->
-            ButtonColors(
-                container = Color.Transparent,
+            ButtonVisuals(
+                gradientTop = Color.Transparent,
+                gradientBottom = Color.Transparent,
                 content = tokens.primary,
                 border = Color.Transparent,
+                focus = tokens.ring,
+                iconContainer = Color.Transparent,
+                weight = FontWeight.SemiBold,
             )
     }
-}
 
 private data class ButtonDimensions(
     val paddingH: Dp,
     val paddingV: Dp,
-    val minWidth: Dp,
     val minHeight: Dp,
-    val fixedSize: Dp?,
+    val fixedWidth: Dp? = null,
+    val fixedHeight: Dp? = null,
 )
 
-private fun resolveButtonDimensions(size: ButtonSize, spacing: Spacing): ButtonDimensions =
+private fun buttonDimensions(size: ButtonSize, spacing: Spacing): ButtonDimensions =
     when (size) {
-        // sm  h-8=32dp  px-3=12dp  py=~6dp
-        ButtonSize.Sm ->
-            ButtonDimensions(
-                paddingH = spacing.s3,
-                paddingV = spacing.s1_5,
-                minWidth = spacing.s0,
-                minHeight = spacing.s8,
-                fixedSize = null,
-            )
-        // default  h-9≈36dp  px-4=16dp  py-2=8dp
-        ButtonSize.Default ->
-            ButtonDimensions(
-                paddingH = spacing.s4,
-                paddingV = spacing.s2,
-                minWidth = spacing.s0,
-                minHeight = spacing.s8,
-                fixedSize = null,
-            )
-        // lg  h-10≈40dp  px-8=32dp
-        ButtonSize.Lg ->
-            ButtonDimensions(
-                paddingH = spacing.s8,
-                paddingV = spacing.s2,
-                minWidth = spacing.s0,
-                minHeight = spacing.s8,
-                fixedSize = null,
-            )
-        // icon  h-9 w-9 ≈ 32dp square, no text padding
+        ButtonSize.Sm -> ButtonDimensions(spacing.s4, spacing.s2, CompactButtonHeight)
+        ButtonSize.Default -> ButtonDimensions(spacing.s8, 18.dp, FigmaButtonHeight)
+        ButtonSize.Lg -> ButtonDimensions(spacing.s8, 18.dp, FigmaButtonHeight)
         ButtonSize.Icon ->
             ButtonDimensions(
                 paddingH = spacing.s0,
                 paddingV = spacing.s0,
-                minWidth = spacing.s0,
-                minHeight = spacing.s0,
-                fixedSize = spacing.s8,
+                minHeight = FigmaButtonHeight,
+                fixedWidth = FigmaIconButtonWidth,
+                fixedHeight = FigmaButtonHeight,
             )
     }
 
-// ─── Primary composable ───────────────────────────────────────────────────────
-
 /**
- * shadcn/ui Button ported to Compose (frontend-design-system.md §4).
- *
- * Foundation-based (no Material ripple, no elevation). Reads all colors and sizes from the
- * [LocalTokens] / [LocalSpacing] / [LocalTypography] providers. Use [ButtonVariant] and
- * [ButtonSize] to match shadcn's exact variant/size surface — never override inline.
+ * Stateful implementation of the four Figma button families. Hover, press, keyboard focus,
+ * loading, icon-only, and leading/trailing-icon states are all represented by the same API.
  */
 @Composable
 fun Button(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    variant: ButtonVariant = ButtonVariant.Default,
+    variant: ButtonVariant = DefaultButtonVariant,
     size: ButtonSize = ButtonSize.Default,
     enabled: Boolean = true,
+    loading: Boolean = false,
+    leftIcon: @Composable (() -> Unit)? = null,
+    rightIcon: @Composable (() -> Unit)? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
     val tokens: Tokens = LocalTokens.current
     val spacing: Spacing = LocalSpacing.current
-    val typography: Typography = LocalTypography.current
-
-    val interactionSource: MutableInteractionSource = remember { MutableInteractionSource() }
+    val typography = LocalTypography.current
+    val interactionSource = remember { MutableInteractionSource() }
     val hovered: Boolean by interactionSource.collectIsHoveredAsState()
     val pressed: Boolean by interactionSource.collectIsPressedAsState()
-
-    val colors: ButtonColors = resolveButtonColors(variant, enabled, hovered, pressed, tokens)
-    val dims: ButtonDimensions = resolveButtonDimensions(size, spacing)
-
-    val shape: RoundedCornerShape = RoundedCornerShape(tokens.radius.md)
-
-    // Build a text style that callers' Text() composables will inherit via M3's LocalTextStyle.
+    val focused: Boolean by interactionSource.collectIsFocusedAsState()
+    val interactive = enabled && !loading
+    val target = buttonVisuals(variant, hovered && interactive, pressed && interactive, tokens)
+    val top: Color by animateColorAsState(target.gradientTop, tween(ButtonTransitionMillis), label = "buttonTop")
+    val bottom: Color by animateColorAsState(target.gradientBottom, tween(ButtonTransitionMillis), label = "buttonBottom")
+    val contentColor: Color by animateColorAsState(target.content, tween(ButtonTransitionMillis), label = "buttonContent")
+    val borderColor: Color by animateColorAsState(
+        if (focused) target.focus else target.border,
+        tween(ButtonTransitionMillis),
+        label = "buttonBorder",
+    )
+    val dimensions = buttonDimensions(size, spacing)
+    val shape = RoundedCornerShape(ButtonRadius)
     val textStyle =
-        typography.sm.copy(
-            fontWeight = FontWeight.Medium,
-            color = colors.content,
+        typography.base.copy(
+            color = contentColor,
+            fontWeight = target.weight,
+            fontSize = 17.sp,
+            lineHeight = 22.sp,
+            letterSpacing = 0.51.sp,
             textDecoration =
                 if (variant == ButtonVariant.Link && hovered) TextDecoration.Underline
                 else TextDecoration.None,
         )
+    val sizeModifier =
+        if (dimensions.fixedWidth != null && dimensions.fixedHeight != null) {
+            Modifier.size(dimensions.fixedWidth, dimensions.fixedHeight)
+        } else {
+            Modifier.defaultMinSize(minHeight = dimensions.minHeight)
+        }
 
-    val sizeModifier: Modifier =
-        if (dims.fixedSize != null) Modifier.size(dims.fixedSize)
-        else Modifier.defaultMinSize(minHeight = dims.minHeight)
-
-    // Provide both LocalTextStyle (consumed by Text) and LocalContentColor (consumed by Icon)
-    // so the button content inherits the correct foreground color without any inline styling.
     CompositionLocalProvider(
         LocalTextStyle provides textStyle,
-        LocalContentColor provides colors.content,
+        LocalContentColor provides contentColor,
     ) {
         Row(
             modifier =
                 modifier
                     .then(sizeModifier)
-                    .then(
-                        if (colors.border != Color.Transparent)
-                            Modifier.border(StrokeWidth, colors.border, shape)
-                        else Modifier
+                    .then(if (!enabled) Modifier.alpha(0.48f) else Modifier)
+                    .border(
+                        width = if (focused) ButtonFocusStroke else ButtonStroke,
+                        color = borderColor,
+                        shape = shape,
                     )
                     .clip(shape)
-                    .background(colors.container)
-                    .hoverable(interactionSource)
+                    .background(Brush.verticalGradient(listOf(top, bottom)))
+                    .hoverable(interactionSource, enabled = interactive)
+                    .focusable(enabled = interactive, interactionSource = interactionSource)
                     .clickable(
                         interactionSource = interactionSource,
                         indication = null,
-                        enabled = enabled,
+                        enabled = interactive,
                         onClick = onClick,
                     )
-                    .pointerHoverIcon(if (enabled) PointerIcon.Hand else PointerIcon.Default)
-                    .then(
-                        if (dims.fixedSize == null)
-                            Modifier.padding(
-                                horizontal = dims.paddingH,
-                                vertical = dims.paddingV,
-                            )
-                        else Modifier
+                    .pointerHoverIcon(if (interactive) PointerIcon.Hand else PointerIcon.Default)
+                    .padding(
+                        horizontal = dimensions.paddingH,
+                        vertical = dimensions.paddingV,
                     ),
-            horizontalArrangement = Arrangement.Center,
+            horizontalArrangement = Arrangement.spacedBy(spacing.s2, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically,
-            content = content,
-        )
+        ) {
+            if (loading) {
+                Spinner(size = SpinnerSize.Lg, color = contentColor)
+            } else {
+                leftIcon?.let { ButtonIconSlot(target.iconContainer, it) }
+                content()
+                rightIcon?.let { ButtonIconSlot(target.iconContainer, it) }
+            }
+        }
     }
 }
 
-// ─── Shorthands — same API as Material3's TextButton / OutlinedButton ─────────
+@Composable
+private fun ButtonIconSlot(background: Color, content: @Composable () -> Unit) {
+    Box(
+        modifier =
+            Modifier
+                .size(24.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(background),
+        contentAlignment = Alignment.Center,
+    ) {
+        content()
+    }
+}
 
-/**
- * Ghost-variant [Button] with the same call signature as Material3's `TextButton` so call sites
- * only need an import swap.
- */
 @Composable
 fun TextButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    loading: Boolean = false,
     content: @Composable RowScope.() -> Unit,
 ) =
     Button(
         onClick = onClick,
         modifier = modifier,
         variant = ButtonVariant.Ghost,
+        size = ButtonSize.Sm,
         enabled = enabled,
+        loading = loading,
         content = content,
     )
 
-/**
- * Outline-variant [Button] with the same call signature as Material3's `OutlinedButton` so call
- * sites only need an import swap.
- */
 @Composable
 fun OutlinedButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    loading: Boolean = false,
     content: @Composable RowScope.() -> Unit,
 ) =
     Button(
         onClick = onClick,
         modifier = modifier,
         variant = ButtonVariant.Outline,
+        size = ButtonSize.Sm,
         enabled = enabled,
+        loading = loading,
         content = content,
     )
 
-// ─── Internal helpers ─────────────────────────────────────────────────────────
-
-/** Linearly blends [this] color toward [other] by [fraction] (0 = no change, 1 = full other). */
-private fun Color.blend(other: Color, fraction: Float): Color {
-    if (fraction == 0f) return this
-    return Color(
+private fun Color.blend(other: Color, fraction: Float): Color =
+    Color(
         red = red + (other.red - red) * fraction,
         green = green + (other.green - green) * fraction,
         blue = blue + (other.blue - blue) * fraction,
-        alpha = alpha,
+        alpha = alpha + (other.alpha - alpha) * fraction,
     )
-}
