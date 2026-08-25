@@ -54,6 +54,9 @@ public sealed class TwitchHelixTransport(
     {
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        // Twitch sends "" (not null) for an absent timestamp — e.g. "expires_at": "" on a PERMANENT ban.
+        // Without this the whole response fails to deserialize. See the converter for the live incident.
+        Converters = { new HelixEmptyStringDateTimeOffsetConverter() },
     };
 
     private readonly HttpClient _http = httpClientFactory.CreateClient("twitch-helix");
