@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -433,7 +434,10 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 // If the command has no template responses (misconfigured or a builtin key that
                 // lives in the Commands table for metadata purposes), fall through to the builtin
                 // catalog so the code-defined handler still fires (e.g. !sr, !song, !uptime).
-                string response = PickResponse(command.TemplateResponses);
+                string response = PickResponse(
+                    command.TemplateResponses,
+                    $"{ctx.BroadcasterId}:{command.Name}"
+                );
                 if (string.IsNullOrEmpty(response))
                 {
                     // Reuses the catalog lookup done up front (reserved built-ins never reach here —
@@ -915,14 +919,34 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         return ChatRole.ToToken(AuthorizationLadder.FromLevelValue(effective));
     }
 
-    private static string PickResponse(string[] responses)
+    /// <summary>
+    /// The line a random-response command speaks, never the same one twice running. A uniform draw repeats
+    /// back-to-back 1-in-N of the time — with a 20-line pool that is every twentieth use, and in chat an
+    /// immediately repeated "random" line reads as the bot being broken rather than as chance. Excluding
+    /// only the PREVIOUS line keeps every other line equally likely, so the pool still feels random; it does
+    /// not cycle or exhaust.
+    /// </summary>
+    private string PickResponse(string[] responses, string commandKey)
     {
         if (responses.Length == 0)
             return string.Empty;
         if (responses.Length == 1)
             return responses[0];
-        return responses[Random.Shared.Next(responses.Length)];
+
+        _lastResponseIndex.TryGetValue(commandKey, out int previous);
+        int index = Random.Shared.Next(responses.Length - 1);
+        // Map the drawn index around the previous one, so the previous line is the only one excluded and
+        // the remaining N-1 stay uniformly likely.
+        if (index >= previous)
+            index++;
+        _lastResponseIndex[commandKey] = index;
+        return responses[index];
     }
+
+    /// <summary>The last line each command spoke, so the next draw can avoid repeating it. Keyed by
+    /// channel+command, bounded by the number of authored commands, and purely cosmetic — losing it on a
+    /// restart costs nothing more than one possible repeat.</summary>
+    private readonly ConcurrentDictionary<string, int> _lastResponseIndex = new();
 
     /// <summary>
     /// Matches the channel's cached keyword triggers against an ordinary chat line: role floor first,
