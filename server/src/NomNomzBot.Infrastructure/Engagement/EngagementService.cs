@@ -226,7 +226,7 @@ public sealed class EngagementService : IEngagementService
         string channelKey = broadcasterId.ToString();
         if (
             config.GreetCooldownSeconds > 0
-            && _cooldowns.IsOnCooldown(channelKey, GreetCooldownKey)
+            && _cooldowns.IsOnCooldown(channelKey, GreetCooldownKey, isExemptFromCooldown: false)
         )
             return false;
         if (config.GreetCooldownSeconds > 0)

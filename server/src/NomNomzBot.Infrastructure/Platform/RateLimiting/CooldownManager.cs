@@ -24,8 +24,16 @@ public sealed class CooldownManager(TimeProvider timeProvider) : ICooldownManage
     //             "{broadcasterId}:{commandName}:{userId}" for per-user cooldowns
     private readonly ConcurrentDictionary<string, DateTimeOffset> _cooldowns = new();
 
-    public bool IsOnCooldown(string channelId, string commandName, string? userId = null)
+    public bool IsOnCooldown(
+        string channelId,
+        string commandName,
+        bool isExemptFromCooldown,
+        string? userId = null
+    )
     {
+        if (isExemptFromCooldown)
+            return false;
+
         string key = BuildKey(channelId, commandName, userId);
 
         if (!_cooldowns.TryGetValue(key, out DateTimeOffset expiresAt))

@@ -25,6 +25,7 @@ using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Chat.EventHandlers;
 using NomNomzBot.Infrastructure.Games;
 using NomNomzBot.Infrastructure.Games.Catalog;
+using NomNomzBot.Infrastructure.Platform.RateLimiting;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
@@ -175,7 +176,7 @@ public sealed class ChatMessageHandlerTests
         await sut.HandleAsync(MessageEvent($"!{BuiltinKey}"), CancellationToken.None);
 
         await bus.Received(1)
-            .PublishAsync(
+            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
                     e.BroadcasterId == Broadcaster
                     && e.CommandName == BuiltinKey
@@ -227,7 +228,7 @@ public sealed class ChatMessageHandlerTests
         await sut.HandleAsync(MessageEvent("?hype"), CancellationToken.None);
 
         await bus.Received(1)
-            .PublishAsync(
+            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
                     e.CommandName == "hype" && e.Succeeded
                 ),
@@ -258,7 +259,7 @@ public sealed class ChatMessageHandlerTests
         await chat.DidNotReceiveWithAnyArgs()
             .SendMessageAsync(default, default!, default!, default);
         await bus.DidNotReceiveWithAnyArgs()
-            .PublishAsync(
+            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
                 Arg.Any<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(),
                 Arg.Any<CancellationToken>()
             );
@@ -284,7 +285,7 @@ public sealed class ChatMessageHandlerTests
         await sut.HandleAsync(MessageEvent("!hi there"), CancellationToken.None);
 
         await bus.Received(1)
-            .PublishAsync(
+            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
                     e.CommandName == "hi"
                 ),
@@ -311,7 +312,7 @@ public sealed class ChatMessageHandlerTests
         await sut.HandleAsync(MessageEvent("time to party tonight"), CancellationToken.None);
 
         await bus.Received(1)
-            .PublishAsync(
+            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
                     e.CommandName == "party"
                 ),
@@ -338,7 +339,7 @@ public sealed class ChatMessageHandlerTests
         await startsWithSut.HandleAsync(MessageEvent("!go now"), CancellationToken.None);
         await startsWithBus
             .Received(1)
-            .PublishAsync(
+            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e => e.Succeeded),
                 Arg.Any<CancellationToken>()
             );
@@ -360,7 +361,7 @@ public sealed class ChatMessageHandlerTests
             .SendMessageAsync(default, default!, default!, default);
         await exactBus
             .DidNotReceiveWithAnyArgs()
-            .PublishAsync(
+            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
                 Arg.Any<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(),
                 Arg.Any<CancellationToken>()
             );
@@ -428,7 +429,7 @@ public sealed class ChatMessageHandlerTests
         await sut.HandleAsync(MessageEvent("?hello"), CancellationToken.None);
 
         await bus.Received(1)
-            .PublishAsync(
+            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
                     e.BroadcasterId == Broadcaster && e.CommandName == "hello" && e.Succeeded
                 ),
@@ -502,7 +503,7 @@ public sealed class ChatMessageHandlerTests
                 Arg.Any<CancellationToken>()
             );
         await bus.Received(1)
-            .PublishAsync(
+            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
                     e.BroadcasterId == Broadcaster && e.CommandName == BuiltinKey && e.Succeeded
                 ),
@@ -1092,7 +1093,7 @@ public sealed class ChatMessageHandlerTests
                 Arg.Any<CancellationToken>()
             );
         await bus.Received(1)
-            .PublishAsync(
+            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
                     e.CommandName == HeistCommand && e.Succeeded
                 ),
@@ -1128,7 +1129,7 @@ public sealed class ChatMessageHandlerTests
                 Arg.Any<CancellationToken>()
             );
         await bus.Received(1)
-            .PublishAsync(
+            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
                     e.CommandName == "drop" && e.Succeeded
                 ),
@@ -1204,7 +1205,7 @@ public sealed class ChatMessageHandlerTests
         IBuiltinCommandCatalog builtins = Substitute.For<IBuiltinCommandCatalog>();
         builtins.Get(Arg.Any<string>()).Returns((IBuiltinCommand?)null);
         ICooldownManager cooldowns = Substitute.For<ICooldownManager>();
-        cooldowns.IsOnCooldown(Broadcaster.ToString(), "spam").Returns(true);
+        cooldowns.IsOnCooldown(Broadcaster.ToString(), "spam", Arg.Any<bool>()).Returns(true);
         IInboundOriginChatSender chat = NoopChatSender();
         chat.SendReplyAsync(
                 Arg.Any<Guid>(),
@@ -1246,6 +1247,291 @@ public sealed class ChatMessageHandlerTests
                 default
             );
     }
+
+    // ── S-MOD-NO-COOLDOWN: broadcaster/moderator are never held by a command cooldown ──────────
+
+    [Fact]
+    public async Task Viewer_is_still_blocked_by_global_cooldown_on_second_run()
+    {
+        ChannelContext ctx = NewChannelContext();
+        ctx.Commands["spam"] = new()
+        {
+            Name = "spam",
+            TemplateResponses = ["Hi"],
+            GlobalCooldown = 30,
+            UserCooldown = 0,
+            MinPermissionLevel = 0,
+            Tier = "template",
+        };
+        CooldownManager cooldowns = new(TimeProvider.System);
+        (ChatMessageHandler sut, IInboundOriginChatSender chat, IEventBus bus) =
+            BuildWithRealCooldowns(ctx, cooldowns);
+
+        await sut.HandleAsync(
+            MessageEventAs("!spam", "tw-viewer-1", false, false),
+            CancellationToken.None
+        );
+        await sut.HandleAsync(
+            MessageEventAs("!spam", "tw-viewer-2", false, false),
+            CancellationToken.None
+        );
+
+        await bus.Received(1)
+            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
+                Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e => e.Succeeded),
+                Arg.Any<CancellationToken>()
+            );
+        await chat.Received(1)
+            .SendReplyAsync(
+                Broadcaster,
+                Arg.Any<string>(),
+                "msg-1",
+                "That command is still on cooldown.",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Viewer_is_still_blocked_by_per_user_cooldown_on_second_run_by_the_same_user()
+    {
+        ChannelContext ctx = NewChannelContext();
+        ctx.Commands["spam"] = new()
+        {
+            Name = "spam",
+            TemplateResponses = ["Hi"],
+            GlobalCooldown = 0,
+            UserCooldown = 30,
+            MinPermissionLevel = 0,
+            Tier = "template",
+        };
+        CooldownManager cooldowns = new(TimeProvider.System);
+        (ChatMessageHandler sut, IInboundOriginChatSender chat, IEventBus bus) =
+            BuildWithRealCooldowns(ctx, cooldowns);
+
+        await sut.HandleAsync(
+            MessageEventAs("!spam", "tw-viewer-1", false, false),
+            CancellationToken.None
+        );
+        await sut.HandleAsync(
+            MessageEventAs("!spam", "tw-viewer-1", false, false),
+            CancellationToken.None
+        );
+
+        await bus.Received(1)
+            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
+                Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e => e.Succeeded),
+                Arg.Any<CancellationToken>()
+            );
+        await chat.Received(1)
+            .SendReplyAsync(
+                Broadcaster,
+                Arg.Any<string>(),
+                "msg-1",
+                "That command is still on cooldown.",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Moderator_bypasses_global_and_user_cooldown_both_runs_execute()
+    {
+        ChannelContext ctx = NewChannelContext();
+        ctx.Commands["spam"] = new()
+        {
+            Name = "spam",
+            TemplateResponses = ["Hi"],
+            GlobalCooldown = 30,
+            UserCooldown = 30,
+            MinPermissionLevel = 0,
+            Tier = "template",
+        };
+        CooldownManager cooldowns = new(TimeProvider.System);
+        (ChatMessageHandler sut, _, IEventBus bus) = BuildWithRealCooldowns(ctx, cooldowns);
+
+        await sut.HandleAsync(
+            MessageEventAs("!spam", "tw-mod-1", false, true),
+            CancellationToken.None
+        );
+        await sut.HandleAsync(
+            MessageEventAs("!spam", "tw-mod-1", false, true),
+            CancellationToken.None
+        );
+
+        await bus.Received(2)
+            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
+                Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e => e.Succeeded),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Broadcaster_bypasses_global_and_user_cooldown_both_runs_execute()
+    {
+        ChannelContext ctx = NewChannelContext();
+        ctx.Commands["spam"] = new()
+        {
+            Name = "spam",
+            TemplateResponses = ["Hi"],
+            GlobalCooldown = 30,
+            UserCooldown = 30,
+            MinPermissionLevel = 0,
+            Tier = "template",
+        };
+        CooldownManager cooldowns = new(TimeProvider.System);
+        (ChatMessageHandler sut, _, IEventBus bus) = BuildWithRealCooldowns(ctx, cooldowns);
+
+        await sut.HandleAsync(
+            MessageEventAs("!spam", "tw-broadcaster", true, false),
+            CancellationToken.None
+        );
+        await sut.HandleAsync(
+            MessageEventAs("!spam", "tw-broadcaster", true, false),
+            CancellationToken.None
+        );
+
+        await bus.Received(2)
+            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
+                Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e => e.Succeeded),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    /// <summary>
+    /// Structural proof for the exemption mechanism itself: every <c>_cooldowns.IsOnCooldown(...)</c> call
+    /// site in <see cref="ChatMessageHandler"/> must thread through <c>IsCooldownExempt(...)</c> (directly,
+    /// or via the <c>cooldownExempt</c> local it assigns) so a NEW gate cannot forget the broadcaster/mod
+    /// exemption. This reads the actual source file rather than re-deriving the list by hand.
+    /// </summary>
+    [Fact]
+    public void Every_command_cooldown_gate_consults_the_shared_exemption_predicate()
+    {
+        string sourcePath = Path.GetFullPath(
+            Path.Combine(
+                AppContext.BaseDirectory,
+                "..",
+                "..",
+                "..",
+                "..",
+                "..",
+                "src",
+                "NomNomzBot.Infrastructure",
+                "Chat",
+                "EventHandlers",
+                "ChatMessageHandler.cs"
+            )
+        );
+        File.Exists(sourcePath)
+            .Should()
+            .BeTrue($"expected to find the source file at {sourcePath}");
+        string source = File.ReadAllText(sourcePath);
+
+        const string needle = "_cooldowns.IsOnCooldown(";
+        List<string> calls = [];
+        int searchIndex = 0;
+        while (true)
+        {
+            int start = source.IndexOf(needle, searchIndex, StringComparison.Ordinal);
+            if (start < 0)
+                break;
+
+            int i = start + needle.Length - 1; // index of the opening '('
+            int depth = 0;
+            for (; i < source.Length; i++)
+            {
+                if (source[i] == '(')
+                    depth++;
+                else if (source[i] == ')')
+                {
+                    depth--;
+                    if (depth == 0)
+                        break;
+                }
+            }
+            calls.Add(source[start..(i + 1)]);
+            searchIndex = i + 1;
+        }
+
+        calls.Should().NotBeEmpty("the source must still contain command-cooldown gates to prove");
+        calls
+            .Should()
+            .OnlyContain(
+                call => call.Contains("IsCooldownExempt(") || call.Contains("cooldownExempt"),
+                "every cooldown gate must consult the shared exemption predicate"
+            );
+    }
+
+    private static (
+        ChatMessageHandler Sut,
+        IInboundOriginChatSender Chat,
+        IEventBus Bus
+    ) BuildWithRealCooldowns(ChannelContext ctx, ICooldownManager cooldowns)
+    {
+        IChannelRegistry registry = Substitute.For<IChannelRegistry>();
+        registry.Get(Broadcaster).Returns(ctx);
+
+        IBuiltinCommandCatalog builtins = Substitute.For<IBuiltinCommandCatalog>();
+        builtins.Get(Arg.Any<string>()).Returns((IBuiltinCommand?)null);
+
+        ITemplateResolver templates = Substitute.For<ITemplateResolver>();
+        templates
+            .ResolveAsync(
+                Arg.Any<string>(),
+                Arg.Any<IDictionary<string, string>>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(callInfo => Task.FromResult(callInfo.ArgAt<string>(0)));
+
+        IInboundOriginChatSender chat = NoopChatSender();
+        chat.SendReplyAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+        IEventBus bus = Substitute.For<IEventBus>();
+
+        ChatMessageHandler sut = new(
+            registry,
+            Substitute.For<IServiceScopeFactory>(),
+            cooldowns,
+            chat,
+            Substitute.For<IPipelineEngine>(),
+            builtins,
+            templates,
+            bus,
+            new(),
+            TimeProvider.System,
+            NullLogger<ChatMessageHandler>.Instance
+        );
+
+        return (sut, chat, bus);
+    }
+
+    private static ChatMessageReceivedEvent MessageEventAs(
+        string message,
+        string userId,
+        bool isBroadcaster,
+        bool isModerator
+    ) =>
+        new()
+        {
+            BroadcasterId = Broadcaster,
+            MessageId = "msg-1",
+            TwitchBroadcasterId = "tw-777",
+            UserId = userId,
+            UserDisplayName = userId,
+            UserLogin = userId,
+            Message = message,
+            Fragments = [],
+            Badges = [],
+            IsSubscriber = false,
+            IsVip = false,
+            IsModerator = isModerator,
+            IsBroadcaster = isBroadcaster,
+        };
 
     [Fact]
     public async Task Pipeline_partially_failed_sends_exactly_one_failure_notice_and_marks_the_run_failed()
@@ -1316,7 +1602,7 @@ public sealed class ChatMessageHandlerTests
                 Arg.Any<CancellationToken>()
             );
         await bus.Received(1)
-            .PublishAsync(
+            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
                     e.CommandName == "broken" && !e.Succeeded
                 ),
@@ -1377,7 +1663,7 @@ public sealed class ChatMessageHandlerTests
         await chat.DidNotReceiveWithAnyArgs()
             .SendReplyAsync(default, default!, default!, default!, default);
         await bus.Received(1)
-            .PublishAsync(
+            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e => e.Succeeded),
                 Arg.Any<CancellationToken>()
             );
@@ -1455,7 +1741,7 @@ public sealed class ChatMessageHandlerTests
                 Arg.Any<CancellationToken>()
             );
         await bus.Received(1)
-            .PublishAsync(
+            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
                     e.CommandName == BuiltinKey && !e.Succeeded
                 ),
@@ -1484,7 +1770,7 @@ public sealed class ChatMessageHandlerTests
         await chat.DidNotReceiveWithAnyArgs()
             .SendMessageAsync(default, default!, default!, default);
         await bus.Received(1)
-            .PublishAsync(
+            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e => e.Succeeded),
                 Arg.Any<CancellationToken>()
             );
@@ -1538,7 +1824,7 @@ public sealed class ChatMessageHandlerTests
                 Arg.Any<CancellationToken>()
             );
         await bus.Received(1)
-            .PublishAsync(
+            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
                     e.CommandName == BuiltinKey && !e.Succeeded
                 ),
@@ -1575,7 +1861,7 @@ public sealed class ChatMessageHandlerTests
         await chat.DidNotReceiveWithAnyArgs()
             .SendMessageAsync(default, default!, default!, default);
         await bus.Received(1)
-            .PublishAsync(
+            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e => e.Succeeded),
                 Arg.Any<CancellationToken>()
             );
@@ -1634,7 +1920,7 @@ public sealed class ChatMessageHandlerTests
                 Arg.Any<CancellationToken>()
             );
         await bus.Received(1)
-            .PublishAsync(
+            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e =>
                     e.CommandName == "hello" && !e.Succeeded
                 ),
@@ -1681,7 +1967,7 @@ public sealed class ChatMessageHandlerTests
                 Arg.Any<CancellationToken>()
             );
         await bus.Received(1)
-            .PublishAsync(
+            .PublishAsync<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(
                 Arg.Is<NomNomzBot.Domain.Commands.Events.CommandExecutedEvent>(e => e.Succeeded),
                 Arg.Any<CancellationToken>()
             );

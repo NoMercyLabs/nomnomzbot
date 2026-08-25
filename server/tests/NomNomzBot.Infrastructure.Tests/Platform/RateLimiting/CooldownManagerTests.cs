@@ -32,7 +32,7 @@ public class CooldownManagerTests
     public void IsOnCooldown_NoCooldownSet_ReturnsFalse()
     {
         (CooldownManager mgr, _) = Create();
-        mgr.IsOnCooldown("chan", "!so").Should().BeFalse();
+        mgr.IsOnCooldown("chan", "!so", false).Should().BeFalse();
     }
 
     [Fact]
@@ -41,7 +41,7 @@ public class CooldownManagerTests
         (CooldownManager mgr, _) = Create();
         mgr.SetCooldown("chan", "!so", TimeSpan.FromSeconds(30));
 
-        mgr.IsOnCooldown("chan", "!so").Should().BeTrue();
+        mgr.IsOnCooldown("chan", "!so", false).Should().BeTrue();
     }
 
     [Fact]
@@ -52,11 +52,11 @@ public class CooldownManagerTests
 
         // Just before the duration elapses on the FAKED clock — still on cooldown.
         clock.Advance(TimeSpan.FromSeconds(29));
-        mgr.IsOnCooldown("chan", "!cmd").Should().BeTrue();
+        mgr.IsOnCooldown("chan", "!cmd", false).Should().BeTrue();
 
         // Cross the exact expiry boundary (expiresAt == now is treated as expired) — released.
         clock.Advance(TimeSpan.FromSeconds(1));
-        mgr.IsOnCooldown("chan", "!cmd").Should().BeFalse();
+        mgr.IsOnCooldown("chan", "!cmd", false).Should().BeFalse();
     }
 
     [Fact]
@@ -66,7 +66,7 @@ public class CooldownManagerTests
         mgr.SetCooldown("chan", "!so", TimeSpan.FromSeconds(60)); // global
 
         // Per-user key should not be on cooldown
-        mgr.IsOnCooldown("chan", "!so", "user1").Should().BeFalse();
+        mgr.IsOnCooldown("chan", "!so", false, "user1").Should().BeFalse();
     }
 
     [Fact]
@@ -75,7 +75,7 @@ public class CooldownManagerTests
         (CooldownManager mgr, _) = Create();
         mgr.SetCooldown("chan", "!so", TimeSpan.FromSeconds(60), "user1");
 
-        mgr.IsOnCooldown("chan", "!so", "user2").Should().BeFalse();
+        mgr.IsOnCooldown("chan", "!so", false, "user2").Should().BeFalse();
     }
 
     [Fact]
@@ -84,7 +84,7 @@ public class CooldownManagerTests
         (CooldownManager mgr, _) = Create();
         mgr.SetCooldown("chan1", "!cmd", TimeSpan.FromSeconds(60));
 
-        mgr.IsOnCooldown("chan2", "!cmd").Should().BeFalse();
+        mgr.IsOnCooldown("chan2", "!cmd", false).Should().BeFalse();
     }
 
     // ─── GetRemainingCooldown ────────────────────────────────────────────────
@@ -147,7 +147,7 @@ public class CooldownManagerTests
         mgr.SetCooldown("chan", "!cmd", TimeSpan.FromSeconds(60));
         mgr.ClearCooldown("chan", "!cmd");
 
-        mgr.IsOnCooldown("chan", "!cmd").Should().BeFalse();
+        mgr.IsOnCooldown("chan", "!cmd", false).Should().BeFalse();
     }
 
     [Fact]
@@ -168,8 +168,8 @@ public class CooldownManagerTests
 
         mgr.ClearCooldown("chan", "!so", "user1");
 
-        mgr.IsOnCooldown("chan", "!so", "user1").Should().BeFalse();
-        mgr.IsOnCooldown("chan", "!so").Should().BeTrue(); // global untouched
+        mgr.IsOnCooldown("chan", "!so", false, "user1").Should().BeFalse();
+        mgr.IsOnCooldown("chan", "!so", false).Should().BeTrue(); // global untouched
     }
 
     // ─── ClearAllCooldowns ────────────────────────────────────────────────────
@@ -185,10 +185,10 @@ public class CooldownManagerTests
 
         mgr.ClearAllCooldowns("chan");
 
-        mgr.IsOnCooldown("chan", "!cmd1").Should().BeFalse();
-        mgr.IsOnCooldown("chan", "!cmd2").Should().BeFalse();
-        mgr.IsOnCooldown("chan", "!cmd3", "user1").Should().BeFalse();
-        mgr.IsOnCooldown("other-chan", "!cmd1").Should().BeTrue(); // untouched
+        mgr.IsOnCooldown("chan", "!cmd1", false).Should().BeFalse();
+        mgr.IsOnCooldown("chan", "!cmd2", false).Should().BeFalse();
+        mgr.IsOnCooldown("chan", "!cmd3", false, "user1").Should().BeFalse();
+        mgr.IsOnCooldown("other-chan", "!cmd1", false).Should().BeTrue(); // untouched
     }
 
     [Fact]
@@ -212,7 +212,7 @@ public class CooldownManagerTests
                 Task.Run(() =>
                 {
                     mgr.SetCooldown("chan", $"!cmd{i % 5}", TimeSpan.FromSeconds(10), $"user{i}");
-                    mgr.IsOnCooldown("chan", $"!cmd{i % 5}", $"user{i}");
+                    mgr.IsOnCooldown("chan", $"!cmd{i % 5}", false, $"user{i}");
                     mgr.GetRemainingCooldown("chan", $"!cmd{i % 5}", $"user{i}");
                 })
             );

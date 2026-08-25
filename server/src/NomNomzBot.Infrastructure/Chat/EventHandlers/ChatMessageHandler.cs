@@ -258,7 +258,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 return;
             }
 
-            if (_cooldowns.IsOnCooldown(cooldownChannelKey, commandName))
+            if (_cooldowns.IsOnCooldown(cooldownChannelKey, commandName, IsCooldownExempt(@event)))
             {
                 await SendCooldownNoticeAsync(@event, cancellationToken);
                 return;
@@ -323,8 +323,12 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             return;
         }
 
-        // Global cooldown check
-        if (command.GlobalCooldown > 0 && _cooldowns.IsOnCooldown(cooldownChannelKey, commandName))
+        // Global cooldown check — broadcaster/moderator are exempt (never held by a command cooldown).
+        bool cooldownExempt = IsCooldownExempt(@event);
+        if (
+            command.GlobalCooldown > 0
+            && _cooldowns.IsOnCooldown(cooldownChannelKey, commandName, cooldownExempt)
+        )
         {
             _logger.LogDebug(
                 "Command {Command} on global cooldown in {Channel}",
@@ -338,7 +342,12 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         // Per-user cooldown check
         if (
             command.UserCooldown > 0
-            && _cooldowns.IsOnCooldown(cooldownChannelKey, commandName, @event.UserId)
+            && _cooldowns.IsOnCooldown(
+                cooldownChannelKey,
+                commandName,
+                cooldownExempt,
+                @event.UserId
+            )
         )
         {
             _logger.LogDebug(
@@ -939,7 +948,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 continue;
 
             string cooldownKey = $"trigger:{trigger.Id:N}";
-            if (_cooldowns.IsOnCooldown(cooldownChannelKey, cooldownKey))
+            if (_cooldowns.IsOnCooldown(cooldownChannelKey, cooldownKey, IsCooldownExempt(@event)))
                 return; // matched but cooling down — first match still wins, silently.
 
             if (trigger.CooldownSeconds > 0)
@@ -984,7 +993,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
 
         string cooldownChannelKey = @event.BroadcasterId.ToString();
         string cooldownKey = $"sound:{trigger.ClipId:N}";
-        if (_cooldowns.IsOnCooldown(cooldownChannelKey, cooldownKey))
+        if (_cooldowns.IsOnCooldown(cooldownChannelKey, cooldownKey, IsCooldownExempt(@event)))
             return;
 
         if (trigger.CooldownSeconds > 0)
@@ -1204,6 +1213,14 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 @event.Badges
             )
         );
+
+    /// <summary>
+    /// Broadcaster and moderators are trusted operators and are NEVER held by a command cooldown —
+    /// cooldowns exist to stop viewer spam. Every command-cooldown gate in this handler routes through
+    /// this single predicate, so a new gate inherits the exemption for free instead of re-deriving role.
+    /// </summary>
+    private static bool IsCooldownExempt(ChatMessageReceivedEvent @event) =>
+        @event.IsBroadcaster || @event.IsModerator;
 
     /// <summary>The caller's live badge level — what builtins with a standing floor receive.</summary>
     private static int BadgeLevel(ChatMessageReceivedEvent @event) =>

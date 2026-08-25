@@ -148,7 +148,14 @@ public sealed class AutoModerationEngine : IAutoModerationEngine
         // 1. Slow mode
         if (settings.SlowModeSeconds > 0)
         {
-            if (!_cooldowns.IsOnCooldown(broadcasterId, "slowmode", userId))
+            if (
+                !_cooldowns.IsOnCooldown(
+                    broadcasterId,
+                    "slowmode",
+                    isExemptFromCooldown: false,
+                    userId
+                )
+            )
             {
                 _cooldowns.SetCooldown(
                     broadcasterId,

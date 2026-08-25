@@ -12,7 +12,19 @@ namespace NomNomzBot.Application.Abstractions.RateLimiting;
 
 public interface ICooldownManager
 {
-    bool IsOnCooldown(string channelId, string commandName, string? userId = null);
+    /// <summary>
+    /// Checks whether the given channel/command/user combination is currently on cooldown.
+    /// <paramref name="isExemptFromCooldown"/> is REQUIRED (no default) so every call site — present and
+    /// future — must explicitly state whether the caller is a trusted operator (broadcaster/moderator).
+    /// When true, this always returns false without touching cooldown state: trusted operators are never
+    /// held by, and never extend, a command cooldown.
+    /// </summary>
+    bool IsOnCooldown(
+        string channelId,
+        string commandName,
+        bool isExemptFromCooldown,
+        string? userId = null
+    );
     TimeSpan? GetRemainingCooldown(string channelId, string commandName, string? userId = null);
     void SetCooldown(
         string channelId,
