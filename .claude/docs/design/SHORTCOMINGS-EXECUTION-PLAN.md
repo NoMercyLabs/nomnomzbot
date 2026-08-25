@@ -46,6 +46,25 @@ Read this block first. It is the only summary; everything below is detail.
 
 ---
 
+## INTERRUPTED BY A SESSION LIMIT — 2026-08-25 ~04:00 CEST (resets 4am Amsterdam)
+
+Three agents were killed mid-slice by an API session limit. State captured so nothing is lost:
+
+- **S055c (picker capability endpoint) — SALVAGED, PARTIAL, COMMITTED `e1ddbdbe`.** The killed builder
+  had already written ~10 files (DiscordController, Discord contracts, `IDiscordBotGateway`,
+  `IDiscordGuildDirectoryService`, `DiscordGuildDirectoryService`, `DiscordRestBotGateway`, + tests).
+  I verified it myself before committing: solution BUILDS clean, Discord + PipelineOptionProvider tests
+  **104/104 green**, csharpier formatted. **NOT verified against the slice's done-when list** — above all
+  the CHANNEL PERMISSION-OVERWRITE case (a per-channel overwrite can deny the bot even when guild-level
+  permission allows it; a naive implementation reads only the guild permission and confidently lies).
+  Resume by checking that case first, then the three-states-on-the-wire requirement.
+- **S-PIPE-TREE-d2 (`run_pipeline` + `return_value`) — NOT STARTED.** The builder died while still
+  reading `PipelineEngine.cs`. No code written, nothing to salvage.
+- **S-PIPE-TREE-d1 verification — NOT COMPLETED.** `bd41974f` is committed and the BUILDER reported
+  4095/0 with the flat path untouched, but the independent verifier died before running. Outstanding
+  adversarial check it never got to: **`break` inside a `switch` inside a loop** — if break is captured
+  by the switch rather than the loop, the existing tests still pass while the behaviour is wrong.
+
 ## BLOCKED ON THE OWNER — cannot be solved from this side
 
 These are not "not done"; they are done-as-far-as-code-can-go and need a real-world action or a call
