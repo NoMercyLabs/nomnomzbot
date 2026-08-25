@@ -244,15 +244,10 @@ stable — without dropping the planned requirements behind them.
   TtsController, RolesScreen, ParticipantShell, ShellScreen, AutomationScreen, CodeScriptsController.
   CONFIRMED NOT blank-capable (skip): AnalyticsScreen `tile.label` and ConnectScreen `cta.label` — static
   literals with no row actions.
-  **TWO DEFECTS IN THE SLICE ITSELF, fix these before grinding more files:**
-  (a) `RowLabelGuardTest`'s regex counts the WRONG population — it matches edit-FORM seeds (never
-  rendered) as well as rendered row labels, so its baseline did not shrink even though both files were
-  fully fixed. A guard whose number does not move when the defect is fixed cannot measure progress.
-  Narrow it to rendered row/action/confirm sites, or split the baseline into rendered vs form-seed.
-  (b) NO behavioural test exists for Commands/Rewards — the slice's own done-when (a blank name renders an
-  identifying label; two blank items do not render identically; a destructive confirm names the item) is
-  unproven for the files already "fixed". Add a table-driven rendered-text test covering every fixed
-  screen, so finishing a file automatically means proving it.
+  Slice-mechanism defects (guard population + behavioural test) are CLOSED — `RowLabelGuardTest`
+  now splits rendered vs form-seed baselines (rendered = 0) and `RowLabelWiredScreensTest` is the
+  table-driven rendered-text proof (54f4622d, 1c5a5304, d295e94a). Converting the remaining screens is
+  now self-proving: a converted file drops the rendered count and gains a row in the table test.
 
 - **S-RICH-PICKERS** (owner, 2026-08-25) "item pickers get a rich item list and not just a template
   string or something not easily understandable." S045 shipped the picker KINDS (`reward`, `widget`,
