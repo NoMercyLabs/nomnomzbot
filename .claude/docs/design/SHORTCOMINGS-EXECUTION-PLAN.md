@@ -184,6 +184,18 @@ stable — without dropping the planned requirements behind them.
   file, and check the en/nl keys are not duplicated. Remove each fixed file from the guard baseline as
   you go; a file left in the baseline that no longer needs it is a lie.
 
+- **S-DISCORD-LIVEROLE-spec** (the one thing the live-role slice could not finish) `discord.md` was NOT
+  extended with the live-role section — the builder ran out of budget after the `git stash` incident
+  forced it to rebuild its contract work twice. SHIPPED + VERIFIED in code (ea283184 + 5c9000d1,
+  4089/4091): `DiscordLiveRoleConfig`, apply-on-online / remove-on-offline handlers, a reconciliation
+  hosted service that clears a stale role after a missed offline, `ValidateRoleAssignableAsync` producing
+  actionable Manage-Roles and role-hierarchy messages from real permission bits, both EF migration sets,
+  ~33 test fakes. Friend-link = the friend's channel holds its OWN `DiscordGuildConnection` into the guild
+  (guild-admin approved + friend enabled), checked by `IsLinkActiveAsync` before any role call; an
+  unlinked channel makes NO gateway call at all. Done-when: `spec/discord.md` documents the live-role
+  entity, the two handlers, the reconciliation pass, the friend-link consent model and the two failure
+  modes, matching the code as built.
+
 - **S-RICH-PICKERS** (owner, 2026-08-25) "item pickers get a rich item list and not just a template
   string or something not easily understandable." S045 shipped the picker KINDS (`reward`, `widget`,
   `voice`, `sound_clip`, `discord_channel`, `discord_role`, `twitch_user`, `asset`); this makes the
