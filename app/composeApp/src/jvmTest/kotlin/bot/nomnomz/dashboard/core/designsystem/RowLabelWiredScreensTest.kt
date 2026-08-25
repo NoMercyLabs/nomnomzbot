@@ -577,6 +577,56 @@ class RowLabelWiredScreensTest {
                 secondaryB = null,
                 idB = "store-jar-bbb",
             ),
+            // RolesScreen.kt memberName() — MemberRow text/RolePicker/GrantButton/RemoveButton labels +
+            // remove ConfirmDialog message; previously fell back to the raw userId, now typed placeholder.
+            WiredRowCase(
+                screen = "RolesScreen.member",
+                typeLabel = "Member",
+                secondaryA = null,
+                idA = "member-aaa",
+                secondaryB = null,
+                idB = "member-bbb",
+            ),
+            // RolesScreen.kt permitName() — PermitRow text/revoke label + revoke ConfirmDialog message;
+            // previously fell back to the raw userId, now typed placeholder.
+            WiredRowCase(
+                screen = "RolesScreen.permit",
+                typeLabel = "Grant",
+                secondaryA = null,
+                idA = "permit-aaa",
+                secondaryB = null,
+                idB = "permit-bbb",
+            ),
+            // ParticipantShell.kt ProfileBlock — row text + avatar initial + dropdown header; previously
+            // fell back to a blank string, now the viewer's username or a typed placeholder.
+            WiredRowCase(
+                screen = "ParticipantShell.profile",
+                typeLabel = "Viewer",
+                secondaryA = "aaa_username",
+                idA = "user-aaa",
+                secondaryB = "bbb_username",
+                idB = "user-bbb",
+            ),
+            // ShellScreen.kt ProfileBlock — row text + dropdown header; previously fell back to a blank
+            // string, now the streamer's username or a typed placeholder.
+            WiredRowCase(
+                screen = "ShellScreen.profile",
+                typeLabel = "Viewer",
+                secondaryA = "aaa_username",
+                idA = "user-aaa",
+                secondaryB = "bbb_username",
+                idB = "user-bbb",
+            ),
+            // GiveawaysScreen.kt winners-dialog title — previously fell back to a blank string, now the
+            // giveaway's typed placeholder (no secondary identity field).
+            WiredRowCase(
+                screen = "GiveawaysScreen.winnersDialog",
+                typeLabel = "Giveaway",
+                secondaryA = null,
+                idA = "giveaway-winners-aaa",
+                secondaryB = null,
+                idB = "giveaway-winners-bbb",
+            ),
         )
 
     @Test

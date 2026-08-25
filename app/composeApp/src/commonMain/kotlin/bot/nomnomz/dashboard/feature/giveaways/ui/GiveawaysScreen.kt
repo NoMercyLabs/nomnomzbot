@@ -1150,7 +1150,19 @@ private fun WinnersDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(text = stringResource(Res.string.giveaways_winners_title, giveaway?.title ?: "")) },
+        title = {
+            Text(
+                text =
+                    stringResource(
+                        Res.string.giveaways_winners_title,
+                        resolveRowLabel(
+                            primary = giveaway?.title,
+                            typeLabel = stringResource(Res.string.giveaways_row_type),
+                            discriminatorSource = giveaway?.id ?: "unknown",
+                        ),
+                    ),
+            )
+        },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth().heightIn(max = spacing.s24 * 5).verticalScroll(rememberScrollState()),

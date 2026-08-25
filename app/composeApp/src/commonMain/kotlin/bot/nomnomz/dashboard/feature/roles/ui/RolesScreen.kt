@@ -1103,11 +1103,11 @@ private fun CenteredMessage(text: String) {
 
 /** The member's best display name: username, then the raw user id. */
 private fun memberName(member: ChannelMembership): String =
-    member.username?.takeIf { it.isNotBlank() } ?: member.userId
+    resolveRowLabel(member.username, typeLabel = "Member", discriminatorSource = member.userId)
 
-/** The permit's grantee name: username, then the raw user id. */
+/** The permit's grantee name: username, else a discriminated fallback — never the raw user id. */
 private fun permitName(permit: PermitGrant): String =
-    permit.username?.takeIf { it.isNotBlank() } ?: permit.userId
+    resolveRowLabel(permit.username, typeLabel = "Grant", discriminatorSource = permit.userId)
 
 /** A grant's one-line detail: the granted role token, or the capability's action key. */
 @Composable

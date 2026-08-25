@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import bot.nomnomz.dashboard.core.connection.SessionUser
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Sheet
 import bot.nomnomz.dashboard.core.designsystem.component.SheetSide
@@ -347,7 +348,13 @@ private fun ProfileBlock(
 
     var open: Boolean by remember { mutableStateOf(false) }
     val menuLabel: String = stringResource(Res.string.shell_profile_open)
-    val name: String = user?.displayName ?: ""
+    val name: String =
+        resolveRowLabel(
+            user?.displayName,
+            secondary = user?.username,
+            typeLabel = "Viewer",
+            discriminatorSource = user?.id ?: "unknown",
+        )
     val standingLabel: String = stringResource(standing.labelResource())
 
     Box {

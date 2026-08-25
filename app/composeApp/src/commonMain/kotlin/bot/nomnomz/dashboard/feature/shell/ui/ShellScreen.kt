@@ -801,7 +801,13 @@ internal fun SidebarHeader(switcher: ChannelSwitcherController) {
     val active: ChannelSummary? = channels.firstOrNull { it.id == activeId } ?: channels.firstOrNull()
     var expanded: Boolean by remember { mutableStateOf(false) }
     val label: String = stringResource(Res.string.shell_channel_pick)
-    val name: String = active?.displayName?.takeIf { it.isNotBlank() } ?: active?.login ?: ""
+    val name: String =
+        resolveRowLabel(
+            active?.displayName,
+            secondary = active?.login,
+            typeLabel = "Channel",
+            discriminatorSource = active?.id ?: "unknown",
+        )
 
     Box {
         // The channel chip is ALWAYS an interactive switcher — even with a single channel it stays a
@@ -1068,7 +1074,13 @@ private fun ProfileBlock(
 
     var open: Boolean by remember { mutableStateOf(false) }
     val menuLabel: String = stringResource(Res.string.shell_profile_open)
-    val name: String = user?.displayName ?: ""
+    val name: String =
+        resolveRowLabel(
+            user?.displayName,
+            secondary = user?.username,
+            typeLabel = "Viewer",
+            discriminatorSource = user?.id ?: "unknown",
+        )
     val roleLabel: String = role.label()
 
     Box {
