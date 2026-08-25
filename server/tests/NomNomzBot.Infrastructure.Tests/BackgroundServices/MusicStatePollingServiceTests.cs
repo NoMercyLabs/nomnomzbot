@@ -36,6 +36,37 @@ public sealed class MusicStatePollingServiceTests
     private static readonly Guid ChannelA = Guid.Parse("0192a000-0000-7000-8000-0000000f1001");
     private static readonly Guid ChannelB = Guid.Parse("0192a000-0000-7000-8000-0000000f1002");
 
+    /// <summary>The 2026-08-25 outage, as a test. A Spotify call hit HttpClient's 100s timeout, which
+    /// raises TaskCanceledException — a subclass of OperationCanceledException — so the poller's
+    /// `ex is not OperationCanceledException` filters did NOT catch it. It escaped the per-channel catch,
+    /// aborted the sweep for every other channel, escaped ExecuteAsync, and with
+    /// BackgroundServiceExceptionBehavior.StopHost took the entire bot down (5 crash-loop restarts,
+    /// 502 dashboard). Both filters now key on the cancellation TOKEN instead of the exception type.</summary>
+    [Fact]
+    public async Task A_provider_timeout_is_survived_and_never_aborts_the_other_channels()
+    {
+        (
+            MusicStatePollingService sut,
+            RecordingEventBus bus,
+            FakeMusicService music,
+            FakeTimeProvider _,
+            RecordingHandover _
+        ) = Build([ChannelA, ChannelB]);
+        music.SetThrowsTimeout(ChannelA);
+        music.SetResponse(ChannelB, NowPlayingState("Song B", isPlaying: true, progressMs: 1_000));
+
+        // Must not throw: before the fix this propagated straight out and killed the host.
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        music.Calls.Should().Contain(ChannelB, "one channel timing out must not abort the sweep");
+        bus.Published.OfType<PlaybackStateChangedEvent>()
+            .Should()
+            .HaveCount(
+                1,
+                "the healthy channel still publishes its state despite the other timing out"
+            );
+    }
+
     [Fact]
     public async Task Same_state_observed_twice_publishes_only_once()
     {
@@ -488,6 +519,7 @@ public sealed class MusicStatePollingServiceTests
     {
         private readonly Dictionary<Guid, NowPlaying?> _responses = new();
         private readonly HashSet<Guid> _throwing = [];
+        private readonly HashSet<Guid> _timingOut = [];
 
         public List<Guid> Calls { get; } = [];
 
@@ -495,6 +527,11 @@ public sealed class MusicStatePollingServiceTests
             _responses[broadcasterId] = nowPlaying;
 
         public void SetThrows(Guid broadcasterId) => _throwing.Add(broadcasterId);
+
+        /// <summary>Reproduces an HttpClient TIMEOUT, which surfaces as TaskCanceledException — a
+        /// subclass of OperationCanceledException, and therefore the exact shape that escaped the
+        /// old `ex is not OperationCanceledException` filter and stopped the whole host.</summary>
+        public void SetThrowsTimeout(Guid broadcasterId) => _timingOut.Add(broadcasterId);
 
         public Task<NowPlaying?> GetNowPlayingAsync(
             string broadcasterId,
@@ -506,6 +543,11 @@ public sealed class MusicStatePollingServiceTests
 
             if (_throwing.Contains(channelId))
                 throw new InvalidOperationException($"Simulated provider failure for {channelId}.");
+
+            if (_timingOut.Contains(channelId))
+                throw new TaskCanceledException(
+                    "The request was canceled due to the configured HttpClient.Timeout of 100 seconds elapsing."
+                );
 
             return Task.FromResult(
                 _responses.TryGetValue(channelId, out NowPlaying? np) ? np : null

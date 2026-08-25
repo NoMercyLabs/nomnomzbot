@@ -107,7 +107,14 @@ public sealed class MusicStatePollingService : BackgroundService
             {
                 await PollAllChannelsOnceAsync(stoppingToken);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            // Filter on the STOPPING TOKEN, not on the exception type. `ex is not
+            // OperationCanceledException` looks like "let shutdown through", but TaskCanceledException
+            // DERIVES from OperationCanceledException — and HttpClient raises exactly that on its 100s
+            // timeout. So a single slow Spotify call escaped this catch, and with
+            // BackgroundServiceExceptionBehavior.StopHost that took the WHOLE BOT down: 5 crash-loop
+            // restarts and a 502 dashboard on 2026-08-25. Only a genuinely cancelled stoppingToken
+            // means "we are shutting down"; everything else is a tick failure to log and survive.
+            catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
             {
                 _logger.LogError(ex, "MusicStatePollingService: tick failed");
             }
@@ -170,7 +177,10 @@ public sealed class MusicStatePollingService : BackgroundService
                 // song. No-ops when something is already in flight or the queue is empty.
                 await handover.HandOverNextAsync(channelId.ToString(), cancellationToken);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            // Same reasoning as the tick catch above, and it matters twice over here: a provider
+            // HttpClient timeout surfaces as TaskCanceledException, so the old type filter let ONE
+            // channel's slow Spotify call abort the sweep for every OTHER channel on that tick.
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
             {
                 RecordFailure(channelId, now, ex);
             }
