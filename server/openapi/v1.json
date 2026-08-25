@@ -22646,6 +22646,226 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/discord/connections/{connectionId}/guild/roles/assignable": {
+      "get": {
+        "tags": [
+          "Discord"
+        ],
+        "summary": "List the linked guild's live roles, each carrying whether the bot can actually assign it right now\r\n(S055c) — a role sitting above the bot in the hierarchy, or a bot missing Manage Roles, is flagged with\r\nthe actionable reason instead of looking selectable and silently failing at go-live time.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIReadOnlyListOfDiscordAssignableRoleDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/discord/connections/{connectionId}/guild/channels/postable": {
+      "get": {
+        "tags": [
+          "Discord"
+        ],
+        "summary": "List the linked guild's live channels, each carrying whether the bot can actually post in it right now\r\n(S055c) — computed from the bot's effective permissions in that channel, including per-channel\r\npermission overwrites that guild-level permissions alone would not catch.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIReadOnlyListOfDiscordPostableChannelDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/discord/connections/{connectionId}/configs": {
       "get": {
         "tags": [
@@ -75797,6 +76017,70 @@
         },
         "description": "The body of a device-login poll request: the opaque device code from the start call."
       },
+      "DiscordAssignableRoleDto": {
+        "required": [
+          "id",
+          "name",
+          "color",
+          "position",
+          "managed",
+          "mentionable",
+          "permissions",
+          "canAssign",
+          "unavailableReasonCode",
+          "unavailableReason"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "color": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "position": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "managed": {
+            "type": "boolean"
+          },
+          "mentionable": {
+            "type": "boolean"
+          },
+          "permissions": {
+            "type": "string"
+          },
+          "canAssign": {
+            "type": "boolean"
+          },
+          "unavailableReasonCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "unavailableReason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "A live guild role carrying whether the BOT CAN ASSIGN IT right now (S055c) — the hierarchy/permission check\r\nfrom Task&lt;Result&gt; IDiscordBotGateway.ValidateRoleAssignableAsync(Guid broadcasterId, string guildId, string roleId, CancellationToken ct = default(CancellationToken)), evaluated once for every role in the guild\r\ninstead of one Discord round-trip per role. bool DiscordAssignableRoleDto.CanAssign false always carries a non-null\r\nstring? DiscordAssignableRoleDto.UnavailableReasonCode/string? DiscordAssignableRoleDto.UnavailableReason (`DISCORD_MISSING_MANAGE_ROLES` or\r\n`DISCORD_ROLE_HIERARCHY`) — never a bare disabled flag with no explanation."
+      },
       "DiscordDispatchLogDto": {
         "required": [
           "id",
@@ -76119,9 +76403,13 @@
           "mentionable": {
             "type": "boolean",
             "default": false
+          },
+          "permissions": {
+            "type": "string",
+            "default": "0"
           }
         },
-        "description": "A live guild role, for the notify-role picker. `Managed` roles cannot be self-assigned."
+        "description": "A live guild role, for the notify-role picker. `Managed` roles cannot be self-assigned.\r\n            string DiscordGuildRoleDto.Permissions is Discord's decimal permission bitfield as a string (53-bit-safe wire format)."
       },
       "DiscordMemberOptInRequest": {
         "required": [
@@ -76322,6 +76610,68 @@
             "format": "date-time"
           }
         }
+      },
+      "DiscordPostableChannelDto": {
+        "required": [
+          "id",
+          "name",
+          "type",
+          "parentId",
+          "position",
+          "canPost",
+          "unavailableReasonCode",
+          "unavailableReason"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "type": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "parentId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "position": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "canPost": {
+            "type": "boolean"
+          },
+          "unavailableReasonCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "unavailableReason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "A live guild channel carrying whether the BOT CAN POST IN IT right now (S055c) — computed from the bot's\r\neffective permissions in that specific channel, including per-channel permission overwrites (a channel\r\noverwrite can deny View Channel/Send Messages even when the bot's guild-level role permissions would allow\r\nit). bool DiscordPostableChannelDto.CanPost false always carries a non-null string? DiscordPostableChannelDto.UnavailableReasonCode/\r\nstring? DiscordPostableChannelDto.UnavailableReason."
       },
       "EarningRuleDto": {
         "required": [
@@ -88388,6 +88738,35 @@
           }
         }
       },
+      "StatusResponseDtoOfIReadOnlyListOfDiscordAssignableRoleDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/DiscordAssignableRoleDto"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfIReadOnlyListOfDiscordGuildChannelDto": {
         "type": "object",
         "properties": {
@@ -88517,6 +88896,35 @@
             ],
             "items": {
               "$ref": "#/components/schemas/DiscordNotificationRoleDto"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfIReadOnlyListOfDiscordPostableChannelDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/DiscordPostableChannelDto"
             }
           },
           "message": {
