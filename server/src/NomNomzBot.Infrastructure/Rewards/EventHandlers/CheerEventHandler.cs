@@ -44,6 +44,7 @@ public sealed class CheerEventHandler
             ["bits"] = e.Bits.ToString(),
             ["message"] = e.Message,
             ["anonymous"] = e.IsAnonymous ? "true" : "false",
+            ["provider"] = e.Provider,
         };
 
     public Task HandleAsync(CheerEvent @event, CancellationToken ct = default) =>

@@ -8,12 +8,20 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Domain.Rewards.Events;
 
-public sealed class GiftSubscriptionEvent : DomainEventBase
+/// <summary>
+/// Published for a gift subscription batch — Twitch (EventSub channel.subscription.gift) or Kick (webhook
+/// channel.subscription.gifts); <see cref="Provider"/> names the source (supporter-events.md §4.1).
+/// </summary>
+public sealed class GiftSubscriptionEvent : DomainEventBase, IProviderScopedEvent
 {
+    /// <summary>The platform this gift batch was delivered by. Defaults to Twitch, the dominant source.</summary>
+    public string Provider { get; init; } = AuthEnums.Platform.Twitch;
+
     public required string GifterUserId { get; init; }
     public required string GifterDisplayName { get; init; }
 

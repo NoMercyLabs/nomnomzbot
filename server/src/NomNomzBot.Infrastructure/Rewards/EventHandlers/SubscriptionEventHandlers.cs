@@ -41,6 +41,7 @@ public sealed class NewSubscriptionEventHandler
             ["user"] = e.UserDisplayName,
             ["user.id"] = e.UserId,
             ["tier"] = e.Tier,
+            ["provider"] = e.Provider,
         };
 
     public Task HandleAsync(NewSubscriptionEvent @event, CancellationToken ct = default) =>
@@ -74,6 +75,7 @@ public sealed class ResubscriptionEventHandler
             ["months"] = e.CumulativeMonths.ToString(),
             ["streak"] = e.StreakMonths.ToString(),
             ["message"] = e.Message ?? string.Empty,
+            ["provider"] = e.Provider,
         };
 
     public Task HandleAsync(ResubscriptionEvent @event, CancellationToken ct = default) =>
@@ -108,6 +110,7 @@ public sealed class GiftSubscriptionEventHandler
             ["tier"] = e.Tier,
             ["count"] = e.GiftCount.ToString(),
             ["anonymous"] = e.IsAnonymous ? "true" : "false",
+            ["provider"] = e.Provider,
         };
 
     public Task HandleAsync(GiftSubscriptionEvent @event, CancellationToken ct = default) =>

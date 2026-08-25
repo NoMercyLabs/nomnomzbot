@@ -42,6 +42,7 @@ public sealed class FollowEventHandler
             ["user.id"] = e.UserId,
             ["user.name"] = e.UserLogin,
             ["followed_at"] = e.FollowedAt.ToString("O"),
+            ["provider"] = e.Provider,
         };
 
     public Task HandleAsync(FollowEvent @event, CancellationToken ct = default) =>

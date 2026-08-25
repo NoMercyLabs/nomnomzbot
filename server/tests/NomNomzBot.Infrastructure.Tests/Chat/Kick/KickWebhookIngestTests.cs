@@ -507,6 +507,7 @@ public sealed class KickWebhookIngestTests
         followed.UserId.Should().Be("777");
         followed.UserDisplayName.Should().Be("NewFan");
         followed.UserLogin.Should().Be("newfan");
+        followed.Provider.Should().Be(AuthEnums.Platform.Kick);
     }
 
     // ─── channel.subscription.* → canonical sub events ───────────────────────
@@ -537,6 +538,7 @@ public sealed class KickWebhookIngestTests
         subscribed.UserDisplayName.Should().Be("SubGuy");
         subscribed.Tier.Should().Be("1000", "Kick subs are untiered — mapped to the base tier");
         subscribed.OccurredAt.Should().Be(DateTimeOffset.Parse("2026-07-16T10:00:00Z"));
+        subscribed.Provider.Should().Be(AuthEnums.Platform.Kick);
     }
 
     [Fact]
@@ -565,6 +567,7 @@ public sealed class KickWebhookIngestTests
         resubscribed.CumulativeMonths.Should().Be(7, "Kick's duration is months subscribed");
         resubscribed.StreakMonths.Should().Be(0, "Kick reports no streak — never invent one");
         resubscribed.Message.Should().BeNull("Kick renewals carry no resub message");
+        resubscribed.Provider.Should().Be(AuthEnums.Platform.Kick);
     }
 
     [Fact]
@@ -602,6 +605,7 @@ public sealed class KickWebhookIngestTests
                 [new("901", "LuckyOne"), new("902", "LuckyTwo")],
                 "Kick enumerates the recipients on the event itself"
             );
+        gifted.Provider.Should().Be(AuthEnums.Platform.Kick);
     }
 
     [Fact]
@@ -766,5 +770,6 @@ public sealed class KickWebhookIngestTests
         cheered.Bits.Should().Be(250, "kicks are Kick's bits analog — the amount carries as-is");
         cheered.Message.Should().Be("great stream!");
         cheered.IsAnonymous.Should().BeFalse();
+        cheered.Provider.Should().Be(AuthEnums.Platform.Kick);
     }
 }

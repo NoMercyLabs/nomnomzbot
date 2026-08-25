@@ -272,6 +272,7 @@ public sealed class KickWebhookIngest : IKickWebhookIngest
             new FollowEvent
             {
                 BroadcasterId = tenantId,
+                Provider = AuthEnums.Platform.Kick,
                 OccurredAt = now,
                 UserId = KickId(followerKickId),
                 UserDisplayName = payload.Follower.Username ?? string.Empty,
@@ -307,6 +308,7 @@ public sealed class KickWebhookIngest : IKickWebhookIngest
             new NewSubscriptionEvent
             {
                 BroadcasterId = tenantId,
+                Provider = AuthEnums.Platform.Kick,
                 OccurredAt = payload.CreatedAt ?? _clock.GetUtcNow(),
                 UserId = KickId(subscriberKickId),
                 UserDisplayName = payload.Subscriber.Username ?? string.Empty,
@@ -339,6 +341,7 @@ public sealed class KickWebhookIngest : IKickWebhookIngest
             new ResubscriptionEvent
             {
                 BroadcasterId = tenantId,
+                Provider = AuthEnums.Platform.Kick,
                 OccurredAt = payload.CreatedAt ?? _clock.GetUtcNow(),
                 UserId = KickId(subscriberKickId),
                 UserDisplayName = payload.Subscriber.Username ?? string.Empty,
@@ -375,6 +378,7 @@ public sealed class KickWebhookIngest : IKickWebhookIngest
             new GiftSubscriptionEvent
             {
                 BroadcasterId = tenantId,
+                Provider = AuthEnums.Platform.Kick,
                 OccurredAt = payload.CreatedAt ?? _clock.GetUtcNow(),
                 GifterUserId = gifter?.UserId is { } gifterId ? KickId(gifterId) : string.Empty,
                 GifterDisplayName = gifter?.Username ?? string.Empty,
@@ -533,6 +537,7 @@ public sealed class KickWebhookIngest : IKickWebhookIngest
             new CheerEvent
             {
                 BroadcasterId = tenantId,
+                Provider = AuthEnums.Platform.Kick,
                 OccurredAt = payload.CreatedAt ?? _clock.GetUtcNow(),
                 UserId = KickId(senderKickId),
                 UserDisplayName = payload.Sender.Username ?? string.Empty,

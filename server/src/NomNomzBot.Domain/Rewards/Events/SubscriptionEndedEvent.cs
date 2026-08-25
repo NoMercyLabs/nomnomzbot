@@ -8,15 +8,21 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Domain.Rewards.Events;
 
 /// <summary>
-/// Published when a subscription ends (EventSub channel.subscription.end).
+/// Published when a subscription ends (Twitch EventSub channel.subscription.end); <see cref="Provider"/>
+/// names the source (supporter-events.md §4.1) so the same event carries a platform when other platforms
+/// gain an equivalent signal.
 /// </summary>
-public sealed class SubscriptionEndedEvent : DomainEventBase
+public sealed class SubscriptionEndedEvent : DomainEventBase, IProviderScopedEvent
 {
+    /// <summary>The platform this subscription-end was delivered by. Defaults to Twitch, the dominant source.</summary>
+    public string Provider { get; init; } = AuthEnums.Platform.Twitch;
+
     public required string UserId { get; init; }
     public required string UserDisplayName { get; init; }
     public required string UserLogin { get; init; }

@@ -8,15 +8,20 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Domain.Community.Events;
 
 /// <summary>
-/// Published when a new user follows the channel.
+/// Published when a new user follows the channel — Twitch (EventSub channel.follow) or Kick (webhook
+/// channel.followed); <see cref="Provider"/> names the source (supporter-events.md §4.1).
 /// </summary>
-public sealed class FollowEvent : DomainEventBase
+public sealed class FollowEvent : DomainEventBase, IProviderScopedEvent
 {
+    /// <summary>The platform this follow was delivered by. Defaults to Twitch, the dominant source.</summary>
+    public string Provider { get; init; } = AuthEnums.Platform.Twitch;
+
     public required string UserId { get; init; }
     public required string UserDisplayName { get; init; }
     public required string UserLogin { get; init; }
