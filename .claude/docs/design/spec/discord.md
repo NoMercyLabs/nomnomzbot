@@ -481,3 +481,65 @@ No new third-party dependency is introduced by this subsystem.
 ## 9. Decisions (resolved)
 
 - **Ping-role cardinality (schema C4).** `DiscordNotificationConfig.PingRoleId` is a single nullable FK — one ping role per rule — and this subsystem is built against exactly that. Tiered notifications (a different ping role per milestone tier) are a separate schema and a separate spec: they require a `DiscordNotificationConfigRoles` join table, which the locked schema does not define and this spec does not introduce. The implementation targets the single `PingRoleId` FK.
+
+---
+
+## 10. Live-role extension — "currently live" Discord role (as built)
+
+**Scope:** while a streamer's channel is live, the bot holds a configured Discord role on the streamer's own guild member; the role is removed the moment the channel goes offline. Net-new entity, service, two event handlers, and a startup reconciler on top of §1–§7 above; consumes the same `DiscordGuildConnection` both-opt-in link and the same `IDiscordBotGateway`.
+
+### 10.1 `DiscordLiveRoleConfig : SoftDeletableEntity, ITenantScoped`
+
+`Id guid PK`; `BroadcasterId guid FK→Channels` — the streamer whose live state drives the role; `GuildConnectionId guid FK→DiscordGuildConnection` — the both-opt-in link (§1) this rule targets; only an **active** link (both consent flags true, checked live via `IDiscordGuildService.IsLinkActiveAsync`) is honored, so a channel can never drive a role in a guild it has no accepted link to; `RoleId string(50)` — the "currently live" Discord role snowflake, an indexed attribute, never a key; `DiscordMemberId string(50)` — the streamer's own Discord member snowflake inside the guild, entered by the streamer (there is no automatic Twitch-account-to-Discord-account link); `Enabled bool`; `IsCurrentlyApplied bool` — true while the role is believed applied, the idempotency + reconciliation flag; `AppliedDedupeKey string(64)? Null` — the dedupe discriminator of the online event that last applied the role (mirrors the go-live handler's per-session key: a duplicate online event for the same stream session is a no-op, not a second Discord call). **Unique** `(BroadcasterId, GuildConnectionId)`.
+
+A friend's channel gets its **own** `DiscordLiveRoleConfig` row against its **own** `DiscordGuildConnection` into the same guild — the consent model is identical to §1's guild link: guild-admin approval (`ServerConsentStatus="approved"`) **and** the friend's own `StreamerEnabled=true`, both required before any role call is made.
+
+EF configuration: `DiscordLiveRoleConfigConfiguration` in `NomNomzBot.Infrastructure/Discord/Persistence/`. Carried in both migration assemblies (`NomNomzBot.Infrastructure/Platform/Persistence/Migrations` and `NomNomzBot.Migrations.Sqlite/Migrations`, `AddDiscordLiveRoleConfig`).
+
+### 10.2 `IDiscordLiveRoleService` (`NomNomzBot.Application.Contracts.Discord`; impl `DiscordLiveRoleService` in Infrastructure)
+
+```csharp
+public interface IDiscordLiveRoleService
+{
+    // Applies every enabled, actively-linked live-role rule for the channel that just went online.
+    // dedupeKey mirrors the go-live handler's per-session key — a repeat for the same session is
+    // skipped, not re-applied.
+    Task ApplyForOnlineAsync(Guid broadcasterId, string dedupeKey, CancellationToken ct = default);
+
+    // Removes the role for every currently-applied live-role rule of the channel that just went
+    // offline, regardless of its current Enabled flag (a disabled-mid-stream rule still gets cleaned up).
+    Task RemoveForOfflineAsync(Guid broadcasterId, CancellationToken ct = default);
+
+    // Startup self-heal: clears (removes the Discord role + resets state for) every rule whose
+    // IsCurrentlyApplied is stale against its channel's actual IsLive.
+    Task ReconcileStaleAsync(CancellationToken ct = default);
+}
+```
+
+**`ApplyForOnlineAsync`** — for every enabled config on the broadcaster: skip if already applied under the same `dedupeKey` (idempotent); resolve the link via `IDiscordGuildService.IsLinkActiveAsync` and skip (logged, not thrown) if it is not active; call `IDiscordBotGateway.ValidateRoleAssignableAsync` and skip on failure (see §10.4); call `IDiscordBotGateway.AddMemberRoleAsync` and skip on failure; on success set `IsCurrentlyApplied=true`, `AppliedDedupeKey=dedupeKey`. Every skip is a `LogWarning`, never a thrown exception — a Discord-side failure must never disturb the live flow.
+
+**`RemoveForOfflineAsync`** — removes the role for every config on the broadcaster with `IsCurrentlyApplied=true` (via the shared `RemoveOneAsync` helper), independent of `Enabled` — a rule disabled mid-stream still gets its role cleaned up.
+
+**`RemoveOneAsync`** (private, shared by remove-on-offline and reconciliation) — if the `DiscordGuildConnection` row itself is gone (unlinked/disconnected), there is nothing left to call Discord against: local state is cleared (`IsCurrentlyApplied=false`, `AppliedDedupeKey=null`) and the call returns. Otherwise it calls `IDiscordBotGateway.RemoveMemberRoleAsync`; a `DISCORD_NOT_FOUND` failure (the member no longer has the role, or left the guild) is treated as success and clears local state; any other failure is logged and **`IsCurrentlyApplied` is left `true`** so the next offline event or reconciliation pass retries the removal.
+
+**`ReconcileStaleAsync`** — joins every `IsCurrentlyApplied=true` config against its `Channel.IsLive`; any config whose channel is **not** live is stale (a missed `stream.offline` event — bot restart/crash between online and offline) and is cleared through `RemoveOneAsync`.
+
+### 10.3 Event handlers (`NomNomzBot.Infrastructure.Discord.EventHandlers`)
+
+- **`DiscordLiveRoleOnlineHandler : IEventHandler<ChannelOnlineEvent>`** — builds `dedupeKey = $"live_role:{StartedAt.UtcDateTime:O}"` (the stream-start instant, same session-scoping shape as `DiscordGoLiveNotificationHandler`'s dedupe) and calls `ApplyForOnlineAsync`. Mirrors the go-live notification handler's shape exactly: best-effort, wraps the call in `try/catch (Exception ex) when (ex is not OperationCanceledException)` and logs a warning rather than letting a Discord failure propagate into the online-event pipeline.
+- **`DiscordLiveRoleOfflineHandler : IEventHandler<ChannelOfflineEvent>`** — calls `RemoveForOfflineAsync`, same best-effort try/catch shape. If this event is ever missed, `DiscordLiveRoleReconciliationHostedService` clears the stranded role on next startup.
+
+Both handlers no-op on `BroadcasterId == Guid.Empty` and are auto-registered by the existing `RegisterEventHandlers(...)` assembly scan (§7) — no manual DI line.
+
+### 10.4 `IDiscordBotGateway.ValidateRoleAssignableAsync` — actionable failure modes
+
+`Task<Result> ValidateRoleAssignableAsync(Guid broadcasterId, string guildId, string roleId, CancellationToken ct = default)` (declared alongside `GetAssignableGuildRolesAsync` in §3.5's `IDiscordBotGateway`; both share the private `EvaluateRoleAssignability` check against the bot's resolved role context — never reimplemented a second time). Reads the target role from the guild's role list (`DISCORD_NOT_FOUND` if it no longer exists), then evaluates two real Discord permission-bit failure modes against the bot's own resolved guild-member state:
+
+1. **Bot missing Manage Roles** — the bot's combined role permissions do not include Discord's Manage Roles bit (`1 << 28`). `Result.Failure` code `DISCORD_MISSING_MANAGE_ROLES`, message: *"The bot needs the Manage Roles permission in this Discord server to manage the live role. Grant Manage Roles to the bot's role in Server Settings > Roles."*
+2. **Bot's highest role at or below the target role** — the bot's highest role `Position` is `<=` the target role's `Position` (Discord's role hierarchy: a bot can only assign roles strictly below its own highest role). `Result.Failure` code `DISCORD_ROLE_HIERARCHY`, message: *"The bot's role must be above '{RoleName}' in Server Settings > Roles for the bot to apply or remove the live role."*
+
+Both messages name the exact Discord Server Settings screen the streamer needs to fix, not a bare error code. `ApplyForOnlineAsync` calls this validation before every `AddMemberRoleAsync` and skips (logged) on either failure — a misconfigured guild never throws, it just fails to apply and says why.
+
+### 10.5 Startup reconciliation
+
+`DiscordLiveRoleReconciliationHostedService : IHostedService` runs once on startup, gated by `IRunOnceGuard.TryAcquireAsync("discord-live-role-reconcile", TimeSpan.FromMinutes(5), ct)` — the same lease seam `SongRequestQueueRestoreHostedService` uses — so a zero-downtime blue/green overlap (two API instances starting against one database) does not double the removal calls. When the lease is acquired it calls `IDiscordLiveRoleService.ReconcileStaleAsync`; when another instance already holds it, this instance no-ops for the startup.
