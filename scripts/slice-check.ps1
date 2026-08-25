@@ -70,6 +70,16 @@ try {
     Invoke-Native 'csharpier format failed on slice files' { dotnet csharpier format @resolvedPaths }
     Invoke-Native 'csharpier check failed on slice files' { dotnet csharpier check @resolvedPaths }
 
+    # Repo-wide CHECK (never a repo-wide format - the scoped format above stays scoped on purpose).
+    # A slice's -Paths list cannot contain a file the slice has not created yet, and `dotnet ef
+    # migrations add` emits UNFORMATTED files: a builder that formats its slice and THEN generates a
+    # migration passes every scoped gate and still lands a repo that fails CI's `csharpier check .`.
+    # That is not hypothetical - it turned master's CI red on 04db9e97 (2026-08-25) with the two
+    # AddSongRequestQueueItemIsInFlight migrations. Repo-wide drift is gone since S115, so this check
+    # is ~10s over ~2850 files and any hit is a real regression, not legacy noise.
+    Write-Host '== csharpier check (repo-wide, catches files created after the scoped format) =='
+    Invoke-Native 'csharpier check failed OUTSIDE the slice files - a generated or forgotten file is unformatted (run: dotnet csharpier format . from server/)' { dotnet csharpier check . }
+
     Write-Host '== cleanup (unused usings, slice files only) =='
     # IDE0005 only (S-cleanup, server/.editorconfig): csharpier is formatting-only and never touches
     # this. Scoped to the slice's own paths for the same reason as the csharpier calls above - don't
