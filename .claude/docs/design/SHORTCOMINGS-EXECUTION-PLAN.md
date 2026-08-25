@@ -90,22 +90,26 @@ stable — without dropping the planned requirements behind them.
   review without its purpose text, its effect text and — where it destroys or disables — its counted
   blast radius; a guard test fails on a control that ships without them.
 
-- **S-PIPE-TREE-d** (the tree's remaining execution features; a/b/c are DONE + verified)
-  SHIPPED SO FAR: design spec settled (2d9ace73) - schema + N-triggers + condition-tree columns
-  (a0c15f9f, 1ab030a9) - `BlockKind`/`BlockConfigJson` + parent/child arms (8d1602b4) - ENGINE EXECUTES
-  THE TREE (f9368199, verified 4082/4084): `if`, `switch`, `switch_case`, `loop` (repeat/foreach/while),
-  `random_branch`, `random_case`, `try`, `detached_step`, condition trees over a full truth table,
-  3-level nesting, `MaxRecursionDepth=8`, runaway loops stopped by BOTH an iteration cap and a wall-clock
-  guard. Flat pipelines route through the ORIGINAL unmodified path (`RunStepsAsync` body unchanged, only
-  its callsite gated) so the owner's imported pipelines are untouched.
-  STILL TO BUILD: (1) `wait_for_event` / resume-later — runs become long-lived PERSISTED state in
-  `PipelineRunState` (variable bag, tree position, loop/switch cursors) surviving process restart, with
-  timeouts, cancellation on stream-offline, and suspended wall-clock NOT counting against `MaxRuntime`;
-  (2) `run_pipeline` sub-pipeline calls with arguments and a return value (`return_value`), honouring the
-  recursion depth limit; (3) `break`/`continue` actions inside loops. Follow
-  `.claude/docs/design/spec/pipeline-tree-and-editor.md` — all three are already specced.
-  THEN: the nested block-list EDITOR (add/remove/reorder, drag into and out of a branch, condition-tree
-  grouping, consequence + blast-radius surfaces) — that is its own slice and the owner's actual ask.
+- **S-PIPE-TREE-d1** `break` / `continue` inside loops — innermost loop only; must not be swallowed by an
+  enclosing `try`; outside a loop it is an honest recorded outcome, never a silent abort. No new entity,
+  no migration, no test-fake churn. IN PROGRESS.
+
+- **S-PIPE-TREE-d2** `run_pipeline` sub-pipeline calls + `return_value` — call another pipeline with
+  arguments, get a value back into the caller's scope. Enforce `MaxRecursionDepth = 8` ACROSS pipeline
+  boundaries (A->B->A aborts cleanly with a recorded reason, never a stack overflow mid-stream), and
+  tenant-scope it so a pipeline cannot call another channel's pipeline (assert the failure AND that
+  nothing ran). Likely needs no new entity.
+
+- **S-PIPE-TREE-d3** `wait_for_event` / resume-later — THE BIG ONE, size it accordingly and split again if
+  needed. A run SUSPENDS with its full state persisted (variable bag, tree position, loop/switch cursors)
+  in a new `PipelineRunState` entity, surviving a process restart, and resumes on a matching event.
+  Requires: a timeout path, CANCELLATION when the stream goes offline (a suspended run must never strand),
+  suspended wall-clock excluded from `MaxRuntime` (settled CTO decision), and a cap on concurrently
+  suspended runs per channel so a viewer cannot spam the bot into holding thousands of paused runs.
+  The new entity means BOTH EF migration sets + ~40 `IApplicationDbContext` test fakes +
+  `PendingModelChangesGuardTests` green on both providers.
+  **SIZING NOTE:** a single brief bundling d1+d2+d3 was correctly REFUSED by a builder as multi-day work.
+  That refusal was right and the orchestrator's bundling was the error — keep these three separate.
 
 - **S-PIPE-WRITE-SYMMETRY** (from the S-PIPE-BLANK post-mortem) Pipeline writes and reads use two
   representations that can silently diverge: `GetAsync` falls back to normalized `PipelineStep` rows,
