@@ -107,7 +107,9 @@ import nomnomzbot.composeapp.generated.resources.music_remove_confirm
 import nomnomzbot.composeapp.generated.resources.music_remove_dismiss
 import nomnomzbot.composeapp.generated.resources.music_remove_message
 import nomnomzbot.composeapp.generated.resources.music_remove_title
+import nomnomzbot.composeapp.generated.resources.music_playing_from_provider
 import nomnomzbot.composeapp.generated.resources.music_requested_by
+import nomnomzbot.composeapp.generated.resources.music_unknown_provider
 import nomnomzbot.composeapp.generated.resources.music_retry
 import nomnomzbot.composeapp.generated.resources.music_row_description
 import nomnomzbot.composeapp.generated.resources.music_skip
@@ -464,11 +466,19 @@ private fun NowPlayingCard(
             ?: stringResource(Res.string.music_unknown_track)
     val artist: String = nowPlaying.artist.orEmpty()
     val album: String = nowPlaying.album.orEmpty()
-    val requester: String =
-        nowPlaying.requestedBy?.takeIf { it.isNotBlank() }
-            ?: stringResource(Res.string.music_unknown_requester)
+    // A track with no requester was NOT requested by anyone — it is the provider's own playback (Spotify
+    // autoplay, a playlist rolling on, YouTube's next video). Rendering that as "Requested by someone"
+    // invented a viewer who does not exist and made a provider-picked track look like an unattributed
+    // request. Say which it is instead.
+    val requesterOrNull: String? = nowPlaying.requestedBy?.takeIf { it.isNotBlank() }
+    val providerLabel: String = nowPlaying.provider.takeIf { it.isNotBlank() }?.replaceFirstChar {
+        it.uppercase()
+    } ?: stringResource(Res.string.music_unknown_provider)
+    val attribution: String =
+        requesterOrNull?.let { stringResource(Res.string.music_requested_by, it) }
+            ?: stringResource(Res.string.music_playing_from_provider, providerLabel)
     val cardDescription: String =
-        stringResource(Res.string.music_now_playing_description, title, artist.ifBlank { requester })
+        stringResource(Res.string.music_now_playing_description, title, artist.ifBlank { attribution })
 
     // A locally-ticking progress: the backend now-playing is only re-read on a poll/hub push, so the bar would
     // otherwise sit still between fetches. Seed from the fetched progress (re-seeded whenever a fresh snapshot
@@ -555,7 +565,7 @@ private fun NowPlayingCard(
                 foreground = tokens.secondaryForeground,
             )
             Text(
-                text = stringResource(Res.string.music_requested_by, requester),
+                text = attribution,
                 style = typography.xs,
                 color = tokens.mutedForeground,
                 maxLines = 1,

@@ -186,6 +186,18 @@ public sealed class CurrentSongBuiltin(IMusicService music, IBuiltinResponseComp
         }
 
         string status = now.IsPlaying ? "▶" : "⏸";
+
+        // A track with no requester was NOT requested by anyone — it is the provider's own playback
+        // (Spotify autoplay, a playlist rolling on, YouTube's next video). Saying "requested by someone"
+        // there invents a viewer, and it is the difference between "the queue is working" and "the queue
+        // is empty and Spotify took over" — which chat and the streamer both need to be able to tell.
+        bool wasRequested = !string.IsNullOrWhiteSpace(now.RequestedBy);
+        string source = wasRequested ? "request" : "autoplay";
+        string provider = string.IsNullOrWhiteSpace(now.Provider) ? "the playlist" : now.Provider;
+        string attribution = wasRequested
+            ? $"(requested by {now.RequestedBy})"
+            : $"(from {provider})";
+
         string message = await composer.ComposeAsync(
             new()
             {
@@ -194,12 +206,17 @@ public sealed class CurrentSongBuiltin(IMusicService music, IBuiltinResponseComp
                 BuiltinKey = BuiltinKey,
                 Slot = BuiltinResponseSlots.Song.Playing,
                 OverrideTemplate = context.CustomResponseTemplate,
-                NeutralFallback = "{song.status} {song.name} by {song.artist}",
+                NeutralFallback = "{song.status} {song.name} by {song.artist} {song.attribution}",
                 Variables = new Dictionary<string, string>
                 {
                     ["song.name"] = now.TrackName,
                     ["song.artist"] = now.Artist ?? string.Empty,
                     ["song.status"] = status,
+                    // Empty when nobody requested it, so a custom template can branch on it.
+                    ["song.requester"] = now.RequestedBy ?? string.Empty,
+                    ["song.source"] = source,
+                    ["song.provider"] = provider,
+                    ["song.attribution"] = attribution,
                 },
             },
             ct

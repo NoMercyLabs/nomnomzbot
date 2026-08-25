@@ -2146,6 +2146,8 @@
     <string name="music_now_playing_description">Speelt nu: %1$s, %2$s</string>
     <string name="music_unknown_track">Onbekend nummer</string>
     <string name="music_unknown_requester">iemand</string>
+    <string name="music_playing_from_provider">Speelt via %1$s</string>
+    <string name="music_unknown_provider">de muziekspeler</string>
     <string name="music_art_placeholder">Albumhoes</string>
     <string name="music_provider">%1$s</string>
     <string name="music_requested_by">Aangevraagd door %1$s</string>

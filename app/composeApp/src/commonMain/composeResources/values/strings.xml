@@ -2150,6 +2150,8 @@
     <string name="music_now_playing_description">Now playing: %1$s, %2$s</string>
     <string name="music_unknown_track">Unknown track</string>
     <string name="music_unknown_requester">someone</string>
+    <string name="music_playing_from_provider">Playing from %1$s</string>
+    <string name="music_unknown_provider">the music player</string>
     <string name="music_art_placeholder">Album art</string>
     <string name="music_provider">%1$s</string>
     <string name="music_requested_by">Requested by %1$s</string>
