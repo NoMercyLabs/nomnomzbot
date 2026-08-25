@@ -117,8 +117,12 @@ public sealed class SchemaLocalizationManifestTests
         foreach (WidgetSettingsField field in schema.Fields)
         {
             keys.Add(field.Label.Key);
+            keys.Add(field.Group.Key);
             if (field.Help is not null)
                 keys.Add(field.Help.Key);
+            if (field.Options is not null)
+                foreach (WidgetSettingsFieldOption option in field.Options)
+                    keys.Add(option.Label.Key);
         }
 
         using ServiceProvider provider = BuildActionProvider();

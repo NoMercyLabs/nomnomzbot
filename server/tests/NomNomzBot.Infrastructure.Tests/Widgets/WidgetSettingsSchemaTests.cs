@@ -107,8 +107,8 @@ public sealed class WidgetSettingsSchemaTests
                     .Label.Key.Should()
                     .NotBeNullOrWhiteSpace($"'{definition.Key}.{field.Key}' needs a label key");
                 field
-                    .Group.Should()
-                    .NotBeNullOrWhiteSpace($"'{definition.Key}.{field.Key}' needs a group");
+                    .Group.Key.Should()
+                    .NotBeNullOrWhiteSpace($"'{definition.Key}.{field.Key}' needs a group key");
 
                 // The default shown in the form IS the catalogue default (same instance) — proves defaults are read
                 // back from the seeded catalogue, never re-typed (which is how they would silently drift).
@@ -149,8 +149,8 @@ public sealed class WidgetSettingsSchemaTests
                     .OnlyContain(
                         o =>
                             !string.IsNullOrWhiteSpace(o.Value)
-                            && !string.IsNullOrWhiteSpace(o.Label),
-                        $"'{schema.WidgetKey}.{field.Key}' every option needs a value + label"
+                            && !string.IsNullOrWhiteSpace(o.Label.Key),
+                        $"'{schema.WidgetKey}.{field.Key}' every option needs a value + label key"
                     );
 
                 // A single-choice field's default value must be one of the offered options.

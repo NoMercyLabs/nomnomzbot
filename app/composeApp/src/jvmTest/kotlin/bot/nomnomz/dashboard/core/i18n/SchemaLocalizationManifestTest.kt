@@ -81,6 +81,24 @@ class SchemaLocalizationManifestTest {
         }
     }
 
+    // Proof for a select/multiselect field's OPTION label — the surface S-SCHEMA-I18N-b(a) migrated (options
+    // used to serve a hardcoded English display label straight off the wire; now they serve a translation key
+    // like every other schema string).
+    @Test
+    fun a_dropdown_option_key_renders_dutch_text() = runBlocking {
+        val original: Locale = Locale.getDefault()
+        try {
+            Locale.setDefault(Locale.forLanguageTag("nl"))
+            val resource: StringResource =
+                Res.allStringResources[schemaResourceName("widget.chat_box.theme.option.dark")]
+                    ?: fail("widget_chat_box_theme_option_dark is not a known Compose string resource")
+            val resolved: String = getString(getSystemResourceEnvironment(), resource)
+            assertEquals("Donker", resolved)
+        } finally {
+            Locale.setDefault(original)
+        }
+    }
+
     // Same proof for a pipeline action field's help key — the OTHER schema surface this slice migrated.
     @Test
     fun a_pipeline_action_field_key_renders_dutch_text() = runBlocking {

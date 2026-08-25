@@ -37,32 +37,35 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
     private const string Multiselect = "multiselect";
     private const string Json = "json";
 
-    // Field groups the form sections by.
-    private const string Content = "Content";
-    private const string Appearance = "Appearance";
-    private const string Behaviour = "Behaviour";
-    private const string Data = "Data";
+    // Field groups the form sections by — each a LocalizedText KEY (S-SCHEMA-I18N-redesign); the display text
+    // lives in strings.xml/values-nl/strings.xml under the same widget.group.* namespace.
+    private static readonly LocalizedText Content = new("widget.group.content");
+    private static readonly LocalizedText Appearance = new("widget.group.appearance");
+    private static readonly LocalizedText Behaviour = new("widget.group.behaviour");
+    private static readonly LocalizedText Data = new("widget.group.data");
 
+    // Shared across every widget that offers this choice, so the option's meaning (and its key) never drifts
+    // between e.g. "alerts" and "event_ticker": widget.option.{namespace}.{value}.
     private static readonly IReadOnlyList<WidgetSettingsFieldOption> EventOptions =
     [
-        new("follow", "Follow"),
-        new("subscription", "Subscription"),
-        new("resub", "Resub"),
-        new("gift", "Gift sub"),
-        new("cheer", "Cheer"),
-        new("raid", "Raid"),
-        new("supporter.tip", "Tip"),
-        new("supporter.membership", "Membership"),
-        new("supporter.merch", "Merch"),
-        new("supporter.charity", "Charity"),
+        SharedOption("events", "follow"),
+        SharedOption("events", "subscription"),
+        SharedOption("events", "resub"),
+        SharedOption("events", "gift"),
+        SharedOption("events", "cheer"),
+        SharedOption("events", "raid"),
+        SharedOption("events", "supporter.tip"),
+        SharedOption("events", "supporter.membership"),
+        SharedOption("events", "supporter.merch"),
+        SharedOption("events", "supporter.charity"),
     ];
 
     private static readonly IReadOnlyList<WidgetSettingsFieldOption> ProviderOptions =
     [
-        new("twitch", "Twitch"),
-        new("bttv", "BetterTTV"),
-        new("ffz", "FrankerFaceZ"),
-        new("7tv", "7TV"),
+        SharedOption("providers", "twitch"),
+        SharedOption("providers", "bttv"),
+        SharedOption("providers", "ffz"),
+        SharedOption("providers", "7tv"),
     ];
 
     private readonly IReadOnlyList<WidgetSettingsSchema> _all;
@@ -104,12 +107,7 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
             ],
             "goal_bar" =>
             [
-                SelectField(
-                    d,
-                    "metric",
-                    Content,
-                    Opts(("followers", "Followers"), ("subs", "Subscribers"), ("bits", "Bits"))
-                ),
+                SelectField(d, "metric", Content, Opts(d, "metric", "followers", "subs", "bits")),
                 NumberField(d, "target", Content, min: 0),
                 NumberField(d, "start", Content, min: 0),
                 Text(d, "resetCadence", Content, help: true),
@@ -123,11 +121,13 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
                     "label",
                     Content,
                     Opts(
-                        ("latest_follower", "Latest follower"),
-                        ("follower_count", "Follower count"),
-                        ("latest_sub", "Latest subscriber"),
-                        ("sub_count", "Subscriber count"),
-                        ("top_cheerer", "Top cheerer")
+                        d,
+                        "label",
+                        "latest_follower",
+                        "follower_count",
+                        "latest_sub",
+                        "sub_count",
+                        "top_cheerer"
                     )
                 ),
                 Text(d, "formatString", Content, help: true),
@@ -151,7 +151,7 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
                     d,
                     "theme",
                     Appearance,
-                    Opts(("dark", "Dark"), ("light", "Light"), ("transparent", "Transparent"))
+                    Opts(d, "theme", "dark", "light", "transparent")
                 ),
                 Text(d, "fontFamily", Appearance, help: true),
                 NumberField(d, "fontSize", Appearance, min: 8, max: 48, step: 1),
@@ -168,17 +168,12 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
             ],
             "now_playing" =>
             [
-                SelectField(d, "layout", Appearance, Opts(("pill", "Pill"), ("card", "Card"))),
+                SelectField(d, "layout", Appearance, Opts(d, "layout", "pill", "card")),
                 Bool(d, "showArt", Content),
                 Bool(d, "showProgressBar", Content),
                 Text(d, "provider", Content, help: true),
                 Bool(d, "enableAudio", Behaviour),
-                SelectField(
-                    d,
-                    "youtubeMode",
-                    Content,
-                    Opts(("card", "Compact card"), ("video", "Video"))
-                ),
+                SelectField(d, "youtubeMode", Content, Opts(d, "youtubeMode", "card", "video")),
                 Accent(d),
             ],
             "sr_queue" =>
@@ -193,12 +188,12 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
             [
                 Bool(d, "showText", Content),
                 Bool(d, "voiceLabel", Content),
-                SelectField(d, "position", Appearance, Opts(("top", "Top"), ("bottom", "Bottom"))),
+                SelectField(d, "position", Appearance, Opts(d, "position", "top", "bottom")),
                 Accent(d),
             ],
             "poll_prediction" =>
             [
-                SelectField(d, "position", Appearance, Opts(("left", "Left"), ("right", "Right"))),
+                SelectField(d, "position", Appearance, Opts(d, "position", "left", "right")),
                 JsonField(d, "colors", Appearance, help: true),
                 Accent(d),
             ],
@@ -222,12 +217,7 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
             [
                 NumberField(d, "density", Behaviour, min: 1, max: 100, step: 1),
                 NumberField(d, "size", Appearance, min: 8, max: 128, step: 1),
-                SelectField(
-                    d,
-                    "animation",
-                    Appearance,
-                    Opts(("float", "Float up"), ("rain", "Rain down"))
-                ),
+                SelectField(d, "animation", Appearance, Opts(d, "animation", "float", "rain")),
                 Multi(d, "providers", Content, ProviderOptions),
                 Accent(d),
             ],
@@ -235,12 +225,7 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
             [
                 Text(d, "source", Data, help: true),
                 Text(d, "field", Data, help: true),
-                SelectField(
-                    d,
-                    "render",
-                    Appearance,
-                    Opts(("number", "Number"), ("gauge", "Gauge"), ("text", "Text"))
-                ),
+                SelectField(d, "render", Appearance, Opts(d, "render", "number", "gauge", "text")),
                 Text(d, "label", Content),
                 NumberField(d, "min", Data),
                 NumberField(d, "max", Data),
@@ -288,13 +273,13 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
     private static WidgetSettingsField Bool(
         FirstPartyWidgetDefinition d,
         string key,
-        string group
+        LocalizedText group
     ) => new(key, LabelKey(d, key), "bool", group, DefaultOf(d, key));
 
     private static WidgetSettingsField NumberField(
         FirstPartyWidgetDefinition d,
         string key,
-        string group,
+        LocalizedText group,
         double? min = null,
         double? max = null,
         double? step = null,
@@ -316,7 +301,7 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
     private static WidgetSettingsField Text(
         FirstPartyWidgetDefinition d,
         string key,
-        string group,
+        LocalizedText group,
         bool help = false
     ) =>
         new(key, LabelKey(d, key), "text", group, DefaultOf(d, key), help ? HelpKey(d, key) : null);
@@ -324,7 +309,7 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
     private static WidgetSettingsField ColorField(
         FirstPartyWidgetDefinition d,
         string key,
-        string group,
+        LocalizedText group,
         bool help = false
     ) => new(key, LabelKey(d, key), Color, group, DefaultOf(d, key), help ? HelpKey(d, key) : null);
 
@@ -342,25 +327,36 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
     private static WidgetSettingsField SelectField(
         FirstPartyWidgetDefinition d,
         string key,
-        string group,
+        LocalizedText group,
         IReadOnlyList<WidgetSettingsFieldOption> options
     ) => new(key, LabelKey(d, key), Select, group, DefaultOf(d, key), null, options);
 
     private static WidgetSettingsField Multi(
         FirstPartyWidgetDefinition d,
         string key,
-        string group,
+        LocalizedText group,
         IReadOnlyList<WidgetSettingsFieldOption> options
     ) => new(key, LabelKey(d, key), Multiselect, group, DefaultOf(d, key), null, options);
 
     private static WidgetSettingsField JsonField(
         FirstPartyWidgetDefinition d,
         string key,
-        string group,
+        LocalizedText group,
         bool help = false
     ) => new(key, LabelKey(d, key), Json, group, DefaultOf(d, key), help ? HelpKey(d, key) : null);
 
     private static IReadOnlyList<WidgetSettingsFieldOption> Opts(
-        params (string Value, string Label)[] options
-    ) => [.. options.Select(option => new WidgetSettingsFieldOption(option.Value, option.Label))];
+        FirstPartyWidgetDefinition d,
+        string fieldKey,
+        params string[] values
+    ) => [.. values.Select(value => Option(d, fieldKey, value))];
+
+    private static WidgetSettingsFieldOption Option(
+        FirstPartyWidgetDefinition d,
+        string fieldKey,
+        string value
+    ) => new(value, new($"widget.{d.Key}.{fieldKey}.option.{value}"));
+
+    private static WidgetSettingsFieldOption SharedOption(string @namespace, string value) =>
+        new(value, new($"widget.option.{@namespace}.{value}"));
 }

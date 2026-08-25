@@ -35,15 +35,15 @@ public sealed record WidgetSettingsSchema(
 /// <see cref="Options"/>), or <c>json</c> (raw-JSON textarea for a structural map/list the schema does not flatten).
 /// <see cref="Default"/> is the catalogue default (so a cleared field falls back to the widget's shipped value);
 /// <see cref="Min"/>/<see cref="Max"/>/<see cref="Step"/> bound a numeric control; <see cref="Group"/> lets the form
-/// section the fields. <see cref="Label"/> and <see cref="Help"/> are <see cref="LocalizedText"/>
-/// (S-SCHEMA-I18N-redesign) — a translation KEY only; the dashboard resolves it against <c>strings.xml</c> for the
-/// viewer's locale instead of the backend serving a hardcoded English literal.
+/// section the fields. <see cref="Label"/>, <see cref="Help"/>, and <see cref="Group"/> are all
+/// <see cref="LocalizedText"/> (S-SCHEMA-I18N-redesign) — a translation KEY only; the dashboard resolves each
+/// against <c>strings.xml</c> for the viewer's locale instead of the backend serving a hardcoded English literal.
 /// </summary>
 public sealed record WidgetSettingsField(
     string Key,
     LocalizedText Label,
     string Type,
-    string Group,
+    LocalizedText Group,
     object? Default,
     LocalizedText? Help = null,
     IReadOnlyList<WidgetSettingsFieldOption>? Options = null,
@@ -52,5 +52,9 @@ public sealed record WidgetSettingsField(
     double? Step = null
 );
 
-/// <summary>A single choice for a <c>select</c>/<c>multiselect</c> field: the wire <see cref="Value"/> and its display <see cref="Label"/>.</summary>
-public sealed record WidgetSettingsFieldOption(string Value, string Label);
+/// <summary>
+/// A single choice for a <c>select</c>/<c>multiselect</c> field: the wire <see cref="Value"/> (the machine value
+/// stored/compared, never shown) and its display <see cref="Label"/> — a <see cref="LocalizedText"/>
+/// (S-SCHEMA-I18N-redesign) translation KEY only, resolved by the dashboard against <c>strings.xml</c>.
+/// </summary>
+public sealed record WidgetSettingsFieldOption(string Value, LocalizedText Label);

@@ -187,9 +187,13 @@ private fun LoadedSettingsDialog(
         text = {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(spacing.s4)) {
                 // Fields, grouped in their authored order (groupBy keeps first-seen order).
-                schema.fields.groupBy { it.group }.forEach { (group, fields) ->
-                    item(key = "group:$group") {
-                        Text(text = group, style = typography.sm, color = tokens.mutedForeground)
+                schema.fields.groupBy { it.group.key }.forEach { (groupKey, fields) ->
+                    item(key = "group:$groupKey") {
+                        Text(
+                            text = resolveSchemaString(fields.first().group),
+                            style = typography.sm,
+                            color = tokens.mutedForeground,
+                        )
                     }
                     items(items = fields, key = { it.key }) { field ->
                         FieldControl(
@@ -331,7 +335,7 @@ private fun FieldControl(
         "select" ->
             SelectControl(
                 label = label,
-                options = field.options.orEmpty().map { it.value to it.label },
+                options = field.options.orEmpty().map { it.value to resolveSchemaString(it.label) },
                 selectedValue = selectValue,
                 onSelect = onSelectChange,
             )
@@ -350,7 +354,7 @@ private fun FieldControl(
                                 selected = option.value in multiValue,
                                 onClick = { onMultiToggle(option.value) },
                             ) {
-                                Text(option.label, style = typography.xs)
+                                Text(resolveSchemaString(option.label), style = typography.xs)
                             }
                         }
                     }
