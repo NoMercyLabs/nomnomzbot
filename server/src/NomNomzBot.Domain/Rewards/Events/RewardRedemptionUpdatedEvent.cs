@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Domain.Rewards.Events;
@@ -19,8 +20,11 @@ namespace NomNomzBot.Domain.Rewards.Events;
 /// which only models the refund case and carries neither the fulfilled status nor the viewer/title — this
 /// event surfaces the full status transition and who it applied to.
 /// </summary>
-public sealed class RewardRedemptionUpdatedEvent : DomainEventBase
+public sealed class RewardRedemptionUpdatedEvent : DomainEventBase, IProviderScopedEvent
 {
+    /// <summary>The platform this redemption update was delivered by. Defaults to Twitch, the dominant source.</summary>
+    public string Provider { get; init; } = AuthEnums.Platform.Twitch;
+
     public required string RedemptionId { get; init; }
     public required string RewardId { get; init; }
     public required string RewardTitle { get; init; }

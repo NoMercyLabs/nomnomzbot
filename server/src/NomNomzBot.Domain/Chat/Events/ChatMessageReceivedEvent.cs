@@ -21,7 +21,7 @@ namespace NomNomzBot.Domain.Chat.Events;
 /// auto-mod enforcement, pronouns, decoration) gate on <see cref="Provider"/>.
 /// </summary>
 [Event("chat.message", EventVisibility.Public)]
-public sealed class ChatMessageReceivedEvent : DomainEventBase
+public sealed class ChatMessageReceivedEvent : DomainEventBase, IProviderScopedEvent
 {
     public required string MessageId { get; init; }
 

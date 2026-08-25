@@ -8,12 +8,16 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Domain.Moderation.Events;
 
-public sealed class UserBannedEvent : DomainEventBase
+public sealed class UserBannedEvent : DomainEventBase, IProviderScopedEvent
 {
+    /// <summary>The platform this ban was delivered by. Defaults to Twitch, the dominant source.</summary>
+    public string Provider { get; init; } = AuthEnums.Platform.Twitch;
+
     public required string TargetUserId { get; init; }
     public required string TargetDisplayName { get; init; }
     public required string ModeratorUserId { get; init; }

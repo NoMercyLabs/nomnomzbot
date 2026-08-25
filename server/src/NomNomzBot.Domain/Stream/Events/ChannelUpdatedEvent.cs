@@ -8,12 +8,16 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Domain.Stream.Events;
 
-public sealed class ChannelUpdatedEvent : DomainEventBase
+public sealed class ChannelUpdatedEvent : DomainEventBase, IProviderScopedEvent
 {
+    /// <summary>The platform this channel update was delivered by. Defaults to Twitch, the dominant source.</summary>
+    public string Provider { get; init; } = AuthEnums.Platform.Twitch;
+
     public required string BroadcasterDisplayName { get; init; }
     public required string NewTitle { get; init; }
     public required string NewGameName { get; init; }

@@ -239,6 +239,7 @@ public sealed class KickWebhookIngest : IKickWebhookIngest
         await _bus.PublishAsync(
             new ChannelUpdatedEvent
             {
+                Provider = AuthEnums.Platform.Kick,
                 BroadcasterId = tenantId,
                 OccurredAt = _clock.GetUtcNow(),
                 BroadcasterDisplayName = payload.Broadcaster.Username ?? string.Empty,
@@ -437,6 +438,7 @@ public sealed class KickWebhookIngest : IKickWebhookIngest
         await _bus.PublishAsync(
             new RewardRedemptionUpdatedEvent
             {
+                Provider = AuthEnums.Platform.Kick,
                 BroadcasterId = tenantId,
                 OccurredAt = payload.RedeemedAt ?? _clock.GetUtcNow(),
                 RedemptionId = redemptionId,
@@ -485,6 +487,7 @@ public sealed class KickWebhookIngest : IKickWebhookIngest
             await _bus.PublishAsync(
                 new UserTimedOutEvent
                 {
+                    Provider = AuthEnums.Platform.Kick,
                     BroadcasterId = tenantId,
                     OccurredAt = occurredAt,
                     TargetUserId = targetUserId,
@@ -501,6 +504,7 @@ public sealed class KickWebhookIngest : IKickWebhookIngest
         await _bus.PublishAsync(
             new UserBannedEvent
             {
+                Provider = AuthEnums.Platform.Kick,
                 BroadcasterId = tenantId,
                 OccurredAt = occurredAt,
                 TargetUserId = targetUserId,
