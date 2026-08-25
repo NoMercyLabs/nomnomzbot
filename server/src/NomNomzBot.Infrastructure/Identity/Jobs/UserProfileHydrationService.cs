@@ -39,6 +39,11 @@ public sealed class UserProfileHydrationService : BackgroundService
 {
     private static readonly TimeSpan Interval = TimeSpan.FromMinutes(2);
 
+    /// <summary>How long a profile stays fresh before it is re-read. Long enough that the whole viewer base
+    /// costs a trickle of cheap Helix reads rather than a sweep, short enough that a rename or a new avatar
+    /// lands the same day.</summary>
+    private static readonly TimeSpan RefreshAfter = TimeSpan.FromHours(12);
+
     // Get Users accepts up to 100 ids per call; cap the per-tick work to a few calls so a large backlog drains over
     // several ticks instead of a burst of Helix traffic (the reads are cheap, but this keeps the worker gentle).
     private const int HelixBatchSize = 100;
@@ -97,9 +102,20 @@ public sealed class UserProfileHydrationService : BackgroundService
             IApplicationDbContext db =
                 scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-            // Un-hydrated = no avatar yet. Recently-seen first so visible chatters fill in before long-idle ones.
+            // Two populations, one pass: never-hydrated viewers (no avatar yet) AND profiles that have gone
+            // stale. Selecting only the former meant a profile was fetched ONCE and never again, so a viewer
+            // who changed their display name or avatar kept the old one forever, everywhere it is shown.
+            // Recently-seen first, so visible chatters refresh before long-idle ones.
+            DateTime staleBefore = DateTime.UtcNow - RefreshAfter;
             List<User> pending = await db
-                .Users.Where(u => u.ProfileImageUrl == null && u.TwitchUserId != "")
+                .Users.Where(u =>
+                    u.TwitchUserId != ""
+                    && (
+                        u.ProfileImageUrl == null
+                        || u.ProfileRefreshedAt == null
+                        || u.ProfileRefreshedAt < staleBefore
+                    )
+                )
                 .OrderByDescending(u => u.LastSeenAt)
                 .Take(MaxUsersPerTick)
                 .ToListAsync(ct);
@@ -110,6 +126,10 @@ public sealed class UserProfileHydrationService : BackgroundService
             ITwitchUsersApi usersApi = scope.ServiceProvider.GetRequiredService<ITwitchUsersApi>();
 
             int hydrated = 0;
+            // Counted separately from `hydrated`: a profile that came back IDENTICAL still had its
+            // refreshed-at stamped, and that stamp has to be saved or the same rows are re-fetched on every
+            // tick forever and the backlog never drains.
+            int stamped = 0;
             foreach (User[] batch in pending.Chunk(HelixBatchSize))
             {
                 List<string> ids = [.. batch.Select(u => u.TwitchUserId!)];
@@ -131,19 +151,21 @@ public sealed class UserProfileHydrationService : BackgroundService
                 Dictionary<string, TwitchUser> byId = result.Value.ToDictionary(u => u.Id);
                 foreach (User user in batch)
                 {
-                    if (
-                        byId.TryGetValue(user.TwitchUserId!, out TwitchUser? twitchUser)
-                        && ApplyProfile(user, twitchUser)
-                    )
+                    if (!byId.TryGetValue(user.TwitchUserId!, out TwitchUser? twitchUser))
+                        continue;
+
+                    stamped++;
+                    if (ApplyProfile(user, twitchUser))
                         hydrated++;
                 }
             }
 
-            if (hydrated > 0)
+            if (stamped > 0)
             {
                 await db.SaveChangesAsync(ct);
                 _logger.LogDebug(
-                    "User profile hydration: filled {Count} viewer profile(s) from Helix.",
+                    "User profile hydration: re-read {Stamped} viewer profile(s) from Helix, {Changed} changed.",
+                    stamped,
                     hydrated
                 );
             }
@@ -166,6 +188,25 @@ public sealed class UserProfileHydrationService : BackgroundService
     internal static bool ApplyProfile(User user, TwitchUser twitchUser)
     {
         bool changed = false;
+
+        // The rename case. Twitch lets a user change their login AND their display name, and every surface
+        // that shows a viewer reads these — leaving them behind meant the bot addressed people by a name
+        // they no longer use. UsernameNormalized moves with Username or lookups by the new name miss.
+        if (!string.IsNullOrEmpty(twitchUser.Login) && user.Username != twitchUser.Login)
+        {
+            user.Username = twitchUser.Login;
+            user.UsernameNormalized = twitchUser.Login.ToLowerInvariant();
+            changed = true;
+        }
+
+        if (
+            !string.IsNullOrEmpty(twitchUser.DisplayName)
+            && user.DisplayName != twitchUser.DisplayName
+        )
+        {
+            user.DisplayName = twitchUser.DisplayName;
+            changed = true;
+        }
 
         if (
             !string.IsNullOrEmpty(twitchUser.ProfileImageUrl)
@@ -215,6 +256,9 @@ public sealed class UserProfileHydrationService : BackgroundService
             changed = true;
         }
 
+        // Stamped even when nothing changed: the profile WAS re-read, and without this an unchanged viewer
+        // would be re-fetched on every single tick forever, which is the whole backlog never draining.
+        user.ProfileRefreshedAt = DateTime.UtcNow;
         return changed;
     }
 }

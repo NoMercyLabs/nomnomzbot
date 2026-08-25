@@ -91,6 +91,13 @@ public class User : BaseEntity
 
     public DateTime? LastSeenAt { get; set; }
 
+    /// <summary>
+    /// When this profile was last re-read from the platform. Distinct from <c>UpdatedAt</c>, which any
+    /// unrelated write bumps — refresh cadence keyed off that would either re-fetch chatty users constantly
+    /// or starve quiet ones. Null means never refreshed, which is what a newly-seen viewer looks like.
+    /// </summary>
+    public DateTime? ProfileRefreshedAt { get; set; }
+
     public int? PronounId { get; set; }
     public Pronoun? Pronoun { get; set; }
 
