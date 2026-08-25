@@ -230,9 +230,21 @@ stable — without dropping the planned requirements behind them.
 
 ## Phase 2 — existing platforms made to work (Kick / YouTube are shipped features that are broken) — only the spine pieces these fixes REQUIRE
 
-- **S022** `Provider` on every canonical community/monetization event; Kick/YouTube supporter events
-  map to the same domain events (U·C1/C2/C3, spec `supporter-events.md` §4.1). Done-when: a Kick sub
-  fires the `channel.subscribe` event response with `Provider=kick`.
+- **S022** PARTIAL, COMMITTED 287f7c67, **TESTS NEVER RAN** — the Infrastructure test project could not
+  build at the time (a concurrent agent's `templateHelperValidator` constructor change). Re-run
+  `ProviderScopedEventGuardTests`, `NewSubscriptionEventHandlerTests`, `KickWebhookIngestTests` and only
+  then treat the Kick half as proven. SHIPPED: `IProviderScopedEvent` + Provider on 6 canonical events
+  (Follow, NewSubscription, Resubscription, GiftSubscription, Cheer, SubscriptionEnded — 0 of 6 carried
+  it before), Kick ingest sets it, handlers put `provider` in the response variables.
+  TWO REAL GAPS, both needed for the slice's own done-when across platforms:
+  (a) **NO YouTube ingest exists at all** — `supporter-events.md` §4.1 maps YouTube sponsor/gift/super
+  chat onto these same canonical events and there is nothing to map from. Kick has `KickWebhookIngest`;
+  YouTube has no equivalent. Until it exists, "every canonical event carries Provider" is true only for
+  the platforms that can raise them.
+  (b) `Platform/Templating/TemplateEngine.cs` needs wiring so `{{provider}}` RESOLVES in message
+  templates — the handlers put it in the variables dict, but a streamer writing `{{provider}}` in a
+  sub alert still gets nothing.
+
 - **S027** Kick go-live + reads — `livestream.status.updated` publishes canonical online/offline;
   Kick channel read (viewer count, title/category), `KickPlatformApi` + `channel:read/write`; operator
   send on Kick; platform-correct error text (U·C2). Done-when: Kick-only streamer sees live state,
