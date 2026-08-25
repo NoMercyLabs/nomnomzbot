@@ -58,6 +58,7 @@ $Sha = if ($Sha -eq "") { (git rev-parse HEAD).Trim() } else { (git rev-parse $S
 $sshTarget = $env:NOMNOMZ_DEPLOY_SSH
 $sshKey = $env:NOMNOMZ_DEPLOY_KEY
 $deployDir = if ($env:NOMNOMZ_DEPLOY_DIR) { $env:NOMNOMZ_DEPLOY_DIR } else { "/opt/nomnomzbot" }
+$repoRoot = (git rev-parse --show-toplevel).Trim()
 if (-not $sshTarget -or -not $sshKey) {
     Fail "set NOMNOMZ_DEPLOY_SSH (user@host) and NOMNOMZ_DEPLOY_KEY (ssh key path) first"
 }
@@ -128,6 +129,16 @@ if ($conclusion -ne "success") {
 $imageJob = gh run view $runId --json jobs --jq '[.jobs[] | select(.name | test("image"; "i"))][0].conclusion' 2>$null
 if ([string]::IsNullOrWhiteSpace($imageJob)) { $imageJob = "success" }
 Write-Host "SHIP: CI green (image job: $imageJob)."
+
+# ── 3a. Sync the stack definition the repo owns ──────────────────────────────
+# The image is only half a deploy: docker-compose.yml carries the API's environment (trusted-proxy
+# networks, base URL, profiles). A committed compose change that never reaches the host silently does
+# nothing, and the host quietly keeps running an older stack definition than the repo says it does.
+# The host's .env is NOT touched - that is the operator's secret custody, not ours.
+Write-Host "SHIP: syncing docker-compose.yml + Caddyfile."
+& scp -i $sshKey -o StrictHostKeyChecking=accept-new `
+    "$repoRoot/docker-compose.yml" "$repoRoot/Caddyfile" "${sshTarget}:$deployDir/" 2>&1 | Out-Null
+if ($LASTEXITCODE -ne 0) { Fail "could not copy the stack definition to $sshTarget - nothing deployed" }
 
 # ── 3. Deploy: blue/green switchover, poll readiness, verify image freshness ─
 # There is no `api` service — docker-compose.yml fronts api-blue/api-green with Caddy, which routes to
