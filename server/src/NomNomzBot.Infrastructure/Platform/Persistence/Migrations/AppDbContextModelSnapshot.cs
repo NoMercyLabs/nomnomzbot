@@ -1539,7 +1539,7 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasDefaultValue(0);
 
-                    b.Property<Guid>("PipelineId")
+                    b.Property<Guid?>("PipelineId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("StartedAt")
@@ -9722,9 +9722,7 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 {
                     b.HasOne("NomNomzBot.Domain.Commands.Entities.Pipeline", "Pipeline")
                         .WithMany()
-                        .HasForeignKey("PipelineId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("PipelineId");
 
                     b.Navigation("Pipeline");
                 });

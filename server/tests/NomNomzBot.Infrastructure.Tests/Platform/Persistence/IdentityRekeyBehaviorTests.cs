@@ -400,6 +400,9 @@ public sealed class IdentityRekeyBehaviorTests
         public Task<int> SaveChangesAsync(CancellationToken ct = default) =>
             inner.SaveChangesAsync(ct);
 
+        public Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry Entry(object entity) =>
+            inner.Entry(entity);
+
         // The resolver only reads Users/Channels; the remaining surface is unused here.
         public DbSet<ChannelModerator> ChannelModerators => throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Platform.Entities.Service> Services =>

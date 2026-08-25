@@ -220,4 +220,8 @@ public interface IApplicationDbContext
     DbSet<NomNomzBot.Domain.Marketplace.Entities.InstalledBundle> InstalledBundles { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Exposes the tracked entry for an entity — used to detach a rejected write (e.g. a
+    /// failed insert) so it cannot poison a later SaveChangesAsync on the same shared scope.</summary>
+    Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry Entry(object entity);
 }

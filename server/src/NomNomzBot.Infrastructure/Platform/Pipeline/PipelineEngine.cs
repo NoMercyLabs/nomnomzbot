@@ -1505,7 +1505,7 @@ public sealed class PipelineEngine : IPipelineEngine
 
         PipelineExecution row = new()
         {
-            PipelineId = request.PipelineId ?? Guid.Empty,
+            PipelineId = request.PipelineId,
             BroadcasterId = request.BroadcasterId,
             TriggeredByUserId = triggeredByUserId,
             TriggerKind = request.PipelineId.HasValue ? "pipeline" : "inline_json",
@@ -1527,7 +1527,11 @@ public sealed class PipelineEngine : IPipelineEngine
         catch (Exception ex)
         {
             // Telemetry persistence must never take down command execution — the run already
-            // completed (or failed) and its result has already been returned to the caller.
+            // completed (or failed) and its result has already been returned to the caller. The
+            // rejected row must also be DETACHED: it would otherwise stay tracked on this shared
+            // scoped DbContext and poison every subsequent SaveChangesAsync on the same scope
+            // (e.g. ChatMessagePersistenceHandler saving on the same request).
+            _db.Entry(row).State = EntityState.Detached;
             _logger.LogError(
                 ex,
                 "Failed to persist PipelineExecution for pipeline {PipelineId} in channel {BroadcasterId}",

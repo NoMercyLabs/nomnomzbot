@@ -10,6 +10,7 @@
 
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Pipeline;
@@ -36,7 +37,10 @@ public sealed class PipelineExecutionPersistenceTests : IDisposable
 
     public void Dispose() => _database.Dispose();
 
-    private PipelineEngine CreateEngine(EventStoreTestDbContext db, FakeTimeProvider time)
+    private PipelineEngine CreateEngine(
+        NomNomzBot.Application.Abstractions.Persistence.IApplicationDbContext db,
+        FakeTimeProvider time
+    )
     {
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
         registry.Get(Arg.Any<Guid>()).Returns((ChannelContext?)null);
@@ -143,7 +147,7 @@ public sealed class PipelineExecutionPersistenceTests : IDisposable
         seedDb.PipelineExecutions.Add(
             new()
             {
-                PipelineId = Guid.Empty,
+                PipelineId = null,
                 BroadcasterId = TestChannel,
                 TriggerKind = "inline_json",
                 Status = "completed",
@@ -153,7 +157,7 @@ public sealed class PipelineExecutionPersistenceTests : IDisposable
         seedDb.PipelineExecutions.Add(
             new()
             {
-                PipelineId = Guid.Empty,
+                PipelineId = null,
                 BroadcasterId = TestChannel,
                 TriggerKind = "inline_json",
                 Status = "failed",
@@ -196,7 +200,7 @@ public sealed class PipelineExecutionPersistenceTests : IDisposable
             seedDb.PipelineExecutions.Add(
                 new()
                 {
-                    PipelineId = Guid.Empty,
+                    PipelineId = null,
                     BroadcasterId = TestChannel,
                     TriggerKind = "inline_json",
                     Status = "failed",
@@ -223,5 +227,170 @@ public sealed class PipelineExecutionPersistenceTests : IDisposable
 
         // 501 seeded + 1 just-persisted run = 502, capped down to the 500-row ceiling.
         total.Should().Be(500);
+    }
+
+    [Fact]
+    public async Task InlineRun_PersistsNullPipelineIdWithInlineTriggerKind_AndIsReadableBack()
+    {
+        using EventStoreTestDbContext db = _database.NewContext();
+        FakeTimeProvider time = new(DateTimeOffset.Parse("2026-08-25T12:00:00Z"));
+        PipelineEngine engine = CreateEngine(db, time);
+
+        string json = /*lang=json*/
+            """{"steps":[{"action":{"type":"stop","parameters":{}}}]}""";
+
+        // A builtin/inline run has no Pipeline row backing it — request.PipelineId is null.
+        await engine.ExecuteAsync(BuildRequest(json, pipelineId: null));
+
+        using EventStoreTestDbContext verify = _database.NewContext();
+        PipelineExecution row = await verify.PipelineExecutions.SingleAsync(e =>
+            e.BroadcasterId == TestChannel
+        );
+
+        row.PipelineId.Should().BeNull();
+        row.TriggerKind.Should().Be("inline_json");
+    }
+
+    [Fact]
+    public async Task PipelineBackedRun_PersistsItsRealPipelineId()
+    {
+        // request.PipelineId.HasValue makes the engine load steps from the DB (LoadStepRowsAsync)
+        // rather than PipelineJson, so this needs a harness that actually backs Pipelines +
+        // PipelineSteps — EventStoreTestDbContext's accessors for those throw NotSupportedException.
+        using PipelineTreeExecutionTestDbContext db = PipelineTreeExecutionTestDbContext.New();
+        Guid pipelineId = Guid.NewGuid();
+
+        db.Pipelines.Add(
+            new()
+            {
+                Id = pipelineId,
+                BroadcasterId = TestChannel,
+                Name = "greeter",
+            }
+        );
+        db.PipelineSteps.Add(
+            new()
+            {
+                Id = Guid.NewGuid(),
+                PipelineId = pipelineId,
+                BroadcasterId = TestChannel,
+                Order = 0,
+                ActionType = "stop",
+                ConfigJson = "{}",
+                IsEnabled = true,
+            }
+        );
+        await db.SaveChangesAsync();
+
+        FakeTimeProvider time = new(DateTimeOffset.Parse("2026-08-25T12:00:00Z"));
+        PipelineEngine engine = CreateEngine(db, time);
+
+        await engine.ExecuteAsync(BuildRequest("{}", pipelineId: pipelineId));
+
+        PipelineExecution row = await db.PipelineExecutions.SingleAsync(e =>
+            e.BroadcasterId == TestChannel
+        );
+
+        row.PipelineId.Should().Be(pipelineId);
+        row.TriggerKind.Should().Be("pipeline");
+    }
+
+    /// <summary>
+    /// Simulates the live-observed 23503 FK violation (a stray non-null/invalid PipelineId
+    /// reaching the insert) by throwing whenever a tracked <see cref="PipelineExecution"/> Added
+    /// entry is present in the batch — mirroring a persistent constraint violation that keeps
+    /// failing on every SaveChangesAsync until the offending entry is untracked.
+    /// </summary>
+    private sealed class PoisonPipelineExecutionInterceptor : SaveChangesInterceptor
+    {
+        public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
+            DbContextEventData eventData,
+            InterceptionResult<int> result,
+            CancellationToken cancellationToken = default
+        )
+        {
+            bool hasPoisonedInsert =
+                eventData
+                    .Context?.ChangeTracker.Entries<PipelineExecution>()
+                    .Any(e => e.State == EntityState.Added)
+                ?? false;
+
+            if (hasPoisonedInsert)
+                throw new DbUpdateException(
+                    "Simulated FK_PipelineExecutions_Pipelines_PipelineId violation"
+                );
+
+            return base.SavingChangesAsync(eventData, result, cancellationToken);
+        }
+    }
+
+    [Fact]
+    public async Task PersistFailure_DetachesRejectedRow_SoSubsequentSaveOnSameContextSucceeds()
+    {
+        using EventStoreTestDbContext db = _database.NewContext([
+            new PoisonPipelineExecutionInterceptor(),
+        ]);
+        FakeTimeProvider time = new(DateTimeOffset.Parse("2026-08-25T12:00:00Z"));
+        PipelineEngine engine = CreateEngine(db, time);
+
+        string json = /*lang=json*/
+            """{"steps":[{"action":{"type":"stop","parameters":{}}}]}""";
+
+        // The persistence save is poisoned and must be swallowed (never propagate to the caller).
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(json));
+        result.Outcome.Should().Be(PipelineOutcome.Stopped);
+
+        // A subsequent, unrelated write on the SAME (still poisoned) DbContext — mirroring
+        // ChatMessagePersistenceHandler's save on the same scoped context — must still succeed.
+        // Without the detach in PersistExecutionAsync's catch, the rejected row stays tracked as
+        // Added and re-attempts (and re-fails) on every later SaveChangesAsync on this scope.
+        db.TenantSequences.Add(
+            new()
+            {
+                BroadcasterId = TestChannel,
+                SequenceName = "unrelated_counter",
+                NextValue = 1,
+                UpdatedAt = time.GetUtcNow().UtcDateTime,
+            }
+        );
+
+        Func<Task> subsequentSave = async () => await db.SaveChangesAsync();
+        await subsequentSave.Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task WithoutDetach_RejectedRowKeepsPoisoningSubsequentSavesOnSameContext()
+    {
+        // Proves the mechanism the fix guards against: an Added entry left tracked after a failed
+        // SaveChangesAsync re-attempts (and re-fails) on every later save on the same DbContext.
+        using EventStoreTestDbContext db = _database.NewContext([
+            new PoisonPipelineExecutionInterceptor(),
+        ]);
+
+        db.PipelineExecutions.Add(
+            new()
+            {
+                PipelineId = null,
+                BroadcasterId = TestChannel,
+                TriggerKind = "inline_json",
+                Status = "completed",
+                StartedAt = DateTime.UtcNow,
+            }
+        );
+
+        await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
+
+        // Deliberately NOT detaching the rejected entry here.
+        db.TenantSequences.Add(
+            new()
+            {
+                BroadcasterId = TestChannel,
+                SequenceName = "unrelated_counter",
+                NextValue = 1,
+                UpdatedAt = DateTime.UtcNow,
+            }
+        );
+
+        await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
     }
 }

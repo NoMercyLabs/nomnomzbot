@@ -13,7 +13,7 @@ namespace NomNomzBot.Application.Commands.Dtos;
 /// <summary>Lightweight run summary for the execution-history list view (H.4 PipelineExecution).</summary>
 public sealed record PipelineExecutionSummaryDto(
     long Id,
-    Guid PipelineId,
+    Guid? PipelineId,
     string TriggerKind,
     string Status,
     int HostCallCount,
@@ -35,7 +35,7 @@ public sealed record PipelineExecutionStepLogDto(
 /// <summary>Full run detail — the summary fields plus its ordered per-step logs.</summary>
 public sealed record PipelineExecutionDetailDto(
     long Id,
-    Guid PipelineId,
+    Guid? PipelineId,
     string TriggerKind,
     string Status,
     int HostCallCount,

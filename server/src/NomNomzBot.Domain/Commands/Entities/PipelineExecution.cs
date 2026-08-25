@@ -22,7 +22,8 @@ public class PipelineExecution : BaseEntity, ITenantScoped
 {
     public long Id { get; set; }
 
-    public Guid PipelineId { get; set; }
+    /// <summary>Null for a builtin/inline run that has no backing Pipeline row (see TriggerKind).</summary>
+    public Guid? PipelineId { get; set; }
 
     public Guid BroadcasterId { get; set; }
 
@@ -53,5 +54,5 @@ public class PipelineExecution : BaseEntity, ITenantScoped
     public DateTime? CompletedAt { get; set; }
 
     [ForeignKey(nameof(PipelineId))]
-    public virtual Pipeline Pipeline { get; set; } = null!;
+    public virtual Pipeline? Pipeline { get; set; }
 }

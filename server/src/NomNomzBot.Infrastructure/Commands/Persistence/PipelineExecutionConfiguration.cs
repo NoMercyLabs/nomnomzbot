@@ -21,7 +21,6 @@ public class PipelineExecutionConfiguration : IEntityTypeConfiguration<PipelineE
         builder.HasKey(e => e.Id);
         builder.Property(e => e.Id).ValueGeneratedOnAdd();
 
-        builder.Property(e => e.PipelineId).IsRequired();
         builder.Property(e => e.BroadcasterId).IsRequired();
         builder.Property(e => e.TriggerKind).IsRequired().HasMaxLength(40);
         builder.Property(e => e.Status).IsRequired().HasMaxLength(20);
