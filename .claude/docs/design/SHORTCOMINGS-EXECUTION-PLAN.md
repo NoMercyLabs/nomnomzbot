@@ -141,10 +141,6 @@ stable — without dropping the planned requirements behind them.
   review without its purpose text, its effect text and — where it destroys or disables — its counted
   blast radius; a guard test fails on a control that ships without them.
 
-- **S-PIPE-TREE-d1** `break` / `continue` inside loops — innermost loop only; must not be swallowed by an
-  enclosing `try`; outside a loop it is an honest recorded outcome, never a silent abort. No new entity,
-  no migration, no test-fake churn. IN PROGRESS.
-
 - **S-PIPE-TREE-d2b** (scope narrowings the sub-pipeline slice reported honestly; 5d82f69c shipped the
   core: args in, `return_value` out, `CallDepth` spanning pipeline boundaries, tenant-scoped, try-catchable,
   4108 tests green) TWO REAL LIMITATIONS REMAIN:
