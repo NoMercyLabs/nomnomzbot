@@ -161,6 +161,24 @@ public sealed class OverlaySdkController : ControllerBase
             el.play().catch(function (e) { report("audio playback blocked: " + ((e && e.message) || e)); });
           }
 
+          // TTS plays one utterance at a time — overlapping voices are unintelligible, and a busy chat can
+          // dispatch several within a second.
+          var ttsQueue = [];
+          function playNextTts() {
+            var el = ttsQueue[0];
+            if (!el) return;
+            var advance = function () {
+              ttsQueue.shift();
+              playNextTts();
+            };
+            el.addEventListener("ended", advance);
+            el.addEventListener("error", advance);
+            el.play().catch(function (e) {
+              report("tts playback blocked: " + ((e && e.message) || e));
+              advance();
+            });
+          }
+
           function stopSound(payload) {
             if (payload.all) {
               Object.keys(soundHandles).forEach(function (h) { soundHandles[h].pause(); delete soundHandles[h]; });
@@ -212,6 +230,18 @@ public sealed class OverlaySdkController : ControllerBase
           }
 
           function speakTts(payload) {
+            // Server-synthesised audio is the NORMAL path and must win. OBS captures a browser source's
+            // media elements but NOT speechSynthesis, which plays straight out of the system audio device —
+            // so speaking through the browser voice is audible to the streamer and silent on stream.
+            if (payload.audioUrl) {
+              var tts = document.createElement("audio");
+              tts.src = payload.audioUrl;
+              var vol = (payload.options || {}).volume;
+              tts.volume = vol == null ? 1 : Math.max(0, Math.min(1, Number(vol)));
+              ttsQueue.push(tts);
+              if (ttsQueue.length === 1) playNextTts();
+              return;
+            }
             var synth = window.speechSynthesis;
             if (!synth) { report("speechSynthesis unavailable — cannot render client_edge TTS"); return; }
             var utter = new SpeechSynthesisUtterance(payload.text);

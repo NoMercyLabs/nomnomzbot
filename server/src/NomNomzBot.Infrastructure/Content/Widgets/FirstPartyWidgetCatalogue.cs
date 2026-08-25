@@ -201,6 +201,15 @@ public static class FirstPartyWidgetCatalogue
             DefaultEventSubscriptions: ["sr_queue"]
         ),
         new(
+            Key: "tts_audio",
+            Name: "TTS Audio",
+            Description: "The browser source TTS plays out of. Add it once, size it 1x1, and leave it — keep "
+                + "\"Control audio via OBS\" ON or the stream will not hear it. Renders nothing; the optional "
+                + "indicator is only for confirming the source is alive during setup.",
+            DefaultSettings: new() { ["showIndicator"] = false, ["accentColor"] = "#9146ff" },
+            DefaultEventSubscriptions: ["tts_speak"]
+        ),
+        new(
             Key: "tts_caption",
             Name: "TTS Caption",
             Description: "A speaking indicator with a live caption for TTS playback — animated voice bars, the "

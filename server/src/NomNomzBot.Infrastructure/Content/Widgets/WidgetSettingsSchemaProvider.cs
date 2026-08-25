@@ -248,6 +248,11 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
                 Bool(d, "showDuration", "Show duration", Content),
                 Accent(d),
             ],
+            "tts_audio" =>
+            [
+                Bool(d, "showIndicator", "Show a speaking dot (setup only)", Content),
+                Accent(d),
+            ],
             "tts_caption" =>
             [
                 Bool(d, "showText", "Show caption text", Content),
