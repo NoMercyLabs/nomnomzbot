@@ -145,11 +145,11 @@ public sealed class ViewerDataActionsTests
     public async Task SetViewerData_WritesForTheTriggeringViewer_AndTemplateResolvesTheValue()
     {
         SetViewerDataAction sut = new(_service, _users, _db, _templates);
-        PipelineExecutionContext ctx = Context(vars: ("args.0", "DOOM"));
+        PipelineExecutionContext ctx = Context(vars: ("args.1", "DOOM"));
 
         ActionResult result = await sut.ExecuteAsync(
             ctx,
-            Action("set_viewer_data", ("key", "favorite_game"), ("value", "{args.0}"))
+            Action("set_viewer_data", ("key", "favorite_game"), ("value", "{args.1}"))
         );
 
         result.Succeeded.Should().BeTrue();

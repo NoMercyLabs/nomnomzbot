@@ -195,7 +195,7 @@ public sealed class PostQuoteActionTests
         // No config number, but the triggering "!quote 2" put "2" in the pipeline args — the step must post #2,
         // not a random quote (the latent bug: the chat argument was dropped).
         PipelineExecutionContext ctx = Context(channel);
-        ctx.Variables["args.0"] = "2";
+        ctx.Variables["args.1"] = "2";
 
         ActionResult result = await action.ExecuteAsync(ctx, Action(null));
 

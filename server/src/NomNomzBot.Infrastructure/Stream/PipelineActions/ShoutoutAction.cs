@@ -49,7 +49,7 @@ namespace NomNomzBot.Infrastructure.Stream.PipelineActions;
 /// Usage example (static template):
 ///   { "type": "shoutout", "user_id": "{user.id}", "cooldown_minutes": 60, "tts": true }
 /// Usage example (varied pool — pair with a preceding pick_from_list step writing into {line}):
-///   { "type": "shoutout", "user_id": "{args.0}", "template": "{line}", "tts": true }
+///   { "type": "shoutout", "user_id": "{args.1}", "template": "{line}", "tts": true }
 /// </summary>
 public sealed class ShoutoutAction : ICommandAction
 {

@@ -28,12 +28,12 @@ namespace NomNomzBot.Infrastructure.Identity.PipelineActions;
 ///
 /// Parameters:
 ///   username — Twitch login/display name to set the pronoun for (required; a leading @ is tolerated).
-///              Supports {variable} substitution — e.g. "{args.0}".
+///              Supports {variable} substitution — e.g. "{args.1}".
 ///   pronoun  — pronoun catalog name (e.g. "he/him", "she/her", "they/them"), or "clear"/"reset" to remove
 ///              the override and return to automatic resolution. Supports {variable} substitution.
 ///
 /// Usage example:
-///   { "type": "set_pronoun", "username": "{args.0}", "pronoun": "{args.1}" }
+///   { "type": "set_pronoun", "username": "{args.1}", "pronoun": "{args.1}" }
 /// </summary>
 public sealed class SetPronounAction : ICommandAction
 {

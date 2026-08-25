@@ -201,10 +201,10 @@ public class ComparisonConditionTests
     {
         ComparisonCondition condition = new(CreateResolver());
         PipelineExecutionContext ctx = BuildCtx();
-        ctx.Variables["args.0"] = "raid";
+        ctx.Variables["args.1"] = "raid";
         ctx.Variables["target"] = "raid";
         ConditionDefinition def = MakeCond(
-            """{"type":"comparison","left":"{args.0}","operator":"eq","right":"{target}"}"""
+            """{"type":"comparison","left":"{args.1}","operator":"eq","right":"{target}"}"""
         );
 
         bool result = await condition.EvaluateAsync(ctx, def);

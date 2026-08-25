@@ -65,7 +65,7 @@ public sealed class PostQuoteAction : ICommandAction
     /// <summary>
     /// Resolves which quote to post. A static <c>number</c> config value wins (a quote-of-the-day timer). With no
     /// config number, the triggering chat argument is honored — so a <c>!quote 5</c> command whose pipeline has a
-    /// <c>post_quote</c> step posts quote #5 (the arg lands in <c>ctx.Variables["args.0"]</c>). Neither present
+    /// <c>post_quote</c> step posts quote #5 (the arg lands in <c>ctx.Variables["args.1"]</c>). Neither present
     /// (or a non-numeric value) means "random".
     /// </summary>
     private static int? ReadNumber(PipelineExecutionContext ctx, ActionDefinition action)
@@ -79,7 +79,7 @@ public sealed class PostQuoteAction : ICommandAction
             return configured;
 
         if (
-            ctx.Variables.TryGetValue("args.0", out string? arg)
+            ctx.Variables.TryGetValue("args.1", out string? arg)
             && int.TryParse(arg, out int fromArg)
         )
             return fromArg;

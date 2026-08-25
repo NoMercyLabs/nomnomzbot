@@ -1265,8 +1265,13 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             ["args.count"] = argParts.Length.ToString(),
         };
 
+        // ONE-BASED: {args.1} is the first argument. The sub-pipeline path (run_pipeline) has always
+        // seeded 1-based, and every action's documented example says {args.1}, but the chat path seeded
+        // zero-based — so a command reading {args.1} silently got the SECOND word, and one written
+        // against the zero index broke the moment the same pipeline was called as a sub-pipeline.
+        // !permit @user and the raid flow's target both resolved to nothing. One convention, both paths.
         for (int i = 0; i < argParts.Length; i++)
-            vars[$"args.{i}"] = argParts[i];
+            vars[$"args.{i + 1}"] = argParts[i];
 
         return vars;
     }

@@ -17,14 +17,14 @@ namespace NomNomzBot.Infrastructure.Platform.Pipeline.CoreActions;
 /// <summary>
 /// Condition: compare two operands. Both operands are resolved as templates first
 /// (the same <see cref="ITemplateResolver"/> path <c>send_message</c> uses), so
-/// variables such as <c>{count.wins}</c>, <c>{args.0}</c> work as either side.
+/// variables such as <c>{count.wins}</c>, <c>{args.1}</c> work as either side.
 /// Numeric comparison is used when both resolved operands parse as numbers
 /// (invariant culture); otherwise the comparison falls back to a case-insensitive
 /// string comparison. <c>contains</c>/<c>starts_with</c>/<c>ends_with</c> are always
 /// string operations.
 ///
 /// Usage: { "type": "comparison", "left": "{count.wins}", "operator": "gt", "right": "10" }
-///        { "type": "comparison", "left": "{args.0}", "operator": "contains", "right": "raid" }
+///        { "type": "comparison", "left": "{args.1}", "operator": "contains", "right": "raid" }
 ///
 /// Supported operators (case-insensitive, symbolic and word forms both accepted):
 ///   eq / ==, ne / !=, gt / &gt;, lt / &lt;, gte / &gt;=, lte / &lt;=,
