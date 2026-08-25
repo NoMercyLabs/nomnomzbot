@@ -36,6 +36,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.LineChart
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
@@ -113,6 +114,7 @@ import nomnomzbot.composeapp.generated.resources.analytics_streams_label
 import nomnomzbot.composeapp.generated.resources.analytics_streams_live
 import nomnomzbot.composeapp.generated.resources.analytics_streams_picker
 import nomnomzbot.composeapp.generated.resources.analytics_top_viewers_empty
+import nomnomzbot.composeapp.generated.resources.analytics_viewer_row_type
 import nomnomzbot.composeapp.generated.resources.analytics_top_viewers_rank
 import nomnomzbot.composeapp.generated.resources.analytics_top_viewers_title
 import nomnomzbot.composeapp.generated.resources.analytics_viewer_back
@@ -605,8 +607,15 @@ private fun TopViewersSection(topViewers: List<TopViewerEntry>) {
                             color = tokens.mutedForeground,
                             modifier = Modifier.width(spacing.s8),
                         )
+                        val entryDisplayName: String =
+                            resolveRowLabel(
+                                primary = entry.displayName,
+                                secondary = entry.viewerUserId,
+                                typeLabel = stringResource(Res.string.analytics_viewer_row_type),
+                                discriminatorSource = entry.viewerUserId,
+                            )
                         Text(
-                            text = entry.displayName ?: entry.viewerUserId,
+                            text = entryDisplayName,
                             style = typography.sm,
                             color = tokens.cardForeground,
                             modifier = Modifier.weight(1f),
@@ -868,8 +877,15 @@ private fun ViewerDetailCard(
                 TextButton(onClick = onBack) {
                     Text(text = stringResource(Res.string.analytics_viewer_back), color = tokens.primary, maxLines = 1)
                 }
+                val detailDisplayName: String =
+                    resolveRowLabel(
+                        primary = detail.displayName,
+                        secondary = detail.viewerUserId,
+                        typeLabel = stringResource(Res.string.analytics_viewer_row_type),
+                        discriminatorSource = detail.viewerUserId,
+                    )
                 Text(
-                    text = detail.displayName,
+                    text = detailDisplayName,
                     style = typography.base.copy(fontWeight = FontWeight.SemiBold),
                     color = tokens.cardForeground,
                     modifier = Modifier.weight(1f),

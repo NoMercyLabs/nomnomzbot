@@ -48,6 +48,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.RevealableSecretField
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.component.TabsList
 import bot.nomnomz.dashboard.core.designsystem.component.TabsTrigger
@@ -92,6 +93,10 @@ import nomnomzbot.composeapp.generated.resources.bundles_import_choose
 import nomnomzbot.composeapp.generated.resources.bundles_import_items_label
 import nomnomzbot.composeapp.generated.resources.bundles_import_issues_label
 import nomnomzbot.composeapp.generated.resources.bundles_import_note
+import nomnomzbot.composeapp.generated.resources.bundles_installed_row_type
+import nomnomzbot.composeapp.generated.resources.bundles_item_row_type
+import nomnomzbot.composeapp.generated.resources.bundles_manifest_row_type
+import nomnomzbot.composeapp.generated.resources.bundles_marketplace_row_type
 import nomnomzbot.composeapp.generated.resources.bundles_import_policy_label
 import nomnomzbot.composeapp.generated.resources.bundles_import_version
 import nomnomzbot.composeapp.generated.resources.bundles_install_button
@@ -405,8 +410,15 @@ private fun ImportTab(
                     modifier = Modifier.padding(spacing.s4),
                     verticalArrangement = Arrangement.spacedBy(spacing.s3),
                 ) {
+                    val manifestDisplayName: String =
+                        resolveRowLabel(
+                            primary = inspection.manifest.metadata.name,
+                            secondary = inspection.manifest.metadata.author,
+                            typeLabel = stringResource(Res.string.bundles_manifest_row_type),
+                            discriminatorSource = inspection.manifest.metadata.version,
+                        )
                     Text(
-                        text = inspection.manifest.metadata.name,
+                        text = manifestDisplayName,
                         style = typography.base,
                         color = tokens.cardForeground,
                     )
@@ -435,8 +447,15 @@ private fun ImportTab(
                                 horizontalArrangement = Arrangement.spacedBy(spacing.s2),
                             ) {
                                 Badge(variant = BadgeVariant.Outline) { Text(text = item.type, style = typography.xs) }
+                                val manifestItemDisplayName: String =
+                                    resolveRowLabel(
+                                        primary = item.name,
+                                        secondary = item.type,
+                                        typeLabel = stringResource(Res.string.bundles_item_row_type),
+                                        discriminatorSource = item.path,
+                                    )
                                 Text(
-                                    text = item.name,
+                                    text = manifestItemDisplayName,
                                     style = typography.sm,
                                     color = tokens.cardForeground,
                                     maxLines = 1,
@@ -528,9 +547,16 @@ private fun InstalledTab(
     }
 
     pendingUninstall?.let { bundle ->
+        val uninstallDisplayName: String =
+            resolveRowLabel(
+                primary = bundle.name,
+                secondary = bundle.version,
+                typeLabel = stringResource(Res.string.bundles_installed_row_type),
+                discriminatorSource = bundle.id,
+            )
         ConfirmDialog(
             title = stringResource(Res.string.bundles_uninstall_title),
-            message = stringResource(Res.string.bundles_uninstall_message, bundle.name),
+            message = stringResource(Res.string.bundles_uninstall_message, uninstallDisplayName),
             confirmLabel = stringResource(Res.string.bundles_uninstall_confirm),
             dismissLabel = stringResource(Res.string.bundles_cancel),
             destructive = true,
@@ -561,8 +587,15 @@ private fun InstalledRow(bundle: InstalledBundle, manage: ManageDecision, onUnin
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(spacing.s2),
             ) {
+                val bundleDisplayName: String =
+                    resolveRowLabel(
+                        primary = bundle.name,
+                        secondary = bundle.version,
+                        typeLabel = stringResource(Res.string.bundles_installed_row_type),
+                        discriminatorSource = bundle.id,
+                    )
                 Text(
-                    text = bundle.name,
+                    text = bundleDisplayName,
                     style = typography.base,
                     color = tokens.cardForeground,
                     maxLines = 1,
@@ -692,8 +725,15 @@ private fun MarketplaceRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
+            val marketplaceDisplayName: String =
+                resolveRowLabel(
+                    primary = item.name,
+                    secondary = item.author,
+                    typeLabel = stringResource(Res.string.bundles_marketplace_row_type),
+                    discriminatorSource = item.itemId,
+                )
             Text(
-                text = item.name,
+                text = marketplaceDisplayName,
                 style = typography.base,
                 color = tokens.cardForeground,
                 maxLines = 1,

@@ -48,6 +48,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Sheet
 import bot.nomnomz.dashboard.core.designsystem.component.Spinner
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -87,6 +88,7 @@ import nomnomzbot.composeapp.generated.resources.admin_tenant_suspend
 import nomnomzbot.composeapp.generated.resources.admin_tenant_suspend_desc
 import nomnomzbot.composeapp.generated.resources.admin_tenant_suspend_title
 import nomnomzbot.composeapp.generated.resources.admin_tenant_suspended_banner
+import nomnomzbot.composeapp.generated.resources.admin_tenant_row_type
 import nomnomzbot.composeapp.generated.resources.admin_tenant_tier
 import nomnomzbot.composeapp.generated.resources.admin_tenant_view
 import org.jetbrains.compose.resources.stringResource
@@ -283,7 +285,13 @@ private fun TenantRow(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-                Text(text = tenant.name, style = typography.sm, color = tokens.cardForeground)
+                val tenantDisplayName: String =
+                    resolveRowLabel(
+                        primary = tenant.name,
+                        typeLabel = stringResource(Res.string.admin_tenant_row_type),
+                        discriminatorSource = tenant.id,
+                    )
+                Text(text = tenantDisplayName, style = typography.sm, color = tokens.cardForeground)
                 Text(text = stringResource(Res.string.admin_tenant_tier, tenant.billingTierKey), style = typography.xs, color = tokens.mutedForeground)
             }
             if (isSuspended) {
@@ -320,7 +328,13 @@ private fun TenantDetailDrawer(
     Sheet(open = true, onDismissRequest = onDismiss) {
         Column(modifier = Modifier.fillMaxWidth().padding(spacing.s2), verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
             Text(text = stringResource(Res.string.admin_tenant_detail_title), style = typography.lg, color = tokens.foreground)
-            Text(text = detail.name, style = typography.base, color = tokens.foreground)
+            val detailDisplayName: String =
+                resolveRowLabel(
+                    primary = detail.name,
+                    typeLabel = stringResource(Res.string.admin_tenant_row_type),
+                    discriminatorSource = detail.id,
+                )
+            Text(text = detailDisplayName, style = typography.base, color = tokens.foreground)
 
             if (isSuspended) {
                 ActionErrorBanner(message = stringResource(Res.string.admin_tenant_suspended_banner) + (detail.suspendedReason?.let { ": $it" } ?: ""))

@@ -45,6 +45,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.connection.ConnectionProfile
 import bot.nomnomz.dashboard.core.connection.SavedConnection
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.network.LoginProvider
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
@@ -75,7 +76,9 @@ import nomnomzbot.composeapp.generated.resources.connect_error_login_failed
 import nomnomzbot.composeapp.generated.resources.connect_error_redirect_timeout
 import nomnomzbot.composeapp.generated.resources.connect_modal_heading_first_login
 import nomnomzbot.composeapp.generated.resources.connect_redirect_cancel
+import nomnomzbot.composeapp.generated.resources.connect_discovered_row_type
 import nomnomzbot.composeapp.generated.resources.connect_saved_active_label
+import nomnomzbot.composeapp.generated.resources.connect_saved_row_type
 import nomnomzbot.composeapp.generated.resources.connect_saved_add
 import nomnomzbot.composeapp.generated.resources.connect_saved_forget
 import nomnomzbot.composeapp.generated.resources.connect_saved_forget_cancel
@@ -434,7 +437,14 @@ private fun SavedConnectionRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s0_5)) {
-            Text(text = connection.label, style = typography.sm, color = tokens.cardForeground)
+            val connectionDisplayLabel: String =
+                resolveRowLabel(
+                    primary = connection.label,
+                    secondary = connection.baseUrl,
+                    typeLabel = stringResource(Res.string.connect_saved_row_type),
+                    discriminatorSource = connection.id,
+                )
+            Text(text = connectionDisplayLabel, style = typography.sm, color = tokens.cardForeground)
             Text(text = connection.baseUrl, style = typography.xs, color = tokens.mutedForeground)
             if (active) {
                 Text(
@@ -475,8 +485,15 @@ private fun DiscoveredRow(
                 .padding(horizontal = spacing.s3, vertical = spacing.s2),
         verticalArrangement = Arrangement.spacedBy(spacing.s0_5),
     ) {
+        val profileDisplayName: String =
+            resolveRowLabel(
+                primary = profile.displayName,
+                secondary = profile.baseUrl,
+                typeLabel = stringResource(Res.string.connect_discovered_row_type),
+                discriminatorSource = profile.id,
+            )
         Text(
-            text = profile.displayName,
+            text = profileDisplayName,
             style = typography.sm,
             color = tokens.cardForeground,
         )

@@ -46,6 +46,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
@@ -100,7 +101,9 @@ import nomnomzbot.composeapp.generated.resources.automation_paircode_instruction
 import nomnomzbot.composeapp.generated.resources.automation_paircode_title
 import nomnomzbot.composeapp.generated.resources.automation_pipelines_hint
 import nomnomzbot.composeapp.generated.resources.automation_pipelines_label
+import nomnomzbot.composeapp.generated.resources.automation_pipeline_row_type
 import nomnomzbot.composeapp.generated.resources.automation_prefix
+import nomnomzbot.composeapp.generated.resources.automation_token_row_type
 import nomnomzbot.composeapp.generated.resources.automation_retry
 import nomnomzbot.composeapp.generated.resources.automation_revoke
 import nomnomzbot.composeapp.generated.resources.automation_revoke_confirm
@@ -280,8 +283,15 @@ private fun TokenRow(
     ) {
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                val tokenDisplayName: String =
+                    resolveRowLabel(
+                        primary = token.name,
+                        secondary = token.tokenPrefix,
+                        typeLabel = stringResource(Res.string.automation_token_row_type),
+                        discriminatorSource = token.id,
+                    )
                 Text(
-                    text = token.name,
+                    text = tokenDisplayName,
                     style = typography.base,
                     color = if (revoked) tokens.mutedForeground else tokens.cardForeground,
                     maxLines = 1,
@@ -398,8 +408,14 @@ private fun CreateTokenDialog(
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
                         pipelines.forEach { pipeline ->
                             val selected: Boolean = pipeline.id in selectedPipelines.value
+                            val pipelineDisplayName: String =
+                                resolveRowLabel(
+                                    primary = pipeline.name,
+                                    typeLabel = stringResource(Res.string.automation_pipeline_row_type),
+                                    discriminatorSource = pipeline.id,
+                                )
                             ToggleChip(
-                                label = pipeline.name,
+                                label = pipelineDisplayName,
                                 selected = selected,
                                 onClick = {
                                     selectedPipelines.value =

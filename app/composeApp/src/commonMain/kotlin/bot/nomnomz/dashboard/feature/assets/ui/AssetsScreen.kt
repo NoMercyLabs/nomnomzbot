@@ -47,6 +47,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -62,6 +63,7 @@ import nomnomzbot.composeapp.generated.resources.assets_action_error
 import nomnomzbot.composeapp.generated.resources.assets_copied
 import nomnomzbot.composeapp.generated.resources.assets_copy_url
 import nomnomzbot.composeapp.generated.resources.assets_delete_action
+import nomnomzbot.composeapp.generated.resources.assets_row_type
 import nomnomzbot.composeapp.generated.resources.assets_delete_cancel
 import nomnomzbot.composeapp.generated.resources.assets_delete_confirm
 import nomnomzbot.composeapp.generated.resources.assets_delete_message
@@ -210,7 +212,14 @@ private fun AssetRow(
     val tokens = LocalTokens.current
     val typography = LocalTypography.current
 
-    val deleteLabel: String = stringResource(Res.string.assets_delete_action, asset.displayName)
+    val assetDisplayName: String =
+        resolveRowLabel(
+            primary = asset.displayName,
+            secondary = asset.name,
+            typeLabel = stringResource(Res.string.assets_row_type),
+            discriminatorSource = asset.id,
+        )
+    val deleteLabel: String = stringResource(Res.string.assets_delete_action, assetDisplayName)
 
     Row(
         modifier = Modifier
@@ -228,7 +237,7 @@ private fun AssetRow(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = asset.displayName,
+                    text = assetDisplayName,
                     style = typography.sm,
                     color = tokens.foreground,
                     maxLines = 1,
@@ -257,8 +266,9 @@ private fun AssetRow(
                 horizontalArrangement = Arrangement.spacedBy(spacing.s3),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                val assetSlug: String = asset.name
                 Text(
-                    text = asset.name,
+                    text = assetSlug,
                     style = typography.xs,
                     color = tokens.mutedForeground,
                     maxLines = 1,

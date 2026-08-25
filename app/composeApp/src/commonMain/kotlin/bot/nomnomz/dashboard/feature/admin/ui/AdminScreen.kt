@@ -35,6 +35,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.TabsList
 import bot.nomnomz.dashboard.core.designsystem.component.TabsTrigger
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -74,6 +75,9 @@ import nomnomzbot.composeapp.generated.resources.admin_health_unhealthy
 import nomnomzbot.composeapp.generated.resources.admin_channel_live
 import nomnomzbot.composeapp.generated.resources.admin_channel_offline
 import nomnomzbot.composeapp.generated.resources.admin_channel_plan
+import nomnomzbot.composeapp.generated.resources.admin_channel_row_type
+import nomnomzbot.composeapp.generated.resources.admin_service_row_type
+import nomnomzbot.composeapp.generated.resources.admin_user_row_type
 import nomnomzbot.composeapp.generated.resources.admin_event_log
 import nomnomzbot.composeapp.generated.resources.admin_flag_disabled
 import nomnomzbot.composeapp.generated.resources.admin_flag_enabled
@@ -344,7 +348,14 @@ private fun ChannelsTab(state: AdminState) {
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-                            Text(text = channel.displayName, style = typography.sm, color = tokens.cardForeground)
+                            val channelDisplayName: String =
+                                resolveRowLabel(
+                                    primary = channel.displayName,
+                                    secondary = channel.login,
+                                    typeLabel = stringResource(Res.string.admin_channel_row_type),
+                                    discriminatorSource = channel.id,
+                                )
+                            Text(text = channelDisplayName, style = typography.sm, color = tokens.cardForeground)
                             Text(
                                 text = stringResource(Res.string.admin_channel_plan, channel.plan),
                                 style = typography.xs,
@@ -390,7 +401,14 @@ private fun UsersTab(state: AdminState, controller: AdminController) {
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-                            Text(text = user.displayName, style = typography.sm, color = tokens.cardForeground)
+                            val userDisplayName: String =
+                                resolveRowLabel(
+                                    primary = user.displayName,
+                                    secondary = user.login,
+                                    typeLabel = stringResource(Res.string.admin_user_row_type),
+                                    discriminatorSource = user.id,
+                                )
+                            Text(text = userDisplayName, style = typography.sm, color = tokens.cardForeground)
                             Text(
                                 text = stringResource(Res.string.admin_user_role, user.role),
                                 style = typography.xs,
@@ -471,7 +489,14 @@ private fun SystemTab(state: AdminState) {
                                 .padding(horizontal = spacing.s4, vertical = spacing.s3),
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
-                            Text(text = svc.name, style = typography.sm, color = tokens.cardForeground)
+                            val svcDisplayName: String =
+                                resolveRowLabel(
+                                    primary = svc.name,
+                                    secondary = svc.status,
+                                    typeLabel = stringResource(Res.string.admin_service_row_type),
+                                    discriminatorSource = svc.status,
+                                )
+                            Text(text = svcDisplayName, style = typography.sm, color = tokens.cardForeground)
                             Text(
                                 text = when (svc.status.lowercase()) {
                                     "ok", "healthy" -> stringResource(Res.string.admin_health_ok)
@@ -503,7 +528,14 @@ private fun SystemTab(state: AdminState) {
                             .padding(horizontal = spacing.s4, vertical = spacing.s3),
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        Text(text = svc.name, style = typography.sm, color = tokens.cardForeground)
+                        val healthSvcDisplayName: String =
+                            resolveRowLabel(
+                                primary = svc.name,
+                                secondary = svc.status,
+                                typeLabel = stringResource(Res.string.admin_service_row_type),
+                                discriminatorSource = svc.status,
+                            )
+                        Text(text = healthSvcDisplayName, style = typography.sm, color = tokens.cardForeground)
                         Text(
                             text = when (svc.status.lowercase()) {
                                 "ok", "healthy" -> stringResource(Res.string.admin_health_ok)

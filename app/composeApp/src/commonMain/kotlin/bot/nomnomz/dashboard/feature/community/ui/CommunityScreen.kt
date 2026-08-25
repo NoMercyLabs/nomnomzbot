@@ -65,6 +65,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Spinner
 import bot.nomnomz.dashboard.core.designsystem.component.TabsList
 import bot.nomnomz.dashboard.core.designsystem.component.TabsTrigger
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -84,6 +85,7 @@ import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.shell_nav_community
 import nomnomzbot.composeapp.generated.resources.community_action_error
+import nomnomzbot.composeapp.generated.resources.community_chatter_row_type
 import nomnomzbot.composeapp.generated.resources.community_data_add
 import nomnomzbot.composeapp.generated.resources.community_data_delete
 import nomnomzbot.composeapp.generated.resources.community_data_delete_confirm
@@ -419,8 +421,15 @@ private fun MemberList(
                                     style = typography.sm,
                                     color = tokens.mutedForeground,
                                 )
+                                val chatterDisplayName: String =
+                                    resolveRowLabel(
+                                        primary = entry.displayName,
+                                        secondary = entry.userId,
+                                        typeLabel = stringResource(Res.string.community_chatter_row_type),
+                                        discriminatorSource = entry.userId,
+                                    )
                                 Text(
-                                    text = entry.displayName.ifBlank { entry.userId },
+                                    text = chatterDisplayName,
                                     style = typography.sm,
                                     color = tokens.foreground,
                                     maxLines = 1,

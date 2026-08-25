@@ -81,6 +81,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.Textarea
 import bot.nomnomz.dashboard.core.designsystem.component.Tooltip
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -106,6 +107,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.chat_action_error
+import nomnomzbot.composeapp.generated.resources.chat_suggestion_row_type
 import nomnomzbot.composeapp.generated.resources.chat_announce_action
 import nomnomzbot.composeapp.generated.resources.chat_ban_action
 import nomnomzbot.composeapp.generated.resources.chat_ban_action_short
@@ -1123,7 +1125,13 @@ private fun EmoteSuggestions(
                         modifier = Modifier.size(24.dp),
                     )
                 }
-                Text(text = suggestion.label, style = typography.sm, color = tokens.cardForeground)
+                val suggestionDisplayLabel: String =
+                    resolveRowLabel(
+                        primary = suggestion.label,
+                        typeLabel = stringResource(Res.string.chat_suggestion_row_type),
+                        discriminatorSource = suggestion.insertText,
+                    )
+                Text(text = suggestionDisplayLabel, style = typography.sm, color = tokens.cardForeground)
             }
         }
     }

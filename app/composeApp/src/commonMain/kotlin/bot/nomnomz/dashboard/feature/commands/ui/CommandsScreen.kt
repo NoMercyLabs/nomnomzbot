@@ -83,6 +83,7 @@ import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.commands_action_error
 import nomnomzbot.composeapp.generated.resources.commands_builtins_section
+import nomnomzbot.composeapp.generated.resources.commands_builtin_row_type
 import nomnomzbot.composeapp.generated.resources.commands_builtins_toggle
 import nomnomzbot.composeapp.generated.resources.commands_delete_action
 import nomnomzbot.composeapp.generated.resources.commands_delete_cancel
@@ -324,11 +325,12 @@ private fun ManagedContent(
         if (builtins.isNotEmpty()) {
             TabsList {
                 CommandTab.entries.forEach { tab ->
+                    val tabLabel: String = tab.label()
                     TabsTrigger(
                         selected = activeTab == tab,
                         onClick = { activeTab = tab },
                     ) {
-                        Text(text = tab.label())
+                        Text(text = tabLabel)
                     }
                 }
             }
@@ -494,7 +496,13 @@ private fun BuiltinTableRow(
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
-    val toggleLabel: String = stringResource(Res.string.commands_builtins_toggle, builtin.name)
+    val builtinDisplayName: String =
+        resolveRowLabel(
+            primary = builtin.name,
+            typeLabel = stringResource(Res.string.commands_builtin_row_type),
+            discriminatorSource = builtin.builtinKey,
+        )
+    val toggleLabel: String = stringResource(Res.string.commands_builtins_toggle, builtinDisplayName)
 
     Row(
         modifier = Modifier
@@ -504,7 +512,7 @@ private fun BuiltinTableRow(
         horizontalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
         Text(
-            text = builtin.name,
+            text = builtinDisplayName,
             style = typography.sm.copy(fontFamily = FontFamily.Monospace),
             color = tokens.primary,
             modifier = Modifier.weight(1f),

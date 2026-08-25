@@ -54,6 +54,7 @@ import bot.nomnomz.dashboard.core.designsystem.icon.CloseGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.CodeGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.EditLineGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -70,6 +71,8 @@ import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.scripts_action_error
+import nomnomzbot.composeapp.generated.resources.scripts_effect_row_type
+import nomnomzbot.composeapp.generated.resources.scripts_row_type
 import nomnomzbot.composeapp.generated.resources.scripts_close_editor
 import nomnomzbot.composeapp.generated.resources.scripts_create_confirm
 import nomnomzbot.composeapp.generated.resources.scripts_create_description
@@ -150,13 +153,19 @@ fun CodeScriptsScreen(controller: CodeScriptsController, role: ManagementRole?) 
         // Page header is shared between list and editor — always visible.
         when (val current: CodeScriptsState = state) {
             is CodeScriptsState.Editing -> {
+                val editingDisplayName: String =
+                    resolveRowLabel(
+                        primary = current.detail.name,
+                        typeLabel = stringResource(Res.string.scripts_row_type),
+                        discriminatorSource = current.detail.id,
+                    )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-                        Text(text = current.detail.name, style = typography.xl2, color = tokens.foreground, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(text = editingDisplayName, style = typography.xl2, color = tokens.foreground, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         current.detail.description?.let {
                             Text(text = it, style = typography.sm, color = tokens.mutedForeground, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         }
@@ -180,7 +189,9 @@ fun CodeScriptsScreen(controller: CodeScriptsController, role: ManagementRole?) 
                     testResult = current.testResult,
                     testError = current.testError,
                     onSelectFile = { controller.selectFile(it) },
-                    onEditCode = { scope.launch { controller.editCode(current.detail.id, compiledMessage) } },
+                    onEditCode = {
+                        scope.launch { controller.editCode(current.detail.id, compiledMessage, editingDisplayName) }
+                    },
                     onTestRun = { variables, args -> scope.launch { controller.testRun(current.detail.id, variables, args) } },
                     onRollback = { versionId -> scope.launch { controller.rollback(current.detail.id, versionId) } },
                 )
@@ -228,9 +239,15 @@ fun CodeScriptsScreen(controller: CodeScriptsController, role: ManagementRole?) 
     }
 
     pendingDelete?.let { script ->
+        val deleteDisplayName: String =
+            resolveRowLabel(
+                primary = script.name,
+                typeLabel = stringResource(Res.string.scripts_row_type),
+                discriminatorSource = script.id,
+            )
         ConfirmDialog(
             title = stringResource(Res.string.scripts_delete_title),
-            message = stringResource(Res.string.scripts_delete_message, script.name),
+            message = stringResource(Res.string.scripts_delete_message, deleteDisplayName),
             confirmLabel = stringResource(Res.string.scripts_delete_confirm),
             dismissLabel = stringResource(Res.string.scripts_delete_cancel),
             destructive = true,
@@ -274,7 +291,13 @@ private fun ScriptRow(
             horizontalArrangement = Arrangement.spacedBy(spacing.s3),
         ) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-                Text(text = script.name, style = typography.base, color = tokens.cardForeground, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                val rowDisplayName: String =
+                    resolveRowLabel(
+                        primary = script.name,
+                        typeLabel = stringResource(Res.string.scripts_row_type),
+                        discriminatorSource = script.id,
+                    )
+                Text(text = rowDisplayName, style = typography.base, color = tokens.cardForeground, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
                     script.currentVersion?.let {
                         Text(
@@ -642,7 +665,13 @@ private fun TestRunResultView(result: TestRunResult) {
         } else {
             result.capturedEffects.forEach { effect ->
                 Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-                    Text(text = effect.name, style = typography.sm, color = tokens.foreground)
+                    val effectDisplayName: String =
+                        resolveRowLabel(
+                            primary = effect.name,
+                            typeLabel = stringResource(Res.string.scripts_effect_row_type),
+                            discriminatorSource = effect.argsPreview,
+                        )
+                    Text(text = effectDisplayName, style = typography.sm, color = tokens.foreground)
                     if (effect.argsPreview.isNotBlank()) {
                         Text(
                             text = effect.argsPreview,

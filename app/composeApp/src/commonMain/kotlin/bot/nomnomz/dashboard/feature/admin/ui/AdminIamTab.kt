@@ -44,6 +44,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.DialogTitle
 import bot.nomnomz.dashboard.core.designsystem.component.OutlinedButton
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -67,6 +68,7 @@ import nomnomzbot.composeapp.generated.resources.admin_iam_key_desc
 import nomnomzbot.composeapp.generated.resources.admin_iam_key_title
 import nomnomzbot.composeapp.generated.resources.admin_iam_no_assignments
 import nomnomzbot.composeapp.generated.resources.admin_iam_permission_keys
+import nomnomzbot.composeapp.generated.resources.admin_iam_principal_row_type
 import nomnomzbot.composeapp.generated.resources.admin_iam_principals
 import nomnomzbot.composeapp.generated.resources.admin_iam_promote
 import nomnomzbot.composeapp.generated.resources.admin_iam_promote_desc
@@ -75,6 +77,7 @@ import nomnomzbot.composeapp.generated.resources.admin_iam_reactivate
 import nomnomzbot.composeapp.generated.resources.admin_iam_reason
 import nomnomzbot.composeapp.generated.resources.admin_iam_revoke
 import nomnomzbot.composeapp.generated.resources.admin_iam_role
+import nomnomzbot.composeapp.generated.resources.admin_iam_role_row_type
 import nomnomzbot.composeapp.generated.resources.admin_iam_roles_empty
 import nomnomzbot.composeapp.generated.resources.admin_iam_roles_title
 import nomnomzbot.composeapp.generated.resources.admin_iam_service_desc
@@ -167,7 +170,13 @@ internal fun IamTab(state: AdminState, controller: AdminController) {
                             modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
                             verticalArrangement = Arrangement.spacedBy(spacing.s1),
                         ) {
-                            Text(text = role.name, style = typography.sm, color = tokens.cardForeground)
+                            val roleDisplayName: String =
+                                resolveRowLabel(
+                                    primary = role.name,
+                                    typeLabel = stringResource(Res.string.admin_iam_role_row_type),
+                                    discriminatorSource = role.id,
+                                )
+                            Text(text = roleDisplayName, style = typography.sm, color = tokens.cardForeground)
                             role.description?.takeIf { it.isNotBlank() }?.let {
                                 Text(text = it, style = typography.xs, color = tokens.mutedForeground)
                             }
@@ -257,7 +266,14 @@ private fun PrincipalRow(
         verticalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-            Text(text = principal.name, style = typography.sm, color = tokens.cardForeground, modifier = Modifier.weight(1f))
+            val principalDisplayName: String =
+                resolveRowLabel(
+                    primary = principal.name,
+                    secondary = principal.userId,
+                    typeLabel = stringResource(Res.string.admin_iam_principal_row_type),
+                    discriminatorSource = principal.id,
+                )
+            Text(text = principalDisplayName, style = typography.sm, color = tokens.cardForeground, modifier = Modifier.weight(1f))
             Badge(variant = BadgeVariant.Secondary) {
                 Text(
                     text = if (principal.principalType == 1) stringResource(Res.string.admin_iam_type_service)

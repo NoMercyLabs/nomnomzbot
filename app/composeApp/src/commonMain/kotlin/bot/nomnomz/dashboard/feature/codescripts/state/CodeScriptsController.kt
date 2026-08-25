@@ -133,15 +133,17 @@ class CodeScriptsController(
      * Open the shared multi-file project editor on the currently-open script, seeded with its project. Each
      * "Save & Compile" sends the whole project to [CodeScriptsApi.putProject] (validate + compile + publish),
      * surfacing the outcome inline: [compiledMessage] on success, the backend's real reason on failure. Reloads
-     * the detail + list when the editor closes.
+     * the detail + list when the editor closes. [displayName] is the caller's already-resolved, never-blank
+     * editor title (see [bot.nomnomz.dashboard.core.designsystem.resolveRowLabel]) — this controller has no
+     * Composable context to resolve a localized fallback itself.
      */
-    suspend fun editCode(id: String, compiledMessage: String) {
+    suspend fun editCode(id: String, compiledMessage: String, displayName: String) {
         val current: CodeScriptsState = _state.value
         if (current !is CodeScriptsState.Editing || current.detail.id != id) return
         val project: ProjectDto = current.project
 
         projectEditor.editAndCompile(
-            title = current.detail.name,
+            title = displayName,
             initialFiles = project.files,
             entryPath = project.manifest.entry,
             language = project.manifest.framework.ifBlank { "script" },
