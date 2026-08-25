@@ -92,8 +92,10 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Quotes.Entities.Quote>();
     public DbSet<NomNomzBot.Domain.Music.Entities.BlockedTrack> BlockedTracks =>
         throw new NotSupportedException();
+
+    /// <summary>Mapped: an imported command flow stores each of its response pools as a pick list.</summary>
     public DbSet<NomNomzBot.Domain.PickLists.Entities.PickList> PickLists =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.PickLists.Entities.PickList>();
     public DbSet<Widget> Widgets => Set<Widget>();
     public DbSet<WidgetVersion> WidgetVersions => throw new NotSupportedException();
     public DbSet<WidgetGalleryItem> WidgetGalleryItems => throw new NotSupportedException();
@@ -310,7 +312,6 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.Ignore<Service>();
         modelBuilder.Ignore<Reward>();
         modelBuilder.Ignore<NomNomzBot.Domain.Quotes.Entities.Quote>();
-        modelBuilder.Ignore<NomNomzBot.Domain.PickLists.Entities.PickList>();
         modelBuilder.Ignore<Widget>();
         modelBuilder.Ignore<WidgetVersion>();
         modelBuilder.Ignore<WidgetGalleryItem>();
@@ -346,7 +347,6 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.Ignore<NomNomzBot.Domain.Commands.Entities.Timer>();
         modelBuilder.Ignore<EventResponse>();
         modelBuilder.Ignore<WatchStreak>();
-        modelBuilder.Ignore<PipelineStepCondition>();
         modelBuilder.Ignore<PipelineExecution>();
         modelBuilder.Ignore<CommandCooldownState>();
         modelBuilder.Ignore<NamedCounter>();
