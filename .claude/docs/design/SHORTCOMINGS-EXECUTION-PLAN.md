@@ -67,19 +67,15 @@ Three agents were killed mid-slice by an API session limit. State captured so no
 
 ## FOUND ON THE LIVE BOX — 2026-08-25 (after the first successful deploy)
 
-- **S-CHATTERDAY-LOGNOISE** The deployed API logs two ERROR-level entries per chatter's first message of
-  the day: `23505: duplicate key value violates unique constraint
-  "IX_ChannelChatterDays_BroadcasterId_ActivityDate_ChatterHash"`, plus EF's "An exception occurred in
-  the database while saving changes". **NO DATA IS LOST** — `ChannelAnalyticsDailyProjection.
-  TryInsertAnchorAsync` inserts optimistically, catches `DbUpdateException`, and the caller loops to
-  re-read and apply the fold via CAS. The race is by design and handled.
-  The defect is the LOG LEVEL: a handled, expected race is reported as an error, so the live log shows
-  errors during normal operation and real failures are buried. It cost real diagnosis time already.
-  Done-when: a chatter's first message of the day produces NO error-level log, while the fold still lands
-  (proven by a test asserting both the resulting counters AND the absence of error-level output) — either
-  by making the insert conflict-tolerant at the SQL level (`ON CONFLICT DO NOTHING`) so no exception is
-  raised, or by scoping an EF log filter to exactly this expected path. Do NOT simply silence EF's update
-  logging globally; that would hide genuine save failures.
+- **S-CHATTERDAY-LOGNOISE-b** (sibling of the closed chatterday slice; found while verifying it)
+  `ChannelAnalyticsDailyProjection.EnsureDailyRowExistsAsync` (server/src/NomNomzBot.Infrastructure/
+  Analytics/ChannelAnalyticsDailyProjection.cs:502-530) still uses tracked-insert-then-catch for the
+  `ChannelAnalyticsDailies` row itself, so EF logs THAT race at Error before the exception is caught —
+  the same defect the anchor insert already fixed with provider-dispatched `ON CONFLICT DO NOTHING` /
+  `INSERT OR IGNORE`. Sweep the whole class in this file, not one method.
+  Done-when: a first-fold-of-the-day on a channel with no daily row produces NO error-level log while the
+  daily row and counters still land, proven by a test asserting both, with the existing negative control
+  (a genuine save failure IS still logged at error) still green.
 
 ## LIVE OUTAGE 2026-08-25 — root cause fixed, two follow-ups
 
