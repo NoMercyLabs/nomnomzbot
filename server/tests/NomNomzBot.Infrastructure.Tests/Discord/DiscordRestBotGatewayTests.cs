@@ -327,7 +327,10 @@ public sealed class DiscordRestBotGatewayTests
     }
 
     private static HttpResponseMessage JsonResponse(string json) =>
-        new(HttpStatusCode.OK) { Content = new StringContent(json, Encoding.UTF8, "application/json") };
+        new(HttpStatusCode.OK)
+        {
+            Content = new StringContent(json, Encoding.UTF8, "application/json"),
+        };
 
     [Fact]
     public async Task GetGuildAsync_IssuesGetToGuildEndpoint_AndMapsEveryField()

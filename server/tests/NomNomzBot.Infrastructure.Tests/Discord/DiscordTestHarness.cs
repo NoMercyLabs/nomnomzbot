@@ -68,7 +68,7 @@ internal sealed class DiscordTestDbContext : DbContext, IApplicationDbContext
     public DbSet<DiscordNotificationRole> DiscordNotificationRoles =>
         Set<DiscordNotificationRole>();
     public DbSet<DiscordMemberOptIn> DiscordMemberOptIns => Set<DiscordMemberOptIn>();
-    public DbSet<DiscordLiveRoleConfig> DiscordLiveRoleConfigs => throw new NotSupportedException();
+    public DbSet<DiscordLiveRoleConfig> DiscordLiveRoleConfigs => Set<DiscordLiveRoleConfig>();
     public DbSet<DiscordNotificationDispatch> DiscordNotificationDispatches =>
         Set<DiscordNotificationDispatch>();
     public DbSet<IntegrationConnection> IntegrationConnections => Set<IntegrationConnection>();
@@ -109,6 +109,7 @@ internal sealed class DiscordTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.ApplyConfiguration(new DiscordNotificationRoleConfiguration());
         modelBuilder.ApplyConfiguration(new DiscordMemberOptInConfiguration());
         modelBuilder.ApplyConfiguration(new DiscordNotificationDispatchConfiguration());
+        modelBuilder.ApplyConfiguration(new DiscordLiveRoleConfigConfiguration());
 
         foreach (Type entity in UnmappedEntities)
             modelBuilder.Ignore(entity);
@@ -118,6 +119,7 @@ internal sealed class DiscordTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.ApplySoftDeleteFilter<DiscordNotificationConfig>();
         modelBuilder.ApplySoftDeleteFilter<DiscordNotificationRole>();
         modelBuilder.ApplySoftDeleteFilter<DiscordMemberOptIn>();
+        modelBuilder.ApplySoftDeleteFilter<DiscordLiveRoleConfig>();
     }
 
     private static readonly HashSet<Type> Mapped =
@@ -127,6 +129,7 @@ internal sealed class DiscordTestDbContext : DbContext, IApplicationDbContext
         typeof(DiscordNotificationRole),
         typeof(DiscordMemberOptIn),
         typeof(DiscordNotificationDispatch),
+        typeof(DiscordLiveRoleConfig),
         typeof(IntegrationConnection),
         typeof(IntegrationToken),
         typeof(Channel),
