@@ -982,15 +982,7 @@ private fun MusicConfigSection(config: MusicConfig, manage: ManageDecision, onSa
         // Trust level
         Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
             Text(text = stringResource(Res.string.music_config_trust), style = typography.sm, color = tokens.mutedForeground)
-            FlowRow(
-                modifier =
-                    Modifier
-                        .clip(RoundedCornerShape(tokens.radius.md))
-                        .background(tokens.muted)
-                        .padding(spacing.s1),
-                horizontalArrangement = Arrangement.spacedBy(spacing.s1),
-                verticalArrangement = Arrangement.spacedBy(spacing.s1),
-            ) {
+            TabsList {
                 trustLevels.forEach { level ->
                     ManageGate(decision = manage) { gateEnabled ->
                         TabsTrigger(

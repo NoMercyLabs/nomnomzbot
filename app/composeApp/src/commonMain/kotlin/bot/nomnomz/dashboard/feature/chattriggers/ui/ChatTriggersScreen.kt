@@ -363,14 +363,6 @@ private fun TriggerRow(
             )
         }
         ManageGate(decision = manage) { enabled ->
-            Switch(
-                checked = trigger.isEnabled,
-                onCheckedChange = onToggle,
-                enabled = enabled,
-                modifier = Modifier.semantics { contentDescription = toggleLabel },
-            )
-        }
-        ManageGate(decision = manage) { enabled ->
             GlyphButton(imageVector = EditGlyph, label = editLabel, onClick = onEdit, enabled = enabled)
         }
         ManageGate(decision = manage) { enabled ->
@@ -380,6 +372,14 @@ private fun TriggerRow(
                 onClick = onDelete,
                 enabled = enabled,
                 tint = tokens.destructive,
+            )
+        }
+        ManageGate(decision = manage) { enabled ->
+            Switch(
+                checked = trigger.isEnabled,
+                onCheckedChange = onToggle,
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = toggleLabel },
             )
         }
     }

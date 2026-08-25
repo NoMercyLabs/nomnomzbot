@@ -366,15 +366,6 @@ private fun PickListRow(
             }
         }
 
-        // "Test" is a read (draw a sample) — available to anyone who can see the page, disabled only when the list
-        // is empty (nothing to draw). It shows the same random pick a viewer would get via {list.pick.<name>}.
-        GlyphButton(
-            imageVector = PlayCircleGlyph,
-            label = testLabel,
-            onClick = onTest,
-            enabled = list.items.isNotEmpty(),
-            tint = tokens.primary,
-        )
         ManageGate(decision = writeManage) { enabled ->
             GlyphButton(imageVector = EditGlyph, label = editLabel, onClick = onEdit, enabled = enabled)
         }
@@ -387,6 +378,14 @@ private fun PickListRow(
                 tint = tokens.destructive,
             )
         }
+        // "Test" is the row's primary action and remains at the far right.
+        GlyphButton(
+            imageVector = PlayCircleGlyph,
+            label = testLabel,
+            onClick = onTest,
+            enabled = list.items.isNotEmpty(),
+            tint = tokens.primary,
+        )
     }
 }
 

@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -49,6 +50,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
+import bot.nomnomz.dashboard.core.designsystem.component.TabsList
+import bot.nomnomz.dashboard.core.designsystem.component.TabsTrigger
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.ArrowDownGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.ArrowUpGlyph
@@ -211,19 +214,17 @@ fun MediaShareScreen(controller: MediaShareController, role: ManagementRole?) {
 
 @Composable
 private fun StatusFilterRow(selected: String?, onSelect: (String?) -> Unit) {
-    val spacing = LocalSpacing.current
-    Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-        FilterChip(label = stringResource(Res.string.mediashare_filter_all), active = selected == null, onClick = { onSelect(null) })
-        FilterChip(label = stringResource(Res.string.mediashare_filter_pending), active = selected == "pending", onClick = { onSelect("pending") })
-        FilterChip(label = stringResource(Res.string.mediashare_filter_approved), active = selected == "approved", onClick = { onSelect("approved") })
-        FilterChip(label = stringResource(Res.string.mediashare_filter_played), active = selected == "played", onClick = { onSelect("played") })
+    TabsList {
+        FilterSegment(label = stringResource(Res.string.mediashare_filter_all), active = selected == null, onClick = { onSelect(null) })
+        FilterSegment(label = stringResource(Res.string.mediashare_filter_pending), active = selected == "pending", onClick = { onSelect("pending") })
+        FilterSegment(label = stringResource(Res.string.mediashare_filter_approved), active = selected == "approved", onClick = { onSelect("approved") })
+        FilterSegment(label = stringResource(Res.string.mediashare_filter_played), active = selected == "played", onClick = { onSelect("played") })
     }
 }
 
 @Composable
-private fun FilterChip(label: String, active: Boolean, onClick: () -> Unit) {
-    Badge(
-        variant = if (active) BadgeVariant.Default else BadgeVariant.Outline,
+private fun RowScope.FilterSegment(label: String, active: Boolean, onClick: () -> Unit) {
+    TabsTrigger(
         selected = active,
         onClick = onClick,
     ) {
@@ -343,20 +344,6 @@ private fun QueueRow(
                     enabled = enabled && position != null && !isLast,
                 )
             }
-            if (isPending) {
-                ManageGate(decision = moderate) { enabled ->
-                    Button(onClick = { onApprove(request.id) }, size = ButtonSize.Sm, enabled = enabled) {
-                        Text(text = stringResource(Res.string.mediashare_approve))
-                    }
-                }
-            }
-            if (isApproved) {
-                ManageGate(decision = moderate) { enabled ->
-                    Button(onClick = { onMarkPlayed(request.id) }, size = ButtonSize.Sm, enabled = enabled) {
-                        Text(text = stringResource(Res.string.mediashare_mark_played))
-                    }
-                }
-            }
             ManageGate(decision = moderate) { enabled ->
                 Button(
                     onClick = { onSkip(request) },
@@ -375,6 +362,20 @@ private fun QueueRow(
                     enabled = enabled,
                 ) {
                     Text(text = stringResource(Res.string.mediashare_reject))
+                }
+            }
+            if (isPending) {
+                ManageGate(decision = moderate) { enabled ->
+                    Button(onClick = { onApprove(request.id) }, size = ButtonSize.Sm, enabled = enabled) {
+                        Text(text = stringResource(Res.string.mediashare_approve))
+                    }
+                }
+            }
+            if (isApproved) {
+                ManageGate(decision = moderate) { enabled ->
+                    Button(onClick = { onMarkPlayed(request.id) }, size = ButtonSize.Sm, enabled = enabled) {
+                        Text(text = stringResource(Res.string.mediashare_mark_played))
+                    }
                 }
             }
         }

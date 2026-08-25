@@ -198,6 +198,17 @@ private fun FeatureRow(
                     )
                 }
             }
+            if (feature.requiredScopes.isNotEmpty()) {
+                ManageGate(decision = manage) { enabled ->
+                    TextButton(onClick = onRegrantScopes, enabled = enabled) {
+                        Text(
+                            text = stringResource(Res.string.features_regrant_scopes),
+                            style = typography.xs,
+                            maxLines = 1,
+                        )
+                    }
+                }
+            }
             ManageGate(decision = manage) { enabled ->
                 // Entitlement is a separate axis from the manage floor: a feature the channel's tier/deployment
                 // doesn't allow is shown DISABLED (not a live switch) even to a Broadcaster, so it can't be
@@ -225,19 +236,6 @@ private fun FeatureRow(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
-                // One-click additive scope re-grant: re-authorizes the operator's Twitch token in place (never a
-                // logout) so it carries this feature's required scopes. The scopes are additive — the re-auth
-                // re-vaults the full streamer scope set — so it satisfies any feature still missing a grant.
-                ManageGate(decision = manage) { enabled ->
-                    TextButton(onClick = onRegrantScopes, enabled = enabled) {
-                        Text(
-                            text = stringResource(Res.string.features_regrant_scopes),
-                            style = typography.xs,
-                            color = if (enabled) tokens.primary else tokens.mutedForeground,
-                            maxLines = 1,
-                        )
-                    }
-                }
             }
         }
         if (!feature.entitled) {

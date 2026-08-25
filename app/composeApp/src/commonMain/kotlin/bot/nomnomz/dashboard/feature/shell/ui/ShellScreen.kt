@@ -1001,7 +1001,7 @@ private fun NavItem(route: ShellRoute, selected: Boolean, onClick: () -> Unit) {
 
     val container: Color =
         when {
-            selected -> tokens.sidebarPrimary.copy(alpha = tokens.sidebarPrimary.alpha * 0.5f)
+            selected -> tokens.sidebarPrimary
             hovered -> tokens.sidebarAccent
             else -> Color.Transparent
         }

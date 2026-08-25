@@ -346,12 +346,6 @@ private fun ClipRow(
         ManageGate(decision = manage) { enabled ->
             Row(horizontalArrangement = Arrangement.spacedBy(spacing.s1)) {
                 GlyphButton(
-                    imageVector = SoundClipsGlyph,
-                    label = previewLabel,
-                    onClick = onPreview,
-                    enabled = enabled,
-                )
-                GlyphButton(
                     imageVector = EditGlyph,
                     label = editLabel,
                     onClick = onEdit,
@@ -363,6 +357,12 @@ private fun ClipRow(
                     onClick = onDelete,
                     enabled = enabled,
                     tint = tokens.destructive,
+                )
+                GlyphButton(
+                    imageVector = SoundClipsGlyph,
+                    label = previewLabel,
+                    onClick = onPreview,
+                    enabled = enabled,
                 )
             }
         }

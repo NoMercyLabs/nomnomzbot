@@ -292,7 +292,6 @@ private fun MessageFeed(
     onReport: (userId: String, userName: String, displayName: String, reason: String) -> Unit,
     onReply: (message: ChatMessage) -> Unit,
 ) {
-    val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
@@ -1007,17 +1006,9 @@ private fun SendBox(
         ) {
             // Identity selector: send as the operator's own account ("You") or the channel bot ("Bot").
             SendIdentitySelector(identity = identity, onSelect = { identity = it })
-            EmoteComposerField(
-                value = draft,
-                onValueChange = { draft = it },
-                emoteByCode = emoteByCode,
-                placeholder = stringResource(Res.string.chat_send_placeholder),
-                enabled = true,
-                onPreviewKey = onPreviewKey,
-                modifier = Modifier.weight(1f),
-            )
             // Clear-all: wipe the whole draft in one tap. Only shown while there's something to clear so the
-            // empty composer stays uncluttered. Not gated — clearing your own unsent text needs no write floor.
+            // empty composer stays uncluttered. It precedes the composer so Send remains the far-right action.
+            // Not gated — clearing your own unsent text needs no write floor.
             if (draft.text.isNotEmpty()) {
                 GlyphButton(
                     imageVector = CloseGlyph,
@@ -1025,22 +1016,19 @@ private fun SendBox(
                     onClick = { draft = TextFieldValue("") },
                 )
             }
-            ManageGate(decision = manage) { gateEnabled ->
-                // Send is offered only when the gate allows it AND the draft is non-blank; the Enter key goes
-                // through the same `submit()` guard, and the visible affordance reflects the floor.
-                val sendEnabled: Boolean = gateEnabled && canSend
-                TextButton(
-                    onClick = { submit() },
-                    enabled = sendEnabled,
-                    modifier = Modifier.semantics { contentDescription = sendLabel },
-                ) {
-                    Text(
-                        text = stringResource(Res.string.chat_send_action),
-                        color = if (sendEnabled) tokens.primary else tokens.mutedForeground,
-                        maxLines = 1,
-                    )
-                }
-            }
+            EmoteComposerField(
+                value = draft,
+                onValueChange = { draft = it },
+                emoteByCode = emoteByCode,
+                placeholder = stringResource(Res.string.chat_send_placeholder),
+                enabled = true,
+                onPreviewKey = onPreviewKey,
+                actionLabel = sendLabel,
+                actionDecision = manage,
+                actionEnabled = canSend,
+                onActionClick = { submit() },
+                modifier = Modifier.weight(1f),
+            )
         }
     }
 }

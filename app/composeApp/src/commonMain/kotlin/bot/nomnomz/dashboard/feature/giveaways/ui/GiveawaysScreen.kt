@@ -51,6 +51,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
+import bot.nomnomz.dashboard.core.designsystem.component.TabsList
+import bot.nomnomz.dashboard.core.designsystem.component.TabsTrigger
 import bot.nomnomz.dashboard.core.designsystem.component.Textarea
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
@@ -551,7 +553,6 @@ private fun GiveawayRow(
         )
 
         FlowRow(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-            LifecycleButton(giveaway = giveaway, writeManage = writeManage, callbacks = callbacks)
             if (giveaway.drawnAt != null || giveaway.status == GiveawayStatus.Drawn) {
                 Button(
                     onClick = { callbacks.onShowWinners(giveaway) },
@@ -578,6 +579,7 @@ private fun GiveawayRow(
                     tint = tokens.destructive,
                 )
             }
+            LifecycleButton(giveaway = giveaway, writeManage = writeManage, callbacks = callbacks)
         }
     }
 }
@@ -728,15 +730,15 @@ private fun CodePoolRow(pool: CodePool, onManage: () -> Unit, onDelete: () -> Un
                 )
             }
         }
-        Button(onClick = onManage, variant = ButtonVariant.Outline, size = ButtonSize.Sm) {
-            Text(text = stringResource(Res.string.giveaways_pool_manage_button))
-        }
         GlyphButton(
             imageVector = TrashGlyph,
             label = deleteLabel,
             onClick = onDelete,
             tint = tokens.destructive,
         )
+        Button(onClick = onManage, variant = ButtonVariant.Outline, size = ButtonSize.Sm) {
+            Text(text = stringResource(Res.string.giveaways_pool_manage_button))
+        }
     }
 }
 
@@ -892,17 +894,15 @@ private fun GiveawayFormDialog(
 
                 // Entry mode — a two-option segmented picker.
                 FieldLabel(stringResource(Res.string.giveaways_dialog_entry_mode_label))
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                    SelectChip(
-                        label = stringResource(Res.string.giveaways_entry_mode_keyword),
+                TabsList {
+                    TabsTrigger(
                         selected = entryMode == GiveawayEntryMode.Keyword,
                         onClick = { entryMode = GiveawayEntryMode.Keyword },
-                    )
-                    SelectChip(
-                        label = stringResource(Res.string.giveaways_entry_mode_active),
+                    ) { Text(stringResource(Res.string.giveaways_entry_mode_keyword), maxLines = 1) }
+                    TabsTrigger(
                         selected = entryMode == GiveawayEntryMode.ActiveViewers,
                         onClick = { entryMode = GiveawayEntryMode.ActiveViewers },
-                    )
+                    ) { Text(stringResource(Res.string.giveaways_entry_mode_active), maxLines = 1) }
                 }
                 if (keywordMode) {
                     AppTextField(
@@ -946,22 +946,19 @@ private fun GiveawayFormDialog(
 
                 // Prize mode — a three-option segmented picker, with the mode-specific config below it.
                 FieldLabel(stringResource(Res.string.giveaways_dialog_prize_mode_label))
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                    SelectChip(
-                        label = stringResource(Res.string.giveaways_prize_announce),
+                TabsList {
+                    TabsTrigger(
                         selected = prizeMode == GiveawayPrizeMode.Announce,
                         onClick = { prizeMode = GiveawayPrizeMode.Announce },
-                    )
-                    SelectChip(
-                        label = stringResource(Res.string.giveaways_prize_currency),
+                    ) { Text(stringResource(Res.string.giveaways_prize_announce), maxLines = 1) }
+                    TabsTrigger(
                         selected = prizeMode == GiveawayPrizeMode.Currency,
                         onClick = { prizeMode = GiveawayPrizeMode.Currency },
-                    )
-                    SelectChip(
-                        label = stringResource(Res.string.giveaways_prize_code_pool),
+                    ) { Text(stringResource(Res.string.giveaways_prize_currency), maxLines = 1) }
+                    TabsTrigger(
                         selected = prizeMode == GiveawayPrizeMode.CodePool,
                         onClick = { prizeMode = GiveawayPrizeMode.CodePool },
-                    )
+                    ) { Text(stringResource(Res.string.giveaways_prize_code_pool), maxLines = 1) }
                 }
                 if (prizeMode == GiveawayPrizeMode.Currency) {
                     NumberField(

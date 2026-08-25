@@ -317,8 +317,8 @@ private fun NavItem(page: ParticipantPage, selected: Boolean, onClick: () -> Uni
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    val container: Color = if (selected) tokens.sidebarAccent else Color.Transparent
-    val content: Color = if (selected) tokens.sidebarAccentForeground else tokens.sidebarForeground
+    val container: Color = if (selected) tokens.sidebarPrimary else Color.Transparent
+    val content: Color = if (selected) tokens.sidebarPrimaryForeground else tokens.sidebarForeground
 
     Box(
         modifier = Modifier

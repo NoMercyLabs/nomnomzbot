@@ -51,6 +51,27 @@ class DesignSystemStyleGuardTest {
                 "(Button|OutlinedButton|TextButton|Card|TextField|OutlinedTextField|Badge|Checkbox|Switch|Slider|Chip|AssistChip|FilterChip)\\b"
         )
 
+    // Any Material interactive primitive bypasses NomNomzBot's visual and behavior contract. This broader
+    // pattern also catches aliases, icon buttons, radio/segmented controls, and less common M3 variants.
+    private val materialControlImport: Regex =
+        Regex(
+            "^import androidx\\.compose\\.material3\\." +
+                "[A-Za-z]*(Button|Card|TextField|Checkbox|Switch|Slider|Chip)(?:\\s+as\\s+\\w+)?\\s*$"
+        )
+    private val materialWildcardImport: Regex = Regex("^import androidx\\.compose\\.material3\\.\\*\\s*$")
+    private val fullyQualifiedMaterialControl: Regex =
+        Regex(
+            "androidx\\.compose\\.material3\\." +
+                "[A-Za-z]*(Button|Card|TextField|Checkbox|Switch|Slider|Chip)\\s*\\("
+        )
+    private val allowedMaterialControlImports: Map<String, String> =
+        mapOf(
+            // Slider is explicitly the catalogue's M3-wrapped accessibility primitive; its wrapper
+            // supplies every color and is the only approved native-control seam.
+            "core/designsystem/component/Slider.kt" to
+                "import androidx.compose.material3.Slider as Material3Slider"
+        )
+
     @Test
     fun feature_screens_use_tokens_not_raw_hex_or_dp() {
         val root: File = featureRoot()
@@ -93,14 +114,43 @@ class DesignSystemStyleGuardTest {
         }
     }
 
+    @Test
+    fun common_ui_never_bypasses_the_component_catalogue() {
+        val root: File = commonMainRoot()
+        val offenders: MutableList<String> = mutableListOf()
+        root.walkTopDown().filter { it.isFile && it.extension == "kt" }.forEach { file ->
+            val rel: String = file.relativeTo(root).path.replace('\\', '/')
+            file.readLines().forEachIndexed { index, line ->
+                if (
+                    (materialControlImport.containsMatchIn(line) ||
+                        materialWildcardImport.containsMatchIn(line) ||
+                        fullyQualifiedMaterialControl.containsMatchIn(line)) &&
+                        allowedMaterialControlImports[rel] != line.trim()
+                ) {
+                    offenders += "$rel:${index + 1}: ${line.trim()}"
+                }
+            }
+        }
+        if (offenders.isNotEmpty()) {
+            fail(
+                "Raw Material controls bypass the NomNomzBot component catalogue:\n" +
+                    offenders.joinToString("\n")
+            )
+        }
+    }
+
     private fun featureRoot(): File {
+        return File(commonMainRoot(), "feature")
+    }
+
+    private fun commonMainRoot(): File {
         var dir: File? = File(System.getProperty("user.dir"))
         while (dir != null) {
             val candidate =
-                File(dir, "app/composeApp/src/commonMain/kotlin/bot/nomnomz/dashboard/feature")
+                File(dir, "app/composeApp/src/commonMain/kotlin/bot/nomnomz/dashboard")
             if (candidate.isDirectory) return candidate
             dir = dir.parentFile
         }
-        fail("Could not locate feature source from ${System.getProperty("user.dir")}")
+        fail("Could not locate commonMain source from ${System.getProperty("user.dir")}")
     }
 }

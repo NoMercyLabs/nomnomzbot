@@ -279,15 +279,15 @@ private fun EventResponseRow(
             )
         }
         ManageGate(decision = manage) { enabled ->
+            GlyphButton(imageVector = EditGlyph, label = editSemantics, onClick = onEdit, enabled = enabled)
+        }
+        ManageGate(decision = manage) { enabled ->
             Switch(
                 checked = response.isEnabled,
                 onCheckedChange = onToggle,
                 enabled = enabled,
                 modifier = Modifier.clearAndSetSemantics { contentDescription = toggleSemantics },
             )
-        }
-        ManageGate(decision = manage) { enabled ->
-            GlyphButton(imageVector = EditGlyph, label = editSemantics, onClick = onEdit, enabled = enabled)
         }
     }
 }

@@ -2060,6 +2060,15 @@ private fun RuleRow(
             )
         }
         ManageGate(decision = manage) { enabled ->
+            GlyphButton(
+                imageVector = TrashGlyph,
+                label = deleteLabel,
+                onClick = onDelete,
+                enabled = enabled,
+                tint = tokens.destructive,
+            )
+        }
+        ManageGate(decision = manage) { enabled ->
             TextButton(
                 onClick = onToggle,
                 enabled = enabled,
@@ -2071,19 +2080,9 @@ private fun RuleRow(
                             if (rule.isEnabled) Res.string.moderation_rules_disable
                             else Res.string.moderation_rules_enable
                         ),
-                    color = if (enabled) tokens.primary else tokens.mutedForeground,
                     maxLines = 1,
                 )
             }
-        }
-        ManageGate(decision = manage) { enabled ->
-            GlyphButton(
-                imageVector = TrashGlyph,
-                label = deleteLabel,
-                onClick = onDelete,
-                enabled = enabled,
-                tint = tokens.destructive,
-            )
         }
     }
 }
@@ -3069,14 +3068,16 @@ private fun EscalationLadderDialog(
                             color = tokens.mutedForeground,
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                            Badge(selected = rung.action == "warn", onClick = { rung.action = "warn" }) {
-                                Text(stringResource(Res.string.moderation_escalation_action_warn), style = typography.xs)
-                            }
-                            Badge(selected = rung.action == "timeout", onClick = { rung.action = "timeout" }) {
-                                Text(stringResource(Res.string.moderation_escalation_action_timeout), style = typography.xs)
-                            }
-                            Badge(selected = rung.action == "ban", onClick = { rung.action = "ban" }) {
-                                Text(stringResource(Res.string.moderation_escalation_action_ban), style = typography.xs)
+                            TabsList(modifier = Modifier.weight(1f)) {
+                                TabsTrigger(selected = rung.action == "warn", onClick = { rung.action = "warn" }) {
+                                    Text(stringResource(Res.string.moderation_escalation_action_warn), style = typography.xs)
+                                }
+                                TabsTrigger(selected = rung.action == "timeout", onClick = { rung.action = "timeout" }) {
+                                    Text(stringResource(Res.string.moderation_escalation_action_timeout), style = typography.xs)
+                                }
+                                TabsTrigger(selected = rung.action == "ban", onClick = { rung.action = "ban" }) {
+                                    Text(stringResource(Res.string.moderation_escalation_action_ban), style = typography.xs)
+                                }
                             }
                             TextButton(onClick = { rungs.removeAt(index) }) {
                                 Text(

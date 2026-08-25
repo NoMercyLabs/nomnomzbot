@@ -30,12 +30,12 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 // The single page heading used by every management screen: title (xl2) + optional subtitle (sm,
 // muted) + optional trailing action slot, closed by a divider.
 //
-// The content band is a FIXED height (s16) so the header is identical on every page:
+// The content band is a FIXED 96dp height so the header is identical on every page:
 // the title sits at the same vertical position and the divider lands at the same Y regardless of
 // whether the page has a subtitle or a trailing button. Without this, subtitled/action-bearing
 // headers grow taller than title-only ones and the content start jumps as you move between pages.
-// Every variant fits the band — a title/button line (both 32dp) plus a subtitle line (20dp) sit
-// well inside s16 (64dp) — so the band never has to grow and the pinning holds.
+// Every variant fits the band — including the 60dp Figma action buttons with 18dp clearance above
+// and below — so the band never has to grow and the pinning holds.
 @Composable
 fun PageHeader(
     title: String,
@@ -51,7 +51,7 @@ fun PageHeader(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(spacing.s16),
+                .height(spacing.s24),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {

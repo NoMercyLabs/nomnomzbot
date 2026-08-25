@@ -67,6 +67,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
 import bot.nomnomz.dashboard.core.designsystem.component.PickerRef
 import bot.nomnomz.dashboard.core.designsystem.component.SearchPickerField
 import bot.nomnomz.dashboard.core.designsystem.component.Tooltip
+import bot.nomnomz.dashboard.core.designsystem.component.TabsList
+import bot.nomnomz.dashboard.core.designsystem.component.TabsTrigger
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecisionForAction
 import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
@@ -1232,11 +1234,11 @@ private fun StartPollDialog(
                     style = typography.sm,
                     color = tokens.mutedForeground,
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                    Badge(selected = target == PollTarget.Chat, onClick = { target = PollTarget.Chat }) {
+                TabsList {
+                    TabsTrigger(selected = target == PollTarget.Chat, onClick = { target = PollTarget.Chat }) {
                         Text(stringResource(Res.string.home_poll_target_chat), maxLines = 1)
                     }
-                    Badge(selected = target == PollTarget.Twitch, onClick = { target = PollTarget.Twitch }) {
+                    TabsTrigger(selected = target == PollTarget.Twitch, onClick = { target = PollTarget.Twitch }) {
                         Text(stringResource(Res.string.home_poll_target_twitch), maxLines = 1)
                     }
                 }

@@ -10,12 +10,15 @@
 
 package bot.nomnomz.dashboard.core.designsystem.component
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -28,11 +31,13 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import bot.nomnomz.dashboard.core.designsystem.icon.ChevronDownGlyph
@@ -45,6 +50,9 @@ import bot.nomnomz.dashboard.core.designsystem.theme.Typography
 
 // 1dp border stroke — not a layout spacing value (matches AppTextField's field border).
 private val SelectBorderWidth: Dp = 1.dp
+private val ExpandedSelectBorderWidth: Dp = 2.dp
+private val SelectMinHeight: Dp = 44.dp
+private const val SelectTransitionMillis: Int = 150
 
 /**
  * The shadcn/ui Select ported to Compose — the field-styled DROPDOWN TRIGGER (frontend-design-system.md §4).
@@ -74,13 +82,18 @@ fun AppSelectField(
     val spacing: Spacing = LocalSpacing.current
     val typography: Typography = LocalTypography.current
 
-    val shape: RoundedCornerShape = RoundedCornerShape(tokens.radius.md)
-    val borderColor: Color =
+    val shape: RoundedCornerShape = RoundedCornerShape(tokens.radius.sm)
+    val targetBorderColor: Color =
         when {
             !enabled -> tokens.border.copy(alpha = 0.5f)
             expanded -> tokens.ring
             else -> tokens.border
         }
+    val borderColor: Color by animateColorAsState(
+        targetValue = targetBorderColor,
+        animationSpec = tween(SelectTransitionMillis),
+        label = "selectBorder",
+    )
     val hasValue: Boolean = value.isNotEmpty()
     val displayColor: Color =
         when {
@@ -91,7 +104,10 @@ fun AppSelectField(
 
     Column(modifier = modifier) {
         if (label.isNotEmpty()) {
-            CompositionLocalProvider(LocalTextStyle provides typography.sm.copy(color = tokens.foreground)) {
+            CompositionLocalProvider(
+                LocalTextStyle provides
+                    typography.sm.copy(color = tokens.foreground, fontWeight = FontWeight.Medium)
+            ) {
                 Text(text = label, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Spacer(modifier = Modifier.height(spacing.s1_5))
@@ -102,9 +118,14 @@ fun AppSelectField(
                 modifier =
                     Modifier
                         .fillMaxWidth()
+                        .defaultMinSize(minHeight = SelectMinHeight)
                         .clip(shape)
-                        .border(width = SelectBorderWidth, color = borderColor, shape = shape)
-                        .background(color = tokens.background)
+                        .border(
+                            width = if (expanded) ExpandedSelectBorderWidth else SelectBorderWidth,
+                            color = borderColor,
+                            shape = shape,
+                        )
+                        .background(color = tokens.muted)
                         .then(
                             if (enabled) {
                                 Modifier.clickable { onExpandedChange(!expanded) }
@@ -112,7 +133,7 @@ fun AppSelectField(
                                 Modifier
                             }
                         )
-                        .padding(horizontal = spacing.s3, vertical = spacing.s2),
+                        .padding(horizontal = spacing.s4, vertical = spacing.s2_5),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(modifier = Modifier.weight(1f)) {
@@ -139,7 +160,7 @@ fun AppSelectField(
         }
 
         if (!supportingText.isNullOrEmpty()) {
-            Spacer(modifier = Modifier.height(spacing.s1))
+            Spacer(modifier = Modifier.height(spacing.s1_5))
             CompositionLocalProvider(
                 LocalTextStyle provides typography.xs.copy(color = tokens.mutedForeground)
             ) {

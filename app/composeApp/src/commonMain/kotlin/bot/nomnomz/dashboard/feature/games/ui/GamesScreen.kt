@@ -587,15 +587,15 @@ private fun GameRow(
             )
         }
         ManageGate(decision = manage) { enabled ->
+            GlyphButton(imageVector = EditGlyph, label = editLabel, onClick = onEdit, enabled = enabled)
+        }
+        ManageGate(decision = manage) { enabled ->
             Switch(
                 checked = game.isEnabled,
                 onCheckedChange = onToggle,
                 enabled = enabled,
                 modifier = Modifier.semantics { contentDescription = toggleLabel },
             )
-        }
-        ManageGate(decision = manage) { enabled ->
-            GlyphButton(imageVector = EditGlyph, label = editLabel, onClick = onEdit, enabled = enabled)
         }
     }
 }
