@@ -189,7 +189,7 @@ class AdminControllerImpersonationTest {
         val api = FakeAdminApi()
         val platformAdminApi = FakePlatformAdminApi(
             beginAccessResult = ApiResult.Failure(
-                ApiError(status = 409, code = "NoOpenSupportSession", message = "No open support session for this tenant."),
+                ApiError(status = 409, code = "409", message = "No open support session for this tenant."),
             ),
         )
         val sessionStore = newSessionStore()
@@ -213,7 +213,7 @@ class AdminControllerImpersonationTest {
     fun not_permitted_refusal_from_the_mint_call_is_also_classified() = runTest {
         val api = FakeAdminApi(
             impersonateResult = ApiResult.Failure(
-                ApiError(status = 403, code = "NotPermitted", message = "Not permitted."),
+                ApiError(status = 403, code = "403", message = "Not permitted."),
             ),
         )
         val platformAdminApi = FakePlatformAdminApi(

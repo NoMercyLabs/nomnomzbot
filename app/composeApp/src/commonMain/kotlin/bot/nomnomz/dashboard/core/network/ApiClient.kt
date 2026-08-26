@@ -537,10 +537,28 @@ class ApiClient(
             } catch (_: Exception) {
                 null
             }
+        // A `Result` failure mapped by BaseController answers with the StatusResponseDto envelope, not problem
+        // details — without this the server's actual reason ("An open, time-boxed support session is required
+        // to impersonate a user.") is dropped and the banner degrades to a bare "HTTP 409".
+        val envelope: ErrorEnvelope? =
+            if (problem?.detail.isNullOrBlank() && problem?.title.isNullOrBlank()) {
+                try {
+                    if (text.isNotBlank()) json.decodeFromString(ErrorEnvelope.serializer(), text) else null
+                } catch (_: Exception) {
+                    null
+                }
+            } else {
+                null
+            }
         return ApiError(
             status = response.status.value,
             code = problem?.type ?: response.status.value.toString(),
-            message = failureMessage(response.status.value, problem?.detail, problem?.title, response.status.description),
+            message = failureMessage(
+                response.status.value,
+                problem?.detail ?: envelope?.message,
+                problem?.title,
+                response.status.description,
+            ),
             traceId = problem?.traceId,
         )
     }
