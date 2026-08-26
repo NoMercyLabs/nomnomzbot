@@ -39,9 +39,15 @@ public sealed class SecurityHeadersMiddleware
     // Compose/Wasm dashboard shell CSP. 'unsafe-inline' on style-src covers Compose's inlined style attributes;
     // there is no inline <script> in the shell itself (the CDN imports are dynamic ES module imports, which
     // script-src's host list already covers — no 'unsafe-inline'/'unsafe-eval' needed for those).
+    // 'unsafe-eval' is required, not incidental: the in-app code editor's CDN loader deliberately routes every
+    // dynamic import through `new Function('u','return import(u)')` (ProjectEditor.wasmJs.kt) to dodge the
+    // bundler statically inlining/rewriting a literal `import()`, and `new Function` is CSP's eval-equivalent
+    // -- without this the editor's CodeMirror/TypeScript/esbuild-wasm/Vue-compiler loads all silently threw
+    // "Refused to evaluate a string as JavaScript" and the editor never lit up. Scoped to the dashboard shell
+    // only; the overlay/widget host keeps its own strict per-widget nonce policy untouched.
     private const string DashboardContentSecurityPolicy =
         "default-src 'self'; "
-        + "script-src 'self' 'wasm-unsafe-eval' https://esm.sh https://cdn.jsdelivr.net; "
+        + "script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' https://esm.sh https://cdn.jsdelivr.net; "
         + "style-src 'self' 'unsafe-inline'; "
         + "img-src 'self' https: data: blob:; "
         + "media-src 'self' https: blob: data:; "

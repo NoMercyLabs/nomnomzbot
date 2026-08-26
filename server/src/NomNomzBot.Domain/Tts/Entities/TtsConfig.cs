@@ -57,7 +57,9 @@ public class TtsConfig : SoftDeletableEntity, ITenantScoped
     public int? MinBitsToTts { get; set; }
 
     /// <summary>The streamer's own per-utterance cap; the billing tier clamps it further at dispatch.</summary>
-    public int MaxCharacters { get; set; } = 200;
+    // 500 matches the free/self-host tier cap (BillingTierSeeder tts_max_characters) -- a lower per-channel
+    // default silently clamped every channel below what its own tier already allows.
+    public int MaxCharacters { get; set; } = 500;
 
     /// <summary>Lowest community standing allowed to trigger TTS: everyone | subscribers | vip | moderators | broadcaster.</summary>
     [MaxLength(20)]

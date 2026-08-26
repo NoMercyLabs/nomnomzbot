@@ -602,22 +602,49 @@ public sealed class TtsDispatchService : ITtsDispatchService
             );
 
         string fileName = $"tts-{Guid.CreateVersion7():n}.mp3";
+        string storageKey;
         using (MemoryStream audio = new(synth.AudioData))
         {
-            // Stored for the usage/audit trail (moderation review of what was said) — playback itself does NOT
-            // depend on this or on any server-hosted URL (see below), so a store failure here never blocks speech.
-            await _audioStore.PutAsync(broadcasterId, fileName, audio, "audio/mpeg", ct);
+            Result<string> stored = await _audioStore.PutAsync(
+                broadcasterId,
+                fileName,
+                audio,
+                "audio/mpeg",
+                ct
+            );
+            if (stored.IsFailure)
+                return await PublishRejectAsync(
+                    broadcasterId,
+                    requestedByTwitchUserId,
+                    "storage_failed",
+                    $"Could not store the synthesized audio ({stored.ErrorMessage}).",
+                    "SERVICE_UNAVAILABLE",
+                    ct
+                );
+            storageKey = stored.Value;
         }
 
-        // Carry the audio as an inline data: URI on the dispatched event, not a fetched playback URL and not the
-        // generic (unqueued) overlay sound bus. The prior URL-based delivery resolved the playback host from the
-        // current request's scheme, which behind a reverse proxy/tunnel always reports http even though the site
-        // is served over https — the overlay page's CSP (media-src 'self' https: ...) then silently discarded
-        // every utterance; a data: URI needs no host/scheme resolution at all and is always CSP-allowed (also how
-        // the legacy bot delivered speech — NoMercyBot.TTSService audioBase64). And unlike the generic sound bus
-        // (which plays every push immediately, so two utterances close together overlap), the dedicated TTS
-        // overlay widget queues this by <c>tts_speak</c> and plays entries strictly in order.
-        string dataUri = $"data:audio/mpeg;base64,{Convert.ToBase64String(synth.AudioData)}";
+        // A real HTTPS playback URL, not an inline data: URI. The data: URI approach was carrying the FULL
+        // base64-encoded clip through the SignalR/WebSocket hub message on every utterance -- fine for a short
+        // line, but a real hug/event line comfortably exceeds it and the browser's <audio> element plays
+        // whatever prefix of the corrupt stream decodes before erroring out, which reads as "the clip cuts off
+        // partway" (observed live, 2026-08-27: a normal-length utterance stopped at ~4s). The URL-based
+        // approach was abandoned earlier because it trusted Request.Scheme behind the reverse proxy, which
+        // always reports http and got the URL blocked by CSP's `media-src ... https:` — but
+        // ISoundClipStore.GetPlaybackUrlAsync (the SAME store PlaySoundAction already uses successfully) fixed
+        // exactly that by preferring the configured App:BaseUrl, so the CSP problem this comment used to
+        // justify is already solved on the very store TTS already writes into.
+        Result<string> urlResult = await _audioStore.GetPlaybackUrlAsync(storageKey, ct);
+        if (urlResult.IsFailure)
+            return await PublishRejectAsync(
+                broadcasterId,
+                requestedByTwitchUserId,
+                "playback_url_failed",
+                $"Could not resolve a playback URL ({urlResult.ErrorMessage}).",
+                "SERVICE_UNAVAILABLE",
+                ct
+            );
+        string dataUri = urlResult.Value;
 
         _db.TtsUsageRecords.Add(
             new()
