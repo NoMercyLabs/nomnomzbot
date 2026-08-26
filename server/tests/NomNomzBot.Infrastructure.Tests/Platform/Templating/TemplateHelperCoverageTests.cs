@@ -83,6 +83,8 @@ public sealed partial class TemplateHelperCoverageTests
         "user.name",
         "user.provider",
         "target",
+        "provider", // set by the provider-scoped event handlers (S022b) into EventResponseExecutor's
+        // seed variables (e.g. NewSubscriptionEventHandler) — never assigned inside TemplateResolver.cs
     };
 
     // Resolved via a colon-containing literal (verb:.../user.verb:.../target.verb:...) or a dedicated

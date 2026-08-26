@@ -70,6 +70,8 @@ public static class TemplateHelperRegistry
             Literal("stream.startedAt", AllContexts, "template.helper.stream_started_at"),
             Literal("status", AllContexts, "template.helper.status"),
             Literal("tense", AllContexts, "template.helper.tense"),
+            // ── Delivering platform (event response only; the event that fired the template) ──
+            Literal("provider", [TemplateHelperContext.EventResponse], "template.helper.provider"),
             // ── Time / date (all contexts) ──────────────────────────────────
             Literal("time", AllContexts, "template.helper.time"),
             Literal("time.utc", AllContexts, "template.helper.time_utc"),

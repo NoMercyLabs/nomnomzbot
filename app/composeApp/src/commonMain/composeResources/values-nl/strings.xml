@@ -3743,6 +3743,7 @@
     <string name="template_helper_object">Het voornaamwoord in objectvorm (bijv. hen)</string>
     <string name="template_helper_possessive">Het bezittelijk voornaamwoord (bijv. hun)</string>
     <string name="template_helper_present_tense">De tegenwoordige tijd van zijn (bijv. is/zijn)</string>
+    <string name="template_helper_provider">Het platform dat de gebeurtenis heeft afgeleverd (bijv. twitch of kick)</string>
     <string name="template_helper_random_number">Een willekeurig geheel getal van 1 tot en met N (bijv. {random.number.100})</string>
     <string name="template_helper_random_pick">Een willekeurige keuze uit een met punten gescheiden lijst (bijv. {random.pick.a.b.c})</string>
     <string name="template_helper_random_user">Een willekeurige chatter die momenteel in het kanaal is</string>

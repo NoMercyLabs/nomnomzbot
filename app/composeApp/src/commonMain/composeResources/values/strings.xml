@@ -3758,6 +3758,7 @@
     <string name="template_helper_object">The object-case pronoun (e.g. them)</string>
     <string name="template_helper_possessive">The possessive pronoun (e.g. their)</string>
     <string name="template_helper_present_tense">The present-tense to-be form (e.g. is/are)</string>
+    <string name="template_helper_provider">The platform that delivered the event (e.g. twitch or kick)</string>
     <string name="template_helper_random_number">A random whole number from 1 up to N (e.g. {random.number.100})</string>
     <string name="template_helper_random_pick">A random pick from a dot-separated list (e.g. {random.pick.a.b.c})</string>
     <string name="template_helper_random_user">A random chatter currently in the channel</string>
