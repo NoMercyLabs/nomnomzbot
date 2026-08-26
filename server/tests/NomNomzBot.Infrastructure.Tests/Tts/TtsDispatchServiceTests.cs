@@ -288,7 +288,7 @@ public sealed class TtsDispatchServiceTests
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Disposition.Should().Be(TtsDispatchDisposition.Dispatched);
-        result.Value.PlaybackUrl.Should().Be("https://bot.local/sounds/tts.mp3");
+        result.Value.PlaybackUrl.Should().Be("data:audio/mpeg;base64,AQIDBA==");
         result.Value.CharacterCount.Should().Be("hello world".Length); // trimmed
 
         // Synthesized with the channel default voice.
@@ -308,17 +308,18 @@ public sealed class TtsDispatchServiceTests
         usage.StreamId.Should().Be(liveStream);
         usage.OccurredAt.Should().Be(T0);
 
-        // The audio rides the dispatched event as a real HTTPS playback URL from the audio store (not the
-        // generic/unqueued overlay sound bus), so the dedicated TTS widget can queue and play utterances
-        // strictly in order. A data: URI was tried and abandoned live: it pushed the FULL base64 clip through
-        // the SignalR message on every utterance, and a normal-length line got truncated mid-stream.
+        // The audio itself rides the dispatched event as a data: URI (not the generic/unqueued overlay sound
+        // bus) so the dedicated TTS widget can queue and play utterances strictly in order. A URL-based swap
+        // was tried and reverted live (2026-08-27): GetPlaybackUrlAsync escapes the storage key's '/' as %2F,
+        // and ASP.NET's routing never decodes %2F back for the stream/{*storageKey} catch-all, so playback
+        // 404'd on every utterance. Fix that bug on its own terms before trying URLs again.
         await h
             .Bus.Received(1)
             .PublishAsync(
                 Arg.Is<TtsUtteranceDispatchedEvent>(e =>
                     e.VoiceId == "default-voice"
                     && e.CharacterCount == "hello world".Length
-                    && e.AudioUrl == "https://bot.local/sounds/tts.mp3"
+                    && e.AudioUrl == "data:audio/mpeg;base64,AQIDBA=="
                 ),
                 Arg.Any<CancellationToken>()
             );

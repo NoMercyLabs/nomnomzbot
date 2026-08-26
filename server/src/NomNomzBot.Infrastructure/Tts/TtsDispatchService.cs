@@ -602,49 +602,23 @@ public sealed class TtsDispatchService : ITtsDispatchService
             );
 
         string fileName = $"tts-{Guid.CreateVersion7():n}.mp3";
-        string storageKey;
         using (MemoryStream audio = new(synth.AudioData))
         {
-            Result<string> stored = await _audioStore.PutAsync(
-                broadcasterId,
-                fileName,
-                audio,
-                "audio/mpeg",
-                ct
-            );
-            if (stored.IsFailure)
-                return await PublishRejectAsync(
-                    broadcasterId,
-                    requestedByTwitchUserId,
-                    "storage_failed",
-                    $"Could not store the synthesized audio ({stored.ErrorMessage}).",
-                    "SERVICE_UNAVAILABLE",
-                    ct
-                );
-            storageKey = stored.Value;
+            // Stored for the usage/audit trail (moderation review of what was said) — playback itself does NOT
+            // depend on this or on any server-hosted URL (see below), so a store failure here never blocks speech.
+            await _audioStore.PutAsync(broadcasterId, fileName, audio, "audio/mpeg", ct);
         }
 
-        // A real HTTPS playback URL, not an inline data: URI. The data: URI approach was carrying the FULL
-        // base64-encoded clip through the SignalR/WebSocket hub message on every utterance -- fine for a short
-        // line, but a real hug/event line comfortably exceeds it and the browser's <audio> element plays
-        // whatever prefix of the corrupt stream decodes before erroring out, which reads as "the clip cuts off
-        // partway" (observed live, 2026-08-27: a normal-length utterance stopped at ~4s). The URL-based
-        // approach was abandoned earlier because it trusted Request.Scheme behind the reverse proxy, which
-        // always reports http and got the URL blocked by CSP's `media-src ... https:` — but
-        // ISoundClipStore.GetPlaybackUrlAsync (the SAME store PlaySoundAction already uses successfully) fixed
-        // exactly that by preferring the configured App:BaseUrl, so the CSP problem this comment used to
-        // justify is already solved on the very store TTS already writes into.
-        Result<string> urlResult = await _audioStore.GetPlaybackUrlAsync(storageKey, ct);
-        if (urlResult.IsFailure)
-            return await PublishRejectAsync(
-                broadcasterId,
-                requestedByTwitchUserId,
-                "playback_url_failed",
-                $"Could not resolve a playback URL ({urlResult.ErrorMessage}).",
-                "SERVICE_UNAVAILABLE",
-                ct
-            );
-        string dataUri = urlResult.Value;
+        // Reverted to the inline data: URI (2026-08-27) after the URL-based delivery 404'd live: the storage
+        // key is "{broadcasterId:N}/{fileName}", GetPlaybackUrlAsync Uri.EscapeDataString's it whole (encoding
+        // the '/' as %2F), and ASP.NET Core's routing deliberately never decodes %2F back into a path segment
+        // for the `stream/{*storageKey}` catch-all — the server was asked to open a file literally named with
+        // %2F in it and 404'd every time. That is a real, fixable bug in the URL path, but the data: URI has
+        // no such failure mode (no host/scheme/route resolution at all, and CSP already allows it) — it is
+        // also how the legacy bot delivered speech (NoMercyBot.TTSService audioBase64). Whether a data: URI
+        // can itself be corrupted/truncated in transit was a theory, never confirmed with a captured payload;
+        // do not re-decide this again without hard evidence either way.
+        string dataUri = $"data:audio/mpeg;base64,{Convert.ToBase64String(synth.AudioData)}";
 
         _db.TtsUsageRecords.Add(
             new()
