@@ -192,6 +192,7 @@
     "pipeline.play_sound.handle.help",
     "pipeline.play_sound.volume.help",
     "pipeline.play_sound.wait_for_finish.help",
+    "pipeline.play_tts.as.help",
     "pipeline.play_tts.description",
     "pipeline.play_tts.text.help",
     "pipeline.play_tts.voice.help",
