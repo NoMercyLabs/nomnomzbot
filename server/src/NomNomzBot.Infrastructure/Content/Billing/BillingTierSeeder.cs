@@ -115,6 +115,9 @@ public sealed class BillingTierSeeder : ISeeder
                 ("tts_max_characters", 500),
                 // Monthly sandbox budget (custom-code.md §3.3) — ~5 min of script execution per month.
                 ("sandbox_exec_ms", 300_000),
+                // Live storage gauges (S-BUDGETS-b5) — disk + egress + backup headroom, in bytes.
+                ("sound_clip_storage_bytes", 100L * 1024 * 1024), // 100 MB
+                ("channel_asset_storage_bytes", 100L * 1024 * 1024), // 100 MB
             ]
         ),
         new(
@@ -128,6 +131,8 @@ public sealed class BillingTierSeeder : ISeeder
             [
                 ("tts_max_characters", 2000),
                 ("sandbox_exec_ms", 1_800_000), // ~30 min / month
+                ("sound_clip_storage_bytes", 500L * 1024 * 1024), // 500 MB
+                ("channel_asset_storage_bytes", 500L * 1024 * 1024), // 500 MB
             ]
         ),
         new(
@@ -141,6 +146,8 @@ public sealed class BillingTierSeeder : ISeeder
             [
                 ("tts_max_characters", 8000),
                 ("sandbox_exec_ms", 7_200_000), // ~2 h / month
+                ("sound_clip_storage_bytes", 2L * 1024 * 1024 * 1024), // 2 GB
+                ("channel_asset_storage_bytes", 2L * 1024 * 1024 * 1024), // 2 GB
             ]
         ),
     ];

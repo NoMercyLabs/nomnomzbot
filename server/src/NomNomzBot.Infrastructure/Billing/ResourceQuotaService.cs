@@ -72,6 +72,18 @@ public sealed class ResourceQuotaService(
                 db.EventResponses.Where(e => e.BroadcasterId == broadcasterId && e.IsEnabled),
                 ct
             ),
+            // Live gauges — SUM of the SizeBytes of currently-live (non-soft-deleted) rows, computed fresh on
+            // every call. This is a real read of actual stored bytes, not an estimate and not an accumulated
+            // counter, so a delete lowers it immediately.
+            "sound_clip_storage_bytes" => SumBytesAsync(
+                db.SoundClips.Where(c => c.BroadcasterId == broadcasterId).Select(c => c.SizeBytes),
+                ct
+            ),
+            "channel_asset_storage_bytes" => SumBytesAsync(
+                db.ChannelAssets.Where(a => a.BroadcasterId == broadcasterId)
+                    .Select(a => a.SizeBytes),
+                ct
+            ),
             _ => Task.FromResult(
                 Result.Failure<long>(
                     $"'{limitKey}' has no single broadcaster-wide current-count source.",
@@ -84,6 +96,11 @@ public sealed class ResourceQuotaService(
         IQueryable<T> query,
         CancellationToken ct
     ) => Result.Success((long)await query.CountAsync(ct));
+
+    private static async Task<Result<long>> SumBytesAsync(
+        IQueryable<long> sizeBytes,
+        CancellationToken ct
+    ) => Result.Success(await sizeBytes.SumAsync(ct));
 
     public async Task<Result<IReadOnlyList<ResourceUsageDto>>> GetUsageReportAsync(
         Guid broadcasterId,
@@ -127,36 +144,65 @@ public sealed class ResourceQuotaService(
                     )
                 );
             }
-            else if (costDrivingByKey.TryGetValue(descriptor.LimitKey, out UsageMetricDto? usage))
-            {
-                report.Add(
-                    new ResourceUsageDto(
-                        descriptor.LimitKey,
-                        descriptor.Class,
-                        descriptor.DisplayName,
-                        usage.Used,
-                        usage.Limit,
-                        SafetyBaseline: 0
-                    )
-                );
-            }
             else
             {
-                // Not yet metered this period (no UsageRecord row) — current usage is truthfully zero; the
-                // limit still comes from the tier so self-host reports unlimited (-1), never a paid ceiling.
+                // COST_DRIVING resources come in two shapes: an event-accumulated period counter (TTS
+                // characters, sandbox ms — read from UsageRecord via IUsageMeteringService) or a live gauge
+                // (stored bytes — a fresh SUM query, since a delete must lower usage immediately, not just stop
+                // accumulating it). Try the live-gauge seam first; only a key with no gauge source falls back
+                // to the period counter, and a key metered by neither truthfully reports zero.
+                Result<long> gauge = await GetCurrentCountAsync(
+                    broadcasterId,
+                    descriptor.LimitKey,
+                    ct
+                );
                 long limit = (
                     await tiers.GetLimitAsync(broadcasterId, descriptor.LimitKey, ct)
                 ).Value;
-                report.Add(
-                    new ResourceUsageDto(
-                        descriptor.LimitKey,
-                        descriptor.Class,
-                        descriptor.DisplayName,
-                        CurrentCount: 0,
-                        limit,
-                        SafetyBaseline: 0
-                    )
-                );
+
+                if (gauge.IsSuccess)
+                {
+                    report.Add(
+                        new ResourceUsageDto(
+                            descriptor.LimitKey,
+                            descriptor.Class,
+                            descriptor.DisplayName,
+                            gauge.Value,
+                            limit,
+                            SafetyBaseline: 0
+                        )
+                    );
+                }
+                else if (
+                    costDrivingByKey.TryGetValue(descriptor.LimitKey, out UsageMetricDto? usage)
+                )
+                {
+                    report.Add(
+                        new ResourceUsageDto(
+                            descriptor.LimitKey,
+                            descriptor.Class,
+                            descriptor.DisplayName,
+                            usage.Used,
+                            usage.Limit,
+                            SafetyBaseline: 0
+                        )
+                    );
+                }
+                else
+                {
+                    // Not yet metered this period (no UsageRecord row) — current usage is truthfully zero; the
+                    // limit still comes from the tier so self-host reports unlimited (-1), never a paid ceiling.
+                    report.Add(
+                        new ResourceUsageDto(
+                            descriptor.LimitKey,
+                            descriptor.Class,
+                            descriptor.DisplayName,
+                            CurrentCount: 0,
+                            limit,
+                            SafetyBaseline: 0
+                        )
+                    );
+                }
             }
         }
 

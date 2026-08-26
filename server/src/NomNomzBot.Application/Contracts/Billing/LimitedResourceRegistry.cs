@@ -61,6 +61,22 @@ public static class LimitedResourceRegistry
             "Script CPU time per month",
             SafetyBaseline: 0
         ),
+        // Stored bytes are a real bill (disk + egress + backup) — a live gauge (SUM of currently-live rows'
+        // SizeBytes), never an event-accumulated counter: deleting a clip/asset must lower usage immediately,
+        // unlike a monthly TTS/sandbox allowance. Metered via IResourceQuotaService.GetCurrentCountAsync, the
+        // same seam the write-path budget check reads.
+        new(
+            "sound_clip_storage_bytes",
+            ResourceClass.CostDriving,
+            "Sound clip storage",
+            SafetyBaseline: 0
+        ),
+        new(
+            "channel_asset_storage_bytes",
+            ResourceClass.CostDriving,
+            "Channel asset storage",
+            SafetyBaseline: 0
+        ),
     ];
 
     private static readonly Dictionary<string, LimitedResourceDescriptor> ByKey =
