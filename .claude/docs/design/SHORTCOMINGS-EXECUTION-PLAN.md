@@ -136,19 +136,23 @@ stable — without dropping the planned requirements behind them.
   and apply it as ONE mechanism across every core action rather than per-action patches — then a templated
   argument and a templated return value both resolve, proven by tests.
 
-- **S-BUDGETS-b** (S-BUDGETS-a CLOSED 447ecd6e + 836eceea — `[CountedResource]` + `LimitedResourceRegistry`
-  + `IResourceQuotaService`; enforcement at the real write path with REAL counts; a reflection guard fails
-  when a countable entity has no declared key; NEAR_FREE keys (commands, timers, event responses, response
-  variations) get a generous safety floor and NEVER a paid ceiling — proven by a SaaS tenant getting 1200
-  rows though its tier said 100; COST_DRIVING keys (tts characters, sandbox exec ms) stay tier-scaled;
-  self-host capped only at the safety baseline; 12 inert per-tier rows removed from the seeder so the
-  catalogue no longer advertises limits nothing enforces.) REMAINING:
-  (a) the DASHBOARD surface — truthful "X of Y used" from real counts, never an estimate;
-  (b) APPROACHING/AT the limit is surfaced BEFORE the failed save (this rides the S-CONSEQ law);
-  (c) raising a tier immediately raises the ceiling with no re-login ([[never-logout-for-scope-or-schema-changes]]);
-  (d) the COST_DRIVING side is still only 2 keys — stored file bytes, egress/bandwidth and retained
-  history rows are named in the owner's intent but have no key or meter yet. Enumerate what actually
-  costs money and declare each, or say why a resource is genuinely unmeterable.
+- **S-BUDGETS-b (SPLIT — the single brief was correctly refused as 6-10h of full-stack greenfield; that
+  was an orchestrator sizing error, not an agent failure. Confirmed by the refusing agent: `app/composeApp`
+  has ZERO budget/quota/limit files, so the dashboard half is greenfield, while the backend already has
+  `BillingController`/`AdminBillingController` + `IResourceQuotaService` + `LimitedResourceRegistry` to
+  read from, never duplicate.)**
+  - **b1** `GET /api/v1/billing/usage` — per resource: key, class, real count, effective limit; counts from
+    the SAME source enforcement uses (prove at the cap); gated `[RequireAction]`; tenant-scoped; self-host
+    reports only the safety baseline. IN PROGRESS.
+  - **b2** the dashboard screen that renders it: "X of Y used" from real counts, near-free floors shown as
+    ABUSE GUARDS with NO upgrade prompt, cost-driving limits may name the tier, self-host shows no
+    commercial ceiling or upgrade affordance at all.
+  - **b3** warn BEFORE the failed save (the S-CONSEQ law): approaching/at-limit is visible before the user
+    does work and loses it, never discovered by failing.
+  - **b4** raising a tier raises the ceiling immediately, no re-login ([[never-logout-for-scope-or-schema-changes]]).
+  - **b5** the COST_DRIVING side is only 2 keys (tts characters, sandbox exec ms). Stored file bytes,
+    egress/bandwidth and retained history rows are named in the owner's cost-recovery intent but have no key
+    or meter. Enumerate what actually costs money and declare each, or say why one is unmeterable.
 
 - **S-NAMELESS-ROWS-b** (17 of 19 files remain; Commands + Rewards done in 8c349816, jvmTest 702/702)
   Mechanism `resolveRowLabel` + `RowLabelGuardTest` shipped in fa9391a3; `PickListsScreen` is the worked
