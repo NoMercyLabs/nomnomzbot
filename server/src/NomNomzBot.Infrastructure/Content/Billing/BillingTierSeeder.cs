@@ -112,10 +112,6 @@ public sealed class BillingTierSeeder : ISeeder
             true,
             10,
             [
-                ("response_variations_per_trigger", 15),
-                ("custom_commands", 100),
-                ("timers", 20),
-                ("event_responses", 40),
                 ("tts_max_characters", 500),
                 // Monthly sandbox budget (custom-code.md §3.3) — ~5 min of script execution per month.
                 ("sandbox_exec_ms", 300_000),
@@ -130,10 +126,6 @@ public sealed class BillingTierSeeder : ISeeder
             true,
             20,
             [
-                ("response_variations_per_trigger", 40),
-                ("custom_commands", 400),
-                ("timers", 60),
-                ("event_responses", 120),
                 ("tts_max_characters", 2000),
                 ("sandbox_exec_ms", 1_800_000), // ~30 min / month
             ]
@@ -147,10 +139,6 @@ public sealed class BillingTierSeeder : ISeeder
             true,
             30,
             [
-                ("response_variations_per_trigger", 100),
-                ("custom_commands", 1500),
-                ("timers", 200),
-                ("event_responses", 400),
                 ("tts_max_characters", 8000),
                 ("sandbox_exec_ms", 7_200_000), // ~2 h / month
             ]

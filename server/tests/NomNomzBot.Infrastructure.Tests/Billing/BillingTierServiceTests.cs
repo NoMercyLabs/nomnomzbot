@@ -82,7 +82,7 @@ public sealed class BillingTierServiceTests
         tiers
             .First(t => t.Key == "base")
             .Limits.Should()
-            .Contain(l => l.LimitKey == "custom_commands" && l.LimitValue == 100);
+            .Contain(l => l.LimitKey == "tts_max_characters" && l.LimitValue == 500);
     }
 
     [Fact]
@@ -98,7 +98,7 @@ public sealed class BillingTierServiceTests
         entitlement.TierKey.Should().Be("free");
         entitlement.AllowsCustomBotName.Should().BeTrue();
         entitlement.Limits.Values.Should().AllSatisfy(v => v.Should().Be(-1));
-        (await sut.GetLimitAsync(Channel, "custom_commands")).Value.Should().Be(-1);
+        (await sut.GetLimitAsync(Channel, "tts_max_characters")).Value.Should().Be(-1);
         (await sut.IsTierAtLeastAsync(Channel, "premium")).Value.Should().BeTrue();
     }
 
@@ -114,7 +114,7 @@ public sealed class BillingTierServiceTests
         EntitlementDto entitlement = (await sut.GetEntitlementAsync(Channel)).Value;
 
         entitlement.TierKey.Should().Be("pro");
-        entitlement.Limits["custom_commands"].Should().Be(400);
+        entitlement.Limits["tts_max_characters"].Should().Be(2000);
         (await sut.IsTierAtLeastAsync(Channel, "base")).Value.Should().BeTrue();
         (await sut.IsTierAtLeastAsync(Channel, "premium")).Value.Should().BeFalse();
     }
@@ -130,6 +130,6 @@ public sealed class BillingTierServiceTests
         EntitlementDto entitlement = (await sut.GetEntitlementAsync(Channel)).Value;
 
         entitlement.TierKey.Should().Be("base");
-        entitlement.Limits["custom_commands"].Should().Be(100);
+        entitlement.Limits["tts_max_characters"].Should().Be(500);
     }
 }
