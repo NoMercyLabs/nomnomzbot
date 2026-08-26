@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using NomNomzBot.Application.Abstractions.Persistence;
@@ -30,6 +31,7 @@ using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 using DomainStream = NomNomzBot.Domain.Stream.Entities.Stream;
 using DomainTimer = NomNomzBot.Domain.Commands.Entities.Timer;
 using RecordEntity = NomNomzBot.Domain.Platform.Entities.Record;
@@ -38,20 +40,46 @@ namespace NomNomzBot.Infrastructure.Tests.MediaShare;
 
 /// <summary>
 /// A focused <see cref="IApplicationDbContext"/> for the media-share queue — maps the config, the requests,
-/// the community standing (eligibility) and users, on the InMemory provider with the production soft-delete
+/// the community standing (eligibility) and users, on a real relational SQLite database with the production soft-delete
 /// filter. Every other set throws.
 /// </summary>
 internal sealed class MediaShareTestDbContext : DbContext, IApplicationDbContext
 {
-    private MediaShareTestDbContext(DbContextOptions<MediaShareTestDbContext> options)
-        : base(options) { }
+    // One private, non-shared in-memory SQLite connection per context instance - a REAL relational
+    // database (S-API-TESTS-INMEMORY; the EF InMemory provider is retired here because it ignores unique
+    // indexes, FK constraints and query translation, so it green-lights writes the real database rejects).
+    // Opened by New(), closed by this context's own Dispose/DisposeAsync overrides.
+    private readonly SqliteConnection _connection;
 
-    public static MediaShareTestDbContext New() =>
-        new(
-            new DbContextOptionsBuilder<MediaShareTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
+    private MediaShareTestDbContext(
+        DbContextOptions<MediaShareTestDbContext> options,
+        SqliteConnection connection
+    )
+        : base(options) => _connection = connection;
+
+    public static MediaShareTestDbContext New()
+    {
+        SqliteConnection connection = new("Data Source=:memory:");
+        connection.Open();
+        MediaShareTestDbContext db = new(
+            new DbContextOptionsBuilder<MediaShareTestDbContext>().UseSqlite(connection).Options,
+            connection
         );
+        db.Database.EnsureCreated();
+        return db;
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        _connection.Dispose();
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        await base.DisposeAsync();
+        await _connection.DisposeAsync();
+    }
 
     public DbSet<MediaShareConfig> MediaShareConfigs => Set<MediaShareConfig>();
     public DbSet<MediaShareRequest> MediaShareRequests => Set<MediaShareRequest>();
@@ -85,6 +113,8 @@ internal sealed class MediaShareTestDbContext : DbContext, IApplicationDbContext
 
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
+
+        b.ApplySqliteCompatibility();
     }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

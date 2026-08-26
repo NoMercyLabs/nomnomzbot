@@ -65,6 +65,19 @@ public sealed class MarketplaceServiceTests
     private static Harness Build()
     {
         MarketplaceTestDbContext db = MarketplaceTestDbContext.New();
+        // The owning channel rows. Install/uninstall writes audit Records whose BroadcasterId
+        // foreign key the relational test database enforces.
+        foreach (Guid id in new[] { SourceChannel, InstallChannel })
+            db.Channels.Add(
+                new()
+                {
+                    Id = id,
+                    OwnerUserId = id,
+                    Name = $"marketplace-{id:N}",
+                    NameNormalized = $"marketplace-{id:N}",
+                }
+            );
+        db.SaveChanges();
         RecordingEventBus bus = new();
         CommandService commands = new(
             db,

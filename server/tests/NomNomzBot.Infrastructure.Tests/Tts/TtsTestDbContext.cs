@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Analytics.Entities;
@@ -28,6 +29,7 @@ using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 using DomainTimer = NomNomzBot.Domain.Commands.Entities.Timer;
 using RecordEntity = NomNomzBot.Domain.Platform.Entities.Record;
 
@@ -35,19 +37,31 @@ namespace NomNomzBot.Infrastructure.Tests.Tts;
 
 /// <summary>
 /// A focused <see cref="IApplicationDbContext"/> over just the entities the TTS dispatch and per-viewer-voice tests
-/// exercise — on the EF Core InMemory provider. Maps <see cref="UserTtsVoice"/> (per-viewer voice resolution),
+/// exercise — on a real relational SQLite database. Maps <see cref="UserTtsVoice"/> (per-viewer voice resolution),
 /// <see cref="TtsUsageRecord"/> (the usage ledger), and <see cref="TtsVoice"/> (the synthesizable-voice catalogue
 /// used to validate an assignment); every other set throws, since no exercised path reaches it.
 /// </summary>
 internal sealed class TtsTestDbContext : DbContext, IApplicationDbContext
 {
-    private TtsTestDbContext(DbContextOptions<TtsTestDbContext> options)
-        : base(options) { }
+    // One private, non-shared in-memory SQLite connection per context instance - a REAL relational
+    // database (S-API-TESTS-INMEMORY; the EF InMemory provider is retired here because it ignores unique
+    // indexes, FK constraints and query translation, so it green-lights writes the real database rejects).
+    // Opened by New(), closed by this context's own Dispose/DisposeAsync overrides.
+    private readonly SqliteConnection _connection;
 
-    public static TtsTestDbContext New() =>
-        new(
+    private TtsTestDbContext(
+        DbContextOptions<TtsTestDbContext> options,
+        SqliteConnection connection
+    )
+        : base(options) => _connection = connection;
+
+    public static TtsTestDbContext New()
+    {
+        SqliteConnection connection = new("Data Source=:memory:");
+        connection.Open();
+        TtsTestDbContext db = new(
             new DbContextOptionsBuilder<TtsTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
+                .UseSqlite(connection)
                 // The production interceptor, so Remove() on a soft-deletable entity (TtsLexiconEntry)
                 // stamps DeletedAt exactly as the real AppDbContext does.
                 .AddInterceptors(
@@ -56,8 +70,24 @@ internal sealed class TtsTestDbContext : DbContext, IApplicationDbContext
                         new NomNomzBot.Infrastructure.Tests.Platform.Persistence.NullCurrentUserService()
                     )
                 )
-                .Options
+                .Options,
+            connection
         );
+        db.Database.EnsureCreated();
+        return db;
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        _connection.Dispose();
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        await base.DisposeAsync();
+        await _connection.DisposeAsync();
+    }
 
     public DbSet<UserTtsVoice> UserTtsVoices => Set<UserTtsVoice>();
     public DbSet<TtsUsageRecord> TtsUsageRecords => Set<TtsUsageRecord>();
@@ -98,6 +128,8 @@ internal sealed class TtsTestDbContext : DbContext, IApplicationDbContext
 
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
+
+        b.ApplySqliteCompatibility();
     }
 
     private static readonly HashSet<Type> Mapped =

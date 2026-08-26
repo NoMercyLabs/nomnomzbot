@@ -31,9 +31,28 @@ public sealed class CommandServiceTests
 {
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-000000000e01");
 
-    private static (CommandService Sut, RecordingEventBus Bus) Build()
+    /// <summary>A fresh relational test database with the owning channel row seeded — every audit
+    /// <c>Record</c> the service writes carries a real <c>BroadcasterId</c> foreign key, which the
+    /// relational test database enforces.</summary>
+    private static CommandsTestDbContext NewDb()
     {
         CommandsTestDbContext db = CommandsTestDbContext.New();
+        db.Channels.Add(
+            new()
+            {
+                Id = Channel,
+                OwnerUserId = Channel,
+                Name = "command-service-channel",
+                NameNormalized = "command-service-channel",
+            }
+        );
+        db.SaveChanges();
+        return db;
+    }
+
+    private static (CommandService Sut, RecordingEventBus Bus) Build()
+    {
+        CommandsTestDbContext db = NewDb();
         IPipelineEngine pipelineEngine = Substitute.For<IPipelineEngine>();
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
         RecordingEventBus bus = new();
@@ -146,7 +165,7 @@ public sealed class CommandServiceTests
     [Fact]
     public async Task Delete_WithAnActor_RecordsAnAuditRowNamingThemBeforeRemovingTheCommand()
     {
-        CommandsTestDbContext db = CommandsTestDbContext.New();
+        CommandsTestDbContext db = NewDb();
         CommandService sut = new(
             db,
             Substitute.For<IPipelineEngine>(),
@@ -174,7 +193,7 @@ public sealed class CommandServiceTests
     [Fact]
     public async Task Delete_WithNoActorSupplied_StillRecordsAnAuditRow()
     {
-        CommandsTestDbContext db = CommandsTestDbContext.New();
+        CommandsTestDbContext db = NewDb();
         CommandService sut = new(
             db,
             Substitute.For<IPipelineEngine>(),

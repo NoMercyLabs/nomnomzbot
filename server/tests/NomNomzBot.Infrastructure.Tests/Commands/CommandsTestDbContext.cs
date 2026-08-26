@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Analytics.Entities;
@@ -30,27 +31,54 @@ using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Infrastructure.Platform.Persistence.Converters;
+using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 using DomainTimer = NomNomzBot.Domain.Commands.Entities.Timer;
 
 namespace NomNomzBot.Infrastructure.Tests.Commands;
 
 /// <summary>
 /// A focused <see cref="IApplicationDbContext"/> over only <see cref="Command"/> and <see cref="Timer"/> — on the
-/// EF Core InMemory provider — for the E5 <c>CommandService</c>/<c>TimerManagementService</c> config-CRUD tests.
+/// real relational SQLite database — for the E5 <c>CommandService</c>/<c>TimerManagementService</c> config-CRUD tests.
 /// Everything else throws, since those tests never reach it. Mirrors the same "declare every DbSet, auto-ignore
 /// the unmapped ones" shape as <c>Hubs/WidgetTestDbContext.cs</c>, just with Command + Timer as the live entities.
 /// </summary>
 internal sealed class CommandsTestDbContext : DbContext, IApplicationDbContext
 {
-    private CommandsTestDbContext(DbContextOptions<CommandsTestDbContext> options)
-        : base(options) { }
+    // One private, non-shared in-memory SQLite connection per context instance - a REAL relational
+    // database (S-API-TESTS-INMEMORY; the EF InMemory provider is retired here because it ignores unique
+    // indexes, FK constraints and query translation, so it green-lights writes the real database rejects).
+    // Opened by New(), closed by this context's own Dispose/DisposeAsync overrides.
+    private readonly SqliteConnection _connection;
 
-    public static CommandsTestDbContext New() =>
-        new(
-            new DbContextOptionsBuilder<CommandsTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
+    private CommandsTestDbContext(
+        DbContextOptions<CommandsTestDbContext> options,
+        SqliteConnection connection
+    )
+        : base(options) => _connection = connection;
+
+    public static CommandsTestDbContext New()
+    {
+        SqliteConnection connection = new("Data Source=:memory:");
+        connection.Open();
+        CommandsTestDbContext db = new(
+            new DbContextOptionsBuilder<CommandsTestDbContext>().UseSqlite(connection).Options,
+            connection
         );
+        db.Database.EnsureCreated();
+        return db;
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        _connection.Dispose();
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        await base.DisposeAsync();
+        await _connection.DisposeAsync();
+    }
 
     public DbSet<Command> Commands => Set<Command>();
     public DbSet<DomainTimer> Timers => Set<DomainTimer>();
@@ -102,6 +130,8 @@ internal sealed class CommandsTestDbContext : DbContext, IApplicationDbContext
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
+
+        b.ApplySqliteCompatibility();
     }
 
     private static readonly HashSet<Type> Mapped =

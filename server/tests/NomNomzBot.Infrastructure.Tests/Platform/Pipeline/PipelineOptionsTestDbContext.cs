@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Analytics.Entities;
@@ -31,26 +32,55 @@ using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 
 namespace NomNomzBot.Infrastructure.Tests.Platform.Pipeline;
 
 /// <summary>
 /// A focused <see cref="IApplicationDbContext"/> over the entities the S-RICH-PICKERS option providers read
 /// (Reward, TtsVoice, SoundClip, Widget, ChannelAsset, DiscordGuildConnection, ViewerProfile, User, Channel) —
-/// on the EF Core InMemory provider. Mirrors the "declare every DbSet, auto-ignore the unmapped ones" shape as
+/// on a real relational SQLite database. Mirrors the "declare every DbSet, auto-ignore the unmapped ones" shape as
 /// <c>Commands/CommandsTestDbContext.cs</c>.
 /// </summary>
 internal sealed class PipelineOptionsTestDbContext : DbContext, IApplicationDbContext
 {
-    private PipelineOptionsTestDbContext(DbContextOptions<PipelineOptionsTestDbContext> options)
-        : base(options) { }
+    // One private, non-shared in-memory SQLite connection per context instance - a REAL relational
+    // database (S-API-TESTS-INMEMORY; the EF InMemory provider is retired here because it ignores unique
+    // indexes, FK constraints and query translation, so it green-lights writes the real database rejects).
+    // Opened by New(), closed by this context's own Dispose/DisposeAsync overrides.
+    private readonly SqliteConnection _connection;
 
-    public static PipelineOptionsTestDbContext New() =>
-        new(
+    private PipelineOptionsTestDbContext(
+        DbContextOptions<PipelineOptionsTestDbContext> options,
+        SqliteConnection connection
+    )
+        : base(options) => _connection = connection;
+
+    public static PipelineOptionsTestDbContext New()
+    {
+        SqliteConnection connection = new("Data Source=:memory:");
+        connection.Open();
+        PipelineOptionsTestDbContext db = new(
             new DbContextOptionsBuilder<PipelineOptionsTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
+                .UseSqlite(connection)
+                .Options,
+            connection
         );
+        db.Database.EnsureCreated();
+        return db;
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        _connection.Dispose();
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        await base.DisposeAsync();
+        await _connection.DisposeAsync();
+    }
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -106,6 +136,8 @@ internal sealed class PipelineOptionsTestDbContext : DbContext, IApplicationDbCo
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
+
+        b.ApplySqliteCompatibility();
     }
 
     private static readonly HashSet<Type> Mapped =

@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using NomNomzBot.Application.Abstractions.Persistence;
@@ -29,6 +30,7 @@ using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 using DomainTimer = NomNomzBot.Domain.Commands.Entities.Timer;
 using RecordEntity = NomNomzBot.Domain.Platform.Entities.Record;
 
@@ -37,7 +39,7 @@ namespace NomNomzBot.Infrastructure.Tests.Platform.Eventing;
 /// <summary>
 /// A focused <see cref="IApplicationDbContext"/> over only the two entities the EventSub reconnect/subscribe
 /// tests touch — the <see cref="EventSubSubscription"/> registry and the <see cref="IntegrationConnection"/> the
-/// bot-user lookup reads — on the EF Core InMemory provider. The production <c>AppDbContext</c> is Npgsql-bound
+/// bot-user lookup reads — on a real relational SQLite database. The production <c>AppDbContext</c> is Npgsql-bound
 /// (jsonb complex types) and cannot host a test provider, so only the mapped entities are materialized; every
 /// other <see cref="IApplicationDbContext"/> set throws, since these tests never reach it. Mirrors the "declare
 /// every DbSet, auto-ignore the unmapped ones by reflection" shape of <c>Moderation/ModerationServiceTestDbContext.cs</c>.
@@ -49,15 +51,41 @@ namespace NomNomzBot.Infrastructure.Tests.Platform.Eventing;
 /// </summary>
 internal sealed class EventSubTestDbContext : DbContext, IApplicationDbContext
 {
-    private EventSubTestDbContext(DbContextOptions<EventSubTestDbContext> options)
-        : base(options) { }
+    // One private, non-shared in-memory SQLite connection per context instance - a REAL relational
+    // database (S-API-TESTS-INMEMORY; the EF InMemory provider is retired here because it ignores unique
+    // indexes, FK constraints and query translation, so it green-lights writes the real database rejects).
+    // Opened by New(), closed by this context's own Dispose/DisposeAsync overrides.
+    private readonly SqliteConnection _connection;
 
-    public static EventSubTestDbContext New() =>
-        new(
-            new DbContextOptionsBuilder<EventSubTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
+    private EventSubTestDbContext(
+        DbContextOptions<EventSubTestDbContext> options,
+        SqliteConnection connection
+    )
+        : base(options) => _connection = connection;
+
+    public static EventSubTestDbContext New()
+    {
+        SqliteConnection connection = new("Data Source=:memory:");
+        connection.Open();
+        EventSubTestDbContext db = new(
+            new DbContextOptionsBuilder<EventSubTestDbContext>().UseSqlite(connection).Options,
+            connection
         );
+        db.Database.EnsureCreated();
+        return db;
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        _connection.Dispose();
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        await base.DisposeAsync();
+        await _connection.DisposeAsync();
+    }
 
     public DbSet<EventSubSubscription> EventSubSubscriptions => Set<EventSubSubscription>();
     public DbSet<IntegrationConnection> IntegrationConnections => Set<IntegrationConnection>();
@@ -67,7 +95,7 @@ internal sealed class EventSubTestDbContext : DbContext, IApplicationDbContext
         b.Entity<EventSubSubscription>(e =>
         {
             e.HasKey(x => x.Id);
-            // Dictionary<string,string> has no InMemory mapping (production uses a jsonb value converter); the
+            // Dictionary<string,string> has no default relational mapping (production uses a jsonb value converter); the
             // tests never assert on it, so drop it from the model.
             e.Ignore(x => x.Condition);
         });
@@ -77,7 +105,7 @@ internal sealed class EventSubTestDbContext : DbContext, IApplicationDbContext
             e.HasKey(x => x.Id);
             e.Ignore(x => x.Channel);
             e.Ignore(x => x.Tokens);
-            // Scopes stays mapped (a List<string> primitive collection materializes on InMemory):
+            // Scopes stays mapped (a List<string> primitive collection materializes on SQLite):
             // the scope-gate tests seed a grant set and prove SubscribeAsync holds/releases on it.
         });
 
@@ -85,6 +113,8 @@ internal sealed class EventSubTestDbContext : DbContext, IApplicationDbContext
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
+
+        b.ApplySqliteCompatibility();
     }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

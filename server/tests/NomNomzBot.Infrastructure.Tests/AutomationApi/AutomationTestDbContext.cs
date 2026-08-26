@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Analytics.Entities;
@@ -28,28 +29,55 @@ using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 using DomainTimer = NomNomzBot.Domain.Commands.Entities.Timer;
 using RecordEntity = NomNomzBot.Domain.Platform.Entities.Record;
 
 namespace NomNomzBot.Infrastructure.Tests.AutomationApi;
 
 /// <summary>
-/// A focused <see cref="IApplicationDbContext"/> for the automation-token tests — on the EF Core
-/// InMemory provider. Maps <see cref="NomNomzBot.Domain.Automation.Entities.AutomationApiToken"/>
+/// A focused <see cref="IApplicationDbContext"/> for the automation-token tests — on the a real relational
+/// SQLite database. Maps <see cref="NomNomzBot.Domain.Automation.Entities.AutomationApiToken"/>
 /// (navs ignored — no Channels/Users tables here); the inherited TTS sets stay mapped harmlessly;
 /// every other set throws, since no exercised path reaches it.
 /// </summary>
 internal sealed class AutomationTestDbContext : DbContext, IApplicationDbContext
 {
-    private AutomationTestDbContext(DbContextOptions<AutomationTestDbContext> options)
-        : base(options) { }
+    // One private, non-shared in-memory SQLite connection per context instance - a REAL relational
+    // database (S-API-TESTS-INMEMORY; the EF InMemory provider is retired here because it ignores unique
+    // indexes, FK constraints and query translation, so it green-lights writes the real database rejects).
+    // Opened by New(), closed by this context's own Dispose/DisposeAsync overrides.
+    private readonly SqliteConnection _connection;
 
-    public static AutomationTestDbContext New() =>
-        new(
-            new DbContextOptionsBuilder<AutomationTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
+    private AutomationTestDbContext(
+        DbContextOptions<AutomationTestDbContext> options,
+        SqliteConnection connection
+    )
+        : base(options) => _connection = connection;
+
+    public static AutomationTestDbContext New()
+    {
+        SqliteConnection connection = new("Data Source=:memory:");
+        connection.Open();
+        AutomationTestDbContext db = new(
+            new DbContextOptionsBuilder<AutomationTestDbContext>().UseSqlite(connection).Options,
+            connection
         );
+        db.Database.EnsureCreated();
+        return db;
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        _connection.Dispose();
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        await base.DisposeAsync();
+        await _connection.DisposeAsync();
+    }
 
     public DbSet<UserTtsVoice> UserTtsVoices => Set<UserTtsVoice>();
     public DbSet<TtsUsageRecord> TtsUsageRecords => Set<TtsUsageRecord>();
@@ -115,6 +143,8 @@ internal sealed class AutomationTestDbContext : DbContext, IApplicationDbContext
 
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
+
+        b.ApplySqliteCompatibility();
     }
 
     private static readonly HashSet<Type> Mapped =

@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Analytics.Entities;
@@ -31,6 +32,7 @@ using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Infrastructure.Platform.Persistence.Converters;
+using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 using DomainTimer = NomNomzBot.Domain.Commands.Entities.Timer;
 using PipelineEntity = NomNomzBot.Domain.Commands.Entities.Pipeline;
 
@@ -40,21 +42,47 @@ namespace NomNomzBot.Infrastructure.Tests.Marketplace;
 /// A focused <see cref="IApplicationDbContext"/> over the bundle import/export surface — pipelines, commands,
 /// custom data sources, the six parity item types (event responses, rewards, timers, chat triggers, pick
 /// lists, code scripts + versions), <see cref="Channel"/> (reward/pick-list creation checks it), and
-/// <see cref="InstalledBundle"/> — on the EF Core InMemory provider, for the marketplace round-trip tests.
+/// <see cref="InstalledBundle"/> — on a real relational SQLite database, for the marketplace round-trip tests.
 /// Everything else throws, since those tests never reach it. Mirrors the "declare every DbSet, auto-ignore
 /// the unmapped ones" shape of <c>Commands/CommandsTestDbContext.cs</c>.
 /// </summary>
 internal sealed class MarketplaceTestDbContext : DbContext, IApplicationDbContext
 {
-    private MarketplaceTestDbContext(DbContextOptions<MarketplaceTestDbContext> options)
-        : base(options) { }
+    // One private, non-shared in-memory SQLite connection per context instance - a REAL relational
+    // database (S-API-TESTS-INMEMORY; the EF InMemory provider is retired here because it ignores unique
+    // indexes, FK constraints and query translation, so it green-lights writes the real database rejects).
+    // Opened by New(), closed by this context's own Dispose/DisposeAsync overrides.
+    private readonly SqliteConnection _connection;
 
-    public static MarketplaceTestDbContext New() =>
-        new(
-            new DbContextOptionsBuilder<MarketplaceTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
+    private MarketplaceTestDbContext(
+        DbContextOptions<MarketplaceTestDbContext> options,
+        SqliteConnection connection
+    )
+        : base(options) => _connection = connection;
+
+    public static MarketplaceTestDbContext New()
+    {
+        SqliteConnection connection = new("Data Source=:memory:");
+        connection.Open();
+        MarketplaceTestDbContext db = new(
+            new DbContextOptionsBuilder<MarketplaceTestDbContext>().UseSqlite(connection).Options,
+            connection
         );
+        db.Database.EnsureCreated();
+        return db;
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        _connection.Dispose();
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        await base.DisposeAsync();
+        await _connection.DisposeAsync();
+    }
 
     public DbSet<Command> Commands => Set<Command>();
     public DbSet<PipelineEntity> Pipelines => Set<PipelineEntity>();
@@ -202,6 +230,8 @@ internal sealed class MarketplaceTestDbContext : DbContext, IApplicationDbContex
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
+
+        b.ApplySqliteCompatibility();
     }
 
     private static readonly HashSet<Type> Mapped =

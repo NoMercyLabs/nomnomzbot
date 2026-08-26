@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using NomNomzBot.Application.Abstractions.Persistence;
@@ -30,6 +31,7 @@ using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 using DomainStream = NomNomzBot.Domain.Stream.Entities.Stream;
 using DomainTimer = NomNomzBot.Domain.Commands.Entities.Timer;
 using RecordEntity = NomNomzBot.Domain.Platform.Entities.Record;
@@ -38,20 +40,46 @@ namespace NomNomzBot.Infrastructure.Tests.Engagement;
 
 /// <summary>
 /// A focused <see cref="IApplicationDbContext"/> for the engagement subsystem — maps the config, per-viewer
-/// state, the stream history (streak ordering), and users, on the InMemory provider. Mirrors the
+/// state, the stream history (streak ordering), and users, on a real relational SQLite database. Mirrors the
 /// production soft-delete filter the service relies on. Stamps timestamps on save.
 /// </summary>
 internal sealed class EngagementTestDbContext : DbContext, IApplicationDbContext
 {
-    private EngagementTestDbContext(DbContextOptions<EngagementTestDbContext> options)
-        : base(options) { }
+    // One private, non-shared in-memory SQLite connection per context instance - a REAL relational
+    // database (S-API-TESTS-INMEMORY; the EF InMemory provider is retired here because it ignores unique
+    // indexes, FK constraints and query translation, so it green-lights writes the real database rejects).
+    // Opened by New(), closed by this context's own Dispose/DisposeAsync overrides.
+    private readonly SqliteConnection _connection;
 
-    public static EngagementTestDbContext New() =>
-        new(
-            new DbContextOptionsBuilder<EngagementTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
+    private EngagementTestDbContext(
+        DbContextOptions<EngagementTestDbContext> options,
+        SqliteConnection connection
+    )
+        : base(options) => _connection = connection;
+
+    public static EngagementTestDbContext New()
+    {
+        SqliteConnection connection = new("Data Source=:memory:");
+        connection.Open();
+        EngagementTestDbContext db = new(
+            new DbContextOptionsBuilder<EngagementTestDbContext>().UseSqlite(connection).Options,
+            connection
         );
+        db.Database.EnsureCreated();
+        return db;
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        _connection.Dispose();
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        await base.DisposeAsync();
+        await _connection.DisposeAsync();
+    }
 
     public DbSet<EngagementConfig> EngagementConfigs => Set<EngagementConfig>();
     public DbSet<ViewerEngagementState> ViewerEngagementStates => Set<ViewerEngagementState>();
@@ -92,6 +120,8 @@ internal sealed class EngagementTestDbContext : DbContext, IApplicationDbContext
 
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
+
+        b.ApplySqliteCompatibility();
     }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

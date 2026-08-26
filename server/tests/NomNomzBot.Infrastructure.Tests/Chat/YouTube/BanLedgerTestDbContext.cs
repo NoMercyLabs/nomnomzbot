@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using NomNomzBot.Application.Abstractions.Persistence;
@@ -29,6 +30,7 @@ using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 using DomainTimer = NomNomzBot.Domain.Commands.Entities.Timer;
 using RecordEntity = NomNomzBot.Domain.Platform.Entities.Record;
 
@@ -36,7 +38,7 @@ namespace NomNomzBot.Infrastructure.Tests.Chat.YouTube;
 
 /// <summary>
 /// A focused <see cref="IApplicationDbContext"/> over ONLY the <see cref="YouTubeLiveChatBan"/> ledger, on
-/// the EF Core InMemory provider — the production <c>AppDbContext</c> is Npgsql-bound (jsonb complex types)
+/// a real relational SQLite database — the production <c>AppDbContext</c> is Npgsql-bound (jsonb complex types)
 /// and cannot host a test provider. Every other <see cref="IApplicationDbContext"/> set throws, since the
 /// ledger tests never reach it; mirrors the "declare every DbSet, auto-ignore the unmapped ones by
 /// reflection" shape of <c>Platform/Eventing/EventSubTestDbContext.cs</c>. Stamps
@@ -45,15 +47,41 @@ namespace NomNomzBot.Infrastructure.Tests.Chat.YouTube;
 /// </summary>
 internal sealed class BanLedgerTestDbContext : DbContext, IApplicationDbContext
 {
-    private BanLedgerTestDbContext(DbContextOptions<BanLedgerTestDbContext> options)
-        : base(options) { }
+    // One private, non-shared in-memory SQLite connection per context instance - a REAL relational
+    // database (S-API-TESTS-INMEMORY; the EF InMemory provider is retired here because it ignores unique
+    // indexes, FK constraints and query translation, so it green-lights writes the real database rejects).
+    // Opened by New(), closed by this context's own Dispose/DisposeAsync overrides.
+    private readonly SqliteConnection _connection;
 
-    public static BanLedgerTestDbContext New() =>
-        new(
-            new DbContextOptionsBuilder<BanLedgerTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
+    private BanLedgerTestDbContext(
+        DbContextOptions<BanLedgerTestDbContext> options,
+        SqliteConnection connection
+    )
+        : base(options) => _connection = connection;
+
+    public static BanLedgerTestDbContext New()
+    {
+        SqliteConnection connection = new("Data Source=:memory:");
+        connection.Open();
+        BanLedgerTestDbContext db = new(
+            new DbContextOptionsBuilder<BanLedgerTestDbContext>().UseSqlite(connection).Options,
+            connection
         );
+        db.Database.EnsureCreated();
+        return db;
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        _connection.Dispose();
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        await base.DisposeAsync();
+        await _connection.DisposeAsync();
+    }
 
     public DbSet<YouTubeLiveChatBan> YouTubeLiveChatBans => Set<YouTubeLiveChatBan>();
     public DbSet<NomNomzBot.Domain.Giveaways.Entities.Giveaway> Giveaways =>
@@ -70,13 +98,15 @@ internal sealed class BanLedgerTestDbContext : DbContext, IApplicationDbContext
 
     protected override void OnModelCreating(ModelBuilder b)
     {
-        // All-scalar entity — the real configuration adds only lengths/indexes, which InMemory ignores.
+        // All-scalar entity — the real configuration adds only lengths/indexes, which a relational provider enforces.
         b.Entity<YouTubeLiveChatBan>(e => e.HasKey(x => x.Id));
 
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
+
+        b.ApplySqliteCompatibility();
     }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
