@@ -16,7 +16,12 @@
 #   2. `dotnet test --no-build` against a STALE test assembly silently runs a subset — a run once
 #      reported 1243 tests where the truth was 4279. The test projects are rebuilt explicitly.
 #   3. Gradle skips :composeApp:jvmTest as up-to-date and prints BUILD SUCCESSFUL in ~3s. That is not a
-#      test run, so -IncludeApp passes --rerun-tasks and reads the real count out of the XML results.
+#      test run. `cleanJvmTest jvmTest` invalidates the TEST task only, so every test really runs (~30s)
+#      without the full Kotlin recompile `--rerun-tasks` forced (~minutes). Counts are still read out of
+#      the XML rather than trusted from "BUILD SUCCESSFUL".
+#
+# The Kotlin suite runs when app/ actually changed, or on demand with -IncludeApp. A backend-only slice
+# does not pay for it.
 
 param(
     [switch]$IncludeApp,
@@ -68,11 +73,15 @@ try {
 }
 finally { Pop-Location }
 
-if ($IncludeApp) {
-    Write-Host '== jvmTest (forced: Gradle would otherwise skip it as up-to-date) =='
+[bool]$appChanged = [bool](git -C $repo status --porcelain -- app | Select-Object -First 1) -or
+    [bool](git -C $repo diff --name-only HEAD~1 -- app 2>$null | Select-Object -First 1)
+
+if ($IncludeApp -or $appChanged) {
+    Write-Host '== jvmTest (test task invalidated so it cannot be skipped as up-to-date) =='
     Push-Location $root
     try {
-        & (Join-Path $root 'app/gradlew.bat') -p (Join-Path $root 'app') :composeApp:jvmTest --rerun-tasks --console=plain | Out-Host
+        & (Join-Path $root 'app/gradlew.bat') -p (Join-Path $root 'app') `
+            :composeApp:cleanJvmTest :composeApp:jvmTest --console=plain | Out-Host
         if ($LASTEXITCODE -ne 0) { $failed = $true }
     }
     finally { Pop-Location }
