@@ -61,6 +61,7 @@ using NomNomzBot.Infrastructure.Platform.Templating;
 using NomNomzBot.Infrastructure.Platform.Transport;
 using NomNomzBot.Infrastructure.Platform.Transport.Helix;
 using NomNomzBot.Infrastructure.Tts;
+using NomNomzBot.Infrastructure.Webhooks;
 
 namespace NomNomzBot.Infrastructure;
 
@@ -894,8 +895,8 @@ public static class DependencyInjection
         // Singleton services (stateful / crypto / engine primitives) — kept explicit:
         // these are NOT per-request scoped, so the convention scan excludes their interfaces.
         services.AddSingleton<ICooldownManager, CooldownManager>();
-        services.AddSingleton<ITemplateEngine, TemplateEngine>();
         services.AddSingleton<ITemplateResolver, TemplateResolver>();
+        services.AddSingleton<IWebhookBodyTemplateRenderer, WebhookBodyTemplateRenderer>();
         services.AddSingleton<ITemplateHelperValidator, TemplateHelperValidator>();
         services.AddSingleton<ITrustService, TrustService>();
         // Game outcome RNG (stateless CSPRNG; not an I<X>Service, so registered explicitly).
