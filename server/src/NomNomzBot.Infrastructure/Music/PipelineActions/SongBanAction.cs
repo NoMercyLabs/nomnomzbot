@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.Extensions.Logging;
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Dtos;
@@ -36,8 +37,10 @@ public sealed class SongBanAction : ICommandAction
     private readonly ILogger<SongBanAction> _logger;
 
     public string ActionType => "song_ban";
-    public string Category => "music";
-    public string Description => "Block the currently playing track from requests and skip it";
+
+    public LocalizedText Category => new("pipeline.category.music");
+
+    public LocalizedText Description => new("pipeline.song_ban.description");
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [

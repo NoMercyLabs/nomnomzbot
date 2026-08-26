@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Domain.Chat.Interfaces;
 
@@ -19,6 +20,9 @@ public sealed class DeleteMessageAction : ICommandAction
 
     public string ActionType => "delete_message";
 
+    public LocalizedText Category => new("pipeline.category.moderation");
+
+    public LocalizedText Description => new("pipeline.delete_message.description");
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(

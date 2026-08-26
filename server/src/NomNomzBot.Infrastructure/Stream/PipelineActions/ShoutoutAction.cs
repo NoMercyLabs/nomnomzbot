@@ -10,6 +10,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
@@ -69,6 +70,9 @@ public sealed class ShoutoutAction : ICommandAction
 
     public string ActionType => "shoutout";
 
+    public LocalizedText Category => new("pipeline.category.stream");
+
+    public LocalizedText Description => new("pipeline.shoutout.description");
     public bool ResolvesOwnTemplates => true;
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>

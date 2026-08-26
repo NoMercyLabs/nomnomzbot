@@ -922,7 +922,7 @@ private fun BlockParamEditor(
     if (block.description.isNotBlank()) {
         val tokens = LocalTokens.current
         val typography = LocalTypography.current
-        Text(text = block.description, style = typography.xs, color = tokens.mutedForeground)
+        Text(text = resolveSchemaString(block.description), style = typography.xs, color = tokens.mutedForeground)
     }
     if (block.hasHints) {
         TypedParamFields(block = block, params = typed, options = options)
@@ -1186,7 +1186,7 @@ private fun BlockTypePicker(
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             for ((category, blocks) in grouped) {
                 Text(
-                    text = humanize(category),
+                    text = resolveSchemaString(category),
                     style = typography.xs,
                     color = tokens.mutedForeground,
                     modifier = Modifier.padding(horizontal = LocalSpacing.current.s3, vertical = LocalSpacing.current.s1),

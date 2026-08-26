@@ -14,6 +14,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using NomNomzBot.Application;
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 
 namespace NomNomzBot.Infrastructure.Tests.Platform.Pipeline;
@@ -26,6 +27,9 @@ namespace NomNomzBot.Infrastructure.Tests.Platform.Pipeline;
 internal sealed class UndeclaredParamFixtureAction : ICommandAction
 {
     public string ActionType => "guard_fixture_undeclared_param";
+
+    public LocalizedText Category => new("pipeline.category.test_fixture");
+    public LocalizedText Description => new("pipeline.test_fixture.description");
 
     public Task<ActionResult> ExecuteAsync(PipelineExecutionContext ctx, ActionDefinition action)
     {
@@ -44,6 +48,8 @@ internal sealed class DeadFieldFixtureAction : ICommandAction
 {
     public string ActionType => "guard_fixture_dead_field";
 
+    public LocalizedText Category => new("pipeline.category.test_fixture");
+    public LocalizedText Description => new("pipeline.test_fixture.description");
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [new("phantom_field", PipelineActionFieldKind.Text)];
 
@@ -62,6 +68,9 @@ internal sealed class DeadFieldFixtureAction : ICommandAction
 internal sealed class LocalAliasIndexerFixtureAction : ICommandAction
 {
     public string ActionType => "guard_fixture_local_alias_indexer";
+
+    public LocalizedText Category => new("pipeline.category.test_fixture");
+    public LocalizedText Description => new("pipeline.test_fixture.description");
 
     public Task<ActionResult> ExecuteAsync(PipelineExecutionContext ctx, ActionDefinition action)
     {
@@ -86,6 +95,9 @@ internal static class SneakyActionDefinitionExtensions
 internal sealed class ExtensionMethodFixtureAction : ICommandAction
 {
     public string ActionType => "guard_fixture_extension_method";
+
+    public LocalizedText Category => new("pipeline.category.test_fixture");
+    public LocalizedText Description => new("pipeline.test_fixture.description");
 
     public Task<ActionResult> ExecuteAsync(PipelineExecutionContext ctx, ActionDefinition action)
     {

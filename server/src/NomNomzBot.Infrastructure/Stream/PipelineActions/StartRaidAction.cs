@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.Extensions.Logging;
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -58,8 +59,10 @@ public sealed class StartRaidAction : ICommandAction
     private readonly ILogger<StartRaidAction> _logger;
 
     public string ActionType => "start_raid";
-    public string Category => "stream";
-    public string Description => "Start a raid to another channel";
+
+    public LocalizedText Category => new("pipeline.category.stream");
+
+    public LocalizedText Description => new("pipeline.start_raid.description");
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [

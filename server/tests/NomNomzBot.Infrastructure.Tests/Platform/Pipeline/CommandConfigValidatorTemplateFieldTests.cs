@@ -10,6 +10,7 @@
 
 using System.Text.Json;
 using FluentAssertions;
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Infrastructure.Platform.Pipeline;
 using NomNomzBot.Infrastructure.Platform.Templating;
@@ -29,6 +30,8 @@ public sealed class CommandConfigValidatorTemplateFieldTests
     {
         public string ActionType => "send_message";
 
+        public LocalizedText Category => new("pipeline.category.test_fixture");
+        public LocalizedText Description => new("pipeline.test_fixture.description");
         public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
             [new("message", PipelineActionFieldKind.Text, Required: true, Templated: true)];
 
@@ -42,6 +45,8 @@ public sealed class CommandConfigValidatorTemplateFieldTests
     {
         public string ActionType => "timeout_user";
 
+        public LocalizedText Category => new("pipeline.category.test_fixture");
+        public LocalizedText Description => new("pipeline.test_fixture.description");
         public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
             [new("seconds", PipelineActionFieldKind.Number, Required: true)];
 

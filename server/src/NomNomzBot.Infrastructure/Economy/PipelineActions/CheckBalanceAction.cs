@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Economy.Services;
@@ -24,6 +25,9 @@ public sealed class CheckBalanceAction(ICurrencyAccountService accounts) : IComm
 {
     public string ActionType => "check_balance";
 
+    public LocalizedText Category => new("pipeline.category.economy");
+
+    public LocalizedText Description => new("pipeline.check_balance.description");
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(

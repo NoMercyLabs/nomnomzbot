@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using System.Text.Json;
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Widgets.Dtos;
@@ -31,6 +32,9 @@ public sealed class WidgetEventAction : ICommandAction
 
     public string ActionType => "widget_event";
 
+    public LocalizedText Category => new("pipeline.category.widgets");
+
+    public LocalizedText Description => new("pipeline.widget_event.description");
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(

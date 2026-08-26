@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 
 namespace NomNomzBot.Infrastructure.Platform.Pipeline.CoreActions;
@@ -16,6 +17,9 @@ public sealed class SetVariableAction : ICommandAction
 {
     public string ActionType => "set_variable";
 
+    public LocalizedText Category => new("pipeline.category.flow");
+
+    public LocalizedText Description => new("pipeline.set_variable.description");
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(

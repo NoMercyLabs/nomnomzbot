@@ -29,7 +29,6 @@ public sealed class SendDiscordNotificationAction : ICommandAction
 
     public string ActionType => "send_discord_notification";
 
-
     public LocalizedText Category => new("pipeline.category.discord");
 
     public LocalizedText Description => new("pipeline.send_discord_notification.description");

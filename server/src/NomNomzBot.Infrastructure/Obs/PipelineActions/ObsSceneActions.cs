@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Obs.Services;
 
@@ -20,6 +21,7 @@ public sealed class ObsSwitchSceneAction(IObsControlService obs) : ObsActionBase
 {
     public override string ActionType => "obs_switch_scene";
 
+    public override LocalizedText Description => new("pipeline.obs_switch_scene.description");
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(
@@ -50,6 +52,7 @@ public sealed class ObsSetPreviewSceneAction(IObsControlService obs) : ObsAction
 {
     public override string ActionType => "obs_set_preview_scene";
 
+    public override LocalizedText Description => new("pipeline.obs_set_preview_scene.description");
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(
@@ -80,6 +83,7 @@ public sealed class ObsSetSourceAction(IObsControlService obs) : ObsActionBase(o
 {
     public override string ActionType => "obs_set_source";
 
+    public override LocalizedText Description => new("pipeline.obs_set_source.description");
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(
@@ -130,6 +134,7 @@ public sealed class ObsFilterAction(IObsControlService obs) : ObsActionBase(obs)
 {
     public override string ActionType => "obs_filter";
 
+    public override LocalizedText Description => new("pipeline.obs_filter.description");
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(
@@ -180,6 +185,7 @@ public sealed class ObsTransitionAction(IObsControlService obs) : ObsActionBase(
 {
     public override string ActionType => "obs_transition";
 
+    public override LocalizedText Description => new("pipeline.obs_transition.description");
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(

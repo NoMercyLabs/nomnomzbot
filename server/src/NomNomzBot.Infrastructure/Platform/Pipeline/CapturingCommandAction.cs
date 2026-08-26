@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using System.Text.Json;
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Infrastructure.TestRun;
@@ -33,8 +34,8 @@ public sealed class CapturingCommandAction(
     private static readonly JsonSerializerOptions PreviewOpts = new() { WriteIndented = false };
 
     public string ActionType => inner.ActionType;
-    public string Category => inner.Category;
-    public string Description => inner.Description;
+    public LocalizedText Category => inner.Category;
+    public LocalizedText Description => inner.Description;
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields => inner.Fields;
 
     // Preview mode handles its own resolution below (send_message/send_reply only, for the captured chat

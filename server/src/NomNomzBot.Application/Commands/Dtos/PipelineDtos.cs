@@ -59,8 +59,8 @@ public sealed record PipelineActionFieldDto(
 /// <summary>One available pipeline action block, for the builder's palette (commands-pipelines.md §3.13).</summary>
 public sealed record PipelineActionDescriptorDto(
     string Type,
-    string Category,
-    string Description,
+    LocalizedText Category,
+    LocalizedText Description,
     IReadOnlyList<PipelineActionFieldDto> Fields
 );
 

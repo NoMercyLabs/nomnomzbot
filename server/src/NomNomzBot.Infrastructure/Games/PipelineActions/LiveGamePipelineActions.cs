@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Games.Dtos;
@@ -25,6 +26,9 @@ public sealed class StartLiveGameAction(ILiveGameEngine engine) : ICommandAction
 {
     public string ActionType => "start_live_game";
 
+    public LocalizedText Category => new("pipeline.category.games");
+
+    public LocalizedText Description => new("pipeline.start_live_game.description");
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(
@@ -66,6 +70,10 @@ public sealed class StartLiveGameAction(ILiveGameEngine engine) : ICommandAction
 public sealed class CancelLiveGameAction(ILiveGameEngine engine) : ICommandAction
 {
     public string ActionType => "cancel_live_game";
+
+    public LocalizedText Category => new("pipeline.category.games");
+
+    public LocalizedText Description => new("pipeline.cancel_live_game.description");
 
     public async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,

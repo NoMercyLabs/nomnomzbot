@@ -14,6 +14,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application;
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
@@ -244,6 +245,8 @@ public sealed class PipelineEngineTemplateResolutionTests
     private sealed class ClaimsSelfResolvingButDoesNotFixtureAction : ICommandAction
     {
         public string ActionType => "guard_fixture_claims_self_resolving";
+        public LocalizedText Category => new("pipeline.category.test_fixture");
+        public LocalizedText Description => new("pipeline.test_fixture.description");
         public bool ResolvesOwnTemplates => true;
 
         public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
@@ -262,7 +265,8 @@ public sealed class PipelineEngineTemplateResolutionTests
         : ICommandAction
     {
         public string ActionType => "guard_fixture_silently_self_resolves";
-
+        public LocalizedText Category => new("pipeline.category.test_fixture");
+        public LocalizedText Description => new("pipeline.test_fixture.description");
         public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
             [new("value", PipelineActionFieldKind.Text, Templated: true)];
 

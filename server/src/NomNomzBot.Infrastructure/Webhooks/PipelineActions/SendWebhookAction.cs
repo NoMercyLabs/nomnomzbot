@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Webhooks;
@@ -31,6 +32,9 @@ public sealed class SendWebhookAction : ICommandAction
 
     public string ActionType => "send_webhook";
 
+    public LocalizedText Category => new("pipeline.category.webhooks");
+
+    public LocalizedText Description => new("pipeline.send_webhook.description");
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(

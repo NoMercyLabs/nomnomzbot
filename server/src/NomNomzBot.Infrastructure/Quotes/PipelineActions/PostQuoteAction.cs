@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using System.Text.Json;
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Quotes.Dtos;
@@ -30,6 +31,9 @@ public sealed class PostQuoteAction : ICommandAction
 
     public string ActionType => "post_quote";
 
+    public LocalizedText Category => new("pipeline.category.quotes");
+
+    public LocalizedText Description => new("pipeline.post_quote.description");
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(

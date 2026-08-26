@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Economy;
@@ -25,6 +26,9 @@ public sealed class GrantCurrencyAction(ICurrencyAccountService accounts) : ICom
 {
     public string ActionType => "grant_currency";
 
+    public LocalizedText Category => new("pipeline.category.economy");
+
+    public LocalizedText Description => new("pipeline.grant_currency.description");
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(

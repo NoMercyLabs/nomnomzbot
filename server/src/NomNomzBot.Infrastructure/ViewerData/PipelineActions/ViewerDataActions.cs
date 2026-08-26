@@ -10,6 +10,7 @@
 
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
@@ -35,6 +36,9 @@ public sealed class SetViewerDataAction(
 {
     public string ActionType => "set_viewer_data";
 
+    public LocalizedText Category => new("pipeline.category.viewer_data");
+
+    public LocalizedText Description => new("pipeline.set_viewer_data.description");
     public bool ResolvesOwnTemplates => true;
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
@@ -113,6 +117,9 @@ public sealed class AdjustViewerDataAction(
 {
     public string ActionType => "adjust_viewer_data";
 
+    public LocalizedText Category => new("pipeline.category.viewer_data");
+
+    public LocalizedText Description => new("pipeline.adjust_viewer_data.description");
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(

@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.Extensions.Logging;
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Music;
@@ -36,8 +37,10 @@ public sealed class PlaylistAddAction : ICommandAction
     private readonly ILogger<PlaylistAddAction> _logger;
 
     public string ActionType => "playlist_add";
-    public string Category => "music";
-    public string Description => "Add the current (or a given) track to a playlist";
+
+    public LocalizedText Category => new("pipeline.category.music");
+
+    public LocalizedText Description => new("pipeline.playlist_add.description");
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [

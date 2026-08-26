@@ -10,6 +10,7 @@
 
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Domain.Chat.Interfaces;
@@ -188,6 +189,9 @@ public class InfraPipelineEngineTests
     {
         public bool Invoked { get; private set; }
         public string ActionType => "music_play";
+
+        public LocalizedText Category => new("pipeline.category.test_fixture");
+        public LocalizedText Description => new("pipeline.test_fixture.description");
 
         public Task<ActionResult> ExecuteAsync(
             PipelineExecutionContext ctx,

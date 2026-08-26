@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using System.Text.Json;
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Obs.Services;
@@ -31,6 +32,10 @@ public abstract class ObsActionBase : ICommandAction
     protected IObsControlService Obs { get; }
 
     public abstract string ActionType { get; }
+
+    public LocalizedText Category => new("pipeline.category.obs");
+
+    public abstract LocalizedText Description { get; }
 
     public virtual IReadOnlyList<PipelineActionFieldDescriptor> Fields => [];
 

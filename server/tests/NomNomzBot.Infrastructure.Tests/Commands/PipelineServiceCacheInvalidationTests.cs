@@ -10,6 +10,7 @@
 
 using System.Text.Json;
 using FluentAssertions;
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Common.Models;
@@ -42,6 +43,9 @@ public sealed class PipelineServiceCacheInvalidationTests
     private sealed class FakeAction : ICommandAction
     {
         public required string ActionType { get; init; }
+
+        public LocalizedText Category => new("pipeline.category.test_fixture");
+        public LocalizedText Description => new("pipeline.test_fixture.description");
 
         public Task<ActionResult> ExecuteAsync(
             PipelineExecutionContext ctx,

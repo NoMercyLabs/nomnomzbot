@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
@@ -27,6 +28,9 @@ public sealed class OpenGiveawayAction(IGiveawayService giveaways) : ICommandAct
 {
     public string ActionType => "open_giveaway";
 
+    public LocalizedText Category => new("pipeline.category.giveaways");
+
+    public LocalizedText Description => new("pipeline.open_giveaway.description");
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(
@@ -65,6 +69,9 @@ public sealed class DrawGiveawayAction(IGiveawayService giveaways, IApplicationD
 {
     public string ActionType => "draw_giveaway";
 
+    public LocalizedText Category => new("pipeline.category.giveaways");
+
+    public LocalizedText Description => new("pipeline.draw_giveaway.description");
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(
@@ -113,6 +120,9 @@ public sealed class EnterGiveawayAction(IGiveawayService giveaways, IApplication
 {
     public string ActionType => "enter_giveaway";
 
+    public LocalizedText Category => new("pipeline.category.giveaways");
+
+    public LocalizedText Description => new("pipeline.enter_giveaway.description");
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(

@@ -50,14 +50,16 @@ public sealed class SchemaDtoStringShapeTests
         {
             nameof(WidgetSettingsFieldOption.Value),
         },
-        // PipelineActionDescriptorDto.Category/Description are deliberately NOT swept here: they come from
-        // ICommandAction.Category/Description (the ACTION-level identity, not a field), which are still bare
-        // English literals across ~75 actions — a real gap, but a separate one from S-SCHEMA-I18N-c's scope
-        // (per-FIELD help text). Tracked separately, not this slice.
         [typeof(PipelineActionFieldDto)] = new HashSet<string>
         {
             nameof(PipelineActionFieldDto.Name),
             nameof(PipelineActionFieldDto.Kind),
+        },
+        // PipelineActionDescriptorDto.Category/Description are LocalizedText (S-SCHEMA-I18N-d, sourced from
+        // ICommandAction.Category/Description) — only the machine routing key `Type` is a bare string here.
+        [typeof(PipelineActionDescriptorDto)] = new HashSet<string>
+        {
+            nameof(PipelineActionDescriptorDto.Type),
         },
     };
 

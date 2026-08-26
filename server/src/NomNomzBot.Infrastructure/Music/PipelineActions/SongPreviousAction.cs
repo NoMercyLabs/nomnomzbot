@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.Extensions.Logging;
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
@@ -27,8 +28,10 @@ public sealed class SongPreviousAction : ICommandAction
     private readonly ILogger<SongPreviousAction> _logger;
 
     public string ActionType => "song_previous";
-    public string Category => "music";
-    public string Description => "Jump back to the previous track";
+
+    public LocalizedText Category => new("pipeline.category.music");
+
+    public LocalizedText Description => new("pipeline.song_previous.description");
 
     public SongPreviousAction(IMusicService music, ILogger<SongPreviousAction> logger)
     {

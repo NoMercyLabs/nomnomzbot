@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Music;
@@ -91,8 +92,10 @@ public sealed class MusicPlayAction : ICommandAction
     private readonly IMusicService _music;
 
     public string ActionType => "music_play";
-    public string Category => "Music Control";
-    public string Description => "Resumes playback.";
+
+    public LocalizedText Category => new("pipeline.category.music");
+
+    public LocalizedText Description => new("pipeline.music_play.description");
 
     public MusicPlayAction(IMusicService music) => _music = music;
 
@@ -111,8 +114,10 @@ public sealed class MusicPauseAction : ICommandAction
     private readonly IMusicService _music;
 
     public string ActionType => "music_pause";
-    public string Category => "Music Control";
-    public string Description => "Pauses playback.";
+
+    public LocalizedText Category => new("pipeline.category.music");
+
+    public LocalizedText Description => new("pipeline.music_pause.description");
 
     public MusicPauseAction(IMusicService music) => _music = music;
 
@@ -134,8 +139,10 @@ public sealed class MusicPlayPauseAction : ICommandAction
     private readonly IMusicService _music;
 
     public string ActionType => "music_play_pause";
-    public string Category => "Music Control";
-    public string Description => "Toggles playback based on the current state.";
+
+    public LocalizedText Category => new("pipeline.category.music");
+
+    public LocalizedText Description => new("pipeline.music_play_pause.description");
 
     public MusicPlayPauseAction(IMusicService music) => _music = music;
 
@@ -163,8 +170,10 @@ public sealed class MusicNextAction : ICommandAction
     private readonly IMusicService _music;
 
     public string ActionType => "music_next";
-    public string Category => "Music Control";
-    public string Description => "Skips to the next track.";
+
+    public LocalizedText Category => new("pipeline.category.music");
+
+    public LocalizedText Description => new("pipeline.music_next.description");
 
     public MusicNextAction(IMusicService music) => _music = music;
 
@@ -183,8 +192,10 @@ public sealed class MusicPreviousAction : ICommandAction
     private readonly IMusicService _music;
 
     public string ActionType => "music_previous";
-    public string Category => "Music Control";
-    public string Description => "Goes back to the previous track.";
+
+    public LocalizedText Category => new("pipeline.category.music");
+
+    public LocalizedText Description => new("pipeline.music_previous.description");
 
     public MusicPreviousAction(IMusicService music) => _music = music;
 
@@ -206,8 +217,10 @@ public sealed class MusicSetVolumeAction : ICommandAction
     private readonly IMusicService _music;
 
     public string ActionType => "music_set_volume";
-    public string Category => "Music Control";
-    public string Description => "Sets playback volume to a fixed level (0-100).";
+
+    public LocalizedText Category => new("pipeline.category.music");
+
+    public LocalizedText Description => new("pipeline.music_set_volume.description");
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
@@ -276,8 +289,10 @@ public sealed class MusicVolumeUpAction : ICommandAction
     private readonly IMusicService _music;
 
     public string ActionType => "music_volume_up";
-    public string Category => "Music Control";
-    public string Description => "Raises playback volume by a step (default 10).";
+
+    public LocalizedText Category => new("pipeline.category.music");
+
+    public LocalizedText Description => new("pipeline.music_volume_up.description");
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
@@ -323,8 +338,10 @@ public sealed class MusicVolumeDownAction : ICommandAction
     private readonly IMusicService _music;
 
     public string ActionType => "music_volume_down";
-    public string Category => "Music Control";
-    public string Description => "Lowers playback volume by a step (default 10).";
+
+    public LocalizedText Category => new("pipeline.category.music");
+
+    public LocalizedText Description => new("pipeline.music_volume_down.description");
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
@@ -379,9 +396,10 @@ public sealed class MusicVolumeMuteAction : ICommandAction
     private readonly IMuteVolumeMemory _muteMemory;
 
     public string ActionType => "music_volume_mute";
-    public string Category => "Music Control";
-    public string Description =>
-        "Mutes if audible, remembering the current level; unmutes back to that level (or a fixed level, default 50, if none is remembered).";
+
+    public LocalizedText Category => new("pipeline.category.music");
+
+    public LocalizedText Description => new("pipeline.music_volume_mute.description");
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
@@ -454,8 +472,10 @@ public sealed class MusicSeekAction : ICommandAction
     private readonly IMusicService _music;
 
     public string ActionType => "music_seek";
-    public string Category => "Music Control";
-    public string Description => "Jumps to a specific point in the current track (seconds).";
+
+    public LocalizedText Category => new("pipeline.category.music");
+
+    public LocalizedText Description => new("pipeline.music_seek.description");
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
@@ -495,8 +515,10 @@ public sealed class MusicSetShuffleAction : ICommandAction
     private readonly IMusicService _music;
 
     public string ActionType => "music_set_shuffle";
-    public string Category => "Music Control";
-    public string Description => "Turns shuffle on or off.";
+
+    public LocalizedText Category => new("pipeline.category.music");
+
+    public LocalizedText Description => new("pipeline.music_set_shuffle.description");
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
@@ -534,8 +556,10 @@ public sealed class MusicToggleShuffleAction : ICommandAction
     private readonly IMusicService _music;
 
     public string ActionType => "music_toggle_shuffle";
-    public string Category => "Music Control";
-    public string Description => "Switches shuffle on/off based on the current state.";
+
+    public LocalizedText Category => new("pipeline.category.music");
+
+    public LocalizedText Description => new("pipeline.music_toggle_shuffle.description");
 
     public MusicToggleShuffleAction(IMusicService music) => _music = music;
 
@@ -567,8 +591,10 @@ public sealed class MusicSetRepeatAction : ICommandAction
     private readonly IMusicService _music;
 
     public string ActionType => "music_set_repeat";
-    public string Category => "Music Control";
-    public string Description => "Sets repeat to Off, Track, or Playlist/Album.";
+
+    public LocalizedText Category => new("pipeline.category.music");
+
+    public LocalizedText Description => new("pipeline.music_set_repeat.description");
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
@@ -603,9 +629,10 @@ public sealed class MusicCycleRepeatAction : ICommandAction
     private readonly IMusicService _music;
 
     public string ActionType => "music_cycle_repeat";
-    public string Category => "Music Control";
-    public string Description =>
-        "Cycles repeat Off -> Track -> Playlist/Album based on the current mode.";
+
+    public LocalizedText Category => new("pipeline.category.music");
+
+    public LocalizedText Description => new("pipeline.music_cycle_repeat.description");
 
     public MusicCycleRepeatAction(IMusicService music) => _music = music;
 
@@ -645,8 +672,10 @@ public sealed class MusicTransferDeviceAction : ICommandAction
     private readonly IMusicService _music;
 
     public string ActionType => "music_transfer_device";
-    public string Category => "Music Control";
-    public string Description => "Moves playback to a chosen device.";
+
+    public LocalizedText Category => new("pipeline.category.music");
+
+    public LocalizedText Description => new("pipeline.music_transfer_device.description");
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
@@ -700,8 +729,10 @@ public sealed class MusicSaveTrackAction : ICommandAction
     private readonly IEventBus _eventBus;
 
     public string ActionType => "music_save_track";
-    public string Category => "Music Control";
-    public string Description => "Adds the currently playing track to your Liked Songs.";
+
+    public LocalizedText Category => new("pipeline.category.music");
+
+    public LocalizedText Description => new("pipeline.music_save_track.description");
 
     public MusicSaveTrackAction(
         IMusicService music,
@@ -767,8 +798,10 @@ public sealed class MusicUnsaveTrackAction : ICommandAction
     private readonly IEventBus _eventBus;
 
     public string ActionType => "music_unsave_track";
-    public string Category => "Music Control";
-    public string Description => "Removes the currently playing track from your Liked Songs.";
+
+    public LocalizedText Category => new("pipeline.category.music");
+
+    public LocalizedText Description => new("pipeline.music_unsave_track.description");
 
     public MusicUnsaveTrackAction(
         IMusicService music,
@@ -818,9 +851,10 @@ public sealed class MusicToggleSavedAction : ICommandAction
     private readonly IEventBus _eventBus;
 
     public string ActionType => "music_toggle_saved";
-    public string Category => "Music Control";
-    public string Description =>
-        "Adds/removes the current track from your Liked Songs based on whether it's already saved.";
+
+    public LocalizedText Category => new("pipeline.category.music");
+
+    public LocalizedText Description => new("pipeline.music_toggle_saved.description");
 
     public MusicToggleSavedAction(
         IMusicService music,
@@ -892,8 +926,10 @@ public sealed class MusicAddToPlaylistAction : ICommandAction
     private readonly IMusicProviderManageApi _manageApi;
 
     public string ActionType => "music_add_to_playlist";
-    public string Category => "Music Control";
-    public string Description => "Adds the currently playing track to a chosen playlist.";
+
+    public LocalizedText Category => new("pipeline.category.music");
+
+    public LocalizedText Description => new("pipeline.music_add_to_playlist.description");
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
@@ -948,8 +984,10 @@ public sealed class MusicRemoveFromPlaylistAction : ICommandAction
     private readonly IMusicProviderManageApi _manageApi;
 
     public string ActionType => "music_remove_from_playlist";
-    public string Category => "Music Control";
-    public string Description => "Removes the currently playing track from a chosen playlist.";
+
+    public LocalizedText Category => new("pipeline.category.music");
+
+    public LocalizedText Description => new("pipeline.music_remove_from_playlist.description");
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
@@ -1008,8 +1046,10 @@ public sealed class MusicFollowArtistAction : ICommandAction
     private readonly IMusicProviderManageApi _manageApi;
 
     public string ActionType => "music_follow_artist";
-    public string Category => "Music Control";
-    public string Description => "Follows the current track's artist.";
+
+    public LocalizedText Category => new("pipeline.category.music");
+
+    public LocalizedText Description => new("pipeline.music_follow_artist.description");
 
     public MusicFollowArtistAction(IMusicService music, IMusicProviderManageApi manageApi)
     {
@@ -1046,8 +1086,10 @@ public sealed class MusicUnfollowArtistAction : ICommandAction
     private readonly IMusicProviderManageApi _manageApi;
 
     public string ActionType => "music_unfollow_artist";
-    public string Category => "Music Control";
-    public string Description => "Unfollows the current track's artist.";
+
+    public LocalizedText Category => new("pipeline.category.music");
+
+    public LocalizedText Description => new("pipeline.music_unfollow_artist.description");
 
     public MusicUnfollowArtistAction(IMusicService music, IMusicProviderManageApi manageApi)
     {

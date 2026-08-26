@@ -11,6 +11,7 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
@@ -53,7 +54,9 @@ public sealed class RunPipelineAction : ICommandAction
 
     public string ActionType => "run_pipeline";
 
-    public string Category => "flow";
+    public LocalizedText Category => new("pipeline.category.flow");
+
+    public LocalizedText Description => new("pipeline.run_pipeline.description");
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [

@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 
@@ -26,6 +27,9 @@ public sealed class WaitAction : ICommandAction
 
     public string ActionType => "wait";
 
+    public LocalizedText Category => new("pipeline.category.flow");
+
+    public LocalizedText Description => new("pipeline.wait.description");
     public bool ResolvesOwnTemplates => true;
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>

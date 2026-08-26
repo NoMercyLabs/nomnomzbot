@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using System.Text.Json;
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Vts.Dtos;
@@ -31,6 +32,10 @@ public abstract class VtsActionBase : ICommandAction
     protected IVtsControlService Vts { get; }
 
     public abstract string ActionType { get; }
+
+    public LocalizedText Category => new("pipeline.category.vts");
+
+    public abstract LocalizedText Description { get; }
 
     public virtual IReadOnlyList<PipelineActionFieldDescriptor> Fields => [];
 
@@ -118,6 +123,7 @@ public sealed class VtsLoadModelAction(IVtsControlService vts) : VtsActionBase(v
 {
     public override string ActionType => "vts_load_model";
 
+    public override LocalizedText Description => new("pipeline.vts_load_model.description");
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(
@@ -148,6 +154,7 @@ public sealed class VtsTriggerHotkeyAction(IVtsControlService vts) : VtsActionBa
 {
     public override string ActionType => "vts_trigger_hotkey";
 
+    public override LocalizedText Description => new("pipeline.vts_trigger_hotkey.description");
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(
@@ -178,6 +185,7 @@ public sealed class VtsSetExpressionAction(IVtsControlService vts) : VtsActionBa
 {
     public override string ActionType => "vts_set_expression";
 
+    public override LocalizedText Description => new("pipeline.vts_set_expression.description");
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(
@@ -219,6 +227,7 @@ public sealed class VtsMoveModelAction(IVtsControlService vts) : VtsActionBase(v
 {
     public override string ActionType => "vts_move_model";
 
+    public override LocalizedText Description => new("pipeline.vts_move_model.description");
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(
@@ -281,6 +290,7 @@ public sealed class VtsColorTintAction(IVtsControlService vts) : VtsActionBase(v
 {
     public override string ActionType => "vts_color_tint";
 
+    public override LocalizedText Description => new("pipeline.vts_color_tint.description");
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(
@@ -338,6 +348,7 @@ public sealed class VtsRequestAction(IVtsControlService vts) : VtsActionBase(vts
 {
     public override string ActionType => "vts_request";
 
+    public override LocalizedText Description => new("pipeline.vts_request.description");
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(

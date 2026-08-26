@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Domain.Chat.Interfaces;
 
@@ -19,6 +20,9 @@ public sealed class BanAction : ICommandAction
 
     public string ActionType => "ban";
 
+    public LocalizedText Category => new("pipeline.category.moderation");
+
+    public LocalizedText Description => new("pipeline.ban.description");
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(

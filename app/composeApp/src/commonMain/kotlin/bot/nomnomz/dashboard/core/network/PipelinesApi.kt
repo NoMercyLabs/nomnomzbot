@@ -104,14 +104,17 @@ class RestPipelinesApi(private val client: ApiClient) : PipelinesApi {
 
 /**
  * One available pipeline action block (backend `PipelineActionDescriptorDto`): its snake_case [type]
- * discriminator, the [category] it groups under in the palette, and a human [description]. The backend
- * discovers these from the registered `ICommandAction` implementations, so the palette can never drift.
+ * discriminator, the [category] it groups under in the palette, and a human [description]. Both [category] and
+ * [description] are [LocalizedTextDto] translation KEYS — resolved via
+ * [bot.nomnomz.dashboard.core.i18n.resolveSchemaString] against the viewer's locale, never raw English
+ * (S-SCHEMA-I18N-d). The backend discovers these from the registered `ICommandAction` implementations, so the
+ * palette can never drift; every action in one domain shares the SAME category key.
  */
 @Serializable
 data class PipelineActionDescriptor(
     val type: String = "",
-    val category: String = "general",
-    val description: String = "",
+    val category: LocalizedTextDto = LocalizedTextDto(),
+    val description: LocalizedTextDto = LocalizedTextDto(),
     val fields: List<PipelineActionFieldRemote> = emptyList(),
 )
 

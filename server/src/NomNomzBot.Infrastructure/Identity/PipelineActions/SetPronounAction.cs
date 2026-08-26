@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
@@ -44,6 +45,9 @@ public sealed class SetPronounAction : ICommandAction
 
     public string ActionType => "set_pronoun";
 
+    public LocalizedText Category => new("pipeline.category.identity");
+
+    public LocalizedText Description => new("pipeline.set_pronoun.description");
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(

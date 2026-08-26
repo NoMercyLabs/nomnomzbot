@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Obs.Dtos;
 using NomNomzBot.Application.Obs.Services;
@@ -21,6 +22,7 @@ public sealed class ObsInputMuteAction(IObsControlService obs) : ObsActionBase(o
 {
     public override string ActionType => "obs_input_mute";
 
+    public override LocalizedText Description => new("pipeline.obs_input_mute.description");
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(
@@ -68,6 +70,7 @@ public sealed class ObsInputVolumeAction(IObsControlService obs) : ObsActionBase
 {
     public override string ActionType => "obs_input_volume";
 
+    public override LocalizedText Description => new("pipeline.obs_input_volume.description");
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(
@@ -116,6 +119,7 @@ public sealed class ObsMediaAction(IObsControlService obs) : ObsActionBase(obs)
 {
     public override string ActionType => "obs_media";
 
+    public override LocalizedText Description => new("pipeline.obs_media.description");
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(
@@ -163,6 +167,7 @@ public sealed class ObsHotkeyAction(IObsControlService obs) : ObsActionBase(obs)
 {
     public override string ActionType => "obs_hotkey";
 
+    public override LocalizedText Description => new("pipeline.obs_hotkey.description");
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(
@@ -193,6 +198,7 @@ public sealed class ObsRefreshBrowserAction(IObsControlService obs) : ObsActionB
 {
     public override string ActionType => "obs_refresh_browser";
 
+    public override LocalizedText Description => new("pipeline.obs_refresh_browser.description");
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(
@@ -223,6 +229,7 @@ public sealed class ObsScreenshotAction(IObsControlService obs) : ObsActionBase(
 {
     public override string ActionType => "obs_screenshot";
 
+    public override LocalizedText Description => new("pipeline.obs_screenshot.description");
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(
@@ -267,6 +274,8 @@ public sealed class ObsScreenshotAction(IObsControlService obs) : ObsActionBase(
 public sealed class ObsSaveReplayAction(IObsControlService obs) : ObsActionBase(obs)
 {
     public override string ActionType => "obs_save_replay";
+
+    public override LocalizedText Description => new("pipeline.obs_save_replay.description");
 
     public override async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,

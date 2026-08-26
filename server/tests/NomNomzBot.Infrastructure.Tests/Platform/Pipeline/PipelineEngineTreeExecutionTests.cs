@@ -10,6 +10,7 @@
 
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Domain.Commands.Entities;
@@ -38,6 +39,8 @@ public sealed class PipelineEngineTreeExecutionTests
     private sealed class RecordingLoopAction : ICommandAction
     {
         public string ActionType => "record_loop";
+        public LocalizedText Category => new("pipeline.category.test_fixture");
+        public LocalizedText Description => new("pipeline.test_fixture.description");
         public List<(string Index, string Item, string PreviousItem)> Invocations { get; } = [];
 
         public Task<ActionResult> ExecuteAsync(
@@ -60,6 +63,9 @@ public sealed class PipelineEngineTreeExecutionTests
     {
         public string ActionType => "always_fail";
 
+        public LocalizedText Category => new("pipeline.category.test_fixture");
+        public LocalizedText Description => new("pipeline.test_fixture.description");
+
         public Task<ActionResult> ExecuteAsync(
             PipelineExecutionContext ctx,
             ActionDefinition action
@@ -72,6 +78,9 @@ public sealed class PipelineEngineTreeExecutionTests
     private sealed class ConditionalBreakAction : ICommandAction
     {
         public string ActionType => "break_at_index";
+
+        public LocalizedText Category => new("pipeline.category.test_fixture");
+        public LocalizedText Description => new("pipeline.test_fixture.description");
 
         public Task<ActionResult> ExecuteAsync(
             PipelineExecutionContext ctx,
@@ -90,6 +99,9 @@ public sealed class PipelineEngineTreeExecutionTests
     {
         public string ActionType => "continue_at_index";
 
+        public LocalizedText Category => new("pipeline.category.test_fixture");
+        public LocalizedText Description => new("pipeline.test_fixture.description");
+
         public Task<ActionResult> ExecuteAsync(
             PipelineExecutionContext ctx,
             ActionDefinition action
@@ -106,6 +118,8 @@ public sealed class PipelineEngineTreeExecutionTests
     private sealed class CountingAction : ICommandAction
     {
         public required string ActionType { get; init; }
+        public LocalizedText Category => new("pipeline.category.test_fixture");
+        public LocalizedText Description => new("pipeline.test_fixture.description");
         public int Count { get; private set; }
 
         public Task<ActionResult> ExecuteAsync(
@@ -124,6 +138,8 @@ public sealed class PipelineEngineTreeExecutionTests
     private sealed class RecordingValueAction : ICommandAction
     {
         public required string ActionType { get; init; }
+        public LocalizedText Category => new("pipeline.category.test_fixture");
+        public LocalizedText Description => new("pipeline.test_fixture.description");
         public required string VariableKey { get; init; }
         public List<string> Seen { get; } = [];
 

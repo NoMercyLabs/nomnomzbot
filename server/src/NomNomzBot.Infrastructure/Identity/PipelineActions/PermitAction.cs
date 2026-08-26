@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
@@ -34,6 +35,9 @@ public sealed class PermitAction : ICommandAction
 
     public string ActionType => "permit";
 
+    public LocalizedText Category => new("pipeline.category.identity");
+
+    public LocalizedText Description => new("pipeline.permit.description");
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(

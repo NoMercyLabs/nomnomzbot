@@ -725,8 +725,8 @@ object PipelineCatalogue {
                 paletteBlock(
                     type = descriptor.type,
                     role = BlockRole.Action,
-                    category = descriptor.category.ifBlank { GeneralCategory },
-                    description = descriptor.description,
+                    category = descriptor.category.key.ifBlank { GeneralCategory },
+                    description = descriptor.description.key,
                     hint = withBackendDescriptions(action(descriptor.type), descriptor.fields),
                 )
             },
@@ -790,8 +790,10 @@ object PipelineCatalogue {
             hasHints = hint != null,
         )
 
-    const val GeneralCategory: String = "general"
-    const val ConditionCategory: String = "condition"
+    // Local fallback category KEYS (offline palette / a blank backend category) — not backend-authored, but
+    // still resolved via `resolveSchemaString` like every other category key, so they need en+nl entries too.
+    const val GeneralCategory: String = "pipeline.category.general"
+    const val ConditionCategory: String = "pipeline.category.condition"
 }
 
 /**
@@ -803,7 +805,11 @@ object PipelineCatalogue {
 data class PaletteBlock(
     val type: String,
     val role: BlockRole,
+    // Backend-authored LocalizedText translation KEY (S-SCHEMA-I18N-d) — resolve via `resolveSchemaString`
+    // before displaying, never render raw.
     val category: String,
+    // Backend-authored LocalizedText translation KEY, or blank when the action carries none. Resolve via
+    // `resolveSchemaString` before displaying, never render raw.
     val description: String,
     val labelKey: String?,
     val fields: List<BlockField>,

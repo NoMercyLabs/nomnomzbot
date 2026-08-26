@@ -128,10 +128,14 @@ public sealed class SchemaLocalizationManifestTests
 
         using ServiceProvider provider = BuildActionProvider();
         foreach (ICommandAction action in provider.GetServices<ICommandAction>())
-        foreach (PipelineActionFieldDescriptor field in action.Fields)
         {
-            if (field.Description is not null)
-                keys.Add(field.Description.Key);
+            keys.Add(action.Category.Key);
+            keys.Add(action.Description.Key);
+            foreach (PipelineActionFieldDescriptor field in action.Fields)
+            {
+                if (field.Description is not null)
+                    keys.Add(field.Description.Key);
+            }
         }
 
         // S042: every template helper registry entry's description key, same real-schema-walk contract.

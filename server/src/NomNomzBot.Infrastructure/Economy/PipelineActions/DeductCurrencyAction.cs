@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Economy;
@@ -26,6 +27,9 @@ public sealed class DeductCurrencyAction(ICurrencyAccountService accounts) : ICo
 {
     public string ActionType => "deduct_currency";
 
+    public LocalizedText Category => new("pipeline.category.economy");
+
+    public LocalizedText Description => new("pipeline.deduct_currency.description");
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(

@@ -110,7 +110,7 @@ public class PipelinesController : BaseController
                         )),
                     ]
                 ))
-                .OrderBy(a => a.Category, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(a => a.Category.Key, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(a => a.Type, StringComparer.OrdinalIgnoreCase),
         ];
         List<PipelineConditionDescriptorDto> conditions =

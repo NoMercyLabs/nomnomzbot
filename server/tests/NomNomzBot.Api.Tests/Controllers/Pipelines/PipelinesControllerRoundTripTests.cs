@@ -25,6 +25,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.Identifiers;
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Services;
@@ -123,6 +124,10 @@ public sealed class PipelinesControllerRoundTripTests : IAsyncDisposable
                     services.AddSingleton<IChannelRegistry>(Substitute.For<IChannelRegistry>());
                     services.AddSingleton<IEnumerable<ICommandAction>>(actions);
                     services.AddSingleton<IEnumerable<ICommandCondition>>([]);
+                    services.AddSingleton<
+                        Application.Abstractions.Templating.ITemplateHelperValidator,
+                        Infrastructure.Platform.Templating.TemplateHelperValidator
+                    >();
                     services.AddSingleton<ICommandConfigValidator, CommandConfigValidator>();
                     services.AddSingleton<IPipelineService, PipelineService>();
                     services.AddSingleton(Substitute.For<IPipelineTestRunService>());
@@ -156,6 +161,9 @@ public sealed class PipelinesControllerRoundTripTests : IAsyncDisposable
     private sealed class FakeAction : ICommandAction
     {
         public required string ActionType { get; init; }
+
+        public LocalizedText Category => new("pipeline.category.test_fixture");
+        public LocalizedText Description => new("pipeline.test_fixture.description");
 
         public Task<ActionResult> ExecuteAsync(
             PipelineExecutionContext ctx,

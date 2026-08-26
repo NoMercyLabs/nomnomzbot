@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Rewards.Services;
@@ -29,8 +30,10 @@ namespace NomNomzBot.Infrastructure.Rewards.PipelineActions;
 public sealed class RedemptionRefundAction(IRewardService rewards) : ICommandAction
 {
     public string ActionType => "redemption_refund";
-    public string Category => "rewards";
-    public string Description => "Refund the triggering redemption (points returned)";
+
+    public LocalizedText Category => new("pipeline.category.rewards");
+
+    public LocalizedText Description => new("pipeline.redemption_refund.description");
 
     public async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,

@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.Extensions.Logging;
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
@@ -27,8 +28,10 @@ public sealed class SongResumeAction : ICommandAction
     private readonly ILogger<SongResumeAction> _logger;
 
     public string ActionType => "song_resume";
-    public string Category => "music";
-    public string Description => "Resume music playback";
+
+    public LocalizedText Category => new("pipeline.category.music");
+
+    public LocalizedText Description => new("pipeline.song_resume.description");
 
     public SongResumeAction(IMusicService music, ILogger<SongResumeAction> logger)
     {

@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Domain.Chat.Interfaces;
@@ -21,6 +22,9 @@ public sealed class SendMessageAction : ICommandAction
 
     public string ActionType => "send_message";
 
+    public LocalizedText Category => new("pipeline.category.chat");
+
+    public LocalizedText Description => new("pipeline.send_message.description");
     public bool ResolvesOwnTemplates => true;
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>

@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Dtos;
@@ -31,8 +32,10 @@ public sealed class SchedulePipelineAction : ICommandAction
     private readonly ITemplateResolver _resolver;
 
     public string ActionType => "schedule_pipeline";
-    public string Category => "flow";
-    public string Description => "Schedule a saved pipeline to run once after a delay";
+
+    public LocalizedText Category => new("pipeline.category.flow");
+
+    public LocalizedText Description => new("pipeline.schedule_pipeline.description");
 
     public bool ResolvesOwnTemplates => true;
 

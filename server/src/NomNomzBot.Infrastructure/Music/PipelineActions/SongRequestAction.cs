@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.Extensions.Logging;
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
@@ -33,6 +34,9 @@ public sealed class SongRequestAction : ICommandAction
 
     public string ActionType => "song_request";
 
+    public LocalizedText Category => new("pipeline.category.music");
+
+    public LocalizedText Description => new("pipeline.song_request.description");
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(

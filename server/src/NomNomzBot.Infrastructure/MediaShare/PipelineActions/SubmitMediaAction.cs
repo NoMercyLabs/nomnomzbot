@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
@@ -30,6 +31,9 @@ public sealed class SubmitMediaAction(
 {
     public string ActionType => "submit_media";
 
+    public LocalizedText Category => new("pipeline.category.media");
+
+    public LocalizedText Description => new("pipeline.submit_media.description");
     public bool ResolvesOwnTemplates => true;
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>

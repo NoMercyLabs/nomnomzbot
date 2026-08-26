@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.Extensions.Logging;
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
@@ -29,6 +30,10 @@ public sealed class SongSkipAction : ICommandAction
     private readonly ILogger<SongSkipAction> _logger;
 
     public string ActionType => "song_skip";
+
+    public LocalizedText Category => new("pipeline.category.music");
+
+    public LocalizedText Description => new("pipeline.song_skip.description");
 
     public SongSkipAction(IMusicService music, IChatProvider chat, ILogger<SongSkipAction> logger)
     {

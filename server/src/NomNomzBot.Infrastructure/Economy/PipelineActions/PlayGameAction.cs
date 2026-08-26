@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
@@ -26,6 +27,9 @@ public sealed class PlayGameAction(IGameService games, IRoleResolver roles) : IC
 {
     public string ActionType => "play_game";
 
+    public LocalizedText Category => new("pipeline.category.economy");
+
+    public LocalizedText Description => new("pipeline.play_game.description");
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(

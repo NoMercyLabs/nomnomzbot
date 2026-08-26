@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using System.Globalization;
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
@@ -24,6 +25,9 @@ public sealed class SetCounterAction(INamedCounterService counters) : ICommandAc
 {
     public string ActionType => "set_counter";
 
+    public LocalizedText Category => new("pipeline.category.counters");
+
+    public LocalizedText Description => new("pipeline.set_counter.description");
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(
@@ -77,6 +81,9 @@ public sealed class AdjustCounterAction(INamedCounterService counters) : IComman
 {
     public string ActionType => "adjust_counter";
 
+    public LocalizedText Category => new("pipeline.category.counters");
+
+    public LocalizedText Description => new("pipeline.adjust_counter.description");
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(

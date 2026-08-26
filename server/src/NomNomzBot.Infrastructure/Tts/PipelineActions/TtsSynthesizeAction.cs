@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
@@ -35,9 +36,10 @@ public sealed class TtsSynthesizeAction : ICommandAction
     private readonly ISoundClipStore _audioStore;
 
     public string ActionType => "tts_synthesize";
-    public string Category => "tts";
-    public string Description =>
-        "Synthesize TTS audio and expose {{tts.audioUrl}} / {{tts.durationMs}} to later steps, without playing it";
+
+    public LocalizedText Category => new("pipeline.category.tts");
+
+    public LocalizedText Description => new("pipeline.tts_synthesize.description");
 
     public bool ResolvesOwnTemplates => true;
 

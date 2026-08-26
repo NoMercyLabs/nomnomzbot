@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Sound.Services;
@@ -29,6 +30,9 @@ public sealed class PlaySoundAction : ICommandAction
 
     public string ActionType => "play_sound";
 
+    public LocalizedText Category => new("pipeline.category.sound");
+
+    public LocalizedText Description => new("pipeline.play_sound.description");
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(

@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.Extensions.Logging;
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
@@ -28,6 +29,10 @@ public sealed class SongCurrentAction : ICommandAction
     private readonly ILogger<SongCurrentAction> _logger;
 
     public string ActionType => "song_current";
+
+    public LocalizedText Category => new("pipeline.category.music");
+
+    public LocalizedText Description => new("pipeline.song_current.description");
 
     public SongCurrentAction(
         IMusicService music,

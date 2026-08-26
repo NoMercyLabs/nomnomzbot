@@ -33,6 +33,7 @@ import bot.nomnomz.dashboard.core.network.UpdateOutboundBody
 import bot.nomnomz.dashboard.core.network.PickList
 import bot.nomnomz.dashboard.core.network.PickListsApi
 import bot.nomnomz.dashboard.core.network.PipelineActionDescriptor
+import bot.nomnomz.dashboard.core.network.LocalizedTextDto
 import bot.nomnomz.dashboard.core.network.PipelineCatalogueRemote
 import bot.nomnomz.dashboard.core.network.PipelineConditionDescriptor
 import bot.nomnomz.dashboard.core.network.PipelineDetail
@@ -369,8 +370,8 @@ class PipelinesControllerTest {
                     PipelineCatalogueRemote(
                         actions =
                             listOf(
-                                PipelineActionDescriptor("send_message", "Chat", "Send a chat message"),
-                                PipelineActionDescriptor("submit_media", "Media", "Submit a media-share clip"),
+                                PipelineActionDescriptor("send_message", LocalizedTextDto("Chat"), LocalizedTextDto("Send a chat message")),
+                                PipelineActionDescriptor("submit_media", LocalizedTextDto("Media"), LocalizedTextDto("Submit a media-share clip")),
                             ),
                         conditions = listOf(PipelineConditionDescriptor("user_role")),
                     ),
@@ -480,7 +481,7 @@ private class RecordingPipelinesApi(
     private val writeResult: ApiResult<Unit> = ApiResult.Ok(Unit),
     private val catalogue: PipelineCatalogueRemote =
         PipelineCatalogueRemote(
-            actions = listOf(PipelineActionDescriptor("send_message", "Chat", "Send a chat message")),
+            actions = listOf(PipelineActionDescriptor("send_message", LocalizedTextDto("Chat"), LocalizedTextDto("Send a chat message"))),
             conditions = listOf(PipelineConditionDescriptor("user_role")),
         ),
 ) : PipelinesApi {

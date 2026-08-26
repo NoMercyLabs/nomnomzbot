@@ -118,6 +118,39 @@ class SchemaLocalizationManifestTest {
         }
     }
 
+    // Same proof for the pipeline block PALETTE's action-level strings (S-SCHEMA-I18N-d): the category heading
+    // shared by every chat action, and one action's own description — both LocalizedText keys sourced from
+    // ICommandAction.Category/Description, resolved the same way every other schema string is.
+    @Test
+    fun a_pipeline_category_heading_renders_dutch_text() = runBlocking {
+        val original: Locale = Locale.getDefault()
+        try {
+            Locale.setDefault(Locale.forLanguageTag("nl"))
+            val resource: StringResource =
+                Res.allStringResources[schemaResourceName("pipeline.category.chat")]
+                    ?: fail("pipeline_category_chat is not a known Compose string resource")
+            val resolved: String = getString(getSystemResourceEnvironment(), resource)
+            assertEquals("Chat", resolved)
+        } finally {
+            Locale.setDefault(original)
+        }
+    }
+
+    @Test
+    fun a_pipeline_action_name_renders_dutch_text() = runBlocking {
+        val original: Locale = Locale.getDefault()
+        try {
+            Locale.setDefault(Locale.forLanguageTag("nl"))
+            val resource: StringResource =
+                Res.allStringResources[schemaResourceName("pipeline.ban.description")]
+                    ?: fail("pipeline_ban_description is not a known Compose string resource")
+            val resolved: String = getString(getSystemResourceEnvironment(), resource)
+            assertEquals("Ban een kijker uit de chat", resolved)
+        } finally {
+            Locale.setDefault(original)
+        }
+    }
+
     private fun readManifestKeys(): List<String> {
         val json: String = manifestFile().readText()
         return Json.parseToJsonElement(json).jsonObject["keys"]!!.jsonArray.map { it.jsonPrimitive.content }

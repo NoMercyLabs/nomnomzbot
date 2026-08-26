@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using System.Text.Json;
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Obs.Dtos;
@@ -23,6 +24,7 @@ public sealed class ObsRecordingAction(IObsControlService obs) : ObsActionBase(o
 {
     public override string ActionType => "obs_recording";
 
+    public override LocalizedText Description => new("pipeline.obs_recording.description");
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(
@@ -61,6 +63,7 @@ public sealed class ObsStreamingAction(IObsControlService obs) : ObsActionBase(o
 {
     public override string ActionType => "obs_streaming";
 
+    public override LocalizedText Description => new("pipeline.obs_streaming.description");
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(
@@ -94,6 +97,7 @@ public sealed class ObsReplayBufferAction(IObsControlService obs) : ObsActionBas
 {
     public override string ActionType => "obs_replay_buffer";
 
+    public override LocalizedText Description => new("pipeline.obs_replay_buffer.description");
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(
@@ -127,6 +131,7 @@ public sealed class ObsVirtualCamAction(IObsControlService obs) : ObsActionBase(
 {
     public override string ActionType => "obs_virtual_cam";
 
+    public override LocalizedText Description => new("pipeline.obs_virtual_cam.description");
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(
@@ -160,6 +165,7 @@ public sealed class ObsRequestAction(IObsControlService obs) : ObsActionBase(obs
 {
     public override string ActionType => "obs_request";
 
+    public override LocalizedText Description => new("pipeline.obs_request.description");
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(
@@ -229,6 +235,7 @@ public sealed class ObsRequestBatchAction(IObsControlService obs) : ObsActionBas
 {
     public override string ActionType => "obs_request_batch";
 
+    public override LocalizedText Description => new("pipeline.obs_request_batch.description");
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(
@@ -322,6 +329,7 @@ public sealed class ObsCallVendorAction(IObsControlService obs) : ObsActionBase(
 {
     public override string ActionType => "obs_call_vendor";
 
+    public override LocalizedText Description => new("pipeline.obs_call_vendor.description");
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(

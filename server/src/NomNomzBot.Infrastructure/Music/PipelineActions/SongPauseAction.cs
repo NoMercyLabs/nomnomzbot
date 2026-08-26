@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.Extensions.Logging;
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
@@ -27,8 +28,10 @@ public sealed class SongPauseAction : ICommandAction
     private readonly ILogger<SongPauseAction> _logger;
 
     public string ActionType => "song_pause";
-    public string Category => "music";
-    public string Description => "Pause music playback";
+
+    public LocalizedText Category => new("pipeline.category.music");
+
+    public LocalizedText Description => new("pipeline.song_pause.description");
 
     public SongPauseAction(IMusicService music, ILogger<SongPauseAction> logger)
     {

@@ -12,6 +12,7 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
@@ -22,7 +23,8 @@ namespace NomNomzBot.Api.Tests.Controllers;
 /// <summary>
 /// Proves the pipeline action-catalogue endpoint (commands-pipelines.md §3.13): it emits a descriptor for every
 /// registered <see cref="ICommandAction"/> and <see cref="ICommandCondition"/> — sourced from the DI registry so
-/// the builder palette can never drift — with the default interface members (Category/Description) applied.
+/// the builder palette can never drift — carrying each action's <see cref="LocalizedText"/> Category/Description
+/// KEYS through to the wire DTO unchanged (S-SCHEMA-I18N-d — every action supplies its own, there is no default).
 /// </summary>
 public sealed class PipelinesControllerCatalogueTests
 {
@@ -33,10 +35,10 @@ public sealed class PipelinesControllerCatalogueTests
     ) : ICommandAction
     {
         public string ActionType => type;
-        public string Category => category;
+        public LocalizedText Category => new(category);
+        public LocalizedText Description => new($"pipeline.{type}.description");
         public IReadOnlyList<PipelineActionFieldDescriptor> Fields => fields ?? [];
 
-        // Description is intentionally NOT overridden — the test asserts the default (=> ActionType) member.
         public Task<Application.Abstractions.Pipeline.ActionResult> ExecuteAsync(
             PipelineExecutionContext ctx,
             ActionDefinition action
@@ -82,9 +84,8 @@ public sealed class PipelinesControllerCatalogueTests
         data.Actions.Should().HaveCount(2);
         // Ordered category→type: chat/send_message before moderation/timeout.
         data.Actions[0].Type.Should().Be("send_message");
-        data.Actions[0].Category.Should().Be("chat");
-        // Description falls back to the default interface member (= ActionType).
-        data.Actions[0].Description.Should().Be("send_message");
+        data.Actions[0].Category.Key.Should().Be("chat");
+        data.Actions[0].Description.Key.Should().Be("pipeline.send_message.description");
         data.Actions[1].Type.Should().Be("timeout");
         data.Conditions.Should().ContainSingle().Which.Type.Should().Be("user_role");
     }

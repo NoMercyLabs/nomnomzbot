@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Billing;
@@ -33,6 +34,9 @@ public sealed class RequireTierAction(IBillingTierService tiers) : ICommandActio
 
     public string ActionType => "require_tier";
 
+    public LocalizedText Category => new("pipeline.category.billing");
+
+    public LocalizedText Description => new("pipeline.require_tier.description");
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(
