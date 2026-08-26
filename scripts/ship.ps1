@@ -126,7 +126,7 @@ if ($conclusion -ne "success") {
     Fail "CI run $runId concluded '$conclusion' for $($Sha.Substring(0,8)) - nothing deployed. Fix master now."
 }
 # The run concluded success, so every job (incl. the image build) passed. Label the image job best-effort.
-$imageJob = gh run view $runId --json jobs --jq '[.jobs[] | select(.name | test("image"; "i"))][0].conclusion' 2>$null
+$imageJob = gh run view $runId --json jobs --jq '[.jobs[] | select(.name | test(\"image\"; \"i\"))][0].conclusion' 2>$null
 if ([string]::IsNullOrWhiteSpace($imageJob)) { $imageJob = "success" }
 Write-Host "SHIP: CI green (image job: $imageJob)."
 
@@ -146,14 +146,28 @@ if ($LASTEXITCODE -ne 0) { Fail "could not copy the stack definition to $sshTarg
 # nothing (it did exactly that on 2026-08-25). Pick the idle colour, start it, then drain the old one.
 $remote = @"
 cd $deployDir
-export COMPOSE_PROFILES=green
 ps_out=`$(docker ps --filter name=nomnomzbot-api- --format '{{.Names}}' || true)
 blue_up=`$(echo "`$ps_out" | grep -c 'nomnomzbot-api-blue' || true)
 green_up=`$(echo "`$ps_out" | grep -c 'nomnomzbot-api-green' || true)
+# Both colours up is an OVERLAP, not a dead end: a previous switchover was interrupted before it drained
+# the old one. Ask which colour actually serves readiness and treat that as live; only a genuinely
+# undecidable pair (both ready, or neither) refuses. Reporting this as "health=000" made a recoverable
+# state look identical to a broken deploy, and the caller mis-blamed it on the API never coming up.
 if [ "`$blue_up" -gt 0 ] && [ "`$green_up" -gt 0 ]; then
-  echo "health=000"; echo "ambiguous=both-colours-running"; exit 0
+  blue_code=`$(docker exec nomnomzbot-api-blue curl -s -o /dev/null -w '%{http_code}' http://localhost:5000/health/ready 2>/dev/null || echo 000)
+  green_code=`$(docker exec nomnomzbot-api-green curl -s -o /dev/null -w '%{http_code}' http://localhost:5000/health/ready 2>/dev/null || echo 000)
+  if [ "`$blue_code" = "200" ] && [ "`$green_code" != "200" ]; then
+    docker compose stop -t 25 api-green >/dev/null 2>&1; green_up=0
+  elif [ "`$green_code" = "200" ] && [ "`$blue_code" != "200" ]; then
+    docker compose stop -t 25 api-blue >/dev/null 2>&1; blue_up=0
+  else
+    echo "health=000"
+    echo "ambiguous=both colours running (blue=`$blue_code green=`$green_code) - drain one by hand"
+    exit 0
+  fi
 fi
 if [ "`$green_up" -gt 0 ]; then live=green; idle=blue; else live=blue; idle=green; fi
+export COMPOSE_PROFILES="`$idle"
 docker compose pull -q "api-`$idle" && docker compose up -d --no-deps "api-`$idle" >/dev/null 2>&1
 code=000
 for i in `$(seq 1 $([math]::Ceiling($HealthTimeoutSec / 8))); do
@@ -176,6 +190,10 @@ echo "container=`$(docker ps --filter name=nomnomzbot-api --format '{{.Status}}'
 # its argument through Invoke-Expression, so PowerShell re-parses whatever it is given: every `>/dev/null`
 # in the script above became a LOCAL redirect and the deploy died on "Could not find a part of the path
 # 'C:/dev/null'". Piping the script in means bash is the only thing that ever parses bash.
+# Normalise before it reaches bash: this file is UTF-8 with a BOM and CRLF endings, and PowerShell hands
+# both straight down the pipe — bash then reads the BOM as part of the first word ("﻿cd: command not
+# found") and every trailing CR as part of the last token (a bash syntax error naming a CR-suffixed word).
+$remote = $remote.TrimStart([char]0xFEFF) -replace "`r`n", "`n"
 $ErrorActionPreference = "Continue"
 $deployOutput = ($remote | & ssh -i $sshKey -o StrictHostKeyChecking=accept-new $sshTarget "bash -s" 2>&1 | Out-String)
 $deployExit = $LASTEXITCODE
@@ -197,6 +215,8 @@ $health = Get-Field 'health'
 $imageCreated = Get-Field 'image_created'
 $imageDigest = Get-Field 'image_digest'
 $container = Get-Field 'container'
+$ambiguous = ($deployLines | Select-String -Pattern "^ambiguous=(.+)$" | Select-Object -First 1)
+if ($ambiguous) { Fail "refused to deploy - $($ambiguous.Matches.Groups[1].Value)" }
 if ($health -ne "200") { Fail "API did not become ready (health=$health) after deploy" }
 
 # `docker compose pull` succeeded, so the host now runs EXACTLY the registry's :latest — which the
