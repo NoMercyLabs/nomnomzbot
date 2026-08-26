@@ -133,6 +133,11 @@ jobs:
           push: ${{ github.event_name == 'push' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # Stamps the commit into the image so /health/version reports WHICH build is live. Without
+          # this, every image reports the static "0.1.0" and no one can tell a fresh deploy from a
+          # stale one — the deploy job going green is not evidence the box is running that commit.
+          build-args: |
+            GIT_SHA=${{ github.sha }}
           # GHA layer cache — the wasm-build stage is only re-run when Kotlin source changes.
           # On backend-only commits the 25-minute Wasm compile is a cache hit.
           cache-from: type=gha
