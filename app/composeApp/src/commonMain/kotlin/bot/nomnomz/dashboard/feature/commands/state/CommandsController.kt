@@ -25,6 +25,7 @@ import bot.nomnomz.dashboard.core.network.PickList
 import bot.nomnomz.dashboard.core.network.PickListsApi
 import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.PipelinesApi
+import bot.nomnomz.dashboard.core.network.ResourceUsage
 import bot.nomnomz.dashboard.core.network.UpdateCommandBody
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -42,6 +43,10 @@ import nomnomzbot.composeapp.generated.resources.feedback_command_save_failed
 // [state]; a retry / reconnect calls [load] again.
 private val COMMAND_DOMAINS: Set<String> = setOf("commands", "builtins")
 
+// S-BUDGETS b1/b3 — the `CountedResource("custom_commands", …)` key on the backend `Command` entity; the report
+// from `GET .../billing/limits` carries the resource under this exact key.
+private const val CustomCommandsLimitKey: String = "custom_commands"
+
 class CommandsController(
     private val channelsApi: ChannelsApi,
     private val commandsApi: CommandsApi,
@@ -49,11 +54,27 @@ class CommandsController(
     private val pipelinesApi: PipelinesApi,
     private val pickListsApi: PickListsApi,
     private val feedback: Feedback = NoOpFeedback,
+    // The channel's truthful resource-limit report (S-BUDGETS-b1's `GET .../billing/limits`), narrowed to just
+    // the read this controller needs — a lambda default rather than the full `BillingApi` so this controller's
+    // existing tests never have to fake a dozen unrelated billing methods. Defaults to "nothing reported" so a
+    // caller that doesn't wire billing gets an unblocked create affordance, never a false block.
+    private val resourceLimits: suspend (channelId: String) -> ApiResult<List<ResourceUsage>> =
+        { ApiResult.Ok(emptyList()) },
 ) {
     private val _state: MutableStateFlow<CommandsState> = MutableStateFlow(CommandsState.Loading)
 
     /** The page render state: loading / ready (with the commands) / empty / error. */
     val state: StateFlow<CommandsState> = _state.asStateFlow()
+
+    private val _customCommandsUsage: MutableStateFlow<ResourceUsage?> = MutableStateFlow(null)
+
+    /**
+     * The channel's real [custom_commands][CustomCommandsLimitKey] usage — straight from the same billing-limits
+     * report `ResourceLimitsSection` renders (S-BUDGETS-b1/b2), never client-computed. Null until [load] resolves
+     * it (or when the endpoint carries no report for this resource); the create dialog's warn-before-refuse
+     * affordance treats null exactly like "not near the limit" — it must never block on missing data.
+     */
+    val customCommandsUsage: StateFlow<ResourceUsage?> = _customCommandsUsage.asStateFlow()
 
     // The channel the writes target — resolved by [load] and reused by every mutation so a write never has to
     // re-resolve the channel. Null until the first successful resolve.
@@ -97,6 +118,14 @@ class CommandsController(
         // to no helper (an empty list renders nothing) — it must never block the commands page.
         val pickListNames: List<String> =
             if (pickListsResult is ApiResult.Ok) pickListsResult.value.map { it.name } else emptyList()
+
+        // Best-effort: a failure to fetch the limits report just leaves the create affordance unblocked (never
+        // fails the page) — the backend still enforces the real limit on the write itself either way.
+        _customCommandsUsage.value =
+            when (val result: ApiResult<List<ResourceUsage>> = resourceLimits(channel.id)) {
+                is ApiResult.Ok -> result.value.firstOrNull { it.limitKey == CustomCommandsLimitKey }
+                is ApiResult.Failure -> null
+            }
 
         _state.value =
             if (commands.isEmpty() && builtins.isEmpty())
