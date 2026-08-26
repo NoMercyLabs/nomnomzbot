@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
@@ -31,15 +32,7 @@ public sealed class CrossTenantMembershipFilterTests
     private static readonly Guid User = Guid.Parse("0192a000-0000-7000-8000-00000000c003");
     private static readonly DateTime When = new(2026, 7, 10, 12, 0, 0, DateTimeKind.Utc);
 
-    private static MembershipFilterContext NewDb()
-    {
-        MembershipFilterContext db = new(
-            new DbContextOptionsBuilder<MembershipFilterContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
-        );
-        return db;
-    }
+    private static MembershipFilterContext NewDb() => MembershipFilterContext.New();
 
     private static async Task SeedMembershipOnChannelBAsync(
         MembershipFilterContext db,
@@ -119,8 +112,42 @@ public sealed class CrossTenantMembershipFilterTests
     {
         public Guid? Tenant;
 
-        public MembershipFilterContext(DbContextOptions<MembershipFilterContext> options)
-            : base(options) { }
+        // A REAL relational SQLite database per instance (S-API-TESTS-INMEMORY): the partial unique index
+        // this regression is about only exists on a relational provider, so the InMemory provider could
+        // never have reproduced the 23505 the fix prevents.
+        private readonly SqliteConnection _connection;
+
+        private MembershipFilterContext(
+            DbContextOptions<MembershipFilterContext> options,
+            SqliteConnection connection
+        )
+            : base(options) => _connection = connection;
+
+        public static MembershipFilterContext New()
+        {
+            SqliteConnection connection = new("Data Source=:memory:");
+            connection.Open();
+            MembershipFilterContext db = new(
+                new DbContextOptionsBuilder<MembershipFilterContext>()
+                    .UseSqlite(connection)
+                    .Options,
+                connection
+            );
+            db.Database.EnsureCreated();
+            return db;
+        }
+
+        public override void Dispose()
+        {
+            base.Dispose();
+            _connection.Dispose();
+        }
+
+        public override async ValueTask DisposeAsync()
+        {
+            await base.DisposeAsync();
+            await _connection.DisposeAsync();
+        }
 
         public DbSet<ChannelMembership> ChannelMemberships => Set<ChannelMembership>();
 
@@ -128,6 +155,7 @@ public sealed class CrossTenantMembershipFilterTests
         {
             b.Entity<ChannelMembership>().HasKey(e => e.Id);
             b.ApplyTenantAndSoftDeleteFilters(() => Tenant);
+            b.ApplySqliteCompatibility();
         }
     }
 }

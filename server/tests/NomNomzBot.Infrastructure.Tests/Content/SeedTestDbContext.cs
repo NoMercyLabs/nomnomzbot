@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Chat.Entities;
@@ -21,6 +22,7 @@ using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Infrastructure.Commands.Persistence;
 using NomNomzBot.Infrastructure.Identity.Persistence;
 using NomNomzBot.Infrastructure.Platform.Persistence.Configurations;
+using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 using NomNomzBot.Infrastructure.Tts.Persistence;
 
 namespace NomNomzBot.Infrastructure.Tests.Content;
@@ -29,17 +31,73 @@ namespace NomNomzBot.Infrastructure.Tests.Content;
 /// A focused <see cref="IApplicationDbContext"/> for the seed tests. The production
 /// <see cref="NomNomzBot.Infrastructure.Platform.Persistence.AppDbContext"/> is hard-bound to
 /// Npgsql's <c>jsonb</c> mapper for complex-typed columns (e.g. <c>ChatMessage.Badges</c>), which
-/// neither the InMemory nor the SQLite provider can materialize — so it cannot be hosted on a
+/// the SQLite provider cannot materialize — so it cannot be hosted on a
 /// test provider. This context maps ONLY the five entities the seeders touch, applying their REAL
 /// EF configurations (relational-only annotations like <c>jsonb</c>/<c>HasDefaultValueSql</c> are
-/// no-ops on InMemory; <c>List&lt;string&gt;</c> and string columns map natively), and ignores
+/// no-ops on SQLite; <c>List&lt;string&gt;</c> and string columns map natively), and ignores
 /// every other entity so EF never reaches an unmappable jsonb-of-complex-type column. The seeders
-/// thus run against the real schema for the rows they write, on a real EF provider.
+/// thus run against the real schema for the rows they write, on a real relational database.
 /// </summary>
 public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
 {
-    public SeedTestDbContext(DbContextOptions<SeedTestDbContext> options)
-        : base(options) { }
+    // A REAL relational SQLite connection per context instance (S-API-TESTS-INMEMORY; the EF InMemory
+    // provider is retired here because it ignores unique indexes, FK constraints and query translation,
+    // so it green-lights writes the real database rejects). Opened by New(), closed by this context's
+    // own Dispose/DisposeAsync overrides.
+    private readonly SqliteConnection _connection;
+
+    // Named databases are shared-cache in-memory SQLite so two contexts over the same name see the same
+    // rows (the re-seed tests open a second context over the first one's data). A shared-cache database
+    // lives only while at least one connection to it is open, so the first caller of a name parks a
+    // keep-alive connection here for the lifetime of the test process.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<
+        string,
+        SqliteConnection
+    > KeepAlive = new();
+
+    private SeedTestDbContext(
+        DbContextOptions<SeedTestDbContext> options,
+        SqliteConnection connection
+    )
+        : base(options) => _connection = connection;
+
+    public static SeedTestDbContext New(string? databaseName = null)
+    {
+        string name = databaseName ?? Guid.NewGuid().ToString();
+        string connectionString = $"Data Source=file:{name}?mode=memory&cache=shared";
+        KeepAlive.GetOrAdd(
+            name,
+            static key =>
+            {
+                SqliteConnection keepAlive = new(
+                    $"Data Source=file:{key}?mode=memory&cache=shared"
+                );
+                keepAlive.Open();
+                return keepAlive;
+            }
+        );
+
+        SqliteConnection connection = new(connectionString);
+        connection.Open();
+        SeedTestDbContext db = new(
+            new DbContextOptionsBuilder<SeedTestDbContext>().UseSqlite(connection).Options,
+            connection
+        );
+        db.Database.EnsureCreated();
+        return db;
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        _connection.Dispose();
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        await base.DisposeAsync();
+        await _connection.DisposeAsync();
+    }
 
     // ── Entities the seeders touch ───────────────────────────────────────────
     public DbSet<NomNomzBot.Domain.Vts.Entities.VtsConnection> VtsConnections =>
@@ -356,5 +414,7 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.Ignore<NomNomzBot.Domain.EventStore.Entities.TenantSequence>();
         modelBuilder.Ignore<NomNomzBot.Domain.EventStore.Entities.ProjectionCheckpoint>();
         modelBuilder.Ignore<NomNomzBot.Domain.Sound.Entities.SoundClip>();
+
+        modelBuilder.ApplySqliteCompatibility();
     }
 }

@@ -10,7 +10,6 @@
 
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Infrastructure.Content.Identity;
@@ -27,12 +26,7 @@ namespace NomNomzBot.Infrastructure.Tests.Identity;
 public sealed class PronounSeederTests
 {
     private static SeedTestDbContext NewContext(string databaseName) =>
-        new(
-            new DbContextOptionsBuilder<SeedTestDbContext>()
-                .UseInMemoryDatabase(databaseName)
-                .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
-                .Options
-        );
+        SeedTestDbContext.New(databaseName);
 
     // ── The fetched set is mapped + the combos are always added ──────────────
 

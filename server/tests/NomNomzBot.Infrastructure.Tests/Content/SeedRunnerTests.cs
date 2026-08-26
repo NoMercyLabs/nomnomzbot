@@ -11,7 +11,6 @@
 using System.Reflection;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Content;
 using NomNomzBot.Application.Abstractions.Persistence;
@@ -40,15 +39,8 @@ public sealed class SeedRunnerTests
     // production re-seed hits. TransactionIgnoredWarning is suppressed because the InMemory
     // provider has no real transactions; suppressing it lets the REAL SeedRunner transaction
     // path (Begin/Save/Commit) run unchanged instead of throwing.
-    private static SeedTestDbContext NewContext(string databaseName)
-    {
-        DbContextOptions<SeedTestDbContext> options =
-            new DbContextOptionsBuilder<SeedTestDbContext>()
-                .UseInMemoryDatabase(databaseName)
-                .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
-                .Options;
-        return new(options);
-    }
+    private static SeedTestDbContext NewContext(string databaseName) =>
+        SeedTestDbContext.New(databaseName);
 
     private static SeedRunner BuildRunner(SeedTestDbContext context) =>
         new(
@@ -213,6 +205,7 @@ public sealed class SeedRunnerTests
                     Id = alphaId,
                     OwnerUserId = Guid.Parse("0192a000-0000-7000-8000-0000000001a0"),
                     TwitchChannelId = "100",
+                    ExternalChannelId = "100",
                     Name = "alpha",
                     NameNormalized = "alpha",
                 }
@@ -223,6 +216,7 @@ public sealed class SeedRunnerTests
                     Id = bravoId,
                     OwnerUserId = Guid.Parse("0192a000-0000-7000-8000-0000000002b0"),
                     TwitchChannelId = "200",
+                    ExternalChannelId = "200",
                     Name = "bravo",
                     NameNormalized = "bravo",
                 }
@@ -361,7 +355,7 @@ public sealed class SeedRunnerTests
             Func<CancellationToken, Task> operation,
             CancellationToken ct = default
         ) =>
-            ExecuteInTransactionAsync<bool>(
+            ExecuteInTransactionAsync(
                 async token =>
                 {
                     await operation(token);

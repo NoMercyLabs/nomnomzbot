@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Analytics.Entities;
@@ -35,21 +36,46 @@ namespace NomNomzBot.Infrastructure.Tests.Platform.Pipeline;
 
 /// <summary>
 /// A focused <see cref="IApplicationDbContext"/> over only the pipeline graph (<see cref="Pipeline"/> +
-/// <see cref="PipelineStep"/> + <see cref="PipelineStepCondition"/>) on the EF Core InMemory provider, for the
+/// <see cref="PipelineStep"/> + <see cref="PipelineStepCondition"/>) on a real relational SQLite database, for the
 /// pipeline test-run (dry-run) tests. Everything else throws — those tests never reach it. Same "declare every
 /// DbSet, auto-ignore the unmapped ones" shape as <c>CommandsTestDbContext</c>.
 /// </summary>
 internal sealed class PipelineTestRunDbContext : DbContext, IApplicationDbContext
 {
-    private PipelineTestRunDbContext(DbContextOptions<PipelineTestRunDbContext> options)
-        : base(options) { }
+    // One private, non-shared in-memory SQLite connection per context instance - a REAL relational
+    // database (S-API-TESTS-INMEMORY; the EF InMemory provider is retired here because it ignores unique
+    // indexes, FK constraints and query translation, so it green-lights writes the real database rejects).
+    private readonly SqliteConnection _connection;
 
-    public static PipelineTestRunDbContext New() =>
-        new(
-            new DbContextOptionsBuilder<PipelineTestRunDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
+    private PipelineTestRunDbContext(
+        DbContextOptions<PipelineTestRunDbContext> options,
+        SqliteConnection connection
+    )
+        : base(options) => _connection = connection;
+
+    public static PipelineTestRunDbContext New()
+    {
+        SqliteConnection connection = new("Data Source=:memory:");
+        connection.Open();
+        PipelineTestRunDbContext db = new(
+            new DbContextOptionsBuilder<PipelineTestRunDbContext>().UseSqlite(connection).Options,
+            connection
         );
+        db.Database.EnsureCreated();
+        return db;
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        _connection.Dispose();
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        await base.DisposeAsync();
+        await _connection.DisposeAsync();
+    }
 
     protected override void OnModelCreating(ModelBuilder b)
     {

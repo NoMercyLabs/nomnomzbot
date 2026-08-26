@@ -10,7 +10,6 @@
 
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Infrastructure.Content.Identity;
@@ -27,13 +26,7 @@ public sealed class TwitchIdentityBackfillSeederTests
 {
     private static readonly DateTimeOffset FixedNow = new(2026, 7, 9, 12, 0, 0, TimeSpan.Zero);
 
-    private static AuthDbContext NewContext(string dbName) =>
-        new(
-            new DbContextOptionsBuilder<AuthDbContext>()
-                .UseInMemoryDatabase(dbName)
-                .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
-                .Options
-        );
+    private static AuthDbContext NewContext(string dbName) => AuthTestBuilder.NewContext(dbName);
 
     [Fact]
     public async Task Seeds_a_primary_twitch_identity_enriched_from_the_user_row()

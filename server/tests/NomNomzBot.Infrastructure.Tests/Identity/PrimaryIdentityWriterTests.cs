@@ -10,7 +10,6 @@
 
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Infrastructure.Identity;
@@ -27,13 +26,7 @@ public sealed class PrimaryIdentityWriterTests
 {
     private static readonly DateTimeOffset FixedNow = new(2026, 7, 9, 12, 0, 0, TimeSpan.Zero);
 
-    private static AuthDbContext NewContext() =>
-        new(
-            new DbContextOptionsBuilder<AuthDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
-                .Options
-        );
+    private static AuthDbContext NewContext() => AuthTestBuilder.NewContext();
 
     [Fact]
     public async Task EnsureAsync_creates_a_primary_identity_with_the_full_profile()

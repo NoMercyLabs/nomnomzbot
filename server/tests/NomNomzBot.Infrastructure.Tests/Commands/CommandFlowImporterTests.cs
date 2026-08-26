@@ -9,8 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using NomNomzBot.Application.Commands.Import;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Commands.Entities;
@@ -33,12 +31,7 @@ public sealed class CommandFlowImporterTests
 
     private static (CommandFlowImporter Importer, SeedTestDbContext Db) Build()
     {
-        SeedTestDbContext db = new(
-            new DbContextOptionsBuilder<SeedTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
-                .Options
-        );
+        SeedTestDbContext db = SeedTestDbContext.New();
         db.Channels.Add(
             new Channel
             {
