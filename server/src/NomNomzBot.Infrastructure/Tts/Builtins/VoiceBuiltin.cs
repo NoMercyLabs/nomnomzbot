@@ -22,8 +22,12 @@ namespace NomNomzBot.Infrastructure.Tts.Builtins;
 /// utterance. The channel gate (TTS enabled + <c>ViewerVoiceSelfServiceEnabled</c>) lives in the service, so a
 /// streamer who locks it off gets a friendly refusal, not a silent no-op.
 /// <list type="bullet">
-///   <item><c>!voice</c> → shows the caller's current voice (or that they use the channel default).</item>
-///   <item><c>!voice &lt;search&gt;</c> → fuzzy-matches the catalogue (name/accent/language/tags) and sets it.</item>
+///   <item><c>!voice</c> / <c>!voice current</c> → the caller's voice (or that they use the channel default).</item>
+///   <item><c>!voice languages</c> → the languages the catalogue can speak, grouped by language code.</item>
+///   <item><c>!voice get &lt;language&gt;</c> → the voices for a language (<c>en</c> or <c>en-US</c>).</item>
+///   <item><c>!voice set &lt;name&gt;</c> → sets by id, name or bare speaker name (<c>Ana</c> → <c>en-US-AnaNeural</c>).</item>
+///   <item><c>!voice roulette</c> → picks a random catalogue voice and keeps it.</item>
+///   <item><c>!voice &lt;search&gt;</c> → the bare form still fuzzy-matches and sets, no subcommand needed.</item>
 ///   <item><c>!voice clear|reset|default</c> → drops back to the channel default.</item>
 /// </list>
 /// A non-reserved built-in — the channel may disable the command entirely, independent of the config toggle.
@@ -51,10 +55,124 @@ public sealed class VoiceBuiltin : IBuiltinCommand
         if (args.Length == 0)
             return await ShowAsync(context.BroadcasterId, viewerId, ct);
 
-        if (args.ToLowerInvariant() is "clear" or "reset" or "default")
-            return await ClearAsync(context.BroadcasterId, viewerId, ct);
+        string[] parts = args.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        string head = parts[0].ToLowerInvariant();
+        string rest = parts.Length > 1 ? string.Join(' ', parts[1..]).Trim() : string.Empty;
 
-        return await SetAsync(context.BroadcasterId, viewerId, args, ct);
+        // Subcommands first; anything else stays the bare fuzzy search, so `!voice british female` keeps
+        // working without a subcommand.
+        return head switch
+        {
+            "clear" or "reset" or "default" => await ClearAsync(
+                context.BroadcasterId,
+                viewerId,
+                ct
+            ),
+            "current" => await ShowAsync(context.BroadcasterId, viewerId, ct),
+            "languages" or "langs" => await LanguagesAsync(ct),
+            "get" => rest.Length == 0
+                ? Result.Success(
+                    "Usage: !voice get <language> - e.g. !voice get en, or !voice get en-US."
+                )
+                : await VoicesForLanguageAsync(rest, ct),
+            "set" => rest.Length == 0
+                ? Result.Success("Usage: !voice set <name> - e.g. !voice set Ana.")
+                : await SetAsync(context.BroadcasterId, viewerId, rest, ct),
+            "roulette" => await RouletteAsync(context.BroadcasterId, viewerId, ct),
+            _ => await SetAsync(context.BroadcasterId, viewerId, args, ct),
+        };
+    }
+
+    /// <summary>Every language the catalogue can speak, grouped by language code (<c>EN: en-US, en-GB</c>).</summary>
+    private async Task<Result<string>> LanguagesAsync(CancellationToken ct)
+    {
+        Result<PagedList<TtsVoiceDto>> all = await _tts.SearchVoicesAsync(new(PageSize: 1000), ct);
+        if (all.IsFailure || all.Value.Items.Count == 0)
+            return Result.Success("No TTS voices are available right now.");
+
+        IEnumerable<IGrouping<string, string>> groups = all
+            .Value.Items.Select(v => v.Locale)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(locale => locale, StringComparer.OrdinalIgnoreCase)
+            .GroupBy(
+                locale => locale.Split('-')[0].ToUpperInvariant(),
+                StringComparer.OrdinalIgnoreCase
+            )
+            .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase);
+
+        string list = string.Join(" | ", groups.Select(g => $"{g.Key}: {string.Join(", ", g)}"));
+        return Result.Success($"Languages: {list}");
+    }
+
+    /// <summary>
+    /// The voices for one language. Accepts a bare language code (<c>en</c>) or a full locale (<c>en-US</c>);
+    /// a bare code matches every locale under it, which is what a viewer means by "English".
+    /// </summary>
+    private async Task<Result<string>> VoicesForLanguageAsync(string language, CancellationToken ct)
+    {
+        Result<PagedList<TtsVoiceDto>> all = await _tts.SearchVoicesAsync(new(PageSize: 1000), ct);
+        if (all.IsFailure)
+            return Result.Success("I could not read the voice catalogue.");
+
+        string query = language.Trim();
+        List<TtsVoiceDto> matches =
+        [
+            .. all.Value.Items.Where(v =>
+                query.Contains('-')
+                    ? string.Equals(v.Locale, query, StringComparison.OrdinalIgnoreCase)
+                    : v.Locale.StartsWith(query + "-", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(v.Locale, query, StringComparison.OrdinalIgnoreCase)
+            ),
+        ];
+        if (matches.Count == 0)
+            return Result.Success(
+                $"No voices for {query}. Try !voice languages to see what is available."
+            );
+
+        // Chat is one line: name the first handful and say how many more there are, rather than truncating
+        // mid-list and leaving the viewer thinking that is all of them.
+        const int shown = 12;
+        string names = string.Join(", ", matches.Take(shown).Select(SpeakerName));
+        string more = matches.Count > shown ? $" (+{matches.Count - shown} more)" : string.Empty;
+        return Result.Success($"{query} voices: {names}{more}. Pick one with !voice set <name>.");
+    }
+
+    /// <summary>Picks a random catalogue voice and keeps it - the pick is saved, not a one-off.</summary>
+    private async Task<Result<string>> RouletteAsync(
+        Guid broadcasterId,
+        string viewerId,
+        CancellationToken ct
+    )
+    {
+        Result<PagedList<TtsVoiceDto>> all = await _tts.SearchVoicesAsync(new(PageSize: 1000), ct);
+        if (all.IsFailure || all.Value.Items.Count == 0)
+            return Result.Success("No voices available for roulette!");
+
+        TtsVoiceDto pick = all.Value.Items[Random.Shared.Next(all.Value.Items.Count)];
+        Result<UserTtsVoiceDto> set = await _tts.SetOwnVoiceAsync(
+            broadcasterId,
+            viewerId,
+            new() { VoiceId = pick.Id },
+            ct
+        );
+        if (set.IsFailure)
+            return Result.Success(set.ErrorMessage ?? "I could not set that voice.");
+
+        return Result.Success(
+            $"The wheel has spoken - your voice is now {pick.DisplayName} [{pick.Locale} {pick.Gender}]. No takebacks."
+        );
+    }
+
+    /// <summary>The bare speaker name a viewer would say out loud: <c>en-US-AnaNeural</c> becomes <c>Ana</c>.</summary>
+    private static string SpeakerName(TtsVoiceDto voice)
+    {
+        string name = voice.Id;
+        int lastDash = name.LastIndexOf('-');
+        if (lastDash >= 0)
+            name = name[(lastDash + 1)..];
+        return name.EndsWith("Neural", StringComparison.OrdinalIgnoreCase)
+            ? name[..^"Neural".Length]
+            : name;
     }
 
     private async Task<Result<string>> ShowAsync(
@@ -125,8 +243,10 @@ public sealed class VoiceBuiltin : IBuiltinCommand
         );
     }
 
-    // Relevance beats catalogue order: an exact voice-id, then an exact name/display-name hit, wins the top
-    // page slot; otherwise the first catalogue-ordered match (provider→locale→name) is a reasonable default.
+    // Relevance beats catalogue order. The rung that matters most in chat is the BARE SPEAKER NAME: a viewer
+    // types `!voice set Ana` meaning en-US-AnaNeural, and substring relevance alone hands them ar-IQ-RanaNeural
+    // because it sorts first in the catalogue. Exact id, then exact name/display-name, then the speaker name
+    // (en-US-AnaNeural → "Ana"), then a speaker-name prefix, and only then catalogue order.
     private static TtsVoiceDto BestMatch(IReadOnlyList<TtsVoiceDto> voices, string query)
     {
         string q = query.Trim();
@@ -138,6 +258,12 @@ public sealed class VoiceBuiltin : IBuiltinCommand
             )
             ?? voices.FirstOrDefault(v =>
                 string.Equals(v.DisplayName, q, StringComparison.OrdinalIgnoreCase)
+            )
+            ?? voices.FirstOrDefault(v =>
+                string.Equals(SpeakerName(v), q, StringComparison.OrdinalIgnoreCase)
+            )
+            ?? voices.FirstOrDefault(v =>
+                SpeakerName(v).StartsWith(q, StringComparison.OrdinalIgnoreCase)
             )
             ?? voices[0];
     }

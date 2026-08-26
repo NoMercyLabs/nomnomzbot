@@ -60,6 +60,36 @@ public sealed class TtsViewerSelfServiceTests
                 Gender = "Male",
                 Provider = "edge",
                 Accent = "American",
+            },
+            // The "Ana" collision, in catalogue order: both of these sort BEFORE en-US-AnaNeural and both
+            // contain the substring "ana", which is exactly how `!voice set Ana` used to land on Rana.
+            new TtsVoice
+            {
+                Id = "ar-IQ-RanaNeural",
+                Name = "RanaNeural",
+                DisplayName = "Rana (IQ)",
+                Locale = "ar-IQ",
+                Gender = "Female",
+                Provider = "edge",
+            },
+            new TtsVoice
+            {
+                Id = "ca-ES-JoanaNeural",
+                Name = "JoanaNeural",
+                DisplayName = "Joana (ES)",
+                Locale = "ca-ES",
+                Gender = "Female",
+                Provider = "edge",
+            },
+            new TtsVoice
+            {
+                Id = "en-US-AnaNeural",
+                Name = "AnaNeural",
+                DisplayName = "Ana (US)",
+                Locale = "en-US",
+                Gender = "Female",
+                Provider = "edge",
+                Accent = "American",
             }
         );
         db.TtsConfigs.Add(
@@ -243,5 +273,78 @@ public sealed class TtsViewerSelfServiceTests
                 "en-GB-SoniaNeural",
                 "the wrong-case id still resolves to the real catalogue voice"
             );
+    }
+
+    // ── !voice surface (old-bot parity) ───────────────────────────────────────────────────────────
+    // A viewer types a bare speaker name. Ranking by catalogue relevance alone handed `!voice set Ana`
+    // to ar-IQ-RanaNeural, because it contains "ana" and sorts first — the wrong voice, silently.
+
+    [Fact]
+    public async Task Voice_set_by_bare_speaker_name_picks_that_speaker_not_a_substring_neighbour()
+    {
+        (TtsConfigService config, TtsTestDbContext db) = await BuildAsync();
+        VoiceBuiltin voice = new(config);
+
+        Result<string> reply = await voice.ExecuteAsync(Ctx("set Ana"));
+
+        reply.IsSuccess.Should().BeTrue(reply.ErrorMessage);
+        UserTtsVoice row = await db.UserTtsVoices.SingleAsync();
+        row.VoiceId.Should().Be("en-US-AnaNeural");
+    }
+
+    [Fact]
+    public async Task Voice_set_by_full_id_still_wins_outright()
+    {
+        (TtsConfigService config, TtsTestDbContext db) = await BuildAsync();
+        VoiceBuiltin voice = new(config);
+
+        Result<string> reply = await voice.ExecuteAsync(Ctx("set en-GB-SoniaNeural"));
+
+        reply.IsSuccess.Should().BeTrue(reply.ErrorMessage);
+        (await db.UserTtsVoices.SingleAsync()).VoiceId.Should().Be("en-GB-SoniaNeural");
+    }
+
+    [Fact]
+    public async Task Voice_languages_lists_every_locale_grouped_by_language()
+    {
+        (TtsConfigService config, _) = await BuildAsync();
+        VoiceBuiltin voice = new(config);
+
+        Result<string> reply = await voice.ExecuteAsync(Ctx("languages"));
+
+        reply.IsSuccess.Should().BeTrue();
+        reply.Value.Should().Contain("EN: en-GB, en-US");
+        reply.Value.Should().Contain("AR: ar-IQ");
+    }
+
+    [Fact]
+    public async Task Voice_get_by_bare_language_covers_every_locale_under_it()
+    {
+        (TtsConfigService config, _) = await BuildAsync();
+        VoiceBuiltin voice = new(config);
+
+        Result<string> reply = await voice.ExecuteAsync(Ctx("get en"));
+
+        reply.IsSuccess.Should().BeTrue();
+        // en-GB and en-US voices, named the way a viewer would say them; no Arabic/Catalan bleed-through.
+        reply.Value.Should().Contain("Sonia");
+        reply.Value.Should().Contain("Ana");
+        reply.Value.Should().NotContain("Rana");
+        reply.Value.Should().NotContain("Joana");
+    }
+
+    [Fact]
+    public async Task Voice_roulette_keeps_the_pick_it_announces()
+    {
+        (TtsConfigService config, TtsTestDbContext db) = await BuildAsync();
+        VoiceBuiltin voice = new(config);
+
+        Result<string> reply = await voice.ExecuteAsync(Ctx("roulette"));
+
+        reply.IsSuccess.Should().BeTrue(reply.ErrorMessage);
+        UserTtsVoice row = await db.UserTtsVoices.SingleAsync();
+        // Whatever it landed on, the announcement and the stored row are the SAME voice.
+        TtsVoice stored = await db.TtsVoices.SingleAsync(v => v.Id == row.VoiceId);
+        reply.Value.Should().Contain(stored.DisplayName);
     }
 }
