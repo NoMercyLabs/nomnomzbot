@@ -39,6 +39,13 @@ public sealed class ProjectionRunnerLeaseTests
             Substitute.For<ICurrentUserService>()
         );
 
+    // Every await below is released by an explicit signal (GatedProjection.EnteredReset / Release), so the
+    // ordering this test asserts is deterministic and NOT timing-derived. These bounds exist only so a genuine
+    // deadlock fails the suite instead of hanging it forever — they are never the thing being measured. They
+    // were 5s, which a loaded machine (18+ concurrent dotnet processes during a parallel run) could exceed,
+    // turning a correct run red and training everyone to read a red suite as "probably the flake".
+    private static readonly TimeSpan DeadlockGuard = TimeSpan.FromSeconds(30);
+
     [Fact]
     public async Task Rebuild_RefusedForSameBroadcasterAndProjection_WhileFirstRebuildIsInFlight()
     {
@@ -63,13 +70,13 @@ public sealed class ProjectionRunnerLeaseTests
 
         // Start the first rebuild; it blocks inside ResetAsync until released, holding the lease the whole time.
         Task<Result<long>> firstRebuild = runner.RebuildAsync(gated.Name, tenant);
-        await gated.EnteredReset.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await gated.EnteredReset.Task.WaitAsync(DeadlockGuard);
 
         // A second rebuild for the EXACT SAME key (same projection name + same broadcaster) must be refused
         // immediately with an honest, typed "already running" result — never a silent no-op and never a hang.
         Result<long> secondRebuild = await runner
             .RebuildAsync(gated.Name, tenant)
-            .WaitAsync(TimeSpan.FromSeconds(5));
+            .WaitAsync(DeadlockGuard);
 
         secondRebuild
             .IsFailure.Should()
@@ -78,7 +85,7 @@ public sealed class ProjectionRunnerLeaseTests
 
         // Release the first rebuild and confirm it still completes successfully once it has the lease to itself.
         gated.Release();
-        Result<long> firstResult = await firstRebuild.WaitAsync(TimeSpan.FromSeconds(5));
+        Result<long> firstResult = await firstRebuild.WaitAsync(DeadlockGuard);
         firstResult.IsSuccess.Should().BeTrue(firstResult.ErrorMessage);
     }
 
@@ -117,14 +124,14 @@ public sealed class ProjectionRunnerLeaseTests
 
         // Hold the lease for tenant A.
         Task<Result<long>> forTenantA = runnerA.RebuildAsync(gated.Name, tenantA);
-        await gated.EnteredReset.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await gated.EnteredReset.Task.WaitAsync(DeadlockGuard);
 
         // Tenant B's rebuild of the SAME projection is a different key (projection+broadcaster) and must proceed
         // — release its own gate immediately so it doesn't deadlock behind tenant A's still-held one.
         gated.Release();
         Result<long> forTenantB = await runnerB
             .RebuildAsync(gated.Name, tenantB)
-            .WaitAsync(TimeSpan.FromSeconds(5));
+            .WaitAsync(DeadlockGuard);
 
         forTenantB
             .IsSuccess.Should()
@@ -132,7 +139,7 @@ public sealed class ProjectionRunnerLeaseTests
                 "a different broadcaster+projection key is unaffected by tenant A's held lease"
             );
 
-        Result<long> tenantAResult = await forTenantA.WaitAsync(TimeSpan.FromSeconds(5));
+        Result<long> tenantAResult = await forTenantA.WaitAsync(DeadlockGuard);
         tenantAResult.IsSuccess.Should().BeTrue(tenantAResult.ErrorMessage);
     }
 
