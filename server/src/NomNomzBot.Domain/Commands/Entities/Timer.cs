@@ -29,6 +29,7 @@ public class Timer : SoftDeletableEntity, ITenantScoped
     public string Name { get; set; } = null!;
 
     /// <summary>List of messages to rotate through (round-robin); used for template mode.</summary>
+    [TemplatedUserContent]
     public List<string> Messages { get; set; } = [];
 
     /// <summary>EF Core schema version.</summary>

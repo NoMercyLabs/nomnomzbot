@@ -42,6 +42,7 @@ public class DiscordNotificationConfig : SoftDeletableEntity, ITenantScoped
     /// <summary>Single nullable notify role to ping (schema C4: one ping role per rule).</summary>
     public Guid? PingRoleId { get; set; }
 
+    [TemplatedUserContent]
     public string? MessageTemplate { get; set; }
 
     /// <summary>The embed shape, serialized via the Newtonsoft <c>[VC:JSON]</c> converter (text column).</summary>
