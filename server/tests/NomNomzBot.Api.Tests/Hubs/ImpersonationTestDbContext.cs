@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Analytics.Entities;
@@ -29,12 +30,13 @@ using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 
 namespace NomNomzBot.Api.Tests.Hubs;
 
 /// <summary>
 /// A focused <see cref="IApplicationDbContext"/> over only <see cref="IamRoleAssignment"/> — on the EF Core
-/// InMemory provider — for the Impersonation*BroadcastHandler tests (S089d), which need to resolve the
+/// SQLite harness — for the Impersonation*BroadcastHandler tests (S089d), which need to resolve the
 /// support-session grant's <c>ScopeChannelId</c>/<c>Reason</c> by <c>AccessGrantId</c>. Everything else
 /// throws, since those tests never reach it. Mirrors the same "declare every DbSet, auto-ignore the
 /// unmapped ones" shape as <c>Hubs/WidgetTestDbContext.cs</c>, just with <see cref="IamRoleAssignment"/> as
@@ -42,15 +44,41 @@ namespace NomNomzBot.Api.Tests.Hubs;
 /// </summary>
 internal sealed class ImpersonationTestDbContext : DbContext, IApplicationDbContext
 {
-    private ImpersonationTestDbContext(DbContextOptions<ImpersonationTestDbContext> options)
-        : base(options) { }
+    // One private, non-shared in-memory SQLite connection per context instance — a REAL relational
+    // database (S-API-TESTS-INMEMORY; the EF InMemory provider is retired here because it ignores unique
+    // indexes, FK constraints and query translation, so it green-lights writes the real database rejects).
+    // Opened by New(), closed by this context's own Dispose/DisposeAsync overrides.
+    private readonly SqliteConnection _connection;
 
-    public static ImpersonationTestDbContext New() =>
-        new(
-            new DbContextOptionsBuilder<ImpersonationTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
+    private ImpersonationTestDbContext(
+        DbContextOptions<ImpersonationTestDbContext> options,
+        SqliteConnection connection
+    )
+        : base(options) => _connection = connection;
+
+    public static ImpersonationTestDbContext New()
+    {
+        SqliteConnection connection = new("Data Source=:memory:");
+        connection.Open();
+        ImpersonationTestDbContext db = new(
+            new DbContextOptionsBuilder<ImpersonationTestDbContext>().UseSqlite(connection).Options,
+            connection
         );
+        db.Database.EnsureCreated();
+        return db;
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        _connection.Dispose();
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        await base.DisposeAsync();
+        await _connection.DisposeAsync();
+    }
 
     public DbSet<IamRoleAssignment> IamRoleAssignments => Set<IamRoleAssignment>();
     public DbSet<SecurityNotice> SecurityNotices => throw new NotSupportedException();
@@ -63,6 +91,8 @@ internal sealed class ImpersonationTestDbContext : DbContext, IApplicationDbCont
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
+
+        b.ApplySqliteCompatibility();
     }
 
     private static readonly HashSet<Type> Mapped = [typeof(IamRoleAssignment)];

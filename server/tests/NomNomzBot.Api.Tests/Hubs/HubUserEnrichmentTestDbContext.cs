@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Analytics.Entities;
@@ -29,27 +30,56 @@ using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 
 namespace NomNomzBot.Api.Tests.Hubs;
 
 /// <summary>
 /// A focused <see cref="IApplicationDbContext"/> over only <see cref="User"/>, <see cref="Pronoun"/>, and
-/// <see cref="ChannelCommunityStanding"/> — on the EF Core InMemory provider — for
+/// <see cref="ChannelCommunityStanding"/> — on a REAL relational SQLite connection — for
 /// <c>HubUserEnrichmentStoreTests</c>, which needs the pronoun-pair include and the standing lookup to actually
 /// query real data. Everything else throws, since those tests never reach it. Mirrors the same
 /// "declare every DbSet, auto-ignore the unmapped ones" shape as <c>Controllers/ApiTestDbContext.cs</c>.
 /// </summary>
 internal sealed class HubUserEnrichmentTestDbContext : DbContext, IApplicationDbContext
 {
-    private HubUserEnrichmentTestDbContext(DbContextOptions<HubUserEnrichmentTestDbContext> options)
-        : base(options) { }
+    // One private, non-shared in-memory SQLite connection per context instance — a REAL relational
+    // database (S-API-TESTS-INMEMORY; the EF InMemory provider is retired here because it ignores unique
+    // indexes, FK constraints and query translation, so it green-lights writes the real database rejects).
+    // Opened by New(), closed by this context's own Dispose/DisposeAsync overrides.
+    private readonly SqliteConnection _connection;
 
-    public static HubUserEnrichmentTestDbContext New() =>
-        new(
+    private HubUserEnrichmentTestDbContext(
+        DbContextOptions<HubUserEnrichmentTestDbContext> options,
+        SqliteConnection connection
+    )
+        : base(options) => _connection = connection;
+
+    public static HubUserEnrichmentTestDbContext New()
+    {
+        SqliteConnection connection = new("Data Source=:memory:");
+        connection.Open();
+        HubUserEnrichmentTestDbContext db = new(
             new DbContextOptionsBuilder<HubUserEnrichmentTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
+                .UseSqlite(connection)
+                .Options,
+            connection
         );
+        db.Database.EnsureCreated();
+        return db;
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        _connection.Dispose();
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        await base.DisposeAsync();
+        await _connection.DisposeAsync();
+    }
 
     public DbSet<User> Users => Set<User>();
     public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
@@ -75,6 +105,8 @@ internal sealed class HubUserEnrichmentTestDbContext : DbContext, IApplicationDb
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
+
+        b.ApplySqliteCompatibility();
     }
 
     private static readonly HashSet<Type> Mapped =

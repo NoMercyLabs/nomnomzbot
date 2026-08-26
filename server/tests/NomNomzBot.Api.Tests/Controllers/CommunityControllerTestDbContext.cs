@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Analytics.Entities;
@@ -35,29 +36,55 @@ namespace NomNomzBot.Api.Tests.Controllers;
 
 /// <summary>
 /// A focused <see cref="IApplicationDbContext"/> over only <see cref="ChatMessage"/>, <see cref="User"/>, and
-/// <see cref="ViewerProfile"/> — on the EF Core InMemory provider — for <c>CommunityControllerTests</c>, which needs
+/// <see cref="ViewerProfile"/> — on a REAL relational SQLite connection — for <c>CommunityControllerTests</c>, which needs
 /// real persisted rows to prove <c>ListMembers</c>/<c>GetUserDetail</c> fill <c>WatchHours</c>/<c>CommandsUsed</c>
 /// from the per-viewer <see cref="ViewerProfile"/> aggregate instead of the old hardcoded 0. Everything else throws,
 /// since those tests never reach it. Mirrors the same "declare every DbSet, auto-ignore the unmapped ones" shape as
 /// <c>ChatControllerTestDbContext.cs</c>. <see cref="ChatMessage.Fragments"/>/<see cref="ChatMessage.Badges"/> are
-/// Npgsql-native <c>jsonb</c> columns in production with no explicit converter — the InMemory provider has no such
+/// Npgsql-native <c>jsonb</c> columns in production with no explicit converter — the SQLite harness has no such
 /// native mapping, so (exactly like <c>AppDbContext</c> does for SQLite) they are pre-claimed as scalar JSON
 /// properties in <see cref="ConfigureConventions"/> before EF's relationship-discovery convention mistakes them for
 /// navigations to owned entities.
 /// </summary>
 internal sealed class CommunityControllerTestDbContext : DbContext, IApplicationDbContext
 {
-    private CommunityControllerTestDbContext(
-        DbContextOptions<CommunityControllerTestDbContext> options
-    )
-        : base(options) { }
+    // One private, non-shared in-memory SQLite connection per context instance — a REAL relational
+    // database (S-API-TESTS-INMEMORY; the EF InMemory provider is retired here because it ignores unique
+    // indexes, FK constraints and query translation, so it green-lights writes the real database rejects).
+    // Opened by New(), closed by this context's own Dispose/DisposeAsync overrides.
+    private readonly SqliteConnection _connection;
 
-    public static CommunityControllerTestDbContext New() =>
-        new(
+    private CommunityControllerTestDbContext(
+        DbContextOptions<CommunityControllerTestDbContext> options,
+        SqliteConnection connection
+    )
+        : base(options) => _connection = connection;
+
+    public static CommunityControllerTestDbContext New()
+    {
+        SqliteConnection connection = new("Data Source=:memory:");
+        connection.Open();
+        CommunityControllerTestDbContext db = new(
             new DbContextOptionsBuilder<CommunityControllerTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
+                .UseSqlite(connection)
+                .Options,
+            connection
         );
+        db.Database.EnsureCreated();
+        return db;
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        _connection.Dispose();
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        await base.DisposeAsync();
+        await _connection.DisposeAsync();
+    }
 
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<User> Users => Set<User>();
@@ -92,6 +119,8 @@ internal sealed class CommunityControllerTestDbContext : DbContext, IApplication
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
+
+        b.ApplySqliteCompatibility();
     }
 
     private static readonly HashSet<Type> Mapped =

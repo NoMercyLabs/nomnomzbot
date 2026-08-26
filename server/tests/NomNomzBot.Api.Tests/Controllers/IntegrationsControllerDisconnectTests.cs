@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using NomNomzBot.Api.Controllers.V1;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
 using NomNomzBot.Application.Identity.Dtos;
@@ -37,6 +38,32 @@ public sealed class IntegrationsControllerDisconnectTests
 {
     private static readonly Guid Tenant = Guid.CreateVersion7();
 
+    /// <summary>
+    /// Seeds the owning <see cref="Channel"/> row. Both <c>Service.BroadcasterId</c> and
+    /// <c>IntegrationConnection.BroadcasterId</c> carry a real <c>[ForeignKey]</c> to <c>Channel</c>, so an
+    /// integration row for a channel that does not exist is rejected by the database. The EF InMemory provider
+    /// this suite used to run on ignored foreign keys entirely and happily persisted the orphan; on the real
+    /// relational harness the insert fails with "FOREIGN KEY constraint failed" — the production code was never
+    /// wrong, the fixture was simply seeding a shape the real schema forbids.
+    /// </summary>
+    private static async Task SeedOwningChannelAsync(
+        IntegrationsControllerDisconnectTestDbContext db
+    )
+    {
+        db.Channels.Add(
+            new()
+            {
+                Id = Tenant,
+                OwnerUserId = Guid.CreateVersion7(),
+                TwitchChannelId = "770011",
+                Name = "integrationstreamer",
+                NameNormalized = "integrationstreamer",
+                IsOnboarded = true,
+            }
+        );
+        await db.SaveChangesAsync();
+    }
+
     private static IntegrationsController Build(
         IntegrationsControllerDisconnectTestDbContext db,
         IIntegrationTokenVault vault
@@ -47,14 +74,26 @@ public sealed class IntegrationsControllerDisconnectTests
             new NoopDiscordGuildService(),
             new NoopIntegrationStatusService(),
             new NoopChannelSpotifyCredentialsService(),
-            vault
+            vault,
+            new NoopIntegrationBlastRadiusService()
         );
+
+    /// <summary>The disconnect tests exercise the delete path only; the preview seam is proven separately.</summary>
+    private sealed class NoopIntegrationBlastRadiusService : IIntegrationBlastRadiusService
+    {
+        public Task<Result<BlastRadiusDto>> GetDisconnectBlastRadiusAsync(
+            Guid broadcasterId,
+            string integrationId,
+            CancellationToken ct = default
+        ) => throw new NotSupportedException();
+    }
 
     [Fact]
     public async Task Disconnect_youtube_revokes_the_vaulted_connection_and_it_stops_reading_back_as_connected()
     {
         IntegrationsControllerDisconnectTestDbContext db =
             IntegrationsControllerDisconnectTestDbContext.New();
+        await SeedOwningChannelAsync(db);
         RecordingIntegrationTokenVault vault = new(db);
         IntegrationsController controller = Build(db, vault);
 
@@ -123,6 +162,7 @@ public sealed class IntegrationsControllerDisconnectTests
     {
         IntegrationsControllerDisconnectTestDbContext db =
             IntegrationsControllerDisconnectTestDbContext.New();
+        await SeedOwningChannelAsync(db);
         db.Services.Add(
             new()
             {
@@ -289,6 +329,12 @@ public sealed class IntegrationsControllerDisconnectTests
         ) => throw new NotSupportedException();
 
         public Task<Result<bool>> IsLinkActiveAsync(
+            Guid broadcasterId,
+            Guid connectionId,
+            CancellationToken ct = default
+        ) => throw new NotSupportedException();
+
+        public Task<Result<BlastRadiusDto>> GetDisconnectBlastRadiusAsync(
             Guid broadcasterId,
             Guid connectionId,
             CancellationToken ct = default

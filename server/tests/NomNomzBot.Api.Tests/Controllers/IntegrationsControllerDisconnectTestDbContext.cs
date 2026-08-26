@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Analytics.Entities;
@@ -30,12 +31,13 @@ using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 
 namespace NomNomzBot.Api.Tests.Controllers;
 
 /// <summary>
 /// A focused <see cref="IApplicationDbContext"/> over <see cref="Channel"/>, <see cref="Service"/>, and
-/// <see cref="IntegrationConnection"/> — on the EF Core InMemory provider — for the
+/// <see cref="IntegrationConnection"/> — on a REAL relational SQLite connection — for the
 /// <c>IntegrationsController.Disconnect</c> tests (S036c-c): the generic Service-row fallback (still live for
 /// Spotify) and the YouTube-specific vault branch both need a real store to prove the row/connection is
 /// actually gone afterward. Everything else throws, since these tests never reach it. Mirrors the "declare
@@ -45,17 +47,43 @@ internal sealed class IntegrationsControllerDisconnectTestDbContext
     : DbContext,
         IApplicationDbContext
 {
-    private IntegrationsControllerDisconnectTestDbContext(
-        DbContextOptions<IntegrationsControllerDisconnectTestDbContext> options
-    )
-        : base(options) { }
+    // One private, non-shared in-memory SQLite connection per context instance — a REAL relational
+    // database (S-API-TESTS-INMEMORY; the EF InMemory provider is retired here because it ignores unique
+    // indexes, FK constraints and query translation, so it green-lights writes the real database rejects).
+    // Opened by New(), closed by this context's own Dispose/DisposeAsync overrides.
+    private readonly SqliteConnection _connection;
 
-    public static IntegrationsControllerDisconnectTestDbContext New() =>
-        new(
+    private IntegrationsControllerDisconnectTestDbContext(
+        DbContextOptions<IntegrationsControllerDisconnectTestDbContext> options,
+        SqliteConnection connection
+    )
+        : base(options) => _connection = connection;
+
+    public static IntegrationsControllerDisconnectTestDbContext New()
+    {
+        SqliteConnection connection = new("Data Source=:memory:");
+        connection.Open();
+        IntegrationsControllerDisconnectTestDbContext db = new(
             new DbContextOptionsBuilder<IntegrationsControllerDisconnectTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
+                .UseSqlite(connection)
+                .Options,
+            connection
         );
+        db.Database.EnsureCreated();
+        return db;
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        _connection.Dispose();
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        await base.DisposeAsync();
+        await _connection.DisposeAsync();
+    }
 
     public DbSet<Channel> Channels => Set<Channel>();
     public DbSet<Service> Services => Set<Service>();
@@ -79,6 +107,8 @@ internal sealed class IntegrationsControllerDisconnectTestDbContext
 
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
+
+        b.ApplySqliteCompatibility();
     }
 
     private static readonly HashSet<Type> Mapped =

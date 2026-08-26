@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Analytics.Entities;
@@ -29,6 +30,7 @@ using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 
 namespace NomNomzBot.Api.Tests.Controllers;
 
@@ -37,21 +39,47 @@ namespace NomNomzBot.Api.Tests.Controllers;
 /// tests read — platform <see cref="Configuration"/> rows (the Discord client credentials),
 /// <see cref="Channel"/>, <see cref="DiscordGuildConnection"/>, and the six Plane-C IAM tables (so the
 /// platform-IAM handler tests run the REAL <c>PlatformIamService</c> against a seeded store) — on the EF Core
-/// InMemory provider. Everything else throws, since these tests never reach it. The
+/// SQLite harness. Everything else throws, since these tests never reach it. The
 /// <c>DiscordGuildConnection</c> soft-delete global filter is applied so the "non-deleted connection" read
 /// semantics match production.
 /// </summary>
 internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
 {
-    private ApiTestDbContext(DbContextOptions<ApiTestDbContext> options)
-        : base(options) { }
+    // One private, non-shared in-memory SQLite connection per context instance — a REAL relational
+    // database (S-API-TESTS-INMEMORY; the EF InMemory provider is retired here because it ignores unique
+    // indexes, FK constraints and query translation, so it green-lights writes the real database rejects).
+    // Opened by New(), closed by this context's own Dispose/DisposeAsync overrides.
+    private readonly SqliteConnection _connection;
 
-    public static ApiTestDbContext New() =>
-        new(
-            new DbContextOptionsBuilder<ApiTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
+    private ApiTestDbContext(
+        DbContextOptions<ApiTestDbContext> options,
+        SqliteConnection connection
+    )
+        : base(options) => _connection = connection;
+
+    public static ApiTestDbContext New()
+    {
+        SqliteConnection connection = new("Data Source=:memory:");
+        connection.Open();
+        ApiTestDbContext db = new(
+            new DbContextOptionsBuilder<ApiTestDbContext>().UseSqlite(connection).Options,
+            connection
         );
+        db.Database.EnsureCreated();
+        return db;
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        _connection.Dispose();
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        await base.DisposeAsync();
+        await _connection.DisposeAsync();
+    }
 
     public DbSet<NomNomzBot.Domain.Platform.Entities.Configuration> Configurations =>
         Set<NomNomzBot.Domain.Platform.Entities.Configuration>();
@@ -100,7 +128,7 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
         b.Entity<DiscordGuildConnection>().Ignore(e => e.Channel);
         b.Entity<DiscordGuildConnection>().HasQueryFilter(e => e.DeletedAt == null);
 
-        // Plane-C IAM tables — scalar/enum-only, so they materialize on InMemory as-is.
+        // Plane-C IAM tables — scalar/enum-only, so they materialize on SQLite as-is.
         b.Entity<IamPermission>().HasKey(e => e.Id);
         b.Entity<IamRole>().HasKey(e => e.Id);
         b.Entity<IamRolePermission>().HasKey(e => e.Id);
@@ -112,6 +140,8 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
+
+        b.ApplySqliteCompatibility();
     }
 
     private static readonly HashSet<Type> Mapped =

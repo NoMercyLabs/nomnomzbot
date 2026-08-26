@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Analytics.Entities;
@@ -29,6 +30,7 @@ using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 
 namespace NomNomzBot.Api.Tests.Controllers;
 
@@ -36,23 +38,49 @@ namespace NomNomzBot.Api.Tests.Controllers;
 /// A focused <see cref="IApplicationDbContext"/> over only the slice the TTS self-service routes touch — the
 /// caller's <see cref="Channel"/> + <see cref="UserIdentity"/> (which the controller reads to map the JWT user
 /// to their on-provider external id), plus the <see cref="TtsConfig"/>/<see cref="TtsVoice"/>/<see cref="UserTtsVoice"/>
-/// tables the real <c>TtsConfigService</c> reads and writes. On the EF Core InMemory provider; everything else
+/// tables the real <c>TtsConfigService</c> reads and writes. On the EF Core SQLite harness; everything else
 /// throws, since these tests never reach it. Mirrors the "declare every DbSet, auto-ignore the unmapped ones"
 /// shape of <see cref="ChatControllerTestDbContext"/>.
 /// </summary>
 internal sealed class TtsConfigControllerOwnVoiceTestDbContext : DbContext, IApplicationDbContext
 {
-    private TtsConfigControllerOwnVoiceTestDbContext(
-        DbContextOptions<TtsConfigControllerOwnVoiceTestDbContext> options
-    )
-        : base(options) { }
+    // One private, non-shared in-memory SQLite connection per context instance — a REAL relational
+    // database (S-API-TESTS-INMEMORY; the EF InMemory provider is retired here because it ignores unique
+    // indexes, FK constraints and query translation, so it green-lights writes the real database rejects).
+    // Opened by New(), closed by this context's own Dispose/DisposeAsync overrides.
+    private readonly SqliteConnection _connection;
 
-    public static TtsConfigControllerOwnVoiceTestDbContext New() =>
-        new(
+    private TtsConfigControllerOwnVoiceTestDbContext(
+        DbContextOptions<TtsConfigControllerOwnVoiceTestDbContext> options,
+        SqliteConnection connection
+    )
+        : base(options) => _connection = connection;
+
+    public static TtsConfigControllerOwnVoiceTestDbContext New()
+    {
+        SqliteConnection connection = new("Data Source=:memory:");
+        connection.Open();
+        TtsConfigControllerOwnVoiceTestDbContext db = new(
             new DbContextOptionsBuilder<TtsConfigControllerOwnVoiceTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
+                .UseSqlite(connection)
+                .Options,
+            connection
         );
+        db.Database.EnsureCreated();
+        return db;
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        _connection.Dispose();
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        await base.DisposeAsync();
+        await _connection.DisposeAsync();
+    }
 
     public DbSet<Channel> Channels => Set<Channel>();
     public DbSet<UserIdentity> UserIdentities => Set<UserIdentity>();
@@ -94,6 +122,8 @@ internal sealed class TtsConfigControllerOwnVoiceTestDbContext : DbContext, IApp
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
+
+        b.ApplySqliteCompatibility();
     }
 
     private static readonly HashSet<Type> Mapped =
