@@ -25,6 +25,7 @@ import bot.nomnomz.dashboard.core.network.CheckoutSession
 import bot.nomnomz.dashboard.core.network.FoundersBadge
 import bot.nomnomz.dashboard.core.network.InviteCodeValidation
 import bot.nomnomz.dashboard.core.network.InviteRedeemResult
+import bot.nomnomz.dashboard.core.network.ResourceUsage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -87,6 +88,19 @@ class BillingController(
                 is ApiResult.Ok -> result.value
             }
 
+        // Unlike the other optional sub-lists above, a failure here is kept distinct from "empty" (see
+        // resourceLimitsLoadFailed below) — the safety-cap/tier-scaled report must read differently from an
+        // honest "nothing is limited" empty state, per the S-BUDGETS-b2 done-when bar.
+        var resourceLimitsLoadFailed = false
+        val resourceLimits: List<ResourceUsage> =
+            when (val result: ApiResult<List<ResourceUsage>> = billingApi.resourceLimits(channel.id)) {
+                is ApiResult.Failure -> {
+                    resourceLimitsLoadFailed = true
+                    emptyList()
+                }
+                is ApiResult.Ok -> result.value
+            }
+
         val invoices: List<BillingInvoice> =
             when (val result: ApiResult<List<BillingInvoice>> = billingApi.invoices(channel.id)) {
                 is ApiResult.Failure -> emptyList()
@@ -105,6 +119,8 @@ class BillingController(
                 tiers = tiers.sortedBy { it.sortOrder },
                 entitlement = entitlement,
                 usage = usage,
+                resourceLimits = resourceLimits,
+                resourceLimitsLoadFailed = resourceLimitsLoadFailed,
                 invoices = invoices,
                 foundersBadge = foundersBadge,
                 isSelfHost = subscription.tierKey.startsWith("self_host") || subscription.tierKey == "free",
@@ -236,6 +252,10 @@ sealed interface BillingState {
         val tiers: List<BillingTier>,
         val entitlement: BillingEntitlement?,
         val usage: List<BillingUsageMetric>,
+        /** S-BUDGETS-b2 truthful resource-limit report (NEAR_FREE safety caps + COST_DRIVING tier-scaled limits). */
+        val resourceLimits: List<ResourceUsage> = emptyList(),
+        /** True when the resourceLimits fetch itself failed — kept distinct from a legitimately empty report. */
+        val resourceLimitsLoadFailed: Boolean = false,
         val invoices: List<BillingInvoice>,
         val foundersBadge: FoundersBadge?,
         /** True when the channel is a self-host install (tier "free" / "self_host_*"). */
