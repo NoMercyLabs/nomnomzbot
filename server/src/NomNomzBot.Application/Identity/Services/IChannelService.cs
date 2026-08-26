@@ -114,8 +114,18 @@ public interface IChannelService
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>Delete a channel and clean up all associated data.</summary>
+    /// <summary>
+    /// SOFT-delete a channel: the tenant disappears behind the global query filter and the bot stops serving
+    /// it immediately, but every row survives for <c>ChannelDeletionPolicy.RestoreWindowDays</c> so
+    /// <see cref="RestoreAsync"/> can bring it back. Only after the window does the data become permanent.
+    /// </summary>
     Task<Result> DeleteAsync(string broadcasterId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Bring a soft-deleted channel and everything under it back. Succeeds idempotently for a channel that
+    /// was never deleted; fails with <c>CHANNEL_RESTORE_WINDOW_EXPIRED</c> once the window has closed.
+    /// </summary>
+    Task<Result> RestoreAsync(string broadcasterId, CancellationToken cancellationToken = default);
 
     /// <summary>Resolve a channel by its overlay token (for widget auth).</summary>
     Task<ChannelOverlayInfo?> GetByOverlayTokenAsync(
