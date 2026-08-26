@@ -58,9 +58,11 @@ public class Command : SoftDeletableEntity, ITenantScoped
 
     /// <summary>Static text response for T1 template commands.</summary>
     [MaxLength(2000)]
+    [TemplatedUserContent]
     public string? TemplateResponse { get; set; }
 
     /// <summary>Multiple response variations for T1 template commands (random selection).</summary>
+    [TemplatedUserContent]
     public List<string>? TemplateResponses { get; set; }
 
     /// <summary>EF Core schema version; used as per-row upcast anchor.</summary>

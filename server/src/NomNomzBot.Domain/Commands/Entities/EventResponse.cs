@@ -35,6 +35,7 @@ public class EventResponse : SoftDeletableEntity, ITenantScoped
 
     /// <summary>The chat message template to send (when <see cref="ResponseType"/> is chat_message).</summary>
     [MaxLength(2000)]
+    [TemplatedUserContent]
     public string? Message { get; set; }
 
     /// <summary>FK to a named pipeline executed when <see cref="ResponseType"/> is pipeline.</summary>

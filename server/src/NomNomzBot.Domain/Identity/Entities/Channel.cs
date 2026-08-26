@@ -68,6 +68,7 @@ public class Channel : SoftDeletableEntity
     public bool Enabled { get; set; } = true;
 
     [MaxLength(450)]
+    [TemplatedUserContent]
     public string? ShoutoutTemplate { get; set; }
 
     public DateTime? LastShoutout { get; set; }

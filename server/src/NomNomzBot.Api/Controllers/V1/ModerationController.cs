@@ -17,6 +17,7 @@ using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
@@ -45,6 +46,7 @@ public class ModerationController : BaseController
     private readonly IApplicationDbContext _db;
     private readonly TimeProvider _timeProvider;
     private readonly ITwitchChatApi _chatApi;
+    private readonly ITemplateHelperValidator _templateHelperValidator;
 
     public ModerationController(
         IModerationService moderationService,
@@ -56,7 +58,8 @@ public class ModerationController : BaseController
         ICurrentUserService currentUser,
         IApplicationDbContext db,
         TimeProvider timeProvider,
-        ITwitchChatApi chatApi
+        ITwitchChatApi chatApi,
+        ITemplateHelperValidator templateHelperValidator
     )
     {
         _moderationService = moderationService;
@@ -69,6 +72,7 @@ public class ModerationController : BaseController
         _db = db;
         _timeProvider = timeProvider;
         _chatApi = chatApi;
+        _templateHelperValidator = templateHelperValidator;
     }
 
     // ─── Ban (this channel, or every channel the operator moderates) ───────────
@@ -1256,9 +1260,20 @@ public class ModerationController : BaseController
         if (channel is null)
             return NotFoundResponse("Channel not found.");
 
-        channel.ShoutoutTemplate = string.IsNullOrWhiteSpace(request.Template)
+        string? normalizedTemplate = string.IsNullOrWhiteSpace(request.Template)
             ? null
             : request.Template.Trim();
+
+        // S042c save-time guard: rejects an unknown/misspelled {{helper}} placeholder before it reaches
+        // the database — the shoutout template is resolved by the same engine as command/event templates.
+        Result helperValidation = _templateHelperValidator.Validate(
+            normalizedTemplate,
+            TemplateHelperContext.EventResponse
+        );
+        if (helperValidation.IsFailure)
+            return ResultResponse(helperValidation);
+
+        channel.ShoutoutTemplate = normalizedTemplate;
         await _db.SaveChangesAsync(ct);
         return NoContent();
     }
