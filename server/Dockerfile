@@ -26,7 +26,12 @@ RUN dotnet build "NomNomzBot.Api.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "NomNomzBot.Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+# GIT_SHA is stamped into the assembly's informational version so /health/version can answer the only
+# question that matters after a deploy: WHICH COMMIT is this box actually running? Without it the
+# endpoint falls back to the static assembly version ("0.1.0"), which is identical on every build ever
+# made and therefore cannot distinguish a fresh deploy from a three-week-old one.
+ARG GIT_SHA=unknown
+RUN dotnet publish "NomNomzBot.Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false     /p:InformationalVersion="0.1.0+${GIT_SHA}"
 
 FROM base AS final
 WORKDIR /app
