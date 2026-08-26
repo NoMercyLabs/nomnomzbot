@@ -3741,6 +3741,7 @@
     <string name="pipeline_timeout_reason_help">Wordt aan de kijker getoond en vastgelegd in de moderatiegeschiedenis.</string>
     <string name="pipeline_play_tts_text_help">De tekst die wordt uitgesproken. Ondersteunt sjabloonvariabelen (bijv. {{user.name}}).</string>
     <string name="pipeline_play_tts_voice_help">Leeg gebruikt de standaard TTS-stem van het kanaal.</string>
+    <string name="pipeline_play_tts_as_help">Wiens stem de regel spreekt: leeg/user/viewer gebruikt de stem van de trigger, bot/channel gebruikt de standaard van het kanaal, of een platform-gebruikers-id spreekt als hen.</string>
     <string name="pipeline_send_webhook_endpoint_help">Het webhook-eindpunt waarnaar deze gebeurtenis wordt afgeleverd.</string>
     <string name="pipeline_send_webhook_event_type_help">De event-type-string waarop het abonnement van het eindpunt matcht. Wordt letterlijk verzonden — niet verwerkt als sjabloon, ook niet als het {{ }} bevat.</string>
     <string name="widget_group_content">Inhoud</string>

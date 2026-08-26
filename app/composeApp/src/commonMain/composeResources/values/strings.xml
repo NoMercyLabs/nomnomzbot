@@ -3756,6 +3756,7 @@
     <string name="pipeline_timeout_reason_help">Shown to the viewer and logged in the moderation history.</string>
     <string name="pipeline_play_tts_text_help">The text to speak. Supports template variables (e.g. {{user.name}}).</string>
     <string name="pipeline_play_tts_voice_help">Blank uses the channel's default TTS voice.</string>
+    <string name="pipeline_play_tts_as_help">Whose voice speaks the line: blank/user/viewer uses the trigger's voice, bot/channel uses the channel default, or a platform user id speaks as them.</string>
     <string name="pipeline_send_webhook_endpoint_help">The webhook endpoint to deliver this event to.</string>
     <string name="pipeline_send_webhook_event_type_help">The event type string the endpoint's subscription matches. Sent verbatim — not resolved as a template, even if it contains {{ }}.</string>
     <string name="widget_group_content">Content</string>

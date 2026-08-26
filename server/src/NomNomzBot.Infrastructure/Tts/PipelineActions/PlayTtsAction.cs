@@ -99,10 +99,18 @@ public sealed class PlayTtsAction : ICommandAction
         // message is one flow with both, back to back. Empty/"user" keeps the trigger's voice; "bot" (or
         // "channel") resolves to the channel default by naming no viewer; anything else is a literal
         // platform user id, so a flow can read a line as a specific person.
-        string speaker = ResolveSpeaker(
-            await ResolveOptionalAsync(ctx, action, "as"),
-            ctx.TriggeredByUserId
-        );
+        string asTemplate = action.GetString("as") ?? string.Empty;
+        string asField = string.IsNullOrWhiteSpace(asTemplate)
+            ? string.Empty
+            : (
+                await _resolver.ResolveAsync(
+                    asTemplate,
+                    ctx.Variables,
+                    ctx.BroadcasterId,
+                    ctx.CancellationToken
+                )
+            ).Trim();
+        string speaker = ResolveSpeaker(asField, ctx.TriggeredByUserId);
 
         TtsSpeakRequest request = new(
             BroadcasterId: ctx.BroadcasterId,
@@ -136,26 +144,6 @@ public sealed class PlayTtsAction : ICommandAction
         return ActionResult.Success(
             $"play_tts:{result.Value.VoiceId} chars={result.Value.CharacterCount}"
         );
-    }
-
-    /// <summary>Resolves an optional templated field, returning empty when it is absent or resolves to nothing.</summary>
-    private async Task<string> ResolveOptionalAsync(
-        PipelineExecutionContext ctx,
-        ActionDefinition action,
-        string field
-    )
-    {
-        string template = action.GetString(field) ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(template))
-            return string.Empty;
-
-        string resolved = await _resolver.ResolveAsync(
-            template,
-            ctx.Variables,
-            ctx.BroadcasterId,
-            ctx.CancellationToken
-        );
-        return resolved.Trim();
     }
 
     /// <summary>
