@@ -159,9 +159,12 @@ stable — without dropping the planned requirements behind them.
     gated `billing:read`; tenant-isolated; self-host reports no commercial ceiling.~~ ~~`GET /api/v1/billing/usage` — per resource: key, class, real count, effective limit; counts from
     the SAME source enforcement uses (prove at the cap); gated `[RequireAction]`; tenant-scoped; self-host
     reports only the safety baseline.~~
-  - **b2** the dashboard screen that renders it: "X of Y used" from real counts, near-free floors shown as
+  - ~~**b2** DONE 3205ebfd + VERIFIED (734 jvmTest, 0 fail, forced rerun): `ResourceLimitsSection` on the
+    settings screen renders real "X of Y" from the endpoint, and
+    `a_near_free_resource_never_renders_upgrade_or_upsell_copy` makes the owner's intent a TEST rather
+    than a convention.~~ ~~the dashboard screen that renders it: "X of Y used" from real counts, near-free floors shown as
     ABUSE GUARDS with NO upgrade prompt, cost-driving limits may name the tier, self-host shows no
-    commercial ceiling or upgrade affordance at all.
+    commercial ceiling or upgrade affordance at all.~~
   - **b3** warn BEFORE the failed save (the S-CONSEQ law): approaching/at-limit is visible before the user
     does work and loses it, never discovered by failing.
   - **b4** raising a tier raises the ceiling immediately, no re-login ([[never-logout-for-scope-or-schema-changes]]).
