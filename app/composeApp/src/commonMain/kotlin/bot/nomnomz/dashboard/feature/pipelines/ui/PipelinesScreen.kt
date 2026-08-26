@@ -458,7 +458,7 @@ private fun ListHeader(
             }
             ManageGate(decision = manage) { enabled ->
                 GlyphButton(
-                    imageVector = AddGlyph,
+                    icon = AddGlyph,
                     label = newLabel,
                     onClick = onNew,
                     enabled = enabled,
@@ -528,17 +528,17 @@ private fun PipelineRow(
 
         // Opening the chain editor is navigation/read, not a write — stays enabled for everyone.
         GlyphButton(
-            imageVector = EditLineGlyph,
+            icon = EditLineGlyph,
             label = editChainLabel,
             onClick = onOpen,
             tint = tokens.primary,
         )
         ManageGate(decision = manage) { enabled ->
-            GlyphButton(imageVector = EditGlyph, label = renameLabel, onClick = onEdit, enabled = enabled)
+            GlyphButton(icon = EditGlyph, label = renameLabel, onClick = onEdit, enabled = enabled)
         }
         ManageGate(decision = manage) { enabled ->
             GlyphButton(
-                imageVector = TrashGlyph,
+                icon = TrashGlyph,
                 label = deleteLabel,
                 onClick = onDelete,
                 enabled = enabled,
@@ -720,7 +720,7 @@ private fun StepCard(
             ManageGate(decision = manage) { allowed ->
                 val canMoveUp: Boolean = allowed && index > 0
                 GlyphButton(
-                    imageVector = ArrowUpGlyph,
+                    icon = ArrowUpGlyph,
                     label = upLabel,
                     onClick = onMoveUp,
                     enabled = canMoveUp,
@@ -730,7 +730,7 @@ private fun StepCard(
             ManageGate(decision = manage) { allowed ->
                 val canMoveDown: Boolean = allowed && index < total - 1
                 GlyphButton(
-                    imageVector = ArrowDownGlyph,
+                    icon = ArrowDownGlyph,
                     label = downLabel,
                     onClick = onMoveDown,
                     enabled = canMoveDown,
@@ -739,11 +739,11 @@ private fun StepCard(
             }
             Box(modifier = Modifier.weight(1f))
             ManageGate(decision = manage) { enabled ->
-                GlyphButton(imageVector = EditGlyph, label = editLabel, onClick = onEdit, enabled = enabled)
+                GlyphButton(icon = EditGlyph, label = editLabel, onClick = onEdit, enabled = enabled)
             }
             ManageGate(decision = manage) { enabled ->
                 GlyphButton(
-                    imageVector = TrashGlyph,
+                    icon = TrashGlyph,
                     label = removeLabel,
                     onClick = onRemove,
                     enabled = enabled,
@@ -1097,7 +1097,7 @@ private fun GenericParamFields(entries: SnapshotStateList<GenericEntry>) {
                     modifier = Modifier.weight(1f),
                 )
                 GlyphButton(
-                    imageVector = TrashGlyph,
+                    icon = TrashGlyph,
                     label = stringResource(Res.string.pipelines_generic_remove),
                     onClick = { entries.removeAt(index) },
                     tint = LocalTokens.current.destructive,
@@ -1105,7 +1105,7 @@ private fun GenericParamFields(entries: SnapshotStateList<GenericEntry>) {
             }
         }
         GlyphButton(
-            imageVector = AddGlyph,
+            icon = AddGlyph,
             label = addLabel,
             onClick = { entries.add(GenericEntry("", "")) },
             tint = LocalTokens.current.primary,

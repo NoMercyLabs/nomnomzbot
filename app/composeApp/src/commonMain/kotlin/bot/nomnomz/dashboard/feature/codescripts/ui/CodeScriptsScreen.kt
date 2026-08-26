@@ -175,7 +175,7 @@ fun CodeScriptsScreen(controller: CodeScriptsController, role: ManagementRole?) 
                         }
                     }
                     GlyphButton(
-                        imageVector = CloseGlyph,
+                        icon = CloseGlyph,
                         label = stringResource(Res.string.scripts_close_editor),
                         onClick = { controller.close() },
                     )
@@ -204,7 +204,7 @@ fun CodeScriptsScreen(controller: CodeScriptsController, role: ManagementRole?) 
                 PageHeader(title = stringResource(Res.string.shell_nav_code_scripts), subtitle = stringResource(Res.string.scripts_subtitle)) {
                     ManageGate(manage) { enabled ->
                         GlyphButton(
-                            imageVector = AddGlyph,
+                            icon = AddGlyph,
                             label = stringResource(Res.string.scripts_list_add),
                             onClick = { showCreate = true },
                             enabled = enabled,
@@ -333,7 +333,7 @@ private fun ScriptRow(
             }
             ManageGate(manage) { enabled ->
                 GlyphButton(
-                    imageVector = EditLineGlyph,
+                    icon = EditLineGlyph,
                     label = stringResource(Res.string.scripts_editor_source_label),
                     onClick = onOpen,
                     enabled = enabled,
@@ -342,7 +342,7 @@ private fun ScriptRow(
             }
             ManageGate(manage) { enabled ->
                 GlyphButton(
-                    imageVector = TrashGlyph,
+                    icon = TrashGlyph,
                     label = stringResource(Res.string.scripts_delete_confirm),
                     onClick = onDelete,
                     enabled = enabled,
@@ -390,7 +390,7 @@ private fun ProjectView(
         Row(horizontalArrangement = Arrangement.spacedBy(spacing.s3)) {
             ManageGate(manage) { enabled ->
                 GlyphButton(
-                    imageVector = CodeGlyph,
+                    icon = CodeGlyph,
                     label = stringResource(Res.string.scripts_editor_edit_code),
                     onClick = onEditCode,
                     enabled = enabled,

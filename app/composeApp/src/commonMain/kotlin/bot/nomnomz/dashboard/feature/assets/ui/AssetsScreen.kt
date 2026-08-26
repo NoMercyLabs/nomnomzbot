@@ -308,7 +308,7 @@ private fun AssetRow(
 
         ManageGate(decision = manage) { enabled ->
             GlyphButton(
-                imageVector = TrashGlyph,
+                icon = TrashGlyph,
                 label = deleteLabel,
                 onClick = onDelete,
                 enabled = enabled,

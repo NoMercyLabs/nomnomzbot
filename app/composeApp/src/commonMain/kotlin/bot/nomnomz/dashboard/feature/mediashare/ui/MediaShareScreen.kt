@@ -138,14 +138,14 @@ fun MediaShareScreen(controller: MediaShareController, role: ManagementRole?) {
 
     LaunchedEffect(Unit) { controller.load() }
 
-    Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
+    Box(modifier = Modifier.fillMaxSize()) {
         when (val current: MediaShareUiState = state) {
             is MediaShareUiState.Loading -> CenteredMessage(stringResource(Res.string.mediashare_loading))
             is MediaShareUiState.Error ->
                 ErrorContent(detail = current.detail, onRetry = { scope.launch { controller.load() } })
             is MediaShareUiState.Ready ->
                 Column(
-                    modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                    modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s6),
                     verticalArrangement = Arrangement.spacedBy(spacing.s4),
                 ) {
                     PageHeader(
@@ -339,7 +339,7 @@ private fun QueueRow(
             // Reorder within the lane: up decrements, down increments the 0-based queue position.
             ManageGate(decision = moderate) { enabled ->
                 GlyphButton(
-                    imageVector = ArrowUpGlyph,
+                    icon = ArrowUpGlyph,
                     label = stringResource(Res.string.mediashare_move_up),
                     onClick = { position?.let { onReorder(request.id, it - 1) } },
                     enabled = enabled && position != null && !isFirst,
@@ -347,7 +347,7 @@ private fun QueueRow(
             }
             ManageGate(decision = moderate) { enabled ->
                 GlyphButton(
-                    imageVector = ArrowDownGlyph,
+                    icon = ArrowDownGlyph,
                     label = stringResource(Res.string.mediashare_move_down),
                     onClick = { position?.let { onReorder(request.id, it + 1) } },
                     enabled = enabled && position != null && !isLast,

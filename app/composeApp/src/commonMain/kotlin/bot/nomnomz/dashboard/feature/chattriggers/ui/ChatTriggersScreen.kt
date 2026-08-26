@@ -363,11 +363,11 @@ private fun TriggerRow(
             )
         }
         ManageGate(decision = manage) { enabled ->
-            GlyphButton(imageVector = EditGlyph, label = editLabel, onClick = onEdit, enabled = enabled)
+            GlyphButton(icon = EditGlyph, label = editLabel, onClick = onEdit, enabled = enabled)
         }
         ManageGate(decision = manage) { enabled ->
             GlyphButton(
-                imageVector = TrashGlyph,
+                icon = TrashGlyph,
                 label = deleteLabel,
                 onClick = onDelete,
                 enabled = enabled,

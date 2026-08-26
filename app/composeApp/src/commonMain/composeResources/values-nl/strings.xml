@@ -681,7 +681,7 @@
     <string name="games_cooldown">%1$d s afkoeltijd</string>
     <string name="games_row_description">%1$s, %2$s %3$s</string>
     <string name="commands_title">Commando's</string>
-    <string name="commands_new_action">+ Nieuw commando</string>
+    <string name="commands_new_action">Nieuw commando</string>
     <string name="commands_toggle_action">%1$s aan/uit</string>
     <string name="commands_edit_action">%1$s bewerken</string>
     <string name="commands_edit_action_short">Bewerken</string>
@@ -701,7 +701,7 @@
     <string name="commands_dialog_pipeline_label">Pipeline (optioneel)</string>
     <string name="commands_dialog_pipeline_none">Geen — alleen tekstantwoord</string>
     <!-- Gedeelde editor-helper — voeg een {list.pick.<naam>} willekeurig-antwoordtoken in (commando/reactie/timer). -->
-    <string name="editor_insert_random_response">+ Willekeurig antwoord</string>
+    <string name="editor_insert_random_response">Willekeurig antwoord</string>
     <string name="commands_dialog_response_optional">Antwoord (optioneel als pipeline gekoppeld)</string>
     <string name="commands_delete_title">Commando verwijderen?</string>
     <string name="commands_delete_message">%1$s verwijderen? Dit kan niet ongedaan worden gemaakt.</string>
@@ -726,7 +726,7 @@
     <string name="commands_perm_broadcaster">Streamer</string>
     <string name="commands_dialog_random_mode_label">Willekeurige antwoorden</string>
     <string name="commands_dialog_responses_label">Antwoorden (er wordt er willekeurig één gekozen)</string>
-    <string name="commands_dialog_response_add">+ Antwoord toevoegen</string>
+    <string name="commands_dialog_response_add">Antwoord toevoegen</string>
     <string name="commands_dialog_response_remove">Antwoord %1$s verwijderen</string>
     <string name="commands_dialog_prefix_mode_label">Voorvoegsel</string>
     <string name="commands_prefix_default">Kanaalstandaard</string>
@@ -741,12 +741,12 @@
     <string name="commands_dialog_match_pattern_label">Regex-patroon</string>
     <string name="commands_dialog_aliases_label">Aliassen</string>
     <string name="commands_dialog_alias_placeholder">alias</string>
-    <string name="commands_dialog_alias_add">+ Alias toevoegen</string>
+    <string name="commands_dialog_alias_add">Alias toevoegen</string>
     <string name="commands_dialog_alias_remove">Alias %1$s verwijderen</string>
     <string name="commands_dialog_cooldown_label">Afkoeltijd (seconden)</string>
     <string name="commands_dialog_cooldown_per_user_label">Aparte afkoeltijd per gebruiker</string>
     <string name="commands_dialog_user_cooldown_label">Afkoeltijd per gebruiker (seconden)</string>
-    <string name="timers_new">+ Nieuwe timer</string>
+    <string name="timers_new">Nieuwe timer</string>
     <string name="timers_toggle">%1$s aan/uit</string>
     <string name="timers_edit">%1$s bewerken</string>
     <string name="timers_delete">%1$s verwijderen</string>
@@ -847,7 +847,7 @@
     <string name="tts_saved">Opgeslagen</string>
     <string name="tts_save_error">Kon de TTS-instellingen niet opslaan: %1$s</string>
     <string name="rewards_title">Beloningen</string>
-    <string name="rewards_new_action">+ Nieuwe beloning</string>
+    <string name="rewards_new_action">Nieuwe beloning</string>
     <string name="rewards_sync_action">Synchroniseren met Twitch</string>
     <string name="rewards_import_action">Importeren van Twitch</string>
     <string name="rewards_recreate_action">Overnemen</string>
@@ -1121,7 +1121,7 @@
     <string name="economy_catalog_disable">Uitschakelen</string>
     <string name="economy_catalog_enable_action">%1$s inschakelen</string>
     <string name="economy_catalog_disable_action">%1$s uitschakelen</string>
-    <string name="economy_catalog_add">+ Item toevoegen</string>
+    <string name="economy_catalog_add">Item toevoegen</string>
     <string name="economy_catalog_create_title">Nieuw catalog-item</string>
     <string name="economy_catalog_name">Naam</string>
     <string name="economy_catalog_description">Beschrijving (optioneel)</string>
@@ -1175,7 +1175,7 @@
     <string name="economy_jars_title">Spaarpotten</string>
     <string name="economy_jars_row_type">Spaarpot</string>
     <string name="economy_jars_empty">Nog geen spaarpotten</string>
-    <string name="economy_jars_add">+ Nieuwe pot</string>
+    <string name="economy_jars_add">Nieuwe pot</string>
     <string name="economy_jars_create_title">Nieuwe spaarpot</string>
     <string name="economy_jars_name">Naam</string>
     <string name="economy_jars_description">Beschrijving (optioneel)</string>
@@ -1227,7 +1227,7 @@
     <string name="alerts_error">Kon je meldingen niet laden: %1$s</string>
     <string name="alerts_retry">Opnieuw proberen</string>
     <string name="alerts_empty">Nog geen meldingen</string>
-    <string name="alerts_new_action">+ Nieuwe melding</string>
+    <string name="alerts_new_action">Nieuwe melding</string>
     <string name="alerts_no_message">Geen reactie ingesteld</string>
     <string name="alerts_badge_enabled">Ingeschakeld</string>
     <string name="alerts_badge_disabled">Uitgeschakeld</string>
@@ -2767,7 +2767,7 @@
     <string name="event_responses_dialog_widget_pick">Doelwidget</string>
     <string name="event_responses_dialog_widget_choose">Kies een widget</string>
     <string name="event_responses_dialog_widget_empty">Nog geen widgets — voeg er een toe op de Widgets-pagina.</string>
-    <string name="event_responses_dialog_pipeline_create_new">+ Nieuwe pipeline maken</string>
+    <string name="event_responses_dialog_pipeline_create_new">Nieuwe pipeline maken</string>
     <string name="event_responses_dialog_pipeline_new_name">Naam nieuwe pipeline</string>
     <string name="event_responses_dialog_pipeline_help">Koppel een pipeline om geluid, overlay en chat op dit event te ketenen.</string>
     <string name="event_responses_variables_label">Variabele invoegen</string>

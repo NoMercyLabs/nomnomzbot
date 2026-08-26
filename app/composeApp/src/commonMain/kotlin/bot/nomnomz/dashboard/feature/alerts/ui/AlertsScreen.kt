@@ -51,6 +51,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.AppIcon
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.network.AlertSummary
@@ -243,6 +245,7 @@ private fun Header(manage: ManageDecision, onNew: () -> Unit) {
             Button(
                 onClick = onNew,
                 enabled = enabled,
+                leftIcon = { AppIcon(AddGlyph, contentDescription = null) },
                 modifier = Modifier.semantics { contentDescription = newLabel },
             ) {
                 Text(text = newLabel)
@@ -337,11 +340,11 @@ private fun AlertRow(
         }
 
         ManageGate(decision = manage) { enabled ->
-            GlyphButton(imageVector = EditGlyph, label = editLabel, onClick = onEdit, enabled = enabled)
+            GlyphButton(icon = EditGlyph, label = editLabel, onClick = onEdit, enabled = enabled)
         }
         ManageGate(decision = manage) { enabled ->
             GlyphButton(
-                imageVector = TrashGlyph,
+                icon = TrashGlyph,
                 label = deleteLabel,
                 onClick = onDelete,
                 enabled = enabled,

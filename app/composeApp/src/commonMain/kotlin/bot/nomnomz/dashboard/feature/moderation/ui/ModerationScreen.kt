@@ -2073,7 +2073,7 @@ private fun RuleRow(
         }
         ManageGate(decision = manage) { enabled ->
             GlyphButton(
-                imageVector = TrashGlyph,
+                icon = TrashGlyph,
                 label = deleteLabel,
                 onClick = onDelete,
                 enabled = enabled,
@@ -2903,7 +2903,7 @@ private fun AutomodListEditor(
                     )
                     ManageGate(decision = manage) { enabled ->
                         GlyphButton(
-                            imageVector = TrashGlyph,
+                            icon = TrashGlyph,
                             label = "$addAction: $item",
                             onClick = { onRemove(item) },
                             enabled = enabled,

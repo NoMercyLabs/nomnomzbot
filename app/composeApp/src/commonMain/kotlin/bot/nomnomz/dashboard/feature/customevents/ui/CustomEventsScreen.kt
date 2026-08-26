@@ -169,7 +169,7 @@ fun CustomEventsScreen(controller: CustomEventsController, role: ManagementRole?
             )
             ManageGate(decision = manage) { enabled ->
                 GlyphButton(
-                    imageVector = AddGlyph,
+                    icon = AddGlyph,
                     label = stringResource(Res.string.custom_events_new_source),
                     enabled = enabled,
                     onClick = {
@@ -563,10 +563,10 @@ private fun SourceRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(spacing.s2),
             ) {
-                GlyphButton(imageVector = EditGlyph, label = "Edit", enabled = enabled, onClick = onEdit)
-                GlyphButton(imageVector = PlayCircleGlyph, label = "Test", enabled = enabled, onClick = onTest)
+                GlyphButton(icon = EditGlyph, label = "Edit", enabled = enabled, onClick = onEdit)
+                GlyphButton(icon = PlayCircleGlyph, label = "Test", enabled = enabled, onClick = onTest)
                 Spacer(modifier = Modifier.weight(1f))
-                GlyphButton(imageVector = TrashGlyph, label = "Delete", enabled = enabled, onClick = onDelete)
+                GlyphButton(icon = TrashGlyph, label = "Delete", enabled = enabled, onClick = onDelete)
             }
         }
     }

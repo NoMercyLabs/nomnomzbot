@@ -353,7 +353,7 @@ private fun Header(writeManage: ManageDecision, onNew: () -> Unit) {
     PageHeader(title = stringResource(Res.string.shell_nav_quotes)) {
         ManageGate(decision = writeManage) { enabled ->
             GlyphButton(
-                imageVector = AddGlyph,
+                icon = AddGlyph,
                 label = newLabel,
                 onClick = onNew,
                 enabled = enabled,
@@ -421,11 +421,11 @@ private fun QuoteRow(
         }
 
         ManageGate(decision = writeManage) { enabled ->
-            GlyphButton(imageVector = EditGlyph, label = editLabel, onClick = onEdit, enabled = enabled)
+            GlyphButton(icon = EditGlyph, label = editLabel, onClick = onEdit, enabled = enabled)
         }
         ManageGate(decision = deleteManage) { enabled ->
             GlyphButton(
-                imageVector = TrashGlyph,
+                icon = TrashGlyph,
                 label = deleteLabel,
                 onClick = onDelete,
                 enabled = enabled,

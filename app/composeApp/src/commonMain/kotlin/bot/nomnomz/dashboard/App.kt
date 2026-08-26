@@ -45,6 +45,7 @@ import bot.nomnomz.dashboard.feature.language.ui.LanguagePicker
 import bot.nomnomz.dashboard.feature.setup.ui.SetupWizardScreen
 import bot.nomnomz.dashboard.feature.shell.state.ShellAccess
 import bot.nomnomz.dashboard.feature.shell.ui.ShellScreen
+import bot.nomnomz.dashboard.core.designsystem.icon.IconPreload
 import bot.nomnomz.dashboard.feature.splash.ui.SplashScreen
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -179,6 +180,9 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
             // reachable across the whole app: during onboarding (splash/connect/setup, so a Dutch-system
             // streamer can pin English before signing in) AND in the authenticated shell.
             Box(modifier = Modifier.fillMaxSize()) {
+                // Warm the async SVG icon cache once, up front, so painterResource resolves on the first
+                // frame everywhere — otherwise the chat scrollback's first burst renders blank glyphs.
+                IconPreload()
                 Crossfade(targetState = destination) { target ->
                     when (target) {
                         Destination.Splash -> SplashScreen()

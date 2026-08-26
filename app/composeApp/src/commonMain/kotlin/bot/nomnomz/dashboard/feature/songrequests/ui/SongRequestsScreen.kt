@@ -394,7 +394,7 @@ private fun SrTokenSection(
             }
             ManageGate(decision = configure) { enabled ->
                 GlyphButton(
-                    imageVector = RefreshGlyph,
+                    icon = RefreshGlyph,
                     label = stringResource(Res.string.songrequests_token_rotate),
                     onClick = onRotate,
                     enabled = enabled,
@@ -500,7 +500,7 @@ private fun QueueRow(song: QueuedSong, moderate: ManageDecision, onRemove: () ->
         )
         ManageGate(decision = moderate) { enabled ->
             GlyphButton(
-                imageVector = TrashGlyph,
+                icon = TrashGlyph,
                 label = removeLabel,
                 onClick = onRemove,
                 enabled = enabled,

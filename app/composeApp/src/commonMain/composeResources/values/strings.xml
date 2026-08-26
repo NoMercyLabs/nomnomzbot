@@ -684,7 +684,7 @@
     <string name="games_cooldown">%1$d s cooldown</string>
     <string name="games_row_description">%1$s, %2$s %3$s</string>
     <string name="commands_title">Commands</string>
-    <string name="commands_new_action">+ New command</string>
+    <string name="commands_new_action">New command</string>
     <string name="commands_toggle_action">Toggle %1$s</string>
     <string name="commands_edit_action">Edit %1$s</string>
     <string name="commands_edit_action_short">Edit</string>
@@ -704,7 +704,7 @@
     <string name="commands_dialog_pipeline_label">Pipeline (optional)</string>
     <string name="commands_dialog_pipeline_none">None — text response only</string>
     <!-- Shared editor helper — insert a {list.pick.<name>} random-response token (command/response/timer editors). -->
-    <string name="editor_insert_random_response">+ Random response</string>
+    <string name="editor_insert_random_response">Random response</string>
     <string name="commands_dialog_response_optional">Response (optional when pipeline attached)</string>
     <string name="commands_delete_title">Delete command?</string>
     <string name="commands_delete_message">Delete %1$s? This can't be undone.</string>
@@ -729,7 +729,7 @@
     <string name="commands_perm_broadcaster">Broadcaster</string>
     <string name="commands_dialog_random_mode_label">Random responses</string>
     <string name="commands_dialog_responses_label">Responses (one picked at random)</string>
-    <string name="commands_dialog_response_add">+ Add response</string>
+    <string name="commands_dialog_response_add">Add response</string>
     <string name="commands_dialog_response_remove">Remove response %1$s</string>
     <string name="commands_dialog_prefix_mode_label">Prefix</string>
     <string name="commands_prefix_default">Channel default</string>
@@ -744,12 +744,12 @@
     <string name="commands_dialog_match_pattern_label">Regex pattern</string>
     <string name="commands_dialog_aliases_label">Aliases</string>
     <string name="commands_dialog_alias_placeholder">alias</string>
-    <string name="commands_dialog_alias_add">+ Add alias</string>
+    <string name="commands_dialog_alias_add">Add alias</string>
     <string name="commands_dialog_alias_remove">Remove alias %1$s</string>
     <string name="commands_dialog_cooldown_label">Cooldown (seconds)</string>
     <string name="commands_dialog_cooldown_per_user_label">Separate per-user cooldown</string>
     <string name="commands_dialog_user_cooldown_label">Per-user cooldown (seconds)</string>
-    <string name="timers_new">+ New timer</string>
+    <string name="timers_new">New timer</string>
     <string name="timers_toggle">Toggle %1$s</string>
     <string name="timers_edit">Edit %1$s</string>
     <string name="timers_delete">Delete %1$s</string>
@@ -850,7 +850,7 @@
     <string name="tts_saved">Saved</string>
     <string name="tts_save_error">Couldn't save TTS settings: %1$s</string>
     <string name="rewards_title">Rewards</string>
-    <string name="rewards_new_action">+ New reward</string>
+    <string name="rewards_new_action">New reward</string>
     <string name="rewards_sync_action">Sync from Twitch</string>
     <string name="rewards_import_action">Import from Twitch</string>
     <string name="rewards_recreate_action">Take control</string>
@@ -1124,7 +1124,7 @@
     <string name="economy_catalog_disable">Disable</string>
     <string name="economy_catalog_enable_action">Enable %1$s</string>
     <string name="economy_catalog_disable_action">Disable %1$s</string>
-    <string name="economy_catalog_add">+ Add item</string>
+    <string name="economy_catalog_add">Add item</string>
     <string name="economy_catalog_create_title">New catalog item</string>
     <string name="economy_catalog_name">Name</string>
     <string name="economy_catalog_description">Description (optional)</string>
@@ -1178,7 +1178,7 @@
     <string name="economy_jars_title">Savings jars</string>
     <string name="economy_jars_row_type">Savings jar</string>
     <string name="economy_jars_empty">No savings jars yet</string>
-    <string name="economy_jars_add">+ New jar</string>
+    <string name="economy_jars_add">New jar</string>
     <string name="economy_jars_create_title">New savings jar</string>
     <string name="economy_jars_name">Name</string>
     <string name="economy_jars_description">Description (optional)</string>
@@ -1230,7 +1230,7 @@
     <string name="alerts_error">Could not load your alerts: %1$s</string>
     <string name="alerts_retry">Retry</string>
     <string name="alerts_empty">No alerts yet</string>
-    <string name="alerts_new_action">+ New alert</string>
+    <string name="alerts_new_action">New alert</string>
     <string name="alerts_no_message">No response set</string>
     <string name="alerts_badge_enabled">Enabled</string>
     <string name="alerts_badge_disabled">Disabled</string>
@@ -2781,7 +2781,7 @@
     <string name="event_responses_dialog_widget_pick">Target widget</string>
     <string name="event_responses_dialog_widget_choose">Choose a widget</string>
     <string name="event_responses_dialog_widget_empty">No widgets yet — add one on the Widgets page.</string>
-    <string name="event_responses_dialog_pipeline_create_new">+ Create a new pipeline</string>
+    <string name="event_responses_dialog_pipeline_create_new">Create a new pipeline</string>
     <string name="event_responses_dialog_pipeline_new_name">New pipeline name</string>
     <string name="event_responses_dialog_pipeline_help">Bind a pipeline to chain sound, overlay and chat on this event.</string>
     <string name="event_responses_variables_label">Insert a variable</string>

@@ -677,7 +677,7 @@ private fun MoreActionsMenu(
     Box {
         ManageGate(decision = manage) { enabled ->
             GlyphButton(
-                imageVector = DotsVerticalGlyph,
+                icon = DotsVerticalGlyph,
                 label = moreDesc,
                 onClick = { expanded = true },
                 enabled = enabled,
@@ -1139,7 +1139,7 @@ private fun ViewerDataSection(
                 }
                 if (write.isAllowed) {
                     GlyphButton(
-                        imageVector = TrashGlyph,
+                        icon = TrashGlyph,
                         label = stringResource(Res.string.community_data_delete, entry.key),
                         onClick = { pendingDelete = entry.key },
                         tint = tokens.destructive,

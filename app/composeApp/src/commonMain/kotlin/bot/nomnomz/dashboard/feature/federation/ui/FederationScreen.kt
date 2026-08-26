@@ -148,7 +148,7 @@ fun FederationScreen(controller: FederationController, role: ManagementRole?) {
                             Text(stringResource(Res.string.federation_peer_title), style = typography.lg, color = tokens.cardForeground)
                             ManageGate(manage) { enabled ->
                                 GlyphButton(
-                                    imageVector = AddGlyph,
+                                    icon = AddGlyph,
                                     label = stringResource(Res.string.federation_peer_add),
                                     onClick = { showAddPeer = true },
                                     enabled = enabled,
@@ -183,7 +183,7 @@ fun FederationScreen(controller: FederationController, role: ManagementRole?) {
                             Text(stringResource(Res.string.federation_optin_title), style = typography.lg, color = tokens.cardForeground)
                             ManageGate(manage) { enabled ->
                                 GlyphButton(
-                                    imageVector = AddGlyph,
+                                    icon = AddGlyph,
                                     label = stringResource(Res.string.federation_optin_add),
                                     onClick = { showAddOptIn = true },
                                     enabled = enabled,
@@ -307,7 +307,7 @@ private fun PeerRow(
             if (!peer.isTrusted && !peer.isRevoked) {
                 ManageGate(manage) { enabled ->
                     GlyphButton(
-                        imageVector = CheckCircleGlyph,
+                        icon = CheckCircleGlyph,
                         label = stringResource(Res.string.federation_peer_trust),
                         onClick = onTrust,
                         enabled = enabled,
@@ -318,7 +318,7 @@ private fun PeerRow(
             if (!peer.isRevoked) {
                 ManageGate(manage) { enabled ->
                     GlyphButton(
-                        imageVector = RemoveGlyph,
+                        icon = RemoveGlyph,
                         label = stringResource(Res.string.federation_peer_revoke),
                         onClick = onRevoke,
                         enabled = enabled,
@@ -358,7 +358,7 @@ private fun OptInRow(
             }
             ManageGate(manage) { enabled ->
                 GlyphButton(
-                    imageVector = TrashGlyph,
+                    icon = TrashGlyph,
                     label = stringResource(Res.string.federation_optin_remove_confirm),
                     onClick = onRemove,
                     enabled = enabled,

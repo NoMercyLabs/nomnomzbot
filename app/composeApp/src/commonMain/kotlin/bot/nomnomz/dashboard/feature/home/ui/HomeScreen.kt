@@ -50,7 +50,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.vector.ImageVector
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -72,12 +73,9 @@ import bot.nomnomz.dashboard.core.designsystem.component.TabsTrigger
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecisionForAction
 import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
-import bot.nomnomz.dashboard.core.designsystem.icon.ArrowUpGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.AppIcons
 import bot.nomnomz.dashboard.core.designsystem.icon.CheckCircleGlyph
-import bot.nomnomz.dashboard.core.designsystem.icon.CheckGlyph
-import bot.nomnomz.dashboard.core.designsystem.icon.CopyGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
-import bot.nomnomz.dashboard.core.designsystem.icon.PlayCircleGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.RefreshGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.RemoveGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
@@ -231,7 +229,7 @@ fun HomeScreen(
         LaunchedEffect(hubEvents) { controller.subscribeToHub(hubEvents) }
     }
 
-    Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
+    Box(modifier = Modifier.fillMaxSize()) {
         when (val current: HomeState = state) {
             is HomeState.Loading -> CenteredMessage(stringResource(Res.string.home_loading))
             is HomeState.Error ->
@@ -307,7 +305,10 @@ private fun ReadyContent(
     val clipDonePrefix: String = stringResource(Res.string.home_live_ops_clip_done)
 
     Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+        // Padding sits INSIDE the scroll (content padding), not on an outer Box — otherwise the scroll
+        // viewport clips flush against the first line and the page title's ascenders get shaved off. With
+        // it here the clip is at the true container edge and the s6 inset scrolls with the content.
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s6),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
         PageHeader(
@@ -961,7 +962,7 @@ private fun QuickActionsCard(
             if (activePoll == null) {
                 GatedQuickAction(heldActionKeys = heldActionKeys, actionKey = "live-ops:polls:write", modifier = Modifier.weight(1f)) { enabled, mod ->
                     QuickActionButton(
-                        icon = CheckGlyph,
+                        icon = AppIcons.CircleMessageQuestion,
                         label = stringResource(Res.string.home_live_ops_create_poll),
                         onClick = onStartPoll,
                         enabled = enabled,
@@ -984,7 +985,7 @@ private fun QuickActionsCard(
             if (activePrediction == null) {
                 GatedQuickAction(heldActionKeys = heldActionKeys, actionKey = "live-ops:predictions:write", modifier = Modifier.weight(1f)) { enabled, mod ->
                     QuickActionButton(
-                        icon = ArrowUpGlyph,
+                        icon = AppIcons.Vote2,
                         label = stringResource(Res.string.home_live_ops_create_prediction),
                         onClick = onStartPrediction,
                         enabled = enabled,
@@ -1015,7 +1016,7 @@ private fun QuickActionsCard(
 
             GatedQuickAction(heldActionKeys = heldActionKeys, actionKey = "live-ops:clips:write", modifier = Modifier.weight(1f)) { enabled, mod ->
                 QuickActionButton(
-                    icon = CopyGlyph,
+                    icon = AppIcons.Clips,
                     label = stringResource(Res.string.home_live_ops_create_clip),
                     onClick = onCreateClip,
                     enabled = enabled,
@@ -1052,7 +1053,7 @@ private fun QuickActionsCard(
             } else {
                 GatedQuickAction(heldActionKeys = heldActionKeys, actionKey = "live-ops:raids:write", modifier = Modifier.weight(1f)) { enabled, mod ->
                     QuickActionButton(
-                        icon = ArrowUpGlyph,
+                        icon = AppIcons.ArrowJumpRight,
                         label = stringResource(Res.string.home_live_ops_start_raid),
                         onClick = onStartRaid,
                         enabled = enabled,
@@ -1063,7 +1064,7 @@ private fun QuickActionsCard(
 
             GatedQuickAction(heldActionKeys = heldActionKeys, actionKey = "live-ops:ads:write", modifier = Modifier.weight(1f)) { enabled, mod ->
                 QuickActionButton(
-                    icon = PlayCircleGlyph,
+                    icon = AppIcons.MoneyBagDollar,
                     label = stringResource(Res.string.home_live_ops_start_commercial),
                     onClick = onStartCommercial,
                     enabled = enabled,
@@ -1114,7 +1115,7 @@ private fun GatedQuickAction(
 
 @Composable
 private fun QuickActionButton(
-    icon: ImageVector,
+    icon: DrawableResource,
     label: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -1145,7 +1146,7 @@ private fun QuickActionButton(
         verticalArrangement = Arrangement.spacedBy(spacing.s1),
     ) {
         Icon(
-            imageVector = icon,
+            painter = painterResource(icon),
             contentDescription = null,
             tint = iconTint,
             modifier = Modifier.size(spacing.s6),
@@ -1392,7 +1393,7 @@ private fun StartPollDialog(
                         )
                         if (options.size > 2) {
                             GlyphButton(
-                                imageVector = RemoveGlyph,
+                                icon = RemoveGlyph,
                                 label = stringResource(Res.string.chat_poll_option_label, index + 1),
                                 onClick = { options = options.toMutableList().also { it.removeAt(index) } },
                                 tint = tokens.destructive,
@@ -1402,7 +1403,7 @@ private fun StartPollDialog(
                 }
                 if (options.size < maxOptions) {
                     GlyphButton(
-                        imageVector = AddGlyph,
+                        icon = AddGlyph,
                         label = stringResource(Res.string.chat_poll_add_option),
                         onClick = { options = options + "" },
                         tint = tokens.primary,
@@ -1506,7 +1507,7 @@ private fun PredictionDialog(
                         )
                         if (outcomes.size > 2) {
                             GlyphButton(
-                                imageVector = RemoveGlyph,
+                                icon = RemoveGlyph,
                                 label = stringResource(Res.string.chat_poll_option_label, index + 1),
                                 onClick = { outcomes = outcomes.toMutableList().also { it.removeAt(index) } },
                                 tint = tokens.destructive,
@@ -1516,7 +1517,7 @@ private fun PredictionDialog(
                 }
                 if (outcomes.size < 10) {
                     GlyphButton(
-                        imageVector = AddGlyph,
+                        icon = AddGlyph,
                         label = stringResource(Res.string.chat_poll_add_option),
                         onClick = { outcomes = outcomes + "" },
                         tint = tokens.primary,

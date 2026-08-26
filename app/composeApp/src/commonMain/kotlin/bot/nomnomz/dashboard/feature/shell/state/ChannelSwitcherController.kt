@@ -63,6 +63,12 @@ class ChannelSwitcherController(
                     val remembered: String? = sessionStore.persistedActiveChannel()
                     val restore: String = channels.firstOrNull { it.id == remembered }?.id ?: channels.first().id
                     sessionStore.setDefaultChannel(restore)
+
+                    // Theme the shell from the restored channel's chat color right here, on shell mount — the
+                    // switcher loads on every authenticated page. Previously the accent was resolved only by the
+                    // Home page's load (and by an explicit switch), so a web reload on any other page left the
+                    // Material default lilac until the user navigated to the dashboard.
+                    channels.firstOrNull { it.id == restore }?.let { onChatColorResolved(it.chatColor) }
                 }
 
                 // Load the full Twitch moderation roster concurrently — failures are non-fatal; an

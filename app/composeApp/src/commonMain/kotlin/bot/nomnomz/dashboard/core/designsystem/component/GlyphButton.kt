@@ -16,10 +16,11 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.painterResource
 
 // A labelled icon-only action button:
 //   • `label` is the visible tooltip on hover (via the DS [Tooltip]) and the contentDescription for
@@ -31,7 +32,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 // WCAG 1.3.1 (name visible on pointer hover) and 4.1.2 (name in accessibility tree).
 @Composable
 fun GlyphButton(
-    imageVector: ImageVector,
+    icon: DrawableResource,
     label: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -50,7 +51,7 @@ fun GlyphButton(
         ) {
             val iconTint: Color = tint ?: LocalContentColor.current
             Icon(
-                imageVector = imageVector,
+                painter = painterResource(icon),
                 contentDescription = null,
                 tint = iconTint,
                 modifier = Modifier.size(spacing.s4),

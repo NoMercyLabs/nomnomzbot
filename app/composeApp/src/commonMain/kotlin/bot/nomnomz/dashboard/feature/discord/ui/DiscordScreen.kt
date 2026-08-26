@@ -809,7 +809,7 @@ private fun GuildHeader(
             ManageGate(decision = manage) { enabled ->
                 if (connection.serverConsentStatus == "approved") {
                     GlyphButton(
-                        imageVector = TrashGlyph,
+                        icon = TrashGlyph,
                         label = stringResource(Res.string.discord_consent_revoke),
                         onClick = onRevokeConsent,
                         enabled = enabled,
@@ -817,7 +817,7 @@ private fun GuildHeader(
                     )
                 } else {
                     GlyphButton(
-                        imageVector = CheckCircleGlyph,
+                        icon = CheckCircleGlyph,
                         label = stringResource(Res.string.discord_consent_approve),
                         onClick = onApproveConsent,
                         enabled = enabled,
@@ -891,11 +891,11 @@ private fun RuleRow(
         }
 
         ManageGate(decision = manage) { enabled ->
-            GlyphButton(imageVector = EditGlyph, label = editLabel, onClick = onEdit, enabled = enabled)
+            GlyphButton(icon = EditGlyph, label = editLabel, onClick = onEdit, enabled = enabled)
         }
         ManageGate(decision = manage) { enabled ->
             GlyphButton(
-                imageVector = TrashGlyph,
+                icon = TrashGlyph,
                 label = deleteLabel,
                 onClick = onDelete,
                 enabled = enabled,

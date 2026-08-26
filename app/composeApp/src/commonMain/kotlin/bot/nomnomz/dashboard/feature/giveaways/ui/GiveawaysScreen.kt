@@ -470,7 +470,7 @@ private fun Header(writeManage: ManageDecision, onNew: () -> Unit) {
 
     PageHeader(title = stringResource(Res.string.shell_nav_giveaways)) {
         ManageGate(decision = writeManage) { enabled ->
-            GlyphButton(imageVector = AddGlyph, label = newLabel, onClick = onNew, enabled = enabled)
+            GlyphButton(icon = AddGlyph, label = newLabel, onClick = onNew, enabled = enabled)
         }
     }
 }
@@ -615,7 +615,7 @@ private fun GiveawayRow(
             }
             ManageGate(decision = editManage) { enabled ->
                 GlyphButton(
-                    imageVector = EditGlyph,
+                    icon = EditGlyph,
                     label = editLabel,
                     onClick = { callbacks.onEdit(giveaway) },
                     enabled = enabled,
@@ -623,7 +623,7 @@ private fun GiveawayRow(
             }
             ManageGate(decision = writeManage) { enabled ->
                 GlyphButton(
-                    imageVector = TrashGlyph,
+                    icon = TrashGlyph,
                     label = deleteLabel,
                     onClick = { callbacks.onDelete(giveaway) },
                     enabled = enabled,
@@ -712,7 +712,7 @@ private fun CodePoolsSection(
                 modifier = Modifier.weight(1f),
             )
             ManageGate(decision = codesManage) { enabled ->
-                GlyphButton(imageVector = AddGlyph, label = newLabel, onClick = onNewPool, enabled = enabled)
+                GlyphButton(icon = AddGlyph, label = newLabel, onClick = onNewPool, enabled = enabled)
             }
         }
         Text(
@@ -788,7 +788,7 @@ private fun CodePoolRow(pool: CodePool, onManage: () -> Unit, onDelete: () -> Un
             }
         }
         GlyphButton(
-            imageVector = TrashGlyph,
+            icon = TrashGlyph,
             label = deleteLabel,
             onClick = onDelete,
             tint = tokens.destructive,

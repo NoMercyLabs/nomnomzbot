@@ -205,7 +205,7 @@ fun MusicScreen(
         LaunchedEffect(hubEvents) { controller.subscribeToHub(hubEvents) }
     }
 
-    Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
+    Box(modifier = Modifier.fillMaxSize()) {
         when (val current: MusicState = state) {
             is MusicState.Loading -> CenteredMessage(stringResource(Res.string.music_loading))
             is MusicState.Empty -> CenteredMessage(stringResource(Res.string.music_empty))
@@ -292,7 +292,7 @@ private fun ReadyContent(
     var pendingUnblock: BlockedTrack? by remember { mutableStateOf(null) }
 
     Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s6),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
         PageHeader(title = stringResource(Res.string.shell_nav_music))
@@ -805,7 +805,7 @@ private fun QueueRow(track: MusicTrack, manage: ManageDecision, onRemove: () -> 
         )
         ManageGate(decision = manage) { enabled ->
             GlyphButton(
-                imageVector = TrashGlyph,
+                icon = TrashGlyph,
                 label = removeLabel,
                 onClick = onRemove,
                 enabled = enabled,
@@ -1069,7 +1069,7 @@ private fun SrTokenSection(
         )
         ManageGate(decision = manage) { enabled ->
             GlyphButton(
-                imageVector = RefreshGlyph,
+                icon = RefreshGlyph,
                 label = stringResource(Res.string.music_token_rotate),
                 onClick = onRotate,
                 enabled = enabled,
@@ -1340,7 +1340,7 @@ private fun BlockedTrackRow(track: BlockedTrack, manage: ManageDecision, onUnblo
         }
         ManageGate(decision = manage) { enabled ->
             GlyphButton(
-                imageVector = TrashGlyph,
+                icon = TrashGlyph,
                 label = unblockLabel,
                 onClick = onUnblock,
                 enabled = enabled,

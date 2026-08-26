@@ -79,7 +79,7 @@ fun PointsAndStoreScreen(controller: ParticipantController) {
 
     LaunchedEffect(Unit) { controller.loadStore() }
 
-    Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
+    Box(modifier = Modifier.fillMaxSize()) {
         when (val current: StoreState = state) {
             is StoreState.Loading -> ParticipantMessage(stringResource(Res.string.participant_loading))
             is StoreState.Error ->
@@ -105,7 +105,7 @@ private fun Ready(
     val spacing = LocalSpacing.current
 
     Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s6),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
         state.actionError?.let { ActionErrorBanner(detail = it) }

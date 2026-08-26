@@ -60,7 +60,7 @@ fun LeaderboardsScreen(controller: ParticipantController) {
 
     LaunchedEffect(Unit) { controller.loadLeaderboards() }
 
-    Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
+    Box(modifier = Modifier.fillMaxSize()) {
         when (val current: LeaderboardsState = state) {
             is LeaderboardsState.Loading -> ParticipantMessage(stringResource(Res.string.participant_loading))
             is LeaderboardsState.Error ->
@@ -83,7 +83,7 @@ fun LeaderboardsScreen(controller: ParticipantController) {
 private fun Ready(state: LeaderboardsState.Ready, onToggleConsent: (Boolean) -> Unit) {
     val spacing = LocalSpacing.current
 
-    Column(verticalArrangement = Arrangement.spacedBy(spacing.s4), modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s4), modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s6)) {
         state.actionError?.let { ActionErrorBanner(detail = it) }
         ConsentCard(optedIn = state.optedIn, onToggle = onToggleConsent)
         RankingCard(state = state)

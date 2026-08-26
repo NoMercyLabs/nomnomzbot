@@ -57,6 +57,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
+import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.AppIcon
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
@@ -271,7 +273,11 @@ private fun ManagedContent(
             // count. Both numbers come straight from the billing-limits report, never estimated client-side.
             LimitedCreateAction(usage = timersUsage) { limitAllowed ->
                 ManageGate(decision = manage) { manageAllowed ->
-                    Button(onClick = onNew, enabled = manageAllowed && limitAllowed) {
+                    Button(
+                        onClick = onNew,
+                        enabled = manageAllowed && limitAllowed,
+                        leftIcon = { AppIcon(AddGlyph, contentDescription = null) },
+                    ) {
                         Text(text = stringResource(Res.string.timers_new))
                     }
                 }
@@ -401,11 +407,11 @@ private fun TimerTableRow(
         }
 
         ManageGate(decision = manage) { enabled ->
-            GlyphButton(imageVector = EditGlyph, label = editLabel, onClick = onEdit, enabled = enabled)
+            GlyphButton(icon = EditGlyph, label = editLabel, onClick = onEdit, enabled = enabled)
         }
         ManageGate(decision = manage) { enabled ->
             GlyphButton(
-                imageVector = TrashGlyph,
+                icon = TrashGlyph,
                 label = deleteLabel,
                 onClick = onDelete,
                 enabled = enabled,
@@ -511,7 +517,7 @@ private fun TimerEditDialog(
                         )
                         if (messages.size > 1) {
                             GlyphButton(
-                                imageVector = TrashGlyph,
+                                icon = TrashGlyph,
                                 label = removeLabel,
                                 onClick = { messages = messages.filterIndexed { i, _ -> i != index } },
                                 tint = tokens.destructive,

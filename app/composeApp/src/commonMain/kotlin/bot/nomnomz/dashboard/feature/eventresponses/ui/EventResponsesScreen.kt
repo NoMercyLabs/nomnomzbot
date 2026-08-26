@@ -52,6 +52,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
+import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.AppIcon
 import bot.nomnomz.dashboard.core.designsystem.icon.ChevronDownGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
@@ -280,7 +282,7 @@ private fun EventResponseRow(
             )
         }
         ManageGate(decision = manage) { enabled ->
-            GlyphButton(imageVector = EditGlyph, label = editSemantics, onClick = onEdit, enabled = enabled)
+            GlyphButton(icon = EditGlyph, label = editSemantics, onClick = onEdit, enabled = enabled)
         }
         ManageGate(decision = manage) { enabled ->
             Switch(
@@ -376,7 +378,7 @@ private fun EditDialog(
                         modifier = Modifier.fillMaxWidth().clickable { typeMenuOpen = true },
                         trailingIcon = {
                             GlyphButton(
-                                imageVector = ChevronDownGlyph,
+                                icon = ChevronDownGlyph,
                                 label = stringResource(Res.string.event_responses_dialog_response_type_label),
                                 onClick = { typeMenuOpen = true },
                                 tint = tokens.mutedForeground,
@@ -591,6 +593,7 @@ private fun PipelineBindPicker(pipelines: List<PipelineSummary>, selected: Strin
             )
             // …or switch to authoring a brand-new pipeline (the CreateNewPipeline sentinel drives the name field).
             TextButton(onClick = { onSelect(CreateNewPipeline) }) {
+                AppIcon(AddGlyph, contentDescription = null, tint = tokens.primary, size = spacing.s4)
                 Text(text = stringResource(Res.string.event_responses_dialog_pipeline_create_new), color = tokens.primary)
             }
         }
