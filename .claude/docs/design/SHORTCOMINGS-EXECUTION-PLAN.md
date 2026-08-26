@@ -136,39 +136,19 @@ stable — without dropping the planned requirements behind them.
   and apply it as ONE mechanism across every core action rather than per-action patches — then a templated
   argument and a templated return value both resolve, proven by tests.
 
-- **S-BUDGETS** (owner, 2026-08-25) "a proper budget system to track the payment tiers — most of it is
-  based on resource usage, hence the amount of files you can store or commands you can register."
-  ESTABLISHED BY GREP: the plumbing already exists — `TierLimit` (TierId/LimitKey/LimitValue),
-  `UsageRecord`, `IUsageMeteringService`, `BillingTierService` — but `TierLimit` has exactly ONE consumer
-  in the whole codebase: `CustomCode/ScriptExecutionMeter.cs`. Commands, stored files/assets, widgets,
-  sound clips, timers, pipelines: NO enforcement. A `TierLimits` table nothing checks presents tiers as
-  enforced when they are not — a truthful-data violation ([[feedback-truthful-data-not-fake-enforcement]]).
-  Build on `scaling-qos.md` §8 (per-unit resource budgets) and `music-sr.md` (tiered allowances) —
-  EXTEND, do not duplicate.
-  **WHY (owner, 2026-08-25, binding intent):** "my goal is to offset the cost of buying the resource
-  headroom for the users' shenanigans — that is the base for limits imposed on a SaaS user." So limits
-  exist to RECOVER REAL MARGINAL COST, never to manufacture upsell pressure. That determines the whole
-  design: classify every limited resource by whether it actually costs money.
-  - **Cost-driving (tier-scaled):** stored file bytes (disk + egress + backup), TTS characters, script
-    CPU seconds, external API call volume, bandwidth/egress, retained history rows. These map to a real
-    bill, so tier headroom is priced against them.
-  - **Near-free (safety cap ONLY, no paid ceiling):** registering a command, a timer, a pipeline, an
-    event response — one DB row costing effectively nothing. Cap these against ABUSE (runaway scripts,
-    a million rows) at a generous floor; do NOT sell headroom on them. A paid gate on a free-to-serve
-    resource is an artificial gate and this project does not ship those.
-  Applying that test to the owner's own examples: stored files ARE tier-worthy; registered commands are
-  NOT — they get an abuse floor instead.
-  Shape: a safety baseline that applies to everyone regardless of tier, plus tier-scaled headroom
-  ([[limits-safety-baseline-then-tier]]); self-host is the operator's own hardware so it gets the safety
-  baseline WITHOUT commercial tier ceilings ([[no-free-hosted-tier]] — self-host free, hosted pays).
-  Done-when: (1) every countable resource declares its limit key from ONE registry — enumerate the
-  resources structurally so a NEW limited resource cannot ship without a key (a guard test, not a
-  hand-list); (2) enforcement happens at the WRITE path and a test proves the N+1th create is refused
-  with a reason naming the limit and the tier; (3) usage is truthfully visible — "X of Y used" from real
-  counts, never an estimate; (4) approaching/at the limit is surfaced BEFORE the failed save, per
-  S-CONSEQ; (5) self-host is not crippled — proven by a test that a self-host deployment enforces only
-  the safety baseline; (6) raising a tier immediately raises the ceiling with no re-login
-  ([[never-logout-for-scope-or-schema-changes]]).
+- **S-BUDGETS-b** (S-BUDGETS-a CLOSED 447ecd6e + 836eceea — `[CountedResource]` + `LimitedResourceRegistry`
+  + `IResourceQuotaService`; enforcement at the real write path with REAL counts; a reflection guard fails
+  when a countable entity has no declared key; NEAR_FREE keys (commands, timers, event responses, response
+  variations) get a generous safety floor and NEVER a paid ceiling — proven by a SaaS tenant getting 1200
+  rows though its tier said 100; COST_DRIVING keys (tts characters, sandbox exec ms) stay tier-scaled;
+  self-host capped only at the safety baseline; 12 inert per-tier rows removed from the seeder so the
+  catalogue no longer advertises limits nothing enforces.) REMAINING:
+  (a) the DASHBOARD surface — truthful "X of Y used" from real counts, never an estimate;
+  (b) APPROACHING/AT the limit is surfaced BEFORE the failed save (this rides the S-CONSEQ law);
+  (c) raising a tier immediately raises the ceiling with no re-login ([[never-logout-for-scope-or-schema-changes]]);
+  (d) the COST_DRIVING side is still only 2 keys — stored file bytes, egress/bandwidth and retained
+  history rows are named in the owner's intent but have no key or meter yet. Enumerate what actually
+  costs money and declare each, or say why a resource is genuinely unmeterable.
 
 - **S-NAMELESS-ROWS-b** (17 of 19 files remain; Commands + Rewards done in 8c349816, jvmTest 702/702)
   Mechanism `resolveRowLabel` + `RowLabelGuardTest` shipped in fa9391a3; `PickListsScreen` is the worked
