@@ -14,6 +14,7 @@ using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Webhooks;
@@ -37,7 +38,8 @@ public sealed class OutboundWebhookEndpointService(
     ITokenProtector tokenProtector,
     ISubjectKeyService subjectKeys,
     TimeProvider clock,
-    IEventBus eventBus
+    IEventBus eventBus,
+    ITemplateHelperValidator templateHelperValidator
 ) : IOutboundWebhookEndpointService
 {
     private const string Provider = "webhook:out";
@@ -171,7 +173,7 @@ public sealed class OutboundWebhookEndpointService(
         // A JSON-declared body template must actually parse, or the author gets a silent downgrade to the
         // unescaped plain-text render path at delivery time (S-WEBHOOK-JSON-FALLBACK). Caught here, at save
         // time, with the parse position, while the author is present to fix it.
-        Result bodyTemplateValidation = ValidateBodyTemplateJson(
+        Result bodyTemplateValidation = ValidateBodyTemplate(
             request.BodyTemplate,
             request.BodyIsJson
         );
@@ -235,7 +237,7 @@ public sealed class OutboundWebhookEndpointService(
         }
         bool effectiveBodyIsJson = request.BodyIsJson ?? endpoint.BodyIsJson;
         string? effectiveBodyTemplate = request.BodyTemplate ?? endpoint.BodyTemplate;
-        Result bodyTemplateValidation = ValidateBodyTemplateJson(
+        Result bodyTemplateValidation = ValidateBodyTemplate(
             effectiveBodyTemplate,
             effectiveBodyIsJson
         );
@@ -375,18 +377,35 @@ public sealed class OutboundWebhookEndpointService(
     }
 
     /// <summary>
-    /// A body template declared as JSON must actually parse (S-WEBHOOK-JSON-FALLBACK) — caught here, at save
-    /// time, with the parse position named, rather than silently downgrading to the unescaped plain-text render
-    /// path at delivery time. A template not declared as JSON, or absent, is never validated here.
+    /// Validates a body template on both axes required to save (S042c, S-WEBHOOK-JSON-FALLBACK): every
+    /// <c>{{helper}}</c> placeholder must name a real key from <see cref="TemplateHelperContext.Webhook"/>
+    /// (an unknown key like <c>{{user.nmae}}</c> would otherwise render as nothing on a live delivery,
+    /// silently), and a JSON-declared template must actually parse. Both are checked at save time, with
+    /// the author present to fix it, rather than failing quietly at delivery time.
     /// </summary>
-    private static Result ValidateBodyTemplateJson(string? bodyTemplate, bool bodyIsJson)
+    /// <summary>
+    /// Validates a body template the SAME WAY <see cref="WebhookBodyTemplateRenderer"/> renders it, which
+    /// is the only way the two can agree.
+    /// <para>
+    /// A JSON body is parsed FIRST and its helper keys are then checked on the string LEAVES only. Running
+    /// the helper validator over the raw JSON text instead reads structural braces as placeholders — for
+    /// <c>{"broken": [1, 2,}</c> it reports an unknown helper named <c>"broken": [1, 2,</c> and the author
+    /// never learns their JSON is malformed. A non-JSON body has no structure to respect, so its whole text
+    /// is validated.
+    /// </para>
+    /// </summary>
+    private Result ValidateBodyTemplate(string? bodyTemplate, bool bodyIsJson)
     {
-        if (!bodyIsJson || bodyTemplate is null)
+        if (bodyTemplate is null)
             return Result.Success();
 
+        if (!bodyIsJson)
+            return templateHelperValidator.Validate(bodyTemplate, TemplateHelperContext.Webhook);
+
+        JToken parsed;
         try
         {
-            JToken.Parse(bodyTemplate);
+            parsed = JToken.Parse(bodyTemplate);
         }
         catch (JsonReaderException ex)
         {
@@ -395,6 +414,23 @@ public sealed class OutboundWebhookEndpointService(
                 "INVALID_JSON_BODY_TEMPLATE"
             );
         }
+
+        IEnumerable<JToken> tokens = parsed is JContainer container
+            ? container.DescendantsAndSelf()
+            : [parsed];
+        foreach (JToken leaf in tokens)
+        {
+            if (leaf.Type is not JTokenType.String)
+                continue;
+
+            Result leafValidation = templateHelperValidator.Validate(
+                leaf.Value<string>(),
+                TemplateHelperContext.Webhook
+            );
+            if (leafValidation.IsFailure)
+                return leafValidation;
+        }
+
         return Result.Success();
     }
 

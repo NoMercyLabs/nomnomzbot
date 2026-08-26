@@ -12,6 +12,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
 using Newtonsoft.Json;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Webhooks;
@@ -19,6 +20,7 @@ using NomNomzBot.Application.Services;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Webhooks.Enums;
+using NomNomzBot.Infrastructure.Platform.Templating;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NomNomzBot.Infrastructure.Webhooks;
 using NSubstitute;
@@ -60,7 +62,12 @@ public sealed class OutboundWebhookEndpointServiceTests
             )
             .Returns(Result.Success(Guid.Parse("0192a000-0000-7000-8000-0000000000cc")));
         RecordingEventBus bus = new();
-        return (new(db, protector, keys, new FakeTimeProvider(Now), bus), db, bus);
+        ITemplateHelperValidator templateHelperValidator = new TemplateHelperValidator();
+        return (
+            new(db, protector, keys, new FakeTimeProvider(Now), bus, templateHelperValidator),
+            db,
+            bus
+        );
     }
 
     private static async Task SeedAllowlistAsync(AuthDbContext db, string fqdn = "api.example.com")
@@ -185,6 +192,93 @@ public sealed class OutboundWebhookEndpointServiceTests
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Endpoint.BodyIsJson.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Create_rejects_a_body_template_with_an_unknown_helper_key()
+    {
+        (OutboundWebhookEndpointService sut, AuthDbContext db, RecordingEventBus bus) = Build();
+        await SeedAllowlistAsync(db);
+        CreateOutboundWebhookRequest request = new()
+        {
+            Name = "endpoint",
+            Fqdn = "api.example.com",
+            SubscribedEventTypes = ["*"],
+            BodyTemplate = /*lang=json,strict*/
+                """{"who": "{user.nmae}"}""", // misspelled helper key
+            BodyIsJson = true,
+        };
+
+        Result<OutboundWebhookEndpointCreatedDto> result = await sut.CreateAsync(
+            Channel,
+            Actor,
+            request
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        result.ErrorMessage.Should().Contain("user.nmae"); // names the bad key
+        db.OutboundWebhookEndpoints.Should().BeEmpty(); // rejected, nothing persisted
+        bus.Published.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Create_saves_a_body_template_whose_helper_keys_are_all_valid()
+    {
+        (OutboundWebhookEndpointService sut, AuthDbContext db, RecordingEventBus bus) = Build();
+        await SeedAllowlistAsync(db);
+        CreateOutboundWebhookRequest request = new()
+        {
+            Name = "endpoint",
+            Fqdn = "api.example.com",
+            SubscribedEventTypes = ["*"],
+            BodyTemplate = /*lang=json,strict*/
+                """{"who": "{user.name}", "channel": "{channel.display}"}""",
+            BodyIsJson = true,
+        };
+
+        Result<OutboundWebhookEndpointCreatedDto> result = await sut.CreateAsync(
+            Channel,
+            Actor,
+            request
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        OutboundWebhookEndpoint stored = await db.OutboundWebhookEndpoints.SingleAsync(e =>
+            e.Id == result.Value.Endpoint.Id
+        );
+        stored.BodyTemplate.Should().Be(request.BodyTemplate);
+        bus.Published.OfType<ChannelConfigChangedEvent>()
+            .Should()
+            .ContainSingle(e => e.Action == "created");
+    }
+
+    [Fact]
+    public async Task Update_rejects_a_body_template_with_an_unknown_helper_key()
+    {
+        (OutboundWebhookEndpointService sut, AuthDbContext db, _) = Build();
+        await SeedAllowlistAsync(db);
+        OutboundWebhookEndpointCreatedDto created = (
+            await sut.CreateAsync(Channel, Actor, Req())
+        ).Value;
+
+        Result<OutboundWebhookEndpointDto> result = await sut.UpdateAsync(
+            Channel,
+            created.Endpoint.Id,
+            new UpdateOutboundWebhookRequest
+            {
+                BodyTemplate = "hello {user.nmae}",
+                BodyIsJson = false,
+            }
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        result.ErrorMessage.Should().Contain("user.nmae");
+        OutboundWebhookEndpoint stored = await db.OutboundWebhookEndpoints.SingleAsync(e =>
+            e.Id == created.Endpoint.Id
+        );
+        stored.BodyTemplate.Should().BeNull(); // rejected update never touched the stored template
     }
 
     [Fact]
