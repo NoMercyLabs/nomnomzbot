@@ -76,11 +76,14 @@ class RestEventResponsesApi(private val client: ApiClient) : EventResponsesApi {
 /**
  * One catalog preset (backend `EventResponsePresetDto`) for an [eventType]: the [defaultTemplate] the dashboard
  * pre-fills the message input with, and the exact template [variables] the trigger seeds — offered as insert chips.
+ *
+ * [defaultTemplate] is a backend-authored translation KEY only (S-SCHEMA-I18N-redesign) — resolve it with
+ * `resolveSchemaString` (`core/i18n`) before showing it; the English/Dutch sentences live in strings.xml.
  */
 @Serializable
 data class EventResponsePreset(
     val eventType: String = "",
-    val defaultTemplate: String = "",
+    val defaultTemplate: LocalizedTextDto = LocalizedTextDto(),
     val variables: List<String> = emptyList(),
 )
 

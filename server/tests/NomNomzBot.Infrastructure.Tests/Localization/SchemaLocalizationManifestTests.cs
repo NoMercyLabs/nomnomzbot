@@ -16,6 +16,8 @@ using NomNomzBot.Application;
 using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Commands.Dtos;
+using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Infrastructure.Content.Widgets;
 
@@ -137,6 +139,11 @@ public sealed class SchemaLocalizationManifestTests
                     keys.Add(field.Description.Key);
             }
         }
+
+        // Event-response preset default templates: the dashboard pre-fills the message input from these, so the
+        // catalog serves a translation KEY per event type — never the English sentence it used to inline.
+        foreach (EventResponsePresetDto preset in EventResponsePresetCatalog.Presets)
+            keys.Add(preset.DefaultTemplate.Key);
 
         // S042: every template helper registry entry's description key, same real-schema-walk contract.
         foreach (TemplateHelperEntry helper in TemplateHelperRegistry.All)

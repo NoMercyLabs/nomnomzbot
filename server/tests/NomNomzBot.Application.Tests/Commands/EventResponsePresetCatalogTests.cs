@@ -8,42 +8,20 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using System.Text.RegularExpressions;
 using FluentAssertions;
-using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 
 namespace NomNomzBot.Application.Tests.Commands;
 
 /// <summary>
-/// Proves the preset catalog is honest and self-consistent: every default template's placeholders are
-/// variables that event ACTUALLY seeds (a pre-fill must never render a raw <c>{placeholder}</c> in chat),
-/// event types are unique, and every preset ships a usable non-blank template. The seeding list is the
-/// catalog's own key set, so the seeded rows and the presets cannot drift.
+/// Proves the preset catalog is self-consistent: event types are unique, every preset publishes a translation
+/// KEY derived from its own event type (never English prose — S-SCHEMA-I18N-redesign), and the seeding list is
+/// the catalog's own key set, so the seeded rows and the presets cannot drift. The template TEXT itself lives in
+/// the dashboard's strings.xml; that its placeholders are variables the event actually seeds is proven in
+/// <c>EventResponsePresetTemplateTests</c> (Infrastructure.Tests/Localization), against the real en AND nl text.
 /// </summary>
-public sealed partial class EventResponsePresetCatalogTests
+public sealed class EventResponsePresetCatalogTests
 {
-    [Fact]
-    public void Every_template_uses_only_variables_its_event_actually_seeds()
-    {
-        foreach (EventResponsePresetDto preset in EventResponsePresetCatalog.Presets)
-        {
-            IReadOnlyList<string> placeholders =
-            [
-                .. PlaceholderPattern()
-                    .Matches(preset.DefaultTemplate)
-                    .Select(m => m.Groups[1].Value),
-            ];
-            placeholders
-                .Should()
-                .BeSubsetOf(
-                    preset.Variables,
-                    "the {0} preset must never advertise a placeholder its trigger source won't fill",
-                    preset.EventType
-                );
-        }
-    }
-
     [Fact]
     public void Event_types_are_unique_and_every_preset_has_a_usable_template()
     {
@@ -54,7 +32,9 @@ public sealed partial class EventResponsePresetCatalogTests
             .And.OnlyContain(t => !string.IsNullOrWhiteSpace(t));
         EventResponsePresetCatalog
             .Presets.Should()
-            .OnlyContain(p => !string.IsNullOrWhiteSpace(p.DefaultTemplate))
+            .OnlyContain(p =>
+                p.DefaultTemplate.Key == EventResponsePresetCatalog.TemplateKey(p.EventType)
+            )
             .And.OnlyContain(p => p.Variables.Count > 0);
     }
 
@@ -65,7 +45,4 @@ public sealed partial class EventResponsePresetCatalogTests
             .EventTypes.Should()
             .Equal(EventResponsePresetCatalog.Presets.Select(p => p.EventType));
     }
-
-    [GeneratedRegex(@"\{([^{}]+)\}")]
-    private static partial Regex PlaceholderPattern();
 }

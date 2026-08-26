@@ -11,6 +11,7 @@
 using System.Reflection;
 using FluentAssertions;
 using NomNomzBot.Application.Abstractions.Localization;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Widgets.Dtos;
 
@@ -26,6 +27,12 @@ namespace NomNomzBot.Infrastructure.Tests.Localization;
 /// allow-list (wire values compared/stored, never shown — <c>Key</c>, <c>Type</c>, <c>Value</c>) or it must be a
 /// <see cref="LocalizedText"/>. A property this test cannot classify FAILS LOUD by design — the allow-list is the
 /// only escape hatch, and adding to it is a deliberate, reviewable act.
+///
+/// The swept SET is discovered, not listed (see <see cref="SweptTypes"/>): every DTO the backend hands out from a
+/// hardcoded static catalogue is swept automatically. It used to be the hand-maintained
+/// <see cref="MachineStringPropertiesByType"/> key set alone — which is precisely why
+/// <see cref="EventResponsePresetDto"/> shipped English chat sentences inline in C# without this guard noticing:
+/// the DTO was never registered, so it was never looked at.
 ///
 /// <see cref="WidgetSettingsSchema.Name"/> is deliberately NOT swept here: it is the catalogue's seeded widget
 /// display name (<c>FirstPartyWidgetDefinition.Name</c>, shared with <c>FirstPartyWidgetCatalogueSeeder</c>) —
@@ -61,13 +68,31 @@ public sealed class SchemaDtoStringShapeTests
         {
             nameof(PipelineActionDescriptorDto.Type),
         },
+        // The event-response preset catalog: `EventType` is the wire/routing key both sides match on; the
+        // default template it publishes is a LocalizedText key (it used to be an English sentence — the exact
+        // bug the DISCOVERY widening below now catches structurally).
+        [typeof(EventResponsePresetDto)] = new HashSet<string>
+        {
+            nameof(EventResponsePresetDto.EventType),
+        },
+        // Template helper registry: `Key`/`Prefix` are the placeholder text the resolver matches on, not prose.
+        [typeof(TemplateHelperEntry)] = new HashSet<string>
+        {
+            nameof(TemplateHelperEntry.Key),
+            nameof(TemplateHelperEntry.Prefix),
+        },
     };
 
     [Theory]
     [MemberData(nameof(SweptTypes))]
     public void Every_human_facing_string_property_is_a_localized_text_key(Type sweptType)
     {
-        IReadOnlyCollection<string> machineProperties = MachineStringPropertiesByType[sweptType];
+        IReadOnlyCollection<string> machineProperties = MachineStringPropertiesByType.TryGetValue(
+            sweptType,
+            out IReadOnlyCollection<string>? declared
+        )
+            ? declared
+            : [];
 
         List<string> bareStringProperties =
         [
@@ -89,5 +114,58 @@ public sealed class SchemaDtoStringShapeTests
             );
     }
 
-    public static TheoryData<Type> SweptTypes() => [.. MachineStringPropertiesByType.Keys];
+    /// <summary>
+    /// The sweep set is OPT-OUT, not opt-in — that is the whole fix. It is the explicit
+    /// <see cref="MachineStringPropertiesByType"/> keys UNION every type the backend hands out from a
+    /// hardcoded STATIC CATALOG in the Application assembly (a <c>public static</c> property whose value is a
+    /// code-authored instance or collection of Application types). Those are exactly the objects whose string
+    /// values are written by a developer in C# rather than typed by a tenant, so every human-facing string on
+    /// them must be a translation key. A new static catalog DTO is swept the moment it exists; nobody has to
+    /// remember to register it here.
+    /// </summary>
+    public static TheoryData<Type> SweptTypes() =>
+        [
+            .. MachineStringPropertiesByType
+                .Keys.Concat(StaticCatalogueTypes())
+                .Distinct()
+                .OrderBy(type => type.FullName, StringComparer.Ordinal),
+        ];
+
+    private static IEnumerable<Type> StaticCatalogueTypes()
+    {
+        Assembly application = typeof(LocalizedText).Assembly;
+
+        return application
+            .GetTypes()
+            .Where(type => type is { IsClass: true, IsPublic: true })
+            .SelectMany(type =>
+                type.GetProperties(BindingFlags.Public | BindingFlags.Static)
+                    .Select(property => property.PropertyType)
+            )
+            .Select(ElementTypeOf)
+            .OfType<Type>()
+            .Where(type =>
+                type.Assembly == application && type is { IsClass: true, IsPublic: true }
+            )
+            .Where(type =>
+                type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                    .Any(property => property.PropertyType == typeof(string))
+            )
+            .Distinct();
+    }
+
+    /// <summary>The DTO a static catalogue property exposes: the element type of a sequence, or the type itself.</summary>
+    private static Type? ElementTypeOf(Type propertyType)
+    {
+        if (propertyType == typeof(string) || propertyType.IsPrimitive)
+            return null;
+
+        if (propertyType.IsGenericType)
+        {
+            Type[] arguments = propertyType.GetGenericArguments();
+            return arguments.Length == 1 ? arguments[0] : null;
+        }
+
+        return propertyType.IsArray ? propertyType.GetElementType() : propertyType;
+    }
 }

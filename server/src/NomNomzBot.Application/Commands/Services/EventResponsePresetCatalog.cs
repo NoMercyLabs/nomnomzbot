@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Commands.Dtos;
 
 namespace NomNomzBot.Application.Commands.Services;
@@ -19,6 +20,12 @@ namespace NomNomzBot.Application.Commands.Services;
 /// dashboard pre-fills the template input from <see cref="Presets"/>; the lazy per-channel seeding uses
 /// <see cref="EventTypes"/>, so the seeded rows and the catalog can never drift apart.
 /// </summary>
+/// <remarks>
+/// The default template is a translation KEY (<see cref="LocalizedText"/>), derived from the event type so it
+/// cannot drift from it: <c>channel.follow</c> → <c>eventresponse.preset.channel_follow.template</c>. The
+/// English and Dutch sentences live exclusively in the dashboard's <c>strings.xml</c> / <c>values-nl/</c>
+/// (S-SCHEMA-I18N-redesign); this assembly carries no user-facing prose.
+/// </remarks>
 public static class EventResponsePresetCatalog
 {
     private static readonly string[] SupporterVariables =
@@ -36,164 +43,88 @@ public static class EventResponsePresetCatalog
     /// <summary>Ordered as the event-responses page groups them: Twitch alerts, stream lifecycle, engagement, supporters.</summary>
     public static IReadOnlyList<EventResponsePresetDto> Presets { get; } =
     [
-        new(
-            "channel.follow",
-            "Thanks for the follow, {user}!",
-            ["user", "user.id", "user.name", "followed_at"]
-        ),
-        new("channel.subscribe", "Welcome to the sub squad, {user}!", ["user", "user.id", "tier"]),
-        new(
+        Preset("channel.follow", ["user", "user.id", "user.name", "followed_at"]),
+        Preset("channel.subscribe", ["user", "user.id", "tier"]),
+        Preset(
             "channel.subscription.message",
-            "{user} resubscribed — {months} months and counting!",
             ["user", "user.id", "tier", "months", "streak", "message"]
         ),
-        new(
-            "channel.subscription.gift",
-            "{user} just gifted {count} subs — thank you!",
-            ["user", "user.id", "tier", "count", "anonymous"]
-        ),
-        new(
-            "channel.cheer",
-            "{user} cheered {bits} bits — thank you!",
-            ["user", "user.id", "bits", "message", "anonymous"]
-        ),
-        new(
-            "channel.raid",
-            "{user} is raiding with {viewers} viewers — welcome, raiders!",
-            ["user", "user.id", "user.name", "viewers"]
-        ),
-        new(
+        Preset("channel.subscription.gift", ["user", "user.id", "tier", "count", "anonymous"]),
+        Preset("channel.cheer", ["user", "user.id", "bits", "message", "anonymous"]),
+        Preset("channel.raid", ["user", "user.id", "user.name", "viewers"]),
+        Preset(
             "channel.channel_points_custom_reward_redemption.add",
-            "{user} redeemed {reward}!",
             ["user", "user.id", "reward", "reward.id", "redemption.id", "cost", "input"]
         ),
         // Reward state transitions — derived by RewardLifecycleHandler from the custom-reward.update feed
         // (old locally-synced state vs the incoming Twitch state; only actual flips fire).
-        new(
-            "reward.paused",
-            "{reward} is paused for now — redemptions are on hold.",
-            ["reward", "reward.id", "cost"]
-        ),
-        new("reward.resumed", "{reward} is back — redeem away!", ["reward", "reward.id", "cost"]),
-        new(
-            "reward.enabled",
-            "{reward} is now available for {cost} points!",
-            ["reward", "reward.id", "cost"]
-        ),
-        new("reward.disabled", "{reward} has been retired.", ["reward", "reward.id", "cost"]),
+        Preset("reward.paused", ["reward", "reward.id", "cost"]),
+        Preset("reward.resumed", ["reward", "reward.id", "cost"]),
+        Preset("reward.enabled", ["reward", "reward.id", "cost"]),
+        Preset("reward.disabled", ["reward", "reward.id", "cost"]),
         // Ad breaks — {user} is the requester (empty on an automatic break).
-        new(
-            "channel.ad_break.begin",
-            "Ads incoming for {ad.duration} seconds — perfect stretch break!",
-            ["user", "user.id", "ad.duration", "ad.automatic"]
-        ),
+        Preset("channel.ad_break.begin", ["user", "user.id", "ad.duration", "ad.automatic"]),
         // Moderation notices — channel.ban covers bans AND timeouts ({duration} = "permanent" or seconds).
-        new(
-            "channel.ban",
-            "{user} was shown the door by {moderator} ({duration}).",
-            ["user", "user.id", "moderator", "reason", "duration"]
-        ),
-        new(
-            "channel.unban",
-            "{user} has been unbanned — welcome back.",
-            ["user", "user.id", "moderator"]
-        ),
+        Preset("channel.ban", ["user", "user.id", "moderator", "reason", "duration"]),
+        Preset("channel.unban", ["user", "user.id", "moderator"]),
         // Outgoing raid (channel.moderate's raid action) — {user} names the TARGET channel being raided.
-        new(
-            "channel.raid.out",
-            "We're raiding {user} with {viewers} viewers — bring the hype!",
-            ["user", "user.id", "user.name", "viewers"]
-        ),
-        new(
-            "stream.online",
-            "We're live: {title} — playing {game}!",
-            ["broadcaster", "title", "game"]
-        ),
-        new(
-            "stream.offline",
-            "Stream's over after {duration} — thanks for watching!",
-            ["broadcaster", "duration"]
-        ),
-        new(
-            "engagement.first_time_chatter",
-            "Welcome to the stream, {user}!",
-            ["user", "user.id", "viewer.name"]
-        ),
-        new(
+        Preset("channel.raid.out", ["user", "user.id", "user.name", "viewers"]),
+        Preset("stream.online", ["broadcaster", "title", "game"]),
+        Preset("stream.offline", ["broadcaster", "duration"]),
+        Preset("engagement.first_time_chatter", ["user", "user.id", "viewer.name"]),
+        Preset(
             "engagement.returning_chatter",
-            "Welcome back, {user}!",
             ["user", "user.id", "viewer.name", "engagement.daysSinceLastSeen"]
         ),
-        new(
-            "engagement.watch_streak",
-            "{user} is on a {engagement.streak}-stream watch streak!",
-            ["user", "user.id", "viewer.name", "engagement.streak"]
-        ),
-        new(
-            "engagement.session_first_message",
-            "Welcome in, {user}!",
-            ["user", "user.id", "viewer.name"]
-        ),
+        Preset("engagement.watch_streak", ["user", "user.id", "viewer.name", "engagement.streak"]),
+        Preset("engagement.session_first_message", ["user", "user.id", "viewer.name"]),
         // NO engagement.modiversary: Twitch exposes no mod-anniversary signal anywhere — it is not among
         // channel.chat.notification's notice types and Helix Get Moderators carries no granted-at date, so
         // there is no truthful data to fire it from. Deliberately absent rather than faked.
-        new(
-            "supporter.tip",
-            "{user} tipped {supporter.amount} {supporter.currency} — thank you!",
-            SupporterVariables
-        ),
-        new("supporter.membership", "{user} just became a member — thank you!", SupporterVariables),
-        new("supporter.merch", "{user} grabbed some merch — thank you!", SupporterVariables),
-        new(
-            "supporter.charity",
-            "{user} donated {supporter.amount} {supporter.currency} to charity!",
-            SupporterVariables
-        ),
-        new("supporter.any", "{user} just supported the stream — thank you!", SupporterVariables),
+        Preset("supporter.tip", SupporterVariables),
+        Preset("supporter.membership", SupporterVariables),
+        Preset("supporter.merch", SupporterVariables),
+        Preset("supporter.charity", SupporterVariables),
+        Preset("supporter.any", SupporterVariables),
         // OBS events (obs-control.md §6) — fields arrive as {obs.event.<name>} from the trigger source.
-        new(
-            "obs.CurrentProgramSceneChanged",
-            "Scene changed to {obs.event.sceneName}",
-            ["obs.event.type", "obs.event.sceneName"]
-        ),
-        new(
+        Preset("obs.CurrentProgramSceneChanged", ["obs.event.type", "obs.event.sceneName"]),
+        Preset(
             "obs.StreamStateChanged",
-            "OBS stream state: {obs.event.outputState}",
             ["obs.event.type", "obs.event.outputActive", "obs.event.outputState"]
         ),
-        new(
+        Preset(
             "obs.RecordStateChanged",
-            "OBS recording state: {obs.event.outputState}",
             ["obs.event.type", "obs.event.outputActive", "obs.event.outputState"]
         ),
-        new(
-            "obs.ReplayBufferSaved",
-            "Replay saved!",
-            ["obs.event.type", "obs.event.savedReplayPath"]
-        ),
-        new(
+        Preset("obs.ReplayBufferSaved", ["obs.event.type", "obs.event.savedReplayPath"]),
+        Preset(
             "obs.VendorEvent",
-            "OBS vendor event from {obs.event.vendorName}",
             ["obs.event.type", "obs.event.vendorName", "obs.event.eventType"]
         ),
         // VTube Studio events (vtube-studio.md §4) — fields arrive as {vts.event.<name>}.
-        new(
+        Preset(
             "vts.ModelLoadedEvent",
-            "Model {vts.event.modelName} loaded!",
             ["vts.event.type", "vts.event.modelName", "vts.event.modelID"]
         ),
-        new(
+        Preset(
             "vts.HotkeyTriggeredEvent",
-            "Hotkey {vts.event.hotkeyName} fired!",
             ["vts.event.type", "vts.event.hotkeyID", "vts.event.hotkeyName"]
         ),
-        new(
+        Preset(
             "vts.ModelClickedEvent",
-            "Someone poked the model!",
             ["vts.event.type", "vts.event.modelLoaded", "vts.event.mouseButtonID"]
         ),
     ];
 
     /// <summary>The configurable event-type keys, in catalog order — the per-channel seeding set.</summary>
     public static IReadOnlyList<string> EventTypes { get; } = [.. Presets.Select(p => p.EventType)];
+
+    /// <summary>The translation key an event type's default template is published under.</summary>
+    public static string TemplateKey(string eventType) =>
+        $"eventresponse.preset.{eventType.Replace('.', '_')}.template";
+
+    private static EventResponsePresetDto Preset(
+        string eventType,
+        IReadOnlyList<string> variables
+    ) => new(eventType, new LocalizedText(TemplateKey(eventType)), variables);
 }
