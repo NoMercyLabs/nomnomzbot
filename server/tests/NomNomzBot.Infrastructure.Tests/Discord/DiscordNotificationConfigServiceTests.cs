@@ -14,7 +14,6 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
 using NomNomzBot.Domain.Discord.Entities;
 using NomNomzBot.Infrastructure.Discord;
-using NomNomzBot.Infrastructure.Platform.Templating;
 
 namespace NomNomzBot.Infrastructure.Tests.Discord;
 
@@ -29,8 +28,8 @@ public sealed class DiscordNotificationConfigServiceTests
     public async Task CreateConfigAsync_PersistsFullRule_WithEmbedJsonRoundTrip()
     {
         using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
-        Guid channel = await SeedChannelAsync(database);
-        Guid connectionId = await SeedConnectionAsync(database, channel);
+        Guid channel = await DiscordTestHarness.SeedChannelAsync(database);
+        Guid connectionId = await DiscordTestHarness.SeedActiveConnectionAsync(database, channel);
 
         DiscordEmbedDto embed = new(
             "Live now",
@@ -49,7 +48,7 @@ public sealed class DiscordNotificationConfigServiceTests
             Result<DiscordNotificationConfigDto> result = await service.CreateConfigAsync(
                 channel,
                 connectionId,
-                new("go_live", true, "chan-123", null, "{{broadcaster}} live", embed, null, null)
+                new("go_live", true, "chan-123", null, "{broadcaster} live", embed, null, null)
             );
             result.IsSuccess.Should().BeTrue(result.ErrorMessage);
             created = result.Value;
@@ -62,7 +61,7 @@ public sealed class DiscordNotificationConfigServiceTests
             stored.Id.Should().Be(created.Id);
             stored.TriggerType.Should().Be("go_live");
             stored.TargetChannelId.Should().Be("chan-123");
-            stored.MessageTemplate.Should().Be("{{broadcaster}} live");
+            stored.MessageTemplate.Should().Be("{broadcaster} live");
             stored.ConfigSchemaVersion.Should().Be(1);
             stored.EmbedConfig.Should().NotBeNull();
             stored.EmbedConfig!.Title.Should().Be("Live now");
@@ -76,8 +75,8 @@ public sealed class DiscordNotificationConfigServiceTests
     public async Task CreateConfigAsync_DuplicateTrigger_IsAlreadyExists()
     {
         using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
-        Guid channel = await SeedChannelAsync(database);
-        Guid connectionId = await SeedConnectionAsync(database, channel);
+        Guid channel = await DiscordTestHarness.SeedChannelAsync(database);
+        Guid connectionId = await DiscordTestHarness.SeedActiveConnectionAsync(database, channel);
 
         CreateDiscordNotificationConfigRequest request = new(
             "go_live",
@@ -108,8 +107,8 @@ public sealed class DiscordNotificationConfigServiceTests
     public async Task CreateConfigAsync_MilestoneTriggerWithoutFields_FailsValidation()
     {
         using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
-        Guid channel = await SeedChannelAsync(database);
-        Guid connectionId = await SeedConnectionAsync(database, channel);
+        Guid channel = await DiscordTestHarness.SeedChannelAsync(database);
+        Guid connectionId = await DiscordTestHarness.SeedActiveConnectionAsync(database, channel);
 
         await using DiscordTestDbContext db = database.NewContext();
         Result<DiscordNotificationConfigDto> result = await NewService(db)
@@ -136,8 +135,8 @@ public sealed class DiscordNotificationConfigServiceTests
     public async Task PreviewAsync_RendersTemplateAgainstSampleData_WithoutPosting()
     {
         using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
-        Guid channel = await SeedChannelAsync(database);
-        Guid connectionId = await SeedConnectionAsync(database, channel);
+        Guid channel = await DiscordTestHarness.SeedChannelAsync(database);
+        Guid connectionId = await DiscordTestHarness.SeedActiveConnectionAsync(database, channel);
 
         Guid configId;
         await using (DiscordTestDbContext db = database.NewContext())
@@ -151,7 +150,7 @@ public sealed class DiscordNotificationConfigServiceTests
                         true,
                         "chan-1",
                         null,
-                        "{{channel.name}} playing {{channel.game}}",
+                        "{channel.name} playing {channel.game}",
                         null,
                         null,
                         null
@@ -173,45 +172,10 @@ public sealed class DiscordNotificationConfigServiceTests
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
     private static DiscordNotificationConfigService NewService(DiscordTestDbContext db) =>
-        new(db, new DiscordTestUnitOfWork(db), new TemplateEngine());
-
-    private static async Task<Guid> SeedChannelAsync(DiscordSqliteTestDatabase database)
-    {
-        Guid channelId = Guid.CreateVersion7();
-        await using DiscordTestDbContext db = database.NewContext();
-        db.Channels.Add(
-            new()
-            {
-                Id = channelId,
-                OwnerUserId = Guid.CreateVersion7(),
-                TwitchChannelId = "12345",
-                Name = "teststreamer",
-                NameNormalized = "teststreamer",
-            }
+        new(
+            db,
+            new DiscordTestUnitOfWork(db),
+            DiscordTemplateTestSupport.CreateResolver(),
+            DiscordTemplateTestSupport.CreateValidator()
         );
-        await db.SaveChangesAsync();
-        return channelId;
-    }
-
-    private static async Task<Guid> SeedConnectionAsync(
-        DiscordSqliteTestDatabase database,
-        Guid channel
-    )
-    {
-        Guid id = Guid.CreateVersion7();
-        await using DiscordTestDbContext db = database.NewContext();
-        db.DiscordGuildConnections.Add(
-            new()
-            {
-                Id = id,
-                BroadcasterId = channel,
-                GuildId = "guild-1",
-                ServerConsentStatus = "approved",
-                StreamerEnabled = true,
-                BotInstalled = true,
-            }
-        );
-        await db.SaveChangesAsync();
-        return id;
-    }
 }

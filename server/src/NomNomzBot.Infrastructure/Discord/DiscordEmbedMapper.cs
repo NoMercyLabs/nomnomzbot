@@ -63,27 +63,33 @@ internal static class DiscordEmbedMapper
                     ]
             );
 
-    /// <summary>Renders every embed string field through the template engine against the given variables.</summary>
-    public static DiscordEmbedDto RenderTemplates(
+    /// <summary>Renders every embed string field through <see cref="Application.Abstractions.Templating.ITemplateResolver"/>
+    /// (the SAME engine preview and dispatch both use) against the given variables.</summary>
+    public static async Task<DiscordEmbedDto> RenderTemplatesAsync(
         DiscordEmbedDto embed,
-        Func<string, string> render
-    ) =>
-        new(
-            embed.Title is null ? null : render(embed.Title),
-            embed.Description is null ? null : render(embed.Description),
+        Func<string, Task<string>> render
+    )
+    {
+        string? title = embed.Title is null ? null : await render(embed.Title);
+        string? description = embed.Description is null ? null : await render(embed.Description);
+        string? footerText = embed.FooterText is null ? null : await render(embed.FooterText);
+
+        List<DiscordEmbedFieldDto>? fields = null;
+        if (embed.Fields is not null)
+        {
+            fields = [];
+            foreach (DiscordEmbedFieldDto f in embed.Fields)
+                fields.Add(new(await render(f.Name), await render(f.Value), f.Inline));
+        }
+
+        return new(
+            title,
+            description,
             embed.Color,
             embed.ThumbnailUrl,
             embed.ImageUrl,
-            embed.FooterText is null ? null : render(embed.FooterText),
-            embed.Fields is null
-                ? null
-                :
-                [
-                    .. embed.Fields.Select(f => new DiscordEmbedFieldDto(
-                        render(f.Name),
-                        render(f.Value),
-                        f.Inline
-                    )),
-                ]
+            footerText,
+            fields
         );
+    }
 }

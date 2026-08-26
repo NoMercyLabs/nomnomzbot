@@ -32,7 +32,13 @@ public static class TemplateHelperRegistry
         TemplateHelperContext.EventResponse,
         TemplateHelperContext.Timer,
         TemplateHelperContext.Pipeline,
+        TemplateHelperContext.Discord,
     ];
+
+    /// <summary>Discord-only seed aliases (discord.md §3.2/§3.4): supplied directly by the trigger
+    /// handlers (<c>DiscordGoLiveNotificationHandler</c>, <c>SendDiscordNotificationAction</c>) as
+    /// seed variables, never resolved by <see cref="TemplateResolver"/> itself.</summary>
+    private static readonly TemplateHelperContext[] DiscordOnly = [TemplateHelperContext.Discord];
 
     private static readonly TemplateHelperContext[] TriggerContexts =
     [
@@ -123,7 +129,11 @@ public static class TemplateHelperRegistry
             Prefixed("args.<n>", "args.", CommandArgContexts, "template.helper.args"),
             // ── Triggering user (command + event response — no bare trigger user on a timer) ──
             Literal("user", TriggerContexts, "template.helper.user"),
-            Literal("user.name", TriggerContexts, "template.helper.user_name"),
+            Literal(
+                "user.name",
+                [.. TriggerContexts, TemplateHelperContext.Discord],
+                "template.helper.user_name"
+            ),
             Literal("user.id", TriggerContexts, "template.helper.user_id"),
             Literal("user.provider", TriggerContexts, "template.helper.user_provider"),
             Literal("user.accountAge", TriggerContexts, "template.helper.user_account_age"),
@@ -194,5 +204,13 @@ public static class TemplateHelperRegistry
                 TriggerContexts,
                 "template.helper.target_verb"
             ),
+            // ── Discord notification seed aliases (Discord only — S-TWO-TEMPLATE-ENGINES) ──
+            Literal("broadcaster", DiscordOnly, "template.helper.broadcaster"),
+            Literal("channel.name", DiscordOnly, "template.helper.channel_name"),
+            Literal("channel.title", DiscordOnly, "template.helper.channel_title"),
+            Literal("channel.game", DiscordOnly, "template.helper.channel_game"),
+            Literal("title", DiscordOnly, "template.helper.title"),
+            Literal("game", DiscordOnly, "template.helper.game"),
+            Literal("raw.message", DiscordOnly, "template.helper.raw_message"),
         ];
 }

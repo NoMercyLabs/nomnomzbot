@@ -15,7 +15,6 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
 using NomNomzBot.Domain.Discord.Entities;
 using NomNomzBot.Infrastructure.Discord;
-using NomNomzBot.Infrastructure.Platform.Templating;
 using NomNomzBot.Infrastructure.Tests.Identity;
 
 namespace NomNomzBot.Infrastructure.Tests.Discord;
@@ -39,7 +38,7 @@ public sealed class DiscordNotificationDispatcherTests
             database,
             channel,
             connectionId,
-            template: "{{broadcaster}} is live: {{title}}",
+            template: "{broadcaster} is live: {title}",
             targetChannel: "discord-chan-1"
         );
         RecordingGateway gateway = new();
@@ -188,7 +187,7 @@ public sealed class DiscordNotificationDispatcherTests
         Guid roleId = await SeedNotifyRoleAsync(database, channel, connectionId, dmEnabled: true);
         await SeedOptInAsync(database, channel, roleId, "member-1");
         await SeedOptInAsync(database, channel, roleId, "member-2");
-        await SeedConfigAsync(database, channel, connectionId, "{{title}}", "chan-1", roleId);
+        await SeedConfigAsync(database, channel, connectionId, "{title}", "chan-1", roleId);
         RecordingGateway gateway = new();
 
         await using (DiscordTestDbContext db = database.NewContext())
@@ -452,84 +451,47 @@ public sealed class DiscordNotificationDispatcherTests
             new RecordingEventBus(),
             Clock
         );
-        return new(db, guildService, gateway, new TemplateEngine(), bus, Clock);
+        return new(
+            db,
+            guildService,
+            gateway,
+            DiscordTemplateTestSupport.CreateResolver(),
+            bus,
+            Clock
+        );
     }
 
-    private static async Task<Guid> SeedChannelAsync(DiscordSqliteTestDatabase database)
-    {
-        Guid channelId = Guid.CreateVersion7();
-        await using DiscordTestDbContext db = database.NewContext();
-        db.Channels.Add(
-            new()
-            {
-                Id = channelId,
-                OwnerUserId = Guid.CreateVersion7(),
-                TwitchChannelId = "12345",
-                Name = "teststreamer",
-                NameNormalized = "teststreamer",
-            }
-        );
-        await db.SaveChangesAsync();
-        return channelId;
-    }
+    private static Task<Guid> SeedChannelAsync(DiscordSqliteTestDatabase database) =>
+        DiscordTestHarness.SeedChannelAsync(database);
 
     private static Task<Guid> SeedActiveConnectionAsync(
         DiscordSqliteTestDatabase database,
         Guid channel
-    ) => SeedConnectionAsync(database, channel, "approved", true);
+    ) => DiscordTestHarness.SeedActiveConnectionAsync(database, channel);
 
-    private static async Task<Guid> SeedConnectionAsync(
+    private static Task<Guid> SeedConnectionAsync(
         DiscordSqliteTestDatabase database,
         Guid channel,
         string serverConsent,
         bool streamerEnabled
-    )
-    {
-        Guid id = Guid.CreateVersion7();
-        await using DiscordTestDbContext db = database.NewContext();
-        db.DiscordGuildConnections.Add(
-            new()
-            {
-                Id = id,
-                BroadcasterId = channel,
-                GuildId = "guild-1",
-                ServerConsentStatus = serverConsent,
-                StreamerEnabled = streamerEnabled,
-                BotInstalled = true,
-            }
-        );
-        await db.SaveChangesAsync();
-        return id;
-    }
+    ) => DiscordTestHarness.SeedConnectionAsync(database, channel, serverConsent, streamerEnabled);
 
-    private static async Task<Guid> SeedConfigAsync(
+    private static Task<Guid> SeedConfigAsync(
         DiscordSqliteTestDatabase database,
         Guid channel,
         Guid connectionId,
         string template,
         string targetChannel,
         Guid? pingRoleId = null
-    )
-    {
-        Guid configId = Guid.CreateVersion7();
-        await using DiscordTestDbContext db = database.NewContext();
-        db.DiscordNotificationConfigs.Add(
-            new()
-            {
-                Id = configId,
-                BroadcasterId = channel,
-                GuildConnectionId = connectionId,
-                TriggerType = "go_live",
-                Enabled = true,
-                TargetChannelId = targetChannel,
-                MessageTemplate = template,
-                PingRoleId = pingRoleId,
-                ConfigSchemaVersion = 1,
-            }
+    ) =>
+        DiscordTestHarness.SeedConfigAsync(
+            database,
+            channel,
+            connectionId,
+            template,
+            targetChannel,
+            pingRoleId
         );
-        await db.SaveChangesAsync();
-        return configId;
-    }
 
     private static async Task<Guid> SeedNotifyRoleAsync(
         DiscordSqliteTestDatabase database,

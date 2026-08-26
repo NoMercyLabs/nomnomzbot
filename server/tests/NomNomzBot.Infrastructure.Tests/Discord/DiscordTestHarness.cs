@@ -468,6 +468,90 @@ internal sealed class DiscordTestUnitOfWork : IUnitOfWork
     }
 }
 
+/// <summary>Shared channel/connection/config seeding for the Discord test suite (S-TWO-TEMPLATE-ENGINES) —
+/// the same three fixtures <see cref="DiscordNotificationConfigServiceTests"/>,
+/// <see cref="DiscordNotificationDispatcherTests"/> and <see cref="DiscordTemplateEngineUnificationTests"/>
+/// all need, written once instead of copy-pasted a third time.</summary>
+internal static class DiscordTestHarness
+{
+    public static async Task<Guid> SeedChannelAsync(DiscordSqliteTestDatabase database)
+    {
+        Guid channelId = Guid.CreateVersion7();
+        await using DiscordTestDbContext db = database.NewContext();
+        db.Channels.Add(
+            new()
+            {
+                Id = channelId,
+                OwnerUserId = Guid.CreateVersion7(),
+                TwitchChannelId = "12345",
+                Name = "teststreamer",
+                NameNormalized = "teststreamer",
+            }
+        );
+        await db.SaveChangesAsync();
+        return channelId;
+    }
+
+    public static Task<Guid> SeedActiveConnectionAsync(
+        DiscordSqliteTestDatabase database,
+        Guid channel
+    ) => SeedConnectionAsync(database, channel, "approved", true);
+
+    public static async Task<Guid> SeedConnectionAsync(
+        DiscordSqliteTestDatabase database,
+        Guid channel,
+        string serverConsent,
+        bool streamerEnabled
+    )
+    {
+        Guid id = Guid.CreateVersion7();
+        await using DiscordTestDbContext db = database.NewContext();
+        db.DiscordGuildConnections.Add(
+            new()
+            {
+                Id = id,
+                BroadcasterId = channel,
+                GuildId = "guild-1",
+                ServerConsentStatus = serverConsent,
+                StreamerEnabled = streamerEnabled,
+                BotInstalled = true,
+            }
+        );
+        await db.SaveChangesAsync();
+        return id;
+    }
+
+    public static async Task<Guid> SeedConfigAsync(
+        DiscordSqliteTestDatabase database,
+        Guid channel,
+        Guid connectionId,
+        string template,
+        string targetChannel,
+        Guid? pingRoleId = null,
+        string triggerType = "go_live"
+    )
+    {
+        Guid configId = Guid.CreateVersion7();
+        await using DiscordTestDbContext db = database.NewContext();
+        db.DiscordNotificationConfigs.Add(
+            new()
+            {
+                Id = configId,
+                BroadcasterId = channel,
+                GuildConnectionId = connectionId,
+                TriggerType = triggerType,
+                Enabled = true,
+                TargetChannelId = targetChannel,
+                MessageTemplate = template,
+                PingRoleId = pingRoleId,
+                ConfigSchemaVersion = 1,
+            }
+        );
+        await db.SaveChangesAsync();
+        return configId;
+    }
+}
+
 /// <summary>Opens a fresh, isolated SQLite database (one connection kept open for the test's lifetime).</summary>
 internal sealed class DiscordSqliteTestDatabase : IDisposable
 {

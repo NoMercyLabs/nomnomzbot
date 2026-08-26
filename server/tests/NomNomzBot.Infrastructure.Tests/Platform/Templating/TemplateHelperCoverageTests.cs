@@ -85,6 +85,14 @@ public sealed partial class TemplateHelperCoverageTests
         "target",
         "provider", // set by the provider-scoped event handlers (S022b) into EventResponseExecutor's
         // seed variables (e.g. NewSubscriptionEventHandler) — never assigned inside TemplateResolver.cs
+        "broadcaster",
+        "channel.name",
+        "channel.title",
+        "channel.game",
+        "title",
+        "game",
+        "raw.message", // Discord-only seed aliases — supplied by DiscordGoLiveNotificationHandler /
+        // SendDiscordNotificationAction, never assigned inside TemplateResolver.cs
     };
 
     // Resolved via a colon-containing literal (verb:.../user.verb:.../target.verb:...) or a dedicated

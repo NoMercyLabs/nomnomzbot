@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
@@ -28,6 +29,10 @@ public sealed class SendDiscordNotificationAction : ICommandAction
 
     public string ActionType => "send_discord_notification";
 
+
+    public LocalizedText Category => new("pipeline.category.discord");
+
+    public LocalizedText Description => new("pipeline.send_discord_notification.description");
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
             new(
@@ -62,7 +67,7 @@ public sealed class SendDiscordNotificationAction : ICommandAction
             ?? $"pipeline:{(string.IsNullOrEmpty(ctx.MessageId) ? ctx.ExecutionId : ctx.MessageId)}";
 
         // The pipeline's resolved variables become the dispatch template data (the dispatcher renders the
-        // configured rule's template against them via ITemplateEngine).
+        // configured rule's template against them via ITemplateResolver).
         Dictionary<string, string> templateData = new(
             ctx.Variables,
             StringComparer.OrdinalIgnoreCase

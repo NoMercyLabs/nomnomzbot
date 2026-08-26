@@ -19,7 +19,9 @@ namespace NomNomzBot.Infrastructure.Discord;
 
 /// <summary>
 /// Notification rules (discord.md §3.2). Validates the (connection, trigger) uniqueness, the ping-role
-/// ownership, and the milestone fields; renders previews through <see cref="ITemplateEngine"/> without posting.
+/// ownership, the milestone fields, and the message/embed templates against the S042 helper registry
+/// (<see cref="TemplateHelperContext.Discord"/>); renders previews through <see cref="ITemplateResolver"/> —
+/// the SAME engine <see cref="DiscordNotificationDispatcher"/> posts with (S-TWO-TEMPLATE-ENGINES).
 /// <see cref="CurrentEmbedConfigVersion"/> is the single source of truth for the <c>EmbedConfig</c> shape; on
 /// read a stale row is upcast in memory (additive Newtonsoft changes need no version bump, so v1 is current).
 /// </summary>
@@ -38,17 +40,20 @@ public sealed class DiscordNotificationConfigService : IDiscordNotificationConfi
 
     private readonly IApplicationDbContext _db;
     private readonly IUnitOfWork _unitOfWork;
-    private readonly ITemplateEngine _templateEngine;
+    private readonly ITemplateResolver _templateResolver;
+    private readonly ITemplateHelperValidator _templateHelperValidator;
 
     public DiscordNotificationConfigService(
         IApplicationDbContext db,
         IUnitOfWork unitOfWork,
-        ITemplateEngine templateEngine
+        ITemplateResolver templateResolver,
+        ITemplateHelperValidator templateHelperValidator
     )
     {
         _db = db;
         _unitOfWork = unitOfWork;
-        _templateEngine = templateEngine;
+        _templateResolver = templateResolver;
+        _templateHelperValidator = templateHelperValidator;
     }
 
     public async Task<Result<IReadOnlyList<DiscordNotificationConfigDto>>> GetConfigsAsync(
@@ -83,6 +88,8 @@ public sealed class DiscordNotificationConfigService : IDiscordNotificationConfi
             request.PingRoleId,
             request.MilestoneType,
             request.MilestoneThreshold,
+            request.MessageTemplate,
+            request.EmbedConfig,
             ct
         );
         if (validation.IsFailure)
@@ -159,6 +166,8 @@ public sealed class DiscordNotificationConfigService : IDiscordNotificationConfi
             request.PingRoleId,
             request.MilestoneType,
             request.MilestoneThreshold,
+            request.MessageTemplate,
+            request.EmbedConfig,
             ct
         );
         if (validation.IsFailure)
@@ -217,15 +226,25 @@ public sealed class DiscordNotificationConfigService : IDiscordNotificationConfi
                 configId.ToString()
             );
 
-        // Sample variables so the streamer sees a realistic preview without a live stream.
+        // Sample variables so the streamer sees a realistic preview without a live stream — rendered
+        // through the SAME ITemplateResolver DiscordNotificationDispatcher posts with, so preview never
+        // diverges from what actually gets sent (S-TWO-TEMPLATE-ENGINES).
         Dictionary<string, string> sample = SampleVariables(config.TriggerType);
 
-        string content = _templateEngine.Render(config.MessageTemplate ?? string.Empty, sample);
+        string content = await _templateResolver.ResolveAsync(
+            config.MessageTemplate ?? string.Empty,
+            sample,
+            broadcasterId,
+            ct
+        );
 
         DiscordEmbedDto? embed = DiscordEmbedMapper.ToDto(config.EmbedConfig);
         DiscordEmbedDto? renderedEmbed = embed is null
             ? null
-            : DiscordEmbedMapper.RenderTemplates(embed, t => _templateEngine.Render(t, sample));
+            : await DiscordEmbedMapper.RenderTemplatesAsync(
+                embed,
+                t => _templateResolver.ResolveAsync(t, sample, broadcasterId, ct)
+            );
 
         string? pingMention = config.PingRoleId is null
             ? null
@@ -246,6 +265,8 @@ public sealed class DiscordNotificationConfigService : IDiscordNotificationConfi
         Guid? pingRoleId,
         string? milestoneType,
         int? milestoneThreshold,
+        string? messageTemplate,
+        DiscordEmbedDto? embed,
         CancellationToken ct
     )
     {
@@ -262,6 +283,10 @@ public sealed class DiscordNotificationConfigService : IDiscordNotificationConfi
                 "Milestone type and threshold are required for (and only for) the milestone trigger."
             );
 
+        Result templateValidation = ValidateTemplates(messageTemplate, embed);
+        if (templateValidation.IsFailure)
+            return templateValidation;
+
         if (pingRoleId is { } roleId)
         {
             bool roleBelongs = await _db.DiscordNotificationRoles.AnyAsync(
@@ -276,6 +301,48 @@ public sealed class DiscordNotificationConfigService : IDiscordNotificationConfi
         }
 
         return Result.Success();
+    }
+
+    /// <summary>S042 save-time guard for Discord (S-TWO-TEMPLATE-ENGINES): rejects an unknown/misspelled
+    /// helper key by name in the message template or any templated embed field, the same way command,
+    /// event-response, timer and pipeline templates are already guarded.</summary>
+    private Result ValidateTemplates(string? messageTemplate, DiscordEmbedDto? embed)
+    {
+        Result messageValidation = _templateHelperValidator.Validate(
+            messageTemplate,
+            TemplateHelperContext.Discord
+        );
+        if (messageValidation.IsFailure)
+            return messageValidation;
+
+        if (embed is null)
+            return Result.Success();
+
+        foreach (string? field in EmbedTemplateFields(embed))
+        {
+            Result fieldValidation = _templateHelperValidator.Validate(
+                field,
+                TemplateHelperContext.Discord
+            );
+            if (fieldValidation.IsFailure)
+                return fieldValidation;
+        }
+
+        return Result.Success();
+    }
+
+    private static IEnumerable<string?> EmbedTemplateFields(DiscordEmbedDto embed)
+    {
+        yield return embed.Title;
+        yield return embed.Description;
+        yield return embed.FooterText;
+        if (embed.Fields is null)
+            yield break;
+        foreach (DiscordEmbedFieldDto field in embed.Fields)
+        {
+            yield return field.Name;
+            yield return field.Value;
+        }
     }
 
     private async Task<string?> ResolvePingMentionAsync(Guid pingRoleId, CancellationToken ct)

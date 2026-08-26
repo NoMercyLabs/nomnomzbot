@@ -42,7 +42,7 @@ public sealed class DiscordNotificationDispatcher : IDiscordNotificationDispatch
     private readonly IApplicationDbContext _db;
     private readonly IDiscordGuildService _guildService;
     private readonly IDiscordBotGateway _gateway;
-    private readonly ITemplateEngine _templateEngine;
+    private readonly ITemplateResolver _templateResolver;
     private readonly IEventBus _eventBus;
     private readonly TimeProvider _timeProvider;
 
@@ -50,7 +50,7 @@ public sealed class DiscordNotificationDispatcher : IDiscordNotificationDispatch
         IApplicationDbContext db,
         IDiscordGuildService guildService,
         IDiscordBotGateway gateway,
-        ITemplateEngine templateEngine,
+        ITemplateResolver templateResolver,
         IEventBus eventBus,
         TimeProvider timeProvider
     )
@@ -58,7 +58,7 @@ public sealed class DiscordNotificationDispatcher : IDiscordNotificationDispatch
         _db = db;
         _guildService = guildService;
         _gateway = gateway;
-        _templateEngine = templateEngine;
+        _templateResolver = templateResolver;
         _eventBus = eventBus;
         _timeProvider = timeProvider;
     }
@@ -154,17 +154,23 @@ public sealed class DiscordNotificationDispatcher : IDiscordNotificationDispatch
             );
         }
 
-        // 3. Render + post.
-        string content = _templateEngine.Render(
+        // 3. Render + post — through the SAME ITemplateResolver the preview path uses (S-TWO-TEMPLATE-ENGINES).
+        Dictionary<string, string> seedVariables = new(
+            request.TemplateData,
+            StringComparer.OrdinalIgnoreCase
+        );
+        string content = await _templateResolver.ResolveAsync(
             config.MessageTemplate ?? string.Empty,
-            request.TemplateData
+            seedVariables,
+            request.BroadcasterId,
+            ct
         );
         DiscordEmbedDto? embed = DiscordEmbedMapper.ToDto(config.EmbedConfig);
         DiscordEmbedDto? renderedEmbed = embed is null
             ? null
-            : DiscordEmbedMapper.RenderTemplates(
+            : await DiscordEmbedMapper.RenderTemplatesAsync(
                 embed,
-                t => _templateEngine.Render(t, request.TemplateData)
+                t => _templateResolver.ResolveAsync(t, seedVariables, request.BroadcasterId, ct)
             );
 
         string? pingRoleId = config.PingRoleId is null

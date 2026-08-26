@@ -32,4 +32,13 @@ public enum TemplateHelperContext
     /// command or event-response template can use.
     /// </summary>
     Pipeline,
+
+    /// <summary>
+    /// Discord notification rule templates (discord.md §3.2) — no command args, no per-trigger
+    /// user/target context; carries the channel/stream/time/random/count/pick-list/custom-data/transform
+    /// helpers plus a handful of Discord-specific seed aliases (<c>broadcaster</c>, <c>title</c>,
+    /// <c>game</c>, <c>channel.name</c>, <c>channel.title</c>, <c>channel.game</c>) supplied by the
+    /// trigger handlers, and <c>user.name</c>/<c>raw.message</c> when dispatched from a pipeline action.
+    /// </summary>
+    Discord,
 }
