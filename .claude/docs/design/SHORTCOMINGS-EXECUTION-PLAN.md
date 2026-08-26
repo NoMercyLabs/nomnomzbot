@@ -134,6 +134,17 @@ only Stoney can make. Do not burn agent time trying to work around them.
   entry (toggleable only)? Done-when: the model is settled in the spec, the UI matches it, the limit is
   either reachable or removed, and Delete means what it says.
 
+- **S-API-TESTS-INMEMORY** The Infrastructure harness was deliberately moved OFF EF InMemory to SQLite
+  (S004d) and that single change surfaced **188 hidden failures** — InMemory does not enforce the
+  relational behaviour the product depends on (unique indexes, FK constraints, real query translation).
+  `NomNomzBot.Api.Tests` never followed: 14 call sites still use `UseInMemoryDatabase`, and only
+  `PendingMigrationsHealthCheckTests` uses SQLite. So the Api suite is green under a database that cannot
+  fail the way production fails, and every test written there inherits that blind spot (the most recent
+  example is `BillingTierChangeImmediacyTests`, which followed the local convention correctly).
+  Done-when: the Api test harness runs on SQLite like the Infrastructure one, every surfaced failure is
+  FIXED rather than suppressed (expect real ones — that is the point), and a guard prevents a new
+  `UseInMemoryDatabase` call site from being added.
+
 ## DO NEXT — owner directives, 2026-08-24 (ahead of phase order)
 
 Owner: move the **stream-facing** work forward — commands and overlays, easier to use and more
@@ -187,7 +198,12 @@ stable — without dropping the planned requirements behind them.
     create_affordance` makes it FAIL OPEN — a telemetry hiccup must never stop a streamer creating a
     command. 2 of 3 surfaces: see S-EVENTRESPONSE-NO-CREATE below for the third.~~ ~~warn BEFORE the failed save (the S-CONSEQ law): approaching/at-limit is visible before the user
     does work and loses it, never discovered by failing.~~
-  - **b4** raising a tier raises the ceiling immediately, no re-login ([[never-logout-for-scope-or-schema-changes]]).
+  - ~~**b4** DONE 2efaf8ac — investigated first and found it ALREADY immediate: `BillingTierService`
+    resolves the tier fresh from the DB on every call (no memoization), the write path and the usage
+    report both go through `GetLimitAsync` the same way, the JWT carries NO tier/plan claim, and the
+    dashboard refetches after every mutation. Two REGRESSION tests added
+    (`BillingTierChangeImmediacyTests`) so a future cache cannot silently reintroduce the bug.
+    772/772 Api.Tests.~~ ~~raising a tier raises the ceiling immediately, no re-login ([[never-logout-for-scope-or-schema-changes]]).
   - ~~**b5** DONE 47f7be77: sound_clip_storage_bytes + channel_asset_storage_bytes declared COST_DRIVING
     with REAL meters (sum of live SizeBytes through the same seam the usage report reads). Explicitly
     UNMETERABLE, with reasons rather than fake keys: bandwidth/egress (no request-byte counter exists
