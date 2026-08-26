@@ -30,10 +30,21 @@ public sealed record ScriptResourceBudget(
     long MaxEgressBytes
 )
 {
-    /// <summary>The safety baseline applied to every tenant (sandbox §5.1, self-host/Jint column).</summary>
+    /// <summary>
+    /// The safety baseline applied to every tenant (sandbox §5.1, self-host/Jint column). WallClockMs bounds
+    /// the WHOLE execution, not just JS statements — every granted host capability (tts.speak, chat.send,
+    /// http.fetch) is a real network round trip that runs inside this same budget, cancelled through the same
+    /// token. 2000ms measured as too tight the moment a script did BOTH: a live edge-tts synthesis alone took
+    /// 1089ms for a 28-character test string (a real hug line is 3-5x longer), and a chat.send precedes it in
+    /// any script that also messages chat — two sequential I/O calls plus engine/bootstrap overhead routinely
+    /// exceeded 2000ms and killed a script that did nothing wrong (`PartiallyFailed: Execution exceeded its
+    /// time budget`, 2026-08-26, the Hug script on a real channel). 8000ms comfortably covers one slow TTS
+    /// synth plus one chat send with room to spare, while a genuine runaway is still caught well before a
+    /// viewer would call the command a second time.
+    /// </summary>
     public static ScriptResourceBudget Baseline { get; } =
         new(
-            WallClockMs: 2000,
+            WallClockMs: 8000,
             MaxHostCalls: 64,
             MaxFuelOrStatements: 200_000,
             MaxMemoryBytes: 64L * 1024 * 1024,

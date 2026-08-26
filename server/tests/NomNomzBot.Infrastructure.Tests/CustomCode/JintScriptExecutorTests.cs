@@ -160,6 +160,39 @@ public sealed class JintScriptExecutorTests
         r.HostCallCount.Should().Be(1);
     }
 
+    /// <summary>
+    /// A granted host call is a real network round trip in production (tts.speak synthesizes through an
+    /// external provider; chat.send hits Twitch). The wall-clock budget bounds the WHOLE execution including
+    /// those calls, on the SAME token -- so a 2000ms baseline killed a script that did nothing wrong the
+    /// moment one slow synth (measured 1089ms live) landed after a chat.send. This proves the production
+    /// Baseline, not an inflated test-only budget, survives a single call slower than the OLD 2000ms ceiling.
+    /// </summary>
+    [Fact]
+    public async Task The_production_baseline_survives_one_slow_host_call()
+    {
+        JintScriptExecutor sut = new();
+        StubBridge bridge = new(
+            (key, _) =>
+            {
+                Thread.Sleep(2500); // longer than the retired 2000ms baseline, well under the current one
+                return key == "tts.speak" ? "ok" : null;
+            }
+        );
+        ScriptExecutionRequest request = Request(
+            "bot.setVar('out', bot.call('tts.speak', 'hi'));"
+        ) with
+        {
+            Budget = ScriptResourceBudget.Baseline,
+        };
+
+        ScriptExecutionOutcomeResult r = (
+            await sut.ExecuteAsync(request, Grant("tts.speak"), bridge)
+        ).Value;
+
+        r.Outcome.Should().Be(ScriptExecutionOutcome.Success);
+        r.VariablesOut["out"].Should().Be("ok");
+    }
+
     [Fact]
     public async Task An_ungranted_capability_is_denied()
     {
