@@ -136,22 +136,6 @@ stable — without dropping the planned requirements behind them.
   and apply it as ONE mechanism across every core action rather than per-action patches — then a templated
   argument and a templated return value both resolve, proven by tests.
 
-- **S-PIPE-TREE-d3c — `wait_for_event` IS NOT WIRED; the feature does not work in the running bot yet.**
-  d3a (369b22f1) + d3b (1e6eb296) built and PROVED the mechanism: a run suspends, persists its variable
-  bag / tree position / loop+switch cursors, resumes on a MATCHING event with the event data readable by
-  a later step, is NOT resumed by a non-matching event, times out with `TimedOut` recorded, is cancelled
-  and RECORDED (not deleted) when the stream goes offline, respects the per-channel cap, and leaves the
-  flat path untouched (`RunStepsAsync` has no diff hunk).
-  BUT `IPipelineEngine.ResumeSuspendedRunsForEventAsync` and `ResumeTimedOutWaitsAsync` have NO CALLERS
-  in production: no hosted service polls the timeout sweep, and no event consumer feeds matching events
-  in. So on the live bot a `wait_for_event` run SUSPENDS AND NEVER WAKES. The unit tests pass because
-  they call those methods directly — the assembled system does not work.
-  Done-when: an event arriving on the real bus resumes a matching suspended run WITHOUT a test calling
-  the resume method by hand (prove through the event pipeline, not the method); a hosted service sweeps
-  timeouts on an interval and is proven to fire one; stream-offline cancellation runs from the real
-  offline event; and the wiring lives in `DependencyInjection.cs` so it is actually registered. This is
-  the difference between "the unit passes" and "the bot does it".
-
 - **S-BUDGETS** (owner, 2026-08-25) "a proper budget system to track the payment tiers — most of it is
   based on resource usage, hence the amount of files you can store or commands you can register."
   ESTABLISHED BY GREP: the plumbing already exists — `TierLimit` (TierId/LimitKey/LimitValue),
