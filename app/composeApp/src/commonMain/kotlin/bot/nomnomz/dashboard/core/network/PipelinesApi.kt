@@ -70,6 +70,14 @@ interface PipelinesApi {
 
     /** Delete a pipeline. */
     suspend fun delete(channelId: String, id: String): ApiResult<Unit>
+
+    /**
+     * The real, counted blast radius for deleting this pipeline (backend `PipelineBlastRadiusDto`, via
+     * `GET .../pipelines/{id}/blast-radius`) — the commands, chat triggers, timers, and event responses that
+     * reference it right now. The delete confirm dialog MUST call this and render the result before the
+     * destructive delete can proceed (S-CONSEQ-b); no count is ever computed client-side.
+     */
+    suspend fun blastRadius(channelId: String, id: String): ApiResult<PipelineBlastRadiusSummary>
 }
 
 class RestPipelinesApi(private val client: ApiClient) : PipelinesApi {
@@ -98,6 +106,9 @@ class RestPipelinesApi(private val client: ApiClient) : PipelinesApi {
 
     override suspend fun delete(channelId: String, id: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/pipelines/$id")
+
+    override suspend fun blastRadius(channelId: String, id: String): ApiResult<PipelineBlastRadiusSummary> =
+        client.getEnvelope("api/v1/channels/$channelId/pipelines/$id/blast-radius")
 }
 
 // ── Action-catalogue DTOs (the backend-sourced palette — mirror the backend) ──
@@ -153,6 +164,23 @@ data class PipelineCatalogueRemote(
     val actions: List<PipelineActionDescriptor> = emptyList(),
     val conditions: List<PipelineConditionDescriptor> = emptyList(),
 )
+
+/**
+ * The real, counted blast radius of deleting a pipeline (backend `PipelineBlastRadiusDto`): how many of each
+ * dependent kind currently reference it. [totalReferences] is zero exactly when nothing references the
+ * pipeline — the dialog renders an explicit "nothing references this" sentence in that case rather than an
+ * empty area, so the absence of dependents reads as verified-safe, not as unknown.
+ */
+@Serializable
+data class PipelineBlastRadiusSummary(
+    val commandCount: Int = 0,
+    val chatTriggerCount: Int = 0,
+    val timerCount: Int = 0,
+    val eventResponseCount: Int = 0,
+) {
+    val totalReferences: Int
+        get() = commandCount + chatTriggerCount + timerCount + eventResponseCount
+}
 
 // ── List + detail DTOs (mirror the backend) ──────────────────────────────────
 

@@ -423,6 +423,9 @@ private class FakePipelinesApi : PipelinesApi {
 
     override suspend fun delete(channelId: String, id: String): ApiResult<Unit> =
         ApiResult.Ok(Unit)
+
+    override suspend fun blastRadius(channelId: String, id: String): ApiResult<bot.nomnomz.dashboard.core.network.PipelineBlastRadiusSummary> =
+        ApiResult.Ok(bot.nomnomz.dashboard.core.network.PipelineBlastRadiusSummary())
 }
 
 // A recording fake that behaves like the backend store: list() returns the live store, and each successful

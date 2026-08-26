@@ -14,6 +14,7 @@ import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.core.realtime.onConfigChange
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.CodeScriptSummary
@@ -37,6 +38,7 @@ import bot.nomnomz.dashboard.core.network.PickListsApi
 import bot.nomnomz.dashboard.core.network.PipelineCatalogue
 import bot.nomnomz.dashboard.core.network.PipelineCatalogueRemote
 import bot.nomnomz.dashboard.core.network.PipelineDetail
+import bot.nomnomz.dashboard.core.network.PipelineBlastRadiusSummary
 import bot.nomnomz.dashboard.core.network.PipelineOptionsApi
 import bot.nomnomz.dashboard.core.network.PipelineGraph
 import bot.nomnomz.dashboard.core.network.PipelineNode
@@ -178,6 +180,18 @@ class PipelinesController(
     suspend fun deletePipeline(id: String) {
         val channel: String = channelId ?: return failList(NoChannelError)
         afterListWrite(pipelinesApi.delete(channel, id), success = Res.string.feedback_pipeline_deleted)
+    }
+
+    /**
+     * The real, counted blast radius for deleting [id] — the delete confirm dialog calls this to render the
+     * dependents BEFORE the destructive delete can proceed (S-CONSEQ-b). No channel resolved yet is a genuine
+     * failure, not a silent zero — the dialog must show its own "could not check" message, never an empty
+     * radius that reads as safe.
+     */
+    suspend fun fetchBlastRadius(id: String): ApiResult<PipelineBlastRadiusSummary> {
+        val channel: String =
+            channelId ?: return ApiResult.Failure(ApiError(status = 0, code = "NO_CHANNEL", message = NoChannelError))
+        return pipelinesApi.blastRadius(channel, id)
     }
 
     // ── Open / close the chain editor ────────────────────────────────────────

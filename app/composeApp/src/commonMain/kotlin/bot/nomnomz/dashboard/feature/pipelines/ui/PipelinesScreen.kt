@@ -56,8 +56,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
-import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
+import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.PipelineBlastRadiusSummary
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
@@ -417,16 +418,19 @@ private fun ListContent(
     }
 
     pendingDelete?.let { pipeline ->
-        ConfirmDialog(
-            title = stringResource(Res.string.pipelines_delete_title),
-            message =
-                stringResource(
-                    Res.string.pipelines_delete_message,
-                    resolveRowLabel(pipeline.name, typeLabel = "Pipeline", discriminatorSource = pipeline.id),
-                ),
-            confirmLabel = stringResource(Res.string.pipelines_delete_confirm),
-            dismissLabel = stringResource(Res.string.pipelines_delete_cancel),
-            destructive = true,
+        // Fetched fresh per pipeline (never cached/guessed) — the counted blast radius the delete confirm
+        // MUST show before the destructive delete can proceed (S-CONSEQ-b).
+        var blastRadius: BlastRadiusLoadState by remember(pipeline.id) { mutableStateOf(BlastRadiusLoadState.Loading) }
+        LaunchedEffect(pipeline.id) {
+            blastRadius =
+                when (val result: ApiResult<PipelineBlastRadiusSummary> = controller.fetchBlastRadius(pipeline.id)) {
+                    is ApiResult.Ok -> BlastRadiusLoadState.Loaded(result.value)
+                    is ApiResult.Failure -> BlastRadiusLoadState.Failed
+                }
+        }
+        PipelineDeleteConfirmDialog(
+            pipelineName = resolveRowLabel(pipeline.name, typeLabel = "Pipeline", discriminatorSource = pipeline.id),
+            blastRadius = blastRadius,
             onConfirm = {
                 pendingDelete = null
                 scope.launch { controller.deletePipeline(pipeline.id) }

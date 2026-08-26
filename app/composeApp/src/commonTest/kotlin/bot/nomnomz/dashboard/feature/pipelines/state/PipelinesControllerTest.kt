@@ -33,6 +33,7 @@ import bot.nomnomz.dashboard.core.network.UpdateOutboundBody
 import bot.nomnomz.dashboard.core.network.PickList
 import bot.nomnomz.dashboard.core.network.PickListsApi
 import bot.nomnomz.dashboard.core.network.PipelineActionDescriptor
+import bot.nomnomz.dashboard.core.network.PipelineBlastRadiusSummary
 import bot.nomnomz.dashboard.core.network.LocalizedTextDto
 import bot.nomnomz.dashboard.core.network.PipelineCatalogueRemote
 import bot.nomnomz.dashboard.core.network.PipelineConditionDescriptor
@@ -178,6 +179,44 @@ class PipelinesControllerTest {
         assertTrue(controller.state.value is PipelinesState.Empty)
         assertEquals(FeedbackKind.Success, feedback.only.kind)
         assertEquals(Res.string.feedback_pipeline_deleted, feedback.only.label)
+    }
+
+    @Test
+    fun fetch_blast_radius_returns_the_backend_counted_dependents() = runTest {
+        val api =
+            RecordingPipelinesApi(
+                listOf(PipelineSummary(id = "00000001-0000-0000-0000-000000000001", name = "p", isEnabled = true)),
+                blastRadiusResult =
+                    ApiResult.Ok(
+                        PipelineBlastRadiusSummary(commandCount = 2, chatTriggerCount = 1, timerCount = 1, eventResponseCount = 1)
+                    ),
+            )
+        val controller = pipelinesController(okChannel(), api)
+        controller.load()
+
+        val result: ApiResult<PipelineBlastRadiusSummary> =
+            controller.fetchBlastRadius("00000001-0000-0000-0000-000000000001")
+
+        assertTrue(result is ApiResult.Ok)
+        val summary: PipelineBlastRadiusSummary = (result as ApiResult.Ok).value
+        assertEquals(2, summary.commandCount)
+        assertEquals(5, summary.totalReferences)
+    }
+
+    @Test
+    fun fetch_blast_radius_surfaces_the_backend_failure_distinctly_not_as_zero() = runTest {
+        val api =
+            RecordingPipelinesApi(
+                listOf(PipelineSummary(id = "00000001-0000-0000-0000-000000000001", name = "p", isEnabled = true)),
+                blastRadiusResult = ApiResult.Failure(ApiError(500, "ERR", "boom")),
+            )
+        val controller = pipelinesController(okChannel(), api)
+        controller.load()
+
+        val result: ApiResult<PipelineBlastRadiusSummary> =
+            controller.fetchBlastRadius("00000001-0000-0000-0000-000000000001")
+
+        assertTrue(result is ApiResult.Failure)
     }
 
     @Test
@@ -479,6 +518,7 @@ private class RecordingPipelinesApi(
     private val listFailure: ApiError? = null,
     private val graphs: MutableMap<String, kotlinx.serialization.json.JsonObject> = mutableMapOf(),
     private val writeResult: ApiResult<Unit> = ApiResult.Ok(Unit),
+    private val blastRadiusResult: ApiResult<PipelineBlastRadiusSummary> = ApiResult.Ok(PipelineBlastRadiusSummary()),
     private val catalogue: PipelineCatalogueRemote =
         PipelineCatalogueRemote(
             actions = listOf(PipelineActionDescriptor("send_message", LocalizedTextDto("Chat"), LocalizedTextDto("Send a chat message"))),
@@ -559,4 +599,7 @@ private class RecordingPipelinesApi(
         }
         return writeResult
     }
+
+    override suspend fun blastRadius(channelId: String, id: String): ApiResult<PipelineBlastRadiusSummary> =
+        blastRadiusResult
 }
