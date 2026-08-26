@@ -14,6 +14,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.PickLists.Dtos;
 using NomNomzBot.Domain.PickLists.Entities;
 using NomNomzBot.Domain.Platform.Events;
+using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.PickLists;
 using NomNomzBot.Infrastructure.Tests.Identity;
 
@@ -28,7 +29,7 @@ namespace NomNomzBot.Infrastructure.Tests.PickLists;
 public sealed class PickListServiceTests
 {
     private static PickListService NewService(PickListTestDbContext db, RecordingEventBus bus) =>
-        new(db, bus);
+        new(db, bus, new PipelineStepReferenceScanner(db));
 
     private static async Task<Guid> SeedChannelAsync(PickListSqliteTestDatabase database)
     {

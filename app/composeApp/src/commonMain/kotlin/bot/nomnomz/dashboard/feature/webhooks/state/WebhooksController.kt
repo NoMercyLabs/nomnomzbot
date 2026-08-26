@@ -33,6 +33,8 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import bot.nomnomz.dashboard.core.network.ApiError
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // The Webhooks page's state-holder: loads inbound + outbound webhook endpoints in parallel and drives all
 // mutations — create, toggle, delete, rotate token/secret, test, re-enable. Reloads on every successful
@@ -197,6 +199,20 @@ class WebhooksController(
             is ApiResult.Ok -> { load(); result.value }
             is ApiResult.Failure -> { failWrite(result.error.message); null }
         }
+    }
+
+    /**
+     * The real, backend-counted blast radius of deleting this inbound endpoint (S-CONSEQ) — the push sources
+     * and supporter feeds that stop receiving. Rendered in the confirm BEFORE the destructive save; a channel
+     * that is not resolved yet is a genuine failure, never a silent zero.
+     */
+    suspend fun fetchInboundBlastRadius(endpointId: String): ApiResult<BlastRadiusSummary> {
+        val channel: String =
+            channelId
+                ?: return ApiResult.Failure(
+                    ApiError(status = 0, code = "NO_CHANNEL", message = "No active channel.")
+                )
+        return webhooksApi.inboundBlastRadius(channel, endpointId)
     }
 
     suspend fun deleteInbound(endpointId: String) {

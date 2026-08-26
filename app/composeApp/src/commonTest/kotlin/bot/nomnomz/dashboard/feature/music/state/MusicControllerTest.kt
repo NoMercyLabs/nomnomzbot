@@ -44,6 +44,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // Proves the Music page state machine the screen renders: resolve the active channel, surface the real
 // now-playing track AND the upcoming queue (nothing playing and nothing queued as Empty, a failure of either
@@ -608,6 +609,11 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
 }
 
 private class FakeIntegrationsApiForMusic(private val statuses: List<IntegrationStatus>) : IntegrationsApi {
+    // Not exercised here: the counted delete preview has its own tests. The seam is implemented so the double
+    // stays a real implementation of the interface rather than a partial one.
+    override suspend fun disconnectBlastRadius(channelId: String, provider: String): ApiResult<BlastRadiusSummary> =
+        ApiResult.Ok(BlastRadiusSummary())
+
     override suspend fun status(channelId: String): ApiResult<List<IntegrationStatus>> = ApiResult.Ok(statuses)
 
     override suspend fun startGenericConnect(

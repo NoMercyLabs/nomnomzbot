@@ -149,7 +149,7 @@ public sealed class BundleParityTypesTests
             new TemplateHelperValidator()
         );
         ChatTriggerService chatTriggers = new(db, Substitute.For<IChannelRegistry>());
-        PickListService pickLists = new(db, bus);
+        PickListService pickLists = new(db, bus, new PipelineStepReferenceScanner(db));
 
         ICurrentTenantService tenant = Substitute.For<ICurrentTenantService>();
         tenant.BroadcasterId.Returns(actingChannel);

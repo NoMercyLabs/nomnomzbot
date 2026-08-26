@@ -24,6 +24,7 @@ import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_asset_deleted
 import nomnomzbot.composeapp.generated.resources.feedback_asset_save_failed
 import nomnomzbot.composeapp.generated.resources.feedback_asset_uploaded
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // The Assets page's state-holder (the SoundController twin). Lists the channel's uploaded media assets
 // from the backend (real data only), drives upload (create-or-replace by name) and delete; each write
@@ -86,7 +87,17 @@ class AssetsController(
         }
     }
 
+    /**
+     * The real, backend-counted blast radius of deleting the asset [id] (S-CONSEQ) - the delete confirm calls this and
+     * renders the dependents BEFORE the destructive save can proceed. A lookup that fails is a genuine
+     * FAILURE, never a silent zero: the dialog then shows its own "could not check" message rather than an
+     * empty radius that reads as verified-safe.
+     */
+    suspend fun fetchBlastRadius(id: String): ApiResult<BlastRadiusSummary> =
+        assetsApi.blastRadius(id)
+
     suspend fun deleteAsset(id: String) {
+
         when (val result: ApiResult<Unit> = assetsApi.delete(id)) {
             is ApiResult.Ok -> {
                 feedback.success(Res.string.feedback_asset_deleted)

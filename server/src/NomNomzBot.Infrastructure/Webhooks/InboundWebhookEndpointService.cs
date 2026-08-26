@@ -14,6 +14,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Webhooks;
@@ -259,4 +260,61 @@ public sealed class InboundWebhookEndpointService(
                 ? null
                 : JsonConvert.DeserializeObject<GenericInboundConfig>(e.GenericConfigJson)
         );
+
+    /// <summary>
+    /// Counts what stops receiving when this ingest URL is retired. Both dependents carry a real
+    /// <c>InboundWebhookEndpointId</c> FK, so the total is exhaustive.
+    /// </summary>
+    public async Task<Result<BlastRadiusDto>> GetDeleteBlastRadiusAsync(
+        Guid broadcasterId,
+        Guid endpointId,
+        CancellationToken ct = default
+    )
+    {
+        bool exists = await db.InboundWebhookEndpoints.AnyAsync(
+            endpoint => endpoint.BroadcasterId == broadcasterId && endpoint.Id == endpointId,
+            ct
+        );
+        if (!exists)
+            return Result<BlastRadiusDto>.Failure(
+                $"Inbound webhook endpoint '{endpointId}' was not found.",
+                "NOT_FOUND"
+            );
+
+        List<string> sourceNames = await db
+            .CustomDataSources.Where(source =>
+                source.BroadcasterId == broadcasterId
+                && source.InboundWebhookEndpointId == endpointId
+            )
+            .OrderBy(source => source.DisplayName)
+            .Select(source => source.DisplayName)
+            .ToListAsync(ct);
+
+        int supporterFeeds = await db.SupporterConnections.CountAsync(
+            connection =>
+                connection.BroadcasterId == broadcasterId
+                && connection.InboundWebhookEndpointId == endpointId,
+            ct
+        );
+
+        List<BlastRadiusCategoryDto> categories = [];
+        if (sourceNames.Count > 0)
+            categories.Add(
+                new BlastRadiusCategoryDto(
+                    BlastRadiusCategoryKeys.CustomDataSources,
+                    sourceNames.Count,
+                    [.. sourceNames.Take(5)]
+                )
+            );
+        if (supporterFeeds > 0)
+            categories.Add(
+                new BlastRadiusCategoryDto(
+                    BlastRadiusCategoryKeys.SupporterConnections,
+                    supporterFeeds,
+                    []
+                )
+            );
+
+        return Result<BlastRadiusDto>.Success(new BlastRadiusDto(categories, IsMinimum: false));
+    }
 }

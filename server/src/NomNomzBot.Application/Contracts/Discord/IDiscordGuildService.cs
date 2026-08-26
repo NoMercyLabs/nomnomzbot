@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 
 namespace NomNomzBot.Application.Contracts.Discord;
@@ -88,6 +89,19 @@ public interface IDiscordGuildService
 
     /// <summary>True iff server approved AND streamer enabled AND not soft-deleted — the dispatcher's single gate.</summary>
     Task<Result<bool>> IsLinkActiveAsync(
+        Guid broadcasterId,
+        Guid connectionId,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// The real, counted blast radius of disconnecting this Discord guild (S-CONSEQ). Disconnecting does not
+    /// merely delete a row: the notification rules and role buttons bound to the connection go with it
+    /// (<c>GuildConnectionId</c> FK), and every <c>send_discord_notification</c> pipeline step stops working.
+    /// The step count is a MINIMUM because a code script can post to Discord through the SDK. Returns a failure
+    /// when the connection does not exist in this tenant.
+    /// </summary>
+    Task<Result<BlastRadiusDto>> GetDisconnectBlastRadiusAsync(
         Guid broadcasterId,
         Guid connectionId,
         CancellationToken ct = default

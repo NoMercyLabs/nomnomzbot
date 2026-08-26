@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Economy;
 
@@ -73,6 +74,17 @@ public interface ICatalogService
         Guid broadcasterId,
         PurchaseFilter filter,
         PaginationParams pagination,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// The real, counted blast radius of deleting this catalog item (S-CONSEQ). <c>CatalogPurchase</c> carries
+    /// <c>CatalogItemId</c>, so the purchase history that loses its item is an exhaustive FK count. Returns a
+    /// failure when the item does not exist in this tenant — a missing item is never reported as a zero.
+    /// </summary>
+    Task<Result<BlastRadiusDto>> GetDeleteItemBlastRadiusAsync(
+        Guid broadcasterId,
+        Guid itemId,
         CancellationToken ct = default
     );
 }

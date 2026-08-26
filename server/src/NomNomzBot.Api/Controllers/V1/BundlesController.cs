@@ -13,8 +13,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.Authorization;
+using NomNomzBot.Api.Models;
 using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Auth;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Marketplace.Services;
 
@@ -113,8 +115,28 @@ public class BundlesController(
         return ResultResponse(await import.ListInstalledAsync(broadcasterId, ct));
     }
 
-    /// <summary>Uninstall a bundle: removes exactly the entities it installed, then retires the ledger row.</summary>
-    [DestructiveAction(PendingBlastRadiusSince = "2026-08-26")]
+    /// <summary>
+    /// Real, counted blast radius for uninstalling this bundle - what it removes, per kind, by name (S-CONSEQ). The dashboard MUST call this and render the
+    /// result before the confirm can proceed.
+    /// </summary>
+    [DestructiveAction(HasCountedBlastRadius = true)]
+    [HttpGet("installed/{id:guid}/blast-radius")]
+    [RequireAction("bundles:read")]
+    [ProducesResponseType<StatusResponseDto<BlastRadiusDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetUninstallBlastRadius(
+        string channelId,
+        Guid id,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+        return ResultResponse(await import.GetUninstallBlastRadiusAsync(broadcasterId, id, ct));
+    }
+
+    /// <summary>Uninstall a bundle: removes exactly the entities it installed, then retires the ledger row.
+    /// The confirm step calls <see cref="GetUninstallBlastRadius"/> first and shows what goes.</summary>
+    [DestructiveAction(HasCountedBlastRadius = true)]
     [HttpDelete("installed/{id:guid}")]
     [RequireAction("bundles:import")]
     public async Task<IActionResult> Uninstall(string channelId, Guid id, CancellationToken ct)

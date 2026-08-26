@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.PickLists.Dtos;
 
@@ -67,6 +68,18 @@ public interface IPickListService
     Task<Result<string>> PickRandomAsync(
         Guid broadcasterId,
         string name,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// The real, counted blast radius of deleting this pick-list (S-CONSEQ). A pick-list has NO foreign key —
+    /// the <c>pick_from_list</c> action names it by <c>list</c> inside <c>PipelineStep.ConfigJson</c> — so the
+    /// count comes from a scan of the tenant's stored step config, flagged as a MINIMUM when some references
+    /// resolve only at run time. Returns a failure when the list does not exist in this tenant.
+    /// </summary>
+    Task<Result<BlastRadiusDto>> GetDeleteBlastRadiusAsync(
+        Guid broadcasterId,
+        Guid id,
         CancellationToken ct = default
     );
 }

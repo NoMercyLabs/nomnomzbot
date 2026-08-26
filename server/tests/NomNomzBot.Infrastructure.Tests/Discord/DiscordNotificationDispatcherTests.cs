@@ -14,6 +14,7 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
 using NomNomzBot.Domain.Discord.Entities;
+using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Discord;
 using NomNomzBot.Infrastructure.Tests.Identity;
 
@@ -449,7 +450,8 @@ public sealed class DiscordNotificationDispatcherTests
             new RecordingVault(),
             new DiscordTestUnitOfWork(db),
             new RecordingEventBus(),
-            Clock
+            Clock,
+            new PipelineStepReferenceScanner(db)
         );
         return new(
             db,

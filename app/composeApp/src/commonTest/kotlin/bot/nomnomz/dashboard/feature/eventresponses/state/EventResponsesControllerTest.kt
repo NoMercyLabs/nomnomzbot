@@ -40,6 +40,7 @@ import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_event_response_reset
 import nomnomzbot.composeapp.generated.resources.feedback_event_response_save_failed
 import nomnomzbot.composeapp.generated.resources.feedback_event_response_saved
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // Proves the EventResponses page state machine: channel resolution, listing, and the write path
 // (toggle / save / delete). Every write re-lists on success so the screen reflects the backend.
@@ -448,6 +449,11 @@ private object StubWidgetsApi : bot.nomnomz.dashboard.core.network.WidgetsApi {
 }
 
 private object StubPickListsApi : bot.nomnomz.dashboard.core.network.PickListsApi {
+    // Not exercised here: the counted delete preview has its own tests (DeleteBlastRadiusDialogTest and the
+    // backend's blast-radius suites). The seam is implemented so the double stays a real implementation.
+    override suspend fun blastRadius(id: String): ApiResult<BlastRadiusSummary> =
+        ApiResult.Ok(BlastRadiusSummary())
+
     override suspend fun list(): ApiResult<List<bot.nomnomz.dashboard.core.network.PickList>> =
         ApiResult.Ok(emptyList())
     override suspend fun get(id: String): ApiResult<bot.nomnomz.dashboard.core.network.PickList> = error("stub")

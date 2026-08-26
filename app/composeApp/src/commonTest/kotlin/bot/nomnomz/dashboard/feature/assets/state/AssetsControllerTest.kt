@@ -28,6 +28,7 @@ import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_asset_deleted
 import nomnomzbot.composeapp.generated.resources.feedback_asset_save_failed
 import nomnomzbot.composeapp.generated.resources.feedback_asset_uploaded
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // Proves the Assets page state machine the screen renders: surface the channel's real media assets —
 // empty when there are none, error if the list call fails — and follow through on every write (upload /
@@ -285,6 +286,11 @@ private class RecordingAssetsApi(
     initial: ApiResult<List<ChannelAsset>>,
     private val writeError: ApiError? = null,
 ) : AssetsApi {
+    // Not exercised here: the counted delete preview has its own tests (DeleteBlastRadiusDialogTest and the
+    // backend's blast-radius suites). The seam is implemented so the double stays a real implementation.
+    override suspend fun blastRadius(id: String): ApiResult<BlastRadiusSummary> =
+        ApiResult.Ok(BlastRadiusSummary())
+
     private val listFailure: ApiError? = (initial as? ApiResult.Failure)?.error
     private val store: MutableList<ChannelAsset> =
         (initial as? ApiResult.Ok)?.value?.toMutableList() ?: mutableListOf()

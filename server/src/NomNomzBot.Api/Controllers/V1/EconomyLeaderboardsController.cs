@@ -12,6 +12,8 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Authorization;
+using NomNomzBot.Api.Models;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Application.Economy.Services;
 
@@ -51,8 +53,30 @@ public class EconomyLeaderboardsController(IEconomyLeaderboardService leaderboar
         return ResultResponse(await leaderboards.UpsertConfigAsync(broadcasterId, request, ct));
     }
 
-    /// <summary>Delete a leaderboard configuration by id.</summary>
-    [DestructiveAction(PendingBlastRadiusSince = "2026-08-26")]
+    /// <summary>
+    /// Real, counted blast radius for deleting this leaderboard configuration (S-CONSEQ). The dashboard MUST call this and render the
+    /// result before the confirm can proceed.
+    /// </summary>
+    [DestructiveAction(HasCountedBlastRadius = true)]
+    [HttpGet("configs/{configId:guid}/blast-radius")]
+    [RequireAction("economy:leaderboards:read")]
+    [ProducesResponseType<StatusResponseDto<BlastRadiusDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetDeleteConfigBlastRadius(
+        string channelId,
+        Guid configId,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+        return ResultResponse(
+            await leaderboards.GetDeleteConfigBlastRadiusAsync(broadcasterId, configId, ct)
+        );
+    }
+
+    /// <summary>Delete a leaderboard configuration by id. The confirm step calls
+    /// <see cref="GetDeleteConfigBlastRadius"/> first and shows the counted dependents before this runs.</summary>
+    [DestructiveAction(HasCountedBlastRadius = true)]
     [HttpDelete("configs/{configId:guid}")]
     [RequireAction("economy:leaderboards:config:delete")]
     public async Task<IActionResult> DeleteConfig(

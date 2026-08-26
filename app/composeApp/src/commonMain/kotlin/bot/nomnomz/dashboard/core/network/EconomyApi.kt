@@ -78,6 +78,16 @@ interface EconomyApi {
     suspend fun deleteCatalogItem(channelId: String, itemId: String): ApiResult<Unit>
 
     /**
+     * The real, backend-counted blast radius of deleting this catalog item (S-CONSEQ). The confirm dialog MUST call
+     * this and render the result before the destructive save can proceed; nothing is counted client-side, and
+     * a failed lookup surfaces as a failure rather than as a reassuring zero.
+     */
+    suspend fun catalogItemBlastRadius(
+        channelId: String,
+        itemId: String,
+    ): ApiResult<BlastRadiusSummary>
+
+    /**
      * Upsert an earning rule (full PUT; keyed by [source] in the body). The backend creates or replaces the rule for
      * [source]; used for toggling [isEnabled] or editing the rate and caps.
      */
@@ -231,6 +241,12 @@ class RestEconomyApi(private val client: ApiClient) : EconomyApi {
 
     override suspend fun deleteCatalogItem(channelId: String, itemId: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/economy/catalog/$itemId")
+
+    override suspend fun catalogItemBlastRadius(
+        channelId: String,
+        itemId: String,
+    ): ApiResult<BlastRadiusSummary> =
+        client.getEnvelope("api/v1/channels/$channelId/economy/catalog/$itemId/blast-radius")
 
     // The earning-rules PUT is a full upsert keyed by source in the body (no ruleId in the URL).
     override suspend fun upsertEarningRule(

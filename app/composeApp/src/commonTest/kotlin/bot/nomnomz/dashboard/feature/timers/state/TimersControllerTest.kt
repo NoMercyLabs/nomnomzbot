@@ -39,6 +39,7 @@ import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_timer_deleted
 import nomnomzbot.composeapp.generated.resources.feedback_timer_save_failed
 import nomnomzbot.composeapp.generated.resources.feedback_timer_saved
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // Proves the Timers page state machine the screen renders: resolve the active channel, then surface the real
 // scheduled timers — Empty when there are none, or an Error if either step fails — and the create / edit /
@@ -345,6 +346,11 @@ private fun timersController(
     TimersController(channelsApi, timersApi, pipelinesApi, FakePickListsApi(), feedback, resourceLimits)
 
 private class FakePickListsApi : bot.nomnomz.dashboard.core.network.PickListsApi {
+    // Not exercised here: the counted delete preview has its own tests (DeleteBlastRadiusDialogTest and the
+    // backend's blast-radius suites). The seam is implemented so the double stays a real implementation.
+    override suspend fun blastRadius(id: String): ApiResult<BlastRadiusSummary> =
+        ApiResult.Ok(BlastRadiusSummary())
+
     override suspend fun list(): ApiResult<List<bot.nomnomz.dashboard.core.network.PickList>> =
         ApiResult.Ok(emptyList())
     override suspend fun get(id: String): ApiResult<bot.nomnomz.dashboard.core.network.PickList> = error("stub")

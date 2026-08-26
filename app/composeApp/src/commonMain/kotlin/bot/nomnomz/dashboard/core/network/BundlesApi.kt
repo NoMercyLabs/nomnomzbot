@@ -55,6 +55,13 @@ interface BundlesApi {
 
     /** Uninstall an installed bundle by its [id] — removes exactly what that pack created. */
     suspend fun uninstall(channelId: String, id: String): ApiResult<Unit>
+
+    /**
+     * The real, backend-counted blast radius of uninstalling this bundle - what it removes, per kind, by name (S-CONSEQ). The confirm dialog MUST call
+     * this and render the result before the destructive save can proceed; nothing is counted client-side, and
+     * a failed lookup surfaces as a failure rather than as a reassuring zero.
+     */
+    suspend fun uninstallBlastRadius(channelId: String, id: String): ApiResult<BlastRadiusSummary>
 }
 
 class RestBundlesApi(private val client: ApiClient) : BundlesApi {
@@ -97,6 +104,12 @@ class RestBundlesApi(private val client: ApiClient) : BundlesApi {
 
     override suspend fun uninstall(channelId: String, id: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/bundles/installed/$id")
+
+    override suspend fun uninstallBlastRadius(
+        channelId: String,
+        id: String,
+    ): ApiResult<BlastRadiusSummary> =
+        client.getEnvelope("api/v1/channels/$channelId/bundles/installed/$id/blast-radius")
 }
 
 /**

@@ -38,6 +38,7 @@ import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_command_deleted
 import nomnomzbot.composeapp.generated.resources.feedback_command_saved
 import nomnomzbot.composeapp.generated.resources.feedback_command_save_failed
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // Proves the Commands page state machine the screen renders: resolve the active channel, then surface the
 // channel's real commands — empty when there are none, error if either step fails. The screen is a pure
@@ -348,6 +349,11 @@ private fun makeController(
     )
 
 private class FakePickListsApi : bot.nomnomz.dashboard.core.network.PickListsApi {
+    // Not exercised here: the counted delete preview has its own tests (DeleteBlastRadiusDialogTest and the
+    // backend's blast-radius suites). The seam is implemented so the double stays a real implementation.
+    override suspend fun blastRadius(id: String): ApiResult<BlastRadiusSummary> =
+        ApiResult.Ok(BlastRadiusSummary())
+
     override suspend fun list(): ApiResult<List<bot.nomnomz.dashboard.core.network.PickList>> =
         ApiResult.Ok(emptyList())
 

@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // The Music page's state-holder — the channel's live playback, made controllable. Resolves the active channel,
 // loads its real now-playing + queue from the backend (the connected music provider; no fabricated tracks),
@@ -410,6 +411,12 @@ sealed interface MusicState {
 // [IntegrationsApi] just to construct the controller.
 private object NoSignalIntegrationsApi : IntegrationsApi {
     override suspend fun status(channelId: String): ApiResult<List<IntegrationStatus>> = ApiResult.Ok(emptyList())
+
+    // Music never disconnects a provider, so it never needs the counted preview; the seam stays explicit.
+    override suspend fun disconnectBlastRadius(
+        channelId: String,
+        provider: String,
+    ): ApiResult<BlastRadiusSummary> = ApiResult.Ok(BlastRadiusSummary())
 
     override suspend fun startGenericConnect(
         channelId: String,

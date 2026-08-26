@@ -44,6 +44,13 @@ interface PickListsApi {
     suspend fun delete(id: String): ApiResult<Unit>
 
     /**
+     * The real, backend-counted blast radius of deleting this pick-list (S-CONSEQ). The confirm dialog MUST call
+     * this and render the result before the destructive save can proceed; nothing is counted client-side, and
+     * a failed lookup surfaces as a failure rather than as a reassuring zero.
+     */
+    suspend fun blastRadius(id: String): ApiResult<BlastRadiusSummary>
+
+    /**
      * Draw a single random sample from the list, addressed by its [id] — the backend's preview endpoint (the same
      * random pick `{list.pick.<name>}` performs), so the page can show a "Test" of what a viewer would see.
      */
@@ -72,6 +79,9 @@ class RestPickListsApi(private val client: ApiClient) : PickListsApi {
 
     override suspend fun delete(id: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/picklists/$id")
+
+    override suspend fun blastRadius(id: String): ApiResult<BlastRadiusSummary> =
+        client.getEnvelope("api/v1/picklists/$id/blast-radius")
 
     // The preview comes back as a `StatusResponseDto<PickListPreviewDto>` (a `data: T` envelope), so it is read
     // with getEnvelope, which unwraps the payload.

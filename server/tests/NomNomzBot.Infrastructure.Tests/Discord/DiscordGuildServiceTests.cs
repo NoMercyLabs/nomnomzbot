@@ -15,6 +15,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
 using NomNomzBot.Domain.Discord.Entities;
 using NomNomzBot.Domain.Discord.Events;
+using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Discord;
 using NomNomzBot.Infrastructure.Tests.Identity;
 
@@ -260,7 +261,15 @@ public sealed class DiscordGuildServiceTests
         DiscordTestDbContext db,
         RecordingVault vault,
         RecordingEventBus bus
-    ) => new(db, vault, new DiscordTestUnitOfWork(db), bus, Clock);
+    ) =>
+        new(
+            db,
+            vault,
+            new DiscordTestUnitOfWork(db),
+            bus,
+            Clock,
+            new PipelineStepReferenceScanner(db)
+        );
 
     private static async Task<Guid> SeedChannelAsync(DiscordSqliteTestDatabase database)
     {

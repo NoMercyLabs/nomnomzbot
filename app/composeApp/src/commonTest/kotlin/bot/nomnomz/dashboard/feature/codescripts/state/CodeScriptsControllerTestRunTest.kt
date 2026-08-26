@@ -30,6 +30,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // Proves the code-script test-run (dry-run) flow the editor renders: with a script open, running a test surfaces
 // the backend's CAPTURED result — chat output + effects — onto the editing state; a failure surfaces the reason.
@@ -102,6 +103,11 @@ class CodeScriptsControllerTestRunTest {
     private inner class FakeCodeScriptsApi(
         private val testRunResult: ApiResult<TestRunResult>,
     ) : CodeScriptsApi {
+    // Not exercised here: the counted delete preview has its own tests (DeleteBlastRadiusDialogTest and the
+    // backend's blast-radius suites). The seam is implemented so the double stays a real implementation.
+    override suspend fun blastRadius(id: String): ApiResult<BlastRadiusSummary> =
+        ApiResult.Ok(BlastRadiusSummary())
+
         var lastTestRunBody: ScriptTestRunBody? = null
 
         private val summary = CodeScriptSummary(id = "s1", name = "s", isEnabled = true, currentValidationStatus = "valid")

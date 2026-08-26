@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 
 namespace NomNomzBot.Application.CustomEvents.Services;
@@ -75,6 +76,19 @@ public interface ICustomDataSourceService
     );
 
     Task<Result<IReadOnlyList<CustomDataSourcePresetDto>>> ListPresetsAsync(
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// The real, counted blast radius of deleting this custom data source (S-CONSEQ). A source has NO foreign
+    /// key: it fires the event type <c>custom.{name}</c>, so the automation that breaks is the event responses
+    /// bound to that type, plus the widgets whose source reads the same key. Template text and code scripts can
+    /// name the source too and cannot be read, so the total is a MINIMUM. Returns a failure when the source does
+    /// not exist in this tenant.
+    /// </summary>
+    Task<Result<BlastRadiusDto>> GetDeleteBlastRadiusAsync(
+        Guid broadcasterId,
+        Guid id,
         CancellationToken ct = default
     );
 }

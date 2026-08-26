@@ -113,6 +113,14 @@ import nomnomzbot.composeapp.generated.resources.permissions_regrant_instruction
 import nomnomzbot.composeapp.generated.resources.permissions_regrant_open
 import nomnomzbot.composeapp.generated.resources.permissions_regrant_title
 import nomnomzbot.composeapp.generated.resources.permissions_regrant_waiting
+import nomnomzbot.composeapp.generated.resources.integrations_disconnect_title
+import nomnomzbot.composeapp.generated.resources.integrations_disconnect_message
+import nomnomzbot.composeapp.generated.resources.integrations_disconnect_confirm
+import nomnomzbot.composeapp.generated.resources.integrations_disconnect_cancel
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
+import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.consequences.DeleteBlastRadiusDialog
+import bot.nomnomz.dashboard.core.consequences.BlastRadiusLoadState
 
 // The integrations / onboarding screen (frontend.md §5). Lists the bot account + the three
 // providers with live connection status read from the backend, and runs the REAL connect/disconnect
@@ -188,6 +196,10 @@ fun IntegrationsScreen(
     // at the branded Intro; the brand CTA then either proceeds straight to OAuth (client already registered)
     // or advances to the BYOC credential step (client not registered yet) before OAuth. Back/dismiss closes it.
     var openModal: ConnectModalProvider? by remember { mutableStateOf(null) }
+
+    // Disconnecting deletes almost nothing and silently kills everything that runs through the provider, so
+    // it confirms with the backend's counted blast radius first (S-CONSEQ) rather than firing on one tap.
+    var pendingDisconnect: String? by remember { mutableStateOf(null) }
     var stage: ConnectStage by remember { mutableStateOf(ConnectStage.Intro) }
 
     // Launch the real OAuth connect for the modal's provider, then close the modal. The controller re-reads the
@@ -277,7 +289,7 @@ fun IntegrationsScreen(
                         manage = manage,
                         // Open the branded connect modal (at the Intro stage) rather than connecting inline.
                         onConnect = { openModal = ConnectModalProvider.Spotify; stage = ConnectStage.Intro },
-                        onDisconnect = { scope.launch { controller.disconnect(SPOTIFY) } },
+                        onDisconnect = { pendingDisconnect = SPOTIFY },
                     )
                     // The channel-scoped BYOC override — lets THIS channel run !sr against its own Spotify
                     // app instead of the app-level default. Hidden entirely below `integration:read`; its
@@ -300,7 +312,7 @@ fun IntegrationsScreen(
                         busy = current.busy.isProvider(YOUTUBE),
                         manage = manage,
                         onConnect = { openModal = ConnectModalProvider.YouTube; stage = ConnectStage.Intro },
-                        onDisconnect = { scope.launch { controller.disconnect(YOUTUBE) } },
+                        onDisconnect = { pendingDisconnect = YOUTUBE },
                     )
                     ProviderRow(
                         title = Res.string.integrations_discord_title,
@@ -309,7 +321,7 @@ fun IntegrationsScreen(
                         busy = current.busy.isProvider(DISCORD),
                         manage = manage,
                         onConnect = { openModal = ConnectModalProvider.Discord; stage = ConnectStage.Intro },
-                        onDisconnect = { scope.launch { controller.disconnect(DISCORD) } },
+                        onDisconnect = { pendingDisconnect = DISCORD },
                     )
                     ProviderRow(
                         title = Res.string.integrations_kick_title,
@@ -320,13 +332,45 @@ fun IntegrationsScreen(
                         // Kick uses the platform-shared client, so it connects directly through the generic
                         // vaulted flow (no BYOC credential modal) — one tap opens Kick's authorize page.
                         onConnect = { scope.launch { controller.connectProvider(KICK, KICK_SCOPE_SET) } },
-                        onDisconnect = { scope.launch { controller.disconnect(KICK) } },
+                        onDisconnect = { pendingDisconnect = KICK },
                     )
                     EventSubSubscriptionsSection(
                         subscriptions = current.eventSubSubscriptions,
                         manage = manage,
                         onReconcile = { scope.launch { controller.reconcileEventSub() } },
                     )
+
+                    pendingDisconnect?.let { provider ->
+                        // Fetched fresh per provider (never cached or guessed) — the counted blast radius the
+                        // confirm MUST show before the disconnect can proceed (S-CONSEQ).
+                        var blastRadius: BlastRadiusLoadState by
+                            remember(provider) { mutableStateOf(BlastRadiusLoadState.Loading) }
+                        LaunchedEffect(provider) {
+                            blastRadius =
+                                when (
+                                    val result: ApiResult<BlastRadiusSummary> =
+                                        controller.fetchDisconnectBlastRadius(provider)
+                                ) {
+                                    is ApiResult.Ok -> BlastRadiusLoadState.Loaded(result.value)
+                                    is ApiResult.Failure -> BlastRadiusLoadState.Failed
+                                }
+                        }
+                        DeleteBlastRadiusDialog(
+                            title = stringResource(Res.string.integrations_disconnect_title),
+                            message =
+                                stringResource(Res.string.integrations_disconnect_message, provider),
+                            confirmLabel =
+                                stringResource(Res.string.integrations_disconnect_confirm),
+                            dismissLabel = stringResource(Res.string.integrations_disconnect_cancel),
+                            blastRadius = blastRadius,
+                            onConfirm = {
+                                val target: String = provider
+                                pendingDisconnect = null
+                                scope.launch { controller.disconnect(target) }
+                            },
+                            onDismiss = { pendingDisconnect = null },
+                        )
+                    }
                 }
         }
     }

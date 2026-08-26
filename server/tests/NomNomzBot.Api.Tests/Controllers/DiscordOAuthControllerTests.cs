@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Api.Controllers.V1;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
 using NSubstitute;
@@ -299,6 +300,12 @@ public sealed class DiscordOAuthControllerTests
         ) => throw new NotSupportedException();
 
         public Task<Result<bool>> IsLinkActiveAsync(
+            Guid broadcasterId,
+            Guid connectionId,
+            CancellationToken ct = default
+        ) => throw new NotSupportedException();
+
+        public Task<Result<BlastRadiusDto>> GetDisconnectBlastRadiusAsync(
             Guid broadcasterId,
             Guid connectionId,
             CancellationToken ct = default

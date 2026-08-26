@@ -35,6 +35,13 @@ interface AssetsApi {
 
     /** Delete an asset by its UUID. */
     suspend fun delete(id: String): ApiResult<Unit>
+
+    /**
+     * The real, backend-counted blast radius of deleting this media asset (S-CONSEQ). The confirm dialog MUST call
+     * this and render the result before the destructive save can proceed; nothing is counted client-side, and
+     * a failed lookup surfaces as a failure rather than as a reassuring zero.
+     */
+    suspend fun blastRadius(id: String): ApiResult<BlastRadiusSummary>
 }
 
 class RestAssetsApi(private val client: ApiClient) : AssetsApi {
@@ -66,6 +73,9 @@ class RestAssetsApi(private val client: ApiClient) : AssetsApi {
 
     override suspend fun delete(id: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/assets/$id")
+
+    override suspend fun blastRadius(id: String): ApiResult<BlastRadiusSummary> =
+        client.getEnvelope("api/v1/assets/$id/blast-radius")
 }
 
 /**

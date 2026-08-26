@@ -15,9 +15,11 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.PickLists.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.PickLists;
 using NomNomzBot.Infrastructure.PickLists.PipelineActions;
 using NomNomzBot.Infrastructure.Platform.Templating;
@@ -42,7 +44,6 @@ public sealed class PickFromListActionTests : IDisposable
 
     private readonly PickListSqliteTestDatabase _database;
     private readonly PickListTestDbContext _db;
-    private readonly PickListService _lists;
     private readonly TemplateResolver _resolver;
     private readonly PickFromListAction _action;
 
@@ -68,7 +69,7 @@ public sealed class PickFromListActionTests : IDisposable
         _db.SaveChanges();
 
         RecordingEventBus bus = new();
-        _lists = new(_db, bus);
+        PickListService lists = new(_db, bus, new PipelineStepReferenceScanner(_db));
 
         // The resolver resolves IPickListService from a fresh scope per call; register the focused SQLite
         // context as the singleton IApplicationDbContext the scoped service reads through (mirrors
@@ -76,6 +77,7 @@ public sealed class PickFromListActionTests : IDisposable
         ServiceCollection services = new();
         services.AddSingleton<IApplicationDbContext>(_db);
         services.AddSingleton<IEventBus>(bus);
+        services.AddScoped<IPipelineStepReferenceScanner, PipelineStepReferenceScanner>();
         services.AddScoped<IPickListService, PickListService>();
         ServiceProvider provider = services.BuildServiceProvider();
         _resolver = new(
@@ -85,7 +87,7 @@ public sealed class PickFromListActionTests : IDisposable
             TimeProvider.System
         );
 
-        _action = new(_lists, _resolver);
+        _action = new(lists, _resolver);
     }
 
     private void AddList(string name, List<string> items) =>

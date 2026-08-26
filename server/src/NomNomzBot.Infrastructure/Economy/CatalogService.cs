@@ -11,6 +11,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Application.Economy.Services;
@@ -609,4 +610,35 @@ public sealed class CatalogService(
             p.InputArgs,
             p.CreatedAt
         );
+
+    /// <summary>Counts the purchase history that would lose its catalog item. FK-backed, so exhaustive.</summary>
+    public async Task<Result<BlastRadiusDto>> GetDeleteItemBlastRadiusAsync(
+        Guid broadcasterId,
+        Guid itemId,
+        CancellationToken ct = default
+    )
+    {
+        bool exists = await db.CatalogItems.AnyAsync(
+            item => item.BroadcasterId == broadcasterId && item.Id == itemId,
+            ct
+        );
+        if (!exists)
+            return Result<BlastRadiusDto>.Failure(
+                $"Catalog item '{itemId}' was not found.",
+                "NOT_FOUND"
+            );
+
+        int purchases = await db.CatalogPurchases.CountAsync(
+            purchase => purchase.BroadcasterId == broadcasterId && purchase.CatalogItemId == itemId,
+            ct
+        );
+
+        List<BlastRadiusCategoryDto> categories = [];
+        if (purchases > 0)
+            categories.Add(
+                new BlastRadiusCategoryDto(BlastRadiusCategoryKeys.CatalogPurchases, purchases, [])
+            );
+
+        return Result<BlastRadiusDto>.Success(new BlastRadiusDto(categories, IsMinimum: false));
+    }
 }

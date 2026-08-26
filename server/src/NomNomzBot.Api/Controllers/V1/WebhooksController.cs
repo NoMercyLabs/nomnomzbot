@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Webhooks;
 using NomNomzBot.Application.DTOs.Webhooks;
@@ -97,8 +98,23 @@ public class WebhooksController(
         CancellationToken ct
     ) => ResultResponse(await inbound.RotateTokenAsync(channelId, endpointId, ct));
 
-    /// <summary>Delete an inbound webhook endpoint, retiring its ingest URL.</summary>
-    [DestructiveAction(PendingBlastRadiusSince = "2026-08-26")]
+    /// <summary>
+    /// Real, counted blast radius for deleting this inbound webhook endpoint (S-CONSEQ). The dashboard MUST call this and render the
+    /// result before the confirm can proceed.
+    /// </summary>
+    [DestructiveAction(HasCountedBlastRadius = true)]
+    [HttpGet("inbound/{endpointId:guid}/blast-radius")]
+    [RequireAction("webhooks:inbound:read")]
+    [ProducesResponseType<StatusResponseDto<BlastRadiusDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetDeleteInboundBlastRadius(
+        Guid channelId,
+        Guid endpointId,
+        CancellationToken ct
+    ) => ResultResponse(await inbound.GetDeleteBlastRadiusAsync(channelId, endpointId, ct));
+
+    /// <summary>Delete an inbound webhook endpoint, retiring its ingest URL. The confirm step calls
+    /// <see cref="GetDeleteInboundBlastRadius"/> first and shows the counted dependents before this runs.</summary>
+    [DestructiveAction(HasCountedBlastRadius = true)]
     [HttpDelete("inbound/{endpointId:guid}")]
     [RequireAction("webhooks:inbound:write")]
     public async Task<IActionResult> DeleteInbound(

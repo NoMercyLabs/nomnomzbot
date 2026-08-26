@@ -27,6 +27,58 @@ import nomnomzbot.composeapp.generated.resources.blast_radius_category_redemptio
 import nomnomzbot.composeapp.generated.resources.blast_radius_category_redemption_timers_other
 import nomnomzbot.composeapp.generated.resources.blast_radius_category_redemptions_one
 import nomnomzbot.composeapp.generated.resources.blast_radius_category_redemptions_other
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_pipeline_steps_one
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_pipeline_steps_other
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_widget_versions_one
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_widget_versions_other
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_redemptions_one
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_redemptions_other
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_redemption_timers_one
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_redemption_timers_other
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_giveaway_codes_one
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_giveaway_codes_other
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_giveaways_one
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_giveaways_other
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_giveaway_entries_one
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_giveaway_entries_other
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_giveaway_winners_one
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_giveaway_winners_other
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_code_script_versions_one
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_code_script_versions_other
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_catalog_purchases_one
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_catalog_purchases_other
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_leaderboard_snapshots_one
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_leaderboard_snapshots_other
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_supporter_connections_one
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_supporter_connections_other
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_discord_notification_rules_one
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_discord_notification_rules_other
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_discord_role_buttons_one
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_discord_role_buttons_other
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_pipelines_one
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_pipelines_other
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_commands_one
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_commands_other
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_widgets_one
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_widgets_other
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_sound_clips_one
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_sound_clips_other
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_assets_one
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_assets_other
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_custom_data_sources_one
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_custom_data_sources_other
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_event_responses_one
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_event_responses_other
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_rewards_one
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_rewards_other
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_timers_one
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_timers_other
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_chat_triggers_one
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_chat_triggers_other
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_pick_lists_one
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_pick_lists_other
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_code_scripts_one
+import nomnomzbot.composeapp.generated.resources.blast_radius_category_code_scripts_other
 import nomnomzbot.composeapp.generated.resources.blast_radius_category_unknown
 import nomnomzbot.composeapp.generated.resources.blast_radius_category_widget_versions_one
 import nomnomzbot.composeapp.generated.resources.blast_radius_category_widget_versions_other
@@ -113,51 +165,74 @@ private fun loadedMessage(summary: BlastRadiusSummary): String {
     }
 }
 
-// The backend ships a category KEY, a count, and up to a handful of dependent names — never a sentence. An
+// The backend ships a category KEY, a count, and up to a handful of dependent names — never a sentence. The
+// key is looked up in ONE table so a new counted category is a single entry rather than another branch. An
 // unrecognised key renders as an explicit "N of another kind" line rather than being dropped: silently
 // omitting a counted category would understate the blast radius.
+private val CategoryPlurals: Map<String, Pair<StringResource, StringResource>> =
+    mapOf(
+        "blast_radius_category_pipeline_steps" to
+            (Res.string.blast_radius_category_pipeline_steps_one to Res.string.blast_radius_category_pipeline_steps_other),
+        "blast_radius_category_widget_versions" to
+            (Res.string.blast_radius_category_widget_versions_one to Res.string.blast_radius_category_widget_versions_other),
+        "blast_radius_category_redemptions" to
+            (Res.string.blast_radius_category_redemptions_one to Res.string.blast_radius_category_redemptions_other),
+        "blast_radius_category_redemption_timers" to
+            (Res.string.blast_radius_category_redemption_timers_one to Res.string.blast_radius_category_redemption_timers_other),
+        "blast_radius_category_giveaway_codes" to
+            (Res.string.blast_radius_category_giveaway_codes_one to Res.string.blast_radius_category_giveaway_codes_other),
+        "blast_radius_category_giveaways" to
+            (Res.string.blast_radius_category_giveaways_one to Res.string.blast_radius_category_giveaways_other),
+        "blast_radius_category_giveaway_entries" to
+            (Res.string.blast_radius_category_giveaway_entries_one to Res.string.blast_radius_category_giveaway_entries_other),
+        "blast_radius_category_giveaway_winners" to
+            (Res.string.blast_radius_category_giveaway_winners_one to Res.string.blast_radius_category_giveaway_winners_other),
+        "blast_radius_category_code_script_versions" to
+            (Res.string.blast_radius_category_code_script_versions_one to Res.string.blast_radius_category_code_script_versions_other),
+        "blast_radius_category_catalog_purchases" to
+            (Res.string.blast_radius_category_catalog_purchases_one to Res.string.blast_radius_category_catalog_purchases_other),
+        "blast_radius_category_leaderboard_snapshots" to
+            (Res.string.blast_radius_category_leaderboard_snapshots_one to Res.string.blast_radius_category_leaderboard_snapshots_other),
+        "blast_radius_category_supporter_connections" to
+            (Res.string.blast_radius_category_supporter_connections_one to Res.string.blast_radius_category_supporter_connections_other),
+        "blast_radius_category_discord_notification_rules" to
+            (Res.string.blast_radius_category_discord_notification_rules_one to Res.string.blast_radius_category_discord_notification_rules_other),
+        "blast_radius_category_discord_role_buttons" to
+            (Res.string.blast_radius_category_discord_role_buttons_one to Res.string.blast_radius_category_discord_role_buttons_other),
+        "blast_radius_category_pipelines" to
+            (Res.string.blast_radius_category_pipelines_one to Res.string.blast_radius_category_pipelines_other),
+        "blast_radius_category_commands" to
+            (Res.string.blast_radius_category_commands_one to Res.string.blast_radius_category_commands_other),
+        "blast_radius_category_widgets" to
+            (Res.string.blast_radius_category_widgets_one to Res.string.blast_radius_category_widgets_other),
+        "blast_radius_category_sound_clips" to
+            (Res.string.blast_radius_category_sound_clips_one to Res.string.blast_radius_category_sound_clips_other),
+        "blast_radius_category_assets" to
+            (Res.string.blast_radius_category_assets_one to Res.string.blast_radius_category_assets_other),
+        "blast_radius_category_custom_data_sources" to
+            (Res.string.blast_radius_category_custom_data_sources_one to Res.string.blast_radius_category_custom_data_sources_other),
+        "blast_radius_category_event_responses" to
+            (Res.string.blast_radius_category_event_responses_one to Res.string.blast_radius_category_event_responses_other),
+        "blast_radius_category_rewards" to
+            (Res.string.blast_radius_category_rewards_one to Res.string.blast_radius_category_rewards_other),
+        "blast_radius_category_timers" to
+            (Res.string.blast_radius_category_timers_one to Res.string.blast_radius_category_timers_other),
+        "blast_radius_category_chat_triggers" to
+            (Res.string.blast_radius_category_chat_triggers_one to Res.string.blast_radius_category_chat_triggers_other),
+        "blast_radius_category_pick_lists" to
+            (Res.string.blast_radius_category_pick_lists_one to Res.string.blast_radius_category_pick_lists_other),
+        "blast_radius_category_code_scripts" to
+            (Res.string.blast_radius_category_code_scripts_one to Res.string.blast_radius_category_code_scripts_other),
+    )
+
 @Composable
 private fun categoryLine(category: BlastRadiusCategory): String {
-    val count: Int = category.count
+    val plurals: Pair<StringResource, StringResource>? = CategoryPlurals[category.categoryKey]
     val counted: String =
-        when (category.categoryKey) {
-            "blast_radius_category_pipeline_steps" ->
-                counted(
-                    count,
-                    Res.string.blast_radius_category_pipeline_steps_one,
-                    Res.string.blast_radius_category_pipeline_steps_other,
-                )
-            "blast_radius_category_widget_versions" ->
-                counted(
-                    count,
-                    Res.string.blast_radius_category_widget_versions_one,
-                    Res.string.blast_radius_category_widget_versions_other,
-                )
-            "blast_radius_category_redemptions" ->
-                counted(
-                    count,
-                    Res.string.blast_radius_category_redemptions_one,
-                    Res.string.blast_radius_category_redemptions_other,
-                )
-            "blast_radius_category_redemption_timers" ->
-                counted(
-                    count,
-                    Res.string.blast_radius_category_redemption_timers_one,
-                    Res.string.blast_radius_category_redemption_timers_other,
-                )
-            "blast_radius_category_giveaway_codes" ->
-                counted(
-                    count,
-                    Res.string.blast_radius_category_giveaway_codes_one,
-                    Res.string.blast_radius_category_giveaway_codes_other,
-                )
-            "blast_radius_category_giveaways" ->
-                counted(
-                    count,
-                    Res.string.blast_radius_category_giveaways_one,
-                    Res.string.blast_radius_category_giveaways_other,
-                )
-            else -> stringResource(Res.string.blast_radius_category_unknown, count)
+        if (plurals == null) {
+            stringResource(Res.string.blast_radius_category_unknown, category.count)
+        } else {
+            counted(category.count, plurals.first, plurals.second)
         }
     if (category.sample.isEmpty()) return counted
     return counted + stringResource(Res.string.blast_radius_sample, category.sample.joinToString(", "))

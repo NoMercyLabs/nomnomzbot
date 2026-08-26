@@ -58,4 +58,25 @@ public static class BlastRadiusCategoryKeys
     public const string RedemptionTimers = "blast_radius_category_redemption_timers";
     public const string GiveawayCodes = "blast_radius_category_giveaway_codes";
     public const string Giveaways = "blast_radius_category_giveaways";
+    public const string GiveawayEntries = "blast_radius_category_giveaway_entries";
+    public const string GiveawayWinners = "blast_radius_category_giveaway_winners";
+    public const string CodeScriptVersions = "blast_radius_category_code_script_versions";
+    public const string CatalogPurchases = "blast_radius_category_catalog_purchases";
+    public const string LeaderboardSnapshots = "blast_radius_category_leaderboard_snapshots";
+    public const string SupporterConnections = "blast_radius_category_supporter_connections";
+    public const string DiscordNotificationRules =
+        "blast_radius_category_discord_notification_rules";
+    public const string DiscordRoleButtons = "blast_radius_category_discord_role_buttons";
+    public const string Pipelines = "blast_radius_category_pipelines";
+    public const string Commands = "blast_radius_category_commands";
+    public const string Widgets = "blast_radius_category_widgets";
+    public const string SoundClips = "blast_radius_category_sound_clips";
+    public const string Assets = "blast_radius_category_assets";
+    public const string CustomDataSources = "blast_radius_category_custom_data_sources";
+    public const string EventResponses = "blast_radius_category_event_responses";
+    public const string Rewards = "blast_radius_category_rewards";
+    public const string Timers = "blast_radius_category_timers";
+    public const string ChatTriggers = "blast_radius_category_chat_triggers";
+    public const string PickLists = "blast_radius_category_pick_lists";
+    public const string CodeScripts = "blast_radius_category_code_scripts";
 }

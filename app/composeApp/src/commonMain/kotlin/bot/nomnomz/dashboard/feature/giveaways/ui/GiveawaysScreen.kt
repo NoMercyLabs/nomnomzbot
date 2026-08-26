@@ -330,12 +330,22 @@ fun GiveawaysScreen(controller: GiveawaysController, heldActionKeys: Set<String>
                 typeLabel = stringResource(Res.string.giveaways_row_type),
                 discriminatorSource = giveaway.id,
             )
-        ConfirmDialog(
+        // Fetched fresh per row (never cached or guessed) â€” the counted blast radius the confirm MUST show
+        // before the destructive save can proceed (S-CONSEQ).
+        var blastRadius: BlastRadiusLoadState by remember(giveaway.id) { mutableStateOf(BlastRadiusLoadState.Loading) }
+        LaunchedEffect(giveaway.id) {
+            blastRadius =
+                when (val result: ApiResult<BlastRadiusSummary> = controller.fetchBlastRadius(giveaway.id)) {
+                    is ApiResult.Ok -> BlastRadiusLoadState.Loaded(result.value)
+                    is ApiResult.Failure -> BlastRadiusLoadState.Failed
+                }
+        }
+        DeleteBlastRadiusDialog(
             title = stringResource(Res.string.giveaways_delete_title),
             message = stringResource(Res.string.giveaways_delete_message, resolvedTitle),
             confirmLabel = stringResource(Res.string.giveaways_delete_confirm),
             dismissLabel = stringResource(Res.string.giveaways_cancel),
-            destructive = true,
+            blastRadius = blastRadius,
             onConfirm = {
                 pendingDelete = null
                 scope.launch { controller.deleteGiveaway(giveaway.id) }

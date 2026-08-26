@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DevPlatform.Dtos;
 
@@ -83,4 +84,15 @@ public interface ICodeScriptService
     );
 
     Task<Result> DeleteAsync(Guid codeScriptId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The real, counted blast radius of deleting this code script (S-CONSEQ). <c>CodeScriptVersion</c> and
+    /// <c>PipelineStep</c> both carry a <c>CodeScriptId</c> FK, so the saved revisions and the
+    /// <c>run_code</c> steps that would stop running are an exhaustive count. Returns a failure when the script
+    /// does not exist in this tenant.
+    /// </summary>
+    Task<Result<BlastRadiusDto>> GetDeleteBlastRadiusAsync(
+        Guid codeScriptId,
+        CancellationToken cancellationToken = default
+    );
 }

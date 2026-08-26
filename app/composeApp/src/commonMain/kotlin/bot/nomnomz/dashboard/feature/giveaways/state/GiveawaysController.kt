@@ -102,6 +102,14 @@ class GiveawaysController(
     }
 
     /** Delete a giveaway, addressed by its [id]. Reloads on success. Surfaces the error on failure. */
+    /**
+     * The real, backend-counted blast radius of deleting the giveaway [id] (S-CONSEQ) — the entrants and drawn
+     * winners that disappear with it. Rendered in the confirm BEFORE the destructive save; a failed lookup is
+     * a genuine failure the dialog reports on its own, never a reassuring zero.
+     */
+    suspend fun fetchBlastRadius(id: String): ApiResult<BlastRadiusSummary> =
+        giveawaysApi.blastRadius(id)
+
     suspend fun deleteGiveaway(id: String) {
         afterWrite(giveawaysApi.delete(id), success = Res.string.feedback_giveaway_deleted)
     }

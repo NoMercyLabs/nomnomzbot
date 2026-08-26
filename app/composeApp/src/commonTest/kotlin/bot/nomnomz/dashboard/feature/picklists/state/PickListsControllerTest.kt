@@ -27,6 +27,7 @@ import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_picklist_deleted
 import nomnomzbot.composeapp.generated.resources.feedback_picklist_save_failed
 import nomnomzbot.composeapp.generated.resources.feedback_picklist_saved
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // Proves the Pick Lists page state machine the screen renders: surface the channel's real pick-lists — empty when
 // there are none, error if the list call fails — and follow through on every write (create / edit / delete) by
@@ -271,6 +272,11 @@ private class RecordingPickListsApi(
     initial: ApiResult<List<PickList>>,
     private val writeResult: ApiResult<Unit> = ApiResult.Ok(Unit),
 ) : PickListsApi {
+    // Not exercised here: the counted delete preview has its own tests (DeleteBlastRadiusDialogTest and the
+    // backend's blast-radius suites). The seam is implemented so the double stays a real implementation.
+    override suspend fun blastRadius(id: String): ApiResult<BlastRadiusSummary> =
+        ApiResult.Ok(BlastRadiusSummary())
+
     private val listFailure: ApiError? = (initial as? ApiResult.Failure)?.error
     private val store: MutableList<PickList> =
         (initial as? ApiResult.Ok)?.value?.toMutableList() ?: mutableListOf()

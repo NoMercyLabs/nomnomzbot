@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.PickLists.Dtos;
 using NomNomzBot.Application.PickLists.Services;
@@ -149,9 +150,25 @@ public class PickListsController : BaseController
         return ResultResponse(result);
     }
 
-    /// <summary>Delete a pick-list by its id.</summary>
+    /// <summary>
+    /// Real, counted blast radius for deleting this pick-list (S-CONSEQ). The dashboard MUST call this and render the
+    /// result before the confirm can proceed.
+    /// </summary>
+    [RequireAction("picklists:read")]
+    [DestructiveAction(HasCountedBlastRadius = true)]
+    [HttpGet("{id:guid}/blast-radius")]
+    [ProducesResponseType<StatusResponseDto<BlastRadiusDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetDeleteBlastRadius(Guid id, CancellationToken ct)
+    {
+        if (_tenant.BroadcasterId is not { } broadcasterId)
+            return UnauthenticatedResponse("No tenant resolved.");
+        return ResultResponse(await _pickLists.GetDeleteBlastRadiusAsync(broadcasterId, id, ct));
+    }
+
+    /// <summary>Delete a pick-list by its id. The confirm step calls <see cref="GetDeleteBlastRadius"/> first
+    /// and shows the counted dependents before this runs.</summary>
     [RequireAction("picklists:delete")]
-    [DestructiveAction(PendingBlastRadiusSince = "2026-08-26")]
+    [DestructiveAction(HasCountedBlastRadius = true)]
     [HttpDelete("{id:guid}")]
     [ProducesResponseType<StatusResponseDto<PickListDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> DeletePickList(Guid id, CancellationToken ct)

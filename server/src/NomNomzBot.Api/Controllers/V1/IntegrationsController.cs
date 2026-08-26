@@ -16,6 +16,7 @@ using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Extensions;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
 using NomNomzBot.Application.Identity.Services;
@@ -39,6 +40,7 @@ public class IntegrationsController : BaseController
     private readonly IIntegrationStatusService _integrationStatus;
     private readonly IChannelSpotifyCredentialsService _spotifyCredentials;
     private readonly IIntegrationTokenVault _tokenVault;
+    private readonly IIntegrationBlastRadiusService _blastRadius;
 
     public IntegrationsController(
         IApplicationDbContext db,
@@ -46,7 +48,8 @@ public class IntegrationsController : BaseController
         IDiscordGuildService discord,
         IIntegrationStatusService integrationStatus,
         IChannelSpotifyCredentialsService spotifyCredentials,
-        IIntegrationTokenVault tokenVault
+        IIntegrationTokenVault tokenVault,
+        IIntegrationBlastRadiusService blastRadius
     )
     {
         _db = db;
@@ -55,6 +58,7 @@ public class IntegrationsController : BaseController
         _tokenVault = tokenVault;
         _integrationStatus = integrationStatus;
         _spotifyCredentials = spotifyCredentials;
+        _blastRadius = blastRadius;
     }
 
     // ── Spotify BYOC credentials (S-BYOC-spotify-a) ─────────────────────────────
@@ -174,9 +178,31 @@ public class IntegrationsController : BaseController
 
     // ── Disconnect integration ────────────────────────────────────────────────
 
-    /// <summary>Disconnect an external integration (revokes tokens, removes connection state).</summary>
+    /// <summary>
+    /// Real, counted blast radius for disconnecting this provider - what STOPS WORKING, not just rows removed (S-CONSEQ). The dashboard MUST call this and render the
+    /// result before the confirm can proceed.
+    /// </summary>
+    [RequireAction("integration:read")]
+    [DestructiveAction(HasCountedBlastRadius = true)]
+    [HttpGet("{integrationId}/blast-radius")]
+    [ProducesResponseType<StatusResponseDto<BlastRadiusDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetDisconnectBlastRadius(
+        string channelId,
+        string integrationId,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid tenantId))
+            return BadRequestResponse("Invalid channel id.");
+        return ResultResponse(
+            await _blastRadius.GetDisconnectBlastRadiusAsync(tenantId, integrationId, ct)
+        );
+    }
+
+    /// <summary>Disconnect an external integration (revokes tokens, removes connection state). The confirm
+    /// step calls <see cref="GetDisconnectBlastRadius"/> first and shows what stops working before this runs.</summary>
     [RequireAction("integration:write")]
-    [DestructiveAction(PendingBlastRadiusSince = "2026-08-26")]
+    [DestructiveAction(HasCountedBlastRadius = true)]
     [HttpDelete("{integrationId}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Disconnect(

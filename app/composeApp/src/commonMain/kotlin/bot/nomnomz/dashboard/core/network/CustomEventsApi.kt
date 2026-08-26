@@ -47,6 +47,13 @@ interface CustomEventsApi {
     suspend fun delete(id: String): ApiResult<Unit>
 
     /**
+     * The real, backend-counted blast radius of deleting this custom data source (S-CONSEQ). The confirm dialog MUST call
+     * this and render the result before the destructive save can proceed; nothing is counted client-side, and
+     * a failed lookup surfaces as a failure rather than as a reassuring zero.
+     */
+    suspend fun blastRadius(id: String): ApiResult<BlastRadiusSummary>
+
+    /**
      * Fire [samplePayload] through the ingest pipeline — useful to preview the field extraction and pipeline
      * trigger before deploying the real feed.
      */
@@ -78,6 +85,9 @@ class RestCustomEventsApi(private val client: ApiClient) : CustomEventsApi {
 
     override suspend fun delete(id: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/custom-data-sources/$id")
+
+    override suspend fun blastRadius(id: String): ApiResult<BlastRadiusSummary> =
+        client.getEnvelope("api/v1/custom-data-sources/$id/blast-radius")
 
     override suspend fun test(id: String, samplePayload: String): ApiResult<Unit> =
         client.postUnit("api/v1/custom-data-sources/$id/test", TestCustomDataSourceBody(samplePayload))

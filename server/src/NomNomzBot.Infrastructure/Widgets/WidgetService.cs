@@ -424,7 +424,7 @@ public class WidgetService : IWidgetService
             broadcasterGuid,
             ["widget_id", "widget"],
             [widgetGuid.ToString()],
-            cancellationToken
+            ct: cancellationToken
         );
         if (scan.IsFailure)
             return Result<BlastRadiusDto>.Failure(

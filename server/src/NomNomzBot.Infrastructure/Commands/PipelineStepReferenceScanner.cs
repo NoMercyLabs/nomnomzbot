@@ -42,16 +42,22 @@ public sealed class PipelineStepReferenceScanner : IPipelineStepReferenceScanner
         Guid broadcasterId,
         IReadOnlyList<string> fieldNames,
         IReadOnlyList<string> tokens,
+        ReferenceMatchMode matchMode = ReferenceMatchMode.Exact,
         CancellationToken ct = default
     )
     {
-        if (fieldNames.Count == 0 || tokens.Count == 0)
+        if (fieldNames.Count == 0 && matchMode is not ReferenceMatchMode.ContainsAnyField)
             return Result<PipelineStepReferenceScan>.Failure(
-                "A reference scan needs at least one config field and one token.",
+                "A reference scan needs at least one config field to read.",
                 "VALIDATION_FAILED"
             );
 
-        HashSet<string> wanted = new(tokens, StringComparer.OrdinalIgnoreCase);
+        List<string> wanted = [.. tokens.Where(token => !string.IsNullOrWhiteSpace(token))];
+        if (wanted.Count == 0)
+            return Result<PipelineStepReferenceScan>.Failure(
+                "A reference scan needs at least one non-empty token.",
+                "VALIDATION_FAILED"
+            );
 
         List<StepConfigRow> steps = await _db
             .PipelineSteps.Where(step => step.BroadcasterId == broadcasterId)
@@ -69,7 +75,7 @@ public sealed class PipelineStepReferenceScanner : IPipelineStepReferenceScanner
 
         foreach (StepConfigRow step in steps)
         {
-            FieldReadout readout = ReadFields(step.ConfigJson, fieldNames, wanted);
+            FieldReadout readout = ReadFields(step.ConfigJson, fieldNames, wanted, matchMode);
             if (readout.HasUnresolvableValue)
                 unreadable = true;
             if (!readout.Matched)
@@ -79,30 +85,74 @@ public sealed class PipelineStepReferenceScanner : IPipelineStepReferenceScanner
             matchedPipelineIds.Add(step.PipelineId);
         }
 
-        List<string> pipelineNames =
-            matchedPipelineIds.Count == 0
-                ? []
-                : await _db
-                    .Pipelines.Where(pipeline =>
-                        pipeline.BroadcasterId == broadcasterId
-                        && matchedPipelineIds.Contains(pipeline.Id)
-                    )
-                    .OrderBy(pipeline => pipeline.Name)
-                    .Select(pipeline => pipeline.Name)
-                    .Take(MaxSampleNames)
-                    .ToListAsync(ct);
+        List<string> pipelineNames = await PipelineNamesAsync(
+            broadcasterId,
+            matchedPipelineIds,
+            ct
+        );
 
         return Result<PipelineStepReferenceScan>.Success(
             new PipelineStepReferenceScan(matchCount, pipelineNames, unreadable)
         );
     }
 
+    public async Task<Result<PipelineStepReferenceScan>> CountByActionTypesAsync(
+        Guid broadcasterId,
+        IReadOnlyList<string> actionTypes,
+        CancellationToken ct = default
+    )
+    {
+        if (actionTypes.Count == 0)
+            return Result<PipelineStepReferenceScan>.Failure(
+                "An action-type count needs at least one action type.",
+                "VALIDATION_FAILED"
+            );
+
+        List<StepConfigRow> steps = await _db
+            .PipelineSteps.Where(step => step.BroadcasterId == broadcasterId)
+            .Select(step => new StepConfigRow(step.PipelineId, step.ActionType, step.ConfigJson))
+            .ToListAsync(ct);
+
+        HashSet<string> wanted = new(actionTypes, StringComparer.OrdinalIgnoreCase);
+        List<StepConfigRow> matched = [.. steps.Where(step => wanted.Contains(step.ActionType))];
+
+        // A code script can call the provider through the SDK; that call is invisible here, so any total the
+        // tenant holds code scripts for is a floor rather than a complete answer.
+        bool unreadable = steps.Any(step =>
+            string.Equals(step.ActionType, RunCodeActionType, StringComparison.OrdinalIgnoreCase)
+        );
+
+        HashSet<Guid> pipelineIds = [.. matched.Select(step => step.PipelineId)];
+        List<string> pipelineNames = await PipelineNamesAsync(broadcasterId, pipelineIds, ct);
+
+        return Result<PipelineStepReferenceScan>.Success(
+            new PipelineStepReferenceScan(matched.Count, pipelineNames, unreadable)
+        );
+    }
+
+    private async Task<List<string>> PipelineNamesAsync(
+        Guid broadcasterId,
+        HashSet<Guid> pipelineIds,
+        CancellationToken ct
+    ) =>
+        pipelineIds.Count == 0
+            ? []
+            : await _db
+                .Pipelines.Where(pipeline =>
+                    pipeline.BroadcasterId == broadcasterId && pipelineIds.Contains(pipeline.Id)
+                )
+                .OrderBy(pipeline => pipeline.Name)
+                .Select(pipeline => pipeline.Name)
+                .Take(MaxSampleNames)
+                .ToListAsync(ct);
+
     private readonly record struct FieldReadout(bool Matched, bool HasUnresolvableValue);
 
     private static FieldReadout ReadFields(
         string? configJson,
         IReadOnlyList<string> fieldNames,
-        HashSet<string> wanted
+        IReadOnlyList<string> wanted,
+        ReferenceMatchMode matchMode
     )
     {
         if (string.IsNullOrWhiteSpace(configJson))
@@ -126,6 +176,31 @@ public sealed class PipelineStepReferenceScanner : IPipelineStepReferenceScanner
         bool matched = false;
         bool unresolvable = false;
 
+        if (matchMode is ReferenceMatchMode.ContainsAnyField)
+        {
+            foreach (JsonProperty property in root.EnumerateObject())
+            {
+                if (property.Value.ValueKind is not JsonValueKind.String)
+                {
+                    // Nested objects and arrays are not walked; a reference could hide in one, so the total
+                    // this scan produces is a floor rather than a complete answer.
+                    if (property.Value.ValueKind is JsonValueKind.Object or JsonValueKind.Array)
+                        unresolvable = true;
+                    continue;
+                }
+
+                string? text = property.Value.GetString();
+                if (string.IsNullOrWhiteSpace(text))
+                    continue;
+                if (text.Contains("{{", StringComparison.Ordinal))
+                    unresolvable = true;
+                if (Matches(text.Trim(), wanted, ReferenceMatchMode.Contains))
+                    matched = true;
+            }
+
+            return new FieldReadout(matched, unresolvable);
+        }
+
         foreach (string fieldName in fieldNames)
         {
             if (!root.TryGetProperty(fieldName, out JsonElement value))
@@ -148,10 +223,25 @@ public sealed class PipelineStepReferenceScanner : IPipelineStepReferenceScanner
                 continue;
             }
 
-            if (wanted.Contains(raw.Trim()))
+            if (Matches(raw.Trim(), wanted, matchMode))
                 matched = true;
         }
 
         return new FieldReadout(matched, unresolvable);
     }
+
+    private static bool Matches(
+        string value,
+        IReadOnlyList<string> wanted,
+        ReferenceMatchMode matchMode
+    ) =>
+        matchMode switch
+        {
+            ReferenceMatchMode.Contains => wanted.Any(token =>
+                value.Contains(token, StringComparison.OrdinalIgnoreCase)
+            ),
+            _ => wanted.Any(token =>
+                string.Equals(value, token, StringComparison.OrdinalIgnoreCase)
+            ),
+        };
 }

@@ -11,6 +11,7 @@
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.CustomEvents.Services;
@@ -319,4 +320,74 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
 
     private static int? ClampPollInterval(int? seconds) =>
         seconds is null ? null : Math.Max(MinPollIntervalSeconds, seconds.Value);
+
+    /// <summary>
+    /// Counts the automation that stops firing when this source goes. Ingest publishes the event type
+    /// <c>custom.{name}</c> (<c>CustomDataTriggerHandler</c>), so event responses bound to that exact type are a
+    /// real, exact count; widgets that read <c>custom.{name}</c> in their source are matched literally.
+    /// </summary>
+    public async Task<Result<BlastRadiusDto>> GetDeleteBlastRadiusAsync(
+        Guid broadcasterId,
+        Guid id,
+        CancellationToken ct = default
+    )
+    {
+        CustomDataSource? source = await _db.CustomDataSources.FirstOrDefaultAsync(
+            row => row.BroadcasterId == broadcasterId && row.Id == id,
+            ct
+        );
+        if (source is null)
+            return Result<BlastRadiusDto>.Failure(
+                $"Custom data source '{id}' was not found.",
+                "NOT_FOUND"
+            );
+
+        string eventType = $"custom.{source.Name}";
+
+        List<string> responseNames = await _db
+            .EventResponses.Where(response =>
+                response.BroadcasterId == broadcasterId && response.EventType == eventType
+            )
+            .OrderBy(response => response.EventType)
+            .Select(response => response.EventType)
+            .ToListAsync(ct);
+
+        List<string> widgetNames = await _db
+            .WidgetVersions.Where(version =>
+                version.BroadcasterId == broadcasterId
+                && version.SourceCode != null
+                && version.SourceCode.Contains(eventType)
+            )
+            .Join(
+                _db.Widgets.Where(widget => widget.BroadcasterId == broadcasterId),
+                version => version.WidgetId,
+                widget => widget.Id,
+                (version, widget) => widget.Name
+            )
+            .Distinct()
+            .OrderBy(name => name)
+            .ToListAsync(ct);
+
+        List<BlastRadiusCategoryDto> categories = [];
+        if (responseNames.Count > 0)
+            categories.Add(
+                new BlastRadiusCategoryDto(
+                    BlastRadiusCategoryKeys.EventResponses,
+                    responseNames.Count,
+                    [.. responseNames.Take(5)]
+                )
+            );
+        if (widgetNames.Count > 0)
+            categories.Add(
+                new BlastRadiusCategoryDto(
+                    BlastRadiusCategoryKeys.Widgets,
+                    widgetNames.Count,
+                    [.. widgetNames.Take(5)]
+                )
+            );
+
+        // Any message template may interpolate {{custom.<name>.field}} and any code script may read the source
+        // through the SDK; neither is countable, so this stays an honest floor.
+        return Result<BlastRadiusDto>.Success(new BlastRadiusDto(categories, IsMinimum: true));
+    }
 }

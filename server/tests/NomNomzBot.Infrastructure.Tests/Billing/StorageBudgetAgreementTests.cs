@@ -62,7 +62,12 @@ public sealed class StorageBudgetAgreementTests
             quota,
             new PipelineStepReferenceScanner(db)
         );
-        ChannelAssetService assets = new(db, new FakeAssetStore(), quota);
+        ChannelAssetService assets = new(
+            db,
+            new FakeAssetStore(),
+            quota,
+            new PipelineStepReferenceScanner(db)
+        );
         return (soundClips, assets, quota, db);
     }
 

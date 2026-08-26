@@ -46,6 +46,8 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
+import bot.nomnomz.dashboard.core.network.ApiError
 
 // The Economy page's state-holder (economy.md §4 — the channel's currency definition + the points leaderboard).
 // Resolves the active channel, then loads its real currency config and its top holders from the backend (no
@@ -336,6 +338,20 @@ class EconomyController(
     }
 
     /** Delete the catalog item [itemId], then reload so it drops off the list. Surfaces the error on failure. */
+    /**
+     * The real, backend-counted blast radius of deleting the catalog item [itemId] (S-CONSEQ) — the purchase
+     * history that loses its item. Rendered in the confirm BEFORE the destructive save. No resolved channel is
+     * a genuine failure, never a silent zero.
+     */
+    suspend fun catalogItemBlastRadius(itemId: String): ApiResult<BlastRadiusSummary> {
+        val channel: String =
+            channelId
+                ?: return ApiResult.Failure(
+                    ApiError(status = 0, code = "NO_CHANNEL", message = "No active channel.")
+                )
+        return economyApi.catalogItemBlastRadius(channel, itemId)
+    }
+
     suspend fun deleteCatalogItem(itemId: String) {
         val channel: String = channelId ?: return
         afterWrite(economyApi.deleteCatalogItem(channel, itemId))

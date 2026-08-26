@@ -285,6 +285,10 @@ import nomnomzbot.composeapp.generated.resources.economy_purchases_title
 import nomnomzbot.composeapp.generated.resources.shell_nav_economy
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
+import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.consequences.DeleteBlastRadiusDialog
+import bot.nomnomz.dashboard.core.consequences.BlastRadiusLoadState
 
 // The Economy page (economy.md §4): an editable form over the channel's currency definition (name, symbol, earn
 // settings, the enabled toggle) plus the read-only points leaderboard below it — all real data from
@@ -343,6 +347,7 @@ fun EconomyScreen(controller: EconomyController, role: ManagementRole?, hubEvent
                     onDeleteCatalogItem = { itemId ->
                         scope.launch { controller.deleteCatalogItem(itemId) }
                     },
+                    onCatalogItemBlastRadius = controller::catalogItemBlastRadius,
                     onToggleEarningRule = { source, enabled ->
                         scope.launch { controller.toggleEarningRule(source, enabled) }
                     },
@@ -391,6 +396,9 @@ private fun ReadyContent(
     onToggleCatalog: (String, Boolean) -> Unit,
     onCreateCatalogItem: (CreateCatalogItemBody) -> Unit,
     onDeleteCatalogItem: (String) -> Unit,
+    // The real, backend-counted blast radius of deleting a catalog item (S-CONSEQ) — rendered in the confirm
+    // before the destructive save; never counted in the UI.
+    onCatalogItemBlastRadius: suspend (String) -> ApiResult<BlastRadiusSummary>,
     onToggleEarningRule: (source: String, enabled: Boolean) -> Unit,
     onUpsertEarningRule: (UpsertEarningRuleBody) -> Unit,
     onDeleteEarningRule: (ruleId: String) -> Unit,
@@ -546,6 +554,7 @@ private fun ReadyContent(
             onToggle = onToggleCatalog,
             onCreate = onCreateCatalogItem,
             onDelete = onDeleteCatalogItem,
+            onBlastRadius = onCatalogItemBlastRadius,
         )
 
         SavingsJarsSection(
@@ -1885,6 +1894,7 @@ private fun CatalogSection(
     onToggle: (String, Boolean) -> Unit,
     onCreate: (CreateCatalogItemBody) -> Unit,
     onDelete: (String) -> Unit,
+    onBlastRadius: suspend (String) -> ApiResult<BlastRadiusSummary>,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -1959,12 +1969,22 @@ private fun CatalogSection(
                 typeLabel = stringResource(Res.string.economy_catalog_row_type),
                 discriminatorSource = item.id,
             )
-        ConfirmDialog(
+        // Fetched fresh per row (never cached or guessed) â€” the counted blast radius the confirm MUST show
+        // before the destructive save can proceed (S-CONSEQ).
+        var blastRadius: BlastRadiusLoadState by remember(item.id) { mutableStateOf(BlastRadiusLoadState.Loading) }
+        LaunchedEffect(item.id) {
+            blastRadius =
+                when (val result: ApiResult<BlastRadiusSummary> = onBlastRadius(item.id)) {
+                    is ApiResult.Ok -> BlastRadiusLoadState.Loaded(result.value)
+                    is ApiResult.Failure -> BlastRadiusLoadState.Failed
+                }
+        }
+        DeleteBlastRadiusDialog(
             title = stringResource(Res.string.economy_catalog_delete_title),
             message = stringResource(Res.string.economy_catalog_delete_message, name),
             confirmLabel = stringResource(Res.string.economy_catalog_delete_confirm),
             dismissLabel = stringResource(Res.string.economy_catalog_delete_dismiss),
-            destructive = true,
+            blastRadius = blastRadius,
             onConfirm = {
                 onDelete(item.id)
                 pendingDelete = null

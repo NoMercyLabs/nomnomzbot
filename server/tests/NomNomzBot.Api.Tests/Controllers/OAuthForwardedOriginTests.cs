@@ -191,7 +191,8 @@ public sealed class OAuthForwardedOriginTests
             Substitute.For<IDiscordGuildService>(),
             statuses,
             Substitute.For<IChannelSpotifyCredentialsService>(),
-            Substitute.For<IIntegrationTokenVault>()
+            Substitute.For<IIntegrationTokenVault>(),
+            Substitute.For<IIntegrationBlastRadiusService>()
         )
         {
             ControllerContext = ForwardedContext(),

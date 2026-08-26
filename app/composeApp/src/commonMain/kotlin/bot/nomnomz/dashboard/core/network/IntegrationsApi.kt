@@ -45,6 +45,16 @@ interface IntegrationsApi {
     /** Disconnect a generic provider (Spotify/YouTube) — revokes + crypto-shreds the vaulted token. */
     suspend fun disconnectGeneric(channelId: String, provider: String): ApiResult<Unit>
 
+    /**
+     * The real, backend-counted blast radius of disconnecting this provider - what STOPS WORKING, not just what is deleted (S-CONSEQ). The confirm dialog MUST call
+     * this and render the result before the destructive save can proceed; nothing is counted client-side, and
+     * a failed lookup surfaces as a failure rather than as a reassuring zero.
+     */
+    suspend fun disconnectBlastRadius(
+        channelId: String,
+        provider: String,
+    ): ApiResult<BlastRadiusSummary>
+
     /** Disconnect Discord — severs every linked guild for this channel (legacy IntegrationsController). */
     suspend fun disconnectDiscord(channelId: String): ApiResult<Unit>
 
@@ -92,6 +102,12 @@ class RestIntegrationsApi(private val client: ApiClient) : IntegrationsApi {
 
     override suspend fun disconnectGeneric(channelId: String, provider: String): ApiResult<Unit> =
         client.postUnit("api/v1/channels/$channelId/integrations/$provider/disconnect")
+
+    override suspend fun disconnectBlastRadius(
+        channelId: String,
+        provider: String,
+    ): ApiResult<BlastRadiusSummary> =
+        client.getEnvelope("api/v1/channels/$channelId/integrations/$provider/blast-radius")
 
     override suspend fun disconnectDiscord(channelId: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/integrations/discord")

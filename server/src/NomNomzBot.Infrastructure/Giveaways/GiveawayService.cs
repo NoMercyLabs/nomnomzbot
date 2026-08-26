@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Application.Economy.Services;
@@ -443,9 +444,7 @@ public sealed class GiveawayService : IGiveawayService
                 "CODE_POOL_EXHAUSTED"
             );
 
-        return Result.Success<IReadOnlyList<GiveawayWinnerDto>>(
-            await ToWinnerDtosAsync(winners, ct)
-        );
+        return Result.Success(await ToWinnerDtosAsync(winners, ct));
     }
 
     public async Task<Result<GiveawayWinnerDto>> RedrawAsync(
@@ -916,7 +915,7 @@ public sealed class GiveawayService : IGiveawayService
         Dictionary<Guid, string> names = await _db
             .Users.AsNoTracking()
             .Where(u => userIds.Contains(u.Id))
-            .ToDictionaryAsync(u => u.Id, u => u.DisplayName ?? u.Username ?? "unknown", ct);
+            .ToDictionaryAsync(u => u.Id, u => u.DisplayName, ct);
 
         return
         [
@@ -959,4 +958,46 @@ public sealed class GiveawayService : IGiveawayService
             entryCount,
             g.CreatedAt
         );
+
+    /// <summary>
+    /// Counts the entrants and drawn winners that disappear with the giveaway. Both tables carry a real
+    /// <c>GiveawayId</c> FK, so the total is exhaustive — never a floor.
+    /// </summary>
+    public async Task<Result<BlastRadiusDto>> GetDeleteBlastRadiusAsync(
+        Guid broadcasterId,
+        Guid giveawayId,
+        CancellationToken ct = default
+    )
+    {
+        bool exists = await _db.Giveaways.AnyAsync(
+            giveaway => giveaway.BroadcasterId == broadcasterId && giveaway.Id == giveawayId,
+            ct
+        );
+        if (!exists)
+            return Result<BlastRadiusDto>.Failure(
+                $"Giveaway '{giveawayId}' was not found.",
+                "NOT_FOUND"
+            );
+
+        int entries = await _db.GiveawayEntries.CountAsync(
+            entry => entry.BroadcasterId == broadcasterId && entry.GiveawayId == giveawayId,
+            ct
+        );
+        int winners = await _db.GiveawayWinners.CountAsync(
+            winner => winner.BroadcasterId == broadcasterId && winner.GiveawayId == giveawayId,
+            ct
+        );
+
+        List<BlastRadiusCategoryDto> categories = [];
+        if (entries > 0)
+            categories.Add(
+                new BlastRadiusCategoryDto(BlastRadiusCategoryKeys.GiveawayEntries, entries, [])
+            );
+        if (winners > 0)
+            categories.Add(
+                new BlastRadiusCategoryDto(BlastRadiusCategoryKeys.GiveawayWinners, winners, [])
+            );
+
+        return Result<BlastRadiusDto>.Success(new BlastRadiusDto(categories, IsMinimum: false));
+    }
 }

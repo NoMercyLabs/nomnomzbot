@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Webhooks;
 
@@ -56,4 +57,16 @@ public interface IInboundWebhookEndpointService
 
     /// <summary>Soft-deletes the endpoint. NOT_FOUND if absent.</summary>
     Task<Result> DeleteAsync(Guid broadcasterId, Guid endpointId, CancellationToken ct = default);
+
+    /// <summary>
+    /// The real, counted blast radius of deleting this inbound endpoint (S-CONSEQ). <c>CustomDataSource</c> and
+    /// <c>SupporterConnection</c> both carry <c>InboundWebhookEndpointId</c>, so the push sources and supporter
+    /// feeds that stop receiving are an exhaustive FK count. Returns a failure when the endpoint does not exist
+    /// in this tenant.
+    /// </summary>
+    Task<Result<BlastRadiusDto>> GetDeleteBlastRadiusAsync(
+        Guid broadcasterId,
+        Guid endpointId,
+        CancellationToken ct = default
+    );
 }
