@@ -56,7 +56,6 @@ public sealed class PlatformAdminServiceTests
             Jwt(),
             bus,
             clock,
-            new(mode),
             revocation
         );
         return (sut, db, bus, revocation);
@@ -745,26 +744,36 @@ public sealed class PlatformAdminServiceTests
     }
 
     [Fact]
-    public async Task Impersonation_is_refused_outright_on_self_host()
+    public async Task Impersonation_works_on_self_host_for_a_permitted_principal_with_an_open_grant()
     {
-        (PlatformAdminService sut, AuthDbContext db, _, _) = Build(DeploymentMode.SelfHostFull);
+        // Deployment mode is NOT a gate: the permission, the open time-boxed grant, the justification and the
+        // audit row are what make an act-as safe, and they apply identically on a self-hosted instance.
+        (PlatformAdminService sut, AuthDbContext db, _, ISessionRevocationService revocation) =
+            Build(DeploymentMode.SelfHostFull);
         Guid principal = SeedPrincipal(db, "user:impersonate");
         Guid targetUserId = SeedUser(db, "viewer", isPlatformPrincipal: false);
         Guid grant = SeedOpenGrant(db, principal, Now.UtcDateTime.AddHours(1));
         await db.SaveChangesAsync();
 
-        (
-            await sut.StartImpersonationAsync(
-                principal,
-                targetUserId,
-                grant,
-                "no self-host impersonation"
-            )
-        )
-            .ErrorCode.Should()
-            .Be("NOT_SUPPORTED");
+        Result<ImpersonationTokenDto> started = await sut.StartImpersonationAsync(
+            principal,
+            targetUserId,
+            grant,
+            "self-host support"
+        );
 
-        (await sut.EndImpersonationAsync(principal, grant)).ErrorCode.Should().Be("NOT_SUPPORTED");
+        started.IsSuccess.Should().BeTrue(started.ErrorMessage);
+        started.Value!.SessionId.Should().Be(grant);
+        started.Value.User.Id.Should().Be(targetUserId.ToString());
+        started.Value.AccessToken.Should().NotBeNullOrWhiteSpace();
+
+        Result ended = await sut.EndImpersonationAsync(principal, grant);
+
+        ended.IsSuccess.Should().BeTrue(ended.ErrorMessage);
+        (await db.IamRoleAssignments.SingleAsync(a => a.Id == grant))
+            .RevokedAt.Should()
+            .Be(Now.UtcDateTime);
+        await revocation.Received(1).RevokeAsync(grant, Arg.Any<CancellationToken>());
     }
 
     [Fact]

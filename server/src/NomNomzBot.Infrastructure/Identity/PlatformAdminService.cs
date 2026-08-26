@@ -16,12 +16,10 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
-using NomNomzBot.Domain.Enums.Deployment;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
-using NomNomzBot.Infrastructure.Platform.Deployment;
 
 namespace NomNomzBot.Infrastructure.Identity;
 
@@ -37,7 +35,6 @@ public sealed class PlatformAdminService(
     IJwtTokenService jwt,
     IEventBus eventBus,
     TimeProvider clock,
-    DeploymentContext deployment,
     ISessionRevocationService sessionRevocation
 ) : IPlatformAdminService
 {
@@ -322,13 +319,10 @@ public sealed class PlatformAdminService(
         CancellationToken ct = default
     )
     {
-        // Restricted SaaS-only support tool (owner decision, S089a) — self-host exposes no impersonation
-        // capability at all, so this refuses unconditionally regardless of caller or grant state.
-        if (deployment.Mode != DeploymentMode.Saas)
-            return Result.Failure<ImpersonationTokenDto>(
-                "Impersonation is not available on self-host.",
-                "NOT_SUPPORTED"
-            );
+        // Deployment mode does NOT gate this. Impersonation is guarded by what actually makes it safe — the
+        // `user:impersonate` permission, an open time-boxed support grant, a mandatory justification, an audit
+        // row and a revocable session — and those hold identically on self-host, where the operator is the
+        // instance owner acting on their own deployment.
 
         if (string.IsNullOrWhiteSpace(justification))
             return Result.Failure<ImpersonationTokenDto>(
@@ -427,9 +421,6 @@ public sealed class PlatformAdminService(
         CancellationToken ct = default
     )
     {
-        if (deployment.Mode != DeploymentMode.Saas)
-            return Result.Failure("Impersonation is not available on self-host.", "NOT_SUPPORTED");
-
         Result authorized = await RequireAsync(
             actingPrincipalId,
             "user:impersonate",
