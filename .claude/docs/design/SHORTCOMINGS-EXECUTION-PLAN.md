@@ -207,15 +207,6 @@ stable — without dropping the planned requirements behind them.
   list; and a guard test fails if a NEW picker kind is added without a rich option provider — enumerate
   the kinds from the enum, do not hand-list them.
 
-- **S-SCHEMA-I18N-d** (S-SCHEMA-I18N-c CLOSED 7d4e8b3e — Description REQUIRED, 75 of 75 actions /
-  150 fields authored, wired through `PipelineActionFieldDto` to the dashboard, Dutch proven through the
-  real Compose Resources bundle, guard proved red by stripping one action's description) ONE REMAINDER:
-  `PipelineActionDescriptorDto.Category` and `.Description` are ACTION-level (not field-level) and are
-  still bare English literals across ~75 actions — the block palette's own names and category headings.
-  Same mechanism, same guard; extend `SchemaDtoStringShapeTests` to sweep them so the palette is
-  translatable too. A streamer browsing the block palette in Dutch currently sees English category
-  headings above fully-Dutch field help.
-
 - **S-CODE-EDITOR** The code-scripts surface gets a **VS Code-for-web grade editor that functions like
   one** — Monaco-class: completion, hover types, go-to-definition, diagnostics, multi-file — loading a
   **REAL fully-typed SDK from npm** (the actual published types, not hand-written `.d.ts`
