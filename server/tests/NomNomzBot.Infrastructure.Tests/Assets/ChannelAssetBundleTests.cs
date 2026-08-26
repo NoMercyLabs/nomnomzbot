@@ -14,8 +14,10 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Assets.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.Contracts.Marketplace;
 using NomNomzBot.Application.CustomEvents.Services;
+using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Application.Marketplace.Services;
 using NomNomzBot.Application.Sound.Services;
 using NomNomzBot.Application.Widgets.Services;
@@ -53,7 +55,23 @@ public sealed class ChannelAssetBundleTests
     {
         MarketplaceTestDbContext db = MarketplaceTestDbContext.New();
         FakeAssetStore store = new();
-        ChannelAssetService assets = new(db, store);
+        // Bundle import/export exercises the upload path incidentally; a generous always-allow quota keeps
+        // this suite focused on export/import/collision behavior, not the budget seam (proven end-to-end in
+        // Billing/StorageBudgetAgreementTests.cs).
+        IResourceQuotaService quota = Substitute.For<IResourceQuotaService>();
+        quota
+            .CheckAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<long>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(call =>
+                Result<QuotaCheckDto>.Success(
+                    new(true, call.ArgAt<string>(1), call.ArgAt<long>(2), -1, -1)
+                )
+            );
+        ChannelAssetService assets = new(db, store, quota);
 
         ICurrentTenantService tenant = Substitute.For<ICurrentTenantService>();
         tenant.BroadcasterId.Returns(actingChannel);

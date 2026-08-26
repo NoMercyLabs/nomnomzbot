@@ -12,6 +12,8 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Assets.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Billing;
+using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Domain.Assets.Entities;
 using NomNomzBot.Infrastructure.Assets;
 using NomNomzBot.Infrastructure.Tests.Marketplace;
@@ -37,7 +39,43 @@ public sealed class ChannelAssetServiceTests
     {
         MarketplaceTestDbContext db = MarketplaceTestDbContext.New();
         FakeAssetStore store = new();
-        return (new(db, store), db, store);
+        // 64 MB — this suite's fixture reproduces the historical fixed channel ceiling so the pre-existing
+        // budget tests keep their exact numbers; the REAL tier-scaled agreement is proven end-to-end against
+        // IResourceQuotaService in Billing/StorageBudgetAgreementTests.cs.
+        return (new(db, store, new FixedChannelBudgetQuota(64L * 1024 * 1024)), db, store);
+    }
+
+    /// <summary>Reproduces a fixed per-channel byte ceiling without a full billing-tier fixture.</summary>
+    private sealed class FixedChannelBudgetQuota(long limitBytes) : IResourceQuotaService
+    {
+        public Task<Result<QuotaCheckDto>> CheckAsync(
+            Guid broadcasterId,
+            string limitKey,
+            long resultingCount,
+            CancellationToken ct = default
+        ) =>
+            Task.FromResult(
+                Result<QuotaCheckDto>.Success(
+                    new(
+                        resultingCount <= limitBytes,
+                        limitKey,
+                        resultingCount,
+                        limitBytes,
+                        Math.Max(0, limitBytes - resultingCount)
+                    )
+                )
+            );
+
+        public Task<Result<long>> GetCurrentCountAsync(
+            Guid broadcasterId,
+            string limitKey,
+            CancellationToken ct = default
+        ) => throw new NotSupportedException();
+
+        public Task<Result<IReadOnlyList<ResourceUsageDto>>> GetUsageReportAsync(
+            Guid broadcasterId,
+            CancellationToken ct = default
+        ) => throw new NotSupportedException();
     }
 
     // ── Payloads with real magic bytes ──────────────────────────────────────────

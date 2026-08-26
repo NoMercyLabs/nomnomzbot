@@ -11,6 +11,8 @@
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Billing;
+using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Application.Sound.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Sound.Entities;
@@ -37,18 +39,21 @@ internal sealed class SoundClipService : ISoundClipService
     private readonly ISoundClipStore _store;
     private readonly ISoundClipOverlayNotifier _overlay;
     private readonly IChannelRegistry _registry;
+    private readonly IResourceQuotaService _quota;
 
     public SoundClipService(
         IApplicationDbContext db,
         ISoundClipStore store,
         ISoundClipOverlayNotifier overlay,
-        IChannelRegistry registry
+        IChannelRegistry registry,
+        IResourceQuotaService quota
     )
     {
         _db = db;
         _store = store;
         _overlay = overlay;
         _registry = registry;
+        _quota = quota;
     }
 
     public async Task<Result<PagedList<SoundClipDto>>> ListAsync(
@@ -119,6 +124,8 @@ internal sealed class SoundClipService : ISoundClipService
         await combined.CopyToAsync(ms, ct);
         ms.Position = 0;
 
+        // Per-file abuse guard — a fixed safety baseline, never tier-scaled, so a single huge
+        // upload is refused on every plan including self-host.
         if (ms.Length > MaxSizeBytes)
             return Result<SoundClipDto>.Failure(
                 $"Clip exceeds the {MaxSizeBytes / 1024 / 1024} MB size limit.",
@@ -131,6 +138,31 @@ internal sealed class SoundClipService : ISoundClipService
             return Result<SoundClipDto>.Failure(
                 $"Channel has reached the {MaxClipsPerChannel} clip limit.",
                 "LIMIT_REACHED"
+            );
+
+        // Per-channel storage budget — tier-scaled, resolved through the SAME seam
+        // (IResourceQuotaService → LimitedResourceRegistry) that GET billing/usage reports from,
+        // so the ceiling shown to the user is the ceiling that refuses them.
+        long usedBytes = (
+            await _quota.GetCurrentCountAsync(broadcasterId, "sound_clip_storage_bytes", ct)
+        ).Value;
+        Result<QuotaCheckDto> budgetCheck = await _quota.CheckAsync(
+            broadcasterId,
+            "sound_clip_storage_bytes",
+            usedBytes + ms.Length,
+            ct
+        );
+        if (!budgetCheck.IsSuccess)
+            return Result<SoundClipDto>.Failure(budgetCheck.ErrorMessage, budgetCheck.ErrorCode);
+        if (!budgetCheck.Value.Allowed)
+            return Result<SoundClipDto>.Failure(
+                string.Format(
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    "This upload would use {0:F1} MB of your {1:F0} MB sound clip storage limit.",
+                    (usedBytes + ms.Length) / 1024.0 / 1024.0,
+                    budgetCheck.Value.Limit / 1024.0 / 1024.0
+                ),
+                "CHANNEL_BUDGET_EXCEEDED"
             );
 
         int durationMs = AudioSniffer.ProbeDurationMs(ms, sniffedMime);
