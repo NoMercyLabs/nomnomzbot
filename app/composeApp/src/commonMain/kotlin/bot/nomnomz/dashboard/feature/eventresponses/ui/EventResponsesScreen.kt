@@ -58,6 +58,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.EventResponse
+import bot.nomnomz.dashboard.core.i18n.resolveSchemaString
 import bot.nomnomz.dashboard.core.network.EventResponsePreset
 import bot.nomnomz.dashboard.core.network.EventResponseSummary
 import bot.nomnomz.dashboard.core.network.PipelineSummary
@@ -329,13 +330,17 @@ private fun EditDialog(
     // backend's list read re-seeds the catalog default the moment the row is gone).
     var confirmingReset: Boolean by remember { mutableStateOf(false) }
 
+    // The catalog serves a translation KEY for the default template; resolve it in the viewer's locale here,
+    // where a Composable context exists, so the LaunchedEffect below pre-fills real text (never a raw key).
+    val presetTemplate: String = resolveSchemaString(preset?.defaultTemplate)
+
     // Load the stored config (so the fields open pre-filled) and fall back to the preset's default template when
     // there is no stored message yet — the "pre-filled templates in every input" the owner asked for.
     LaunchedEffect(response.eventType) {
         val detail: EventResponse? = loadDetail()
         selectedType = detail?.responseType?.takeIf { it.isNotBlank() } ?: response.responseType
         val storedMessage: String = detail?.message.orEmpty()
-        message = storedMessage.ifBlank { preset?.defaultTemplate.orEmpty() }
+        message = storedMessage.ifBlank { presetTemplate }
         pipelineChoice = detail?.pipelineId.orEmpty()
         widgetChoice = detail?.metadata?.get(EventResponsesController.WidgetIdMetadataKey).orEmpty()
     }

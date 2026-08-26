@@ -21,6 +21,7 @@ import bot.nomnomz.dashboard.core.network.EMPTY_PIPELINE_ID
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.EventResponse
 import bot.nomnomz.dashboard.core.network.EventResponsePreset
+import bot.nomnomz.dashboard.core.network.LocalizedTextDto
 import bot.nomnomz.dashboard.core.network.EventResponseSummary
 import bot.nomnomz.dashboard.core.network.EventResponsesApi
 import bot.nomnomz.dashboard.core.network.PipelineCatalogueRemote
@@ -505,7 +506,7 @@ private class RecordingEventResponsesApi(
         listOf(
             EventResponsePreset(
                 eventType = "channel.follow",
-                defaultTemplate = "Thanks for the follow, {user}!",
+                defaultTemplate = LocalizedTextDto(key = "eventresponse.preset.channel_follow.template"),
                 variables = listOf("user", "user.name"),
             )
         )

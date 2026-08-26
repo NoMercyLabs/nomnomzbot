@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using System.ComponentModel.DataAnnotations;
+using NomNomzBot.Application.Abstractions.Localization;
 
 namespace NomNomzBot.Application.Commands.Dtos;
 
@@ -37,10 +38,12 @@ public sealed record EventResponseListItem(
 /// <summary>
 /// One catalog preset for an event type: the ready-to-use default template the dashboard pre-fills the
 /// message input with, and the exact template variables the trigger source seeds for that event.
+/// <see cref="DefaultTemplate"/> is a translation KEY only (S-SCHEMA-I18N-redesign) — the English and Dutch
+/// sentences live in the dashboard's <c>strings.xml</c>, never in this assembly.
 /// </summary>
 public sealed record EventResponsePresetDto(
     string EventType,
-    string DefaultTemplate,
+    LocalizedText DefaultTemplate,
     IReadOnlyList<string> Variables
 );
 

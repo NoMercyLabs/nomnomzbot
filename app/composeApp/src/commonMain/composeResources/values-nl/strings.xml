@@ -4111,4 +4111,40 @@
     <string name="pipeline_wait_for_event_event_name_help">De naam van de gebeurtenis waarop deze stap wacht. Een overeenkomende gebeurtenis hervat de pipeline; elke andere gebeurtenis wordt genegeerd.</string>
     <string name="pipeline_wait_for_event_timeout_seconds_help">Hoelang wachten voordat wordt opgegeven, in seconden (standaard 300, maximaal 86400). Bij time-out gaat de pipeline verder met event.timed_out ingesteld op true.</string>
     <string name="pipeline_widget_event_description">Stuur een gebeurtenis naar een widget-overlay</string>
+
+    <!-- Event-response preset default templates (backend EventResponsePresetCatalog serves the KEY only). -->
+    <string name="eventresponse_preset_channel_follow_template">Bedankt voor het volgen, {user}!</string>
+    <string name="eventresponse_preset_channel_subscribe_template">Welkom bij de sub-squad, {user}!</string>
+    <string name="eventresponse_preset_channel_subscription_message_template">{user} heeft opnieuw geabonneerd — al {months} maanden!</string>
+    <string name="eventresponse_preset_channel_subscription_gift_template">{user} heeft {count} subs cadeau gegeven — bedankt!</string>
+    <string name="eventresponse_preset_channel_cheer_template">{user} heeft {bits} bits gecheerd — bedankt!</string>
+    <string name="eventresponse_preset_channel_raid_template">{user} raidt met {viewers} kijkers — welkom, raiders!</string>
+    <string name="eventresponse_preset_channel_channel_points_custom_reward_redemption_add_template">{user} heeft {reward} ingewisseld!</string>
+    <string name="eventresponse_preset_reward_paused_template">{reward} is even gepauzeerd — inwisselen ligt stil.</string>
+    <string name="eventresponse_preset_reward_resumed_template">{reward} is terug — inwisselen maar!</string>
+    <string name="eventresponse_preset_reward_enabled_template">{reward} is nu beschikbaar voor {cost} punten!</string>
+    <string name="eventresponse_preset_reward_disabled_template">{reward} is uit de roulatie gehaald.</string>
+    <string name="eventresponse_preset_channel_ad_break_begin_template">Reclame voor {ad.duration} seconden — perfect moment om even te strekken!</string>
+    <string name="eventresponse_preset_channel_ban_template">{user} is door {moderator} de deur gewezen ({duration}).</string>
+    <string name="eventresponse_preset_channel_unban_template">{user} is weer toegelaten — welkom terug.</string>
+    <string name="eventresponse_preset_channel_raid_out_template">We raiden {user} met {viewers} kijkers — geef gas!</string>
+    <string name="eventresponse_preset_stream_online_template">We zijn live: {title} — we spelen {game}!</string>
+    <string name="eventresponse_preset_stream_offline_template">De stream zit erop na {duration} — bedankt voor het kijken!</string>
+    <string name="eventresponse_preset_engagement_first_time_chatter_template">Welkom bij de stream, {user}!</string>
+    <string name="eventresponse_preset_engagement_returning_chatter_template">Welkom terug, {user}!</string>
+    <string name="eventresponse_preset_engagement_watch_streak_template">{user} kijkt al {engagement.streak} streams op rij!</string>
+    <string name="eventresponse_preset_engagement_session_first_message_template">Kom binnen, {user}!</string>
+    <string name="eventresponse_preset_supporter_tip_template">{user} heeft {supporter.amount} {supporter.currency} gedoneerd — bedankt!</string>
+    <string name="eventresponse_preset_supporter_membership_template">{user} is lid geworden — bedankt!</string>
+    <string name="eventresponse_preset_supporter_merch_template">{user} heeft merch gescoord — bedankt!</string>
+    <string name="eventresponse_preset_supporter_charity_template">{user} heeft {supporter.amount} {supporter.currency} aan het goede doel gedoneerd!</string>
+    <string name="eventresponse_preset_supporter_any_template">{user} heeft de stream gesteund — bedankt!</string>
+    <string name="eventresponse_preset_obs_CurrentProgramSceneChanged_template">Scène gewisseld naar {obs.event.sceneName}</string>
+    <string name="eventresponse_preset_obs_StreamStateChanged_template">OBS-streamstatus: {obs.event.outputState}</string>
+    <string name="eventresponse_preset_obs_RecordStateChanged_template">OBS-opnamestatus: {obs.event.outputState}</string>
+    <string name="eventresponse_preset_obs_ReplayBufferSaved_template">Replay opgeslagen!</string>
+    <string name="eventresponse_preset_obs_VendorEvent_template">OBS-leveranciersgebeurtenis van {obs.event.vendorName}</string>
+    <string name="eventresponse_preset_vts_ModelLoadedEvent_template">Model {vts.event.modelName} geladen!</string>
+    <string name="eventresponse_preset_vts_HotkeyTriggeredEvent_template">Sneltoets {vts.event.hotkeyName} geactiveerd!</string>
+    <string name="eventresponse_preset_vts_ModelClickedEvent_template">Iemand heeft het model aangetikt!</string>
 </resources>
