@@ -10,14 +10,17 @@
 
 using System.Net;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.DTOs.Webhooks;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Webhooks.Enums;
 using NomNomzBot.Domain.Webhooks.Events;
+using NomNomzBot.Infrastructure.Tests.Discord;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NomNomzBot.Infrastructure.Webhooks;
 using NSubstitute;
@@ -206,5 +209,90 @@ public sealed class OutboundWebhookDispatcherTests
         ).Value;
 
         result.Status.Should().Be(WebhookDeliveryStatus.Delivered);
+    }
+
+    /// <summary>Captures the body actually put on the wire, so a test can assert what the receiver gets.</summary>
+    private sealed class CapturingHandler : HttpMessageHandler
+    {
+        public string? Body { get; private set; }
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
+        {
+            Body = request.Content is null
+                ? null
+                : await request.Content.ReadAsStringAsync(cancellationToken);
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        }
+    }
+
+    /// <summary>
+    /// Builds the dispatcher with the REAL <see cref="WebhookBodyTemplateRenderer"/> and a handler that
+    /// captures the outgoing body. The other overload substitutes the renderer, so those tests can never
+    /// see whether the real one is wired in or what it emits — the JSON-safety proof has to enter here,
+    /// on the path a real delivery takes.
+    /// </summary>
+    private static (
+        OutboundWebhookDispatcher Sut,
+        AuthDbContext Db,
+        CapturingHandler Handler
+    ) BuildWithRealRenderer()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        ITokenProtector protector = Substitute.For<ITokenProtector>();
+        protector
+            .TryUnprotectAsync(
+                Arg.Any<string>(),
+                Arg.Any<TokenProtectionContext>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns("whsec_secret");
+        CapturingHandler handler = new();
+        IHttpClientFactory factory = Substitute.For<IHttpClientFactory>();
+        factory.CreateClient(Arg.Any<string>()).Returns(_ => new HttpClient(handler));
+        OutboundWebhookDispatcher sut = new(
+            db,
+            protector,
+            new OutboundWebhookSigner(),
+            new WebhookBodyTemplateRenderer(DiscordTemplateTestSupport.CreateResolver()),
+            factory,
+            new RecordingEventBus(),
+            new FakeTimeProvider(Now)
+        );
+        return (sut, db, handler);
+    }
+
+    // The renderer's own tests prove JSON-aware substitution in isolation. This proves it on the path a
+    // real webhook takes: a template saved on the endpoint, rendered by the REAL renderer, with the body
+    // read back off the outgoing HTTP request. A viewer display name carrying a quote, a backslash, a
+    // newline and an emoji must not be able to break the payload the receiver parses.
+    [Fact]
+    public async Task A_delivered_body_is_valid_JSON_with_a_hostile_viewer_name_escaped()
+    {
+        (OutboundWebhookDispatcher sut, AuthDbContext db, CapturingHandler handler) =
+            BuildWithRealRenderer();
+        Guid endpointId = await SeedEndpointAsync(db);
+        OutboundWebhookEndpoint endpoint = await db.OutboundWebhookEndpoints.FirstAsync(e =>
+            e.Id == endpointId
+        );
+        endpoint.BodyTemplate = """{"who":"{user.name}","nested":{"kind":"raid"}}""";
+        await db.SaveChangesAsync();
+
+        const string hostile = "ev\"il\\ \n \U0001F389";
+        Dictionary<string, string> variables = new() { ["user.name"] = hostile };
+
+        OutboundEnqueueResult result = (
+            await sut.EnqueueForEndpointAsync(Channel, endpointId, "test.event", variables, null)
+        ).Value;
+
+        result.Status.Should().Be(WebhookDeliveryStatus.Delivered);
+        handler.Body.Should().NotBeNull();
+
+        // Parsing IS the assertion: a corrupted payload throws here rather than merely looking wrong.
+        JObject parsed = JObject.Parse(handler.Body!);
+        parsed["who"]!.Value<string>().Should().Be(hostile);
+        parsed["nested"]!["kind"]!.Value<string>().Should().Be("raid");
     }
 }
