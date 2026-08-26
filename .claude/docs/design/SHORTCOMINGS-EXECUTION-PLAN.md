@@ -136,16 +136,25 @@ stable — without dropping the planned requirements behind them.
   and apply it as ONE mechanism across every core action rather than per-action patches — then a templated
   argument and a templated return value both resolve, proven by tests.
 
-- **S-PIPE-TREE-d3** `wait_for_event` / resume-later — THE BIG ONE, size it accordingly and split again if
-  needed. A run SUSPENDS with its full state persisted (variable bag, tree position, loop/switch cursors)
-  in a new `PipelineRunState` entity, surviving a process restart, and resumes on a matching event.
-  Requires: a timeout path, CANCELLATION when the stream goes offline (a suspended run must never strand),
-  suspended wall-clock excluded from `MaxRuntime` (settled CTO decision), and a cap on concurrently
-  suspended runs per channel so a viewer cannot spam the bot into holding thousands of paused runs.
-  The new entity means BOTH EF migration sets + ~40 `IApplicationDbContext` test fakes +
-  `PendingModelChangesGuardTests` green on both providers.
-  **SIZING NOTE:** a single brief bundling d1+d2+d3 was correctly REFUSED by a builder as multi-day work.
-  That refusal was right and the orchestrator's bundling was the error — keep these three separate.
+- **S-PIPE-TREE-d3b** (d3a CLOSED + VERIFIED 369b22f1 — `PipelineRunState` persists the variable bag,
+  tree position and loop/switch cursors; a run resumes after a simulated process restart at the exact
+  next step, proven separately for a suspend inside a NESTED LOOP and inside a SWITCH ARM; per-channel
+  suspended-run cap fails honestly; suspended wall-clock excluded from `MaxRuntime` while a genuinely
+  runaway run still times out; BOTH migration sets + 42 test fakes; `RunStepsAsync` untouched so flat
+  pipelines still route the original path — verified by diff, not by claim. 4253 green.)
+  REMAINING for the `wait_for_event` feature: the `wait_for_event` ACTION itself and event-matching (a
+  suspended run resumes on a MATCHING event and ignores non-matching ones), the timeout path, and
+  CANCELLATION when the stream goes offline so a suspended run never strands. Done-when: a run waits for
+  a named event, resumes on a match with the event's data available to later steps, times out honestly,
+  and is cancelled on stream-offline — each proven, plus a test that a non-matching event does NOT
+  resume it.
+
+- **S-JB-INSPECT-GATE** (reported by the d3a builder) `scripts/slice-check.ps1` runs `jb inspectcode`,
+  but the builder could not run that gate: it builds a scoped target dynamically and there is no `.sln`
+  in the repo (the solution file is `NomNomzBot.slnx`). So the redundant-suppression / merge-into-pattern
+  checks that ONLY ReSharper catches went unverified on this slice — and on any slice whose builder hits
+  the same wall. Done-when: the inspection gate runs from a clean checkout with the repo's real solution
+  file, or the script fails loudly saying it could not inspect rather than being silently skipped.
 
 - **S-BUDGETS** (owner, 2026-08-25) "a proper budget system to track the payment tiers — most of it is
   based on resource usage, hence the amount of files you can store or commands you can register."
