@@ -50,6 +50,7 @@ import nomnomzbot.composeapp.generated.resources.resource_picker_unavailable
 import nomnomzbot.composeapp.generated.resources.search_picker_change
 import nomnomzbot.composeapp.generated.resources.search_picker_selected
 import org.jetbrains.compose.resources.stringResource
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 
 /**
  * A backend-sourced rich picker for one [PipelineActionFieldKind] resource-picker [kind] (S-RICH-PICKERS): the
@@ -109,7 +110,7 @@ fun ResourcePickerField(
                 horizontalArrangement = Arrangement.spacedBy(spacing.s2),
             ) {
                 Text(
-                    text = stringResource(Res.string.search_picker_selected, selected.label.ifBlank { selected.value }),
+                    text = stringResource(Res.string.search_picker_selected, resolveRowLabel(selected.label, typeLabel = kind.name, discriminatorSource = selected.value)),
                     style = typography.sm,
                     color = tokens.cardForeground,
                     maxLines = 1,
@@ -152,6 +153,7 @@ fun ResourcePickerField(
                         state.items.take(8).forEach { option ->
                             ResourcePickerRow(
                                 option = option,
+                                typeLabel = kind.name,
                                 onClick = {
                                     selectedOption = option
                                     onSelect(option.value)
@@ -173,7 +175,11 @@ private sealed interface ResourcePickerLoadState {
 }
 
 @Composable
-private fun ResourcePickerRow(option: PipelineOptionDto, onClick: () -> Unit) {
+private fun ResourcePickerRow(
+    option: PipelineOptionDto,
+    typeLabel: String,
+    onClick: () -> Unit,
+) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -187,7 +193,7 @@ private fun ResourcePickerRow(option: PipelineOptionDto, onClick: () -> Unit) {
                 .background(tokens.popover)
                 .then(if (selectable) Modifier.clickable(onClick = onClick) else Modifier)
                 .padding(horizontal = spacing.s3, vertical = spacing.s2)
-                .semantics { contentDescription = option.label.ifBlank { option.value } },
+                .semantics { contentDescription = resolveRowLabel(option.label, typeLabel = typeLabel, discriminatorSource = option.value) },
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
@@ -201,7 +207,7 @@ private fun ResourcePickerRow(option: PipelineOptionDto, onClick: () -> Unit) {
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = option.label.ifBlank { option.value },
+                text = resolveRowLabel(option.label, typeLabel = typeLabel, discriminatorSource = option.value),
                 style = typography.sm,
                 color = if (selectable) tokens.popoverForeground else tokens.mutedForeground,
                 maxLines = 1,
