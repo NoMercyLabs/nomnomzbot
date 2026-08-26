@@ -17,6 +17,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Platform.Pipeline;
+using NomNomzBot.Infrastructure.Platform.Templating;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NomNomzBot.Infrastructure.Tests.Persistence;
 using NSubstitute;
@@ -47,7 +48,10 @@ public sealed class PipelineServiceValidationTests
     private static (PipelineService Service, AuthDbContext Db) Build()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
-        CommandConfigValidator validator = new([new FakeAction { ActionType = "send_message" }]);
+        CommandConfigValidator validator = new(
+            [new FakeAction { ActionType = "send_message" }],
+            new TemplateHelperValidator()
+        );
         return (
             new(
                 db,

@@ -16,6 +16,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Platform.Pipeline;
+using NomNomzBot.Infrastructure.Platform.Templating;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NomNomzBot.Infrastructure.Tests.Persistence;
 using NSubstitute;
@@ -119,7 +120,10 @@ public sealed class PipelineServiceCacheInvalidationTests
             db,
             new PassThroughUnitOfWork(),
             Substitute.For<IEventBus>(),
-            new CommandConfigValidator([new FakeAction { ActionType = "send_message" }]),
+            new CommandConfigValidator(
+                [new FakeAction { ActionType = "send_message" }],
+                new TemplateHelperValidator()
+            ),
             registry
         );
 

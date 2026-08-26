@@ -17,6 +17,7 @@ using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Platform.Pipeline;
+using NomNomzBot.Infrastructure.Platform.Templating;
 using NomNomzBot.Infrastructure.Tests.Persistence;
 using NomNomzBot.Infrastructure.Tests.Platform.Pipeline;
 using NSubstitute;
@@ -46,10 +47,13 @@ public sealed class PipelineServiceLegacyStepsTests
     private static (PipelineService Service, PipelineTestRunDbContext Db) Build()
     {
         PipelineTestRunDbContext db = PipelineTestRunDbContext.New();
-        CommandConfigValidator validator = new([
-            new FakeAction { ActionType = "send_message" },
-            new FakeAction { ActionType = "timeout_user" },
-        ]);
+        CommandConfigValidator validator = new(
+            [
+                new FakeAction { ActionType = "send_message" },
+                new FakeAction { ActionType = "timeout_user" },
+            ],
+            new TemplateHelperValidator()
+        );
         return (
             new(
                 db,

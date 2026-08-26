@@ -8,7 +8,9 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
 
 namespace NomNomzBot.Infrastructure.Platform.Pipeline;
@@ -17,6 +19,11 @@ namespace NomNomzBot.Infrastructure.Platform.Pipeline;
 /// Save-time, fail-closed validator. Enforces the capability-broker invariant:
 /// no action config may carry raw url, secret, credential, or tenant data.
 /// Unknown action types are rejected at save (consistency with fail-closed engine).
+/// Also the S042b save-time guard for pipeline action fields: every field an action declares
+/// <see cref="PipelineActionFieldDescriptor.Templated"/> is checked against
+/// <see cref="TemplateHelperRegistry"/> for <see cref="TemplateHelperContext.Pipeline"/> — a numeric or
+/// picker field is never touched, since only fields the action itself marks as templated are checked
+/// (S042b requirement 4).
 /// </summary>
 public sealed class CommandConfigValidator : ICommandConfigValidator
 {
@@ -38,13 +45,82 @@ public sealed class CommandConfigValidator : ICommandConfigValidator
     private const string BearerPrefix = "Bearer ";
 
     private readonly HashSet<string> _knownActionTypes;
+    private readonly Dictionary<string, ICommandAction> _actionsByType;
+    private readonly ITemplateHelperValidator _templateHelperValidator;
 
-    public CommandConfigValidator(IEnumerable<ICommandAction> actions)
+    public CommandConfigValidator(
+        IEnumerable<ICommandAction> actions,
+        ITemplateHelperValidator templateHelperValidator
+    )
     {
+        List<ICommandAction> materialized = [.. actions];
         _knownActionTypes = new(
-            actions.Select(a => a.ActionType),
+            materialized.Select(a => a.ActionType),
             StringComparer.OrdinalIgnoreCase
         );
+        _actionsByType = new(StringComparer.OrdinalIgnoreCase);
+        foreach (ICommandAction action in materialized)
+            _actionsByType[action.ActionType] = action;
+        _templateHelperValidator = templateHelperValidator;
+    }
+
+    /// <summary>S042b: validates every field an action declares as templated against the pipeline
+    /// helper registry, given the raw config for that step/action.</summary>
+    private Result<PipelineValidationResult> ValidateTemplatedFields(
+        string actionType,
+        IReadOnlyDictionary<string, object?> config
+    )
+    {
+        if (!_actionsByType.TryGetValue(actionType, out ICommandAction? action))
+            return Result.Success(PipelineValidationResult.Valid());
+
+        foreach (PipelineActionFieldDescriptor field in action.Fields.Where(f => f.Templated))
+        {
+            if (!config.TryGetValue(field.Name, out object? rawValue) || rawValue is null)
+                continue;
+
+            foreach (string template in ExtractTemplateStrings(rawValue))
+            {
+                Result validation = _templateHelperValidator.Validate(
+                    template,
+                    TemplateHelperContext.Pipeline
+                );
+                if (validation.IsFailure)
+                    return Result.Success(
+                        PipelineValidationResult.Invalid(
+                            $"Field '{field.Name}': {validation.ErrorMessage}",
+                            "UNKNOWN_TEMPLATE_HELPER"
+                        )
+                    );
+            }
+        }
+
+        return Result.Success(PipelineValidationResult.Valid());
+    }
+
+    /// <summary>A templated field's stored value is either a single string or, when
+    /// <see cref="PipelineActionFieldDescriptor.Repeatable"/>, a JSON array of strings — both shapes
+    /// arrive here as a boxed <see cref="JsonElement"/> (the engine's raw wire representation).</summary>
+    private static IEnumerable<string> ExtractTemplateStrings(object rawValue)
+    {
+        if (rawValue is not JsonElement element)
+        {
+            if (rawValue is string s)
+                yield return s;
+            yield break;
+        }
+
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.String:
+                yield return element.GetString() ?? string.Empty;
+                break;
+            case JsonValueKind.Array:
+                foreach (JsonElement item in element.EnumerateArray())
+                    if (item.ValueKind == JsonValueKind.String)
+                        yield return item.GetString() ?? string.Empty;
+                break;
+        }
     }
 
     public Task<Result<PipelineValidationResult>> ValidatePipelineAsync(
@@ -104,6 +180,13 @@ public sealed class CommandConfigValidator : ICommandConfigValidator
                         )
                     );
             }
+
+            Result<PipelineValidationResult> templateValidation = ValidateTemplatedFields(
+                step.ActionType,
+                step.Config
+            );
+            if (!templateValidation.Value.IsValid)
+                return Task.FromResult(templateValidation);
         }
 
         return Task.FromResult(Result.Success(PipelineValidationResult.Valid()));
@@ -162,6 +245,13 @@ public sealed class CommandConfigValidator : ICommandConfigValidator
                         );
                 }
             }
+
+            Result<PipelineValidationResult> templateValidation = ValidateTemplatedFields(
+                action.Type,
+                action.Parameters.ToDictionary(kv => kv.Key, kv => (object?)kv.Value)
+            );
+            if (!templateValidation.Value.IsValid)
+                return templateValidation;
         }
 
         return Result.Success(PipelineValidationResult.Valid());
