@@ -37,6 +37,7 @@ import bot.nomnomz.dashboard.core.network.PickListsApi
 import bot.nomnomz.dashboard.core.network.PipelineCatalogue
 import bot.nomnomz.dashboard.core.network.PipelineCatalogueRemote
 import bot.nomnomz.dashboard.core.network.PipelineDetail
+import bot.nomnomz.dashboard.core.network.PipelineOptionsApi
 import bot.nomnomz.dashboard.core.network.PipelineGraph
 import bot.nomnomz.dashboard.core.network.PipelineNode
 import bot.nomnomz.dashboard.core.network.PipelineStep
@@ -79,6 +80,9 @@ class PipelinesController(
     private val codeScriptsApi: CodeScriptsApi? = null,
     private val giveawaysApi: GiveawaysApi? = null,
     private val quotesApi: QuotesApi? = null,
+    // The rich resource-picker option source (S-RICH-PICKERS) — best-effort like every editor picker source
+    // above: absent, the picker-kind fields degrade to their legacy local-list/free-text entry.
+    private val pipelineOptionsApi: PipelineOptionsApi? = null,
     private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<PipelinesState> = MutableStateFlow(PipelinesState.Loading)
@@ -269,6 +273,7 @@ class PipelinesController(
             codeScripts = codeScripts,
             giveaways = giveaways,
             quotes = quotes,
+            pipelineOptionsApi = pipelineOptionsApi,
         )
     }
 
@@ -456,4 +461,13 @@ data class EditorOptions(
     val giveaways: List<PickerOption> = emptyList(),
     /** The channel's quotes by NUMBER — the `post_quote` block's `quote_number` picker (value = number). */
     val quotes: List<PickerOption> = emptyList(),
+    /**
+     * The backend's rich resource-picker option supply (S-RICH-PICKERS, `GET pipelines/options/{kind}`) — a
+     * field whose [BlockField.remoteKind] names a [bot.nomnomz.dashboard.core.network.PickerKind] fetches its
+     * own option page directly through this on open/search rather than a preloaded list, since these sources
+     * (Discord roles, Twitch users, assets, …) can be large and support server-side search. Null when the API
+     * is unavailable — the field then degrades to the legacy free-text/local-list entry for that key, same as
+     * every other optional editor source above.
+     */
+    val pipelineOptionsApi: PipelineOptionsApi? = null,
 )
