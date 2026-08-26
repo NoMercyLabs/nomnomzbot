@@ -262,9 +262,21 @@ stable — without dropping the planned requirements behind them.
 
 ## Phase 3 — form infrastructure (stabilizes existing authoring; every 'raw text box' finding rides on it)
 
-- **S042** Helper registry + endpoint — machine-readable registry drives `TemplateResolver`;
-  `GET /templates/helpers?context=`; save-time validation of unknown keys (U·A7, S·F6, W·§6).
-  Done-when: endpoint returns the full valid set per entry type; save rejects unknown keys.
+- **S042** SHIPPED aae0a48d, VERIFIED (Infrastructure +14 green; `TemplatesControllerTests` 4/4 green,
+  run by the orchestrator in a worktree at the commit because another agent's WIP blocked Api.Tests on
+  the shared tree). Registry drives `TemplateResolver` with a BOTH-DIRECTIONS coverage guard (resolvable
+  but unregistered, or registered but unresolvable, both fail); `GET /api/v1/templates/helpers?context=`
+  returns the per-context set and 400s an unknown context; helper descriptions are `LocalizedText` keys
+  with 73 en+nl pairs, not English in C#.
+  **SAVE-PATH COVERAGE IS 3 OF 19 — this is the remaining work, tracked as S042b:**
+  covered = CommandService, EventResponseService, TimerManagementService (unknown key rejected NAMING
+  the key, valid key still saves). NOT covered = PipelineService action fields (send_message/send_reply/
+  wait — the biggest authoring surface, was off-limits to that agent), and Discord notifications,
+  Giveaways and Rewards accept free template text but are **not wired to `ITemplateResolver` at all**, a
+  pre-existing gap. Until all 19 are covered, a streamer can still save `{{user.nmae}}` on most surfaces
+  and watch it render as nothing on stream. Enumerate the consumers structurally; a guard must fail when
+  a NEW save path accepts a template without validating it.
+
 - **S043** "All helpers" dialog — shared `TemplateHelpersLink` + `Dialog` (search, namespace groups,
   insert) in every template field (commands, event responses, timers, rewards, pipelines, chat
   triggers, giveaways, Discord); en + nl descriptions; remove chip scroller (U·A7, W·§8 i7).
