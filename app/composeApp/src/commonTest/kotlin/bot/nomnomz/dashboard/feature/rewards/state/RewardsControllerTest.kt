@@ -576,4 +576,8 @@ private object StubRewardPipelinesApi : bot.nomnomz.dashboard.core.network.Pipel
         body: bot.nomnomz.dashboard.core.network.UpdatePipelineBody,
     ): ApiResult<Unit> = error("stub")
     override suspend fun delete(channelId: String, id: String): ApiResult<Unit> = error("stub")
+    override suspend fun blastRadius(
+        channelId: String,
+        id: String,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.PipelineBlastRadiusSummary> = error("stub")
 }

@@ -28,6 +28,10 @@ fun ConfirmDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
     destructive: Boolean = false,
+    // Lets a caller withhold the affirmative while a prerequisite check (e.g. a destructive action's counted
+    // blast radius) is still loading, without deadlocking the user if that check fails — the caller decides
+    // per-outcome, this dialog just renders the disabled state (S-CONSEQ-b).
+    confirmEnabled: Boolean = true,
 ) {
     val tokens = LocalTokens.current
 
@@ -40,11 +44,11 @@ fun ConfirmDialog(
             // text button showed only a white-opacity hover background, reading as non-destructive. The
             // affirmative for an irreversible action must be unmistakably red. Non-destructive stays a text button.
             if (destructive) {
-                Button(onClick = onConfirm, variant = ButtonVariant.Destructive) {
+                Button(onClick = onConfirm, enabled = confirmEnabled, variant = ButtonVariant.Destructive) {
                     Text(text = confirmLabel, maxLines = 1)
                 }
             } else {
-                TextButton(onClick = onConfirm) {
+                TextButton(onClick = onConfirm, enabled = confirmEnabled) {
                     Text(text = confirmLabel, color = tokens.primary, maxLines = 1)
                 }
             }
