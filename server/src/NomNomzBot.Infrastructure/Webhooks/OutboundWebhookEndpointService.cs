@@ -12,6 +12,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
@@ -167,6 +168,19 @@ public sealed class OutboundWebhookEndpointService(
                 subscription.ErrorCode
             );
 
+        // A JSON-declared body template must actually parse, or the author gets a silent downgrade to the
+        // unescaped plain-text render path at delivery time (S-WEBHOOK-JSON-FALLBACK). Caught here, at save
+        // time, with the parse position, while the author is present to fix it.
+        Result bodyTemplateValidation = ValidateBodyTemplateJson(
+            request.BodyTemplate,
+            request.BodyIsJson
+        );
+        if (bodyTemplateValidation.IsFailure)
+            return Result.Failure<OutboundWebhookEndpointCreatedDto>(
+                bodyTemplateValidation.ErrorMessage,
+                bodyTemplateValidation.ErrorCode
+            );
+
         DateTime now = clock.GetUtcNow().UtcDateTime;
         OutboundWebhookEndpoint endpoint = new()
         {
@@ -177,6 +191,7 @@ public sealed class OutboundWebhookEndpointService(
             Path = request.Path,
             SubscribedEventTypesJson = JsonConvert.SerializeObject(request.SubscribedEventTypes),
             BodyTemplate = request.BodyTemplate,
+            BodyIsJson = request.BodyIsJson,
             CustomHeadersJson = request.CustomHeaders is null
                 ? null
                 : JsonConvert.SerializeObject(request.CustomHeaders),
@@ -218,8 +233,22 @@ public sealed class OutboundWebhookEndpointService(
                 request.SubscribedEventTypes
             );
         }
+        bool effectiveBodyIsJson = request.BodyIsJson ?? endpoint.BodyIsJson;
+        string? effectiveBodyTemplate = request.BodyTemplate ?? endpoint.BodyTemplate;
+        Result bodyTemplateValidation = ValidateBodyTemplateJson(
+            effectiveBodyTemplate,
+            effectiveBodyIsJson
+        );
+        if (bodyTemplateValidation.IsFailure)
+            return Result.Failure<OutboundWebhookEndpointDto>(
+                bodyTemplateValidation.ErrorMessage,
+                bodyTemplateValidation.ErrorCode
+            );
+
         if (request.BodyTemplate is not null)
             endpoint.BodyTemplate = request.BodyTemplate;
+        if (request.BodyIsJson is { } bodyIsJson)
+            endpoint.BodyIsJson = bodyIsJson;
         if (request.CustomHeaders is not null)
             endpoint.CustomHeadersJson = JsonConvert.SerializeObject(request.CustomHeaders);
         if (request.IsEnabled is { } enabled)
@@ -345,6 +374,30 @@ public sealed class OutboundWebhookEndpointService(
         return Result.Success();
     }
 
+    /// <summary>
+    /// A body template declared as JSON must actually parse (S-WEBHOOK-JSON-FALLBACK) — caught here, at save
+    /// time, with the parse position named, rather than silently downgrading to the unescaped plain-text render
+    /// path at delivery time. A template not declared as JSON, or absent, is never validated here.
+    /// </summary>
+    private static Result ValidateBodyTemplateJson(string? bodyTemplate, bool bodyIsJson)
+    {
+        if (!bodyIsJson || bodyTemplate is null)
+            return Result.Success();
+
+        try
+        {
+            JToken.Parse(bodyTemplate);
+        }
+        catch (JsonReaderException ex)
+        {
+            return Result.Failure(
+                $"Body template is declared as JSON but does not parse: {ex.Message}",
+                "INVALID_JSON_BODY_TEMPLATE"
+            );
+        }
+        return Result.Success();
+    }
+
     private Task<OutboundWebhookEndpoint?> FindAsync(
         Guid broadcasterId,
         Guid endpointId,
@@ -393,6 +446,7 @@ public sealed class OutboundWebhookEndpointService(
             e.Fqdn,
             e.Path,
             JsonConvert.DeserializeObject<List<string>>(e.SubscribedEventTypesJson) ?? [],
+            e.BodyIsJson,
             e.IsEnabled,
             e.ConsecutiveFailureCount,
             e.DisabledAt,

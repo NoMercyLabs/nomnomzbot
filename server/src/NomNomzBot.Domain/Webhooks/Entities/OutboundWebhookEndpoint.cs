@@ -33,6 +33,16 @@ public class OutboundWebhookEndpoint : SoftDeletableEntity, ITenantScoped
     public string SubscribedEventTypesJson { get; set; } = "[]";
     public string? BodyTemplate { get; set; }
 
+    /// <summary>
+    /// Whether <see cref="BodyTemplate"/> is authored as JSON (S-WEBHOOK-JSON-FALLBACK). When true, the template
+    /// must parse as JSON (validated at save time) and is rendered through the JSON-safe leaf-substitution path —
+    /// a stored template that somehow fails to parse anyway fails delivery honestly instead of silently falling
+    /// back to unescaped plain-text rendering. When false, the template was never intended as JSON (a form post,
+    /// plain text) and always renders through the plain-text path. Defaults to true — every outbound delivery is
+    /// sent with a hardcoded <c>Content-Type: application/json</c> today, so JSON is the honest default.
+    /// </summary>
+    public bool BodyIsJson { get; set; } = true;
+
     /// <summary>Author-supplied headers (also templated), as a JSON object string.</summary>
     public string? CustomHeadersJson { get; set; }
 

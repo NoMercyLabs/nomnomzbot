@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
@@ -132,6 +133,86 @@ public sealed class OutboundWebhookEndpointServiceTests
                 && e.EntityId == created.Endpoint.Id.ToString()
                 && e.Action == "created"
             );
+    }
+
+    [Fact]
+    public async Task Create_rejects_a_JSON_declared_body_template_that_fails_to_parse()
+    {
+        (OutboundWebhookEndpointService sut, AuthDbContext db, RecordingEventBus bus) = Build();
+        await SeedAllowlistAsync(db);
+        CreateOutboundWebhookRequest request = new()
+        {
+            Name = "endpoint",
+            Fqdn = "api.example.com",
+            SubscribedEventTypes = ["*"],
+            BodyTemplate = /*lang=json,strict*/
+                """{"who" "{user.name}"}""", // missing colon — invalid JSON
+            BodyIsJson = true,
+        };
+
+        Result<OutboundWebhookEndpointCreatedDto> result = await sut.CreateAsync(
+            Channel,
+            Actor,
+            request
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("INVALID_JSON_BODY_TEMPLATE");
+        result.ErrorMessage.Should().Contain("line"); // names the parse position
+        db.OutboundWebhookEndpoints.Should().BeEmpty(); // rejected, nothing persisted
+        bus.Published.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Create_accepts_a_body_template_declared_as_non_JSON_even_if_malformed_as_JSON()
+    {
+        (OutboundWebhookEndpointService sut, AuthDbContext db, _) = Build();
+        await SeedAllowlistAsync(db);
+        CreateOutboundWebhookRequest request = new()
+        {
+            Name = "endpoint",
+            Fqdn = "api.example.com",
+            SubscribedEventTypes = ["*"],
+            BodyTemplate = "user={user}&note={", // not JSON at all, and never intended to be
+            BodyIsJson = false,
+        };
+
+        Result<OutboundWebhookEndpointCreatedDto> result = await sut.CreateAsync(
+            Channel,
+            Actor,
+            request
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Endpoint.BodyIsJson.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Update_rejects_a_JSON_declared_body_template_that_fails_to_parse()
+    {
+        (OutboundWebhookEndpointService sut, AuthDbContext db, _) = Build();
+        await SeedAllowlistAsync(db);
+        OutboundWebhookEndpointCreatedDto created = (
+            await sut.CreateAsync(Channel, Actor, Req())
+        ).Value;
+
+        Result<OutboundWebhookEndpointDto> result = await sut.UpdateAsync(
+            Channel,
+            created.Endpoint.Id,
+            new UpdateOutboundWebhookRequest
+            {
+                BodyTemplate = /*lang=json,strict*/
+                    """{"broken": [1, 2,}""",
+                BodyIsJson = true,
+            }
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("INVALID_JSON_BODY_TEMPLATE");
+        OutboundWebhookEndpoint stored = await db.OutboundWebhookEndpoints.SingleAsync(e =>
+            e.Id == created.Endpoint.Id
+        );
+        stored.BodyTemplate.Should().BeNull(); // rejected update never touched the stored template
     }
 
     [Fact]

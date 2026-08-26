@@ -27,6 +27,9 @@ public class OutboundWebhookEndpointConfiguration
         builder.Property(e => e.SigningSecretEnvelope).IsRequired().HasMaxLength(1024);
         builder.Property(e => e.SecondarySigningSecretEnvelope).HasMaxLength(1024);
         builder.Property(e => e.DisabledReason).HasMaxLength(255);
+        // Every outbound delivery is sent with a hardcoded Content-Type: application/json today (S-WEBHOOK-
+        // JSON-FALLBACK), so JSON is the honest default for existing rows as well as new ones.
+        builder.Property(e => e.BodyIsJson).HasDefaultValue(true);
 
         // SubscribedEventTypesJson / CustomHeadersJson are JSON text columns (the service owns (de)serialization).
 

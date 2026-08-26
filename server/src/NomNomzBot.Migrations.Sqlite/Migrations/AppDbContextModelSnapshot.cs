@@ -9128,6 +9128,11 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("BodyIsJson")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(true);
+
                     b.Property<string>("BodyTemplate")
                         .HasColumnType("TEXT");
 
