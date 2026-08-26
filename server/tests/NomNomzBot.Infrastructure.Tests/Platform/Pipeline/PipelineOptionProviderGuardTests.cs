@@ -25,8 +25,10 @@ namespace NomNomzBot.Infrastructure.Tests.Platform.Pipeline;
 /// null-arg construction is safe purely for this read). Fails if any resource-picker kind has no discovered
 /// provider (S-RICH-PICKERS). Only <c>Text</c>/<c>Number</c>/<c>Boolean</c>/<c>Enum</c>/<c>ResourceId</c> are
 /// excluded — the enum's own doc comment names <c>ResourceId</c> as the fallback for "no dedicated picker kind
-/// yet"; the other three render a plain control, never a lookup. No provider type is named by hand here, so
-/// adding a new picker kind without a provider — or deleting a provider file — both fail this test.
+/// yet"; the other three render a plain control, never a lookup. <c>KeyValueMap</c> (S-PIPE-TREE-d2b(a)) is
+/// likewise a plain control — a labelled name→value editor, never a backend lookup — so it is excluded here
+/// too. No provider type is named by hand here, so adding a new picker kind without a provider — or deleting
+/// a provider file — both fail this test.
 /// </summary>
 public sealed class PipelineOptionProviderGuardTests
 {
@@ -37,6 +39,7 @@ public sealed class PipelineOptionProviderGuardTests
         PipelineActionFieldKind.Boolean,
         PipelineActionFieldKind.Enum,
         PipelineActionFieldKind.ResourceId,
+        PipelineActionFieldKind.KeyValueMap,
     ];
 
     private static IEnumerable<Type> DiscoverProviderTypes(Assembly assembly) =>

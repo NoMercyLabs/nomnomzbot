@@ -278,7 +278,8 @@ public sealed class PipelineEngineTreeExecutionTests
     private static NomNomzBot.Domain.Commands.Entities.Pipeline NewPipelineRow(
         Guid id,
         Guid broadcasterId,
-        string name = "callee"
+        string name = "callee",
+        IReadOnlyList<string>? parameterNames = null
     ) =>
         new()
         {
@@ -286,6 +287,9 @@ public sealed class PipelineEngineTreeExecutionTests
             BroadcasterId = broadcasterId,
             Name = name,
             TriggerKind = "manual",
+            ParameterNamesJson = parameterNames is null
+                ? null
+                : System.Text.Json.JsonSerializer.Serialize(parameterNames),
         };
 
     private static PipelineStepCondition NewLeafCondition(
@@ -1617,5 +1621,256 @@ public sealed class PipelineEngineTreeExecutionTests
 
         result.Outcome.Should().Be(PipelineOutcome.Completed);
         caughtMarker.Count.Should().Be(1, "the try's catch arm must run once the callee failed");
+    }
+
+    // ─── S-PIPE-TREE-d2b(a): named parameters ──────────────────────────────────
+
+    /// <summary>Resolves <c>{{key}}</c> placeholders against whatever <c>seedVariables</c> the engine
+    /// hands it — a real substitution, not the default echo stub, so a test can prove a template
+    /// argument actually resolved rather than merely being passed through unresolved.</summary>
+    private sealed class SubstitutingResolver : ITemplateResolver
+    {
+        public string Resolve(string template, IDictionary<string, string> variables) =>
+            System.Text.RegularExpressions.Regex.Replace(
+                template,
+                @"\{\{(.*?)\}\}",
+                m => variables.TryGetValue(m.Groups[1].Value, out string? v) ? v : m.Value
+            );
+
+        public Task<string> ResolveAsync(
+            string template,
+            IDictionary<string, string> seedVariables,
+            Guid? broadcasterId,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult(Resolve(template, seedVariables));
+    }
+
+    [Fact]
+    public async Task RunPipelineInline_NamedArgs_BindByName_RegardlessOfCallerOrder()
+    {
+        using PipelineTreeExecutionTestDbContext db = PipelineTreeExecutionTestDbContext.New();
+        Guid callerPipelineId = Guid.NewGuid();
+        Guid calleePipelineId = Guid.NewGuid();
+
+        // Callee declares TWO named parameters, "first" and "second".
+        db.Pipelines.Add(
+            NewPipelineRow(calleePipelineId, TestChannel, parameterNames: ["first", "second"])
+        );
+
+        PipelineStep calleeRecordFirst = NewLeaf(
+            calleePipelineId,
+            null,
+            null,
+            0,
+            "record_first",
+            """{"type":"record_first"}"""
+        );
+        PipelineStep calleeRecordSecond = NewLeaf(
+            calleePipelineId,
+            null,
+            null,
+            1,
+            "record_second",
+            """{"type":"record_second"}"""
+        );
+
+        // Caller lists the JSON object keys in the OPPOSITE order of the callee's declared parameter
+        // order — proving binding is by NAME, never by position/enumeration order.
+        PipelineStep callerRunPipeline = NewLeaf(
+            callerPipelineId,
+            null,
+            null,
+            0,
+            "run_pipeline",
+            $$$"""
+            {"type":"run_pipeline","pipeline":"{{{calleePipelineId}}}","mode":"inline","named_args":{"second":"value-B","first":"value-A"}}
+            """
+        );
+
+        db.PipelineSteps.AddRange(calleeRecordFirst, calleeRecordSecond, callerRunPipeline);
+        await db.SaveChangesAsync();
+
+        RecordingValueAction firstRecorder = new()
+        {
+            ActionType = "record_first",
+            VariableKey = "first",
+        };
+        RecordingValueAction secondRecorder = new()
+        {
+            ActionType = "record_second",
+            VariableKey = "second",
+        };
+        PipelineEngine engine = CreateEngine(db, [firstRecorder, secondRecorder]);
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(callerPipelineId));
+
+        result.Outcome.Should().Be(PipelineOutcome.Completed);
+        firstRecorder.Seen.Should().Equal("value-A");
+        secondRecorder.Seen.Should().Equal("value-B");
+    }
+
+    [Fact]
+    public async Task RunPipelineInline_NamedArgs_TemplatedValue_ResolvesBeforeBinding()
+    {
+        using PipelineTreeExecutionTestDbContext db = PipelineTreeExecutionTestDbContext.New();
+        Guid callerPipelineId = Guid.NewGuid();
+        Guid calleePipelineId = Guid.NewGuid();
+
+        db.Pipelines.Add(
+            NewPipelineRow(calleePipelineId, TestChannel, parameterNames: ["greeting"])
+        );
+
+        PipelineStep calleeRecord = NewLeaf(
+            calleePipelineId,
+            null,
+            null,
+            0,
+            "record_greeting",
+            """{"type":"record_greeting"}"""
+        );
+        PipelineStep callerRunPipeline = NewLeaf(
+            callerPipelineId,
+            null,
+            null,
+            0,
+            "run_pipeline",
+            $$$"""
+            {"type":"run_pipeline","pipeline":"{{{calleePipelineId}}}","mode":"inline","named_args":{"greeting":"{{user.name}}"}}
+            """
+        );
+
+        db.PipelineSteps.AddRange(calleeRecord, callerRunPipeline);
+        await db.SaveChangesAsync();
+
+        RecordingValueAction greetingRecorder = new()
+        {
+            ActionType = "record_greeting",
+            VariableKey = "greeting",
+        };
+        PipelineEngine engine = CreateEngine(
+            db,
+            [greetingRecorder],
+            resolverOverride: new SubstitutingResolver()
+        );
+        PipelineExecutionResult result = await engine.ExecuteAsync(
+            BuildRequest(
+                callerPipelineId,
+                initialVariables: new() { ["user.name"] = "Stoney_Eagle" }
+            )
+        );
+
+        result.Outcome.Should().Be(PipelineOutcome.Completed);
+        greetingRecorder
+            .Seen.Should()
+            .Equal(
+                ["Stoney_Eagle"],
+                "the user-name template must resolve before the callee ever sees it, not the raw placeholder"
+            );
+    }
+
+    [Fact]
+    public async Task RunPipelineInline_NamedArgs_UnknownName_FailsClosed_CalleeNeverRuns()
+    {
+        using PipelineTreeExecutionTestDbContext db = PipelineTreeExecutionTestDbContext.New();
+        Guid callerPipelineId = Guid.NewGuid();
+        Guid calleePipelineId = Guid.NewGuid();
+
+        db.Pipelines.Add(NewPipelineRow(calleePipelineId, TestChannel, parameterNames: ["known"]));
+
+        PipelineStep calleeLeaf = NewLeaf(
+            calleePipelineId,
+            null,
+            null,
+            0,
+            "record_ran",
+            """{"type":"record_ran"}"""
+        );
+        PipelineStep callerRunPipeline = NewLeaf(
+            callerPipelineId,
+            null,
+            null,
+            0,
+            "run_pipeline",
+            $$$"""
+            {"type":"run_pipeline","pipeline":"{{{calleePipelineId}}}","mode":"inline","named_args":{"unknown":"x"}}
+            """
+        );
+
+        db.PipelineSteps.AddRange(calleeLeaf, callerRunPipeline);
+        await db.SaveChangesAsync();
+
+        CountingAction ranMarker = new() { ActionType = "record_ran" };
+        PipelineEngine engine = CreateEngine(db, [ranMarker]);
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(callerPipelineId));
+
+        result.Outcome.Should().Be(PipelineOutcome.PartiallyFailed);
+        ranMarker
+            .Count.Should()
+            .Be(
+                0,
+                "an unknown named arg against a callee with declared parameters fails closed before any callee step runs"
+            );
+    }
+
+    [Fact]
+    public async Task ReturnValue_TemplatedValue_ResolvesBeforeBecomingCallResult()
+    {
+        using PipelineTreeExecutionTestDbContext db = PipelineTreeExecutionTestDbContext.New();
+        Guid callerPipelineId = Guid.NewGuid();
+        Guid calleePipelineId = Guid.NewGuid();
+
+        db.Pipelines.Add(NewPipelineRow(calleePipelineId, TestChannel));
+
+        PipelineStep calleeReturn = NewLeaf(
+            calleePipelineId,
+            null,
+            null,
+            0,
+            "return_value",
+            """{"type":"return_value","value":"{{stream.title}}"}"""
+        );
+        PipelineStep callerRunPipeline = NewLeaf(
+            callerPipelineId,
+            null,
+            null,
+            0,
+            "run_pipeline",
+            $$"""{"type":"run_pipeline","pipeline":"{{calleePipelineId}}","mode":"inline"}"""
+        );
+        PipelineStep callerRecordResult = NewLeaf(
+            callerPipelineId,
+            null,
+            null,
+            1,
+            "record_result",
+            """{"type":"record_result"}"""
+        );
+
+        db.PipelineSteps.AddRange(calleeReturn, callerRunPipeline, callerRecordResult);
+        await db.SaveChangesAsync();
+
+        RecordingValueAction resultRecorder = new()
+        {
+            ActionType = "record_result",
+            VariableKey = "call.result",
+        };
+        PipelineEngine engine = CreateEngine(
+            db,
+            [resultRecorder],
+            resolverOverride: new SubstitutingResolver()
+        );
+        PipelineExecutionResult result = await engine.ExecuteAsync(
+            BuildRequest(
+                callerPipelineId,
+                initialVariables: new() { ["stream.title"] = "Live now!" }
+            )
+        );
+
+        result.Outcome.Should().Be(PipelineOutcome.Completed);
+        resultRecorder
+            .Seen.Should()
+            .Equal(
+                ["Live now!"],
+                "return_value's templated stream-title must resolve before the caller reads call.result"
+            );
     }
 }

@@ -52,6 +52,16 @@ public class Pipeline : SoftDeletableEntity, ITenantScoped
     /// </summary>
     public string? GraphJsonCache { get; set; }
 
+    /// <summary>
+    /// Declared named parameters for this pipeline when invoked as a sub-pipeline via
+    /// <c>run_pipeline</c> (S-PIPE-TREE-d2b) — a JSON string array, e.g. <c>["user", "amount"]</c>.
+    /// The editor renders one labelled field per declared name instead of an unlabelled positional
+    /// list; a caller binds arguments BY NAME (<c>RunPipelineAction</c>'s <c>named_args</c> field),
+    /// never by position. Null/empty = no declared parameters — a caller may still pass legacy
+    /// positional args, read by the callee as <c>{{args.1}}</c>..<c>{{args.N}}</c>.
+    /// </summary>
+    public string? ParameterNamesJson { get; set; }
+
     public virtual ICollection<PipelineStep> Steps { get; set; } = [];
 
     /// <summary>N independent trigger bindings (E1) — the source of truth once populated; see
