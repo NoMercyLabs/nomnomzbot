@@ -107,16 +107,22 @@ only Stoney can make. Do not burn agent time trying to work around them.
 
 ---
 
-- **S-FLAKY-TIMEOUT-TESTS** A test that fails when the machine is busy is a bad test, and this repo has
-  at least three: `AutomationStreamCoordinatorTests.An_unauthenticated_socket_accepts_only_authenticate_
-  and_closes_on_timeout` (fails in a full run under load, passes 4/4 in isolation),
-  `ProjectionRunnerLeaseTests.Rebuild_RefusedForSameBroadcasterAndProjection_WhileFirstRebuildIsInFlight`,
-  and `SqliteResilienceInterceptorTests.Concurrent_writers_...` (red once in CI, green locally). Each
-  asserts a real property but measures it with WALL-CLOCK timing, so CPU contention reads as a failure and
-  every red becomes "probably the flake" — which is how a genuine regression gets waved through.
-  Done-when: each is rewritten to control time explicitly (a `FakeTimeProvider` / deterministic scheduler /
-  explicit synchronisation instead of a sleep or a real timeout), still proves the same property, and is
-  proven to fail when that property is actually broken (mutate it and watch it go red).
+- **S-FLAKY-TIMEOUT-TESTS** (1 of 3 DONE 62fdb057 — `AutomationStreamCoordinatorTests`'
+  socket-timeout test now advances a `FakeTimeProvider` and awaits an explicit `ClosedSignal`; the
+  remaining 30s bound is a deadlock guard, not the measurement.) TWO REMAIN, both seen red under load and
+  green in isolation the same day: `EventStore/ProjectionRunnerLeaseTests.Rebuild_RefusedForSame
+  BroadcasterAndProjection_WhileFirstRebuildIsInFlight` and `Platform/Persistence/SqliteResilience
+  InterceptorTests.Concurrent_writers_across_two_tables_produce_zero_database_is_locked_errors`. Also the
+  sibling waits in the Automation file still use real 5s timeouts.
+  Rules: do NOT weaken the assertion, delete the test, add a retry, or merely raise the timeout — raising
+  it makes the flake rarer and the suite slower without making anything deterministic. Control time and
+  concurrency explicitly, then PROVE each still catches the defect by breaking the property (allow the
+  second rebuild; remove the WAL/busy-timeout setting) and watching it go red.
+  WHY IT MATTERS: once "probably the flake" is the standard reading of a red suite, a genuine regression
+  gets waved through — that happened twice in one session.
+  DISPATCH NOTE: this touches `Infrastructure.Tests`, so it must NOT run in parallel with another agent
+  writing into that project — see [[disjoint-files-is-not-disjoint-compile-units]]. Serial, or verify in
+  its own worktree.
 
 - **S-EVENTRESPONSE-NO-CREATE** (found by S-BUDGETS-b3) `EventResponsesScreen.kt` has NO create
   affordance: event responses are a fixed per-event-type catalogue seeded by the backend, edit/toggle
@@ -182,9 +188,18 @@ stable — without dropping the planned requirements behind them.
     command. 2 of 3 surfaces: see S-EVENTRESPONSE-NO-CREATE below for the third.~~ ~~warn BEFORE the failed save (the S-CONSEQ law): approaching/at-limit is visible before the user
     does work and loses it, never discovered by failing.~~
   - **b4** raising a tier raises the ceiling immediately, no re-login ([[never-logout-for-scope-or-schema-changes]]).
-  - **b5** the COST_DRIVING side is only 2 keys (tts characters, sandbox exec ms). Stored file bytes,
+  - ~~**b5** DONE 47f7be77: sound_clip_storage_bytes + channel_asset_storage_bytes declared COST_DRIVING
+    with REAL meters (sum of live SizeBytes through the same seam the usage report reads). Explicitly
+    UNMETERABLE, with reasons rather than fake keys: bandwidth/egress (no request-byte counter exists
+    anywhere in the stack) and retained EventJournal rows (no retention lever to hang a limit on).~~
+  - ~~**b6** DONE ff0cb08b: the storage WRITE paths now enforce through the registry, so the ceiling a
+    user is SHOWN is the ceiling that REFUSES them (proven by filling to a seeded tier limit and
+    asserting the reported Limit equals the value behind CHANNEL_BUDGET_EXCEEDED). The per-file size cap
+    survives as an abuse guard at any tier; self-host refuses only at that baseline; the refusal names
+    real megabytes.~~
+  - ~~**b5-old** the COST_DRIVING side is only 2 keys (tts characters, sandbox exec ms). Stored file bytes,
     egress/bandwidth and retained history rows are named in the owner's cost-recovery intent but have no key
-    or meter. Enumerate what actually costs money and declare each, or say why one is unmeterable.
+    or meter.~~
 
 - **S-NAMELESS-ROWS-b** (17 of 19 files remain; Commands + Rewards done in 8c349816, jvmTest 702/702)
   Mechanism `resolveRowLabel` + `RowLabelGuardTest` shipped in fa9391a3; `PickListsScreen` is the worked
