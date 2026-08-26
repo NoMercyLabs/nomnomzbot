@@ -234,19 +234,19 @@ stable — without dropping the planned requirements behind them.
   exists at all**, so `supporter-events.md` §4.1's YouTube sponsor/gift/super-chat mapping has nothing
   to map from. Kick has `KickWebhookIngest`; YouTube has no equivalent.
 
-- **S-TWO-TEMPLATE-ENGINES** (found while closing S022b — a real architectural split, not a nit)
-  There are TWO template engines. `ITemplateResolver` (`Platform/Templating/TemplateResolver.cs`) is the
-  live one: 90+ helpers, `{transform.*}` text transforms, the S042 registry and save-time validation.
-  `ITemplateEngine` (`Platform/Templating/TemplateEngine.cs`, "simple {{variable}} substitution",
-  registered in DependencyInjection.cs:897) is a SECOND engine used by `DiscordNotificationConfigService`
-  and `DiscordNotificationDispatcher`. Consequence: a Discord notification template silently gets a
-  weaker feature set — no helpers, no transforms, no unknown-key validation — and the preview a streamer
-  sees is rendered by a different engine than the one that renders anything else. This is the same class
-  as the pipeline read/write asymmetry that caused unrecoverable loss: two representations that can
-  diverge. Done-when: ONE engine renders every user-authored template; the Discord surfaces resolve
-  through `ITemplateResolver` with the same helpers, transforms and validation, proven by a test that a
-  Discord template using a helper and a transform renders identically to the same string elsewhere;
-  the redundant engine is deleted, not left as a trap.
+- **S-WEBHOOK-TEMPLATE-GRAMMAR** (the honest blocker that stopped S-TWO-TEMPLATE-ENGINES from deleting
+  the second engine — d45f2cac unified DISCORD onto `ITemplateResolver`: helper+transform renders
+  identically to any other surface, preview and dispatch provably share one engine, Discord saves
+  validate unknown keys, all 8 Discord seed variables still resolve, 4255 green.)
+  `Webhooks/OutboundWebhookDispatcher.cs:115` is a SECOND genuine `ITemplateEngine` consumer the
+  unification brief never named. It relies on the `{{double-brace}}` grammar ON PURPOSE: a webhook
+  `BodyTemplate` is usually raw JSON, and `TemplateResolver`'s single-brace `{var}` would collide with
+  literal JSON braces. Deleting the engine today would silently corrupt JSON webhook payloads — so it
+  correctly was NOT deleted. Done-when: outbound webhook bodies render through the ONE engine with a
+  JSON-safe escaping design (decide it: escaped braces, a distinct delimiter, or JSON-aware
+  substitution), proven by a test that a body template containing BOTH literal JSON braces AND a helper
+  renders valid JSON with the helper substituted; then `ITemplateEngine`, `TemplateEngine` and their DI
+  registration are deleted so no second grammar remains as a trap.
 
 - **S027** Kick go-live + reads — `livestream.status.updated` publishes canonical online/offline;
   Kick channel read (viewer count, title/category), `KickPlatformApi` + `channel:read/write`; operator
