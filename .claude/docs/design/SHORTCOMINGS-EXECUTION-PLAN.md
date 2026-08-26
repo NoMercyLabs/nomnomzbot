@@ -107,6 +107,17 @@ only Stoney can make. Do not burn agent time trying to work around them.
 
 ---
 
+- **S-FLAKY-TIMEOUT-TESTS** A test that fails when the machine is busy is a bad test, and this repo has
+  at least three: `AutomationStreamCoordinatorTests.An_unauthenticated_socket_accepts_only_authenticate_
+  and_closes_on_timeout` (fails in a full run under load, passes 4/4 in isolation),
+  `ProjectionRunnerLeaseTests.Rebuild_RefusedForSameBroadcasterAndProjection_WhileFirstRebuildIsInFlight`,
+  and `SqliteResilienceInterceptorTests.Concurrent_writers_...` (red once in CI, green locally). Each
+  asserts a real property but measures it with WALL-CLOCK timing, so CPU contention reads as a failure and
+  every red becomes "probably the flake" — which is how a genuine regression gets waved through.
+  Done-when: each is rewritten to control time explicitly (a `FakeTimeProvider` / deterministic scheduler /
+  explicit synchronisation instead of a sleep or a real timeout), still proves the same property, and is
+  proven to fail when that property is actually broken (mutate it and watch it go red).
+
 ## DO NEXT — owner directives, 2026-08-24 (ahead of phase order)
 
 Owner: move the **stream-facing** work forward — commands and overlays, easier to use and more
@@ -141,9 +152,13 @@ stable — without dropping the planned requirements behind them.
   has ZERO budget/quota/limit files, so the dashboard half is greenfield, while the backend already has
   `BillingController`/`AdminBillingController` + `IResourceQuotaService` + `LimitedResourceRegistry` to
   read from, never duplicate.)**
-  - **b1** `GET /api/v1/billing/usage` — per resource: key, class, real count, effective limit; counts from
+  - ~~**b1** DONE dffa17c2 + VERIFIED (4281 green at the commit in a clean worktree): the endpoint and
+    enforcement now share ONE method — `IResourceQuotaService.GetCurrentCountAsync` — after
+    CommandService/TimerManagementService/EventResponseService were refactored off their own inline
+    counts, so the number a user sees can never disagree with what a save allows (proven at the cap);
+    gated `billing:read`; tenant-isolated; self-host reports no commercial ceiling.~~ ~~`GET /api/v1/billing/usage` — per resource: key, class, real count, effective limit; counts from
     the SAME source enforcement uses (prove at the cap); gated `[RequireAction]`; tenant-scoped; self-host
-    reports only the safety baseline. IN PROGRESS.
+    reports only the safety baseline.~~
   - **b2** the dashboard screen that renders it: "X of Y used" from real counts, near-free floors shown as
     ABUSE GUARDS with NO upgrade prompt, cost-driving limits may name the tier, self-host shows no
     commercial ceiling or upgrade affordance at all.
