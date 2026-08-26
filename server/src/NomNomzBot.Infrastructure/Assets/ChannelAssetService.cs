@@ -13,6 +13,8 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Assets.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Billing;
+using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Domain.Assets.Entities;
 using NomNomzBot.Infrastructure.Assets.Media;
 
@@ -20,16 +22,21 @@ namespace NomNomzBot.Infrastructure.Assets;
 
 internal sealed partial class ChannelAssetService : IChannelAssetService
 {
-    internal const long MaxAssetBytes = 8 * 1024 * 1024; // 8 MB per asset
-    internal const long MaxChannelBytes = 64 * 1024 * 1024; // 64 MB per channel
+    internal const long MaxAssetBytes = 8 * 1024 * 1024; // 8 MB per asset — safety baseline, never tier-scaled
 
     private readonly IApplicationDbContext _db;
     private readonly IChannelAssetStore _store;
+    private readonly IResourceQuotaService _quota;
 
-    public ChannelAssetService(IApplicationDbContext db, IChannelAssetStore store)
+    public ChannelAssetService(
+        IApplicationDbContext db,
+        IChannelAssetStore store,
+        IResourceQuotaService quota
+    )
     {
         _db = db;
         _store = store;
+        _quota = quota;
     }
 
     [GeneratedRegex("^[A-Za-z0-9_-]{1,50}$")]
@@ -113,16 +120,32 @@ internal sealed partial class ChannelAssetService : IChannelAssetService
             ct
         );
 
-        // Per-channel budget: everything live except the row being replaced, plus the new payload.
+        // Per-channel budget — tier-scaled, resolved through the SAME seam (IResourceQuotaService →
+        // LimitedResourceRegistry) that GET billing/usage reports from, so the ceiling shown to the
+        // user is the ceiling that refuses them. Everything live except the row being replaced, plus
+        // the new payload.
         Guid? replacedId = existing?.Id;
         long usedBytes = await _db
             .ChannelAssets.Where(a =>
                 a.BroadcasterId == broadcasterId && (replacedId == null || a.Id != replacedId)
             )
             .SumAsync(a => a.SizeBytes, ct);
-        if (usedBytes + ms.Length > MaxChannelBytes)
+        Result<QuotaCheckDto> budgetCheck = await _quota.CheckAsync(
+            broadcasterId,
+            "channel_asset_storage_bytes",
+            usedBytes + ms.Length,
+            ct
+        );
+        if (!budgetCheck.IsSuccess)
+            return Result<ChannelAssetDto>.Failure(budgetCheck.ErrorMessage, budgetCheck.ErrorCode);
+        if (!budgetCheck.Value.Allowed)
             return Result<ChannelAssetDto>.Failure(
-                $"Upload would exceed the channel's {MaxChannelBytes / 1024 / 1024} MB asset budget.",
+                string.Format(
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    "This upload would use {0:F1} MB of your {1:F0} MB channel asset storage limit.",
+                    (usedBytes + ms.Length) / 1024.0 / 1024.0,
+                    budgetCheck.Value.Limit / 1024.0 / 1024.0
+                ),
                 "CHANNEL_BUDGET_EXCEEDED"
             );
 
