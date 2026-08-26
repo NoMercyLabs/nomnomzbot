@@ -9,7 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Domain.Music.Entities;
@@ -30,11 +29,7 @@ public sealed class BlockedTrackServiceTests
 
     private static (BlockedTrackService Sut, MusicTestDbContext Db) Build()
     {
-        MusicTestDbContext db = new(
-            new DbContextOptionsBuilder<MusicTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
-        );
+        MusicTestDbContext db = MusicTestDbContext.New();
         return (new(db), db);
     }
 
@@ -109,11 +104,11 @@ public sealed class BlockedTrackServiceTests
 
         (await sut.IsBlockedAsync(ChannelB, "spotify:track:rick1")).Should().BeFalse();
 
-        Result<PagedList<BlockedTrackDto>> listB = await sut.ListAsync(ChannelB, new(1, 25));
+        Result<PagedList<BlockedTrackDto>> listB = await sut.ListAsync(ChannelB, new());
         listB.Value.Items.Should().BeEmpty();
 
         // And channel B cannot unblock channel A's row.
-        Result<PagedList<BlockedTrackDto>> listA = await sut.ListAsync(ChannelA, new(1, 25));
+        Result<PagedList<BlockedTrackDto>> listA = await sut.ListAsync(ChannelA, new());
         Guid rowId = listA.Value.Items.Single().Id;
         (await sut.UnblockAsync(ChannelB, rowId)).ErrorCode.Should().Be("NOT_FOUND");
         (await sut.IsBlockedAsync(ChannelA, "spotify:track:rick1")).Should().BeTrue();
@@ -126,7 +121,7 @@ public sealed class BlockedTrackServiceTests
         await sut.BlockAsync(ChannelA, new("spotify", "spotify:track:one", "One"));
         await sut.BlockAsync(ChannelA, new("youtube", "yt:video:two", "Two", "loud", "twitch-9"));
 
-        Result<PagedList<BlockedTrackDto>> page = await sut.ListAsync(ChannelA, new(1, 25));
+        Result<PagedList<BlockedTrackDto>> page = await sut.ListAsync(ChannelA, new());
 
         page.Value.TotalCount.Should().Be(2);
         page.Value.Items.Should().HaveCount(2);

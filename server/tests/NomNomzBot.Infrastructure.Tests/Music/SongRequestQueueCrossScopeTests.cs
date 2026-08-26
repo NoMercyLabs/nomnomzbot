@@ -11,7 +11,6 @@
 using System.Net;
 using System.Text;
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
@@ -157,13 +156,7 @@ public sealed class SongRequestQueueCrossScopeTests
 
     private static MusicTestDbContext SeedChannel(Guid channelId, MusicTestDbContext? into = null)
     {
-        MusicTestDbContext db =
-            into
-            ?? new MusicTestDbContext(
-                new DbContextOptionsBuilder<MusicTestDbContext>()
-                    .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                    .Options
-            );
+        MusicTestDbContext db = into ?? MusicTestDbContext.New();
         // Routing seed: MusicService.GetActiveProviderAsync selects the active provider by which
         // Service names are connected — a separate concern from SpotifyMusicProvider's OWN token
         // resolution (which reads the vault, S003; a fresh FakeIntegrationTokenVault is built per

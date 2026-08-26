@@ -11,7 +11,6 @@
 using System.Net;
 using System.Text;
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
@@ -106,11 +105,7 @@ public sealed class MusicServicePlaybackPublishTests
     [Fact]
     public async Task PlayAsync_publishes_nothing_when_no_channel_has_a_connected_provider()
     {
-        MusicTestDbContext db = new(
-            new DbContextOptionsBuilder<MusicTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
-        );
+        MusicTestDbContext db = MusicTestDbContext.New();
         RecordingEventBus bus = new();
         MusicService sut = new(
             [],
@@ -133,11 +128,7 @@ public sealed class MusicServicePlaybackPublishTests
         string? currentTrackJson
     )
     {
-        MusicTestDbContext db = new(
-            new DbContextOptionsBuilder<MusicTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
-        );
+        MusicTestDbContext db = MusicTestDbContext.New();
         db.Services.Add(
             new()
             {

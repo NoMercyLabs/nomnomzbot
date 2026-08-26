@@ -10,7 +10,6 @@
 
 using System.Net;
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Music;
@@ -164,11 +163,7 @@ public sealed class MusicProviderManageApiTests
         RecordingHttpHandler Handler
     ) Build(bool connectSpotify)
     {
-        MusicTestDbContext db = new(
-            new DbContextOptionsBuilder<MusicTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
-        );
+        MusicTestDbContext db = MusicTestDbContext.New();
         FakeIntegrationTokenVault vault = new(db);
         if (connectSpotify)
             vault.SeedConnectedSpotify(ChannelId);

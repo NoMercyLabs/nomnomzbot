@@ -10,7 +10,6 @@
 
 using System.Net;
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Infrastructure.Identity;
@@ -228,11 +227,7 @@ public sealed class MusicServiceQueuePushTests
 
     private static (MusicService Sut, RecordingHttpHandler Handler) Build()
     {
-        MusicTestDbContext db = new(
-            new DbContextOptionsBuilder<MusicTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
-        );
+        MusicTestDbContext db = MusicTestDbContext.New();
         db.Services.Add(
             new()
             {

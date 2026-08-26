@@ -9,7 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 
@@ -32,16 +31,8 @@ public sealed class FakeIntegrationTokenVaultIsolationTests
     [Fact]
     public async Task Two_vaults_over_different_dbs_do_not_observe_each_others_connections()
     {
-        MusicTestDbContext dbOne = new(
-            new DbContextOptionsBuilder<MusicTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
-        );
-        MusicTestDbContext dbTwo = new(
-            new DbContextOptionsBuilder<MusicTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
-        );
+        MusicTestDbContext dbOne = MusicTestDbContext.New();
+        MusicTestDbContext dbTwo = MusicTestDbContext.New();
 
         FakeIntegrationTokenVault vaultOne = new(dbOne);
         FakeIntegrationTokenVault vaultTwo = new(dbTwo);
@@ -80,11 +71,7 @@ public sealed class FakeIntegrationTokenVaultIsolationTests
     [Fact]
     public async Task Two_vaults_over_the_SAME_db_still_share_state_like_real_DI_scopes()
     {
-        MusicTestDbContext db = new(
-            new DbContextOptionsBuilder<MusicTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
-        );
+        MusicTestDbContext db = MusicTestDbContext.New();
 
         // Scope 1 seeds the connection (mirrors a real OAuth connect handled by one scoped instance).
         FakeIntegrationTokenVault scopeOne = new(db);

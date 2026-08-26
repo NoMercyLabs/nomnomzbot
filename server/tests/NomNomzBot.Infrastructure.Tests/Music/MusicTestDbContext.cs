@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Analytics.Entities;
@@ -29,6 +30,7 @@ using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 // Disambiguate the domain Record entity from xunit's Record helper (the test project globally imports Xunit).
 using Record = NomNomzBot.Domain.Platform.Entities.Record;
 
@@ -40,12 +42,45 @@ namespace NomNomzBot.Infrastructure.Tests.Music;
 /// table (the "which channel has a connected Spotify/YouTube integration" question). Every other entity is
 /// ignored; EF would otherwise auto-discover them from the <see cref="IApplicationDbContext"/>-required
 /// <c>DbSet&lt;T&gt;</c> property declarations below and try to map their jsonb-of-complex-type columns, which
-/// the InMemory test provider cannot materialize.
+/// the focused relational test schema does not need.
 /// </summary>
 internal sealed class MusicTestDbContext : DbContext, IApplicationDbContext
 {
-    public MusicTestDbContext(DbContextOptions<MusicTestDbContext> options)
-        : base(options) { }
+    // One private, non-shared in-memory SQLite connection per context instance - a REAL relational
+    // database (S-API-TESTS-INMEMORY; the EF InMemory provider is retired here because it ignores unique
+    // indexes, FK constraints and query translation, so it green-lights writes the real database rejects).
+    // Opened by New(), closed by this context's own Dispose/DisposeAsync overrides.
+    private readonly SqliteConnection _connection;
+
+    private MusicTestDbContext(
+        DbContextOptions<MusicTestDbContext> options,
+        SqliteConnection connection
+    )
+        : base(options) => _connection = connection;
+
+    public static MusicTestDbContext New()
+    {
+        SqliteConnection connection = new("Data Source=:memory:");
+        connection.Open();
+        MusicTestDbContext db = new(
+            new DbContextOptionsBuilder<MusicTestDbContext>().UseSqlite(connection).Options,
+            connection
+        );
+        db.Database.EnsureCreated();
+        return db;
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        _connection.Dispose();
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        await base.DisposeAsync();
+        await _connection.DisposeAsync();
+    }
 
     public DbSet<Service> Services => Set<Service>();
 
@@ -76,6 +111,8 @@ internal sealed class MusicTestDbContext : DbContext, IApplicationDbContext
 
         foreach (Type entity in UnmappedEntities)
             modelBuilder.Ignore(entity);
+
+        modelBuilder.ApplySqliteCompatibility();
     }
 
     /// <summary>

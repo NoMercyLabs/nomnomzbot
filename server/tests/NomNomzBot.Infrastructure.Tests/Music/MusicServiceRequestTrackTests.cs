@@ -10,7 +10,6 @@
 
 using System.Net;
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
@@ -290,11 +289,7 @@ public sealed class MusicServiceRequestTrackTests
         BlockedTrackService Blocks
     ) Build(bool seedSpotifyConnection = true, ILogger<MusicService>? logger = null)
     {
-        MusicTestDbContext db = new(
-            new DbContextOptionsBuilder<MusicTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
-        );
+        MusicTestDbContext db = MusicTestDbContext.New();
         db.Services.Add(
             new()
             {

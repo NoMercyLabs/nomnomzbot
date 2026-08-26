@@ -10,7 +10,6 @@
 
 using System.Text.Json;
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
@@ -354,11 +353,7 @@ public sealed class MusicPipelineActionsTests
     [Fact]
     public async Task Song_ban_blocks_the_playing_track_with_the_full_row_shape_and_skips()
     {
-        MusicTestDbContext db = new(
-            new DbContextOptionsBuilder<MusicTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
-        );
+        MusicTestDbContext db = MusicTestDbContext.New();
         BlockedTrackService blocks = new(db);
         IMusicService music = Substitute.For<IMusicService>();
         music
@@ -394,11 +389,7 @@ public sealed class MusicPipelineActionsTests
     [Fact]
     public async Task Song_ban_fails_typed_when_nothing_is_playing_and_neither_blocks_nor_skips()
     {
-        MusicTestDbContext db = new(
-            new DbContextOptionsBuilder<MusicTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
-        );
+        MusicTestDbContext db = MusicTestDbContext.New();
         BlockedTrackService blocks = new(db);
         IMusicService music = Substitute.For<IMusicService>();
         music

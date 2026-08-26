@@ -10,7 +10,6 @@
 
 using System.Net;
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
@@ -241,11 +240,7 @@ public sealed class MusicServiceQueuePushFailureTests
         Guid ConnectionId
     ) Build()
     {
-        MusicTestDbContext db = new(
-            new DbContextOptionsBuilder<MusicTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
-        );
+        MusicTestDbContext db = MusicTestDbContext.New();
         // Routing seed: MusicService.GetActiveProviderAsync selects the active provider by which
         // Service names are connected — a separate concern from SpotifyMusicProvider's OWN token
         // resolution (which reads the vault below, S003).
