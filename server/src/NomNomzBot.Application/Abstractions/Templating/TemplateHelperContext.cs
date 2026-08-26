@@ -41,4 +41,14 @@ public enum TemplateHelperContext
     /// trigger handlers, and <c>user.name</c>/<c>raw.message</c> when dispatched from a pipeline action.
     /// </summary>
     Discord,
+
+    /// <summary>
+    /// Outbound webhook body templates (webhooks.md §3.5) — a webhook subscribes to the same catalogue
+    /// events a command/event-response/pipeline can fire from, and the delivered payload has no single
+    /// closed shape the way Command/Discord/Timer do, so it validates against the BROADEST non-args
+    /// helper set: everything an event-response template can use (channel/stream/time/random/count/
+    /// pick-list/custom-data/transform, plus per-trigger user/target/pronoun helpers when the firing
+    /// event carries one) minus <c>args.*</c>, which only exists for a live chat-command invocation.
+    /// </summary>
+    Webhook,
 }

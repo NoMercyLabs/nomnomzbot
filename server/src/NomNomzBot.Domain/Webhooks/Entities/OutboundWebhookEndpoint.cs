@@ -31,6 +31,8 @@ public class OutboundWebhookEndpoint : SoftDeletableEntity, ITenantScoped
 
     /// <summary>Event types this endpoint receives (<c>*</c> = all), as a JSON array string.</summary>
     public string SubscribedEventTypesJson { get; set; } = "[]";
+
+    [TemplatedUserContent]
     public string? BodyTemplate { get; set; }
 
     /// <summary>

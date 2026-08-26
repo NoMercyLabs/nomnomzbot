@@ -33,6 +33,7 @@ public static class TemplateHelperRegistry
         TemplateHelperContext.Timer,
         TemplateHelperContext.Pipeline,
         TemplateHelperContext.Discord,
+        TemplateHelperContext.Webhook,
     ];
 
     /// <summary>Discord-only seed aliases (discord.md §3.2/§3.4): supplied directly by the trigger
@@ -45,6 +46,7 @@ public static class TemplateHelperRegistry
         TemplateHelperContext.Command,
         TemplateHelperContext.EventResponse,
         TemplateHelperContext.Pipeline,
+        TemplateHelperContext.Webhook,
     ];
 
     /// <summary>Helpers that need command arguments — a command trigger, or a pipeline bound to one.</summary>
