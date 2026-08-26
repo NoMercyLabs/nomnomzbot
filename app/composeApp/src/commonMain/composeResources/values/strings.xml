@@ -4093,5 +4093,8 @@
     <string name="pipeline_vts_set_expression_description">Activate or deactivate a VTube Studio expression</string>
     <string name="pipeline_vts_trigger_hotkey_description">Trigger a VTube Studio hotkey</string>
     <string name="pipeline_wait_description">Pause the pipeline for a duration</string>
+    <string name="pipeline_wait_for_event_description">Pause the pipeline until a named event happens, or a timeout is reached</string>
+    <string name="pipeline_wait_for_event_event_name_help">The name of the event this step waits for. A matching event resumes the pipeline; any other event is ignored.</string>
+    <string name="pipeline_wait_for_event_timeout_seconds_help">How long to wait before giving up, in seconds (default 300, max 86400). On timeout the pipeline continues with event.timed_out set to true.</string>
     <string name="pipeline_widget_event_description">Push an event to a widget overlay</string>
 </resources>

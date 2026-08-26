@@ -105,23 +105,48 @@ public sealed class PipelineEngine : IPipelineEngine
     public async Task CancelAllForChannelAsync(Guid broadcasterId)
     {
         ChannelContext? ctx = _registry.Get(broadcasterId);
-        if (ctx is null)
-            return;
-
-        foreach ((string id, CancellationTokenSource cts) in ctx.ActivePipelines)
+        if (ctx is not null)
         {
-            try
+            foreach ((string id, CancellationTokenSource cts) in ctx.ActivePipelines)
             {
-                await cts.CancelAsync();
-            }
-            catch
-            { /* best-effort */
+                try
+                {
+                    await cts.CancelAsync();
+                }
+                catch
+                { /* best-effort */
+                }
             }
         }
 
+        // A SUSPENDED run has no live CancellationTokenSource to cancel — its in-process task already
+        // finished (with Outcome=Suspended) long before this channel went offline, so it is never in
+        // ChannelContext.ActivePipelines and this step must run whether or not the registry even has a
+        // live ChannelContext for this broadcaster. Left alone it would strand forever, still
+        // "suspended" and still eligible for a future wait_for_event match on a stream that isn't live
+        // anymore (S-PIPE-TREE-d3b REQUIRED #4). Recorded, never deleted: a cancelled row stays
+        // queryable so the streamer can see why their command never finished. Loaded and mutated
+        // through the change tracker (not ExecuteUpdateAsync) so a caller holding the SAME tracked
+        // instance — as every test and the persist-then-cancel-in-one-request path does — observes the
+        // cancellation immediately, not a stale identity-mapped copy.
+        List<PipelineRunState> suspendedRuns = await _db
+            .PipelineRunStates.Where(r =>
+                r.BroadcasterId == broadcasterId && r.Status == "suspended"
+            )
+            .ToListAsync();
+        DateTimeOffset cancelledAt = _timeProvider.GetUtcNow();
+        foreach (PipelineRunState suspendedRun in suspendedRuns)
+        {
+            suspendedRun.Status = "cancelled";
+            suspendedRun.CompletedAt = cancelledAt;
+        }
+        if (suspendedRuns.Count > 0)
+            await _db.SaveChangesAsync();
+
         _logger.LogInformation(
-            "Cancelled all pipelines for channel {BroadcasterId}",
-            broadcasterId
+            "Cancelled all pipelines for channel {BroadcasterId} ({SuspendedCount} suspended run(s) also cancelled)",
+            broadcasterId,
+            suspendedRuns.Count
         );
     }
 
@@ -356,6 +381,10 @@ public sealed class PipelineEngine : IPipelineEngine
             // runtime — suspended wall-clock from here on is never added to it (MaxRuntime guard).
             AccumulatedRuntimeMs = (int)result.Duration.TotalMilliseconds,
             SuspendedAt = _timeProvider.GetUtcNow(),
+            WaitEventName = result.SuspendWaitEventName,
+            WaitTimeoutAt = result.SuspendWaitTimeoutSeconds is int secs
+                ? _timeProvider.GetUtcNow().AddSeconds(secs)
+                : null,
         };
 
         _db.PipelineRunStates.Add(runState);
@@ -376,9 +405,20 @@ public sealed class PipelineEngine : IPipelineEngine
         };
     }
 
-    public async Task<PipelineExecutionResult> ResumeAsync(
+    public Task<PipelineExecutionResult> ResumeAsync(
         Guid runStateId,
         CancellationToken ct = default
+    ) => ResumeInternalAsync(runStateId, extraVariables: null, ct);
+
+    /// <summary>Shared resume path for a plain restart-resume (<see cref="ResumeAsync"/>), an
+    /// event-matched resume (<see cref="ResumeSuspendedRunsForEventAsync"/>), and a timeout resume
+    /// (<see cref="ResumeTimedOutWaitsAsync"/>) — <paramref name="extraVariables"/> is merged into the
+    /// restored variable bag AFTER the persisted ones (S-PIPE-TREE-d3b), so an event's data / the
+    /// timeout markers are visible to every step from here on, exactly like any other run variable.</summary>
+    private async Task<PipelineExecutionResult> ResumeInternalAsync(
+        Guid runStateId,
+        IReadOnlyDictionary<string, string>? extraVariables,
+        CancellationToken ct
     )
     {
         PipelineRunState? runState = await _db.PipelineRunStates.FirstOrDefaultAsync(
@@ -435,6 +475,9 @@ public sealed class PipelineEngine : IPipelineEngine
         };
         foreach ((string k, string v) in variables)
             execCtx.Variables[k] = v;
+        if (extraVariables is not null)
+            foreach ((string k, string v) in extraVariables)
+                execCtx.Variables[k] = v;
 
         // No SuspendedAtStepId means nothing had run yet when this row was persisted (or the leaf it
         // suspended at was the very first thing at the top level with an empty cursor path) — either
@@ -480,6 +523,14 @@ public sealed class PipelineEngine : IPipelineEngine
             runState.VariablesJson = JsonSerializer.Serialize(execCtx.Variables, JsonOpts);
             runState.CursorJson = result.SuspendCursorJson ?? "[]";
             runState.SuspendedAt = _timeProvider.GetUtcNow();
+            // A resumed run may itself suspend again on a LATER wait_for_event step — re-derive the
+            // wait fields from THIS segment's result rather than leaving the prior wait's values
+            // stale, and clear them entirely when the new suspension wasn't a wait (e.g. a nested
+            // sub-pipeline suspending on the caller's behalf with no event name of its own).
+            runState.WaitEventName = result.SuspendWaitEventName;
+            runState.WaitTimeoutAt = result.SuspendWaitTimeoutSeconds is int secs
+                ? _timeProvider.GetUtcNow().AddSeconds(secs)
+                : null;
             result = new()
             {
                 ExecutionId = result.ExecutionId,
@@ -492,6 +543,8 @@ public sealed class PipelineEngine : IPipelineEngine
                 SuspendedAtStepId = result.SuspendedAtStepId,
                 SuspendCursorJson = result.SuspendCursorJson,
                 SuspendedRunStateId = runState.Id,
+                SuspendWaitEventName = result.SuspendWaitEventName,
+                SuspendWaitTimeoutSeconds = result.SuspendWaitTimeoutSeconds,
             };
         }
         else
@@ -503,12 +556,84 @@ public sealed class PipelineEngine : IPipelineEngine
                 _ => "failed",
             };
             runState.CompletedAt = _timeProvider.GetUtcNow();
+            runState.WaitEventName = null;
+            runState.WaitTimeoutAt = null;
         }
 
         runState.ResumedAt = startedAt;
         await _db.SaveChangesAsync(ct);
 
         return result;
+    }
+
+    // ─── Event-matched resume / timeout sweep (S-PIPE-TREE-d3b) ───────────────
+
+    public async Task<int> ResumeSuspendedRunsForEventAsync(
+        Guid broadcasterId,
+        string eventName,
+        IReadOnlyDictionary<string, string> eventData,
+        CancellationToken ct = default
+    )
+    {
+        // Snapshot the matching ids FIRST, then resume one at a time — resuming mutates/removes rows
+        // from the "suspended" set as it goes, so a single streaming query would see a moving target.
+        // Case-insensitive on the event name: an author typing "SongRequested" must still match a
+        // waiter configured with "songrequested" — case is not semantically meaningful here.
+        List<Guid> matchingRunStateIds = await _db
+            .PipelineRunStates.Where(r =>
+                r.BroadcasterId == broadcasterId
+                && r.Status == "suspended"
+                && r.WaitEventName != null
+                && r.WaitEventName.ToLower() == eventName.ToLower()
+            )
+            .Select(r => r.Id)
+            .ToListAsync(ct);
+
+        Dictionary<string, string> merged = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["event.name"] = eventName,
+            ["event.matched"] = "true",
+            ["event.timed_out"] = "false",
+        };
+        foreach ((string k, string v) in eventData)
+            merged[$"event.{k}"] = v;
+
+        int resumed = 0;
+        foreach (Guid runStateId in matchingRunStateIds)
+        {
+            await ResumeInternalAsync(runStateId, merged, ct);
+            resumed++;
+        }
+        return resumed;
+    }
+
+    public async Task<int> ResumeTimedOutWaitsAsync(CancellationToken ct = default)
+    {
+        DateTimeOffset now = _timeProvider.GetUtcNow();
+        // The deadline comparison (WaitTimeoutAt <= now) is evaluated client-side: the SQLite provider
+        // cannot translate a nullable DateTimeOffset "<=" comparison against a captured variable into
+        // SQL. The server-side filter (status + non-null deadline) still keeps the candidate set small
+        // — only channels with an actual pending wait are ever pulled into memory.
+        List<PipelineRunState> candidates = await _db
+            .PipelineRunStates.Where(r => r.Status == "suspended" && r.WaitTimeoutAt != null)
+            .ToListAsync(ct);
+        List<PipelineRunState> expired = [.. candidates.Where(r => r.WaitTimeoutAt <= now)];
+
+        int resumed = 0;
+        foreach (PipelineRunState expiredRun in expired)
+        {
+            Guid runStateId = expiredRun.Id;
+            string? eventName = expiredRun.WaitEventName;
+            Dictionary<string, string> timeoutVariables = new(StringComparer.OrdinalIgnoreCase)
+            {
+                ["event.name"] = eventName ?? string.Empty,
+                ["event.matched"] = "false",
+                ["event.timed_out"] = "true",
+            };
+            await ResumeInternalAsync(runStateId, timeoutVariables, ct);
+            resumed++;
+        }
+        return resumed;
     }
 
     // ─── Execution loop ───────────────────────────────────────────────────────
@@ -887,6 +1012,10 @@ public sealed class PipelineEngine : IPipelineEngine
             SuspendedAtStepId = state.SuspendRequested ? state.SuspendStepId : null,
             SuspendCursorJson = state.SuspendRequested
                 ? JsonSerializer.Serialize(walk.LivePath, JsonOpts)
+                : null,
+            SuspendWaitEventName = state.SuspendRequested ? state.SuspendWaitEventName : null,
+            SuspendWaitTimeoutSeconds = state.SuspendRequested
+                ? state.SuspendWaitTimeoutSeconds
                 : null,
         };
     }
@@ -1268,6 +1397,8 @@ public sealed class PipelineEngine : IPipelineEngine
             // (S-PIPE-TREE-d3a). Never combined with break/continue/stop handling below.
             state.SuspendRequested = true;
             state.SuspendStepId = step.Id;
+            state.SuspendWaitEventName = actionResult.WaitEventName;
+            state.SuspendWaitTimeoutSeconds = actionResult.WaitTimeoutSeconds;
             return;
         }
 
@@ -1625,6 +1756,8 @@ public sealed class PipelineEngine : IPipelineEngine
                 // Leave this iteration's frame on the path — it IS the resume point.
                 state.SuspendRequested = true;
                 state.SuspendStepId = iterationState.SuspendStepId;
+                state.SuspendWaitEventName = iterationState.SuspendWaitEventName;
+                state.SuspendWaitTimeoutSeconds = iterationState.SuspendWaitTimeoutSeconds;
                 return;
             }
 
@@ -1788,6 +1921,8 @@ public sealed class PipelineEngine : IPipelineEngine
             // "then" frame on the path as the resume point.
             state.SuspendRequested = true;
             state.SuspendStepId = bodyState.SuspendStepId;
+            state.SuspendWaitEventName = bodyState.SuspendWaitEventName;
+            state.SuspendWaitTimeoutSeconds = bodyState.SuspendWaitTimeoutSeconds;
             return;
         }
 
@@ -1847,6 +1982,8 @@ public sealed class PipelineEngine : IPipelineEngine
         {
             state.SuspendRequested = true;
             state.SuspendStepId = catchState.SuspendStepId;
+            state.SuspendWaitEventName = catchState.SuspendWaitEventName;
+            state.SuspendWaitTimeoutSeconds = catchState.SuspendWaitTimeoutSeconds;
             return;
         }
 

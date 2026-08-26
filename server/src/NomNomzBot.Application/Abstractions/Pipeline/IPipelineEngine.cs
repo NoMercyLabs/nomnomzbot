@@ -47,6 +47,32 @@ public interface IPipelineEngine
     /// <see cref="PipelineOutcome.Failed"/> when no suspended row matches <paramref name="runStateId"/>.
     /// </summary>
     Task<PipelineExecutionResult> ResumeAsync(Guid runStateId, CancellationToken ct = default);
+
+    /// <summary>
+    /// A named event fired for a channel (S-PIPE-TREE-d3b) — resumes every suspended run for that
+    /// channel currently parked on a <c>wait_for_event</c> step whose <c>event_name</c> equals
+    /// <paramref name="eventName"/> exactly (case-insensitive). A run waiting for a DIFFERENT name is
+    /// left untouched — publishing one event must never wake a waiter parked on another. Each resumed
+    /// run gets <paramref name="eventData"/> merged into its variable bag under the <c>event.*</c>
+    /// namespace (plus <c>event.name</c> and <c>event.matched=true</c>/<c>event.timed_out=false</c>),
+    /// readable by every step after the wait. Returns the number of runs resumed.
+    /// </summary>
+    Task<int> ResumeSuspendedRunsForEventAsync(
+        Guid broadcasterId,
+        string eventName,
+        IReadOnlyDictionary<string, string> eventData,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// Resumes every suspended run across every channel whose <c>wait_for_event</c> timeout has
+    /// elapsed (S-PIPE-TREE-d3b) — an honest timeout path: the run is NOT failed and NOT left parked
+    /// forever, it continues past the wait with <c>event.timed_out=true</c>/<c>event.matched=false</c>
+    /// so the pipeline author can branch on it (e.g. an <c>if</c> right after the wait). Meant to be
+    /// polled by a scheduler; exposed here so the policy itself is independently testable. Returns the
+    /// number of runs resumed.
+    /// </summary>
+    Task<int> ResumeTimedOutWaitsAsync(CancellationToken ct = default);
 }
 
 public class PipelineRequest
@@ -97,6 +123,14 @@ public class PipelineExecutionResult
     /// <summary>Set only when <see cref="Outcome"/> is <see cref="PipelineOutcome.Suspended"/> — the
     /// persisted <c>PipelineRunState.Id</c> to pass to <see cref="IPipelineEngine.ResumeAsync"/> later.</summary>
     public Guid? SuspendedRunStateId { get; init; }
+
+    /// <summary>Set only when the suspending leaf was <c>wait_for_event</c> (S-PIPE-TREE-d3b) — the
+    /// named event the run is now parked waiting for, persisted onto <c>PipelineRunState.WaitEventName</c>.</summary>
+    public string? SuspendWaitEventName { get; init; }
+
+    /// <summary>Set only alongside <see cref="SuspendWaitEventName"/> — seconds from now the wait is
+    /// allowed to stay parked, persisted as an absolute <c>PipelineRunState.WaitTimeoutAt</c>.</summary>
+    public int? SuspendWaitTimeoutSeconds { get; init; }
 }
 
 public enum PipelineOutcome
