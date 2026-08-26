@@ -132,19 +132,19 @@ only Stoney can make. Do not burn agent time trying to work around them.
 Owner: move the **stream-facing** work forward — commands and overlays, easier to use and more
 stable — without dropping the planned requirements behind them.
 
-- **S-CONSEQ-b** (the law's first mechanism shipped in 7f17a3f2 but is INVISIBLE TO USERS — the backend
-  counts a pipeline delete's real dependents (2 commands + 1 chat trigger + 1 timer + 1 event response
-  from actual FK rows, with rows on other pipelines correctly excluded) and reports an explicit ZERO when
-  nothing references it; a structural `DestructiveActionScannerTests` forces every delete endpoint to be
-  classified `[DestructiveAction]` or `[NotDestructive]` and was seen RED before the attributes existed.
-  Nothing calls it: no dashboard confirm dialog fetches or renders the count.)
-  Done-when: the delete confirm dialog fetches the blast radius and shows it BEFORE the save, in en + nl;
-  "nothing else references this" is shown explicitly rather than as an empty dialog (silence reads as
-  "unknown", not "safe"); proven by a jvmTest asserting the RENDERED counts.
-  THEN the coverage gaps, each honest today: command delete has no entity holding a real FK to
-  `Command.Id`; sound-clip and widget references live only inside `PipelineStep.ConfigJson` blobs, so
-  counting them needs a JSON scan rather than a query; and the scanner covers 4 controllers, leaving ~60
-  other `HttpDelete` endpoints (auth revokes, GDPR, moderation, webhooks) unclassified.
+- **S-CONSEQ-c** (the law now works end to end for pipeline delete — 7f17a3f2 backend + d5e574fb UI: the
+  confirm dialog shows the REAL counted dependents before the save, says "nothing else references this"
+  explicitly when there are none, disables confirm while the count is unknown, and on a FAILED lookup
+  shows its own message instead of "0 dependents" — showing zero when the check failed would be a lie
+  that causes the exact data loss the law prevents. 749 jvmTest green.)
+  EXTEND IT, each gap honest and known:
+  (a) command delete has NO entity holding a real FK to `Command.Id`, so its dependents cannot be counted
+  by query — decide whether that reference should exist or whether command delete is genuinely safe;
+  (b) sound-clip and widget references live only inside `PipelineStep.ConfigJson` blobs, so counting them
+  needs a JSON scan rather than a query;
+  (c) `DestructiveActionScannerTests` covers 4 controllers — roughly 60 other `HttpDelete` endpoints
+  (auth revokes, GDPR erasure, moderation, webhooks) are unclassified, and GDPR erasure is the one where
+  an uncounted blast radius is least forgivable.
 
 - **S-PIPE-TREE-d2b** (scope narrowings the sub-pipeline slice reported honestly; 5d82f69c shipped the
   core: args in, `return_value` out, `CallDepth` spanning pipeline boundaries, tenant-scoped, try-catchable,
