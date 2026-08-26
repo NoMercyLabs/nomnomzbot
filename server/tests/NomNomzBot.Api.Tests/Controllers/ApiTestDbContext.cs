@@ -128,6 +128,22 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
         b.Entity<DiscordGuildConnection>().Ignore(e => e.Channel);
         b.Entity<DiscordGuildConnection>().HasQueryFilter(e => e.DeletedAt == null);
 
+        // Widgets — the test-event route reads them to report which subscribing widgets the event could
+        // actually reach.
+        b.Entity<Widget>().HasKey(e => e.Id);
+        // Settings/EventSubscriptions are value-converted collections in production; these tests only read
+        // EventSubscriptions, so map that one and drop Settings rather than reproduce its converter.
+        b.Entity<Widget>().Ignore(e => e.Channel).Ignore(e => e.Settings);
+        b.Entity<Widget>()
+            .Property(e => e.EventSubscriptions)
+            .HasConversion(
+                v => string.Join(',', v),
+                v =>
+                    v.Length == 0
+                        ? new List<string>()
+                        : v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList()
+            );
+
         // Plane-C IAM tables — scalar/enum-only, so they materialize on SQLite as-is.
         b.Entity<IamPermission>().HasKey(e => e.Id);
         b.Entity<IamRole>().HasKey(e => e.Id);
@@ -149,6 +165,7 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
         typeof(NomNomzBot.Domain.Platform.Entities.Configuration),
         typeof(Channel),
         typeof(DiscordGuildConnection),
+        typeof(Widget),
         typeof(IamPermission),
         typeof(IamRole),
         typeof(IamRolePermission),
@@ -182,7 +199,7 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
     public DbSet<Domain.Music.Entities.BlockedTrack> BlockedTracks =>
         throw new NotSupportedException();
     public DbSet<Domain.PickLists.Entities.PickList> PickLists => throw new NotSupportedException();
-    public DbSet<Widget> Widgets => throw new NotSupportedException();
+    public DbSet<Widget> Widgets => Set<Widget>();
     public DbSet<WidgetVersion> WidgetVersions => throw new NotSupportedException();
     public DbSet<WidgetGalleryItem> WidgetGalleryItems => throw new NotSupportedException();
     public DbSet<WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
