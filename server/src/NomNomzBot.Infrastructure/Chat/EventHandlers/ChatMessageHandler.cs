@@ -385,6 +385,18 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
 
         try
         {
+            // A pipeline command with no executable graph used to fall silently through to the template
+            // branch and answer nothing — the command "ran" (CommandExecutedEvent and all) while the flow
+            // behind it never executed, which is indistinguishable from a broken feature. Say it instead:
+            // the pipeline is missing, disabled, or was never built.
+            if (command.Tier == "pipeline" && string.IsNullOrEmpty(command.PipelineGraphJson))
+                _logger.LogWarning(
+                    "Command !{Command} on channel {BroadcasterId} is a pipeline command with no executable "
+                        + "graph — its pipeline is missing, disabled, or has never been saved. Nothing ran.",
+                    command.Name,
+                    @event.BroadcasterId
+                );
+
             if (command.Tier == "pipeline" && !string.IsNullOrEmpty(command.PipelineGraphJson))
             {
                 // Pipelines gate on `user.role` via SYNCHRONOUS conditions, so the variable must carry
