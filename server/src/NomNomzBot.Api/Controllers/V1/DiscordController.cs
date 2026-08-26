@@ -95,6 +95,9 @@ public class DiscordController : BaseController
 
     /// <summary>Withdraw the Discord server's consent from a guild connection, halting notifications until re-approved.</summary>
     [RequireAction("discord:connection:write")]
+    [NotDestructive(
+        "Clears the guild consent flag on the connection; no rows are deleted and consent can be re-granted."
+    )]
     [HttpDelete("connections/{connectionId:guid}/server-consent")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> RevokeServerConsent(
@@ -119,6 +122,7 @@ public class DiscordController : BaseController
 
     /// <summary>Disconnect a Discord guild from the channel entirely.</summary>
     [RequireAction("discord:connection:write")]
+    [DestructiveAction(PendingBlastRadiusSince = "2026-08-26")]
     [HttpDelete("connections/{connectionId:guid}")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Disconnect(
@@ -234,6 +238,9 @@ public class DiscordController : BaseController
 
     /// <summary>Delete a notification rule from the channel.</summary>
     [RequireAction("discord:config:write")]
+    [NotDestructive(
+        "Deletes one DiscordNotificationConfig row; no entity carries a DiscordNotificationConfigId FK (dispatch rows key on StreamId)."
+    )]
     [HttpDelete("configs/{configId:guid}")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> DeleteConfig(
@@ -292,6 +299,9 @@ public class DiscordController : BaseController
 
     /// <summary>Delete a self-assign notify role.</summary>
     [RequireAction("discord:role:write")]
+    [NotDestructive(
+        "Deletes one Discord notification-role row; no entity carries a role-config FK."
+    )]
     [HttpDelete("roles/{roleId:guid}")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> DeleteRole(

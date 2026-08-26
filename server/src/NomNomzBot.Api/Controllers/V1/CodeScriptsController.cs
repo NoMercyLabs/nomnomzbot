@@ -189,6 +189,7 @@ public class CodeScriptsController(
     }
 
     /// <summary>Delete a code script.</summary>
+    [DestructiveAction(PendingBlastRadiusSince = "2026-08-26")]
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {

@@ -79,6 +79,9 @@ public class SupportersController : BaseController
 
     /// <summary>Remove a supporter connection.</summary>
     [RequireAction("supporters:config:write")]
+    [NotDestructive(
+        "Deletes one SupporterConnection row; SupporterConnection references others but no entity carries a SupporterConnectionId FK."
+    )]
     [HttpDelete("connections/{sourceKey}")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> DeleteConnection(string sourceKey, CancellationToken ct)

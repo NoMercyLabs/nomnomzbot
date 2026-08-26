@@ -30,6 +30,13 @@ interface GdprApi {
     /** Export the caller's whole data-subject record as a portable document (the JSON is in [DataExport.document]). */
     suspend fun exportData(): ApiResult<DataExport>
 
+    /**
+     * The counted preview of what erasure WOULD destroy for the caller (S-CONSEQ) — real backend row counts,
+     * read before the irreversible save. A failure here is a genuine unknown: the confirm surface must say so
+     * and never render it as a zero blast radius.
+     */
+    suspend fun previewErasure(): ApiResult<ErasurePreview>
+
     /** Request erasure of the caller's data (default deployment scope) — an irreversible crypto-shred. */
     suspend fun requestErasure(scope: String = "deployment"): ApiResult<ErasureRequest>
 
@@ -54,6 +61,9 @@ interface GdprApi {
 
 class RestGdprApi(private val client: ApiClient) : GdprApi {
     override suspend fun exportData(): ApiResult<DataExport> = client.getEnvelope("api/v1/gdpr/export")
+
+    override suspend fun previewErasure(): ApiResult<ErasurePreview> =
+        client.getEnvelope("api/v1/gdpr/erasure/preview")
 
     override suspend fun requestErasure(scope: String): ApiResult<ErasureRequest> =
         client.postEnvelope("api/v1/gdpr/erasure", RequestErasureBody(scope = scope))
@@ -141,6 +151,26 @@ data class ConsentRecord(
     val grantedAt: String = "",
     val withdrawnAt: String? = null,
     val expiresAt: String? = null,
+)
+
+/**
+ * One counted category of the erasure blast radius (backend `ErasurePreviewCategoryDto`). [categoryKey] is an
+ * i18n resource KEY (the backend never ships a rendered sentence); [rowCount] is a real backend COUNT. Only
+ * non-zero categories are sent, so a category is never rendered as a misleading "0 rows".
+ */
+@Serializable
+data class ErasurePreviewCategory(val categoryKey: String = "", val rowCount: Int = 0)
+
+/**
+ * The counted preview of a GDPR erasure (backend `ErasurePreviewDto`) — what an erasure WOULD destroy, read
+ * BEFORE the irreversible save. An empty [categories] with a zero [totalRows] is the genuine "nothing would be
+ * destroyed" answer; a FAILED fetch is a different thing entirely and must never be rendered as this.
+ */
+@Serializable
+data class ErasurePreview(
+    val subjectAlreadyAnonymized: Boolean = false,
+    val totalRows: Int = 0,
+    val categories: List<ErasurePreviewCategory> = emptyList(),
 )
 
 /** The erasure-request body (backend `RequestErasureRequest`). [scope] defaults to the whole deployment. */

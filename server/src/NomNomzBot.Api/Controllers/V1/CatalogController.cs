@@ -99,6 +99,7 @@ public class CatalogController(
     }
 
     /// <summary>Delete a catalog item from the channel's store.</summary>
+    [DestructiveAction(PendingBlastRadiusSince = "2026-08-26")]
     [HttpDelete("{itemId:guid}")]
     [RequireAction("economy:catalog:delete")]
     public async Task<IActionResult> DeleteItem(string channelId, Guid itemId, CancellationToken ct)

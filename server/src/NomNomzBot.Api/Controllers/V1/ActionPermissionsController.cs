@@ -69,6 +69,9 @@ public class ActionPermissionsController(
     }
 
     /// <summary>Reset an action key's override back to its default required level.</summary>
+    [NotDestructive(
+        "Deletes one ChannelActionOverride row; no entity carries a ChannelActionOverrideId FK, and the action falls back to its catalogue default - re-settable at any time."
+    )]
     [HttpDelete("{actionKey}")]
     [RequireAction("roles:manage")]
     public async Task<IActionResult> ResetOverride(

@@ -14,6 +14,7 @@ import bot.nomnomz.dashboard.core.io.JournalFileIO
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ConsentRecord
 import bot.nomnomz.dashboard.core.network.DataExport
+import bot.nomnomz.dashboard.core.network.ErasurePreview
 import bot.nomnomz.dashboard.core.network.ErasureRequest
 import bot.nomnomz.dashboard.core.network.GdprApi
 import bot.nomnomz.dashboard.core.network.GrantConsentBody
@@ -90,6 +91,14 @@ class MyDataController(
             }
         }
     }
+
+    /**
+     * The counted blast radius of an erasure (S-CONSEQ): what the irreversible save would actually destroy,
+     * fetched fresh for the confirm dialog. Returned as the raw [ApiResult] on purpose — a failed lookup is a
+     * genuine UNKNOWN the dialog must render as its own message, never flattened into an empty preview that
+     * would read as "nothing would be destroyed".
+     */
+    suspend fun fetchErasurePreview(): ApiResult<ErasurePreview> = gdprApi.previewErasure()
 
     /** Request erasure of the caller's data (default deployment scope) — reloads to show the new request. */
     suspend fun requestErasure() {

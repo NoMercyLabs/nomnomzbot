@@ -12,6 +12,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Auth;
@@ -140,6 +141,9 @@ public class PlatformAdminController(
     }
 
     /// <summary>Ends a support-access grant (revokes the assignment).</summary>
+    [NotDestructive(
+        "Ends an access grant by stamping its end time; the audited grant row survives for the audit trail."
+    )]
     [HttpDelete("access/{accessGrantId:guid}")]
     [Authorize(Policy = IamPermissionKeys.TenantAccess)]
     public async Task<IActionResult> EndTenantAccess(Guid accessGrantId, CancellationToken ct)
@@ -181,6 +185,9 @@ public class PlatformAdminController(
     }
 
     /// <summary>Ends an impersonation session — the minted token fails authentication on its next request.</summary>
+    [NotDestructive(
+        "Ends an impersonation session by stamping its end time; the audited grant row survives for the audit trail."
+    )]
     [HttpDelete("impersonation/{accessGrantId:guid}")]
     [Authorize(Policy = IamPermissionKeys.UserImpersonate)]
     [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]

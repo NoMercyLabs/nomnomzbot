@@ -103,6 +103,9 @@ public class IntegrationsController : BaseController
     /// <summary>Remove the channel's own Spotify credentials — Spotify OAuth falls back to the app-level
     /// configuration.</summary>
     [RequireAction("integration:write")]
+    [NotDestructive(
+        "Clears the stored Spotify client credentials on the channel; no rows are deleted and they can be re-entered."
+    )]
     [HttpDelete("spotify/credentials")]
     [ProducesResponseType<StatusResponseDto<ChannelSpotifyCredentialsDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ClearSpotifyCredentials(string channelId, CancellationToken ct)
@@ -173,6 +176,7 @@ public class IntegrationsController : BaseController
 
     /// <summary>Disconnect an external integration (revokes tokens, removes connection state).</summary>
     [RequireAction("integration:write")]
+    [DestructiveAction(PendingBlastRadiusSince = "2026-08-26")]
     [HttpDelete("{integrationId}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Disconnect(

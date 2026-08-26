@@ -107,6 +107,7 @@ public class GiveawaysController : BaseController
 
     /// <summary>Soft-delete a giveaway.</summary>
     [RequireAction("giveaways:write")]
+    [DestructiveAction(PendingBlastRadiusSince = "2026-08-26")]
     [HttpDelete("{id:guid}")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)

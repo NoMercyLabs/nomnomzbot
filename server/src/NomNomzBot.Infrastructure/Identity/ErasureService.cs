@@ -98,6 +98,104 @@ public sealed class ErasureService : IErasureService
 
     // ── Erasure ────────────────────────────────────────────────────────────────
 
+    // The i18n resource KEYS for the counted preview categories. The backend never ships a rendered
+    // sentence: the dashboard owns en/nl. One key per row set the erasure pipeline actually destroys.
+    private const string ProfileCategoryKey = "gdpr_erasure_category_profile";
+    private const string ChatMessagesCategoryKey = "gdpr_erasure_category_chat_messages";
+    private const string RecordsCategoryKey = "gdpr_erasure_category_records";
+    private const string ViewerDataCategoryKey = "gdpr_erasure_category_viewer_data";
+    private const string ServicesCategoryKey = "gdpr_erasure_category_services";
+    private const string ConnectionsCategoryKey = "gdpr_erasure_category_connections";
+    private const string RefreshTokensCategoryKey = "gdpr_erasure_category_refresh_tokens";
+    private const string SessionsCategoryKey = "gdpr_erasure_category_sessions";
+    private const string ConsentsCategoryKey = "gdpr_erasure_category_consents";
+    private const string KeysCategoryKey = "gdpr_erasure_category_keys";
+
+    public async Task<Result<ErasurePreviewDto>> PreviewErasureAsync(
+        PreviewErasureRequest request,
+        CancellationToken cancellationToken = default
+    )
+    {
+        User? user = await _db.Users.FirstOrDefaultAsync(
+            u => u.Id == request.SubjectUserId,
+            cancellationToken
+        );
+        if (user is null)
+            return Result.Failure<ErasurePreviewDto>("The subject was not found.", "NOT_FOUND");
+
+        string userIdText = user.Id.ToString();
+
+        int chatMessages = await _db.ChatMessages.CountAsync(
+            m => m.UserId == userIdText,
+            cancellationToken
+        );
+        int records = await _db.Records.CountAsync(r => r.UserId == userIdText, cancellationToken);
+        int viewerData = await _db
+            .ViewerData.IgnoreQueryFilters()
+            .CountAsync(d => d.ViewerUserId == user.Id, cancellationToken);
+        int services = await _db.Services.CountAsync(
+            s => s.UserId == user.TwitchUserId,
+            cancellationToken
+        );
+        int connections = await _db
+            .IntegrationConnections.IgnoreQueryFilters()
+            .CountAsync(
+                c => c.ConnectedByUserId == user.Id && c.DeletedAt == null,
+                cancellationToken
+            );
+        int refreshTokens = await _db.RefreshTokens.CountAsync(
+            t => t.UserId == user.Id && t.RevokedAt == null,
+            cancellationToken
+        );
+        int sessions = await _db.AuthSessions.CountAsync(
+            s => s.UserId == user.Id,
+            cancellationToken
+        );
+        int consents = await _db.ConsentRecords.CountAsync(
+            r => r.SubjectUserId == user.Id && r.Status == "granted" && r.WithdrawnAt == null,
+            cancellationToken
+        );
+
+        // The DEK count is resolved by the same §3.4 planner the pipeline shreds with — a read, never a
+        // destroy. A resolver failure fails the WHOLE preview: a partial count rendered as the blast radius
+        // would understate what erasure destroys, which is exactly the lie this preview exists to prevent.
+        Result<IReadOnlyList<Guid>> resolvedKeys = await _subjectKeys.ResolveSubjectKeysAsync(
+            user.Id,
+            ConsentService.ComputeSubjectIdHash(user.Id),
+            cancellationToken
+        );
+        if (resolvedKeys.IsFailure)
+            return resolvedKeys.ToTyped<ErasurePreviewDto>();
+
+        List<ErasurePreviewCategoryDto> categories = [];
+        AddCategory(categories, ProfileCategoryKey, user.IsAnonymized ? 0 : 1);
+        AddCategory(categories, ChatMessagesCategoryKey, chatMessages);
+        AddCategory(categories, RecordsCategoryKey, records);
+        AddCategory(categories, ViewerDataCategoryKey, viewerData);
+        AddCategory(categories, ServicesCategoryKey, services);
+        AddCategory(categories, ConnectionsCategoryKey, connections);
+        AddCategory(categories, RefreshTokensCategoryKey, refreshTokens);
+        AddCategory(categories, SessionsCategoryKey, sessions);
+        AddCategory(categories, ConsentsCategoryKey, consents);
+        AddCategory(categories, KeysCategoryKey, resolvedKeys.Value.Count);
+
+        return Result.Success(
+            new ErasurePreviewDto(user.IsAnonymized, categories.Sum(c => c.RowCount), categories)
+        );
+    }
+
+    // Zero-count categories are omitted entirely: the client renders the explicit "nothing would be
+    // destroyed" sentence off an empty list, and never a misleading "0 chat messages" line.
+    private static void AddCategory(
+        List<ErasurePreviewCategoryDto> categories,
+        string key,
+        int count
+    )
+    {
+        if (count > 0)
+            categories.Add(new ErasurePreviewCategoryDto(key, count));
+    }
+
     public async Task<Result<ErasureRequestDto>> RequestErasureAsync(
         RequestErasureRequest request,
         CancellationToken cancellationToken = default

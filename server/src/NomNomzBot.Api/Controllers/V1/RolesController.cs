@@ -89,6 +89,9 @@ public class RolesController(
     }
 
     /// <summary>Remove a user's management role from the channel.</summary>
+    [NotDestructive(
+        "Resets one membership's management role; the ChannelMembership row survives and the role is re-assignable."
+    )]
     [HttpDelete("{userId:guid}")]
     [RequireAction("roles:manage")]
     public async Task<IActionResult> RemoveRole(string channelId, Guid userId, CancellationToken ct)

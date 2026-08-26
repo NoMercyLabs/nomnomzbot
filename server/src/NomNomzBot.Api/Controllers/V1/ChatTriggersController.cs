@@ -74,6 +74,9 @@ public class ChatTriggersController : BaseController
 
     /// <summary>Delete a keyword trigger.</summary>
     [RequireAction("chattriggers:write")]
+    [NotDestructive(
+        "Deletes one ChatTrigger row; ChatTrigger REFERENCES a pipeline (PipelineId) but no entity carries a ChatTriggerId FK - the pipeline it points at is untouched."
+    )]
     [HttpDelete("{triggerId:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteTrigger(

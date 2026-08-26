@@ -278,6 +278,7 @@ public class LiveOpsController : BaseController
 
     /// <summary>Cancel a raid that has not yet begun.</summary>
     [RequireAction("live-ops:raids:write")]
+    [NotDestructive("Cancels an in-flight raid on the platform; no stored rows are deleted.")]
     [HttpDelete("raids")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> CancelRaid(string channelId, CancellationToken ct)
@@ -509,6 +510,9 @@ public class LiveOpsController : BaseController
 
     /// <summary>Remove a segment from the schedule (Helix DELETE /schedule/segment).</summary>
     [RequireAction("live-ops:schedule:write")]
+    [NotDestructive(
+        "Deletes one Twitch schedule segment; nothing in this schema carries a schedule-segment FK."
+    )]
     [HttpDelete("schedule/segment/{segmentId}")]
     [ProducesResponseType<StatusResponseDto<bool>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> DeleteScheduleSegment(

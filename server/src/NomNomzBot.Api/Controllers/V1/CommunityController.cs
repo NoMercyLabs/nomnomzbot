@@ -634,7 +634,11 @@ public class CommunityController : BaseController
             legacyModGuids.Count > 0
                 ? await _db
                     .Users.Where(u => legacyModGuids.Contains(u.Id))
-                    .ToDictionaryAsync(u => u.Id, u => u.DisplayName ?? u.Username, ct)
+                    .ToDictionaryAsync(
+                        u => u.Id,
+                        u => string.IsNullOrEmpty(u.DisplayName) ? u.Username : u.DisplayName,
+                        ct
+                    )
                 : [];
 
         List<BannedUserDto> items =
@@ -888,6 +892,9 @@ public class CommunityController : BaseController
 
     /// <summary>Unban a user from the channel via Twitch and clear the local ban record.</summary>
     [RequireAction("moderation:unban")]
+    [NotDestructive(
+        "Lifts a ban - a moderation state change that destroys no rows and is re-appliable."
+    )]
     [HttpDelete("{userId}/ban")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> UnbanUser(
@@ -934,6 +941,9 @@ public class CommunityController : BaseController
 
     /// <summary>Revoke a user's VIP status in the channel.</summary>
     [RequireAction("moderation:vip")]
+    [NotDestructive(
+        "Removes VIP standing - a moderation state change that destroys no rows and is re-appliable."
+    )]
     [HttpDelete("{userId}/vip")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> RemoveVip(

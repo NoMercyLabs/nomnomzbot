@@ -11,6 +11,7 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
@@ -102,6 +103,9 @@ public class FederationController(IFederationPeerService peers, ICurrentUserServ
     ) => ResultResponse(await peers.AddPeerKeyAsync(peerId, request, ct));
 
     /// <summary>Deactivate one of a peer's signing keys by key id.</summary>
+    [NotDestructive(
+        "Deactivates one peer key; no rows are deleted and no entity carries a peer-key FK."
+    )]
     [HttpDelete("peers/{peerId:guid}/keys/{keyId}")]
     [Authorize(Policy = IamPermissionKeys.IamManage)]
     public async Task<IActionResult> DeactivatePeerKey(

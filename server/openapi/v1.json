@@ -8180,6 +8180,104 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/billing/limits": {
+      "get": {
+        "tags": [
+          "Billing"
+        ],
+        "summary": "Get the channel's truthful limit usage — every declared `LimitedResourceRegistry` resource with its\r\nclass (NEAR_FREE vs COST_DRIVING), current count, and effective limit. NEAR_FREE resources report only\r\nthe uniform safety baseline (never a commercial ceiling, self-host included); COST_DRIVING resources\r\nreport the tier limit (self-host resolves to unlimited, `-1`). The count is read from the exact same\r\nsource enforcement uses, so it can never disagree with what the next write would allow.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIReadOnlyListOfResourceUsageDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/billing/invoices": {
       "get": {
         "tags": [
@@ -18920,12 +19018,119 @@
         }
       }
     },
+    "/api/v{version}/compliance/erasure/preview": {
+      "get": {
+        "tags": [
+          "Compliance"
+        ],
+        "summary": "Erase a subject's data on their behalf (broadcaster- or platform-initiated). The requester kind is\r\nconstrained to the operator plane — a body claiming `self_service` is rejected by validation.\r\nGated on `compliance:erasure` — a destructive, irreversible action distinct from the\r\nsupport-visit `tenant:access` key; holding tenant:access alone must not permit erasure.",
+        "parameters": [
+          {
+            "name": "subjectUserId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "broadcasterId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfErasurePreviewDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/compliance/erasure": {
       "post": {
         "tags": [
           "Compliance"
         ],
-        "summary": "Erase a subject's data on their behalf (broadcaster- or platform-initiated). The requester kind is\r\nconstrained to the operator plane — a body claiming `self_service` is rejected by validation.\r\nGated on `compliance:erasure` — a destructive, irreversible action distinct from the\r\nsupport-visit `tenant:access` key; holding tenant:access alone must not permit erasure.",
         "parameters": [
           {
             "name": "version",
@@ -29852,6 +30057,96 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatusResponseDtoOfDataExportDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/gdpr/erasure/preview": {
+      "get": {
+        "tags": [
+          "GDPR"
+        ],
+        "summary": "Counted preview of what erasure would destroy for the caller (S-CONSEQ) — real row counts, read-only.\r\nThe confirm surface renders this BEFORE the irreversible erasure; an empty category list is the genuine\r\n\"nothing would be destroyed\" answer, never a lookup that failed.",
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfErasurePreviewDto"
                 }
               }
             }
@@ -50440,7 +50735,7 @@
         "tags": [
           "Pipelines"
         ],
-        "summary": "Delete a pipeline.",
+        "summary": "Delete a pipeline. The dashboard confirm step calls\r\nTask&lt;IActionResult&gt; PipelinesController.GetPipelineBlastRadius(string channelId, Guid id, CancellationToken ct) first and shows the counted dependents before this runs.",
         "parameters": [
           {
             "name": "channelId",
@@ -50630,6 +50925,114 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatusResponseDtoOfPipelineCatalogueDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/pipelines/{id}/blast-radius": {
+      "get": {
+        "tags": [
+          "Pipelines"
+        ],
+        "summary": "Real, counted blast radius for deleting this pipeline — the commands, chat triggers, timers\r\nand event responses that reference it right now. The dashboard MUST call this and render the\r\nresult before letting the delete confirm proceed (S-CONSEQ).",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfPipelineBlastRadiusDto"
                 }
               }
             }
@@ -61207,6 +61610,103 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatusResponseDtoOfListOfPronounDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/templates/helpers": {
+      "get": {
+        "tags": [
+          "Templates"
+        ],
+        "summary": "GET /api/v1/templates/helpers?context=command|eventResponse|timer — the full valid helper set for\r\nthat context. An unknown/missing context fails honestly (400) rather than falling back to \"all\".",
+        "parameters": [
+          {
+            "name": "context",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIReadOnlyListOfTemplateHelperDto"
                 }
               }
             }
@@ -72779,7 +73279,8 @@
         "description": "Emote fragment data — the unified, render-ready shape covering Twitch and third-party (BTTV/FFZ/7TV) emotes\r\n(chat-decoration spec §4). `Urls` is scale-keyed (\"1\"/\"2\"/\"3\"); `Provider` is the source network."
       },
       "ChatFilterAction": {
-        "type": "integer"
+        "type": "integer",
+        "description": "What a matched `ChatFilter` (moderation.md J.6, §2) does. ChatFilterAction.Delete/ChatFilterAction.Timeout\r\napply a fixed action; ChatFilterAction.Hold/ChatFilterAction.Flag route the message to review; and\r\nChatFilterAction.Escalate defers the punishment to the per-channel escalation ladder (§3.11), which decides\r\nwarn/timeout/ban by the subject's running offense count. A filter never bans directly — a ban only ever\r\narrives through the ladder."
       },
       "ChatFilterDto": {
         "required": [
@@ -72887,7 +73388,8 @@
         "description": "The tester's verdict: whether the pattern compiles at all (string? ChatFilterTestResult.CompileError is non-null when it does\r\nnot — the same reason the save path would reject it) and, when it compiles, whether the sample matched."
       },
       "ChatFilterType": {
-        "type": "integer"
+        "type": "integer",
+        "description": "How a `ChatFilter` (moderation.md J.6) matches a chat message: a compiled ChatFilterType.Regex\r\npattern, a ChatFilterType.Blocklist of literal terms, or a ChatFilterType.LinkPolicy (URL detection)."
       },
       "ChatFragmentDto": {
         "required": [
@@ -73658,7 +74160,8 @@
         "description": "Lightweight command info for list views — includes the response text and pipeline id so the edit\r\n            form can pre-fill without a separate detail fetch."
       },
       "CommunityStanding": {
-        "type": "integer"
+        "type": "integer",
+        "description": "Plane A — community-standing ladder: `Everyone(0) &lt; Subscriber(2) &lt; Vip(4) &lt; Artist(6) &lt; Moderator(10)`."
       },
       "CommunityStatsDto": {
         "required": [
@@ -74644,6 +75147,10 @@
               "null",
               "string"
             ]
+          },
+          "bodyIsJson": {
+            "type": "boolean",
+            "description": "Whether string? CreateOutboundWebhookRequest.BodyTemplate is authored as JSON (S-WEBHOOK-JSON-FALLBACK). Defaults to true — every\r\ndelivery is sent with a hardcoded `Content-Type: application/json` today. When true, the template is\r\nvalidated as JSON at save time (rejected with the parse position on failure) and rendered through the\r\nJSON-safe leaf-substitution path; when false, it is a genuinely non-JSON body (form post, plain text) and\r\nalways renders through the plain-text path, unvalidated."
           },
           "customHeaders": {
             "type": [
@@ -76887,6 +77394,55 @@
         },
         "description": "A tenant's effective entitlement — the single source feature-gating + quota checks read."
       },
+      "ErasurePreviewCategoryDto": {
+        "required": [
+          "categoryKey",
+          "rowCount"
+        ],
+        "type": "object",
+        "properties": {
+          "categoryKey": {
+            "type": "string"
+          },
+          "rowCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "One counted category of the erasure blast radius. CategoryKey is an i18n resource KEY\r\n(never a rendered sentence — the client owns the language); RowCount is a real\r\n`COUNT` over the rows the erasure pipeline would destroy, never an estimate."
+      },
+      "ErasurePreviewDto": {
+        "required": [
+          "subjectAlreadyAnonymized",
+          "totalRows",
+          "categories"
+        ],
+        "type": "object",
+        "properties": {
+          "subjectAlreadyAnonymized": {
+            "type": "boolean"
+          },
+          "totalRows": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ErasurePreviewCategoryDto"
+            }
+          }
+        },
+        "description": "The counted preview of a GDPR erasure. Categories lists ONLY non-zero categories, each\r\ncounted from real rows; TotalRows is their sum. An empty list with a zero total is the\r\ngenuine \"nothing would be destroyed\" answer — the client must say so explicitly, never render a blank.\r\nSubjectAlreadyAnonymized is true when the profile row has already been anonymized (a\r\nrepeat erasure is idempotent and would not re-anonymize it)."
+      },
       "ErasureRequestDto": {
         "required": [
           "id",
@@ -77186,7 +77742,7 @@
             "type": "string"
           },
           "defaultTemplate": {
-            "type": "string"
+            "$ref": "#/components/schemas/LocalizedText"
           },
           "variables": {
             "type": "array",
@@ -77195,7 +77751,7 @@
             }
           }
         },
-        "description": "One catalog preset for an event type: the ready-to-use default template the dashboard pre-fills the\r\nmessage input with, and the exact template variables the trigger source seeds for that event."
+        "description": "One catalog preset for an event type: the ready-to-use default template the dashboard pre-fills the\r\nmessage input with, and the exact template variables the trigger source seeds for that event.\r\nLocalizedText EventResponsePresetDto.DefaultTemplate is a translation KEY only (S-SCHEMA-I18N-redesign) — the English and Dutch\r\nsentences live in the dashboard's `strings.xml`, never in this assembly."
       },
       "EventSubReconcileReportDto": {
         "required": [
@@ -78496,7 +79052,8 @@
         "description": "One principal with its ACTIVE (non-revoked, non-expired) role assignments — the admin IAM screen's row\r\n(roles-permissions §5.4)."
       },
       "IamPrincipalType": {
-        "type": "integer"
+        "type": "integer",
+        "description": "Whether a platform IAM principal is a human employee or a service account."
       },
       "IamRoleAssignmentDto": {
         "required": [
@@ -79548,6 +80105,18 @@
         },
         "description": "One catalog entry — a discovered game's manifest with wire-friendly second-based timing."
       },
+      "LocalizedText": {
+        "required": [
+          "key"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          }
+        },
+        "description": "A typed reference to a backend-authored, user-facing translation KEY (S-SCHEMA-I18N-redesign). Backend schema\r\nauthors (widget settings fields, pipeline action field descriptors) construct one of these per label/help\r\nstring instead of a bare English literal or string parameter, so a schema-authoring call site cannot\r\naccidentally pass raw English text where a translation key belongs. It carries no English or Dutch text —\r\ntranslations live exclusively in the dashboard's existing i18n home\r\n(`app/composeApp/src/commonMain/composeResources/values/strings.xml` for `en`, `values-nl/` for\r\n`nl`), the single place a translator can find and edit every user-facing string in the product. The\r\ndashboard resolves string LocalizedText.Key to display text via `core/i18n` (dots replaced with underscores to\r\nmatch the Compose Resources string-name convention, e.g. `widget.alerts.events.label` →\r\n`widget_alerts_events_label`). A committed key manifest (`server/i18n/schema-i18n-keys.manifest.json`)\r\nplus paired backend/frontend guard tests fail the build if a key is authored here without both a `en` and\r\nan `nl` entry in `strings.xml` — so a missing translation is caught at test time, never shipped as a\r\nsilent English fallback or, worse, an empty label."
+      },
       "LoginProviderDto": {
         "required": [
           "key",
@@ -79576,7 +80145,8 @@
         "description": "A login provider the client may offer on the login screen (platform-identity §4). bool LoginProviderDto.Enabled is\r\nthe descriptor being registered AND its feature flag resolving true for this deployment — the login screen\r\nrenders only enabled providers, so there are never dead buttons. IReadOnlyList&lt;string&gt; LoginProviderDto.Flows are wire tokens\r\n(`device_code` | `auth_code_pkce` | `auth_code`) telling the client which handshake to run."
       },
       "ManagementRole": {
-        "type": "integer"
+        "type": "integer",
+        "description": "Plane B — channel-management ladder: `Moderator(10) &lt; LeadModerator(20) &lt; Editor(30) &lt; Broadcaster(40)`."
       },
       "MarketplaceInstallRequest": {
         "type": "object",
@@ -79832,7 +80402,8 @@
         "description": "One media-share queue item (media-share.md §3)."
       },
       "MembershipSource": {
-        "type": "integer"
+        "type": "integer",
+        "description": "How a `ChannelMembership` (Plane B role) was sourced."
       },
       "MintPairingCodeRequest": {
         "required": [
@@ -81140,6 +81711,7 @@
           "fqdn",
           "path",
           "subscribedEventTypes",
+          "bodyIsJson",
           "isEnabled",
           "consecutiveFailureCount",
           "disabledAt",
@@ -81173,6 +81745,9 @@
             "items": {
               "type": "string"
             }
+          },
+          "bodyIsJson": {
+            "type": "boolean"
           },
           "isEnabled": {
             "type": "boolean"
@@ -83665,10 +84240,10 @@
             "type": "string"
           },
           "category": {
-            "type": "string"
+            "$ref": "#/components/schemas/LocalizedText"
           },
           "description": {
-            "type": "string"
+            "$ref": "#/components/schemas/LocalizedText"
           },
           "fields": {
             "type": "array",
@@ -83685,7 +84260,8 @@
           "kind",
           "required",
           "repeatable",
-          "options"
+          "options",
+          "description"
         ],
         "type": "object",
         "properties": {
@@ -83709,9 +84285,99 @@
             "items": {
               "type": "string"
             }
+          },
+          "description": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LocalizedText"
+              }
+            ]
           }
         },
         "description": "One configuration field of a pipeline action block — drives which typed control the builder's step form\r\nrenders (S045) instead of a free-text box. `Kind` is the serialized name of a\r\nPipelineActionFieldKind value (e.g. `\"number\"`,\r\n`\"enum\"`, `\"discord_channel\"`). `Options` is populated only for `\"enum\"` fields."
+      },
+      "PipelineBlastRadiusDto": {
+        "required": [
+          "commandCount",
+          "commandNames",
+          "chatTriggerCount",
+          "chatTriggerPatterns",
+          "timerCount",
+          "timerNames",
+          "eventResponseCount",
+          "eventResponseEventTypes"
+        ],
+        "type": "object",
+        "properties": {
+          "commandCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "commandNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "chatTriggerCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "chatTriggerPatterns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "timerCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "timerNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "eventResponseCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "eventResponseEventTypes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "totalReferences": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "The real, counted set of rows that reference a pipeline right now — surfaced in the delete\r\nconfirmation BEFORE the save, never estimated. int PipelineBlastRadiusDto.TotalReferences is zero exactly\r\nwhen nothing references the pipeline; the dashboard must render that as an explicit\r\n\"nothing else references this\" statement, not an empty/ambiguous state."
       },
       "PipelineCatalogueDto": {
         "required": [
@@ -83846,7 +84512,10 @@
             "format": "int64"
           },
           "pipelineId": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
             "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
             "format": "ulid"
           },
@@ -83962,7 +84631,10 @@
             "format": "int64"
           },
           "pipelineId": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
             "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
             "format": "ulid"
           },
@@ -85082,6 +85754,57 @@
           }
         },
         "description": "A moderator resolves a report — `dismiss` (no action) or `escalate` (they then act via the ban/timeout tools)."
+      },
+      "ResourceClass": {
+        "type": "integer",
+        "description": "Classifies a limited resource by whether it maps to a real marginal cost (S-BUDGETS-a). The owner's binding\r\nintent: limits exist to recover real cost, never to manufacture upsell pressure."
+      },
+      "ResourceUsageDto": {
+        "required": [
+          "limitKey",
+          "class",
+          "displayName",
+          "currentCount",
+          "limit",
+          "safetyBaseline"
+        ],
+        "type": "object",
+        "properties": {
+          "limitKey": {
+            "type": "string"
+          },
+          "class": {
+            "$ref": "#/components/schemas/ResourceClass"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "currentCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "limit": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "safetyBaseline": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        },
+        "description": "One `LimitedResourceRegistry` entry's truthful current state (S-BUDGETS-b1) — the read-side mirror of\r\nwhat `IResourceQuotaService.CheckAsync` would evaluate for the NEXT write. long ResourceUsageDto.CurrentCount\r\ncomes from the exact same counting source enforcement uses, never a second query, so this can never disagree\r\nwith what a save would allow. ResourceClass ResourceUsageDto.Class is carried explicitly so a UI can never mistake a NEAR_FREE\r\nabuse floor for a paid ceiling. long ResourceUsageDto.Limit is `-1` when unlimited (every self-host\r\nCOST_DRIVING resource); NEAR_FREE resources are NEVER tier-scaled, so long ResourceUsageDto.Limit always equals\r\nlong ResourceUsageDto.SafetyBaseline for them, on every tenant including self-host — long ResourceUsageDto.SafetyBaseline is\r\nunused (0) for COST_DRIVING."
       },
       "ReviewGalleryItemRequest": {
         "required": [
@@ -87789,6 +88512,36 @@
           }
         }
       },
+      "StatusResponseDtoOfErasurePreviewDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ErasurePreviewDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfErasureRequestDto": {
         "type": "object",
         "properties": {
@@ -89436,6 +90189,35 @@
           }
         }
       },
+      "StatusResponseDtoOfIReadOnlyListOfResourceUsageDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ResourceUsageDto"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfIReadOnlyListOfstring": {
         "type": "object",
         "properties": {
@@ -89479,6 +90261,35 @@
             ],
             "items": {
               "$ref": "#/components/schemas/SupporterConnectionDto"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfIReadOnlyListOfTemplateHelperDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/TemplateHelperDto"
             }
           },
           "message": {
@@ -91033,6 +91844,36 @@
               },
               {
                 "$ref": "#/components/schemas/PickListPreviewDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfPipelineBlastRadiusDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PipelineBlastRadiusDto"
               }
             ]
           },
@@ -93277,6 +94118,22 @@
           }
         },
         "description": "bool SystemStatusDto.OnboardingComplete is the ONLY gate the client routes onboarding vs. login off. It means\r\nthe operator has made a DELIBERATE, RECORDED decision about at least one platform's app — either BYOC\r\n(their own client id, saved) or an explicit \"use the shared app\" choice — never an incidental config/env\r\nfallback (the shipped public Twitch client id) alone. It is deployment-level setup, not who is signed in\r\nand not whether the platform bot is authorized. Bot authorization is per-channel work that happens after\r\nlogin; its live state is CheckItem SystemChecks.PlatformBot, reported separately so the wizard can\r\nstill show it without it ever blocking the client from reaching the login screen."
+      },
+      "TemplateHelperDto": {
+        "required": [
+          "key",
+          "descriptionKey"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "descriptionKey": {
+            "type": "string"
+          }
+        },
+        "description": "Wire shape for one entry of `GET /api/v1/templates/helpers?context=` (S042). string TemplateHelperDto.Key is\r\nthe placeholder text as written in a template; string TemplateHelperDto.DescriptionKey is the i18n key the\r\ndashboard resolves for display — never resolved English text (the backend never ships English\r\nliterals for user-facing strings)."
       },
       "TenantAccessGrantDto": {
         "required": [
@@ -95677,6 +96534,13 @@
               "string"
             ]
           },
+          "bodyIsJson": {
+            "type": [
+              "null",
+              "boolean"
+            ],
+            "description": "See bool CreateOutboundWebhookRequest.BodyIsJson. Null leaves the endpoint's current value unchanged."
+          },
           "customHeaders": {
             "type": [
               "null",
@@ -97963,7 +98827,8 @@
           "Shopify",
           "Patreon",
           "Buymeacoffee"
-        ]
+        ],
+        "description": "The inbound provider an endpoint speaks (webhooks.md §2). Serialized as its string name on the API wire\r\n(not an ordinal) so the dashboard sends and reads a stable adapter key (e.g. `\"Generic\"`) rather than a\r\nbrittle integer, and the OpenAPI schema advertises the real choice set."
       },
       "WidgetDetail": {
         "required": [
@@ -98077,19 +98942,23 @@
             "type": "string"
           },
           "label": {
-            "type": "string"
+            "$ref": "#/components/schemas/LocalizedText"
           },
           "type": {
             "type": "string"
           },
           "group": {
-            "type": "string"
+            "$ref": "#/components/schemas/LocalizedText"
           },
           "default": { },
           "help": {
-            "type": [
-              "null",
-              "string"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LocalizedText"
+              }
             ]
           },
           "options": {
@@ -98129,7 +98998,7 @@
             "format": "double"
           }
         },
-        "description": "One editable setting on a widget. string WidgetSettingsField.Type picks the control the dashboard renders:\r\n`bool` (switch), `number` (stepper/slider), `text` (field), `color` (colour control),\r\n`select` (single-choice dropdown over IReadOnlyList&lt;WidgetSettingsFieldOption&gt;? WidgetSettingsField.Options), `multiselect` (chip toggles over\r\nIReadOnlyList&lt;WidgetSettingsFieldOption&gt;? WidgetSettingsField.Options), or `json` (raw-JSON textarea for a structural map/list the schema does not flatten).\r\nobject? WidgetSettingsField.Default is the catalogue default (so a cleared field falls back to the widget's shipped value);\r\ndouble? WidgetSettingsField.Min/double? WidgetSettingsField.Max/double? WidgetSettingsField.Step bound a numeric control; string WidgetSettingsField.Group lets the form\r\nsection the fields."
+        "description": "One editable setting on a widget. string WidgetSettingsField.Type picks the control the dashboard renders:\r\n`bool` (switch), `number` (stepper/slider), `text` (field), `color` (colour control),\r\n`select` (single-choice dropdown over IReadOnlyList&lt;WidgetSettingsFieldOption&gt;? WidgetSettingsField.Options), `multiselect` (chip toggles over\r\nIReadOnlyList&lt;WidgetSettingsFieldOption&gt;? WidgetSettingsField.Options), or `json` (raw-JSON textarea for a structural map/list the schema does not flatten).\r\nobject? WidgetSettingsField.Default is the catalogue default (so a cleared field falls back to the widget's shipped value);\r\ndouble? WidgetSettingsField.Min/double? WidgetSettingsField.Max/double? WidgetSettingsField.Step bound a numeric control; LocalizedText WidgetSettingsField.Group lets the form\r\nsection the fields. LocalizedText WidgetSettingsField.Label, LocalizedText? WidgetSettingsField.Help, and LocalizedText WidgetSettingsField.Group are all\r\nLocalizedText (S-SCHEMA-I18N-redesign) — a translation KEY only; the dashboard resolves each\r\nagainst `strings.xml` for the viewer's locale instead of the backend serving a hardcoded English literal."
       },
       "WidgetSettingsFieldOption": {
         "required": [
@@ -98142,10 +99011,10 @@
             "type": "string"
           },
           "label": {
-            "type": "string"
+            "$ref": "#/components/schemas/LocalizedText"
           }
         },
-        "description": "A single choice for a `select`/`multiselect` field: the wire string WidgetSettingsFieldOption.Value and its display string WidgetSettingsFieldOption.Label."
+        "description": "A single choice for a `select`/`multiselect` field: the wire string WidgetSettingsFieldOption.Value (the machine value\r\nstored/compared, never shown) and its display LocalizedText WidgetSettingsFieldOption.Label — a LocalizedText\r\n(S-SCHEMA-I18N-redesign) translation KEY only, resolved by the dashboard against `strings.xml`."
       },
       "WidgetSettingsSchema": {
         "required": [
@@ -98539,6 +99408,9 @@
     },
     {
       "name": "Supporters"
+    },
+    {
+      "name": "Templates"
     },
     {
       "name": "Timers"

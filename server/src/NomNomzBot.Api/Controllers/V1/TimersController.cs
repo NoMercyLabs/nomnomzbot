@@ -108,6 +108,9 @@ public class TimersController : BaseController
 
     /// <summary>Delete a timer.</summary>
     [RequireAction("timers:write")]
+    [NotDestructive(
+        "Deletes one Timer row; Timer REFERENCES a pipeline (PipelineId) but no entity carries a TimerId FK - the pipeline it fires is untouched."
+    )]
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteTimer(string channelId, Guid id, CancellationToken ct)

@@ -92,6 +92,9 @@ public class AutomationTokensController(
         ResultResponse(await tokens.GetEventCatalogAsync(ct));
 
     /// <summary>Revoke a token (tombstone — the row stays for the audit trail).</summary>
+    [NotDestructive(
+        "Revokes one AutomationApiToken row; no entity carries an AutomationApiTokenId FK. A new token can be issued immediately."
+    )]
     [HttpDelete("tokens/{tokenId:guid}")]
     [RequireAction("automation:tokens:write")]
     [ProducesResponseType<StatusResponseDto<bool>>(StatusCodes.Status200OK)]

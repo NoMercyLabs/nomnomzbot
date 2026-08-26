@@ -923,4 +923,190 @@ public sealed class ErasureServiceTests
             CancellationToken cancellationToken = default
         ) => Task.FromResult(Result.Failure("the key vault shred refused", "KEY_VAULT_DOWN"));
     }
+
+    // -- Preview: the counted blast radius shown BEFORE the irreversible save (S-CONSEQ) -----------
+
+    [Fact]
+    public async Task PreviewErasureAsync_counts_the_real_rows_the_pipeline_would_destroy()
+    {
+        Harness h = Build();
+        using GdprSqliteDatabase _ = h.Database;
+        await SeedUsersAsync(h.Db);
+        await StoreConnectionAsync(h.Vault, SubjectChannel, SubjectUser, "subject-access-token");
+        // Another user's rows must never be counted into the subject's blast radius.
+        await StoreConnectionAsync(h.Vault, OtherChannel, OtherUser, "other-access-token");
+        SeedChatMessages(h.Db, SubjectUser, 3);
+        SeedChatMessages(h.Db, OtherUser, 2);
+        SeedRecords(h.Db, SubjectUser, 2);
+        h.Db.ViewerData.AddRange(
+            new NomNomzBot.Domain.ViewerData.Entities.ViewerDatum
+            {
+                BroadcasterId = SubjectChannel,
+                ViewerUserId = SubjectUser,
+                Key = "deaths",
+                Value = "12",
+            },
+            // Soft-deleted rows ARE destroyed by erasure, so the preview must count them too.
+            new NomNomzBot.Domain.ViewerData.Entities.ViewerDatum
+            {
+                BroadcasterId = OtherChannel,
+                ViewerUserId = SubjectUser,
+                Key = "quest",
+                Value = "done",
+                DeletedAt = DateTime.UtcNow,
+            },
+            new NomNomzBot.Domain.ViewerData.Entities.ViewerDatum
+            {
+                BroadcasterId = SubjectChannel,
+                ViewerUserId = OtherUser,
+                Key = "deaths",
+                Value = "3",
+            }
+        );
+        h.Db.ConsentRecords.Add(
+            new()
+            {
+                SubjectUserId = SubjectUser,
+                SubjectIdHash = HashOf(SubjectUser),
+                ConsentType = "marketing",
+                Status = "granted",
+                LawfulBasis = "consent",
+                GrantedAt = DateTime.UtcNow,
+            }
+        );
+        await h.Db.SaveChangesAsync();
+
+        Result<ErasurePreviewDto> preview = await h.Sut.PreviewErasureAsync(new(SubjectUser, null));
+
+        preview.IsSuccess.Should().BeTrue(preview.ErrorMessage);
+        Dictionary<string, int> counted = preview.Value.Categories.ToDictionary(
+            c => c.CategoryKey,
+            c => c.RowCount
+        );
+        counted["gdpr_erasure_category_profile"].Should().Be(1);
+        counted["gdpr_erasure_category_chat_messages"].Should().Be(3);
+        counted["gdpr_erasure_category_records"].Should().Be(2);
+        counted["gdpr_erasure_category_viewer_data"].Should().Be(2);
+        counted["gdpr_erasure_category_connections"].Should().Be(1);
+        counted["gdpr_erasure_category_consents"].Should().Be(1);
+        preview.Value.TotalRows.Should().Be(counted.Values.Sum());
+        preview.Value.SubjectAlreadyAnonymized.Should().BeFalse();
+        // Zero-count categories are omitted entirely -- a rendered "0 records" line would read as a
+        // reassurance the data does not support.
+        counted.Values.Should().OnlyContain(count => count > 0);
+    }
+
+    [Fact]
+    public async Task PreviewErasureAsync_counts_exactly_what_the_erasure_then_destroys()
+    {
+        // The preview is only worth anything if the number it shows is the number the save acts on.
+        Harness h = Build();
+        using GdprSqliteDatabase _ = h.Database;
+        await SeedUsersAsync(h.Db);
+        SeedChatMessages(h.Db, SubjectUser, 4);
+        SeedRecords(h.Db, SubjectUser, 1);
+        await h.Db.SaveChangesAsync();
+
+        Result<ErasurePreviewDto> preview = await h.Sut.PreviewErasureAsync(new(SubjectUser, null));
+        Result<ErasureRequestDto> erased = await h.Sut.RequestErasureAsync(
+            SelfErasure(SubjectUser)
+        );
+
+        preview.IsSuccess.Should().BeTrue(preview.ErrorMessage);
+        erased.IsSuccess.Should().BeTrue(erased.ErrorMessage);
+        erased.Value.RowsAffected.Should().Be(preview.Value.TotalRows);
+    }
+
+    [Fact]
+    public async Task PreviewErasureAsync_on_a_bare_subject_reports_a_genuine_nothing()
+    {
+        Harness h = Build();
+        using GdprSqliteDatabase _ = h.Database;
+        await SeedUsersAsync(h.Db);
+        // A subject whose ONLY row is the profile: the profile still counts, and nothing else does -- the
+        // client renders "nothing else would be destroyed" off the empty rest, never off a failed lookup.
+        Result<ErasurePreviewDto> preview = await h.Sut.PreviewErasureAsync(new(SubjectUser, null));
+
+        preview.IsSuccess.Should().BeTrue(preview.ErrorMessage);
+        preview
+            .Value.Categories.Should()
+            .ContainSingle()
+            .Which.CategoryKey.Should()
+            .Be("gdpr_erasure_category_profile");
+        preview.Value.TotalRows.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task PreviewErasureAsync_destroys_nothing_and_writes_no_request_row()
+    {
+        Harness h = Build();
+        using GdprSqliteDatabase _ = h.Database;
+        await SeedUsersAsync(h.Db);
+        SeedChatMessages(h.Db, SubjectUser, 2);
+        await h.Db.SaveChangesAsync();
+
+        await h.Sut.PreviewErasureAsync(new(SubjectUser, null));
+
+        await using GdprTestDbContext reader = h.Database.NewContext();
+        User subject = await reader
+            .Users.IgnoreQueryFilters()
+            .SingleAsync(u => u.Id == SubjectUser);
+        subject.IsAnonymized.Should().BeFalse("a preview must never anonymize");
+        subject.Username.Should().Be("subject");
+        (await reader.ChatMessages.IgnoreQueryFilters().CountAsync()).Should().Be(2);
+        (await reader.ErasureRequests.CountAsync()).Should().Be(0);
+        (await reader.ComplianceAuditLogs.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task PreviewErasureAsync_for_an_unknown_subject_fails_rather_than_reporting_zero()
+    {
+        // The load-bearing case: an unresolvable lookup must FAIL, so the client can say "unknown" and
+        // withhold the confirm. Reporting a zero blast radius here is the lie that costs data.
+        Harness h = Build();
+        using GdprSqliteDatabase _ = h.Database;
+        await SeedUsersAsync(h.Db);
+
+        Result<ErasurePreviewDto> preview = await h.Sut.PreviewErasureAsync(
+            new(Guid.NewGuid(), null)
+        );
+
+        preview.IsFailure.Should().BeTrue();
+        preview.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    private static void SeedChatMessages(GdprTestDbContext db, Guid userId, int count)
+    {
+        for (int index = 0; index < count; index++)
+        {
+            db.ChatMessages.Add(
+                new()
+                {
+                    Id = $"msg-{userId:N}-{index}",
+                    BroadcasterId = SubjectChannel,
+                    UserId = userId.ToString(),
+                    Username = "seed",
+                    DisplayName = "Seed",
+                    UserType = "viewer",
+                    Message = $"message {index}",
+                }
+            );
+        }
+    }
+
+    private static void SeedRecords(GdprTestDbContext db, Guid userId, int count)
+    {
+        for (int index = 0; index < count; index++)
+        {
+            db.Records.Add(
+                new()
+                {
+                    BroadcasterId = SubjectChannel,
+                    RecordType = "redemption",
+                    Data = "{}",
+                    UserId = userId.ToString(),
+                }
+            );
+        }
+    }
 }

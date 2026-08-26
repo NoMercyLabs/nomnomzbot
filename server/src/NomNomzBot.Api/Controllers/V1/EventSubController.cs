@@ -84,6 +84,9 @@ public class EventSubController : BaseController
     }
 
     /// <summary>Revokes one EventSub subscription by its surrogate id.</summary>
+    [NotDestructive(
+        "Removes one EventSub subscription; no entity carries an EventSubSubscriptionId FK (the channel FK was deliberately dropped) and it is re-registered on the next connect."
+    )]
     [HttpDelete("subscriptions/{id:guid}")]
     [RequireAction("eventsub:unsubscribe")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]

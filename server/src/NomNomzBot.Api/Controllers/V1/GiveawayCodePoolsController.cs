@@ -101,6 +101,7 @@ public class GiveawayCodePoolsController : BaseController
 
     /// <summary>Soft-delete a pool (blocked while it backs an active giveaway).</summary>
     [RequireAction("giveaways:codes:write")]
+    [DestructiveAction(PendingBlastRadiusSince = "2026-08-26")]
     [HttpDelete("{poolId:guid}")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Delete(Guid poolId, CancellationToken ct)

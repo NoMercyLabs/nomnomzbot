@@ -11,6 +11,7 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
@@ -69,8 +70,27 @@ public class GdprController : BaseController
         return ResultResponse(result);
     }
 
+    /// <summary>
+    /// Counted preview of what erasure would destroy for the caller (S-CONSEQ) — real row counts, read-only.
+    /// The confirm surface renders this BEFORE the irreversible erasure; an empty category list is the genuine
+    /// "nothing would be destroyed" answer, never a lookup that failed.
+    /// </summary>
+    [HttpGet("erasure/preview")]
+    [ProducesResponseType<StatusResponseDto<ErasurePreviewDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> PreviewErasure(CancellationToken ct)
+    {
+        if (!TryGetCaller(out Guid callerId))
+            return UnauthenticatedResponse();
+        Result<ErasurePreviewDto> result = await _erasure.PreviewErasureAsync(
+            new(callerId, _currentTenant.BroadcasterId),
+            ct
+        );
+        return ResultResponse(result);
+    }
+
     /// <summary>Request erasure of the caller's own data (right to be forgotten). Irreversible.</summary>
     [HttpPost("erasure")]
+    [DestructiveAction(HasCountedBlastRadius = true)]
     [ProducesResponseType<StatusResponseDto<ErasureRequestDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> RequestErasure(
         [FromBody] RequestErasureRequest? request,
@@ -183,6 +203,9 @@ public class GdprController : BaseController
     }
 
     /// <summary>Withdraw one of the caller's own consents (optionally scoped to a channel).</summary>
+    [NotDestructive(
+        "Writes a withdrawal tombstone on one ConsentRecord; the row survives, is still listed, and the consent can be re-granted."
+    )]
     [HttpDelete("consents/{consentType}")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> WithdrawConsent(

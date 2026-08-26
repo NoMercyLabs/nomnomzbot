@@ -127,6 +127,7 @@ public class ChatFiltersController : BaseController
 
     /// <summary>Delete (soft) a chat filter.</summary>
     [RequireAction("moderation:filter:write")]
+    [NotDestructive("Deletes one ChatFilter row; no entity carries a ChatFilterId FK.")]
     [HttpDelete("{filterId:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteFilter(

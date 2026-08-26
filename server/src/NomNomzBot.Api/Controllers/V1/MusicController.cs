@@ -180,6 +180,7 @@ public class MusicController : BaseController
 
     /// <summary>Remove a queued song at the given position, for moderators clearing bad requests.</summary>
     [RequireAction("music:queue:moderate")]
+    [NotDestructive("Removes one queued track; no entity carries a queue-item FK.")]
     [HttpDelete("queue/{position:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> RemoveFromQueue(
@@ -239,6 +240,9 @@ public class MusicController : BaseController
 
     /// <summary>Unblock a previously blocked track (soft delete), letting it be requested again.</summary>
     [RequireAction("music:queue:moderate")]
+    [NotDestructive(
+        "Deletes one BlockedTrack row; no entity carries a BlockedTrackId FK and the track can be re-blocked."
+    )]
     [HttpDelete("blocked-tracks/{blockedTrackId:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> UnblockTrack(

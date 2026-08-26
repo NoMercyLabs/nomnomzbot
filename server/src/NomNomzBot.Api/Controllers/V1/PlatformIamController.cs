@@ -12,6 +12,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
@@ -144,6 +145,9 @@ public class PlatformIamController(
     }
 
     /// <summary>Revokes a role assignment (sets <c>RevokedAt</c>; already-revoked is a no-op).</summary>
+    [NotDestructive(
+        "Revokes one IAM role assignment; no entity carries an assignment FK and it can be re-assigned."
+    )]
     [HttpDelete("assignments/{assignmentId:guid}")]
     [Authorize(Policy = IamPermissionKeys.IamManage)]
     [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]

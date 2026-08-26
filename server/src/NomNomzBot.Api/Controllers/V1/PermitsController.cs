@@ -106,6 +106,9 @@ public class PermitsController(IPermitService permits, ICurrentUserService curre
     }
 
     /// <summary>Revoke a user's permit grant, matched by action key or role.</summary>
+    [NotDestructive(
+        "Deletes one PermitGrant row; no entity carries a PermitGrantId FK and a permit can be re-issued."
+    )]
     [HttpDelete("{userId:guid}")]
     [RequireAction("permit:issue")]
     public async Task<IActionResult> Revoke(

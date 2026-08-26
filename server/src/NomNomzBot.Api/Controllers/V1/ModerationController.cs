@@ -288,6 +288,9 @@ public class ModerationController : BaseController
 
     /// <summary>Delete an auto-moderation rule.</summary>
     [RequireAction("moderation:filter:write")]
+    [NotDestructive(
+        "Deletes one moderation rule row; no entity carries a moderation-rule FK (escalation history records the action taken, not the rule id)."
+    )]
     [HttpDelete("rules/{ruleId:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteRule(string channelId, int ruleId, CancellationToken ct)
@@ -349,6 +352,9 @@ public class ModerationController : BaseController
 
     /// <summary>Unban a user from the channel via the Twitch moderation API.</summary>
     [RequireAction("moderation:unban")]
+    [NotDestructive(
+        "Lifts a ban - a moderation state change that destroys no rows and is re-appliable."
+    )]
     [HttpDelete("bans/{userId}")]
     [ProducesResponseType<StatusResponseDto<ModerationActionResult>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> UnbanUser(
@@ -501,6 +507,9 @@ public class ModerationController : BaseController
 
     /// <summary>Remove a term from the channel's blocked-terms list via the Twitch moderation API.</summary>
     [RequireAction("moderation:blocklist:write")]
+    [NotDestructive(
+        "Removes one blocked term on the platform; no entity carries a blocked-term FK."
+    )]
     [HttpDelete("blocked-terms/{term}")]
     [ProducesResponseType<StatusResponseDto<List<string>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> RemoveBlockedTerm(
@@ -631,6 +640,7 @@ public class ModerationController : BaseController
 
     /// <summary>Clear a chatter's suspicious-user flag via the Twitch moderation API.</summary>
     [RequireAction("moderation:suspicioususer:write")]
+    [NotDestructive("Clears a per-user suspicious flag; no rows are deleted.")]
     [HttpDelete("suspicious/{userId}")]
     [ProducesResponseType<StatusResponseDto<SuspiciousStatusDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ClearSuspiciousStatus(
@@ -821,6 +831,9 @@ public class ModerationController : BaseController
 
     /// <summary>Removes a partner channel from the trust list. SuperMod tier.</summary>
     [RequireAction("moderation:sharedban:write")]
+    [NotDestructive(
+        "Deletes one shared-ban trust row; no entity carries a trust-row FK and trust can be re-established."
+    )]
     [HttpDelete("shared-bans/trusted/{trustedChannelId:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> RemoveSharedBanTrustedChannel(
@@ -878,6 +891,9 @@ public class ModerationController : BaseController
 
     /// <summary>Clear a viewer's bot-side standing back to normal.</summary>
     [RequireAction("moderation:suspicioususer:write")]
+    [NotDestructive(
+        "Clears one ChannelModerationStanding row; no entity carries a standing FK and standing is recomputed from history."
+    )]
     [HttpDelete("users/{userId}/standing")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> ClearModerationStanding(
@@ -991,6 +1007,7 @@ public class ModerationController : BaseController
 
     /// <summary>Delete a moderator note.</summary>
     [RequireAction("moderation:note:write")]
+    [NotDestructive("Deletes one moderator note row; no entity carries a note FK.")]
     [HttpDelete("notes/{noteId:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteUserNote(

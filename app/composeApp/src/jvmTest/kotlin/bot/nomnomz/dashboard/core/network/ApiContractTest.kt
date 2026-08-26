@@ -285,6 +285,8 @@ class ApiContractTest {
             DataExport.serializer() to "DataExportDto",
             ErasureRequest.serializer() to "ErasureRequestDto",
             ConsentRecord.serializer() to "ConsentRecordDto",
+            ErasurePreview.serializer() to "ErasurePreviewDto",
+            ErasurePreviewCategory.serializer() to "ErasurePreviewCategoryDto",
             GrantConsentBody.serializer() to "GrantConsentRequest",
             // Media Share (viewer clip queue).
             MediaShareRequest.serializer() to "MediaShareRequestDto",

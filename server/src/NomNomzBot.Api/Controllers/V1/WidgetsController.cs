@@ -269,9 +269,7 @@ public class WidgetsController : BaseController
     }
 
     /// <summary>Delete an overlay widget from a channel.</summary>
-    [NotDestructive(
-        "Pipeline steps can reference a widget id, but only inside PipelineStep.ConfigJson (a JSON blob, not a queryable FK) — counting real references needs a JSON-scan mechanism out of scope for this slice; tracked as a follow-up, not silently skipped."
-    )]
+    [DestructiveAction(PendingBlastRadiusSince = "2026-08-26")]
     [RequireAction("widget:write")]
     [HttpDelete("{widgetId}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

@@ -117,6 +117,9 @@ public class EventResponsesController : BaseController
 
     /// <summary>Delete the configured response for an event type.</summary>
     [RequireAction("eventresponses:write")]
+    [NotDestructive(
+        "Deletes one EventResponse row; EventResponse REFERENCES a pipeline (PipelineId) but no entity carries an EventResponseId FK - the pipeline it points at is untouched."
+    )]
     [HttpDelete("{eventType}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteEventResponse(

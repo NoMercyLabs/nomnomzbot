@@ -138,6 +138,9 @@ public class QuotesController : BaseController
 
     /// <summary>Delete a quote by its number.</summary>
     [RequireAction("quotes:delete")]
+    [NotDestructive(
+        "Deletes exactly one Quote row; no entity carries a QuoteId FK (only the append-only journal event records the quote)."
+    )]
     [HttpDelete("{number:int}")]
     [ProducesResponseType<StatusResponseDto<QuoteDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> DeleteQuote(int number, CancellationToken ct)

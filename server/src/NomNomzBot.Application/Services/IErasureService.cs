@@ -35,6 +35,18 @@ public interface IErasureService
     /// <c>completed</c> audit row; on any step failure the transaction rolls back and the surviving request
     /// row is marked <c>failed</c> (audit <c>Outcome=failed</c>). Idempotent on already-anonymized subjects.
     /// </summary>
+    /// <summary>
+    /// Read-only, counted preview of what <see cref="RequestErasureAsync"/> would destroy for the subject
+    /// (S-CONSEQ: a destructive save announces its real blast radius BEFORE it happens). Counts the exact same
+    /// row sets the pipeline deletes/revokes — chat messages, records, per-viewer data, legacy service tokens,
+    /// vaulted OAuth connections, refresh tokens, auth sessions, active consents and the resolvable DEKs —
+    /// with real <c>COUNT</c>s. Mutates nothing and writes no request row.
+    /// </summary>
+    Task<Result<ErasurePreviewDto>> PreviewErasureAsync(
+        PreviewErasureRequest request,
+        CancellationToken cancellationToken = default
+    );
+
     Task<Result<ErasureRequestDto>> RequestErasureAsync(
         RequestErasureRequest request,
         CancellationToken cancellationToken = default

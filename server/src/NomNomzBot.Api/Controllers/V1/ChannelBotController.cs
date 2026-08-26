@@ -227,6 +227,9 @@ public class ChannelBotController : BaseController
     }
 
     /// <summary>Disconnect the white-label bot for a specific channel.</summary>
+    [NotDestructive(
+        "Clears the channel's ChannelBotAuthorization; no rows are deleted and the bot re-authorizes through the device-code flow."
+    )]
     [HttpDelete("{channelId}/bot")]
     [Authorize]
     [RequireAction("channelbot:disconnect")]

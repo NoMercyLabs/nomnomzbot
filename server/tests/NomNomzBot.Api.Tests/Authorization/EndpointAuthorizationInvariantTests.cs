@@ -62,6 +62,8 @@ public sealed class EndpointAuthorizationInvariantTests
         // ── GDPR self-service my-data plane: Gate-1 only, subject ALWAYS forced to the JWT sub (never body/route) ──
         ["GdprController.ExportData"] =
             "self-scoped in body: subject forced to JWT sub — gdpr-crypto.md §5.1 (right of access on own data)",
+        ["GdprController.PreviewErasure"] =
+            "self-scoped in body: counted erasure preview for the JWT sub only (read-only) — gdpr-crypto.md §5.1",
         ["GdprController.RequestErasure"] =
             "self-scoped in body: subject + RequestedBy forced to JWT sub / self_service — gdpr-crypto.md §5.1",
         ["GdprController.RequestOptOut"] =

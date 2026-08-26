@@ -98,6 +98,7 @@ public class WebhooksController(
     ) => ResultResponse(await inbound.RotateTokenAsync(channelId, endpointId, ct));
 
     /// <summary>Delete an inbound webhook endpoint, retiring its ingest URL.</summary>
+    [DestructiveAction(PendingBlastRadiusSince = "2026-08-26")]
     [HttpDelete("inbound/{endpointId:guid}")]
     [RequireAction("webhooks:inbound:write")]
     public async Task<IActionResult> DeleteInbound(
@@ -223,6 +224,9 @@ public class WebhooksController(
     ) => ResultResponse(await outbound.SendTestAsync(channelId, endpointId, ct));
 
     /// <summary>Delete an outbound webhook endpoint, stopping its deliveries.</summary>
+    [NotDestructive(
+        "Deletes one OutboundWebhookEndpoint row; the endpoint REFERENCES an egress allowlist entry but no entity carries an OutboundWebhookEndpointId FK."
+    )]
     [HttpDelete("outbound/{endpointId:guid}")]
     [RequireAction("webhooks:outbound:write")]
     public async Task<IActionResult> DeleteOutbound(

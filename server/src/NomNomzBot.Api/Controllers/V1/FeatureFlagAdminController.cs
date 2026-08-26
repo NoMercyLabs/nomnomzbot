@@ -12,6 +12,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Platform;
@@ -61,6 +62,9 @@ public class FeatureFlagAdminController(
         ResultResponse(await flags.SetOverrideAsync(flagKey, broadcasterId, request, Caller(), ct));
 
     /// <summary>Clear a channel's feature-flag override, returning it to the global ramp.</summary>
+    [NotDestructive(
+        "Deletes one FeatureFlagOverride row; no entity carries a FeatureFlagOverrideId FK and the flag falls back to its default."
+    )]
     [HttpDelete("{flagKey}/overrides/{broadcasterId:guid}")]
     [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
     public async Task<IActionResult> RemoveOverride(

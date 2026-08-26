@@ -157,6 +157,7 @@ public sealed class AssetsController : BaseController
     // ── DELETE /assets/{id} ───────────────────────────────────────────────────
 
     /// <summary>Delete a media asset (its serving URL stops resolving).</summary>
+    [DestructiveAction(PendingBlastRadiusSince = "2026-08-26")]
     [HttpDelete("{id:guid}")]
     [RequireAction("sounds:write")]
     [ProducesResponseType<StatusResponseDto<bool>>(StatusCodes.Status200OK)]
