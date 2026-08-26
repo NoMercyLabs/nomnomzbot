@@ -225,19 +225,22 @@ stable — without dropping the planned requirements behind them.
   exists at all**, so `supporter-events.md` §4.1's YouTube sponsor/gift/super-chat mapping has nothing
   to map from. Kick has `KickWebhookIngest`; YouTube has no equivalent.
 
-- **S-WEBHOOK-TEMPLATE-GRAMMAR** (the honest blocker that stopped S-TWO-TEMPLATE-ENGINES from deleting
-  the second engine — d45f2cac unified DISCORD onto `ITemplateResolver`: helper+transform renders
-  identically to any other surface, preview and dispatch provably share one engine, Discord saves
-  validate unknown keys, all 8 Discord seed variables still resolve, 4255 green.)
-  `Webhooks/OutboundWebhookDispatcher.cs:115` is a SECOND genuine `ITemplateEngine` consumer the
-  unification brief never named. It relies on the `{{double-brace}}` grammar ON PURPOSE: a webhook
-  `BodyTemplate` is usually raw JSON, and `TemplateResolver`'s single-brace `{var}` would collide with
-  literal JSON braces. Deleting the engine today would silently corrupt JSON webhook payloads — so it
-  correctly was NOT deleted. Done-when: outbound webhook bodies render through the ONE engine with a
-  JSON-safe escaping design (decide it: escaped braces, a distinct delimiter, or JSON-aware
-  substitution), proven by a test that a body template containing BOTH literal JSON braces AND a helper
-  renders valid JSON with the helper substituted; then `ITemplateEngine`, `TemplateEngine` and their DI
-  registration are deleted so no second grammar remains as a trap.
+- **S-WEBHOOK-JSON-FALLBACK** (found reviewing 55f5ba52, which correctly deleted the second template
+  engine and made webhook bodies render by JSON-AWARE substitution: placeholders resolve only inside
+  string leaves of the parsed tree, so values are escaped on re-serialize and structural corruption is
+  impossible. `ITemplateEngine` is gone from the tree, verified by grep.)
+  THE HOLE: `WebhookBodyTemplateRenderer` catches `JsonReaderException` and falls back to
+  `templateResolver.Resolve(bodyTemplate, vars)` — the plain, UNESCAPED path. Correct for a body that
+  was never JSON (a form post, plain text); WRONG for a body the author INTENDED as JSON with a syntax
+  error, which then silently takes the unsafe path where a viewer-supplied `"` can still break the
+  payload, with no signal to the author that their template stopped being JSON-safe.
+  Done-when: an intended-JSON body that fails to parse is REPORTED to the author (save-time or
+  delivery-time error naming the parse position), never silently downgraded; a genuinely non-JSON body
+  still renders; a test proves what a hostile value does in each case. Determine "intended as JSON" from
+  the endpoint's content-type, not by guessing at the body text.
+  ALSO NOTED by that slice: there is no `TemplateHelperContext.Webhook` save-time validation
+  (`OutboundWebhookEndpointService.cs:179,221`) because a webhook body has no closed helper-key set the
+  way Command/Discord/Timer contexts do — decide whether it gets one or is deliberately open.
 
 - **S027** Kick go-live + reads — `livestream.status.updated` publishes canonical online/offline;
   Kick channel read (viewer count, title/category), `KickPlatformApi` + `channel:read/write`; operator
