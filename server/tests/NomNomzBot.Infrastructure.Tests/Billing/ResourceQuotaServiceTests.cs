@@ -13,10 +13,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.DTOs.Billing;
+using NomNomzBot.Domain.Assets.Entities;
 using NomNomzBot.Domain.Billing;
 using NomNomzBot.Domain.Billing.Entities;
 using NomNomzBot.Domain.Billing.Enums;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Infrastructure.Billing;
 using NomNomzBot.Infrastructure.Content.Billing;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -257,5 +259,117 @@ public sealed class ResourceQuotaServiceTests
         tts.Class.Should().Be(ResourceClass.CostDriving);
         // -1 = unlimited: self-host reports no paid ceiling at all for the cost-driving resource either.
         tts.Limit.Should().Be(-1);
+    }
+
+    // ─── S-BUDGETS-b5: stored bytes are a live gauge, not an event-accumulated counter ─────
+
+    [Fact]
+    public async Task Sound_clip_storage_bytes_reads_the_real_sum_of_live_clip_sizes()
+    {
+        (ResourceQuotaService sut, AuthDbContext db) = Build();
+        SeedChannel(db, AuthEnums.DeploymentMode.SelfHostFull);
+        db.SoundClips.Add(
+            new SoundClip
+            {
+                Id = Guid.NewGuid(),
+                BroadcasterId = Channel,
+                Name = "airhorn",
+                DisplayName = "Airhorn",
+                StorageKey = "clips/airhorn.mp3",
+                MimeType = "audio/mpeg",
+                SizeBytes = 3_000_000,
+                CreatedByUserId = Guid.NewGuid(),
+            }
+        );
+        db.SoundClips.Add(
+            new SoundClip
+            {
+                Id = Guid.NewGuid(),
+                BroadcasterId = Channel,
+                Name = "boing",
+                DisplayName = "Boing",
+                StorageKey = "clips/boing.mp3",
+                MimeType = "audio/mpeg",
+                SizeBytes = 1_500_000,
+                CreatedByUserId = Guid.NewGuid(),
+            }
+        );
+        await db.SaveChangesAsync();
+
+        long counted = (await sut.GetCurrentCountAsync(Channel, "sound_clip_storage_bytes")).Value;
+        counted.Should().Be(4_500_000, "the meter must read real stored bytes, not an estimate");
+
+        // Adding a third clip changes the live gauge on the next read — proving it is a fresh SUM query, not
+        // a cached/estimated value.
+        db.SoundClips.Add(
+            new SoundClip
+            {
+                Id = Guid.NewGuid(),
+                BroadcasterId = Channel,
+                Name = "kazoo",
+                DisplayName = "Kazoo",
+                StorageKey = "clips/kazoo.mp3",
+                MimeType = "audio/mpeg",
+                SizeBytes = 500_000,
+                CreatedByUserId = Guid.NewGuid(),
+            }
+        );
+        await db.SaveChangesAsync();
+
+        long afterAdd = (await sut.GetCurrentCountAsync(Channel, "sound_clip_storage_bytes")).Value;
+        afterAdd.Should().Be(5_000_000);
+
+        // The usage report reads through the SAME seam — never a second, independently-written query.
+        ResourceUsageDto report = (await sut.GetUsageReportAsync(Channel)).Value.Single(r =>
+            r.LimitKey == "sound_clip_storage_bytes"
+        );
+        report.CurrentCount.Should().Be(afterAdd);
+        report.Class.Should().Be(ResourceClass.CostDriving);
+        report.Limit.Should().Be(-1, "self-host is never charged a commercial storage ceiling");
+    }
+
+    [Fact]
+    public async Task Channel_asset_storage_bytes_reads_the_real_sum_of_live_asset_sizes_and_is_tier_scaled_on_saas()
+    {
+        (ResourceQuotaService sut, AuthDbContext db) = Build();
+        SeedChannel(db, AuthEnums.DeploymentMode.Saas);
+        await new BillingTierSeeder(db).SeedAsync();
+        await db.SaveChangesAsync();
+        BillingTier baseTier = await db.BillingTiers.FirstAsync(t => t.Key == "base");
+        db.Subscriptions.Add(
+            new()
+            {
+                BroadcasterId = Channel,
+                TierId = baseTier.Id,
+                Status = SubscriptionStatus.Active,
+            }
+        );
+        db.ChannelAssets.Add(
+            new ChannelAsset
+            {
+                Id = Guid.NewGuid(),
+                BroadcasterId = Channel,
+                Name = "boot-chime",
+                DisplayName = "Boot Chime",
+                Kind = "audio",
+                MimeType = "audio/wav",
+                StorageKey = "assets/boot-chime.wav",
+                SizeBytes = 2_048,
+                CreatedByUserId = Guid.NewGuid(),
+            }
+        );
+        await db.SaveChangesAsync();
+
+        long counted = (
+            await sut.GetCurrentCountAsync(Channel, "channel_asset_storage_bytes")
+        ).Value;
+        counted.Should().Be(2_048);
+
+        ResourceUsageDto report = (await sut.GetUsageReportAsync(Channel)).Value.Single(r =>
+            r.LimitKey == "channel_asset_storage_bytes"
+        );
+        report.CurrentCount.Should().Be(2_048);
+        // Base tier's seeded 100 MB ceiling — a real, tier-scaled commercial limit, unlike self-host.
+        report.Limit.Should().Be(100L * 1024 * 1024);
     }
 }

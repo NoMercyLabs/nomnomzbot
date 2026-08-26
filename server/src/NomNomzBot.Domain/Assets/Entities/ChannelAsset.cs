@@ -10,6 +10,7 @@
 
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using NomNomzBot.Domain.Billing;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform;
 
@@ -21,7 +22,10 @@ namespace NomNomzBot.Domain.Assets.Entities;
 /// svg icons, …). Same trust class as <c>SoundClip</c>: broadcaster-authored media for their OWN overlays.
 /// Soft-delete, tenant-scoped. Unique constraint on <c>(BroadcasterId, Name)</c> so the public serving URL
 /// (<c>/api/v1/assets/file/{channelId}/{name}</c>) is stable and upload replaces by name.
+/// The stored bytes are a real marginal cost (disk + egress + backup, S-BUDGETS-b5) — counted via
+/// <see cref="SizeBytes"/> against the <c>channel_asset_storage_bytes</c> COST_DRIVING limit.
 /// </summary>
+[CountedResource("channel_asset_storage_bytes", ResourceClass.CostDriving)]
 public class ChannelAsset : SoftDeletableEntity, ITenantScoped
 {
     public Guid Id { get; set; }

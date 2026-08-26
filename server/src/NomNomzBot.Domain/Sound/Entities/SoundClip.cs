@@ -10,6 +10,7 @@
 
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using NomNomzBot.Domain.Billing;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform;
 
@@ -19,7 +20,10 @@ namespace NomNomzBot.Domain.Sound.Entities;
 /// A broadcaster-uploaded audio clip from the sound library (spec P.18). Curated by the broadcaster/editor;
 /// played by the <c>play_sound</c> pipeline action on the overlay audio bus. Soft-delete, tenant-scoped.
 /// Unique constraint on <c>(BroadcasterId, Name)</c> so pipelines can reference clips by slug.
+/// The stored bytes are a real marginal cost (disk + egress + backup, S-BUDGETS-b5) — counted via
+/// <see cref="SizeBytes"/> against the <c>sound_clip_storage_bytes</c> COST_DRIVING limit.
 /// </summary>
+[CountedResource("sound_clip_storage_bytes", ResourceClass.CostDriving)]
 public class SoundClip : SoftDeletableEntity, ITenantScoped
 {
     public Guid Id { get; set; }
