@@ -27,8 +27,7 @@ Read this block first. It is the only summary; everything below is detail.
 
 | Your words | Slice | State |
 |---|---|---|
-| pipeline page needs love, nested if/and/or, add-remove-reorder | S-PIPE-TREE | design DONE - schema + nesting DONE (verified) - engine + API + editor next |
-| every reply can speak, template picks the voice | S-TTS-TEMPLATED-VOICE | DONE + verified |
+| pipeline page needs love, nested if/and/or, add-remove-reorder | S-PIPE-TREE | engine + named params shipped; nested block-list EDITOR remains |
 | make effects and repercussions visible | S-CONSEQ | law recorded, applies to every slice |
 | VS Code-web editor, real npm SDK, real event payloads | S-CODE-EDITOR | queued |
 | item pickers show a rich list, not opaque ids | S-RICH-PICKERS | backend building - dashboard half after |
@@ -107,23 +106,6 @@ only Stoney can make. Do not burn agent time trying to work around them.
 
 ---
 
-- **S-FLAKY-TIMEOUT-TESTS** (1 of 3 DONE 62fdb057 — `AutomationStreamCoordinatorTests`'
-  socket-timeout test now advances a `FakeTimeProvider` and awaits an explicit `ClosedSignal`; the
-  remaining 30s bound is a deadlock guard, not the measurement.) TWO REMAIN, both seen red under load and
-  green in isolation the same day: `EventStore/ProjectionRunnerLeaseTests.Rebuild_RefusedForSame
-  BroadcasterAndProjection_WhileFirstRebuildIsInFlight` and `Platform/Persistence/SqliteResilience
-  InterceptorTests.Concurrent_writers_across_two_tables_produce_zero_database_is_locked_errors`. Also the
-  sibling waits in the Automation file still use real 5s timeouts.
-  Rules: do NOT weaken the assertion, delete the test, add a retry, or merely raise the timeout — raising
-  it makes the flake rarer and the suite slower without making anything deterministic. Control time and
-  concurrency explicitly, then PROVE each still catches the defect by breaking the property (allow the
-  second rebuild; remove the WAL/busy-timeout setting) and watching it go red.
-  WHY IT MATTERS: once "probably the flake" is the standard reading of a red suite, a genuine regression
-  gets waved through — that happened twice in one session.
-  DISPATCH NOTE: this touches `Infrastructure.Tests`, so it must NOT run in parallel with another agent
-  writing into that project — see [[disjoint-files-is-not-disjoint-compile-units]]. Serial, or verify in
-  its own worktree.
-
 - **S-EVENTRESPONSE-NO-CREATE** (found by S-BUDGETS-b3) `EventResponsesScreen.kt` has NO create
   affordance: event responses are a fixed per-event-type catalogue seeded by the backend, edit/toggle
   only. Consequences worth deciding rather than leaving: (1) the `event_responses` NEAR_FREE limit is
@@ -174,49 +156,6 @@ stable — without dropping the planned requirements behind them.
   and apply it as ONE mechanism across every core action rather than per-action patches — then a templated
   argument and a templated return value both resolve, proven by tests.
 
-- **S-BUDGETS-b (SPLIT — the single brief was correctly refused as 6-10h of full-stack greenfield; that
-  was an orchestrator sizing error, not an agent failure. Confirmed by the refusing agent: `app/composeApp`
-  has ZERO budget/quota/limit files, so the dashboard half is greenfield, while the backend already has
-  `BillingController`/`AdminBillingController` + `IResourceQuotaService` + `LimitedResourceRegistry` to
-  read from, never duplicate.)**
-  - ~~**b1** DONE dffa17c2 + VERIFIED (4281 green at the commit in a clean worktree): the endpoint and
-    enforcement now share ONE method — `IResourceQuotaService.GetCurrentCountAsync` — after
-    CommandService/TimerManagementService/EventResponseService were refactored off their own inline
-    counts, so the number a user sees can never disagree with what a save allows (proven at the cap);
-    gated `billing:read`; tenant-isolated; self-host reports no commercial ceiling.~~ ~~`GET /api/v1/billing/usage` — per resource: key, class, real count, effective limit; counts from
-    the SAME source enforcement uses (prove at the cap); gated `[RequireAction]`; tenant-scoped; self-host
-    reports only the safety baseline.~~
-  - ~~**b2** DONE 3205ebfd + VERIFIED (734 jvmTest, 0 fail, forced rerun): `ResourceLimitsSection` on the
-    settings screen renders real "X of Y" from the endpoint, and
-    `a_near_free_resource_never_renders_upgrade_or_upsell_copy` makes the owner's intent a TEST rather
-    than a convention.~~ ~~the dashboard screen that renders it: "X of Y used" from real counts, near-free floors shown as
-    ABUSE GUARDS with NO upgrade prompt, cost-driving limits may name the tier, self-host shows no
-    commercial ceiling or upgrade affordance at all.~~
-  - ~~**b3** DONE 09a28b9d + VERIFIED (743 real jvmTest via --rerun-tasks, 0 fail): `LimitedCreateAction`
-    defines "approaching" ONCE; commands + timers disable at-limit WITH the reason and show the real
-    remaining count; no upsell copy on a near-free floor; and `a_missing_usage_report_never_blocks_the_
-    create_affordance` makes it FAIL OPEN — a telemetry hiccup must never stop a streamer creating a
-    command. 2 of 3 surfaces: see S-EVENTRESPONSE-NO-CREATE below for the third.~~ ~~warn BEFORE the failed save (the S-CONSEQ law): approaching/at-limit is visible before the user
-    does work and loses it, never discovered by failing.~~
-  - ~~**b4** DONE 2efaf8ac — investigated first and found it ALREADY immediate: `BillingTierService`
-    resolves the tier fresh from the DB on every call (no memoization), the write path and the usage
-    report both go through `GetLimitAsync` the same way, the JWT carries NO tier/plan claim, and the
-    dashboard refetches after every mutation. Two REGRESSION tests added
-    (`BillingTierChangeImmediacyTests`) so a future cache cannot silently reintroduce the bug.
-    772/772 Api.Tests.~~ ~~raising a tier raises the ceiling immediately, no re-login ([[never-logout-for-scope-or-schema-changes]]).
-  - ~~**b5** DONE 47f7be77: sound_clip_storage_bytes + channel_asset_storage_bytes declared COST_DRIVING
-    with REAL meters (sum of live SizeBytes through the same seam the usage report reads). Explicitly
-    UNMETERABLE, with reasons rather than fake keys: bandwidth/egress (no request-byte counter exists
-    anywhere in the stack) and retained EventJournal rows (no retention lever to hang a limit on).~~
-  - ~~**b6** DONE ff0cb08b: the storage WRITE paths now enforce through the registry, so the ceiling a
-    user is SHOWN is the ceiling that REFUSES them (proven by filling to a seeded tier limit and
-    asserting the reported Limit equals the value behind CHANNEL_BUDGET_EXCEEDED). The per-file size cap
-    survives as an abuse guard at any tier; self-host refuses only at that baseline; the refusal names
-    real megabytes.~~
-  - ~~**b5-old** the COST_DRIVING side is only 2 keys (tts characters, sandbox exec ms). Stored file bytes,
-    egress/bandwidth and retained history rows are named in the owner's cost-recovery intent but have no key
-    or meter.~~
-
 - **S-NAMELESS-ROWS-b** (17 of 19 files remain; Commands + Rewards done in 8c349816, jvmTest 702/702)
   Mechanism `resolveRowLabel` + `RowLabelGuardTest` shipped in fa9391a3; `PickListsScreen` is the worked
   example. REMAINING: GiveawaysScreen, WidgetSettingsForms, PipelinesScreen, PipelinesController,
@@ -224,11 +163,6 @@ stable — without dropping the planned requirements behind them.
   TtsController, RolesScreen, ParticipantShell, ShellScreen, AutomationScreen, CodeScriptsController.
   CONFIRMED NOT blank-capable (skip): AnalyticsScreen `tile.label` and ConnectScreen `cta.label` — static
   literals with no row actions.
-  Slice-mechanism defects (guard population + behavioural test) are CLOSED — `RowLabelGuardTest`
-  now splits rendered vs form-seed baselines (rendered = 0) and `RowLabelWiredScreensTest` is the
-  table-driven rendered-text proof (54f4622d, 1c5a5304, d295e94a). Converting the remaining screens is
-  now self-proving: a converted file drops the rendered count and gains a row in the table test.
-
 - **S-CODE-EDITOR** The code-scripts surface gets a **VS Code-for-web grade editor that functions like
   one** — Monaco-class: completion, hover types, go-to-definition, diagnostics, multi-file — loading a
   **REAL fully-typed SDK from npm** (the actual published types, not hand-written `.d.ts`
@@ -240,12 +174,9 @@ stable — without dropping the planned requirements behind them.
 
 ## Phase 2 — existing platforms made to work (Kick / YouTube are shipped features that are broken) — only the spine pieces these fixes REQUIRE
 
-- **S022** Kick half CLOSED + VERIFIED (287f7c67 + ee87907c, 30/30; `{{provider}}` registry entry
-  10a796ca, 91/91). All 11 canonical events Kick publishes are provider-scoped, a structural guard fails
-  if a new one is not, and `{{provider}}` renders "kick" vs "twitch" per delivering platform with the
-  no-source case leaving the literal rather than a blank. REMAINING under S030: **no YouTube ingest
-  exists at all**, so `supporter-events.md` §4.1's YouTube sponsor/gift/super-chat mapping has nothing
-  to map from. Kick has `KickWebhookIngest`; YouTube has no equivalent.
+- **S022-youtube** No YouTube ingest exists at all, so `supporter-events.md` §4.1's YouTube
+  sponsor/gift/super-chat mapping has nothing to map from. Kick has `KickWebhookIngest`; YouTube has no
+  equivalent. (The Kick half and `{{provider}}` are done.) Belongs with S030.
 
 - **S027** Kick go-live + reads — `livestream.status.updated` publishes canonical online/offline;
   Kick channel read (viewer count, title/category), `KickPlatformApi` + `channel:read/write`; operator
@@ -263,19 +194,6 @@ stable — without dropping the planned requirements behind them.
   Done-when: a YouTube member alert fires; viewer count shows; timers post on YouTube.
 
 ## Phase 3 — form infrastructure (stabilizes existing authoring; every 'raw text box' finding rides on it)
-
-- **S042/S042b CLOSED + VERIFIED** (aae0a48d, 4dbc9f94, 6103825e). Registry drives `TemplateResolver`
-  with a both-directions coverage guard; `GET /api/v1/templates/helpers?context=` (gated `commands:read`,
-  982807e9) 400s an unknown context; 73 helper descriptions are en+nl keys. ALL FOUR REAL SAVE PATHS
-  validate: CommandService, EventResponseService, TimerManagementService, PipelineService action fields —
-  unknown key rejected BY NAME, valid key still saves, brace-shaped text in a numeric field never
-  validated as a template, enforced by a DI-driven guard over every registered action.
-  Correction to the earlier "3 of 19": 15 of those 19 `ITemplateResolver` consumers are execution-only
-  leaves that resolve already-saved text, not save paths. Giveaways/Rewards hold no user-authored
-  template text today. Discord is the one genuine hole and is blocked on S-TWO-TEMPLATE-ENGINES.
-  ONE GAP LEFT (S042c): the guard covers pipeline save paths only — there is no cross-service structural
-  scanner that fails when a FUTURE non-pipeline service starts persisting user-authored template text
-  without validating it. Enumerate persisting services structurally and fail loud on the unclassifiable.
 
 - **S043** "All helpers" dialog — shared `TemplateHelpersLink` + `Dialog` (search, namespace groups,
   insert) in every template field (commands, event responses, timers, rewards, pipelines, chat
