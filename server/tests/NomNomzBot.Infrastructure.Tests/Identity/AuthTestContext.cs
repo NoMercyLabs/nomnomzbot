@@ -145,6 +145,18 @@ internal static class AuthTestBuilder
         $"Data Source=file:{databaseName}?mode=memory&cache=shared";
 
     /// <summary>
+    /// Parks the keep-alive connection and creates the schema for <paramref name="databaseName"/>, then hands
+    /// back the connection string — for tests that register <see cref="AuthDbContext"/> in a DI container
+    /// (<c>AddDbContext(o =&gt; o.UseSqlite(...))</c>) instead of building one through
+    /// <see cref="NewContext(string)"/>. Same real relational store either way.
+    /// </summary>
+    public static string SharedDatabase(string databaseName)
+    {
+        NewContext(databaseName).Dispose();
+        return SharedCacheConnectionString(databaseName);
+    }
+
+    /// <summary>
     /// A real <see cref="ISystemCredentialsProvider"/> over the test context + REAL token protector, so a
     /// test proves the DB-vaulted-first → config-fallback resolution and the AAD binding for real (no stub).
     /// Builds a minimal <see cref="ServiceCollection"/> to supply an <see cref="IServiceScopeFactory"/> that
@@ -159,7 +171,7 @@ internal static class AuthTestBuilder
     {
         ServiceCollection services = new();
         services.AddSingleton<IApplicationDbContext>(db);
-        services.AddSingleton<ITokenProtector>(protector);
+        services.AddSingleton(protector);
         ServiceProvider sp = services.BuildServiceProvider();
         return new SystemCredentialsProvider(
             sp.GetRequiredService<IServiceScopeFactory>(),
@@ -180,9 +192,9 @@ internal static class AuthTestBuilder
     {
         ServiceCollection services = new();
         services.AddSingleton<IApplicationDbContext>(db);
-        services.AddSingleton<ITokenProtector>(protector);
+        services.AddSingleton(protector);
         ServiceProvider sp = services.BuildServiceProvider();
-        return new NomNomzBot.Infrastructure.Platform.Configuration.ChannelCredentialsResolver(
+        return new ChannelCredentialsResolver(
             sp.GetRequiredService<IServiceScopeFactory>(),
             systemCredentials
         );

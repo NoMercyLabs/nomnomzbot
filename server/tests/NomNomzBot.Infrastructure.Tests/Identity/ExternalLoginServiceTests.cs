@@ -10,7 +10,6 @@
 
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Persistence;
@@ -39,12 +38,11 @@ public sealed class ExternalLoginServiceTests
         ServiceCollection services = new();
         string dbName = Guid.NewGuid().ToString();
         services.AddDbContext<AuthDbContext>(o =>
-            o.UseInMemoryDatabase(dbName)
-                .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
+            o.UseSqlite(AuthTestBuilder.SharedDatabase(dbName))
         );
         services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<AuthDbContext>());
         services.AddSingleton<TimeProvider>(new FakeTimeProvider(FixedNow));
-        services.AddSingleton<IEventBus>(Substitute.For<IEventBus>());
+        services.AddSingleton(Substitute.For<IEventBus>());
         services.AddScoped<IUserIdentityService, UserIdentityService>();
 
         ISessionService sessions = Substitute.For<ISessionService>();

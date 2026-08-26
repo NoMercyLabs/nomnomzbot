@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
@@ -115,6 +116,7 @@ public sealed class IdentityRekeyBehaviorTests
 
             // The unit under test: the production composing tenant + soft-delete global query filter.
             b.ApplyTenantAndSoftDeleteFilters(() => _tenant.BroadcasterId);
+            b.ApplySqliteCompatibility();
         }
     }
 
@@ -123,12 +125,35 @@ public sealed class IdentityRekeyBehaviorTests
     private const string TwitchChannelA = "11111111";
     private const string TwitchChannelB = "22222222";
 
+    // Named shared-cache in-memory SQLite - a REAL relational database (S-API-TESTS-INMEMORY). A
+    // shared-cache database lives only while at least one connection to it is open, so the first caller of
+    // a name parks a keep-alive connection for the test process's lifetime while every context opens its
+    // own connection to the same URI.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<
+        string,
+        SqliteConnection
+    > KeepAlive = new();
+
     private static RekeyTestContext NewContext(string dbName, ICurrentTenantService tenant)
     {
-        DbContextOptions<RekeyTestContext> options = new DbContextOptionsBuilder<RekeyTestContext>()
-            .UseInMemoryDatabase(dbName)
-            .Options;
-        return new(options, tenant);
+        string connectionString = $"Data Source=file:{dbName}?mode=memory&cache=shared";
+        KeepAlive.GetOrAdd(
+            dbName,
+            static name =>
+            {
+                SqliteConnection keepAlive = new(
+                    $"Data Source=file:{name}?mode=memory&cache=shared"
+                );
+                keepAlive.Open();
+                return keepAlive;
+            }
+        );
+        RekeyTestContext db = new(
+            new DbContextOptionsBuilder<RekeyTestContext>().UseSqlite(connectionString).Options,
+            tenant
+        );
+        db.Database.EnsureCreated();
+        return db;
     }
 
     private static async Task SeedTwoTenantsAsync(string dbName)

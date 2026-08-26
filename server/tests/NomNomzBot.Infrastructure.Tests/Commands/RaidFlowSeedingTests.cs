@@ -9,8 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
@@ -32,12 +30,7 @@ public sealed class RaidFlowSeedingTests
 
     private static (RaidFlowSeeder Seeder, SeedTestDbContext Db) Build()
     {
-        SeedTestDbContext db = new(
-            new DbContextOptionsBuilder<SeedTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
-                .Options
-        );
+        SeedTestDbContext db = SeedTestDbContext.New();
         db.Channels.Add(
             new Channel
             {
