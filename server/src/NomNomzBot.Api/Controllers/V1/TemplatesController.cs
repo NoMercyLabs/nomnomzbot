@@ -11,6 +11,7 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Templating;
 
@@ -32,6 +33,11 @@ public sealed class TemplatesController : BaseController
     /// that context. An unknown/missing context fails honestly (400) rather than falling back to "all".
     /// </summary>
     [HttpGet("helpers")]
+    // Gate 1 is pure entry, so an ungated endpoint is reachable by ANY authenticated user. The helper
+    // catalogue is only useful to someone authoring templates on this channel, and every authoring
+    // surface it feeds (commands, event responses, timers) already sits behind "commands:read" — so it
+    // shares that key rather than inventing a parallel one.
+    [RequireAction("commands:read")]
     [ProducesResponseType<StatusResponseDto<IReadOnlyList<TemplateHelperDto>>>(
         StatusCodes.Status200OK
     )]
