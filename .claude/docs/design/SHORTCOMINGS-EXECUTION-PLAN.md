@@ -116,43 +116,13 @@ only Stoney can make. Do not burn agent time trying to work around them.
   entry (toggleable only)? Done-when: the model is settled in the spec, the UI matches it, the limit is
   either reachable or removed, and Delete means what it says.
 
-- **S-API-TESTS-INMEMORY** The Infrastructure harness was deliberately moved OFF EF InMemory to SQLite
-  (S004d) and that single change surfaced **188 hidden failures** — InMemory does not enforce the
-  relational behaviour the product depends on (unique indexes, FK constraints, real query translation).
-  `NomNomzBot.Api.Tests` never followed: 14 call sites still use `UseInMemoryDatabase`, and only
-  `PendingMigrationsHealthCheckTests` uses SQLite. So the Api suite is green under a database that cannot
-  fail the way production fails, and every test written there inherits that blind spot (the most recent
-  example is `BillingTierChangeImmediacyTests`, which followed the local convention correctly).
-  Done-when: the Api test harness runs on SQLite like the Infrastructure one, every surfaced failure is
-  FIXED rather than suppressed (expect real ones — that is the point), and a guard prevents a new
-  `UseInMemoryDatabase` call site from being added.
-
-## DO NEXT — owner directives, 2026-08-24 (ahead of phase order)
-
-Owner: move the **stream-facing** work forward — commands and overlays, easier to use and more
-stable — without dropping the planned requirements behind them.
-
-- **S-CONSEQ-DELETE-CHANNEL** (c2 closed 4 of the 16 in the dated baseline -- sound clips, widgets,
-  rewards, giveaway code pools all count for real now, the first two via a `PipelineStep.ConfigJson`
-  scan that says "this is a MINIMUM" in those words whenever a template, a `run_code` step or an
-  unparseable blob means it cannot see everything. Baseline is 12 and shrink-only.)
-  `ChannelsController.DeleteChannel` is the largest blast radius in the product and needs its OWN slice:
-  `ChannelService.DeleteAsync` is nine lines that delegate every consequence to cascade, so nothing in
-  the code names what dies. **117 domain entities implement `ITenantScoped`**, plus platform
-  connections, encrypted OAuth tokens, EventSub subscriptions registered with Twitch, the overlay token
-  every live OBS browser source is using, event-journal history, billing rows -- and external side
-  effects a row count cannot express (Twitch-side rewards under our client id, Discord hooks, outbound
-  webhooks). A useful preview is NOT 117 raw counts: it needs a curated, hand-audited category map
-  (chat history, viewers/economy balances, automations, integrations, overlays, billing) plus "and N
-  other records", and a decision on whether confirm requires typing the channel name. Answer FIRST
-  whether the delete is reversible (soft-delete + restore window) -- the counted preview and the
-  recovery story are the same design.
-
-- **S-CONSEQ-c3** the 11 remaining baseline entries: Assets.Delete, Bundles.Uninstall,
-  Catalog.DeleteItem, CodeScripts.Delete, CustomDataSources.Delete, Discord.Disconnect,
-  EconomyLeaderboards.DeleteConfig, Giveaways.Delete, Integrations.Disconnect, PickLists.DeletePickList,
-  Webhooks.DeleteInbound. Reuse `BlastRadiusDto` + the shared dialog; do not invent a second mechanism.
-
+- **S-API-TESTS-INMEMORY** 13 Api test contexts moved to SQLite in f1eeeef7 (779 tests still pass, so
+  nothing was hidden and no coverage dropped). THE PLAN UNDERCOUNTED THIS: `UseInMemoryDatabase` appears
+  in **60 test files** across the suite, not 14. Three remain in Api.Tests; the rest are spread over the
+  other projects. EF InMemory ignores unique indexes, FK constraints, cascade behaviour and concurrency
+  tokens, so each one can pass against behaviour the real database rejects -- the same move on the
+  Infrastructure suite surfaced 188 hidden failures. Convert in batches, and treat every surfaced failure
+  as a real bug until proven a fixture artefact.
 - **S-PIPE-TREE-d2b** (scope narrowings the sub-pipeline slice reported honestly; 5d82f69c shipped the
   core: args in, `return_value` out, `CallDepth` spanning pipeline boundaries, tenant-scoped, try-catchable,
   4108 tests green) TWO REAL LIMITATIONS REMAIN:
