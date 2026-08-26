@@ -217,7 +217,8 @@ public static class ChannelBlastRadiusSources
         new(
             categoryKey,
             typeof(TEntity),
-            (db, broadcasterId, ct) => set(db).CountAsync(TenantPredicate<TEntity>(broadcasterId), ct)
+            (db, broadcasterId, ct) =>
+                set(db).CountAsync(TenantPredicate<TEntity>(broadcasterId), ct)
         );
 
     // Built by reflection rather than as a `e => e.BroadcasterId == id` lambda: a lambda over the generic
@@ -233,9 +234,10 @@ public static class ChannelBlastRadiusSources
         ParameterExpression parameter = Expression.Parameter(typeof(TEntity), "e");
         // A nullable tenant column compares against a nullable constant, so a platform-global row (tenant
         // null) never matches any channel — it is not this channel's to destroy.
-        ConstantExpression value = property.PropertyType == typeof(Guid?)
-            ? Expression.Constant(broadcasterId, typeof(Guid?))
-            : Expression.Constant(broadcasterId);
+        ConstantExpression value =
+            property.PropertyType == typeof(Guid?)
+                ? Expression.Constant(broadcasterId, typeof(Guid?))
+                : Expression.Constant(broadcasterId);
 
         return Expression.Lambda<Func<TEntity, bool>>(
             Expression.Equal(Expression.Property(parameter, property), value),
