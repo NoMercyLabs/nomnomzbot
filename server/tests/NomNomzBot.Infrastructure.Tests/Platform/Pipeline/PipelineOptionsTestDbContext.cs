@@ -364,8 +364,7 @@ internal sealed class PipelineOptionsTestDbContext : DbContext, IApplicationDbCo
     public DbSet<CodeScript> CodeScripts => Set<CodeScript>();
     public DbSet<CodeScriptVersion> CodeScriptVersions => Set<CodeScriptVersion>();
     public DbSet<SoundClip> SoundClips => Set<SoundClip>();
-    public DbSet<NomNomzBot.Domain.Assets.Entities.ChannelAsset> ChannelAssets =>
-        Set<NomNomzBot.Domain.Assets.Entities.ChannelAsset>();
+    public DbSet<ChannelAsset> ChannelAssets => Set<ChannelAsset>();
     public DbSet<CustomDataSource> CustomDataSources => Set<CustomDataSource>();
     public DbSet<NomNomzBot.Domain.Marketplace.Entities.InstalledBundle> InstalledBundles =>
         Set<NomNomzBot.Domain.Marketplace.Entities.InstalledBundle>();

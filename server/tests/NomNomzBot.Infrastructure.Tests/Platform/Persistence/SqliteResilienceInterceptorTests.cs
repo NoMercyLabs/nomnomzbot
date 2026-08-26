@@ -88,7 +88,7 @@ public sealed class SqliteResilienceInterceptorTests : IDisposable
         busyTimeout
             .Should()
             .Be(
-                "5000",
+                "30000",
                 "the interceptor must give SQLite room to wait out a lock before giving up"
             );
     }

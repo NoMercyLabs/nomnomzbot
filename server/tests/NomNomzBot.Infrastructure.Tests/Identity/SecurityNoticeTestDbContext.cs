@@ -81,8 +81,7 @@ internal sealed class SecurityNoticeTestDbContext : DbContext, IApplicationDbCon
     }
 
     public DbSet<Channel> Channels => Set<Channel>();
-    public DbSet<NomNomzBot.Domain.Commands.Entities.Command> Commands =>
-        throw new NotSupportedException();
+    public DbSet<Command> Commands => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Timer> Timers =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Record> Records =>
@@ -113,11 +112,7 @@ internal sealed class SecurityNoticeTestDbContext : DbContext, IApplicationDbCon
         b.ApplySqliteCompatibility();
     }
 
-    private static readonly HashSet<Type> Mapped =
-    [
-        typeof(Channel),
-        typeof(NomNomzBot.Domain.Identity.Entities.SecurityNotice),
-    ];
+    private static readonly HashSet<Type> Mapped = [typeof(Channel), typeof(SecurityNotice)];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
     [

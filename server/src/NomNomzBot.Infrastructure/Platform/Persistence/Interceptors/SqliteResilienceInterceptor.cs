@@ -24,8 +24,18 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Interceptors;
 /// </summary>
 public sealed class SqliteResilienceInterceptor : DbConnectionInterceptor
 {
-    /// <summary>How long SQLite retries against a lock before raising SQLITE_BUSY.</summary>
-    private const int BusyTimeoutMilliseconds = 5000;
+    /// <summary>
+    /// How long SQLite retries against a lock before raising SQLITE_BUSY. It is set FIRST in the pragma
+    /// batch, before <c>journal_mode</c>: switching journal mode itself takes a lock, so with the old order
+    /// that very statement could throw "database is locked" under concurrent opens — the one moment no busy
+    /// timeout was in effect yet.
+    ///
+    /// 30s, not 5s: SQLite serialises writers, so the wait a writer must absorb is the sum of everyone
+    /// ahead of it, not one lock hold. 5s was survivable on a fast dev box and not on a loaded CI runner,
+    /// where 40 concurrent writers took 29s to drain and the tail of them got SQLITE_BUSY. Waiting costs a
+    /// slow write; not waiting costs the user a failed action, so the timeout is sized for the queue.
+    /// </summary>
+    private const int BusyTimeoutMilliseconds = 30000;
 
     public override void ConnectionOpened(
         DbConnection connection,
@@ -42,7 +52,7 @@ public sealed class SqliteResilienceInterceptor : DbConnectionInterceptor
     {
         using DbCommand command = connection.CreateCommand();
         command.CommandText =
-            $"PRAGMA journal_mode=WAL; PRAGMA busy_timeout={BusyTimeoutMilliseconds};";
+            $"PRAGMA busy_timeout={BusyTimeoutMilliseconds}; PRAGMA journal_mode=WAL;";
         command.ExecuteNonQuery();
     }
 
@@ -53,7 +63,7 @@ public sealed class SqliteResilienceInterceptor : DbConnectionInterceptor
     {
         await using DbCommand command = connection.CreateCommand();
         command.CommandText =
-            $"PRAGMA journal_mode=WAL; PRAGMA busy_timeout={BusyTimeoutMilliseconds};";
+            $"PRAGMA busy_timeout={BusyTimeoutMilliseconds}; PRAGMA journal_mode=WAL;";
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 }
