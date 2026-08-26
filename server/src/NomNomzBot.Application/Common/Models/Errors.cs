@@ -91,7 +91,10 @@ public static class Errors
     /// the channel exists, and telling the operator the exact instant the window closed is the difference
     /// between a fixable mistake and a mystery.
     /// </summary>
-    public static Result ChannelRestoreWindowExpired(string channelId, DateTime permanentAfterUtc) =>
+    public static Result ChannelRestoreWindowExpired(
+        string channelId,
+        DateTime permanentAfterUtc
+    ) =>
         Result.Failure(
             "This channel can no longer be restored.",
             "CHANNEL_RESTORE_WINDOW_EXPIRED",

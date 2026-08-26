@@ -122,7 +122,11 @@ public class ChannelDeleteBlastRadiusTests
             StreamerEnabled = true,
         };
 
-    private static OutboundWebhookEndpoint NewWebhook(Guid broadcaster, string name, bool enabled) =>
+    private static OutboundWebhookEndpoint NewWebhook(
+        Guid broadcaster,
+        string name,
+        bool enabled
+    ) =>
         new()
         {
             Id = Guid.CreateVersion7(),
