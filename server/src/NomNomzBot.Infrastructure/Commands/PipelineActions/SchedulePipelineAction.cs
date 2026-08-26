@@ -38,9 +38,24 @@ public sealed class SchedulePipelineAction : ICommandAction
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("pipeline", PipelineActionFieldKind.ResourceId, Required: true),
-            new("delay_seconds", PipelineActionFieldKind.Number, Required: true),
-            new("dedupe_key", PipelineActionFieldKind.Text, Templated: true),
+            new(
+                "pipeline",
+                PipelineActionFieldKind.ResourceId,
+                Required: true,
+                Description: new("pipeline.schedule_pipeline.pipeline.help")
+            ),
+            new(
+                "delay_seconds",
+                PipelineActionFieldKind.Number,
+                Required: true,
+                Description: new("pipeline.schedule_pipeline.delay_seconds.help")
+            ),
+            new(
+                "dedupe_key",
+                PipelineActionFieldKind.Text,
+                Templated: true,
+                Description: new("pipeline.schedule_pipeline.dedupe_key.help")
+            ),
         ];
 
     public SchedulePipelineAction(IScheduledPipelineService scheduler, ITemplateResolver resolver)

@@ -33,9 +33,23 @@ public sealed class WidgetEventAction : ICommandAction
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("widget_id", PipelineActionFieldKind.Widget, Required: true),
-            new("event_type", PipelineActionFieldKind.Text, Required: true),
-            new("data", PipelineActionFieldKind.Text),
+            new(
+                "widget_id",
+                PipelineActionFieldKind.Widget,
+                Required: true,
+                Description: new("pipeline.widget_event.widget_id.help")
+            ),
+            new(
+                "event_type",
+                PipelineActionFieldKind.Text,
+                Required: true,
+                Description: new("pipeline.widget_event.event_type.help")
+            ),
+            new(
+                "data",
+                PipelineActionFieldKind.Text,
+                Description: new("pipeline.widget_event.data.help")
+            ),
         ];
 
     public WidgetEventAction(IWidgetService widgets, IWidgetEventNotifier overlay)

@@ -31,10 +31,27 @@ public sealed class PlaySoundAction : ICommandAction
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("clip", PipelineActionFieldKind.SoundClip, Required: true),
-            new("volume", PipelineActionFieldKind.Number),
-            new("wait_for_finish", PipelineActionFieldKind.Boolean),
-            new("handle", PipelineActionFieldKind.Text),
+            new(
+                "clip",
+                PipelineActionFieldKind.SoundClip,
+                Required: true,
+                Description: new("pipeline.play_sound.clip.help")
+            ),
+            new(
+                "volume",
+                PipelineActionFieldKind.Number,
+                Description: new("pipeline.play_sound.volume.help")
+            ),
+            new(
+                "wait_for_finish",
+                PipelineActionFieldKind.Boolean,
+                Description: new("pipeline.play_sound.wait_for_finish.help")
+            ),
+            new(
+                "handle",
+                PipelineActionFieldKind.Text,
+                Description: new("pipeline.play_sound.handle.help")
+            ),
         ];
 
     public PlaySoundAction(ISoundClipService clips, ISoundClipOverlayNotifier overlay)

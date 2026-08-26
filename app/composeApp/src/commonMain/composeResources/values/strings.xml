@@ -3852,11 +3852,11 @@
     <string name="pipeline_obs_input_volume_input_help">The audio input whose volume is changed.</string>
     <string name="pipeline_obs_input_volume_volume_db_help">Sets the input's volume in decibels. Use this or Volume (multiplier), not both.</string>
     <string name="pipeline_obs_input_volume_volume_mul_help">Sets the input's volume as a multiplier (1.0 = unchanged, 0.5 = half). Use this or Volume (dB), not both.</string>
-    <string name="pipeline_obs_media_action_help">What to do to the media source: play, pause, stop, restart, or skip to the next/previous item.</string>
+    <string name="pipeline_obs_media_action_verb_help">What to do to the media source: play, pause, stop, restart, or skip to the next/previous item.</string>
     <string name="pipeline_obs_media_input_help">The media source (a video/audio clip) to control.</string>
-    <string name="pipeline_obs_recording_action_help">What to do to recording: start, stop, toggle, pause, resume, or split the file.</string>
+    <string name="pipeline_obs_recording_action_verb_help">What to do to recording: start, stop, toggle, pause, resume, or split the file.</string>
     <string name="pipeline_obs_refresh_browser_input_help">The browser source to reload — use this after changing an overlay's settings so OBS picks them up immediately.</string>
-    <string name="pipeline_obs_replay_buffer_action_help">What to do to the replay buffer: start, stop, or toggle it.</string>
+    <string name="pipeline_obs_replay_buffer_action_verb_help">What to do to the replay buffer: start, stop, or toggle it.</string>
     <string name="pipeline_obs_request_request_data_help">The JSON payload for the raw request. Leave blank for requests that need no data.</string>
     <string name="pipeline_obs_request_request_type_help">The raw obs-websocket request type to send — for advanced control not covered by a dedicated OBS action.</string>
     <string name="pipeline_obs_request_batch_execution_help">How the batched requests run: one after another in real time, one per rendered frame, or all in parallel.</string>
@@ -3868,12 +3868,12 @@
     <string name="pipeline_obs_set_source_scene_help">The scene that contains the source being shown or hidden.</string>
     <string name="pipeline_obs_set_source_source_help">The source within the scene to show or hide.</string>
     <string name="pipeline_obs_set_source_visible_help">Whether the source ends up visible or hidden. Defaults to visible.</string>
-    <string name="pipeline_obs_streaming_action_help">What to do to the stream output: start, stop, or toggle it.</string>
+    <string name="pipeline_obs_streaming_action_verb_help">What to do to the stream output: start, stop, or toggle it.</string>
     <string name="pipeline_obs_switch_scene_scene_help">The scene to switch the live program output to.</string>
     <string name="pipeline_obs_transition_duration_ms_help">How long the transition takes, in milliseconds. Leave blank to use the transition's own default duration.</string>
     <string name="pipeline_obs_transition_studio_help">Fires the studio-mode transition (preview → program) instead of just setting the current transition type.</string>
     <string name="pipeline_obs_transition_transition_help">The transition to set as current. Leave blank to only fire a studio-mode transition without changing it.</string>
-    <string name="pipeline_obs_virtual_cam_action_help">What to do to the virtual camera output: start, stop, or toggle it.</string>
+    <string name="pipeline_obs_virtual_cam_action_verb_help">What to do to the virtual camera output: start, stop, or toggle it.</string>
     <string name="pipeline_open_giveaway_giveaway_id_help">Which giveaway to open for entries.</string>
     <string name="pipeline_permit_duration_minutes_help">How long the permit lasts, in minutes. Leave blank for a permit that never expires on its own.</string>
     <string name="pipeline_permit_role_or_capability_help">The role or capability being granted to the target.</string>

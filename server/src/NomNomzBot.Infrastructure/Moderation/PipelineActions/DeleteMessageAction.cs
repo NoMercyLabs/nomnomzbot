@@ -20,7 +20,13 @@ public sealed class DeleteMessageAction : ICommandAction
     public string ActionType => "delete_message";
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
-        [new("message_id", PipelineActionFieldKind.ResourceId)];
+        [
+            new(
+                "message_id",
+                PipelineActionFieldKind.ResourceId,
+                Description: new("pipeline.delete_message.message_id.help")
+            ),
+        ];
 
     public DeleteMessageAction(IChatProvider chat) => _chat = chat;
 

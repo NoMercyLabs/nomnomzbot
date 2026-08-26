@@ -32,8 +32,16 @@ public sealed class UnpermitAction : ICommandAction
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("target_variable", PipelineActionFieldKind.Text),
-            new("role_or_capability", PipelineActionFieldKind.ResourceId),
+            new(
+                "target_variable",
+                PipelineActionFieldKind.Text,
+                Description: new("pipeline.unpermit.target_variable.help")
+            ),
+            new(
+                "role_or_capability",
+                PipelineActionFieldKind.ResourceId,
+                Description: new("pipeline.unpermit.role_or_capability.help")
+            ),
         ];
 
     public UnpermitAction(IPermitService permits, IUserService users, IRoleResolver roles)

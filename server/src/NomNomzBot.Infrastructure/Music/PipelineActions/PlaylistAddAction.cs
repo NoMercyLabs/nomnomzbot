@@ -41,8 +41,17 @@ public sealed class PlaylistAddAction : ICommandAction
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("playlist_id", PipelineActionFieldKind.ResourceId, Required: true),
-            new("track_uri", PipelineActionFieldKind.ResourceId),
+            new(
+                "playlist_id",
+                PipelineActionFieldKind.ResourceId,
+                Required: true,
+                Description: new("pipeline.playlist_add.playlist_id.help")
+            ),
+            new(
+                "track_uri",
+                PipelineActionFieldKind.ResourceId,
+                Description: new("pipeline.playlist_add.track_uri.help")
+            ),
         ];
 
     public PlaylistAddAction(

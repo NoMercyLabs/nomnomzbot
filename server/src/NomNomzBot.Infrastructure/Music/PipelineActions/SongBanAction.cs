@@ -40,7 +40,13 @@ public sealed class SongBanAction : ICommandAction
     public string Description => "Block the currently playing track from requests and skip it";
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
-        [new("reason", PipelineActionFieldKind.Text)];
+        [
+            new(
+                "reason",
+                PipelineActionFieldKind.Text,
+                Description: new("pipeline.song_ban.reason.help")
+            ),
+        ];
 
     public SongBanAction(
         IMusicService music,

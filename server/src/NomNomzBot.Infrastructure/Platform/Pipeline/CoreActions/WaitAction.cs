@@ -30,8 +30,18 @@ public sealed class WaitAction : ICommandAction
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("milliseconds", PipelineActionFieldKind.Number, Templated: true),
-            new("seconds", PipelineActionFieldKind.Number, Templated: true),
+            new(
+                "milliseconds",
+                PipelineActionFieldKind.Number,
+                Templated: true,
+                Description: new("pipeline.wait.milliseconds.help")
+            ),
+            new(
+                "seconds",
+                PipelineActionFieldKind.Number,
+                Templated: true,
+                Description: new("pipeline.wait.seconds.help")
+            ),
         ];
 
     public WaitAction(ITemplateResolver resolver) => _resolver = resolver;

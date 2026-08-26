@@ -46,6 +46,11 @@ data class BlockField(
     val required: Boolean,
     val kind: FieldKind = FieldKind.Text,
     val options: List<String> = emptyList(),
+    // The backend-authored translation KEY for this field's operator-facing help text (backend
+    // `PipelineActionFieldDto.description`, S-SCHEMA-I18N-c) — resolved via `resolveSchemaString` in the step
+    // form. Null on the local hint itself; [PipelineCatalogue.buildPalette] fills it in from the matching
+    // backend field by [key] so the palette never carries a hand-maintained copy of backend help text.
+    val descriptionKey: String? = null,
 )
 
 /** What a block is — an action (does something) or a condition (gates the step). */
@@ -722,7 +727,7 @@ object PipelineCatalogue {
                     role = BlockRole.Action,
                     category = descriptor.category.ifBlank { GeneralCategory },
                     description = descriptor.description,
-                    hint = action(descriptor.type),
+                    hint = withBackendDescriptions(action(descriptor.type), descriptor.fields),
                 )
             },
             conditions = remote.conditions.map { descriptor ->
@@ -731,10 +736,32 @@ object PipelineCatalogue {
                     role = BlockRole.Condition,
                     category = ConditionCategory,
                     description = "",
+                    // Condition descriptors carry no backend-sourced fields (PipelineConditionDescriptorDto is
+                    // type-only) — nothing to merge, so the local hint's fields render as-is.
                     hint = condition(descriptor.type),
                 )
             },
         )
+
+    // Merges the backend's per-field help-text translation KEY onto the local hint's fields, matched by [key] —
+    // the backend is the only source of [BlockField.descriptionKey] (S-SCHEMA-I18N-c); the local hint never
+    // hand-copies backend help text. Null when the block has no local hint (the generic key/value editor
+    // renders it instead, so there is no typed field to attach help text to).
+    private fun withBackendDescriptions(
+        hint: BlockType?,
+        remoteFields: List<PipelineActionFieldRemote>,
+    ): BlockType? {
+        if (hint == null || remoteFields.isEmpty()) return hint
+        val descriptionByKey: Map<String, String> =
+            remoteFields.associate { it.name to it.description.key }
+        return hint.copy(
+            fields =
+                hint.fields.map { field ->
+                    val key: String? = descriptionByKey[field.key]?.ifBlank { null }
+                    if (key == null) field else field.copy(descriptionKey = key)
+                }
+        )
+    }
 
     /**
      * The offline fallback palette — the locally-known hint blocks only. Used when the backend catalogue fetch

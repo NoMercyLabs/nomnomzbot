@@ -18,8 +18,18 @@ public sealed class SetVariableAction : ICommandAction
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("name", PipelineActionFieldKind.Text, Required: true),
-            new("value", PipelineActionFieldKind.Text, Templated: true),
+            new(
+                "name",
+                PipelineActionFieldKind.Text,
+                Required: true,
+                Description: new("pipeline.set_variable.name.help")
+            ),
+            new(
+                "value",
+                PipelineActionFieldKind.Text,
+                Templated: true,
+                Description: new("pipeline.set_variable.value.help")
+            ),
         ];
 
     public Task<ActionResult> ExecuteAsync(PipelineExecutionContext ctx, ActionDefinition action)

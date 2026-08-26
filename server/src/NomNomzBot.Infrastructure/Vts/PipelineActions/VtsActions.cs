@@ -119,7 +119,14 @@ public sealed class VtsLoadModelAction(IVtsControlService vts) : VtsActionBase(v
     public override string ActionType => "vts_load_model";
 
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
-        [new("model", PipelineActionFieldKind.Text, Required: true)];
+        [
+            new(
+                "model",
+                PipelineActionFieldKind.Text,
+                Required: true,
+                Description: new("pipeline.vts_load_model.model.help")
+            ),
+        ];
 
     public override async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
@@ -142,7 +149,14 @@ public sealed class VtsTriggerHotkeyAction(IVtsControlService vts) : VtsActionBa
     public override string ActionType => "vts_trigger_hotkey";
 
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
-        [new("hotkey", PipelineActionFieldKind.ResourceId, Required: true)];
+        [
+            new(
+                "hotkey",
+                PipelineActionFieldKind.ResourceId,
+                Required: true,
+                Description: new("pipeline.vts_trigger_hotkey.hotkey.help")
+            ),
+        ];
 
     public override async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
@@ -166,8 +180,17 @@ public sealed class VtsSetExpressionAction(IVtsControlService vts) : VtsActionBa
 
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("expression", PipelineActionFieldKind.Text, Required: true),
-            new("active", PipelineActionFieldKind.Boolean),
+            new(
+                "expression",
+                PipelineActionFieldKind.Text,
+                Required: true,
+                Description: new("pipeline.vts_set_expression.expression.help")
+            ),
+            new(
+                "active",
+                PipelineActionFieldKind.Boolean,
+                Description: new("pipeline.vts_set_expression.active.help")
+            ),
         ];
 
     public override async Task<ActionResult> ExecuteAsync(
@@ -198,12 +221,36 @@ public sealed class VtsMoveModelAction(IVtsControlService vts) : VtsActionBase(v
 
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("x", PipelineActionFieldKind.Number),
-            new("y", PipelineActionFieldKind.Number),
-            new("rotation", PipelineActionFieldKind.Number),
-            new("size", PipelineActionFieldKind.Number),
-            new("time_seconds", PipelineActionFieldKind.Number),
-            new("relative", PipelineActionFieldKind.Boolean),
+            new(
+                "x",
+                PipelineActionFieldKind.Number,
+                Description: new("pipeline.vts_move_model.x.help")
+            ),
+            new(
+                "y",
+                PipelineActionFieldKind.Number,
+                Description: new("pipeline.vts_move_model.y.help")
+            ),
+            new(
+                "rotation",
+                PipelineActionFieldKind.Number,
+                Description: new("pipeline.vts_move_model.rotation.help")
+            ),
+            new(
+                "size",
+                PipelineActionFieldKind.Number,
+                Description: new("pipeline.vts_move_model.size.help")
+            ),
+            new(
+                "time_seconds",
+                PipelineActionFieldKind.Number,
+                Description: new("pipeline.vts_move_model.time_seconds.help")
+            ),
+            new(
+                "relative",
+                PipelineActionFieldKind.Boolean,
+                Description: new("pipeline.vts_move_model.relative.help")
+            ),
         ];
 
     public override async Task<ActionResult> ExecuteAsync(
@@ -236,11 +283,34 @@ public sealed class VtsColorTintAction(IVtsControlService vts) : VtsActionBase(v
 
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("r", PipelineActionFieldKind.Number, Required: true),
-            new("g", PipelineActionFieldKind.Number, Required: true),
-            new("b", PipelineActionFieldKind.Number, Required: true),
-            new("a", PipelineActionFieldKind.Number),
-            new("art_mesh_tag", PipelineActionFieldKind.Text),
+            new(
+                "r",
+                PipelineActionFieldKind.Number,
+                Required: true,
+                Description: new("pipeline.vts_color_tint.r.help")
+            ),
+            new(
+                "g",
+                PipelineActionFieldKind.Number,
+                Required: true,
+                Description: new("pipeline.vts_color_tint.g.help")
+            ),
+            new(
+                "b",
+                PipelineActionFieldKind.Number,
+                Required: true,
+                Description: new("pipeline.vts_color_tint.b.help")
+            ),
+            new(
+                "a",
+                PipelineActionFieldKind.Number,
+                Description: new("pipeline.vts_color_tint.a.help")
+            ),
+            new(
+                "art_mesh_tag",
+                PipelineActionFieldKind.Text,
+                Description: new("pipeline.vts_color_tint.art_mesh_tag.help")
+            ),
         ];
 
     public override async Task<ActionResult> ExecuteAsync(
@@ -270,8 +340,17 @@ public sealed class VtsRequestAction(IVtsControlService vts) : VtsActionBase(vts
 
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("request_type", PipelineActionFieldKind.Text, Required: true),
-            new("payload_json", PipelineActionFieldKind.Text),
+            new(
+                "request_type",
+                PipelineActionFieldKind.Text,
+                Required: true,
+                Description: new("pipeline.vts_request.request_type.help")
+            ),
+            new(
+                "payload_json",
+                PipelineActionFieldKind.Text,
+                Description: new("pipeline.vts_request.payload_json.help")
+            ),
         ];
 
     public override async Task<ActionResult> ExecuteAsync(

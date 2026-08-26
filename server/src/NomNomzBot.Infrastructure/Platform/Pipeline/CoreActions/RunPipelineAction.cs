@@ -57,21 +57,33 @@ public sealed class RunPipelineAction : ICommandAction
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("pipeline", PipelineActionFieldKind.ResourceId, Required: true),
+            new(
+                "pipeline",
+                PipelineActionFieldKind.ResourceId,
+                Required: true,
+                Description: new("pipeline.run_pipeline.pipeline.help")
+            ),
             new(
                 "mode",
                 PipelineActionFieldKind.Enum,
                 Required: false,
-                Options: ["inline", "detached"]
+                Options: ["inline", "detached"],
+                Description: new("pipeline.run_pipeline.mode.help")
             ),
             new(
                 "args",
                 PipelineActionFieldKind.Text,
                 Required: false,
                 Repeatable: true,
-                Templated: true
+                Templated: true,
+                Description: new("pipeline.run_pipeline.args.help")
             ),
-            new("wait", PipelineActionFieldKind.Boolean, Required: false),
+            new(
+                "wait",
+                PipelineActionFieldKind.Boolean,
+                Required: false,
+                Description: new("pipeline.run_pipeline.wait.help")
+            ),
         ];
 
     public async Task<ActionResult> ExecuteAsync(

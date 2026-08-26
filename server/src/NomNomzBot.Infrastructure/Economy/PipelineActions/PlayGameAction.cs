@@ -28,8 +28,18 @@ public sealed class PlayGameAction(IGameService games, IRoleResolver roles) : IC
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("game_type", PipelineActionFieldKind.ResourceId, Required: true),
-            new("bet", PipelineActionFieldKind.Number, Required: true),
+            new(
+                "game_type",
+                PipelineActionFieldKind.ResourceId,
+                Required: true,
+                Description: new("pipeline.play_game.game_type.help")
+            ),
+            new(
+                "bet",
+                PipelineActionFieldKind.Number,
+                Required: true,
+                Description: new("pipeline.play_game.bet.help")
+            ),
         ];
 
     public async Task<ActionResult> ExecuteAsync(

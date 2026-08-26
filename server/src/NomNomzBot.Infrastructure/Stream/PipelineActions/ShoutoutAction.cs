@@ -73,11 +73,33 @@ public sealed class ShoutoutAction : ICommandAction
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("user_id", PipelineActionFieldKind.TwitchUser, Required: true),
-            new("cooldown_minutes", PipelineActionFieldKind.Number),
-            new("global_cooldown_minutes", PipelineActionFieldKind.Number),
-            new("tts", PipelineActionFieldKind.Boolean),
-            new("template", PipelineActionFieldKind.Text, Templated: true),
+            new(
+                "user_id",
+                PipelineActionFieldKind.TwitchUser,
+                Required: true,
+                Description: new("pipeline.shoutout.user_id.help")
+            ),
+            new(
+                "cooldown_minutes",
+                PipelineActionFieldKind.Number,
+                Description: new("pipeline.shoutout.cooldown_minutes.help")
+            ),
+            new(
+                "global_cooldown_minutes",
+                PipelineActionFieldKind.Number,
+                Description: new("pipeline.shoutout.global_cooldown_minutes.help")
+            ),
+            new(
+                "tts",
+                PipelineActionFieldKind.Boolean,
+                Description: new("pipeline.shoutout.tts.help")
+            ),
+            new(
+                "template",
+                PipelineActionFieldKind.Text,
+                Templated: true,
+                Description: new("pipeline.shoutout.template.help")
+            ),
         ];
 
     public ShoutoutAction(

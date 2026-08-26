@@ -112,6 +112,25 @@ data class PipelineActionDescriptor(
     val type: String = "",
     val category: String = "general",
     val description: String = "",
+    val fields: List<PipelineActionFieldRemote> = emptyList(),
+)
+
+/**
+ * One field on a backend-registered action (backend `PipelineActionFieldDto`): its [name] (the exact param key
+ * the action reads), [kind] (the wire control-kind name, e.g. `text`/`number`/`boolean`), whether it is
+ * [required], and its operator-facing [description] — a [LocalizedTextDto] translation KEY only, resolved via
+ * [bot.nomnomz.dashboard.core.i18n.resolveSchemaString] against the viewer's locale (S-SCHEMA-I18N-c). Merged
+ * by [PipelineCatalogue.buildPalette] onto the matching local [BlockField] hint so the step form can show the
+ * backend-authored help text under the field it describes.
+ */
+@Serializable
+data class PipelineActionFieldRemote(
+    val name: String = "",
+    val kind: String = "text",
+    val required: Boolean = false,
+    val repeatable: Boolean = false,
+    val options: List<String>? = null,
+    val description: LocalizedTextDto = LocalizedTextDto(),
 )
 
 /** One available pipeline condition type (backend `PipelineConditionDescriptorDto`). */

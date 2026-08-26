@@ -34,7 +34,14 @@ public sealed class SongVolumeAction : ICommandAction
     public string ActionType => "song_volume";
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
-        [new("volume", PipelineActionFieldKind.Number, Required: true)];
+        [
+            new(
+                "volume",
+                PipelineActionFieldKind.Number,
+                Required: true,
+                Description: new("pipeline.song_volume.volume.help")
+            ),
+        ];
 
     public SongVolumeAction(
         IMusicService music,

@@ -25,7 +25,14 @@ public sealed class ReturnValueAction : ICommandAction
     public string Category => "flow";
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
-        [new("value", PipelineActionFieldKind.Text, Templated: true)];
+        [
+            new(
+                "value",
+                PipelineActionFieldKind.Text,
+                Templated: true,
+                Description: new("pipeline.return_value.value.help")
+            ),
+        ];
 
     public Task<ActionResult> ExecuteAsync(PipelineExecutionContext ctx, ActionDefinition action)
     {

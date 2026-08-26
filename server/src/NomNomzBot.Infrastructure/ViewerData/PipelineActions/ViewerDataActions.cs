@@ -39,9 +39,23 @@ public sealed class SetViewerDataAction(
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("key", PipelineActionFieldKind.Text, Required: true),
-            new("value", PipelineActionFieldKind.Text, Templated: true),
-            new("target", PipelineActionFieldKind.TwitchUser),
+            new(
+                "key",
+                PipelineActionFieldKind.Text,
+                Required: true,
+                Description: new("pipeline.set_viewer_data.key.help")
+            ),
+            new(
+                "value",
+                PipelineActionFieldKind.Text,
+                Templated: true,
+                Description: new("pipeline.set_viewer_data.value.help")
+            ),
+            new(
+                "target",
+                PipelineActionFieldKind.TwitchUser,
+                Description: new("pipeline.set_viewer_data.target.help")
+            ),
         ];
 
     public async Task<ActionResult> ExecuteAsync(
@@ -101,9 +115,22 @@ public sealed class AdjustViewerDataAction(
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("key", PipelineActionFieldKind.Text, Required: true),
-            new("delta", PipelineActionFieldKind.Number),
-            new("target", PipelineActionFieldKind.TwitchUser),
+            new(
+                "key",
+                PipelineActionFieldKind.Text,
+                Required: true,
+                Description: new("pipeline.adjust_viewer_data.key.help")
+            ),
+            new(
+                "delta",
+                PipelineActionFieldKind.Number,
+                Description: new("pipeline.adjust_viewer_data.delta.help")
+            ),
+            new(
+                "target",
+                PipelineActionFieldKind.TwitchUser,
+                Description: new("pipeline.adjust_viewer_data.target.help")
+            ),
         ];
 
     public async Task<ActionResult> ExecuteAsync(

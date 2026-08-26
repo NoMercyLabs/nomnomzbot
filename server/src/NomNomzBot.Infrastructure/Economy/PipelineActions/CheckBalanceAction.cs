@@ -25,7 +25,18 @@ public sealed class CheckBalanceAction(ICurrencyAccountService accounts) : IComm
     public string ActionType => "check_balance";
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
-        [new("set_var", PipelineActionFieldKind.Text), new("min", PipelineActionFieldKind.Number)];
+        [
+            new(
+                "set_var",
+                PipelineActionFieldKind.Text,
+                Description: new("pipeline.check_balance.set_var.help")
+            ),
+            new(
+                "min",
+                PipelineActionFieldKind.Number,
+                Description: new("pipeline.check_balance.min.help")
+            ),
+        ];
 
     public async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,

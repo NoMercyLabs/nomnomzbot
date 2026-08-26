@@ -28,7 +28,14 @@ public sealed class OpenGiveawayAction(IGiveawayService giveaways) : ICommandAct
     public string ActionType => "open_giveaway";
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
-        [new("giveaway_id", PipelineActionFieldKind.ResourceId, Required: true)];
+        [
+            new(
+                "giveaway_id",
+                PipelineActionFieldKind.ResourceId,
+                Required: true,
+                Description: new("pipeline.open_giveaway.giveaway_id.help")
+            ),
+        ];
 
     public async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
@@ -59,7 +66,13 @@ public sealed class DrawGiveawayAction(IGiveawayService giveaways, IApplicationD
     public string ActionType => "draw_giveaway";
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
-        [new("giveaway_id", PipelineActionFieldKind.ResourceId)];
+        [
+            new(
+                "giveaway_id",
+                PipelineActionFieldKind.ResourceId,
+                Description: new("pipeline.draw_giveaway.giveaway_id.help")
+            ),
+        ];
 
     public async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
@@ -101,7 +114,13 @@ public sealed class EnterGiveawayAction(IGiveawayService giveaways, IApplication
     public string ActionType => "enter_giveaway";
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
-        [new("giveaway_id", PipelineActionFieldKind.ResourceId)];
+        [
+            new(
+                "giveaway_id",
+                PipelineActionFieldKind.ResourceId,
+                Description: new("pipeline.enter_giveaway.giveaway_id.help")
+            ),
+        ];
 
     public async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,

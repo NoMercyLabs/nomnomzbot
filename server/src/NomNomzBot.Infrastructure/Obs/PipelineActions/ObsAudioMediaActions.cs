@@ -23,9 +23,22 @@ public sealed class ObsInputMuteAction(IObsControlService obs) : ObsActionBase(o
 
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("input", PipelineActionFieldKind.ResourceId, Required: true),
-            new("muted", PipelineActionFieldKind.Boolean),
-            new("toggle", PipelineActionFieldKind.Boolean),
+            new(
+                "input",
+                PipelineActionFieldKind.ResourceId,
+                Required: true,
+                Description: new("pipeline.obs_input_mute.input.help")
+            ),
+            new(
+                "muted",
+                PipelineActionFieldKind.Boolean,
+                Description: new("pipeline.obs_input_mute.muted.help")
+            ),
+            new(
+                "toggle",
+                PipelineActionFieldKind.Boolean,
+                Description: new("pipeline.obs_input_mute.toggle.help")
+            ),
         ];
 
     public override async Task<ActionResult> ExecuteAsync(
@@ -57,9 +70,22 @@ public sealed class ObsInputVolumeAction(IObsControlService obs) : ObsActionBase
 
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("input", PipelineActionFieldKind.ResourceId, Required: true),
-            new("volume_db", PipelineActionFieldKind.Number),
-            new("volume_mul", PipelineActionFieldKind.Number),
+            new(
+                "input",
+                PipelineActionFieldKind.ResourceId,
+                Required: true,
+                Description: new("pipeline.obs_input_volume.input.help")
+            ),
+            new(
+                "volume_db",
+                PipelineActionFieldKind.Number,
+                Description: new("pipeline.obs_input_volume.volume_db.help")
+            ),
+            new(
+                "volume_mul",
+                PipelineActionFieldKind.Number,
+                Description: new("pipeline.obs_input_volume.volume_mul.help")
+            ),
         ];
 
     public override async Task<ActionResult> ExecuteAsync(
@@ -92,11 +118,17 @@ public sealed class ObsMediaAction(IObsControlService obs) : ObsActionBase(obs)
 
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("input", PipelineActionFieldKind.ResourceId, Required: true),
+            new(
+                "input",
+                PipelineActionFieldKind.ResourceId,
+                Required: true,
+                Description: new("pipeline.obs_media.input.help")
+            ),
             new(
                 "action",
                 PipelineActionFieldKind.Enum,
-                Options: ["play", "pause", "stop", "restart", "next", "previous"]
+                Options: ["play", "pause", "stop", "restart", "next", "previous"],
+                Description: new("pipeline.obs_media.action_verb.help")
             ),
         ];
 
@@ -132,7 +164,14 @@ public sealed class ObsHotkeyAction(IObsControlService obs) : ObsActionBase(obs)
     public override string ActionType => "obs_hotkey";
 
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
-        [new("hotkey_name", PipelineActionFieldKind.ResourceId, Required: true)];
+        [
+            new(
+                "hotkey_name",
+                PipelineActionFieldKind.ResourceId,
+                Required: true,
+                Description: new("pipeline.obs_hotkey.hotkey_name.help")
+            ),
+        ];
 
     public override async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
@@ -155,7 +194,14 @@ public sealed class ObsRefreshBrowserAction(IObsControlService obs) : ObsActionB
     public override string ActionType => "obs_refresh_browser";
 
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
-        [new("input", PipelineActionFieldKind.ResourceId, Required: true)];
+        [
+            new(
+                "input",
+                PipelineActionFieldKind.ResourceId,
+                Required: true,
+                Description: new("pipeline.obs_refresh_browser.input.help")
+            ),
+        ];
 
     public override async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
@@ -179,8 +225,18 @@ public sealed class ObsScreenshotAction(IObsControlService obs) : ObsActionBase(
 
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("source", PipelineActionFieldKind.ResourceId, Required: true),
-            new("format", PipelineActionFieldKind.Enum, Options: ["png", "jpg", "jpeg"]),
+            new(
+                "source",
+                PipelineActionFieldKind.ResourceId,
+                Required: true,
+                Description: new("pipeline.obs_screenshot.source.help")
+            ),
+            new(
+                "format",
+                PipelineActionFieldKind.Enum,
+                Options: ["png", "jpg", "jpeg"],
+                Description: new("pipeline.obs_screenshot.format.help")
+            ),
         ];
 
     public override async Task<ActionResult> ExecuteAsync(

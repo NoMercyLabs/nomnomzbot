@@ -26,8 +26,18 @@ public sealed class JarContributeAction(ISavingsJarService jars) : ICommandActio
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("jar_id", PipelineActionFieldKind.ResourceId, Required: true),
-            new("amount", PipelineActionFieldKind.Number, Required: true),
+            new(
+                "jar_id",
+                PipelineActionFieldKind.ResourceId,
+                Required: true,
+                Description: new("pipeline.jar_contribute.jar_id.help")
+            ),
+            new(
+                "amount",
+                PipelineActionFieldKind.Number,
+                Required: true,
+                Description: new("pipeline.jar_contribute.amount.help")
+            ),
         ];
 
     public async Task<ActionResult> ExecuteAsync(

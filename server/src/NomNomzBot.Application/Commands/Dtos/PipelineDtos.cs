@@ -11,6 +11,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using NomNomzBot.Application.Abstractions.Localization;
 
 namespace NomNomzBot.Application.Commands.Dtos;
 
@@ -51,7 +52,8 @@ public sealed record PipelineActionFieldDto(
     string Kind,
     bool Required,
     bool Repeatable,
-    IReadOnlyList<string>? Options
+    IReadOnlyList<string>? Options,
+    LocalizedText? Description
 );
 
 /// <summary>One available pipeline action block, for the builder's palette (commands-pipelines.md §3.13).</summary>

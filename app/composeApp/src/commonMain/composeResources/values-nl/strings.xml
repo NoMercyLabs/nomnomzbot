@@ -3837,11 +3837,11 @@
     <string name="pipeline_obs_input_volume_input_help">De audio-ingang waarvan het volume wordt gewijzigd.</string>
     <string name="pipeline_obs_input_volume_volume_db_help">Stelt het volume van de ingang in decibel in. Gebruik dit of Volume (vermenigvuldiger), niet beide.</string>
     <string name="pipeline_obs_input_volume_volume_mul_help">Stelt het volume van de ingang in als vermenigvuldiger (1.0 = ongewijzigd, 0.5 = half). Gebruik dit of Volume (dB), niet beide.</string>
-    <string name="pipeline_obs_media_action_help">Wat er met de mediabron gebeurt: afspelen, pauzeren, stoppen, opnieuw starten, of naar het volgende/vorige item springen.</string>
+    <string name="pipeline_obs_media_action_verb_help">Wat er met de mediabron gebeurt: afspelen, pauzeren, stoppen, opnieuw starten, of naar het volgende/vorige item springen.</string>
     <string name="pipeline_obs_media_input_help">De mediabron (een video-/audioclip) die wordt bestuurd.</string>
-    <string name="pipeline_obs_recording_action_help">Wat er met de opname gebeurt: starten, stoppen, wisselen, pauzeren, hervatten, of het bestand splitsen.</string>
+    <string name="pipeline_obs_recording_action_verb_help">Wat er met de opname gebeurt: starten, stoppen, wisselen, pauzeren, hervatten, of het bestand splitsen.</string>
     <string name="pipeline_obs_refresh_browser_input_help">De browserbron die opnieuw wordt geladen — gebruik dit na het wijzigen van de instellingen van een overlay, zodat OBS deze direct overneemt.</string>
-    <string name="pipeline_obs_replay_buffer_action_help">Wat er met de replaybuffer gebeurt: starten, stoppen, of wisselen.</string>
+    <string name="pipeline_obs_replay_buffer_action_verb_help">Wat er met de replaybuffer gebeurt: starten, stoppen, of wisselen.</string>
     <string name="pipeline_obs_request_request_data_help">De JSON-gegevens voor het onbewerkte verzoek. Laat leeg voor verzoeken die geen gegevens nodig hebben.</string>
     <string name="pipeline_obs_request_request_type_help">Het onbewerkte obs-websocket-verzoektype dat wordt verzonden — voor geavanceerde besturing die niet door een specifieke OBS-actie wordt gedekt.</string>
     <string name="pipeline_obs_request_batch_execution_help">Hoe de gebundelde verzoeken worden uitgevoerd: na elkaar in real time, één per gerenderd frame, of allemaal parallel.</string>
@@ -3853,12 +3853,12 @@
     <string name="pipeline_obs_set_source_scene_help">De scène die de bron bevat die wordt getoond of verborgen.</string>
     <string name="pipeline_obs_set_source_source_help">De bron binnen de scène die wordt getoond of verborgen.</string>
     <string name="pipeline_obs_set_source_visible_help">Of de bron uiteindelijk zichtbaar of verborgen is. Standaard zichtbaar.</string>
-    <string name="pipeline_obs_streaming_action_help">Wat er met de streamuitvoer gebeurt: starten, stoppen, of wisselen.</string>
+    <string name="pipeline_obs_streaming_action_verb_help">Wat er met de streamuitvoer gebeurt: starten, stoppen, of wisselen.</string>
     <string name="pipeline_obs_switch_scene_scene_help">De scène waarnaar de live programma-uitvoer wordt omgeschakeld.</string>
     <string name="pipeline_obs_transition_duration_ms_help">Hoe lang de overgang duurt, in milliseconden. Laat leeg om de eigen standaardduur van de overgang te gebruiken.</string>
     <string name="pipeline_obs_transition_studio_help">Activeert de studiomodus-overgang (voorvertoning → programma) in plaats van alleen het huidige overgangstype in te stellen.</string>
     <string name="pipeline_obs_transition_transition_help">De overgang die als huidig wordt ingesteld. Laat leeg om alleen een studiomodus-overgang te activeren zonder deze te wijzigen.</string>
-    <string name="pipeline_obs_virtual_cam_action_help">Wat er met de virtuele camera-uitvoer gebeurt: starten, stoppen, of wisselen.</string>
+    <string name="pipeline_obs_virtual_cam_action_verb_help">Wat er met de virtuele camera-uitvoer gebeurt: starten, stoppen, of wisselen.</string>
     <string name="pipeline_open_giveaway_giveaway_id_help">Welke giveaway wordt geopend voor deelname.</string>
     <string name="pipeline_permit_duration_minutes_help">Hoe lang de toestemming geldig is, in minuten. Leeg laten voor een toestemming die nooit vanzelf verloopt.</string>
     <string name="pipeline_permit_role_or_capability_help">De rol of bevoegdheid die aan het doel wordt toegekend.</string>

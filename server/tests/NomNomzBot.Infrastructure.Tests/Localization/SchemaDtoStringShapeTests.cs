@@ -11,6 +11,7 @@
 using System.Reflection;
 using FluentAssertions;
 using NomNomzBot.Application.Abstractions.Localization;
+using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Widgets.Dtos;
 
 namespace NomNomzBot.Infrastructure.Tests.Localization;
@@ -48,6 +49,15 @@ public sealed class SchemaDtoStringShapeTests
         [typeof(WidgetSettingsFieldOption)] = new HashSet<string>
         {
             nameof(WidgetSettingsFieldOption.Value),
+        },
+        // PipelineActionDescriptorDto.Category/Description are deliberately NOT swept here: they come from
+        // ICommandAction.Category/Description (the ACTION-level identity, not a field), which are still bare
+        // English literals across ~75 actions — a real gap, but a separate one from S-SCHEMA-I18N-c's scope
+        // (per-FIELD help text). Tracked separately, not this slice.
+        [typeof(PipelineActionFieldDto)] = new HashSet<string>
+        {
+            nameof(PipelineActionFieldDto.Name),
+            nameof(PipelineActionFieldDto.Kind),
         },
     };
 

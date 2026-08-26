@@ -31,7 +31,13 @@ public sealed class PostQuoteAction : ICommandAction
     public string ActionType => "post_quote";
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
-        [new("number", PipelineActionFieldKind.Number)];
+        [
+            new(
+                "number",
+                PipelineActionFieldKind.Number,
+                Description: new("pipeline.post_quote.number.help")
+            ),
+        ];
 
     public PostQuoteAction(IQuoteService quotes, IChatProvider chat)
     {

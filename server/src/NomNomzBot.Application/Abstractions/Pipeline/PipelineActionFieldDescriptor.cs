@@ -57,10 +57,15 @@ public enum PipelineActionFieldKind
 /// instead of the engine's central pass — either way the field is templated exactly once.
 /// </param>
 /// <param name="Description">
-/// Optional operator-facing help text for the step form's field (S-SCHEMA-I18N-redesign) — e.g. what a
-/// non-obvious field controls, or a format the field expects. <see cref="LocalizedText"/> is a translation KEY
-/// only (resolved against <c>strings.xml</c> in the dashboard); null when the field's <see cref="Kind"/>/
-/// <see cref="Name"/> is self-explanatory and needs no extra copy.
+/// Operator-facing help text for the step form's field (S-SCHEMA-I18N-c) — what the field DOES and what
+/// changes when it's set, in plain language for a streamer. <see cref="LocalizedText"/> is a translation KEY
+/// only (resolved against <c>strings.xml</c> in the dashboard, both <c>en</c> and <c>nl</c>).
+/// <see cref="PipelineActionFieldCoverageTests"/> enforces this at test time for every field on every
+/// registered <see cref="ICommandAction"/> found via the real DI scan — a field shipped without a
+/// <see cref="Description"/> fails that guard loudly, by field name, instead of silently shipping unhelped. It
+/// stays nullable on the record itself (rather than a required constructor parameter) only because a required
+/// positional parameter would force every one of the ~110 existing field sites to be touched atomically in a
+/// single commit; the DI-graph guard gives the same "cannot ship without it" property without that coupling.
 /// </param>
 public sealed record PipelineActionFieldDescriptor(
     string Name,

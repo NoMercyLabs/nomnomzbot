@@ -70,6 +70,7 @@ import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.i18n.resolveSchemaString
 import bot.nomnomz.dashboard.core.network.BlockField
 import bot.nomnomz.dashboard.core.network.FieldKind
 import bot.nomnomz.dashboard.core.network.PaletteBlock
@@ -1022,6 +1023,7 @@ private fun TypedParamFields(block: PaletteBlock, params: MutableMap<String, Str
                         value = params[field.key].orEmpty(),
                         onValueChange = { params[field.key] = it },
                         label = fieldLabelWithRequired(field),
+                        supportingText = fieldHelpText(field),
                         modifier = Modifier.fillMaxWidth(),
                     )
             }
@@ -1394,6 +1396,15 @@ private fun fieldDisplayName(field: BlockField): String = stringResource(fieldLa
 private fun fieldLabelWithRequired(field: BlockField): String {
     val base: String = fieldDisplayName(field)
     return if (field.required) "$base *" else base
+}
+
+// The backend-authored help text for this field (S-SCHEMA-I18N-c), or null when the backend catalogue carries
+// no description key for it — an unresolved key falls back to itself in [resolveSchemaString], so a blank
+// [BlockField.descriptionKey] is the only case treated as "no help text" rather than shown as a raw key.
+@Composable
+private fun fieldHelpText(field: BlockField): String? {
+    val key: String = field.descriptionKey ?: return null
+    return resolveSchemaString(key)
 }
 
 // Humanize a raw backend discriminator (type/category/param key) for display: separators to spaces, first

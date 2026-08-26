@@ -30,8 +30,17 @@ public sealed class SendDiscordNotificationAction : ICommandAction
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("trigger_type", PipelineActionFieldKind.ResourceId, Required: true),
-            new("dedupe_key", PipelineActionFieldKind.Text),
+            new(
+                "trigger_type",
+                PipelineActionFieldKind.ResourceId,
+                Required: true,
+                Description: new("pipeline.send_discord_notification.trigger_type.help")
+            ),
+            new(
+                "dedupe_key",
+                PipelineActionFieldKind.Text,
+                Description: new("pipeline.send_discord_notification.dedupe_key.help")
+            ),
         ];
 
     public SendDiscordNotificationAction(IDiscordNotificationDispatcher dispatcher)

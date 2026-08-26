@@ -43,8 +43,19 @@ public sealed class TtsSynthesizeAction : ICommandAction
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("text", PipelineActionFieldKind.Text, Required: true, Templated: true),
-            new("voice", PipelineActionFieldKind.Voice, Templated: true),
+            new(
+                "text",
+                PipelineActionFieldKind.Text,
+                Required: true,
+                Templated: true,
+                Description: new("pipeline.tts_synthesize.text.help")
+            ),
+            new(
+                "voice",
+                PipelineActionFieldKind.Voice,
+                Templated: true,
+                Description: new("pipeline.tts_synthesize.voice.help")
+            ),
         ];
 
     public TtsSynthesizeAction(

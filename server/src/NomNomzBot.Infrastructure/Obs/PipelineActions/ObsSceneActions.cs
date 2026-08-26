@@ -21,7 +21,14 @@ public sealed class ObsSwitchSceneAction(IObsControlService obs) : ObsActionBase
     public override string ActionType => "obs_switch_scene";
 
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
-        [new("scene", PipelineActionFieldKind.ResourceId, Required: true)];
+        [
+            new(
+                "scene",
+                PipelineActionFieldKind.ResourceId,
+                Required: true,
+                Description: new("pipeline.obs_switch_scene.scene.help")
+            ),
+        ];
 
     public override async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
@@ -44,7 +51,14 @@ public sealed class ObsSetPreviewSceneAction(IObsControlService obs) : ObsAction
     public override string ActionType => "obs_set_preview_scene";
 
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
-        [new("scene", PipelineActionFieldKind.ResourceId, Required: true)];
+        [
+            new(
+                "scene",
+                PipelineActionFieldKind.ResourceId,
+                Required: true,
+                Description: new("pipeline.obs_set_preview_scene.scene.help")
+            ),
+        ];
 
     public override async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
@@ -68,9 +82,23 @@ public sealed class ObsSetSourceAction(IObsControlService obs) : ObsActionBase(o
 
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("scene", PipelineActionFieldKind.ResourceId, Required: true),
-            new("source", PipelineActionFieldKind.ResourceId, Required: true),
-            new("visible", PipelineActionFieldKind.Boolean),
+            new(
+                "scene",
+                PipelineActionFieldKind.ResourceId,
+                Required: true,
+                Description: new("pipeline.obs_set_source.scene.help")
+            ),
+            new(
+                "source",
+                PipelineActionFieldKind.ResourceId,
+                Required: true,
+                Description: new("pipeline.obs_set_source.source.help")
+            ),
+            new(
+                "visible",
+                PipelineActionFieldKind.Boolean,
+                Description: new("pipeline.obs_set_source.visible.help")
+            ),
         ];
 
     public override async Task<ActionResult> ExecuteAsync(
@@ -104,9 +132,23 @@ public sealed class ObsFilterAction(IObsControlService obs) : ObsActionBase(obs)
 
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("source", PipelineActionFieldKind.ResourceId, Required: true),
-            new("filter", PipelineActionFieldKind.ResourceId, Required: true),
-            new("enabled", PipelineActionFieldKind.Boolean),
+            new(
+                "source",
+                PipelineActionFieldKind.ResourceId,
+                Required: true,
+                Description: new("pipeline.obs_filter.source.help")
+            ),
+            new(
+                "filter",
+                PipelineActionFieldKind.ResourceId,
+                Required: true,
+                Description: new("pipeline.obs_filter.filter.help")
+            ),
+            new(
+                "enabled",
+                PipelineActionFieldKind.Boolean,
+                Description: new("pipeline.obs_filter.enabled.help")
+            ),
         ];
 
     public override async Task<ActionResult> ExecuteAsync(
@@ -140,9 +182,21 @@ public sealed class ObsTransitionAction(IObsControlService obs) : ObsActionBase(
 
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("transition", PipelineActionFieldKind.ResourceId),
-            new("studio", PipelineActionFieldKind.Boolean),
-            new("duration_ms", PipelineActionFieldKind.Number),
+            new(
+                "transition",
+                PipelineActionFieldKind.ResourceId,
+                Description: new("pipeline.obs_transition.transition.help")
+            ),
+            new(
+                "studio",
+                PipelineActionFieldKind.Boolean,
+                Description: new("pipeline.obs_transition.studio.help")
+            ),
+            new(
+                "duration_ms",
+                PipelineActionFieldKind.Number,
+                Description: new("pipeline.obs_transition.duration_ms.help")
+            ),
         ];
 
     public override async Task<ActionResult> ExecuteAsync(

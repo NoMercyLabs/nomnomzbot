@@ -210,7 +210,14 @@ public sealed class MusicSetVolumeAction : ICommandAction
     public string Description => "Sets playback volume to a fixed level (0-100).";
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
-        [new("volume", PipelineActionFieldKind.Number, Required: true)];
+        [
+            new(
+                "volume",
+                PipelineActionFieldKind.Number,
+                Required: true,
+                Description: new("pipeline.music_set_volume.volume.help")
+            ),
+        ];
 
     public MusicSetVolumeAction(IMusicService music) => _music = music;
 
@@ -273,7 +280,13 @@ public sealed class MusicVolumeUpAction : ICommandAction
     public string Description => "Raises playback volume by a step (default 10).";
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
-        [new("step", PipelineActionFieldKind.Number)];
+        [
+            new(
+                "step",
+                PipelineActionFieldKind.Number,
+                Description: new("pipeline.music_volume_up.step.help")
+            ),
+        ];
 
     public MusicVolumeUpAction(IMusicService music) => _music = music;
 
@@ -314,7 +327,13 @@ public sealed class MusicVolumeDownAction : ICommandAction
     public string Description => "Lowers playback volume by a step (default 10).";
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
-        [new("step", PipelineActionFieldKind.Number)];
+        [
+            new(
+                "step",
+                PipelineActionFieldKind.Number,
+                Description: new("pipeline.music_volume_down.step.help")
+            ),
+        ];
 
     public MusicVolumeDownAction(IMusicService music) => _music = music;
 
@@ -365,7 +384,13 @@ public sealed class MusicVolumeMuteAction : ICommandAction
         "Mutes if audible, remembering the current level; unmutes back to that level (or a fixed level, default 50, if none is remembered).";
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
-        [new("unmuteVolume", PipelineActionFieldKind.Number)];
+        [
+            new(
+                "unmuteVolume",
+                PipelineActionFieldKind.Number,
+                Description: new("pipeline.music_volume_mute.unmuteVolume.help")
+            ),
+        ];
 
     public MusicVolumeMuteAction(IMusicService music, IMuteVolumeMemory muteMemory)
     {
@@ -433,7 +458,14 @@ public sealed class MusicSeekAction : ICommandAction
     public string Description => "Jumps to a specific point in the current track (seconds).";
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
-        [new("positionSeconds", PipelineActionFieldKind.Number, Required: true)];
+        [
+            new(
+                "positionSeconds",
+                PipelineActionFieldKind.Number,
+                Required: true,
+                Description: new("pipeline.music_seek.positionSeconds.help")
+            ),
+        ];
 
     public MusicSeekAction(IMusicService music) => _music = music;
 
@@ -467,7 +499,14 @@ public sealed class MusicSetShuffleAction : ICommandAction
     public string Description => "Turns shuffle on or off.";
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
-        [new("enabled", PipelineActionFieldKind.Boolean, Required: true)];
+        [
+            new(
+                "enabled",
+                PipelineActionFieldKind.Boolean,
+                Required: true,
+                Description: new("pipeline.music_set_shuffle.enabled.help")
+            ),
+        ];
 
     public MusicSetShuffleAction(IMusicService music) => _music = music;
 
@@ -537,7 +576,8 @@ public sealed class MusicSetRepeatAction : ICommandAction
                 "mode",
                 PipelineActionFieldKind.Enum,
                 Required: true,
-                Options: ["off", "track", "context"]
+                Options: ["off", "track", "context"],
+                Description: new("pipeline.music_set_repeat.mode.help")
             ),
         ];
 
@@ -609,7 +649,14 @@ public sealed class MusicTransferDeviceAction : ICommandAction
     public string Description => "Moves playback to a chosen device.";
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
-        [new("deviceId", PipelineActionFieldKind.ResourceId, Required: true)];
+        [
+            new(
+                "deviceId",
+                PipelineActionFieldKind.ResourceId,
+                Required: true,
+                Description: new("pipeline.music_transfer_device.deviceId.help")
+            ),
+        ];
 
     public MusicTransferDeviceAction(IMusicService music) => _music = music;
 
@@ -849,7 +896,14 @@ public sealed class MusicAddToPlaylistAction : ICommandAction
     public string Description => "Adds the currently playing track to a chosen playlist.";
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
-        [new("playlistId", PipelineActionFieldKind.ResourceId, Required: true)];
+        [
+            new(
+                "playlistId",
+                PipelineActionFieldKind.ResourceId,
+                Required: true,
+                Description: new("pipeline.music_add_to_playlist.playlistId.help")
+            ),
+        ];
 
     public MusicAddToPlaylistAction(IMusicService music, IMusicProviderManageApi manageApi)
     {
@@ -898,7 +952,14 @@ public sealed class MusicRemoveFromPlaylistAction : ICommandAction
     public string Description => "Removes the currently playing track from a chosen playlist.";
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
-        [new("playlistId", PipelineActionFieldKind.ResourceId, Required: true)];
+        [
+            new(
+                "playlistId",
+                PipelineActionFieldKind.ResourceId,
+                Required: true,
+                Description: new("pipeline.music_remove_from_playlist.playlistId.help")
+            ),
+        ];
 
     public MusicRemoveFromPlaylistAction(IMusicService music, IMusicProviderManageApi manageApi)
     {

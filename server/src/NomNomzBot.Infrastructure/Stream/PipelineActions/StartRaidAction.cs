@@ -63,8 +63,17 @@ public sealed class StartRaidAction : ICommandAction
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("target", PipelineActionFieldKind.TwitchUser, Required: true),
-            new("delay_seconds", PipelineActionFieldKind.Number),
+            new(
+                "target",
+                PipelineActionFieldKind.TwitchUser,
+                Required: true,
+                Description: new("pipeline.start_raid.target.help")
+            ),
+            new(
+                "delay_seconds",
+                PipelineActionFieldKind.Number,
+                Description: new("pipeline.start_raid.delay_seconds.help")
+            ),
         ];
 
     public StartRaidAction(

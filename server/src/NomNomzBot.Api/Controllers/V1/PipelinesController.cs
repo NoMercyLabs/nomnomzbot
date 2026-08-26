@@ -105,7 +105,8 @@ public class PipelinesController : BaseController
                             f.Kind.ToWireName(),
                             f.Required,
                             f.Repeatable,
-                            f.Options
+                            f.Options,
+                            f.Description
                         )),
                     ]
                 ))

@@ -28,7 +28,8 @@ public sealed class ObsRecordingAction(IObsControlService obs) : ObsActionBase(o
             new(
                 "action",
                 PipelineActionFieldKind.Enum,
-                Options: ["start", "stop", "toggle", "pause", "resume", "split"]
+                Options: ["start", "stop", "toggle", "pause", "resume", "split"],
+                Description: new("pipeline.obs_recording.action_verb.help")
             ),
         ];
 
@@ -61,7 +62,14 @@ public sealed class ObsStreamingAction(IObsControlService obs) : ObsActionBase(o
     public override string ActionType => "obs_streaming";
 
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
-        [new("action", PipelineActionFieldKind.Enum, Options: ["start", "stop", "toggle"])];
+        [
+            new(
+                "action",
+                PipelineActionFieldKind.Enum,
+                Options: ["start", "stop", "toggle"],
+                Description: new("pipeline.obs_streaming.action_verb.help")
+            ),
+        ];
 
     public override async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
@@ -87,7 +95,14 @@ public sealed class ObsReplayBufferAction(IObsControlService obs) : ObsActionBas
     public override string ActionType => "obs_replay_buffer";
 
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
-        [new("action", PipelineActionFieldKind.Enum, Options: ["start", "stop", "toggle"])];
+        [
+            new(
+                "action",
+                PipelineActionFieldKind.Enum,
+                Options: ["start", "stop", "toggle"],
+                Description: new("pipeline.obs_replay_buffer.action_verb.help")
+            ),
+        ];
 
     public override async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
@@ -113,7 +128,14 @@ public sealed class ObsVirtualCamAction(IObsControlService obs) : ObsActionBase(
     public override string ActionType => "obs_virtual_cam";
 
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
-        [new("action", PipelineActionFieldKind.Enum, Options: ["start", "stop", "toggle"])];
+        [
+            new(
+                "action",
+                PipelineActionFieldKind.Enum,
+                Options: ["start", "stop", "toggle"],
+                Description: new("pipeline.obs_virtual_cam.action_verb.help")
+            ),
+        ];
 
     public override async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
@@ -140,8 +162,17 @@ public sealed class ObsRequestAction(IObsControlService obs) : ObsActionBase(obs
 
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("request_type", PipelineActionFieldKind.Text, Required: true),
-            new("request_data", PipelineActionFieldKind.Text),
+            new(
+                "request_type",
+                PipelineActionFieldKind.Text,
+                Required: true,
+                Description: new("pipeline.obs_request.request_type.help")
+            ),
+            new(
+                "request_data",
+                PipelineActionFieldKind.Text,
+                Description: new("pipeline.obs_request.request_data.help")
+            ),
         ];
 
     public override async Task<ActionResult> ExecuteAsync(
@@ -200,13 +231,24 @@ public sealed class ObsRequestBatchAction(IObsControlService obs) : ObsActionBas
 
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("requests", PipelineActionFieldKind.Text, Required: true, Repeatable: true),
+            new(
+                "requests",
+                PipelineActionFieldKind.Text,
+                Required: true,
+                Repeatable: true,
+                Description: new("pipeline.obs_request_batch.requests.help")
+            ),
             new(
                 "execution",
                 PipelineActionFieldKind.Enum,
-                Options: ["realtime", "frame", "parallel"]
+                Options: ["realtime", "frame", "parallel"],
+                Description: new("pipeline.obs_request_batch.execution.help")
             ),
-            new("halt_on_failure", PipelineActionFieldKind.Boolean),
+            new(
+                "halt_on_failure",
+                PipelineActionFieldKind.Boolean,
+                Description: new("pipeline.obs_request_batch.halt_on_failure.help")
+            ),
         ];
 
     public override async Task<ActionResult> ExecuteAsync(
@@ -282,9 +324,23 @@ public sealed class ObsCallVendorAction(IObsControlService obs) : ObsActionBase(
 
     public override IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("vendor", PipelineActionFieldKind.Text, Required: true),
-            new("request_type", PipelineActionFieldKind.Text, Required: true),
-            new("request_data", PipelineActionFieldKind.Text),
+            new(
+                "vendor",
+                PipelineActionFieldKind.Text,
+                Required: true,
+                Description: new("pipeline.obs_call_vendor.vendor.help")
+            ),
+            new(
+                "request_type",
+                PipelineActionFieldKind.Text,
+                Required: true,
+                Description: new("pipeline.obs_call_vendor.request_type.help")
+            ),
+            new(
+                "request_data",
+                PipelineActionFieldKind.Text,
+                Description: new("pipeline.obs_call_vendor.request_data.help")
+            ),
         ];
 
     public override async Task<ActionResult> ExecuteAsync(

@@ -35,8 +35,18 @@ public sealed class RequireTierAction(IBillingTierService tiers) : ICommandActio
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("min_tier", PipelineActionFieldKind.Enum, Required: true, Options: TierKeys),
-            new("denied_message", PipelineActionFieldKind.Text),
+            new(
+                "min_tier",
+                PipelineActionFieldKind.Enum,
+                Required: true,
+                Options: TierKeys,
+                Description: new("pipeline.require_tier.min_tier.help")
+            ),
+            new(
+                "denied_message",
+                PipelineActionFieldKind.Text,
+                Description: new("pipeline.require_tier.denied_message.help")
+            ),
         ];
 
     public async Task<ActionResult> ExecuteAsync(

@@ -46,8 +46,18 @@ public sealed class SetPronounAction : ICommandAction
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
-            new("username", PipelineActionFieldKind.TwitchUser, Required: true),
-            new("pronoun", PipelineActionFieldKind.ResourceId, Required: true),
+            new(
+                "username",
+                PipelineActionFieldKind.TwitchUser,
+                Required: true,
+                Description: new("pipeline.set_pronoun.username.help")
+            ),
+            new(
+                "pronoun",
+                PipelineActionFieldKind.ResourceId,
+                Required: true,
+                Description: new("pipeline.set_pronoun.pronoun.help")
+            ),
         ];
 
     public SetPronounAction(
