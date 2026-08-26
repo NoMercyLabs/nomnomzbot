@@ -43,7 +43,7 @@ public sealed class CommandServiceTests
                 pipelineEngine,
                 registry,
                 bus,
-                Billing.TestTiers.Unlimited(),
+                Billing.TestQuota.Unlimited(),
                 new TemplateHelperValidator()
             ),
             bus
@@ -152,7 +152,7 @@ public sealed class CommandServiceTests
             Substitute.For<IPipelineEngine>(),
             Substitute.For<IChannelRegistry>(),
             new RecordingEventBus(),
-            Billing.TestTiers.Unlimited(),
+            Billing.TestQuota.Unlimited(),
             new TemplateHelperValidator()
         );
         CommandDto created = (await sut.CreateAsync(Channel.ToString(), Req())).Value;
@@ -180,7 +180,7 @@ public sealed class CommandServiceTests
             Substitute.For<IPipelineEngine>(),
             Substitute.For<IChannelRegistry>(),
             new RecordingEventBus(),
-            Billing.TestTiers.Unlimited(),
+            Billing.TestQuota.Unlimited(),
             new TemplateHelperValidator()
         );
         CommandDto created = (await sut.CreateAsync(Channel.ToString(), Req())).Value;

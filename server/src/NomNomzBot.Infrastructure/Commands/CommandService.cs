@@ -16,6 +16,7 @@ using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Billing;
+using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -33,7 +34,7 @@ public class CommandService : ICommandService
     private readonly IPipelineEngine _pipelineEngine;
     private readonly IChannelRegistry _registry;
     private readonly IEventBus _eventBus;
-    private readonly IBillingTierService _tiers;
+    private readonly IResourceQuotaService _quota;
     private readonly ITemplateHelperValidator _templateHelperValidator;
 
     public CommandService(
@@ -41,7 +42,7 @@ public class CommandService : ICommandService
         IPipelineEngine pipelineEngine,
         IChannelRegistry registry,
         IEventBus eventBus,
-        IBillingTierService tiers,
+        IResourceQuotaService quota,
         ITemplateHelperValidator templateHelperValidator
     )
     {
@@ -49,7 +50,7 @@ public class CommandService : ICommandService
         _pipelineEngine = pipelineEngine;
         _registry = registry;
         _eventBus = eventBus;
-        _tiers = tiers;
+        _quota = quota;
         _templateHelperValidator = templateHelperValidator;
     }
 
@@ -101,24 +102,24 @@ public class CommandService : ICommandService
         if (exists)
             return Errors.AlreadyExists("command", name).ToTyped<CommandDto>();
 
-        // Tier quotas (monetization-billing §3.3): the command count and the per-trigger variation list
-        // are both capped by the plan; -1 (self-host / unseeded) is unlimited.
-        Result<long> commandCap = await _tiers.GetLimitAsync(
-            broadcaster,
-            "custom_commands",
+        // custom_commands is NEAR_FREE (S-BUDGETS-a): one DB row, checked against the registry's uniform
+        // safety baseline via the quota seam — never tier-scaled, self-host included.
+        int existingCommandCount = await _db.Commands.CountAsync(
+            c => c.BroadcasterId == broadcaster,
             cancellationToken
         );
-        if (commandCap is { IsSuccess: true, Value: >= 0 })
-        {
-            int current = await _db.Commands.CountAsync(
-                c => c.BroadcasterId == broadcaster,
-                cancellationToken
-            );
-            if (current >= commandCap.Value)
-                return Errors
-                    .QuotaExceeded("custom commands", commandCap.Value)
-                    .ToTyped<CommandDto>();
-        }
+        Result<QuotaCheckDto> commandQuota = await _quota.CheckAsync(
+            broadcaster,
+            "custom_commands",
+            existingCommandCount + 1,
+            cancellationToken
+        );
+        if (commandQuota.IsFailure)
+            return commandQuota.ToTyped<CommandDto>();
+        if (!commandQuota.Value.Allowed)
+            return Errors
+                .QuotaExceeded("custom commands", commandQuota.Value.Limit)
+                .ToTyped<CommandDto>();
 
         Result variationsOk = await CheckVariationCapAsync(
             broadcaster,
@@ -544,21 +545,27 @@ public class CommandService : ICommandService
         return Result.Success();
     }
 
-    /// <summary>The per-trigger variation cap (<c>response_variations_per_trigger</c>) — -1 is unlimited.</summary>
+    /// <summary>
+    /// The per-trigger variation cap (<c>response_variations_per_trigger</c>) — NEAR_FREE, the registry's
+    /// uniform safety baseline, never tier-scaled.
+    /// </summary>
     private async Task<Result> CheckVariationCapAsync(
         Guid broadcaster,
         int requestedCount,
         CancellationToken ct
     )
     {
-        Result<long> cap = await _tiers.GetLimitAsync(
+        Result<QuotaCheckDto> check = await _quota.CheckAsync(
             broadcaster,
             "response_variations_per_trigger",
+            requestedCount,
             ct
         );
-        return cap is { IsSuccess: true, Value: >= 0 } && requestedCount > cap.Value
-            ? Errors.QuotaExceeded("response variations per command", cap.Value)
-            : Result.Success();
+        if (check.IsFailure)
+            return check;
+        return check.Value.Allowed
+            ? Result.Success()
+            : Errors.QuotaExceeded("response variations per command", check.Value.Limit);
     }
 
     /// <summary>E5 dashboard live-sync: fired after every successful write so other open dashboards refetch.</summary>

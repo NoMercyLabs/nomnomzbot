@@ -46,7 +46,7 @@ public sealed class ProviderImportServiceTests
             Substitute.For<IPipelineEngine>(),
             Substitute.For<IChannelRegistry>(),
             bus,
-            TestTiers.Unlimited(),
+            TestQuota.Unlimited(),
             new TemplateHelperValidator()
         );
         QuoteService quotes = new(
@@ -59,7 +59,7 @@ public sealed class ProviderImportServiceTests
         TimerManagementService timers = new(
             db,
             bus,
-            TestTiers.Unlimited(),
+            TestQuota.Unlimited(),
             new TemplateHelperValidator()
         );
         return new(db, commands, quotes, timers);

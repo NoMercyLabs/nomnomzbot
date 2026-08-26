@@ -10,6 +10,7 @@
 
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using NomNomzBot.Domain.Billing;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform;
 
@@ -20,6 +21,7 @@ namespace NomNomzBot.Domain.Commands.Entities;
 /// (e.g. a follow → send a chat message; a sub → trigger a pipeline).
 /// Schema: I.2 (commands-pipelines.md §1).
 /// </summary>
+[CountedResource("event_responses", ResourceClass.NearFree)]
 public class EventResponse : SoftDeletableEntity, ITenantScoped
 {
     public Guid Id { get; set; }

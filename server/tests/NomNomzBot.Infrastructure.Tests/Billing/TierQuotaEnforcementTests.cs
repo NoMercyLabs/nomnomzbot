@@ -38,14 +38,14 @@ public sealed class TierQuotaEnforcementTests
 
     private static CommandService Commands(
         CommandsTestDbContext db,
-        Application.Contracts.Billing.IBillingTierService tiers
+        Application.Contracts.Billing.IResourceQuotaService quota
     ) =>
         new(
             db,
             Substitute.For<IPipelineEngine>(),
             Substitute.For<IChannelRegistry>(),
             new RecordingEventBus(),
-            tiers,
+            quota,
             new TemplateHelperValidator()
         );
 
@@ -53,7 +53,7 @@ public sealed class TierQuotaEnforcementTests
     public async Task Command_create_at_the_cap_is_refused_and_persists_nothing()
     {
         CommandsTestDbContext db = CommandsTestDbContext.New();
-        CommandService sut = Commands(db, TestTiers.WithLimit("custom_commands", 2));
+        CommandService sut = Commands(db, TestQuota.WithLimit("custom_commands", 2));
 
         (await sut.CreateAsync(Channel.ToString(), new() { Name = "one", TemplateResponse = "hi" }))
             .IsSuccess.Should()
@@ -77,7 +77,7 @@ public sealed class TierQuotaEnforcementTests
         CommandsTestDbContext db = CommandsTestDbContext.New();
         CommandService sut = Commands(
             db,
-            TestTiers.WithLimit("response_variations_per_trigger", 2)
+            TestQuota.WithLimit("response_variations_per_trigger", 2)
         );
 
         Result<CommandDto> over = await sut.CreateAsync(
@@ -123,7 +123,7 @@ public sealed class TierQuotaEnforcementTests
         TimerManagementService sut = new(
             db,
             new RecordingEventBus(),
-            TestTiers.WithLimit("timers", 1),
+            TestQuota.WithLimit("timers", 1),
             new TemplateHelperValidator()
         );
 
@@ -149,7 +149,7 @@ public sealed class TierQuotaEnforcementTests
         EventResponseService sut = new(
             db,
             new RecordingEventBus(),
-            TestTiers.WithLimit("event_responses", 1),
+            TestQuota.WithLimit("event_responses", 1),
             new TemplateHelperValidator()
         );
 
@@ -194,7 +194,7 @@ public sealed class TierQuotaEnforcementTests
     public async Task Unlimited_tiers_gate_nothing()
     {
         CommandsTestDbContext db = CommandsTestDbContext.New();
-        CommandService sut = Commands(db, TestTiers.Unlimited());
+        CommandService sut = Commands(db, TestQuota.Unlimited());
 
         for (int i = 0; i < 5; i++)
             (

@@ -10,6 +10,7 @@
 
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using NomNomzBot.Domain.Billing;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform;
 
@@ -20,6 +21,7 @@ namespace NomNomzBot.Domain.Commands.Entities;
 /// with optional minimum chat activity enforcement.
 /// Schema: I.1 (commands-pipelines.md §1).
 /// </summary>
+[CountedResource("timers", ResourceClass.NearFree)]
 public class Timer : SoftDeletableEntity, ITenantScoped
 {
     public Guid Id { get; set; }
