@@ -72,7 +72,7 @@ spec is their contract, not their source.
   `~/Library/Application Support/NomNomzBot`; `NOMNOMZ_DATA_DIR` overrides) holding `nomnomz.db` (SQLite), the
   local-AES KEK (§6), and logs; everything is one folder, trivially backed up.
 - **Docker image — `full` + SaaS.**
-  Built from `server/Dockerfile`, published to **GHCR as `ghcr.io/nomercylabs/nomnomzbot`** (tags: `latest`, the
+  Built from the repo-root `Dockerfile` (CI passes context `.` with no `file:`; `server/Dockerfile` is a hand-build copy that ships nothing), published to **GHCR as `ghcr.io/nomercylabs/nomnomzbot`** (tags: `latest`, the
   semver, the commit SHA — multi-arch `amd64`/`arm64`). The **same image** runs `self_host_full` (auto-detects
   full because Postgres/Redis are reachable in the compose network) and `saas` (N replicas behind a proxy). The
   image carries the Postgres + Redis + conduit/webhook adapters and the KMS-envelope crypto branch (loaded only

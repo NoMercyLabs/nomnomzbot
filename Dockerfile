@@ -75,6 +75,14 @@ RUN dotnet restore src/NomNomzBot.Api/NomNomzBot.Api.csproj
 FROM restore AS publish
 
 ARG BUILD_CONFIGURATION=Release
+# THIS is the Dockerfile CI builds (docker/build-push-action uses context "." with no `file:`, so the
+# repo-root one wins — server/Dockerfile is the local-compose copy and is NOT what ships).
+#
+# GIT_SHA is stamped into the assembly's informational version so /health/version can answer the only
+# question that matters after a deploy: WHICH COMMIT is this box running? Directory.Build.props pins
+# <Version>0.1.0</Version>, which is identical in every image ever built, so without this the endpoint
+# cannot distinguish a fresh deploy from a three-week-old one — and a green deploy job is not evidence.
+ARG GIT_SHA=unknown
 
 COPY server/ .
 
@@ -82,7 +90,8 @@ WORKDIR /src/src/NomNomzBot.Api
 RUN dotnet publish NomNomzBot.Api.csproj \
     -c $BUILD_CONFIGURATION \
     -o /app/publish \
-    /p:UseAppHost=false
+    /p:UseAppHost=false \
+    /p:InformationalVersion="0.1.0+${GIT_SHA}"
 
 # ---------------------------------------------------------------------------
 # Stage 3 — Runtime image

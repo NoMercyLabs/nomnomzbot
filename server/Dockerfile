@@ -1,3 +1,9 @@
+# NOT THE SHIPPED IMAGE. The image CI builds and the box runs comes from the REPO-ROOT Dockerfile:
+# .github/workflows/ci.yml uses docker/build-push-action with context "." and no `file:`, and
+# docker-compose.yml pins `dockerfile: Dockerfile`. This copy is for building the API alone by hand.
+# Keep changes that must reach production in the root Dockerfile - editing only this one ships nothing
+# (that mistake cost a release cycle: a /health/version stamp was added here and never appeared live).
+
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Copyright (C) NoMercy Labs. All rights reserved.
 
