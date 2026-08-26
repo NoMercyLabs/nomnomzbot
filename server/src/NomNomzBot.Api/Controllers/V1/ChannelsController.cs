@@ -37,6 +37,7 @@ public class ChannelsController : BaseController
     private readonly IChannelAccessService _channelAccess;
     private readonly IMembershipService _memberships;
     private readonly IUserService _users;
+    private readonly IChannelDeletePreviewService _deletePreview;
 
     public ChannelsController(
         IChannelService channelService,
@@ -44,7 +45,8 @@ public class ChannelsController : BaseController
         ITwitchModeratorsApi moderators,
         IChannelAccessService channelAccess,
         IMembershipService memberships,
-        IUserService users
+        IUserService users,
+        IChannelDeletePreviewService deletePreview
     )
     {
         _channelService = channelService;
@@ -53,6 +55,7 @@ public class ChannelsController : BaseController
         _channelAccess = channelAccess;
         _memberships = memberships;
         _users = users;
+        _deletePreview = deletePreview;
     }
 
     /// <summary>List all channels the current user owns or moderates.</summary>
@@ -500,8 +503,36 @@ public class ChannelsController : BaseController
         return Ok(new StatusResponseDto<object> { Message = "Bot left channel." });
     }
 
-    /// <summary>Delete a channel and all its associated data.</summary>
-    [DestructiveAction(PendingBlastRadiusSince = "2026-08-26")]
+    /// <summary>
+    /// What deleting this channel destroys, counted from the real database, plus the consequences outside it.
+    /// The delete confirm MUST render this before the destructive action can be armed.
+    /// </summary>
+    [HttpGet("{channelId}/delete-preview")]
+    [RequireAction("setup:write")]
+    [ProducesResponseType<StatusResponseDto<ChannelDeletePreviewDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> PreviewDeleteChannel(string channelId, CancellationToken ct)
+    {
+        Result<ChannelDeletePreviewDto> result = await _deletePreview.PreviewAsync(channelId, ct);
+        return ResultResponse(result);
+    }
+
+    /// <summary>Bring a soft-deleted channel back, within its restore window.</summary>
+    [HttpPost("{channelId}/restore")]
+    [RequireAction("setup:write")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> RestoreChannel(string channelId, CancellationToken ct)
+    {
+        Result result = await _channelService.RestoreAsync(channelId, ct);
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<object> { Message = "Channel restored." });
+    }
+
+    /// <summary>
+    /// Soft-delete a channel and everything under it. Reversible for 30 days via the restore endpoint; the
+    /// blast radius the caller must be shown first comes from the delete-preview endpoint.
+    /// </summary>
+    [DestructiveAction(HasCountedBlastRadius = true)]
     [HttpDelete("{channelId}")]
     [RequireAction("setup:write")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

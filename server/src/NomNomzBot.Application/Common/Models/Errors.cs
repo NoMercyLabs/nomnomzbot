@@ -86,6 +86,18 @@ public static class Errors
             errorDetail: $"No channel with ID {channelId}"
         );
 
+    /// <summary>
+    /// The channel was soft-deleted longer ago than the restore window allows. Distinct from "not found":
+    /// the channel exists, and telling the operator the exact instant the window closed is the difference
+    /// between a fixable mistake and a mystery.
+    /// </summary>
+    public static Result ChannelRestoreWindowExpired(string channelId, DateTime permanentAfterUtc) =>
+        Result.Failure(
+            "This channel can no longer be restored.",
+            "CHANNEL_RESTORE_WINDOW_EXPIRED",
+            errorDetail: $"Channel {channelId} became permanent at {permanentAfterUtc:O}"
+        );
+
     public static Result ChannelNotOnboarded(string channelId) =>
         Result.Failure("This channel has not completed setup.", "CHANNEL_NOT_ONBOARDED");
 }

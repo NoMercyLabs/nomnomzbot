@@ -79,4 +79,48 @@ public static class BlastRadiusCategoryKeys
     public const string ChatTriggers = "blast_radius_category_chat_triggers";
     public const string PickLists = "blast_radius_category_pick_lists";
     public const string CodeScripts = "blast_radius_category_code_scripts";
+
+    // ── Channel delete (S-CONSEQ-DELETE-CHANNEL) ──
+    // Deleting a channel destroys 116 tenant-scoped tables. 116 raw table counts is noise, not consent, so the
+    // preview groups them into six curated categories a streamer actually recognises, plus one honest
+    // remainder. Membership is a hand-audited decision per table (see ChannelBlastRadiusSources); the
+    // remainder exists so the six categories never have to pretend to be the whole total.
+    public const string ChannelChat = "blast_radius_category_channel_chat";
+    public const string ChannelViewers = "blast_radius_category_channel_viewers";
+    public const string ChannelAutomations = "blast_radius_category_channel_automations";
+    public const string ChannelIntegrations = "blast_radius_category_channel_integrations";
+    public const string ChannelOverlays = "blast_radius_category_channel_overlays";
+    public const string ChannelBilling = "blast_radius_category_channel_billing";
+    public const string ChannelOther = "blast_radius_category_channel_other";
+}
+
+/// <summary>
+/// A consequence a row count cannot express: something OUTSIDE our database stops working. Deleting a channel
+/// revokes an overlay token every live OBS browser source is polling, drops EventSub subscriptions registered
+/// with Twitch, and orphans channel-point rewards created under our client id — none of which is "N rows".
+/// <paramref name="ConsequenceKey"/> is an i18n resource KEY naming the effect ("N Twitch channel-point
+/// rewards stop working"), never a table name and never a sentence.
+/// </summary>
+/// <param name="ConsequenceKey">i18n resource key naming what stops working outside our database.</param>
+/// <param name="Count">
+/// How many external things are affected, counted from the real rows that back them (a reward that never
+/// synced to Twitch has no id and is not counted). Zero categories are dropped, so a listed consequence
+/// always affects at least one real thing.
+/// </param>
+/// <param name="Sample">Up to a handful of the affected things' names, so the user recognises WHICH break.</param>
+public sealed record ExternalConsequenceDto(
+    string ConsequenceKey,
+    int Count,
+    IReadOnlyList<string> Sample
+);
+
+/// <summary>The i18n resource keys the external-consequence previews emit.</summary>
+public static class ExternalConsequenceKeys
+{
+    public const string TwitchRewards = "channel_external_twitch_rewards";
+    public const string OverlaySources = "channel_external_overlay_sources";
+    public const string EventSubSubscriptions = "channel_external_eventsub_subscriptions";
+    public const string DiscordNotifications = "channel_external_discord_notifications";
+    public const string OutboundWebhooks = "channel_external_outbound_webhooks";
+    public const string OAuthConnections = "channel_external_oauth_connections";
 }

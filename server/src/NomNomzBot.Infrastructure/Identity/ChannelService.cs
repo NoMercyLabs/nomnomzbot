@@ -13,6 +13,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Identity.Events;
@@ -548,7 +549,49 @@ public class ChannelService : IChannelService
         if (channel is null)
             return Errors.ChannelNotFound(broadcasterId);
 
-        _db.Channels.Remove(channel);
+        // A SOFT delete. Stamping DeletedAt hides the tenant behind the global query filter — the channel and
+        // everything under it disappear from every read — while the rows survive for the restore window. The
+        // bot must also stop serving the channel immediately, which is what Enabled=false does; a restore
+        // turns it back on. Setting DeletedAt is what makes DeletedBy get stamped by SoftDeleteInterceptor.
+        channel.Enabled = false;
+        channel.DeletedAt = _timeProvider.GetUtcNow().UtcDateTime;
+
+        await _db.SaveChangesAsync(cancellationToken);
+        await _registry.RemoveAsync(channel.Id, cancellationToken);
+
+        return Result.Success();
+    }
+
+    public async Task<Result> RestoreAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcasterGuid))
+            return Errors.ChannelNotFound(broadcasterId);
+
+        // A deleted channel is invisible to every filtered read by design, so the restore path is the one
+        // place that must look past the filter to find it.
+        Channel? channel = await _db
+            .Channels.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(c => c.Id == broadcasterGuid, cancellationToken);
+
+        if (channel is null)
+            return Errors.ChannelNotFound(broadcasterId);
+
+        if (channel.DeletedAt is null)
+            return Result.Success();
+
+        // Past the window the promise the delete dialog made has expired; the data is being purged and a
+        // half-restore would resurrect a tenant whose rows are already going away.
+        DateTime permanentAfter = ChannelDeletionPolicy.PermanentAfter(channel.DeletedAt.Value);
+        if (_timeProvider.GetUtcNow().UtcDateTime >= permanentAfter)
+            return Errors.ChannelRestoreWindowExpired(broadcasterId, permanentAfter);
+
+        channel.DeletedAt = null;
+        channel.DeletedBy = null;
+        channel.Enabled = true;
+
         await _db.SaveChangesAsync(cancellationToken);
 
         return Result.Success();

@@ -51,15 +51,14 @@ public class DestructiveActionScannerTests
 
     /// <summary>
     /// The dated baseline of destructive actions that NEED a counted blast radius and do not have one yet
-    /// (established 2026-08-26, S-CONSEQ-c1; four covered by S-CONSEQ-c2, eleven more by S-CONSEQ-c3). This
-    /// list may only SHRINK: the test asserts set EQUALITY, so a newly added destructive action cannot slip
-    /// in, and a fixed one must be removed from here in the same commit that covers it. The one entry left is
-    /// a real referencing-schema fact, not a shrug:
-    /// <list type="bullet">
-    /// <item>ChannelsController.DeleteChannel — nearly every tenant-scoped table carries BroadcasterId.</item>
-    /// </list>
+    /// The dated baseline of destructive actions that NEED a counted blast radius and do not have one yet
+    /// (established 2026-08-26, S-CONSEQ-c1; four covered by S-CONSEQ-c2, eleven by S-CONSEQ-c3, and channel
+    /// delete by S-CONSEQ-DELETE-CHANNEL). It is now EMPTY: every destructive action on the surface counts
+    /// what it destroys. The list may only SHRINK, and the test asserts set EQUALITY, so a newly added
+    /// destructive action cannot slip in here -- it fails until it either counts its blast radius or is
+    /// classified with a real schema fact.
     /// </summary>
-    private static readonly HashSet<string> PendingBaseline = ["ChannelsController.DeleteChannel"];
+    private static readonly HashSet<string> PendingBaseline = [];
 
     private static bool IsDestructive(MethodInfo method)
     {

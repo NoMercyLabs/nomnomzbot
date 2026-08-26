@@ -58,11 +58,10 @@ public static class ModelBuilderExtensions
             // differently-named public key (e.g. ChannelModerator → `ChannelId`). Bind the filter to the
             // real public property; if none is mappable, skip the tenant predicate (soft-delete still applies).
             System.Reflection.PropertyInfo? tenantProperty = isTenantScoped
-                ? clrType.GetProperty(nameof(ITenantScoped.BroadcasterId))
-                    ?? clrType.GetProperty("ChannelId")
+                ? TenantKey.ResolveProperty(clrType)
                 : null;
 
-            if (isTenantScoped && tenantProperty?.PropertyType == typeof(Guid))
+            if (tenantProperty is not null)
             {
                 // e.<tenant> == currentBroadcasterId() || currentBroadcasterId() == null
                 MemberExpression broadcasterId = Expression.Property(parameter, tenantProperty);
