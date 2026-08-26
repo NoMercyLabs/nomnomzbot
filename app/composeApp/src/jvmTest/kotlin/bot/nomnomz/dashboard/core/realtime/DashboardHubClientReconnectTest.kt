@@ -19,8 +19,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
 // ASP.NET Core SignalR JSON Hub Protocol record separator — mirrors the private constant in
 // DashboardHubClient.kt (0x1E), needed here only to strip it off frames the client sent us.
@@ -266,17 +264,18 @@ class DashboardHubClientReconnectTest {
         const val LIVENESS_TIMEOUT_MS = 30_000L
     }
 
+    // The withTimeout loop IS the assertion — it can only exit by observing the state, and a state that never
+    // arrives fails as a timeout. Re-reading the flag after the loop was a race: these waits are followed by
+    // the server side of the socket closing, so the client can legitimately have flipped again by then.
     private suspend fun awaitDisconnected(client: DashboardHubClient) {
         withContext(Dispatchers.Default) {
             withTimeout(LIVENESS_TIMEOUT_MS) { while (client.isConnected) delay(20) }
         }
-        assertFalse(client.isConnected)
     }
 
     private suspend fun awaitConnected(client: DashboardHubClient) {
         withContext(Dispatchers.Default) {
             withTimeout(LIVENESS_TIMEOUT_MS) { while (!client.isConnected) delay(20) }
         }
-        assertTrue(client.isConnected)
     }
 }
