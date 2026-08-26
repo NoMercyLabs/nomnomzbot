@@ -46,10 +46,9 @@ namespace NomNomzBot.Infrastructure.Tests.Platform.Templating;
 /// names come from the compiled assemblies, never hand-typed), not an AST/data-flow analysis (the project
 /// bans Roslyn) — it can theoretically miss a validator call routed through an unrelated file. It cannot
 /// under-report a genuinely new violation the way a hand list can, because the entity/property universe
-/// itself is discovered by reflection, not maintained by a person. Six source areas are excluded by an
-/// explicit, named list (owned by other in-flight agents at the time this guard was written; the pipeline
-/// path already has its own dedicated guard, <c>PipelineTemplatedFieldValidationGuardTests</c>) — an
-/// exclusion is a decision recorded in code, never a silent gap.
+/// itself is discovered by reflection, not maintained by a person. One source area is excluded, and only
+/// because it has a MORE precise guard of its own (<c>PipelineTemplatedFieldValidationGuardTests</c>,
+/// per-action-field) — an exclusion is a decision recorded in code, never a silent gap.
 /// </para>
 /// </summary>
 public sealed class TemplatedUserContentSavePathGuardTests
@@ -62,13 +61,16 @@ public sealed class TemplatedUserContentSavePathGuardTests
     /// </summary>
     private static readonly string[] ExcludedPathSegments =
     [
-        Path.Combine("Platform", "Pipeline"), // has its own guard: PipelineTemplatedFieldValidationGuardTests
-        "Webhooks",
-        Path.Combine("Content", "Widgets"),
-        Path.Combine("Chat", "Kick"),
-        "Import",
-        "Music",
-        "Analytics",
+        // The ONLY exclusion, and it is justified by coverage rather than convenience: the pipeline
+        // write path has its own dedicated guard (PipelineTemplatedFieldValidationGuardTests) which
+        // checks it per-action-field, more precisely than this file-level scan could.
+        //
+        // The six other areas originally excluded here (Webhooks, Content/Widgets, Chat/Kick, Import,
+        // Music, Analytics) were agent-isolation artifacts from the slice that wrote this guard, not
+        // decisions about correctness. Removing them was verified to leave the guard GREEN, so they hid
+        // no violation - and leaving them in would have made this guard blind to six modules forever,
+        // which is the "guard that checks a hand-written list" defect this project keeps paying for.
+        Path.Combine("Platform", "Pipeline"),
     ];
 
     [Fact]
