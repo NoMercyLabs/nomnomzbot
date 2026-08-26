@@ -892,6 +892,39 @@ public sealed class PipelineEngine : IPipelineEngine
                     }
                     break;
                 }
+                case JsonValueKind.Object:
+                {
+                    // KeyValueMap fields (e.g. run_pipeline's named_args) — resolve every string-valued
+                    // property, name unchanged; a non-string property value is left as-is.
+                    Dictionary<string, JsonElement> objectItems = [];
+                    bool objectChanged = false;
+                    foreach (JsonProperty property in raw.EnumerateObject())
+                    {
+                        if (property.Value.ValueKind != JsonValueKind.String)
+                        {
+                            objectItems[property.Name] = property.Value;
+                            continue;
+                        }
+
+                        string propertyTemplate = property.Value.GetString() ?? string.Empty;
+                        string propertyResolved = await _templateResolver.ResolveAsync(
+                            propertyTemplate,
+                            ctx.Variables,
+                            ctx.BroadcasterId,
+                            ctx.CancellationToken
+                        );
+                        objectItems[property.Name] = JsonSerializer.SerializeToElement(
+                            propertyResolved
+                        );
+                        objectChanged = true;
+                    }
+                    if (objectChanged)
+                    {
+                        resolvedParams ??= new Dictionary<string, JsonElement>(action.Parameters);
+                        resolvedParams[field.Name] = JsonSerializer.SerializeToElement(objectItems);
+                    }
+                    break;
+                }
             }
         }
 
@@ -916,6 +949,24 @@ public sealed class PipelineEngine : IPipelineEngine
             .Where(s => s.PipelineId == pipelineId && s.IsEnabled)
             .OrderBy(s => s.Order)
             .ToListAsync(ct);
+
+    /// <summary>Parses <see cref="Pipeline.ParameterNamesJson"/> (S-PIPE-TREE-d2b(a)) into its
+    /// declared name list. Malformed/absent JSON is treated the same as "no declared parameters" —
+    /// this is a labelling aid for the editor and a named-binding allow-list, never a hard schema a
+    /// bad row should be able to break a caller over.</summary>
+    private static List<string> ParseParameterNames(string? parameterNamesJson)
+    {
+        if (string.IsNullOrWhiteSpace(parameterNamesJson))
+            return [];
+        try
+        {
+            return JsonSerializer.Deserialize<List<string>>(parameterNamesJson) ?? [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
 
     /// <summary>
     /// Translates a genuinely flat set of DB rows (no <see cref="PipelineStep.BlockKind"/>, no
@@ -1034,6 +1085,7 @@ public sealed class PipelineEngine : IPipelineEngine
         PipelineExecutionContext callerCtx,
         Guid targetPipelineId,
         IReadOnlyList<string>? args,
+        IReadOnlyDictionary<string, string>? namedArgs = null,
         CancellationToken ct = default
     )
     {
@@ -1046,17 +1098,36 @@ public sealed class PipelineEngine : IPipelineEngine
         // Tenant scoping: the callee must belong to the SAME channel as the caller — never rely
         // solely on a possibly-absent ambient tenant filter for a background/EventSub-driven run
         // (platform-conventions.md). A cross-tenant id fails closed before a single callee row loads.
-        bool owned = await _db
+        NomNomzBot.Domain.Commands.Entities.Pipeline? calleePipeline = await _db
             .Pipelines.AsNoTracking()
-            .AnyAsync(
+            .FirstOrDefaultAsync(
                 p => p.Id == targetPipelineId && p.BroadcasterId == callerCtx.BroadcasterId,
                 ct
             );
-        if (!owned)
+        if (calleePipeline is null)
             return Result.Failure<string?>(
                 "pipeline not found in this channel",
                 "run_pipeline_cross_tenant"
             );
+
+        // S-PIPE-TREE-d2b(a): named binding is only checked against declared names when the callee
+        // HAS declared at least one — a callee with no declared parameters keeps accepting any
+        // named/positional binding, unchanged from before this slice.
+        if (namedArgs is { Count: > 0 })
+        {
+            List<string> declaredNames = ParseParameterNames(calleePipeline.ParameterNamesJson);
+            if (declaredNames.Count > 0)
+            {
+                string? unknownName = namedArgs.Keys.FirstOrDefault(name =>
+                    !declaredNames.Contains(name)
+                );
+                if (unknownName is not null)
+                    return Result.Failure<string?>(
+                        $"run_pipeline: '{unknownName}' is not a declared parameter of the target pipeline",
+                        "run_pipeline_unknown_named_arg"
+                    );
+            }
+        }
 
         List<PipelineStep> rows = await LoadStepRowsAsync(targetPipelineId, ct);
         if (rows.Count == 0)
@@ -1065,6 +1136,12 @@ public sealed class PipelineEngine : IPipelineEngine
         if (args is not null)
             for (int i = 0; i < args.Count; i++)
                 callerCtx.Variables[$"args.{i + 1}"] = args[i];
+
+        // Named binding is independent of argument order in the caller's config — each entry is
+        // bound straight to its own name, never derived from dictionary enumeration order.
+        if (namedArgs is not null)
+            foreach ((string name, string value) in namedArgs)
+                callerCtx.Variables[name] = value;
 
         callerCtx.CallDepth++;
         string? previousReturnValue = callerCtx.ReturnValue;

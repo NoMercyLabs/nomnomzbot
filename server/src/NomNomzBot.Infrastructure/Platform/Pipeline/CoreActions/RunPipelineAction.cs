@@ -82,6 +82,13 @@ public sealed class RunPipelineAction : ICommandAction
                 Description: new("pipeline.run_pipeline.args.help")
             ),
             new(
+                "named_args",
+                PipelineActionFieldKind.KeyValueMap,
+                Required: false,
+                Templated: true,
+                Description: new("pipeline.run_pipeline.named_args.help")
+            ),
+            new(
                 "wait",
                 PipelineActionFieldKind.Boolean,
                 Required: false,
@@ -100,15 +107,24 @@ public sealed class RunPipelineAction : ICommandAction
 
         string mode = action.GetString("mode") ?? "inline";
         List<string>? args = GetArgsList(action);
+        Dictionary<string, string>? namedArgs = GetNamedArgsMap(action);
         IPipelineEngine engine = _serviceProvider.GetRequiredService<IPipelineEngine>();
 
         if (string.Equals(mode, "detached", StringComparison.OrdinalIgnoreCase))
-            return await ExecuteDetachedAsync(engine, ctx, targetPipelineId, args, action);
+            return await ExecuteDetachedAsync(
+                engine,
+                ctx,
+                targetPipelineId,
+                args,
+                namedArgs,
+                action
+            );
 
         Result<string?> inlineResult = await engine.RunInlineSubPipelineAsync(
             ctx,
             targetPipelineId,
             args,
+            namedArgs,
             ctx.CancellationToken
         );
 
@@ -126,6 +142,7 @@ public sealed class RunPipelineAction : ICommandAction
         PipelineExecutionContext ctx,
         Guid targetPipelineId,
         List<string>? args,
+        Dictionary<string, string>? namedArgs,
         ActionDefinition action
     )
     {
@@ -144,6 +161,12 @@ public sealed class RunPipelineAction : ICommandAction
         if (args is not null)
             for (int i = 0; i < args.Count; i++)
                 initialVariables[$"args.{i + 1}"] = args[i];
+        // Detached mode has no shared PipelineExecutionContext to bind into (fresh context — the
+        // whole point of "detached"), so a named arg is seeded straight into the new run's
+        // InitialVariables, same mechanism a webhook/timer trigger already uses to seed its own.
+        if (namedArgs is not null)
+            foreach ((string name, string value) in namedArgs)
+                initialVariables[name] = value;
 
         PipelineRequest request = new()
         {
@@ -174,10 +197,9 @@ public sealed class RunPipelineAction : ICommandAction
             : ActionResult.Failure($"detached run {detachedResult.Outcome}");
     }
 
-    /// <summary>Positional args only (pipeline-tree-and-editor.md §2.5's named-parameter binding needs
-    /// a new <c>Pipeline.ParameterNamesJson</c> column — out of this slice's no-migration scope; a
-    /// callee always reads its args as <c>{{args.1}}</c>..<c>{{args.N}}</c>, same as a chat-command
-    /// invocation today).</summary>
+    /// <summary>Legacy positional args — a callee reads these as <c>{{args.1}}</c>..<c>{{args.N}}</c>,
+    /// same as a chat-command invocation today. Coexists with <see cref="GetNamedArgsMap"/>'s
+    /// named binding (S-PIPE-TREE-d2b(a)); a caller may use either or both.</summary>
     private static List<string>? GetArgsList(ActionDefinition action)
     {
         if (
@@ -194,6 +216,29 @@ public sealed class RunPipelineAction : ICommandAction
             result.Add(
                 item.ValueKind == JsonValueKind.String ? item.GetString() ?? "" : item.ToString()
             );
+        return result;
+    }
+
+    /// <summary>Named argument bindings (S-PIPE-TREE-d2b(a)) — an object map of parameter name →
+    /// (already template-resolved, by the engine's central pass) value. Binds by NAME at the callee,
+    /// independent of the order the caller declared them in this map.</summary>
+    private static Dictionary<string, string>? GetNamedArgsMap(ActionDefinition action)
+    {
+        if (
+            action.Parameters is null
+            || !action.Parameters.TryGetValue("named_args", out JsonElement elem)
+        )
+            return null;
+
+        if (elem.ValueKind != JsonValueKind.Object)
+            return null;
+
+        Dictionary<string, string> result = [];
+        foreach (JsonProperty property in elem.EnumerateObject())
+            result[property.Name] =
+                property.Value.ValueKind == JsonValueKind.String
+                    ? property.Value.GetString() ?? ""
+                    : property.Value.ToString();
         return result;
     }
 }

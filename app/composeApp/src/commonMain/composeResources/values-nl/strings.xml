@@ -3892,6 +3892,7 @@
     <string name="pipeline_run_code_code_script_id_help">Het opgeslagen codescript dat wordt uitgevoerd.</string>
     <string name="pipeline_run_pipeline_args_help">Positionele argumenten die aan de aangeroepen pipeline worden doorgegeven, daar leesbaar als {{args.1}}, {{args.2}}, enz.</string>
     <string name="pipeline_run_pipeline_mode_help">Inline voert de pipeline uit als onderdeel van deze pipeline en kan een waarde teruggeven; los start hem als een volledig aparte uitvoering.</string>
+    <string name="pipeline_run_pipeline_named_args_help">Benoemde argumenten die aan de aangeroepen pipeline worden doorgegeven, gekoppeld aan de daar gedeclareerde parameternamen ongeacht de volgorde waarin je ze hier opgeeft — de aangeroepen pipeline kan ze ook positioneel lezen als {{args.1}}, {{args.2}}, enz. wanneer er geen namen zijn gedeclareerd.</string>
     <string name="pipeline_run_pipeline_pipeline_help">De pipeline die wordt aangeroepen.</string>
     <string name="pipeline_run_pipeline_wait_help">Voor een losse uitvoering wordt gewacht tot deze is voltooid voordat deze pipeline doorgaat, in plaats van hem te starten en verder te gaan.</string>
     <string name="pipeline_schedule_pipeline_dedupe_key_help">Slaat het plannen van een nieuwe uitvoering over als er al een met dezelfde sleutel is gepland — voorkomt dubbele geplande uitvoeringen.</string>

@@ -178,6 +178,7 @@
     "pipeline.run_pipeline.args.help",
     "pipeline.run_pipeline.description",
     "pipeline.run_pipeline.mode.help",
+    "pipeline.run_pipeline.named_args.help",
     "pipeline.run_pipeline.pipeline.help",
     "pipeline.run_pipeline.wait.help",
     "pipeline.schedule_pipeline.dedupe_key.help",

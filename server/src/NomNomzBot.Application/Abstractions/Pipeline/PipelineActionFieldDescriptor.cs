@@ -33,6 +33,14 @@ public enum PipelineActionFieldKind
     SoundClip,
     Asset,
     ResourceId,
+
+    /// <summary>
+    /// A labelled name→value map (S-PIPE-TREE-d2b(a)) — the builder renders one labelled field per
+    /// declared name instead of an unlabelled positional list. Used by <c>run_pipeline</c>'s
+    /// <c>named_args</c> field to bind a sub-pipeline call's arguments BY NAME rather than by
+    /// position.
+    /// </summary>
+    KeyValueMap,
 }
 
 /// <summary>
@@ -96,6 +104,7 @@ public static class PipelineActionFieldKindExtensions
             PipelineActionFieldKind.SoundClip => "sound_clip",
             PipelineActionFieldKind.Asset => "asset",
             PipelineActionFieldKind.ResourceId => "resource_id",
+            PipelineActionFieldKind.KeyValueMap => "key_value_map",
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, message: null),
         };
 }

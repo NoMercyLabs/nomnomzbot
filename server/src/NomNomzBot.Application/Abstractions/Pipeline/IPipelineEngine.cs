@@ -27,14 +27,18 @@ public interface IPipelineEngine
     /// scope (<see cref="PipelineExecutionContext.Variables"/>), same <see cref="PipelineExecutionContext.CallDepth"/>
     /// counter, so a chain of inline calls across any number of pipelines is bounded by one shared cap.
     /// Fails closed (never runs a single step of the callee) when: the caller is already at the
-    /// recursion cap, or the target pipeline does not belong to the caller's own channel (tenant
-    /// scoping — <c>platform-conventions.md</c>). On success, returns the callee's <c>return_value</c>
-    /// (or <c>null</c> if it never returned one).
+    /// recursion cap, the target pipeline does not belong to the caller's own channel (tenant
+    /// scoping — <c>platform-conventions.md</c>), or <paramref name="namedArgs"/> names a parameter
+    /// the callee never declared in <c>Pipeline.ParameterNamesJson</c> (S-PIPE-TREE-d2b(a)) — only
+    /// enforced when the callee HAS declared at least one name; a callee with no declared parameters
+    /// accepts any named binding, same as it always accepted any positional one. On success, returns
+    /// the callee's <c>return_value</c> (or <c>null</c> if it never returned one).
     /// </summary>
     Task<Result<string?>> RunInlineSubPipelineAsync(
         PipelineExecutionContext callerCtx,
         Guid targetPipelineId,
         IReadOnlyList<string>? args,
+        IReadOnlyDictionary<string, string>? namedArgs = null,
         CancellationToken ct = default
     );
 
