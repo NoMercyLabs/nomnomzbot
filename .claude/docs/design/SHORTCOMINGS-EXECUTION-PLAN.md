@@ -132,15 +132,19 @@ only Stoney can make. Do not burn agent time trying to work around them.
 Owner: move the **stream-facing** work forward — commands and overlays, easier to use and more
 stable — without dropping the planned requirements behind them.
 
-- **S-CONSEQ** (cross-cutting law, applies to every slice from here on, not a one-off) Every control
-  must explain what it does and what changes when it changes; the user must never need to know the
-  bot from the inside out to predict an effect. Per control: plain-language purpose (en + nl), the
-  downstream effect and when it takes effect, **blast radius counted from real data** before any
-  destructive or wide-reaching save ("disables 4 commands and 2 timers"), the dependents that will
-  break named BEFORE the save, a reason on every disabled control, and a preview/dry-run wherever one
-  is possible. Never state an effect that is not actually enforced. Done-when: a control cannot pass
-  review without its purpose text, its effect text and — where it destroys or disables — its counted
-  blast radius; a guard test fails on a control that ships without them.
+- **S-CONSEQ-b** (the law's first mechanism shipped in 7f17a3f2 but is INVISIBLE TO USERS — the backend
+  counts a pipeline delete's real dependents (2 commands + 1 chat trigger + 1 timer + 1 event response
+  from actual FK rows, with rows on other pipelines correctly excluded) and reports an explicit ZERO when
+  nothing references it; a structural `DestructiveActionScannerTests` forces every delete endpoint to be
+  classified `[DestructiveAction]` or `[NotDestructive]` and was seen RED before the attributes existed.
+  Nothing calls it: no dashboard confirm dialog fetches or renders the count.)
+  Done-when: the delete confirm dialog fetches the blast radius and shows it BEFORE the save, in en + nl;
+  "nothing else references this" is shown explicitly rather than as an empty dialog (silence reads as
+  "unknown", not "safe"); proven by a jvmTest asserting the RENDERED counts.
+  THEN the coverage gaps, each honest today: command delete has no entity holding a real FK to
+  `Command.Id`; sound-clip and widget references live only inside `PipelineStep.ConfigJson` blobs, so
+  counting them needs a JSON scan rather than a query; and the scanner covers 4 controllers, leaving ~60
+  other `HttpDelete` endpoints (auth revokes, GDPR, moderation, webhooks) unclassified.
 
 - **S-PIPE-TREE-d2b** (scope narrowings the sub-pipeline slice reported honestly; 5d82f69c shipped the
   core: args in, `return_value` out, `CallDepth` spanning pipeline boundaries, tenant-scoped, try-catchable,
