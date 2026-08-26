@@ -201,6 +201,13 @@ internal sealed class BlastRadiusTestDbContext : DbContext, IApplicationDbContex
             b.Ignore(x => x.Channel);
         });
 
+        modelBuilder.Entity<EventSubSubscription>(b =>
+        {
+            b.HasKey(s => s.Id);
+            b.Ignore(s => s.Condition);
+        });
+        modelBuilder.Entity<OutboundWebhookEndpoint>(b => b.HasKey(e => e.Id));
+
         modelBuilder.Entity<Giveaway>(b => b.HasKey(g => g.Id));
         modelBuilder.Entity<GiveawayCodePool>(b => b.HasKey(p => p.Id));
         modelBuilder.Entity<GiveawayCode>(b => b.HasKey(c => c.Id));
@@ -235,6 +242,8 @@ internal sealed class BlastRadiusTestDbContext : DbContext, IApplicationDbContex
     private static readonly HashSet<Type> MappedEntities =
     [
         typeof(Channel),
+        typeof(EventSubSubscription),
+        typeof(OutboundWebhookEndpoint),
         typeof(Widget),
         typeof(WidgetVersion),
         typeof(Pipeline),
@@ -341,7 +350,7 @@ internal sealed class BlastRadiusTestDbContext : DbContext, IApplicationDbContex
     public DbSet<ChannelModerator> ChannelModerators => throw new NotSupportedException();
     public DbSet<Service> Services => Set<Service>();
     public DbSet<Command> Commands => Set<Command>();
-    public DbSet<EventSubSubscription> EventSubSubscriptions => throw new NotSupportedException();
+    public DbSet<EventSubSubscription> EventSubSubscriptions => Set<EventSubSubscription>();
     public DbSet<EventSubConduit> EventSubConduits => throw new NotSupportedException();
     public DbSet<EventSubConduitShard> EventSubConduitShards => throw new NotSupportedException();
     public DbSet<IdempotencyKey> IdempotencyKeys => throw new NotSupportedException();
@@ -481,7 +490,7 @@ internal sealed class BlastRadiusTestDbContext : DbContext, IApplicationDbContex
     public DbSet<NomNomzBot.Domain.Federation.Entities.ChannelFederationOptIn> ChannelFederationOptIns =>
         throw new NotSupportedException();
     public DbSet<OutboundWebhookEndpoint> OutboundWebhookEndpoints =>
-        throw new NotSupportedException();
+        Set<OutboundWebhookEndpoint>();
     public DbSet<OutboundWebhookDelivery> OutboundWebhookDeliveries =>
         throw new NotSupportedException();
     public DbSet<InboundWebhookEndpoint> InboundWebhookEndpoints => Set<InboundWebhookEndpoint>();

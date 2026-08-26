@@ -11,9 +11,11 @@
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.PickLists.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.PickLists;
 using NomNomzBot.Infrastructure.Platform.Templating;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -75,6 +77,7 @@ public sealed class PickListTemplateResolverTests : IDisposable
         ServiceCollection services = new();
         services.AddSingleton<IApplicationDbContext>(_db);
         services.AddSingleton<IEventBus, RecordingEventBus>();
+        services.AddScoped<IPipelineStepReferenceScanner, PipelineStepReferenceScanner>();
         services.AddScoped<IPickListService, PickListService>();
         ServiceProvider provider = services.BuildServiceProvider();
 
