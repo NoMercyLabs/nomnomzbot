@@ -229,7 +229,7 @@ public sealed class TierQuotaEnforcementTests
         );
         db.TierLimits.Remove(sandbox);
         Domain.Billing.Entities.TierLimit tuned = await db.TierLimits.SingleAsync(l =>
-            l.TierId == baseTier.Id && l.LimitKey == "custom_commands"
+            l.TierId == baseTier.Id && l.LimitKey == "tts_max_characters"
         );
         tuned.LimitValue = 12345; // operator-tuned — the seeder must never overwrite it
         await db.SaveChangesAsync();
@@ -247,7 +247,7 @@ public sealed class TierQuotaEnforcementTests
             .Be(300_000);
         (
             await db.TierLimits.SingleAsync(l =>
-                l.TierId == baseTier.Id && l.LimitKey == "custom_commands"
+                l.TierId == baseTier.Id && l.LimitKey == "tts_max_characters"
             )
         )
             .LimitValue.Should()
