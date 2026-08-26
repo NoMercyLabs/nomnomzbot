@@ -21,20 +21,32 @@ namespace NomNomzBot.Application.Abstractions.Templating;
 /// </summary>
 public static class TemplateHelperRegistry
 {
+    // Pipeline belongs in EVERY set below: a pipeline can be bound to a chat-command trigger, an
+    // EventSub trigger or a timer, so it gets the union of what those surfaces can use (see
+    // TemplateHelperContext.Pipeline). Omitting it here does not merely narrow the palette — it makes
+    // save-time validation REJECT a valid `{user.name}` in a pipeline, which is worse than no
+    // validation at all, because it blocks correct work rather than allowing incorrect work.
     private static readonly TemplateHelperContext[] AllContexts =
     [
         TemplateHelperContext.Command,
         TemplateHelperContext.EventResponse,
         TemplateHelperContext.Timer,
+        TemplateHelperContext.Pipeline,
     ];
 
     private static readonly TemplateHelperContext[] TriggerContexts =
     [
         TemplateHelperContext.Command,
         TemplateHelperContext.EventResponse,
+        TemplateHelperContext.Pipeline,
     ];
 
-    private static readonly TemplateHelperContext[] CommandOnly = [TemplateHelperContext.Command];
+    /// <summary>Helpers that need command arguments — a command trigger, or a pipeline bound to one.</summary>
+    private static readonly TemplateHelperContext[] CommandArgContexts =
+    [
+        TemplateHelperContext.Command,
+        TemplateHelperContext.Pipeline,
+    ];
 
     public static IReadOnlyList<TemplateHelperEntry> All { get; } = BuildEntries();
 
@@ -108,7 +120,7 @@ public static class TemplateHelperRegistry
                 "template.helper.transform"
             ),
             // ── Command arguments (command only) ────────────────────────────
-            Prefixed("args.<n>", "args.", CommandOnly, "template.helper.args"),
+            Prefixed("args.<n>", "args.", CommandArgContexts, "template.helper.args"),
             // ── Triggering user (command + event response — no bare trigger user on a timer) ──
             Literal("user", TriggerContexts, "template.helper.user"),
             Literal("user.name", TriggerContexts, "template.helper.user_name"),
