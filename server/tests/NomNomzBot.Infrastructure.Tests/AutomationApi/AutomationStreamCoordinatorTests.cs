@@ -41,11 +41,21 @@ public sealed class AutomationStreamCoordinatorTests
     {
         private readonly Channel<string?> _incoming =
             System.Threading.Channels.Channel.CreateUnbounded<string?>();
+
+        // Fires once per SendAsync so waiters can react to the exact frame that unblocks them instead
+        // of polling on a wall-clock interval — the arrival is observed by signal, not by elapsed time.
+        private readonly Channel<string> _sentNotify =
+            System.Threading.Channels.Channel.CreateUnbounded<string>();
         private readonly Lock _gate = new();
         private readonly List<string> _sent = [];
 
         public bool Closed { get; private set; }
         public string? CloseReason { get; private set; }
+
+        // Fires once, the moment CloseAsync runs — lets a waiter await the close deterministically
+        // instead of racing a fixed wall-clock deadline against the coordinator's own task completion.
+        public TaskCompletionSource ClosedSignal { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public IReadOnlyList<string> Sent
         {
@@ -64,6 +74,7 @@ public sealed class AutomationStreamCoordinatorTests
         {
             lock (_gate)
                 _sent.Add(frameJson);
+            _sentNotify.Writer.TryWrite(frameJson);
             return Task.CompletedTask;
         }
 
@@ -75,7 +86,35 @@ public sealed class AutomationStreamCoordinatorTests
             Closed = true;
             CloseReason = reason;
             _incoming.Writer.TryComplete();
+            ClosedSignal.TrySetResult();
             return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Waits for <paramref name="probe"/> to become non-null, woken by every <see cref="SendAsync"/>
+        /// rather than by sleeping and re-checking on a timer — deterministic under CPU contention because
+        /// the wait ends the instant the awaited frame lands, not after some fixed poll interval elapses.
+        /// The bound is a deadlock guard only: it exists to fail a genuinely-hung test, not to measure the
+        /// property under test, so it is generous on purpose.
+        /// </summary>
+        public async Task<T> WaitForSentAsync<T>(Func<T?> probe, string what)
+            where T : class
+        {
+            if (probe() is { } already)
+                return already;
+
+            using CancellationTokenSource deadlockGuard = new(TimeSpan.FromSeconds(30));
+            try
+            {
+                await foreach (string _ in _sentNotify.Reader.ReadAllAsync(deadlockGuard.Token))
+                {
+                    if (probe() is { } hit)
+                        return hit;
+                }
+            }
+            catch (OperationCanceledException) when (deadlockGuard.IsCancellationRequested) { }
+
+            throw new Xunit.Sdk.XunitException($"Timed out waiting for {what}.");
         }
     }
 
@@ -165,17 +204,9 @@ public sealed class AutomationStreamCoordinatorTests
 
     private static JsonElement Frame(string json) => JsonDocument.Parse(json).RootElement;
 
-    private static async Task<T> WaitFor<T>(Func<T?> probe, string what)
-        where T : class
-    {
-        for (int i = 0; i < 100; i++)
-        {
-            if (probe() is { } hit)
-                return hit;
-            await Task.Delay(20);
-        }
-        throw new Xunit.Sdk.XunitException($"Timed out waiting for {what}.");
-    }
+    /// <summary>Delegates to the connection's own signal-driven wait — see <see cref="FakeConnection.WaitForSentAsync{T}"/>.</summary>
+    private static Task<T> WaitFor<T>(Harness h, Func<T?> probe, string what)
+        where T : class => h.Connection.WaitForSentAsync(probe, what);
 
     [Fact]
     public async Task Hello_then_in_band_authenticate_registers_a_session_and_subscribe_stores_patterns()
@@ -188,19 +219,19 @@ public sealed class AutomationStreamCoordinatorTests
         );
 
         // hello announces the auth requirement immediately.
-        string hello = await WaitFor(() => h.Connection.Sent.FirstOrDefault(), "hello frame");
+        string hello = await WaitFor(h, () => h.Connection.Sent.FirstOrDefault(), "hello frame");
         JsonElement helloFrame = Frame(hello);
         helloFrame.GetProperty("op").GetString().Should().Be("hello");
         helloFrame.GetProperty("data").GetProperty("authRequired").GetBoolean().Should().BeTrue();
 
         h.Connection.Queue($$"""{ "op": "authenticate", "id": "1", "token": "{{Secret}}" }""");
-        await WaitFor(() => h.Connection.Sent.Skip(1).FirstOrDefault(), "authenticate response");
+        await WaitFor(h, () => h.Connection.Sent.Skip(1).FirstOrDefault(), "authenticate response");
         Frame(h.Connection.Sent[1]).GetProperty("status").GetString().Should().Be("ok");
 
         h.Connection.Queue(
             """{ "op": "subscribe", "id": "2", "events": ["Supporter.Received", "Custom.*"] }"""
         );
-        await WaitFor(() => h.Connection.Sent.Skip(2).FirstOrDefault(), "subscribe response");
+        await WaitFor(h, () => h.Connection.Sent.Skip(2).FirstOrDefault(), "subscribe response");
         Frame(h.Connection.Sent[2]).GetProperty("status").GetString().Should().Be("ok");
 
         // The registered session matches exact names and wildcards, and never what it didn't ask for.
@@ -222,11 +253,12 @@ public sealed class AutomationStreamCoordinatorTests
             headerPrincipal: null,
             CancellationToken.None
         );
-        await WaitFor(() => h.Connection.Sent.FirstOrDefault(), "hello frame");
+        await WaitFor(h, () => h.Connection.Sent.FirstOrDefault(), "hello frame");
 
         // Any other op pre-auth: rejected, and NO session ever appears.
         h.Connection.Queue("""{ "op": "subscribe", "id": "1", "events": ["*"] }""");
         string rejected = await WaitFor(
+            h,
             () => h.Connection.Sent.Skip(1).FirstOrDefault(),
             "pre-auth rejection"
         );
@@ -238,9 +270,13 @@ public sealed class AutomationStreamCoordinatorTests
             .Be("unauthenticated");
         h.Sessions.SubscribersOf("Supporter.Received").Should().BeEmpty();
 
-        // The advertised window lapses → the server closes the socket.
+        // The advertised window lapses → the server closes the socket. Advancing the fake clock fires
+        // the coordinator's timeout synchronously; wait on the connection's own close signal (set inside
+        // CloseAsync) rather than racing a fixed wall-clock deadline against real thread-pool scheduling —
+        // the 30s bound below is a deadlock guard only, never something a healthy run should approach.
         h.Clock.Advance(TimeSpan.FromSeconds(11));
-        await run.WaitAsync(TimeSpan.FromSeconds(5));
+        await h.Connection.ClosedSignal.Task.WaitAsync(TimeSpan.FromSeconds(30));
+        await run;
         h.Connection.Closed.Should().BeTrue();
         h.Connection.CloseReason.Should().Be("authentication timeout");
     }
@@ -258,7 +294,7 @@ public sealed class AutomationStreamCoordinatorTests
         );
         Task run = h.Coordinator.RunAsync(h.Connection, headerPrincipal, CancellationToken.None);
 
-        string hello = await WaitFor(() => h.Connection.Sent.FirstOrDefault(), "hello frame");
+        string hello = await WaitFor(h, () => h.Connection.Sent.FirstOrDefault(), "hello frame");
         Frame(hello)
             .GetProperty("data")
             .GetProperty("authRequired")
@@ -270,6 +306,7 @@ public sealed class AutomationStreamCoordinatorTests
             """{ "op": "invoke", "id": "7", "pipelineName": "shoutout", "args": ["@someone"] }"""
         );
         string response = await WaitFor(
+            h,
             () => h.Connection.Sent.Skip(1).FirstOrDefault(),
             "invoke response"
         );
@@ -298,10 +335,11 @@ public sealed class AutomationStreamCoordinatorTests
         Harness h = Build();
         AutomationPrincipal headerPrincipal = new(Channel, Guid.NewGuid(), "t", ["invoke"], null);
         Task run = h.Coordinator.RunAsync(h.Connection, headerPrincipal, CancellationToken.None);
-        await WaitFor(() => h.Connection.Sent.FirstOrDefault(), "hello frame");
+        await WaitFor(h, () => h.Connection.Sent.FirstOrDefault(), "hello frame");
 
         h.Connection.Queue("""{ "op": "subscribe", "id": "1", "events": ["*"] }""");
         string response = await WaitFor(
+            h,
             () => h.Connection.Sent.Skip(1).FirstOrDefault(),
             "subscribe response"
         );
