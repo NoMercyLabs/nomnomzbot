@@ -118,6 +118,16 @@ only Stoney can make. Do not burn agent time trying to work around them.
   explicit synchronisation instead of a sleep or a real timeout), still proves the same property, and is
   proven to fail when that property is actually broken (mutate it and watch it go red).
 
+- **S-EVENTRESPONSE-NO-CREATE** (found by S-BUDGETS-b3) `EventResponsesScreen.kt` has NO create
+  affordance: event responses are a fixed per-event-type catalogue seeded by the backend, edit/toggle
+  only. Consequences worth deciding rather than leaving: (1) the `event_responses` NEAR_FREE limit is
+  enforced on a resource a user cannot create from the dashboard, so the limit is decorative there —
+  either the surface should allow creating them or the limit should not be advertised; (2) this is the
+  same root as S048, where Delete is really a RESET because `ListAsync` top-up-seeds on read. Decide the
+  model: is an event response a user-authored row (creatable, deletable, countable) or a seeded catalogue
+  entry (toggleable only)? Done-when: the model is settled in the spec, the UI matches it, the limit is
+  either reachable or removed, and Delete means what it says.
+
 ## DO NEXT — owner directives, 2026-08-24 (ahead of phase order)
 
 Owner: move the **stream-facing** work forward — commands and overlays, easier to use and more
@@ -165,8 +175,12 @@ stable — without dropping the planned requirements behind them.
     than a convention.~~ ~~the dashboard screen that renders it: "X of Y used" from real counts, near-free floors shown as
     ABUSE GUARDS with NO upgrade prompt, cost-driving limits may name the tier, self-host shows no
     commercial ceiling or upgrade affordance at all.~~
-  - **b3** warn BEFORE the failed save (the S-CONSEQ law): approaching/at-limit is visible before the user
-    does work and loses it, never discovered by failing.
+  - ~~**b3** DONE 09a28b9d + VERIFIED (743 real jvmTest via --rerun-tasks, 0 fail): `LimitedCreateAction`
+    defines "approaching" ONCE; commands + timers disable at-limit WITH the reason and show the real
+    remaining count; no upsell copy on a near-free floor; and `a_missing_usage_report_never_blocks_the_
+    create_affordance` makes it FAIL OPEN — a telemetry hiccup must never stop a streamer creating a
+    command. 2 of 3 surfaces: see S-EVENTRESPONSE-NO-CREATE below for the third.~~ ~~warn BEFORE the failed save (the S-CONSEQ law): approaching/at-limit is visible before the user
+    does work and loses it, never discovered by failing.~~
   - **b4** raising a tier raises the ceiling immediately, no re-login ([[never-logout-for-scope-or-schema-changes]]).
   - **b5** the COST_DRIVING side is only 2 keys (tts characters, sandbox exec ms). Stored file bytes,
     egress/bandwidth and retained history rows are named in the owner's cost-recovery intent but have no key
