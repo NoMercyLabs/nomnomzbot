@@ -2815,6 +2815,17 @@
     <string name="settings_billing_not_configured_detail">Hosted billing isn't configured on this server yet. Plans become purchasable the moment the operator finishes Stripe setup — nothing else changes here.</string>
     <string name="settings_billing_usage_title">Usage this period</string>
     <string name="settings_billing_usage_of">%1$d / %2$d</string>
+    <string name="settings_resource_limits_title">Resource limits</string>
+    <string name="settings_resource_limits_subtitle">What you're using against what's allowed right now.</string>
+    <string name="settings_resource_limits_near_free_title">Safety limits</string>
+    <string name="settings_resource_limits_near_free_detail">A generous cap against abuse — the same for every channel, including self-hosted.</string>
+    <string name="settings_resource_limits_cost_driving_title">Usage-based limits</string>
+    <string name="settings_resource_limits_of">%1$d of %2$d</string>
+    <string name="settings_resource_limits_unlimited">%1$d of unlimited</string>
+    <string name="settings_resource_limits_tier">%1$s tier</string>
+    <string name="settings_resource_limits_error">Couldn't load resource limits</string>
+    <string name="settings_resource_limits_error_detail">Try again in a moment — the safety and usage caps couldn't be fetched.</string>
+    <string name="settings_resource_limits_empty">Nothing is limited on this channel right now.</string>
     <string name="settings_billing_invoices_title">Invoices</string>
     <string name="settings_billing_invoice_paid">Paid</string>
     <string name="settings_billing_invoice_open">Open</string>

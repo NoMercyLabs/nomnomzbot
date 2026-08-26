@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.core.network
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 // Tenant self-serve billing (BillingController). Billing endpoints are all Broadcaster-floor —
@@ -29,6 +30,13 @@ interface BillingApi {
 
     /** Current-period usage metrics for all metered limits. */
     suspend fun usage(channelId: String): ApiResult<List<BillingUsageMetric>>
+
+    /**
+     * The channel's truthful resource-limit report — every declared limited resource with its class
+     * (NEAR_FREE vs COST_DRIVING), current count and effective limit. The count is read from the exact same
+     * source enforcement uses, so it can never disagree with what the next write would allow.
+     */
+    suspend fun resourceLimits(channelId: String): ApiResult<List<ResourceUsage>>
 
     /** Paginated invoice list for the channel. */
     suspend fun invoices(channelId: String): ApiResult<List<BillingInvoice>>
@@ -70,6 +78,9 @@ class RestBillingApi(private val client: ApiClient) : BillingApi {
 
     override suspend fun usage(channelId: String): ApiResult<List<BillingUsageMetric>> =
         client.getEnvelope("api/v1/channels/$channelId/billing/usage")
+
+    override suspend fun resourceLimits(channelId: String): ApiResult<List<ResourceUsage>> =
+        client.getEnvelope("api/v1/channels/$channelId/billing/limits")
 
     override suspend fun invoices(channelId: String): ApiResult<List<BillingInvoice>> =
         when (val r: ApiResult<PaginatedEnvelope<BillingInvoice>> =
@@ -169,6 +180,43 @@ data class BillingUsageMetric(
     val periodStart: String,
     val periodEnd: String,
 )
+
+/**
+ * Classifies a limited resource by whether it maps to a real marginal cost (backend `ResourceClass`). The wire
+ * form is the enum's integer ordinal (the API registers no string-enum converter): CostDriving=0, NearFree=1.
+ * NEAR_FREE resources are capped only at a uniform safety baseline, never tier-scaled and never a paid ceiling
+ * — the UI must never attach upgrade/upsell copy to one. COST_DRIVING resources map to a real bill and are
+ * tier-scaled, so naming the tier is allowed there.
+ */
+enum class ResourceClass(val wire: Int) {
+    CostDriving(wire = 0),
+    NearFree(wire = 1),
+
+    ;
+
+    companion object {
+        fun fromWire(wire: Int): ResourceClass = entries.firstOrNull { it.wire == wire } ?: NearFree
+    }
+}
+
+/**
+ * One resource's truthful current state (S-BUDGETS-b1/b2) — the read-side mirror of what the backend's write-path
+ * quota check would evaluate next. [currentCount] comes from the exact same counting source enforcement uses.
+ * [resourceClass] is carried explicitly so the UI can never mistake a NEAR_FREE abuse floor for a paid ceiling.
+ * [limit] is `-1` when unlimited (every self-host COST_DRIVING resource). [safetyBaseline] equals [limit] for
+ * NEAR_FREE resources on every tenant including self-host, and is unused (0) for COST_DRIVING.
+ */
+@Serializable
+data class ResourceUsage(
+    val limitKey: String,
+    @SerialName("class") val classWire: Int,
+    val displayName: String,
+    val currentCount: Long,
+    val limit: Long,
+    val safetyBaseline: Long,
+) {
+    val resourceClass: ResourceClass get() = ResourceClass.fromWire(classWire)
+}
 
 @Serializable
 data class BillingInvoice(

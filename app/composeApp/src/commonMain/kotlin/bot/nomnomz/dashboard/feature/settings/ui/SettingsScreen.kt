@@ -1921,6 +1921,14 @@ private fun BillingReadyContent(
         }
     }
 
+    // ── Resource limits (S-BUDGETS-b2) ────────────────────────────────────────
+    ResourceLimitsSection(
+        items = state.resourceLimits,
+        loadFailed = state.resourceLimitsLoadFailed,
+        isSelfHost = state.isSelfHost,
+        tierDisplayName = state.subscription.tierDisplayName,
+    )
+
     // ── Usage metrics (SaaS only, when data is present) ───────────────────────
     if (!state.isSelfHost && state.usage.isNotEmpty()) {
         Column(verticalArrangement = Arrangement.spacedBy(spacing.s1_5)) {
