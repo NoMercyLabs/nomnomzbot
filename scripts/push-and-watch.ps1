@@ -45,7 +45,8 @@ try {
     # Filter in PowerShell rather than with `gh -q`: a jq expression containing the SHA has to survive
     # PowerShell quoting AND jq quoting, and it silently matched nothing when it did not.
     [string]$runId = $null
-    foreach ($attempt in 1..12) {
+    [int]$runWaitSeconds = 180
+    foreach ($attempt in 1..($runWaitSeconds / 5)) {
         [string]$json = gh run list --limit 20 --json databaseId,headSha  # no space: PowerShell would parse `a, b` as an array and pass two args
         if ($json) {
             $match = ($json | ConvertFrom-Json) | Where-Object { $_.headSha -eq $sha } | Select-Object -First 1
@@ -53,7 +54,21 @@ try {
         }
         Start-Sleep -Seconds 5
     }
-    if (-not $runId) { throw "no CI run appeared for $sha after 60s - check the workflow triggers" }
+    if (-not $runId) {
+        # No run created is NOT the same as a run that failed. GitHub Actions can be degraded or the
+        # trigger dropped; the commit is pushed and will build when Actions recovers. Say which, so this
+        # is never mistaken for a red build, and never for a deploy either.
+        Write-Host ''
+        Write-Host "NO CI RUN was created for $sha after ${runWaitSeconds}s."
+        try {
+            [string]$actions = (Invoke-RestMethod -Uri 'https://www.githubstatus.com/api/v2/components.json' -TimeoutSec 10).components |
+                Where-Object { $_.name -eq 'Actions' } | ForEach-Object { $_.status }
+            Write-Host "githubstatus.com reports Actions: $actions"
+        }
+        catch { Write-Host 'could not reach githubstatus.com' }
+        Write-Host 'The commit IS pushed. Nothing is building and nothing will deploy until a run exists.'
+        exit 1
+    }
 
     Write-Host "== watching run $runId for $($sha.Substring(0,8)) =="
     gh run watch $runId --exit-status | Out-Host
