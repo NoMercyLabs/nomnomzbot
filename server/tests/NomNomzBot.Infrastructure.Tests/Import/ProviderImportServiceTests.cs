@@ -18,6 +18,7 @@ using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.EventStore;
 using NomNomzBot.Infrastructure.Import;
+using NomNomzBot.Infrastructure.Platform.Templating;
 using NomNomzBot.Infrastructure.Quotes;
 using NomNomzBot.Infrastructure.Tests.Billing;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -45,7 +46,8 @@ public sealed class ProviderImportServiceTests
             Substitute.For<IPipelineEngine>(),
             Substitute.For<IChannelRegistry>(),
             bus,
-            TestTiers.Unlimited()
+            TestTiers.Unlimited(),
+            new TemplateHelperValidator()
         );
         QuoteService quotes = new(
             db,
@@ -54,7 +56,12 @@ public sealed class ProviderImportServiceTests
             bus,
             Clock
         );
-        TimerManagementService timers = new(db, bus, TestTiers.Unlimited());
+        TimerManagementService timers = new(
+            db,
+            bus,
+            TestTiers.Unlimited(),
+            new TemplateHelperValidator()
+        );
         return new(db, commands, quotes, timers);
     }
 

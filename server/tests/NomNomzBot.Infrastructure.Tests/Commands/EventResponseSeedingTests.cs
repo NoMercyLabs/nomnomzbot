@@ -18,6 +18,7 @@ using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Content.Commands;
+using NomNomzBot.Infrastructure.Platform.Templating;
 using NomNomzBot.Infrastructure.Tests.Supporters;
 using NSubstitute;
 
@@ -65,7 +66,8 @@ public sealed class EventResponseSeedingTests
             new EventResponseService(
                 db,
                 Substitute.For<IEventBus>(),
-                Billing.TestTiers.Unlimited()
+                Billing.TestTiers.Unlimited(),
+                new TemplateHelperValidator()
             ),
             new EventResponseDefaultsSeeder(db),
             db

@@ -15,6 +15,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NomNomzBot.Application;
 using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Infrastructure.Content.Widgets;
 
@@ -132,6 +133,10 @@ public sealed class SchemaLocalizationManifestTests
             if (field.Description is not null)
                 keys.Add(field.Description.Key);
         }
+
+        // S042: every template helper registry entry's description key, same real-schema-walk contract.
+        foreach (TemplateHelperEntry helper in TemplateHelperRegistry.All)
+            keys.Add(helper.Description.Key);
 
         return [.. keys.Distinct(StringComparer.Ordinal).OrderBy(k => k, StringComparer.Ordinal)];
     }

@@ -11,6 +11,7 @@
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
@@ -33,13 +34,15 @@ public class CommandService : ICommandService
     private readonly IChannelRegistry _registry;
     private readonly IEventBus _eventBus;
     private readonly IBillingTierService _tiers;
+    private readonly ITemplateHelperValidator _templateHelperValidator;
 
     public CommandService(
         IApplicationDbContext db,
         IPipelineEngine pipelineEngine,
         IChannelRegistry registry,
         IEventBus eventBus,
-        IBillingTierService tiers
+        IBillingTierService tiers,
+        ITemplateHelperValidator templateHelperValidator
     )
     {
         _db = db;
@@ -47,6 +50,7 @@ public class CommandService : ICommandService
         _registry = registry;
         _eventBus = eventBus;
         _tiers = tiers;
+        _templateHelperValidator = templateHelperValidator;
     }
 
     public async Task<Result<CommandDto>> CreateAsync(
@@ -81,6 +85,13 @@ public class CommandService : ICommandService
         );
         if (templateOk.IsFailure)
             return templateOk.ToTyped<CommandDto>();
+
+        Result helperOk = ValidateTemplateHelpers(
+            request.TemplateResponse,
+            request.TemplateResponses
+        );
+        if (helperOk.IsFailure)
+            return helperOk.ToTyped<CommandDto>();
 
         bool exists = await _db.Commands.AnyAsync(
             c => c.BroadcasterId == broadcaster && c.NameNormalized == nameNormalized,
@@ -182,6 +193,13 @@ public class CommandService : ICommandService
         );
         if (templateOk.IsFailure)
             return templateOk.ToTyped<CommandDto>();
+
+        Result helperOk = ValidateTemplateHelpers(
+            request.TemplateResponse ?? command.TemplateResponse,
+            request.TemplateResponses ?? command.TemplateResponses
+        );
+        if (helperOk.IsFailure)
+            return helperOk.ToTyped<CommandDto>();
 
         if (request.Tier is not null)
             command.Tier = request.Tier;
@@ -497,6 +515,34 @@ public class CommandService : ICommandService
                 "A template command needs at least one response — set TemplateResponse or add a TemplateResponses entry."
             )
             : Result.Success();
+
+    /// <summary>S042 save-time guard: every response variant is checked against the Command-context
+    /// helper registry so an unknown/misspelled placeholder (or one only valid elsewhere, e.g. an
+    /// event-response-only key) is rejected before it reaches the database.</summary>
+    private Result ValidateTemplateHelpers(
+        string? templateResponse,
+        List<string>? templateResponses
+    )
+    {
+        Result single = _templateHelperValidator.Validate(
+            templateResponse,
+            TemplateHelperContext.Command
+        );
+        if (single.IsFailure)
+            return single;
+
+        foreach (string variant in templateResponses ?? [])
+        {
+            Result variantResult = _templateHelperValidator.Validate(
+                variant,
+                TemplateHelperContext.Command
+            );
+            if (variantResult.IsFailure)
+                return variantResult;
+        }
+
+        return Result.Success();
+    }
 
     /// <summary>The per-trigger variation cap (<c>response_variations_per_trigger</c>) — -1 is unlimited.</summary>
     private async Task<Result> CheckVariationCapAsync(

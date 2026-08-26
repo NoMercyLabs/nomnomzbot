@@ -16,6 +16,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Content.Billing;
+using NomNomzBot.Infrastructure.Platform.Templating;
 using NomNomzBot.Infrastructure.Tests.Commands;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NomNomzBot.Infrastructure.Tests.Supporters;
@@ -44,7 +45,8 @@ public sealed class TierQuotaEnforcementTests
             Substitute.For<IPipelineEngine>(),
             Substitute.For<IChannelRegistry>(),
             new RecordingEventBus(),
-            tiers
+            tiers,
+            new TemplateHelperValidator()
         );
 
     [Fact]
@@ -121,7 +123,8 @@ public sealed class TierQuotaEnforcementTests
         TimerManagementService sut = new(
             db,
             new RecordingEventBus(),
-            TestTiers.WithLimit("timers", 1)
+            TestTiers.WithLimit("timers", 1),
+            new TemplateHelperValidator()
         );
 
         (await sut.CreateAsync(Channel.ToString(), new() { Name = "first", Messages = ["hi"] }))
@@ -146,7 +149,8 @@ public sealed class TierQuotaEnforcementTests
         EventResponseService sut = new(
             db,
             new RecordingEventBus(),
-            TestTiers.WithLimit("event_responses", 1)
+            TestTiers.WithLimit("event_responses", 1),
+            new TemplateHelperValidator()
         );
 
         // First enable fits the cap.

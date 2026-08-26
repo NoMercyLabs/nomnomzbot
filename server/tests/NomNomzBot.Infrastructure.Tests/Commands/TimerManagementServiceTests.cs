@@ -13,6 +13,7 @@ using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Infrastructure.Commands;
+using NomNomzBot.Infrastructure.Platform.Templating;
 using NomNomzBot.Infrastructure.Tests.Identity;
 
 namespace NomNomzBot.Infrastructure.Tests.Commands;
@@ -30,7 +31,7 @@ public sealed class TimerManagementServiceTests
     {
         CommandsTestDbContext db = CommandsTestDbContext.New();
         RecordingEventBus bus = new();
-        return (new(db, bus, Billing.TestTiers.Unlimited()), bus);
+        return (new(db, bus, Billing.TestTiers.Unlimited(), new TemplateHelperValidator()), bus);
     }
 
     private static CreateTimerDto Req(string name = "greeting") =>

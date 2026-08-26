@@ -10,6 +10,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
@@ -25,16 +26,34 @@ public class TimerManagementService : ITimerManagementService
     private readonly IApplicationDbContext _db;
     private readonly IEventBus _eventBus;
     private readonly IBillingTierService _tiers;
+    private readonly ITemplateHelperValidator _templateHelperValidator;
 
     public TimerManagementService(
         IApplicationDbContext db,
         IEventBus eventBus,
-        IBillingTierService tiers
+        IBillingTierService tiers,
+        ITemplateHelperValidator templateHelperValidator
     )
     {
         _db = db;
         _eventBus = eventBus;
         _tiers = tiers;
+        _templateHelperValidator = templateHelperValidator;
+    }
+
+    /// <summary>S042 save-time guard: a timer message never carries {{args.*}}, {{user.*}}, or
+    /// {{target.*}} — no chatter triggers a timer — checked against the Timer-context registry before
+    /// any row is written.</summary>
+    private Result ValidateTemplateHelpers(IEnumerable<string> messages)
+    {
+        foreach (string message in messages)
+        {
+            Result result = _templateHelperValidator.Validate(message, TemplateHelperContext.Timer);
+            if (result.IsFailure)
+                return result;
+        }
+
+        return Result.Success();
     }
 
     public async Task<Result<PagedList<TimerListItem>>> ListAsync(
@@ -141,6 +160,10 @@ public class TimerManagementService : ITimerManagementService
         if (variationsOk.IsFailure)
             return variationsOk.ToTyped<TimerDto>();
 
+        Result helperOk = ValidateTemplateHelpers(request.Messages);
+        if (helperOk.IsFailure)
+            return helperOk.ToTyped<TimerDto>();
+
         DomainTimer timer = new()
         {
             BroadcasterId = broadcaster,
@@ -192,6 +215,11 @@ public class TimerManagementService : ITimerManagementService
             );
             if (variationsOk.IsFailure)
                 return variationsOk.ToTyped<TimerDto>();
+
+            Result helperOk = ValidateTemplateHelpers(request.Messages);
+            if (helperOk.IsFailure)
+                return helperOk.ToTyped<TimerDto>();
+
             timer.Messages = request.Messages;
         }
         // Absent leaves the binding unchanged; Guid.Empty clears it; a real id binds that pipeline (the same

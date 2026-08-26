@@ -32,6 +32,7 @@ using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.CustomEvents;
 using NomNomzBot.Infrastructure.Marketplace;
+using NomNomzBot.Infrastructure.Platform.Templating;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NomNomzBot.Infrastructure.Tests.Persistence;
 using NSubstitute;
@@ -70,7 +71,8 @@ public sealed class MarketplaceServiceTests
             Substitute.For<IPipelineEngine>(),
             Substitute.For<IChannelRegistry>(),
             bus,
-            Billing.TestTiers.Unlimited()
+            Billing.TestTiers.Unlimited(),
+            new TemplateHelperValidator()
         );
         ICommandConfigValidator permissiveValidator = Substitute.For<ICommandConfigValidator>();
         permissiveValidator

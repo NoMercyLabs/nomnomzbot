@@ -16,6 +16,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands;
+using NomNomzBot.Infrastructure.Platform.Templating;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
@@ -36,7 +37,17 @@ public sealed class CommandServiceTests
         IPipelineEngine pipelineEngine = Substitute.For<IPipelineEngine>();
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
         RecordingEventBus bus = new();
-        return (new(db, pipelineEngine, registry, bus, Billing.TestTiers.Unlimited()), bus);
+        return (
+            new(
+                db,
+                pipelineEngine,
+                registry,
+                bus,
+                Billing.TestTiers.Unlimited(),
+                new TemplateHelperValidator()
+            ),
+            bus
+        );
     }
 
     private static CreateCommandDto Req(string name = "hello") =>
@@ -141,7 +152,8 @@ public sealed class CommandServiceTests
             Substitute.For<IPipelineEngine>(),
             Substitute.For<IChannelRegistry>(),
             new RecordingEventBus(),
-            Billing.TestTiers.Unlimited()
+            Billing.TestTiers.Unlimited(),
+            new TemplateHelperValidator()
         );
         CommandDto created = (await sut.CreateAsync(Channel.ToString(), Req())).Value;
         string actorId = Guid.Parse("0192a000-0000-7000-8000-0000000000ea").ToString();
@@ -168,7 +180,8 @@ public sealed class CommandServiceTests
             Substitute.For<IPipelineEngine>(),
             Substitute.For<IChannelRegistry>(),
             new RecordingEventBus(),
-            Billing.TestTiers.Unlimited()
+            Billing.TestTiers.Unlimited(),
+            new TemplateHelperValidator()
         );
         CommandDto created = (await sut.CreateAsync(Channel.ToString(), Req())).Value;
 
@@ -276,5 +289,57 @@ public sealed class CommandServiceTests
         CommandDto fetched = (await sut.GetAsync(Channel.ToString(), "greet")).Value;
         fetched.PrefixMode.Should().Be("Default");
         fetched.CustomPrefix.Should().BeNull();
+    }
+
+    // ─── S042: save-time template helper validation ───────────────────────────
+
+    [Fact]
+    public async Task Create_WithAnUnknownTemplateHelper_IsRejectedNamingTheKeyAndPersistsNothing()
+    {
+        (CommandService sut, RecordingEventBus bus) = Build();
+
+        Result<CommandDto> result = await sut.CreateAsync(
+            Channel.ToString(),
+            new() { Name = "broken", TemplateResponse = "Hi {user.nmae}!" }
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        result.ErrorMessage.Should().Contain("user.nmae");
+        bus.Published.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Create_WithAllValidTemplateHelpers_Succeeds()
+    {
+        (CommandService sut, _) = Build();
+
+        Result<CommandDto> result = await sut.CreateAsync(
+            Channel.ToString(),
+            new() { Name = "greetvalid", TemplateResponse = "Hi {user.name}, arg was {args.1}!" }
+        );
+
+        result.IsSuccess.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Update_WithAnUnknownTemplateHelperInAVariation_IsRejectedAndLeavesTheCommandUnchanged()
+    {
+        (CommandService sut, RecordingEventBus bus) = Build();
+        await sut.CreateAsync(Channel.ToString(), Req("varfix"));
+        bus.Published.Clear();
+
+        Result<CommandDto> result = await sut.UpdateAsync(
+            Channel.ToString(),
+            "varfix",
+            new() { TemplateResponses = ["still fine", "Hi {totally.bogus.helper}"] }
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorMessage.Should().Contain("totally.bogus.helper");
+        bus.Published.Should().BeEmpty();
+
+        CommandDto unchanged = (await sut.GetAsync(Channel.ToString(), "varfix")).Value;
+        unchanged.TemplateResponse.Should().Be("hi there");
     }
 }

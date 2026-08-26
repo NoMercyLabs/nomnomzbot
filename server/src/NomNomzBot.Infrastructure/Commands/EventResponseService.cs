@@ -10,6 +10,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
@@ -25,16 +26,19 @@ public class EventResponseService : IEventResponseService
     private readonly IApplicationDbContext _db;
     private readonly IEventBus _eventBus;
     private readonly IBillingTierService _tiers;
+    private readonly ITemplateHelperValidator _templateHelperValidator;
 
     public EventResponseService(
         IApplicationDbContext db,
         IEventBus eventBus,
-        IBillingTierService tiers
+        IBillingTierService tiers,
+        ITemplateHelperValidator templateHelperValidator
     )
     {
         _db = db;
         _eventBus = eventBus;
         _tiers = tiers;
+        _templateHelperValidator = templateHelperValidator;
     }
 
     public async Task<Result<PagedList<EventResponseListItem>>> ListAsync(
@@ -110,6 +114,15 @@ public class EventResponseService : IEventResponseService
                 $"Invalid channel ID '{broadcasterId}'.",
                 "VALIDATION_FAILED"
             );
+
+        // S042 save-time guard: an event response never carries {{args.*}} or any other Command-only
+        // helper — checked before the row is found/created so a bad template never persists.
+        Result helperOk = _templateHelperValidator.Validate(
+            request.Message,
+            TemplateHelperContext.EventResponse
+        );
+        if (helperOk.IsFailure)
+            return helperOk.ToTyped<EventResponseDto>();
 
         // IgnoreQueryFilters: a row the operator soft-deleted (DeleteAsync) is invisible to the normal,
         // tenant/soft-delete-filtered query — but upserting that same event type is a DELIBERATE restore

@@ -36,6 +36,7 @@ using NomNomzBot.Infrastructure.CustomCode;
 using NomNomzBot.Infrastructure.CustomEvents;
 using NomNomzBot.Infrastructure.Marketplace;
 using NomNomzBot.Infrastructure.PickLists;
+using NomNomzBot.Infrastructure.Platform.Templating;
 using NomNomzBot.Infrastructure.Rewards;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NomNomzBot.Infrastructure.Tests.Persistence;
@@ -105,7 +106,8 @@ public sealed class BundleParityTypesTests
             Substitute.For<IPipelineEngine>(),
             Substitute.For<IChannelRegistry>(),
             bus,
-            Billing.TestTiers.Unlimited()
+            Billing.TestTiers.Unlimited(),
+            new TemplateHelperValidator()
         );
         ICommandConfigValidator permissiveValidator = Substitute.For<ICommandConfigValidator>();
         permissiveValidator
@@ -124,7 +126,12 @@ public sealed class BundleParityTypesTests
             Substitute.For<ICustomDataIngestService>(),
             []
         );
-        EventResponseService eventResponses = new(db, bus, Billing.TestTiers.Unlimited());
+        EventResponseService eventResponses = new(
+            db,
+            bus,
+            Billing.TestTiers.Unlimited(),
+            new TemplateHelperValidator()
+        );
         ITwitchChannelPointsApi channelPoints = Substitute.For<ITwitchChannelPointsApi>();
         channelPoints
             .GetCustomRewardsAsync(
@@ -135,7 +142,12 @@ public sealed class BundleParityTypesTests
             )
             .Returns(Result.Success<IReadOnlyList<TwitchCustomReward>>([]));
         RewardService rewards = new(db, channelPoints, NullLogger<RewardService>.Instance);
-        TimerManagementService timers = new(db, bus, Billing.TestTiers.Unlimited());
+        TimerManagementService timers = new(
+            db,
+            bus,
+            Billing.TestTiers.Unlimited(),
+            new TemplateHelperValidator()
+        );
         ChatTriggerService chatTriggers = new(db, Substitute.For<IChannelRegistry>());
         PickListService pickLists = new(db, bus);
 
