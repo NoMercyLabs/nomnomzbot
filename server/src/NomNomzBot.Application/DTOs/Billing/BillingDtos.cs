@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Domain.Billing;
+
 namespace NomNomzBot.Application.DTOs.Billing;
 
 // ── Responses (monetization-billing.md §4). Money is integer cents. ──
@@ -75,6 +77,25 @@ public sealed record UsageMetricDto(
     long Remaining,
     DateTimeOffset PeriodStart,
     DateTimeOffset PeriodEnd
+);
+
+/// <summary>
+/// One <c>LimitedResourceRegistry</c> entry's truthful current state (S-BUDGETS-b1) — the read-side mirror of
+/// what <c>IResourceQuotaService.CheckAsync</c> would evaluate for the NEXT write. <see cref="CurrentCount"/>
+/// comes from the exact same counting source enforcement uses, never a second query, so this can never disagree
+/// with what a save would allow. <see cref="Class"/> is carried explicitly so a UI can never mistake a NEAR_FREE
+/// abuse floor for a paid ceiling. <see cref="Limit"/> is <c>-1</c> when unlimited (every self-host
+/// COST_DRIVING resource); NEAR_FREE resources are NEVER tier-scaled, so <see cref="Limit"/> always equals
+/// <see cref="SafetyBaseline"/> for them, on every tenant including self-host — <see cref="SafetyBaseline"/> is
+/// unused (0) for COST_DRIVING.
+/// </summary>
+public sealed record ResourceUsageDto(
+    string LimitKey,
+    ResourceClass Class,
+    string DisplayName,
+    long CurrentCount,
+    long Limit,
+    long SafetyBaseline
 );
 
 /// <summary>A billing invoice view.</summary>

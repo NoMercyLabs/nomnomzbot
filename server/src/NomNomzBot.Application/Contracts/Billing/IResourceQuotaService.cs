@@ -33,4 +33,28 @@ public interface IResourceQuotaService
         long resultingCount,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// The real current row count for a NEAR_FREE, row-counted resource — the SAME count a write path computes
+    /// right before calling <see cref="CheckAsync"/> with <c>count + 1</c>. Callers on the write path (create
+    /// flows in <c>CommandService</c>/<c>TimerManagementService</c>/<c>EventResponseService</c>) and the
+    /// read-only usage report (S-BUDGETS-b1) both go through this single method so the two can never disagree.
+    /// Fails <c>NOT_SUPPORTED</c> for a key with no single broadcaster-wide aggregate (e.g.
+    /// <c>response_variations_per_trigger</c>, which is evaluated per trigger, not channel-wide).
+    /// </summary>
+    Task<Result<long>> GetCurrentCountAsync(
+        Guid broadcasterId,
+        string limitKey,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// The full truthful usage report across every <c>LimitedResourceRegistry</c> entry that has a current-count
+    /// source — NEAR_FREE via <see cref="GetCurrentCountAsync"/>, COST_DRIVING via
+    /// <c>IUsageMeteringService.GetCurrentUsageAsync</c> (S-BUDGETS-b1). Drives <c>GET .../billing/limits</c>.
+    /// </summary>
+    Task<Result<IReadOnlyList<ResourceUsageDto>>> GetUsageReportAsync(
+        Guid broadcasterId,
+        CancellationToken ct = default
+    );
 }

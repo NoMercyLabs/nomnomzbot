@@ -103,11 +103,17 @@ public class CommandService : ICommandService
             return Errors.AlreadyExists("command", name).ToTyped<CommandDto>();
 
         // custom_commands is NEAR_FREE (S-BUDGETS-a): one DB row, checked against the registry's uniform
-        // safety baseline via the quota seam — never tier-scaled, self-host included.
-        int existingCommandCount = await _db.Commands.CountAsync(
-            c => c.BroadcasterId == broadcaster,
+        // safety baseline via the quota seam — never tier-scaled, self-host included. The count comes from
+        // the same GetCurrentCountAsync the read-only usage report (S-BUDGETS-b1) uses, so the two can never
+        // disagree.
+        Result<long> countResult = await _quota.GetCurrentCountAsync(
+            broadcaster,
+            "custom_commands",
             cancellationToken
         );
+        if (countResult.IsFailure)
+            return countResult.ToTyped<CommandDto>();
+        long existingCommandCount = countResult.Value;
         Result<QuotaCheckDto> commandQuota = await _quota.CheckAsync(
             broadcaster,
             "custom_commands",
