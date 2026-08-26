@@ -227,20 +227,26 @@ stable — without dropping the planned requirements behind them.
 
 ## Phase 2 — existing platforms made to work (Kick / YouTube are shipped features that are broken) — only the spine pieces these fixes REQUIRE
 
-- **S022** PARTIAL, COMMITTED 287f7c67, **TESTS NEVER RAN** — the Infrastructure test project could not
-  build at the time (a concurrent agent's `templateHelperValidator` constructor change). Re-run
-  `ProviderScopedEventGuardTests`, `NewSubscriptionEventHandlerTests`, `KickWebhookIngestTests` and only
-  then treat the Kick half as proven. SHIPPED: `IProviderScopedEvent` + Provider on 6 canonical events
-  (Follow, NewSubscription, Resubscription, GiftSubscription, Cheer, SubscriptionEnded — 0 of 6 carried
-  it before), Kick ingest sets it, handlers put `provider` in the response variables.
-  TWO REAL GAPS, both needed for the slice's own done-when across platforms:
-  (a) **NO YouTube ingest exists at all** — `supporter-events.md` §4.1 maps YouTube sponsor/gift/super
-  chat onto these same canonical events and there is nothing to map from. Kick has `KickWebhookIngest`;
-  YouTube has no equivalent. Until it exists, "every canonical event carries Provider" is true only for
-  the platforms that can raise them.
-  (b) `Platform/Templating/TemplateEngine.cs` needs wiring so `{{provider}}` RESOLVES in message
-  templates — the handlers put it in the variables dict, but a streamer writing `{{provider}}` in a
-  sub alert still gets nothing.
+- **S022** Kick half CLOSED + VERIFIED (287f7c67 + ee87907c, 30/30; `{{provider}}` registry entry
+  10a796ca, 91/91). All 11 canonical events Kick publishes are provider-scoped, a structural guard fails
+  if a new one is not, and `{{provider}}` renders "kick" vs "twitch" per delivering platform with the
+  no-source case leaving the literal rather than a blank. REMAINING under S030: **no YouTube ingest
+  exists at all**, so `supporter-events.md` §4.1's YouTube sponsor/gift/super-chat mapping has nothing
+  to map from. Kick has `KickWebhookIngest`; YouTube has no equivalent.
+
+- **S-TWO-TEMPLATE-ENGINES** (found while closing S022b — a real architectural split, not a nit)
+  There are TWO template engines. `ITemplateResolver` (`Platform/Templating/TemplateResolver.cs`) is the
+  live one: 90+ helpers, `{transform.*}` text transforms, the S042 registry and save-time validation.
+  `ITemplateEngine` (`Platform/Templating/TemplateEngine.cs`, "simple {{variable}} substitution",
+  registered in DependencyInjection.cs:897) is a SECOND engine used by `DiscordNotificationConfigService`
+  and `DiscordNotificationDispatcher`. Consequence: a Discord notification template silently gets a
+  weaker feature set — no helpers, no transforms, no unknown-key validation — and the preview a streamer
+  sees is rendered by a different engine than the one that renders anything else. This is the same class
+  as the pipeline read/write asymmetry that caused unrecoverable loss: two representations that can
+  diverge. Done-when: ONE engine renders every user-authored template; the Discord surfaces resolve
+  through `ITemplateResolver` with the same helpers, transforms and validation, proven by a test that a
+  Discord template using a helper and a transform renders identically to the same string elsewhere;
+  the redundant engine is deleted, not left as a trap.
 
 - **S027** Kick go-live + reads — `livestream.status.updated` publishes canonical online/offline;
   Kick channel read (viewer count, title/category), `KickPlatformApi` + `channel:read/write`; operator
