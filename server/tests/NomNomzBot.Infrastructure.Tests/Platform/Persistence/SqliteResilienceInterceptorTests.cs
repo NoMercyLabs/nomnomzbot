@@ -32,7 +32,14 @@ public sealed class SqliteResilienceInterceptorTests : IDisposable
         $"nomnomz_sqlite_soak_{Guid.NewGuid():N}.db"
     );
 
-    private string ConnectionString => $"Data Source={_dbPath}";
+    // Microsoft.Data.Sqlite's own ADO-level "Default Timeout" (30s by default) retries a SQLITE_BUSY command on
+    // its own, independent of the sqlite3 busy_timeout pragma — a generous default here would swallow "database
+    // is locked" regardless of whether SqliteResilienceInterceptor ran, and "0" is the ADO.NET convention for
+    // "wait forever" (NOT "fail immediately"), which would hang the test instead of failing it. 5 seconds is
+    // short enough that it cannot itself paper over a missing interceptor (real contention without WAL/busy_timeout
+    // exceeds it), while comfortably longer than this workload takes to queue and drain when the interceptor's
+    // WAL mode + 5s sqlite busy_timeout ARE in effect.
+    private string ConnectionString => $"Data Source={_dbPath};Default Timeout=5";
 
     public void Dispose()
     {
@@ -96,17 +103,33 @@ public sealed class SqliteResilienceInterceptorTests : IDisposable
         const int rowsPerWriter = 5;
         System.Diagnostics.Stopwatch stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
+        // All 40 writers rendezvous here before any of them opens its connection, so contention against the
+        // shared SQLite file is GUARANTEED on every run rather than merely hoped for from Task.Run scheduling —
+        // the property under test (WAL + busy_timeout let writers queue) only means anything if they genuinely
+        // collide. The barrier is a scheduling gate, not a timing measurement: nothing below asserts on how long
+        // the release takes. Each writer then holds an explicit transaction open for a fixed hold time before
+        // committing, widening its exclusive-lock window so the other 39 writers' commit attempts are GUARANTEED
+        // to land inside it — a single fast INSERT+COMMIT is over before another thread can even get scheduled,
+        // which is why plain concurrent SaveChanges calls collide only by luck.
+        using System.Threading.Barrier startGate = new(writersPerTable * 2);
+        TimeSpan lockHoldTime = TimeSpan.FromMilliseconds(10);
+
         IEnumerable<Task> tableAWriters = Enumerable
             .Range(0, writersPerTable)
             .Select(writer =>
                 Task.Run(async () =>
                 {
+                    startGate.SignalAndWait();
                     await using SoakDbContext db = NewContext(withResilience: true);
+                    await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction tx =
+                        await db.Database.BeginTransactionAsync();
                     for (int row = 0; row < rowsPerWriter; row++)
                     {
                         db.CountersA.Add(new() { Label = $"a-{writer}-{row}", Value = row });
                         await db.SaveChangesAsync();
                     }
+                    await Task.Delay(lockHoldTime);
+                    await tx.CommitAsync();
                 })
             );
 
@@ -115,12 +138,17 @@ public sealed class SqliteResilienceInterceptorTests : IDisposable
             .Select(writer =>
                 Task.Run(async () =>
                 {
+                    startGate.SignalAndWait();
                     await using SoakDbContext db = NewContext(withResilience: true);
+                    await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction tx =
+                        await db.Database.BeginTransactionAsync();
                     for (int row = 0; row < rowsPerWriter; row++)
                     {
                         db.CountersB.Add(new() { Label = $"b-{writer}-{row}", Value = row });
                         await db.SaveChangesAsync();
                     }
+                    await Task.Delay(lockHoldTime);
+                    await tx.CommitAsync();
                 })
             );
 
