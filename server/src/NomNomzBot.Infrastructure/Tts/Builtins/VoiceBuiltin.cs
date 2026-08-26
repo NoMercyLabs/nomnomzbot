@@ -86,12 +86,12 @@ public sealed class VoiceBuiltin : IBuiltinCommand
     /// <summary>Every language the catalogue can speak, grouped by language code (<c>EN: en-US, en-GB</c>).</summary>
     private async Task<Result<string>> LanguagesAsync(CancellationToken ct)
     {
-        Result<PagedList<TtsVoiceDto>> all = await _tts.SearchVoicesAsync(new(PageSize: 1000), ct);
-        if (all.IsFailure || all.Value.Items.Count == 0)
+        IReadOnlyList<TtsVoiceDto> catalogue = await AllVoicesAsync(ct);
+        if (catalogue.Count == 0)
             return Result.Success("No TTS voices are available right now.");
 
-        IEnumerable<IGrouping<string, string>> groups = all
-            .Value.Items.Select(v => v.Locale)
+        IEnumerable<IGrouping<string, string>> groups = catalogue
+            .Select(v => v.Locale)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(locale => locale, StringComparer.OrdinalIgnoreCase)
             .GroupBy(
@@ -110,14 +110,14 @@ public sealed class VoiceBuiltin : IBuiltinCommand
     /// </summary>
     private async Task<Result<string>> VoicesForLanguageAsync(string language, CancellationToken ct)
     {
-        Result<PagedList<TtsVoiceDto>> all = await _tts.SearchVoicesAsync(new(PageSize: 1000), ct);
-        if (all.IsFailure)
+        IReadOnlyList<TtsVoiceDto> catalogue = await AllVoicesAsync(ct);
+        if (catalogue.Count == 0)
             return Result.Success("I could not read the voice catalogue.");
 
         string query = language.Trim();
         List<TtsVoiceDto> matches =
         [
-            .. all.Value.Items.Where(v =>
+            .. catalogue.Where(v =>
                 query.Contains('-')
                     ? string.Equals(v.Locale, query, StringComparison.OrdinalIgnoreCase)
                     : v.Locale.StartsWith(query + "-", StringComparison.OrdinalIgnoreCase)
@@ -144,11 +144,11 @@ public sealed class VoiceBuiltin : IBuiltinCommand
         CancellationToken ct
     )
     {
-        Result<PagedList<TtsVoiceDto>> all = await _tts.SearchVoicesAsync(new(PageSize: 1000), ct);
-        if (all.IsFailure || all.Value.Items.Count == 0)
+        IReadOnlyList<TtsVoiceDto> catalogue = await AllVoicesAsync(ct);
+        if (catalogue.Count == 0)
             return Result.Success("No voices available for roulette!");
 
-        TtsVoiceDto pick = all.Value.Items[Random.Shared.Next(all.Value.Items.Count)];
+        TtsVoiceDto pick = catalogue[Random.Shared.Next(catalogue.Count)];
         Result<UserTtsVoiceDto> set = await _tts.SetOwnVoiceAsync(
             broadcasterId,
             viewerId,
@@ -161,6 +161,35 @@ public sealed class VoiceBuiltin : IBuiltinCommand
         return Result.Success(
             $"The wheel has spoken - your voice is now {pick.DisplayName} [{pick.Locale} {pick.Gender}]. No takebacks."
         );
+    }
+
+    /// <summary>
+    /// The WHOLE catalogue, walked page by page through the search API's own paging contract. Asking for one
+    /// huge page does not work: <c>SearchVoicesAsync</c> clamps PageSize to 200 and the live catalogue is
+    /// larger, so a single call silently returns a truncated list and `!voice languages` would quietly omit
+    /// whole languages. The walk follows <see cref="PagedList{T}.HasNextPage"/> until the server says there is
+    /// no more, and is bounded so a server that never stops saying "more" cannot spin forever.
+    /// </summary>
+    private async Task<IReadOnlyList<TtsVoiceDto>> AllVoicesAsync(CancellationToken ct)
+    {
+        const int pageSize = 200;
+        const int maxPages = 50;
+
+        List<TtsVoiceDto> voices = [];
+        for (int page = 1; page <= maxPages; page++)
+        {
+            Result<PagedList<TtsVoiceDto>> result = await _tts.SearchVoicesAsync(
+                new(Page: page, PageSize: pageSize),
+                ct
+            );
+            if (result.IsFailure)
+                break;
+
+            voices.AddRange(result.Value.Items);
+            if (!result.Value.HasNextPage)
+                break;
+        }
+        return voices;
     }
 
     /// <summary>The bare speaker name a viewer would say out loud: <c>en-US-AnaNeural</c> becomes <c>Ana</c>.</summary>

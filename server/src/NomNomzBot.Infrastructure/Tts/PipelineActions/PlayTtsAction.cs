@@ -55,6 +55,12 @@ public sealed class PlayTtsAction : ICommandAction
                 Templated: true,
                 Description: new("pipeline.play_tts.voice.help")
             ),
+            new(
+                "as",
+                PipelineActionFieldKind.Text,
+                Templated: true,
+                Description: new("pipeline.play_tts.as.help")
+            ),
         ];
 
     public async Task<ActionResult> ExecuteAsync(
@@ -88,10 +94,20 @@ public sealed class PlayTtsAction : ICommandAction
             voiceOverride = string.IsNullOrWhiteSpace(resolvedVoice) ? null : resolvedVoice;
         }
 
+        // WHOSE voice speaks this line. The bot's own lines (an event announcement, a snarky cheer intro)
+        // must read in the CHANNEL's voice, while the viewer's own words read in theirs — a cheer with a
+        // message is one flow with both, back to back. Empty/"user" keeps the trigger's voice; "bot" (or
+        // "channel") resolves to the channel default by naming no viewer; anything else is a literal
+        // platform user id, so a flow can read a line as a specific person.
+        string speaker = ResolveSpeaker(
+            await ResolveOptionalAsync(ctx, action, "as"),
+            ctx.TriggeredByUserId
+        );
+
         TtsSpeakRequest request = new(
             BroadcasterId: ctx.BroadcasterId,
             RequestedByUserId: Guid.Empty,
-            RequestedByTwitchUserId: ctx.TriggeredByUserId ?? string.Empty,
+            RequestedByTwitchUserId: speaker,
             RequestedByDisplayName: ctx.TriggeredByDisplayName ?? string.Empty,
             Text: text,
             VoiceIdOverride: string.IsNullOrWhiteSpace(voiceOverride) ? null : voiceOverride,
@@ -121,4 +137,37 @@ public sealed class PlayTtsAction : ICommandAction
             $"play_tts:{result.Value.VoiceId} chars={result.Value.CharacterCount}"
         );
     }
+
+    /// <summary>Resolves an optional templated field, returning empty when it is absent or resolves to nothing.</summary>
+    private async Task<string> ResolveOptionalAsync(
+        PipelineExecutionContext ctx,
+        ActionDefinition action,
+        string field
+    )
+    {
+        string template = action.GetString(field) ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(template))
+            return string.Empty;
+
+        string resolved = await _resolver.ResolveAsync(
+            template,
+            ctx.Variables,
+            ctx.BroadcasterId,
+            ctx.CancellationToken
+        );
+        return resolved.Trim();
+    }
+
+    /// <summary>
+    /// Maps the <c>as</c> field onto the platform user id whose voice should read the line. The dispatch
+    /// resolver falls back to the channel default when it is handed no viewer, so naming the bot is simply
+    /// naming nobody — one rule, no second lookup path that could disagree with it.
+    /// </summary>
+    private static string ResolveSpeaker(string speakerField, string? triggeredByUserId) =>
+        speakerField.ToLowerInvariant() switch
+        {
+            "" or "user" or "viewer" or "trigger" => triggeredByUserId ?? string.Empty,
+            "bot" or "channel" or "broadcaster" or "default" => string.Empty,
+            _ => speakerField,
+        };
 }
