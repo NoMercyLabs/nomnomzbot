@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Analytics.Entities;
@@ -29,12 +30,13 @@ using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 
 namespace NomNomzBot.Infrastructure.Tests.CustomEvents;
 
 /// <summary>
-/// A focused <see cref="IApplicationDbContext"/> over only <see cref="CustomDataSource"/> — on the EF Core
-/// InMemory provider (production <c>AppDbContext</c> is Npgsql-bound) — for <c>CustomDataSourceServiceSearchTests</c>,
+/// A focused <see cref="IApplicationDbContext"/> over only <see cref="CustomDataSource"/> — on the a real relational
+/// SQLite database (production <c>AppDbContext</c> is Npgsql-bound) — for <c>CustomDataSourceServiceSearchTests</c>,
 /// which needs real persisted rows to prove <c>SearchAsync</c> filters by name/display-name and honours the limit.
 /// The soft-delete query filter is applied so the "non-deleted source" read semantics match production.
 /// Everything else throws, since the search never reaches it. Mirrors the same "declare every DbSet,
@@ -42,17 +44,43 @@ namespace NomNomzBot.Infrastructure.Tests.CustomEvents;
 /// </summary>
 internal sealed class CustomDataSourceServiceTestDbContext : DbContext, IApplicationDbContext
 {
-    private CustomDataSourceServiceTestDbContext(
-        DbContextOptions<CustomDataSourceServiceTestDbContext> options
-    )
-        : base(options) { }
+    // One private, non-shared in-memory SQLite connection per context instance - a REAL relational
+    // database (S-API-TESTS-INMEMORY; the EF InMemory provider is retired here because it ignores unique
+    // indexes, FK constraints and query translation, so it green-lights writes the real database rejects).
+    // Opened by New(), closed by this context's own Dispose/DisposeAsync overrides.
+    private readonly SqliteConnection _connection;
 
-    public static CustomDataSourceServiceTestDbContext New() =>
-        new(
+    private CustomDataSourceServiceTestDbContext(
+        DbContextOptions<CustomDataSourceServiceTestDbContext> options,
+        SqliteConnection connection
+    )
+        : base(options) => _connection = connection;
+
+    public static CustomDataSourceServiceTestDbContext New()
+    {
+        SqliteConnection connection = new("Data Source=:memory:");
+        connection.Open();
+        CustomDataSourceServiceTestDbContext db = new(
             new DbContextOptionsBuilder<CustomDataSourceServiceTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
+                .UseSqlite(connection)
+                .Options,
+            connection
         );
+        db.Database.EnsureCreated();
+        return db;
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        _connection.Dispose();
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        await base.DisposeAsync();
+        await _connection.DisposeAsync();
+    }
 
     public DbSet<CustomDataSource> CustomDataSources => Set<CustomDataSource>();
 
@@ -71,6 +99,8 @@ internal sealed class CustomDataSourceServiceTestDbContext : DbContext, IApplica
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
+
+        b.ApplySqliteCompatibility();
     }
 
     private static readonly HashSet<Type> Mapped = [typeof(CustomDataSource)];

@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Analytics.Entities;
@@ -29,28 +30,57 @@ using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 using DomainTimer = NomNomzBot.Domain.Commands.Entities.Timer;
 
 namespace NomNomzBot.Infrastructure.Tests.Platform;
 
 /// <summary>
-/// A focused <see cref="IApplicationDbContext"/> over only <see cref="ChannelFeature"/> — on the EF Core InMemory
-/// provider — for the E5 <c>FeatureService</c> config-CRUD tests. Everything else throws, since those tests never
+/// A focused <see cref="IApplicationDbContext"/> over only <see cref="ChannelFeature"/> — on a real relational
+/// SQLite database — for the E5 <c>FeatureService</c> config-CRUD tests. Everything else throws, since those tests never
 /// reach it. Mirrors the same "declare every DbSet, auto-ignore the unmapped ones" shape as
 /// <c>Hubs/WidgetTestDbContext.cs</c>. <see cref="ChannelFeature.RequiredScopes"/> (a Postgres-native primitive
 /// collection column in production) is ignored here — the tests under this fake never assert on it.
 /// </summary>
 internal sealed class FeatureServiceTestDbContext : DbContext, IApplicationDbContext
 {
-    private FeatureServiceTestDbContext(DbContextOptions<FeatureServiceTestDbContext> options)
-        : base(options) { }
+    // One private, non-shared in-memory SQLite connection per context instance - a REAL relational
+    // database (S-API-TESTS-INMEMORY; the EF InMemory provider is retired here because it ignores unique
+    // indexes, FK constraints and query translation, so it green-lights writes the real database rejects).
+    // Opened by New(), closed by this context's own Dispose/DisposeAsync overrides.
+    private readonly SqliteConnection _connection;
 
-    public static FeatureServiceTestDbContext New() =>
-        new(
+    private FeatureServiceTestDbContext(
+        DbContextOptions<FeatureServiceTestDbContext> options,
+        SqliteConnection connection
+    )
+        : base(options) => _connection = connection;
+
+    public static FeatureServiceTestDbContext New()
+    {
+        SqliteConnection connection = new("Data Source=:memory:");
+        connection.Open();
+        FeatureServiceTestDbContext db = new(
             new DbContextOptionsBuilder<FeatureServiceTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
+                .UseSqlite(connection)
+                .Options,
+            connection
         );
+        db.Database.EnsureCreated();
+        return db;
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        _connection.Dispose();
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        await base.DisposeAsync();
+        await _connection.DisposeAsync();
+    }
 
     public DbSet<ChannelFeature> ChannelFeatures => Set<ChannelFeature>();
 
@@ -67,6 +97,8 @@ internal sealed class FeatureServiceTestDbContext : DbContext, IApplicationDbCon
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
+
+        b.ApplySqliteCompatibility();
     }
 
     private static readonly HashSet<Type> Mapped = [typeof(ChannelFeature)];

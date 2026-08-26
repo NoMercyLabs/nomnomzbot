@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using NomNomzBot.Application.Abstractions.Persistence;
@@ -30,6 +31,7 @@ using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.ViewerData.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 using DomainTimer = NomNomzBot.Domain.Commands.Entities.Timer;
 using RecordEntity = NomNomzBot.Domain.Platform.Entities.Record;
 
@@ -37,7 +39,7 @@ namespace NomNomzBot.Infrastructure.Tests.ViewerData;
 
 /// <summary>
 /// A focused <see cref="IApplicationDbContext"/> for the per-viewer data store, named counters, and the
-/// template/builtin surfaces over them, on the EF Core InMemory provider (the production
+/// template/builtin surfaces over them, on a real relational SQLite database (the production
 /// <c>AppDbContext</c> is Npgsql-bound). Mirrors production semantics the tests depend on: the
 /// soft-delete query filter and the optimistic concurrency token on <c>Value</c> (the adjust-retry
 /// contract). Every other <see cref="IApplicationDbContext"/> set throws. Stamps
@@ -45,15 +47,64 @@ namespace NomNomzBot.Infrastructure.Tests.ViewerData;
 /// </summary>
 internal sealed class ViewerDataTestDbContext : DbContext, IApplicationDbContext
 {
-    private ViewerDataTestDbContext(DbContextOptions<ViewerDataTestDbContext> options)
-        : base(options) { }
+    // A REAL relational SQLite connection per context instance (S-API-TESTS-INMEMORY; the EF InMemory
+    // provider is retired here because it ignores unique indexes, FK constraints and query translation,
+    // so it green-lights writes the real database rejects). Opened by New(), closed by this context's
+    // own Dispose/DisposeAsync overrides.
+    private readonly SqliteConnection _connection;
 
-    public static ViewerDataTestDbContext New(string? databaseName = null) =>
-        new(
-            new DbContextOptionsBuilder<ViewerDataTestDbContext>()
-                .UseInMemoryDatabase(databaseName ?? Guid.NewGuid().ToString())
-                .Options
+    // Named databases are shared-cache in-memory SQLite so two contexts over the same name see the same
+    // rows (the concurrency-token retry tests need a second, rival context). A shared-cache database
+    // lives only while at least one connection to it is open, so the first caller of a name parks a
+    // keep-alive connection here for the lifetime of the test process.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<
+        string,
+        SqliteConnection
+    > KeepAlive = new();
+
+    private ViewerDataTestDbContext(
+        DbContextOptions<ViewerDataTestDbContext> options,
+        SqliteConnection connection
+    )
+        : base(options) => _connection = connection;
+
+    public static ViewerDataTestDbContext New(string? databaseName = null)
+    {
+        string name = databaseName ?? Guid.NewGuid().ToString();
+        string connectionString = $"Data Source=file:{name}?mode=memory&cache=shared";
+        KeepAlive.GetOrAdd(
+            name,
+            static key =>
+            {
+                SqliteConnection keepAlive = new(
+                    $"Data Source=file:{key}?mode=memory&cache=shared"
+                );
+                keepAlive.Open();
+                return keepAlive;
+            }
         );
+
+        SqliteConnection connection = new(connectionString);
+        connection.Open();
+        ViewerDataTestDbContext db = new(
+            new DbContextOptionsBuilder<ViewerDataTestDbContext>().UseSqlite(connection).Options,
+            connection
+        );
+        db.Database.EnsureCreated();
+        return db;
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        _connection.Dispose();
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        await base.DisposeAsync();
+        await _connection.DisposeAsync();
+    }
 
     public DbSet<ViewerDatum> ViewerData => Set<ViewerDatum>();
     public DbSet<NomNomzBot.Domain.Engagement.Entities.EngagementConfig> EngagementConfigs =>
@@ -112,6 +163,8 @@ internal sealed class ViewerDataTestDbContext : DbContext, IApplicationDbContext
         // getter bodies; ignore every entity these tests do not exercise.
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
+
+        b.ApplySqliteCompatibility();
     }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Analytics.Entities;
@@ -30,6 +31,7 @@ using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Infrastructure.Identity.Persistence;
+using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 
 namespace NomNomzBot.Infrastructure.Tests.Platform.Templating;
 
@@ -37,22 +39,50 @@ namespace NomNomzBot.Infrastructure.Tests.Platform.Templating;
 /// A focused <see cref="IApplicationDbContext"/> mapping only <see cref="User"/>, <see cref="Channel"/>,
 /// and <see cref="Pronoun"/> — with their REAL EF configurations, so the pronoun/gender grammar template
 /// variable tests exercise the actual production mapping (columns, max lengths, the User→Pronoun/AltPronoun
-/// FKs) — on the InMemory provider. Every other <see cref="IApplicationDbContext"/> set throws; EF discovers
+/// FKs) — on a real relational SQLite database. Every other <see cref="IApplicationDbContext"/> set throws; EF discovers
 /// those entity types from the interface's DbSet&lt;T&gt; property declarations regardless of the throwing
 /// getter bodies, so they are ignored by reflection in <see cref="OnModelCreating"/> (mirrors the pattern
 /// already established by <c>ViewerDataTestDbContext</c>).
 /// </summary>
 internal sealed class PronounGrammarTestDbContext : DbContext, IApplicationDbContext
 {
-    private PronounGrammarTestDbContext(DbContextOptions<PronounGrammarTestDbContext> options)
-        : base(options) { }
+    // One private, non-shared in-memory SQLite connection per context instance - a REAL relational
+    // database (S-API-TESTS-INMEMORY; the EF InMemory provider is retired here because it ignores unique
+    // indexes, FK constraints and query translation, so it green-lights writes the real database rejects).
+    // Opened by New(), closed by this context's own Dispose/DisposeAsync overrides.
+    private readonly SqliteConnection _connection;
 
-    public static PronounGrammarTestDbContext New(string? databaseName = null) =>
-        new(
+    private PronounGrammarTestDbContext(
+        DbContextOptions<PronounGrammarTestDbContext> options,
+        SqliteConnection connection
+    )
+        : base(options) => _connection = connection;
+
+    public static PronounGrammarTestDbContext New()
+    {
+        SqliteConnection connection = new("Data Source=:memory:");
+        connection.Open();
+        PronounGrammarTestDbContext db = new(
             new DbContextOptionsBuilder<PronounGrammarTestDbContext>()
-                .UseInMemoryDatabase(databaseName ?? Guid.NewGuid().ToString())
-                .Options
+                .UseSqlite(connection)
+                .Options,
+            connection
         );
+        db.Database.EnsureCreated();
+        return db;
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        _connection.Dispose();
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        await base.DisposeAsync();
+        await _connection.DisposeAsync();
+    }
 
     // ── The entities these tests exercise; User/Channel/Pronoun carry their real configurations,
     // ChatMessage is mapped minimally (navs ignored) for the {*.lastmessage} template variables ──
@@ -82,6 +112,8 @@ internal sealed class PronounGrammarTestDbContext : DbContext, IApplicationDbCon
         // getter bodies below; ignore every entity these tests do not exercise.
         foreach (Type entity in UnmappedEntities)
             modelBuilder.Ignore(entity);
+
+        modelBuilder.ApplySqliteCompatibility();
     }
 
     private static readonly HashSet<Type> Mapped =

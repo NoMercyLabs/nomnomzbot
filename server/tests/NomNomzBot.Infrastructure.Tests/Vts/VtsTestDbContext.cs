@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Analytics.Entities;
@@ -28,27 +29,54 @@ using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 using DomainTimer = NomNomzBot.Domain.Commands.Entities.Timer;
 using RecordEntity = NomNomzBot.Domain.Platform.Entities.Record;
 
 namespace NomNomzBot.Infrastructure.Tests.Vts;
 
 /// <summary>
-/// A focused <see cref="IApplicationDbContext"/> for the VTube Studio tests — on the EF Core
-/// InMemory provider. Maps <see cref="NomNomzBot.Domain.Vts.Entities.VtsConnection"/> (navs
+/// A focused <see cref="IApplicationDbContext"/> for the VTube Studio tests — on the a real relational
+/// SQLite database. Maps <see cref="NomNomzBot.Domain.Vts.Entities.VtsConnection"/> (navs
 /// ignored); the sets inherited from the template stay mapped harmlessly; every other set throws.
 /// </summary>
 internal sealed class VtsTestDbContext : DbContext, IApplicationDbContext
 {
-    private VtsTestDbContext(DbContextOptions<VtsTestDbContext> options)
-        : base(options) { }
+    // One private, non-shared in-memory SQLite connection per context instance - a REAL relational
+    // database (S-API-TESTS-INMEMORY; the EF InMemory provider is retired here because it ignores unique
+    // indexes, FK constraints and query translation, so it green-lights writes the real database rejects).
+    // Opened by New(), closed by this context's own Dispose/DisposeAsync overrides.
+    private readonly SqliteConnection _connection;
 
-    public static VtsTestDbContext New() =>
-        new(
-            new DbContextOptionsBuilder<VtsTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
+    private VtsTestDbContext(
+        DbContextOptions<VtsTestDbContext> options,
+        SqliteConnection connection
+    )
+        : base(options) => _connection = connection;
+
+    public static VtsTestDbContext New()
+    {
+        SqliteConnection connection = new("Data Source=:memory:");
+        connection.Open();
+        VtsTestDbContext db = new(
+            new DbContextOptionsBuilder<VtsTestDbContext>().UseSqlite(connection).Options,
+            connection
         );
+        db.Database.EnsureCreated();
+        return db;
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        _connection.Dispose();
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        await base.DisposeAsync();
+        await _connection.DisposeAsync();
+    }
 
     public DbSet<UserTtsVoice> UserTtsVoices => Set<UserTtsVoice>();
     public DbSet<TtsUsageRecord> TtsUsageRecords => Set<TtsUsageRecord>();
@@ -118,6 +146,8 @@ internal sealed class VtsTestDbContext : DbContext, IApplicationDbContext
 
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
+
+        b.ApplySqliteCompatibility();
     }
 
     private static readonly HashSet<Type> Mapped =

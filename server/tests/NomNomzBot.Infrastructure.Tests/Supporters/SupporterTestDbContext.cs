@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Analytics.Entities;
@@ -29,6 +30,7 @@ using NomNomzBot.Domain.Supporters.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 using DomainTimer = NomNomzBot.Domain.Commands.Entities.Timer;
 using RecordEntity = NomNomzBot.Domain.Platform.Entities.Record;
 
@@ -36,28 +38,54 @@ namespace NomNomzBot.Infrastructure.Tests.Supporters;
 
 /// <summary>
 /// A focused <see cref="IApplicationDbContext"/> over just the entities the supporter subsystem tests exercise —
-/// on the EF Core InMemory provider (the production <c>AppDbContext</c> is Npgsql-bound and cannot host a test
+/// on a real relational SQLite database (the production <c>AppDbContext</c> is Npgsql-bound and cannot host a test
 /// provider). Maps <see cref="SupporterConnection"/> + <see cref="SupporterEvent"/> plus the few referenced
 /// tables: <see cref="Channel"/>, <see cref="User"/>, <see cref="EventResponse"/> (the bound trigger response),
 /// and <see cref="ChannelEvent"/> (the activity-feed row). Every other set throws — no exercised path reaches it.
 /// </summary>
 internal sealed class SupporterTestDbContext : DbContext, IApplicationDbContext
 {
-    private SupporterTestDbContext(DbContextOptions<SupporterTestDbContext> options)
-        : base(options) { }
+    // One private, non-shared in-memory SQLite connection per context instance - a REAL relational
+    // database (S-API-TESTS-INMEMORY; the EF InMemory provider is retired here because it ignores unique
+    // indexes, FK constraints and query translation, so it green-lights writes the real database rejects).
+    // Opened by New(), closed by this context's own Dispose/DisposeAsync overrides.
+    private readonly SqliteConnection _connection;
 
-    public static SupporterTestDbContext New() =>
-        new(
-            new DbContextOptionsBuilder<SupporterTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
+    private SupporterTestDbContext(
+        DbContextOptions<SupporterTestDbContext> options,
+        SqliteConnection connection
+    )
+        : base(options) => _connection = connection;
+
+    public static SupporterTestDbContext New()
+    {
+        SqliteConnection connection = new("Data Source=:memory:");
+        connection.Open();
+        SupporterTestDbContext db = new(
+            new DbContextOptionsBuilder<SupporterTestDbContext>().UseSqlite(connection).Options,
+            connection
         );
+        db.Database.EnsureCreated();
+        return db;
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        _connection.Dispose();
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        await base.DisposeAsync();
+        await _connection.DisposeAsync();
+    }
 
     /// <summary>
     /// Mirrors <c>SoftDeleteInterceptor</c> (Platform.Persistence.Interceptors) for the one entity these
     /// tests soft-delete: converts a tracked <c>EntityState.Deleted</c> <see cref="EventResponse"/> into a
     /// modified row with <see cref="NomNomzBot.Domain.Platform.SoftDeletableEntity.DeletedAt"/> stamped,
-    /// instead of letting the InMemory provider hard-delete it — so <c>EventResponseService.DeleteAsync</c>'s
+    /// instead of letting the provider hard-delete it — so <c>EventResponseService.DeleteAsync</c>'s
     /// <c>Remove()</c> call behaves the same way here as it does against the real, interceptor-backed
     /// <c>AppDbContext</c> (S048b).
     /// </summary>
@@ -134,7 +162,7 @@ internal sealed class SupporterTestDbContext : DbContext, IApplicationDbContext
             e.Ignore(r => r.MetadataJson);
             // Mirrors the real AppDbContext's global soft-delete query filter for this one entity — the
             // production filter (ApplyTenantAndSoftDeleteFilters) is Npgsql-model-wide and can't run on
-            // the InMemory provider, so EventResponseSeedingTests re-declares it here to exercise the same
+            // this focused context, so EventResponseSeedingTests re-declares it here to exercise the same
             // "soft-deleted rows are invisible unless IgnoreQueryFilters() is used" contract (S048b).
             e.HasQueryFilter(r => r.DeletedAt == null);
         });
@@ -157,6 +185,8 @@ internal sealed class SupporterTestDbContext : DbContext, IApplicationDbContext
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
+
+        b.ApplySqliteCompatibility();
     }
 
     private static readonly HashSet<Type> Mapped =

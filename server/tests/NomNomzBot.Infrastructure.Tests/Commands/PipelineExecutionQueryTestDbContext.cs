@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Analytics.Entities;
@@ -29,29 +30,56 @@ using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 using DomainTimer = NomNomzBot.Domain.Commands.Entities.Timer;
 
 namespace NomNomzBot.Infrastructure.Tests.Commands;
 
 /// <summary>
 /// A focused <see cref="IApplicationDbContext"/> over only <see cref="PipelineExecution"/> — on the EF
-/// Core InMemory provider — for <c>PipelineExecutionQueryServiceTests</c>. Everything else throws, since
+/// real relational SQLite database — for <c>PipelineExecutionQueryServiceTests</c>. Everything else throws, since
 /// those tests never reach it. Mirrors the "declare every DbSet, auto-ignore the unmapped ones" shape of
 /// the other focused test contexts in this project (e.g. <c>CommandsTestDbContext</c>).
 /// </summary>
 internal sealed class PipelineExecutionQueryTestDbContext : DbContext, IApplicationDbContext
 {
-    private PipelineExecutionQueryTestDbContext(
-        DbContextOptions<PipelineExecutionQueryTestDbContext> options
-    )
-        : base(options) { }
+    // One private, non-shared in-memory SQLite connection per context instance - a REAL relational
+    // database (S-API-TESTS-INMEMORY; the EF InMemory provider is retired here because it ignores unique
+    // indexes, FK constraints and query translation, so it green-lights writes the real database rejects).
+    // Opened by New(), closed by this context's own Dispose/DisposeAsync overrides.
+    private readonly SqliteConnection _connection;
 
-    public static PipelineExecutionQueryTestDbContext New() =>
-        new(
+    private PipelineExecutionQueryTestDbContext(
+        DbContextOptions<PipelineExecutionQueryTestDbContext> options,
+        SqliteConnection connection
+    )
+        : base(options) => _connection = connection;
+
+    public static PipelineExecutionQueryTestDbContext New()
+    {
+        SqliteConnection connection = new("Data Source=:memory:");
+        connection.Open();
+        PipelineExecutionQueryTestDbContext db = new(
             new DbContextOptionsBuilder<PipelineExecutionQueryTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
+                .UseSqlite(connection)
+                .Options,
+            connection
         );
+        db.Database.EnsureCreated();
+        return db;
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        _connection.Dispose();
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        await base.DisposeAsync();
+        await _connection.DisposeAsync();
+    }
 
     public DbSet<PipelineExecution> PipelineExecutions => Set<PipelineExecution>();
     public DbSet<PipelineRunState> PipelineRunStates => throw new NotSupportedException();
@@ -68,6 +96,8 @@ internal sealed class PipelineExecutionQueryTestDbContext : DbContext, IApplicat
         // getter bodies below; ignore every entity these tests do not exercise so the model stays minimal.
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
+
+        b.ApplySqliteCompatibility();
     }
 
     private static readonly HashSet<Type> Mapped = [typeof(PipelineExecution)];

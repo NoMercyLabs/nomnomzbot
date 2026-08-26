@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Analytics.Entities;
@@ -28,28 +29,55 @@ using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 using DomainTimer = NomNomzBot.Domain.Commands.Entities.Timer;
 using RecordEntity = NomNomzBot.Domain.Platform.Entities.Record;
 
 namespace NomNomzBot.Infrastructure.Tests.Obs;
 
 /// <summary>
-/// A focused <see cref="IApplicationDbContext"/> for the OBS-control tests — on the EF Core InMemory
-/// provider. Maps <see cref="NomNomzBot.Domain.Obs.Entities.ObsConnection"/> (navs ignored); the
+/// A focused <see cref="IApplicationDbContext"/> for the OBS-control tests — on a real relational
+/// SQLite database. Maps <see cref="NomNomzBot.Domain.Obs.Entities.ObsConnection"/> (navs ignored); the
 /// sets inherited from the template stay mapped harmlessly; every other set throws, since no
 /// exercised path reaches it.
 /// </summary>
 internal sealed class ObsTestDbContext : DbContext, IApplicationDbContext
 {
-    private ObsTestDbContext(DbContextOptions<ObsTestDbContext> options)
-        : base(options) { }
+    // One private, non-shared in-memory SQLite connection per context instance - a REAL relational
+    // database (S-API-TESTS-INMEMORY; the EF InMemory provider is retired here because it ignores unique
+    // indexes, FK constraints and query translation, so it green-lights writes the real database rejects).
+    // Opened by New(), closed by this context's own Dispose/DisposeAsync overrides.
+    private readonly SqliteConnection _connection;
 
-    public static ObsTestDbContext New() =>
-        new(
-            new DbContextOptionsBuilder<ObsTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
+    private ObsTestDbContext(
+        DbContextOptions<ObsTestDbContext> options,
+        SqliteConnection connection
+    )
+        : base(options) => _connection = connection;
+
+    public static ObsTestDbContext New()
+    {
+        SqliteConnection connection = new("Data Source=:memory:");
+        connection.Open();
+        ObsTestDbContext db = new(
+            new DbContextOptionsBuilder<ObsTestDbContext>().UseSqlite(connection).Options,
+            connection
         );
+        db.Database.EnsureCreated();
+        return db;
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        _connection.Dispose();
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        await base.DisposeAsync();
+        await _connection.DisposeAsync();
+    }
 
     public DbSet<UserTtsVoice> UserTtsVoices => Set<UserTtsVoice>();
     public DbSet<TtsUsageRecord> TtsUsageRecords => Set<TtsUsageRecord>();
@@ -114,6 +142,8 @@ internal sealed class ObsTestDbContext : DbContext, IApplicationDbContext
 
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
+
+        b.ApplySqliteCompatibility();
     }
 
     private static readonly HashSet<Type> Mapped =

@@ -69,9 +69,27 @@ public sealed class BundleServiceTests
         ITokenProtector Protector
     );
 
+    /// <summary>The owning channel rows. Bundle install/uninstall writes audit <c>Record</c>s whose
+    /// <c>BroadcasterId</c> foreign key the relational test database enforces.</summary>
+    private static void SeedChannels(MarketplaceTestDbContext db)
+    {
+        foreach (Guid id in new[] { Channel, OtherChannel })
+            db.Channels.Add(
+                new()
+                {
+                    Id = id,
+                    OwnerUserId = id,
+                    Name = $"bundle-{id:N}",
+                    NameNormalized = $"bundle-{id:N}",
+                }
+            );
+        db.SaveChanges();
+    }
+
     private static Harness Build()
     {
         MarketplaceTestDbContext db = MarketplaceTestDbContext.New();
+        SeedChannels(db);
         RecordingEventBus bus = new();
         ITokenProtector protector = Substitute.For<ITokenProtector>();
         protector
