@@ -162,19 +162,21 @@ stable — without dropping the planned requirements behind them.
   table-driven rendered-text proof (54f4622d, 1c5a5304, d295e94a). Converting the remaining screens is
   now self-proving: a converted file drops the rendered count and gains a row in the table test.
 
-- **S-RICH-PICKERS** (owner, 2026-08-25) "item pickers get a rich item list and not just a template
-  string or something not easily understandable." S045 shipped the picker KINDS (`reward`, `widget`,
-  `voice`, `sound_clip`, `discord_channel`, `discord_role`, `twitch_user`, `asset`); this makes the
-  OPTIONS themselves recognisable. Every picker option must carry: a human label, secondary context that
-  identifies it (reward cost + whether it is paused, voice locale + gender + provider, sound clip
-  duration, Discord channel's category/type, widget kind, user's display name + login), an image/icon
-  where the source has one, and its live state with a REASON when unselectable. NEVER a bare ULID, a raw
-  snowflake, or a template string. Options come from the real provider data — never fabricated
-  ([[no fake/seed data]]). Done-when: every picker kind in the catalogue returns a rich option shape
-  proven by a test per kind (assert the fields, not a non-empty list); the dashboard renders label +
-  secondary + state for each; a picker whose source is unavailable says so instead of showing an empty
-  list; and a guard test fails if a NEW picker kind is added without a rich option provider — enumerate
-  the kinds from the enum, do not hand-list them.
+- **S-RICH-PICKERS-guard** (SCOPE CORRECTED 2026-08-26 — the "every picker shows opaque ids" premise is
+  mostly FALSE and two agents nearly burned effort on it.) What is actually true:
+  the pipeline builder renders the rich backend option shape for all 8 `PickerKind`s (4e116ce5);
+  `DiscordScreen`'s channel/role pickers were ALREADY rich BEFORE any of this work — `#channel` + type +
+  category + a "not postable" DISABLED REASON, and role name + live colour swatch + role type, with three
+  distinct Loading / Error-with-retry / Loaded states — and a builder correctly REFUSED to convert them to
+  the generic provider because that would have LOST the postable reason, category and colour;
+  sound clips already route through `resolveRowLabel`; and the remaining `.id` hits across the feature
+  screens are action ARGUMENTS (`onDelete(rule.id)`), not visible labels.
+  So the remaining work is NOT a conversion sweep — it is a GUARD plus spot fixes. Done-when: a jvmTest
+  fails if any feature screen renders a bare ULID / Discord snowflake / raw template string as a
+  user-visible label (enumerate the render sites structurally, never a hand-list — the `RowLabelGuardTest`
+  split-baseline technique is the worked example); any site it catches is fixed; and a picker whose source
+  is unavailable is proven to say so differently from a genuinely empty one. Do NOT re-route already-rich
+  pickers through the generic provider unless it is verified to carry every field that screen shows.
 
 - **S-CODE-EDITOR** The code-scripts surface gets a **VS Code-for-web grade editor that functions like
   one** — Monaco-class: completion, hover types, go-to-definition, diagnostics, multi-file — loading a
