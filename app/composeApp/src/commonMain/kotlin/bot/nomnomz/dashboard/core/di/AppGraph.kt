@@ -463,6 +463,7 @@ class AppGraph {
             pipelinesApi = pipelinesApi,
             pickListsApi = pickListsApi,
             feedback = feedbackController,
+            resourceLimits = billingApi::resourceLimits,
         )
 
     val chatTriggersController: ChatTriggersController =
@@ -480,6 +481,7 @@ class AppGraph {
             pipelinesApi = pipelinesApi,
             pickListsApi = pickListsApi,
             feedback = feedbackController,
+            resourceLimits = billingApi::resourceLimits,
         )
 
     val moderationController: ModerationController =

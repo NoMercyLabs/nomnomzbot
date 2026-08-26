@@ -50,6 +50,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.EntityPickerField
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
+import bot.nomnomz.dashboard.core.designsystem.component.LimitedCreateAction
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
@@ -62,6 +63,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.PipelineSummary
+import bot.nomnomz.dashboard.core.network.ResourceUsage
 import bot.nomnomz.dashboard.core.network.TimerDetail
 import bot.nomnomz.dashboard.core.network.TimerSummary
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
@@ -116,6 +118,7 @@ import org.jetbrains.compose.resources.stringResource
 fun TimersScreen(controller: TimersController, role: ManagementRole?, hubEvents: SharedFlow<HubEvent>? = null) {
     val state: TimersState by controller.state.collectAsStateWithLifecycle()
     val writeError: String? by controller.writeError.collectAsStateWithLifecycle()
+    val timersUsage: ResourceUsage? by controller.timersUsage.collectAsStateWithLifecycle()
     val pipelines: List<PipelineSummary> by controller.pipelines.collectAsStateWithLifecycle()
     val pickListNames: List<String> by controller.pickListNames.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
@@ -147,6 +150,7 @@ fun TimersScreen(controller: TimersController, role: ManagementRole?, hubEvents:
                 ManagedContent(
                     timers = emptyList(),
                     writeError = writeError,
+                    timersUsage = timersUsage,
                     manage = manage,
                     onNew = { editTarget = TimerEditTarget.New },
                     onToggle = { timer -> scope.launch { controller.toggleTimer(timer.id, !timer.isEnabled) } },
@@ -158,6 +162,7 @@ fun TimersScreen(controller: TimersController, role: ManagementRole?, hubEvents:
                 ManagedContent(
                     timers = current.timers,
                     writeError = writeError,
+                    timersUsage = timersUsage,
                     manage = manage,
                     onNew = { editTarget = TimerEditTarget.New },
                     onToggle = { timer -> scope.launch { controller.toggleTimer(timer.id, !timer.isEnabled) } },
@@ -238,6 +243,7 @@ private sealed interface TimerEditTarget {
 private fun ManagedContent(
     timers: List<TimerSummary>,
     writeError: String?,
+    timersUsage: ResourceUsage?,
     manage: ManageDecision,
     onNew: () -> Unit,
     onToggle: (TimerSummary) -> Unit,
@@ -260,9 +266,14 @@ private fun ManagedContent(
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
         PageHeader(title = stringResource(Res.string.shell_nav_timers)) {
-            ManageGate(decision = manage) { enabled ->
-                Button(onClick = onNew, enabled = enabled) {
-                    Text(text = stringResource(Res.string.timers_new))
+            // S-BUDGETS-b3: at the safety limit the New button is disabled with its reason shown, never
+            // silently missing and never enabled-then-failing; approaching the limit shows the real remaining
+            // count. Both numbers come straight from the billing-limits report, never estimated client-side.
+            LimitedCreateAction(usage = timersUsage) { limitAllowed ->
+                ManageGate(decision = manage) { manageAllowed ->
+                    Button(onClick = onNew, enabled = manageAllowed && limitAllowed) {
+                        Text(text = stringResource(Res.string.timers_new))
+                    }
                 }
             }
         }

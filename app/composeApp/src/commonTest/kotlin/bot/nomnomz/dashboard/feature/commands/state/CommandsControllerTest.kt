@@ -282,6 +282,48 @@ class CommandsControllerTest {
         assertEquals(Res.string.feedback_command_save_failed, feedback.only.label)
         assertEquals(listOf<Any>("no permission"), feedback.only.formatArgs)
     }
+
+    // S-BUDGETS-b3: the values [CommandsScreen] feeds its warn-before-refuse New-button wrapper must be exactly
+    // what the billing-limits endpoint returned — never a client-recomputed count — and must find the
+    // "custom_commands" row among other unrelated resources in the same report.
+    @Test
+    fun load_exposes_the_channels_real_custom_commands_usage_from_the_billing_limits_report() = runTest {
+        val usage =
+            bot.nomnomz.dashboard.core.network.ResourceUsage(
+                limitKey = "custom_commands",
+                classWire = 1,
+                displayName = "Custom commands",
+                currentCount = 100,
+                limit = 100,
+                safetyBaseline = 100,
+            )
+        val unrelated =
+            bot.nomnomz.dashboard.core.network.ResourceUsage(
+                limitKey = "timers",
+                classWire = 1,
+                displayName = "Timers",
+                currentCount = 1,
+                limit = 50,
+                safetyBaseline = 50,
+            )
+        val controller = makeController(resourceLimits = { ApiResult.Ok(listOf(unrelated, usage)) })
+
+        controller.load()
+
+        val resolved: bot.nomnomz.dashboard.core.network.ResourceUsage? = controller.customCommandsUsage.value
+        assertEquals(100L, resolved?.currentCount)
+        assertEquals(100L, resolved?.limit)
+    }
+
+    @Test
+    fun a_failed_limits_fetch_leaves_the_usage_null_rather_than_failing_the_page() = runTest {
+        val controller = makeController(resourceLimits = { ApiResult.Failure(ApiError(500, "ERR", "boom")) })
+
+        controller.load()
+
+        assertNull(controller.customCommandsUsage.value)
+        assertTrue(controller.state.value is CommandsState.Empty)
+    }
 }
 
 // ── Fakes ────────────────────────────────────────────────────────────────────────────────────────
@@ -292,6 +334,8 @@ private fun makeController(
     commandsResult: ApiResult<List<CommandSummary>> = ApiResult.Ok(emptyList()),
     commandsApi: CommandsApi = RecordingCommandsApi(commandsResult),
     feedback: RecordingFeedback = RecordingFeedback(),
+    resourceLimits: suspend (String) -> ApiResult<List<bot.nomnomz.dashboard.core.network.ResourceUsage>> =
+        { ApiResult.Ok(emptyList()) },
 ): CommandsController =
     CommandsController(
         channelsApi = FakeChannelsApi(channelResult),
@@ -300,6 +344,7 @@ private fun makeController(
         pipelinesApi = FakePipelinesApi(),
         pickListsApi = FakePickListsApi(),
         feedback = feedback,
+        resourceLimits = resourceLimits,
     )
 
 private class FakePickListsApi : bot.nomnomz.dashboard.core.network.PickListsApi {

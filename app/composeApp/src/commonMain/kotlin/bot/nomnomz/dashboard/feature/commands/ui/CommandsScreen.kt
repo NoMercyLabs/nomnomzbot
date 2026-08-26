@@ -55,6 +55,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.EntityPickerField
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
+import bot.nomnomz.dashboard.core.designsystem.component.LimitedCreateAction
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
@@ -70,6 +71,7 @@ import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.network.BuiltinCommand
 import bot.nomnomz.dashboard.core.network.CommandSummary
 import bot.nomnomz.dashboard.core.network.PipelineSummary
+import bot.nomnomz.dashboard.core.network.ResourceUsage
 import bot.nomnomz.dashboard.feature.picklists.ui.PickListInsertMenu
 import bot.nomnomz.dashboard.feature.commands.state.CommandInput
 import bot.nomnomz.dashboard.feature.commands.state.CommandsController
@@ -158,6 +160,7 @@ fun CommandsScreen(
     hubEvents: SharedFlow<HubEvent>? = null,
 ) {
     val state: CommandsState by controller.state.collectAsStateWithLifecycle()
+    val customCommandsUsage: ResourceUsage? by controller.customCommandsUsage.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
 
@@ -182,6 +185,7 @@ fun CommandsScreen(
                     builtins = emptyList(),
                     pipelines = current.pipelines,
                     actionError = null,
+                    customCommandsUsage = customCommandsUsage,
                     manage = manage,
                     onNew = { editor = CommandEditor.create() },
                     onEdit = { command -> editor = CommandEditor.edit(command) },
@@ -199,6 +203,7 @@ fun CommandsScreen(
                     builtins = current.builtins,
                     pipelines = current.pipelines,
                     actionError = current.actionError,
+                    customCommandsUsage = customCommandsUsage,
                     manage = manage,
                     onNew = { editor = CommandEditor.create() },
                     onEdit = { command -> editor = CommandEditor.edit(command) },
@@ -268,6 +273,7 @@ private fun ManagedContent(
     builtins: List<BuiltinCommand>,
     pipelines: List<PipelineSummary>,
     actionError: String?,
+    customCommandsUsage: ResourceUsage?,
     manage: ManageDecision,
     onNew: () -> Unit,
     onEdit: (CommandSummary) -> Unit,
@@ -305,9 +311,14 @@ private fun ManagedContent(
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
         PageHeader(title = stringResource(Res.string.commands_title)) {
-            ManageGate(decision = manage) { enabled ->
-                Button(onClick = onNew, enabled = enabled) {
-                    Text(text = stringResource(Res.string.commands_new_action))
+            // S-BUDGETS-b3: at the safety limit the New button is disabled with its reason shown, never
+            // silently missing and never enabled-then-failing; approaching the limit shows the real remaining
+            // count. Both numbers come straight from the billing-limits report, never estimated client-side.
+            LimitedCreateAction(usage = customCommandsUsage) { limitAllowed ->
+                ManageGate(decision = manage) { manageAllowed ->
+                    Button(onClick = onNew, enabled = manageAllowed && limitAllowed) {
+                        Text(text = stringResource(Res.string.commands_new_action))
+                    }
                 }
             }
         }

@@ -2810,6 +2810,9 @@
     <string name="settings_resource_limits_tier">%1$s-abonnement</string>
     <string name="settings_resource_limits_error">Resourcelimieten konden niet worden geladen</string>
     <string name="settings_resource_limits_error_detail">Probeer het straks opnieuw — de veiligheids- en verbruikslimieten konden niet worden opgehaald.</string>
+    <!-- S-BUDGETS-b3 — waarschuw vóór de weigering op maak-schermen voor gelimiteerde resources (commando's, timers, event-reacties). -->
+    <string name="limits_approaching_notice">%1$d van %2$d over</string>
+    <string name="limits_at_limit_reason">Je hebt de veiligheidslimiet voor %1$s bereikt. Verwijder er een om een nieuwe toe te voegen.</string>
     <string name="settings_resource_limits_empty">Er geldt momenteel geen enkele limiet voor dit kanaal.</string>
     <string name="settings_billing_invoices_title">Facturen</string>
     <string name="settings_billing_invoice_paid">Betaald</string>

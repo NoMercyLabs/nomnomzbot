@@ -2825,6 +2825,9 @@
     <string name="settings_resource_limits_tier">%1$s tier</string>
     <string name="settings_resource_limits_error">Couldn't load resource limits</string>
     <string name="settings_resource_limits_error_detail">Try again in a moment — the safety and usage caps couldn't be fetched.</string>
+    <!-- S-BUDGETS-b3 — warn-before-refuse on limited-resource create surfaces (commands, timers, event responses). -->
+    <string name="limits_approaching_notice">%1$d of %2$d left</string>
+    <string name="limits_at_limit_reason">You've reached the safety limit for %1$s. Delete one to add another.</string>
     <string name="settings_resource_limits_empty">Nothing is limited on this channel right now.</string>
     <string name="settings_billing_invoices_title">Invoices</string>
     <string name="settings_billing_invoice_paid">Paid</string>

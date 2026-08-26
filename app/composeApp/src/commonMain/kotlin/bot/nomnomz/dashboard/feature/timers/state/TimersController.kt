@@ -23,6 +23,7 @@ import bot.nomnomz.dashboard.core.network.PickList
 import bot.nomnomz.dashboard.core.network.PickListsApi
 import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.PipelinesApi
+import bot.nomnomz.dashboard.core.network.ResourceUsage
 import bot.nomnomz.dashboard.core.network.TimerDetail
 import bot.nomnomz.dashboard.core.network.TimerSummary
 import bot.nomnomz.dashboard.core.network.TimersApi
@@ -41,17 +42,37 @@ import org.jetbrains.compose.resources.StringResource
 // backend (no fabricated rows), and drive the full create / edit / toggle / delete management surface. The
 // screen renders [state] for the list and [writeError] for a failed mutation; every successful write reloads
 // the list so the screen always reflects the backend's truth.
+// S-BUDGETS b1/b3 — the `CountedResource("timers", …)` key on the backend `Timer` entity; the report from
+// `GET .../billing/limits` carries the resource under this exact key.
+private const val TimersLimitKey: String = "timers"
+
 class TimersController(
     private val channelsApi: ChannelsApi,
     private val timersApi: TimersApi,
     private val pipelinesApi: PipelinesApi,
     private val pickListsApi: PickListsApi,
     private val feedback: Feedback = NoOpFeedback,
+    // The channel's truthful resource-limit report (S-BUDGETS-b1's `GET .../billing/limits`), narrowed to just
+    // the read this controller needs — a lambda default rather than the full `BillingApi` so this controller's
+    // existing tests never have to fake a dozen unrelated billing methods. Defaults to "nothing reported" so a
+    // caller that doesn't wire billing gets an unblocked create affordance, never a false block.
+    private val resourceLimits: suspend (channelId: String) -> ApiResult<List<ResourceUsage>> =
+        { ApiResult.Ok(emptyList()) },
 ) {
     private val _state: MutableStateFlow<TimersState> = MutableStateFlow(TimersState.Loading)
 
     /** The page render state: loading / ready (with the rows) / empty / error. */
     val state: StateFlow<TimersState> = _state.asStateFlow()
+
+    private val _timersUsage: MutableStateFlow<ResourceUsage?> = MutableStateFlow(null)
+
+    /**
+     * The channel's real [timers][TimersLimitKey] usage — straight from the same billing-limits report
+     * `ResourceLimitsSection` renders (S-BUDGETS-b1/b2), never client-computed. Null until [load] resolves it (or
+     * when the endpoint carries no report for this resource); the create dialog's warn-before-refuse affordance
+     * treats null exactly like "not near the limit" — it must never block on missing data.
+     */
+    val timersUsage: StateFlow<ResourceUsage?> = _timersUsage.asStateFlow()
 
     private val _pipelines: MutableStateFlow<List<PipelineSummary>> = MutableStateFlow(emptyList())
 
@@ -105,6 +126,14 @@ class TimersController(
             when (val result: ApiResult<List<PickList>> = pickListsApi.list()) {
                 is ApiResult.Ok -> result.value.map { it.name }
                 is ApiResult.Failure -> emptyList()
+            }
+
+        // Best-effort: a failure to fetch the limits report just leaves the create affordance unblocked (never
+        // fails the page) — the backend still enforces the real limit on the write itself either way.
+        _timersUsage.value =
+            when (val result: ApiResult<List<ResourceUsage>> = resourceLimits(channel.id)) {
+                is ApiResult.Ok -> result.value.firstOrNull { it.limitKey == TimersLimitKey }
+                is ApiResult.Failure -> null
             }
 
         when (val result: ApiResult<List<TimerSummary>> = timersApi.list(channel.id)) {

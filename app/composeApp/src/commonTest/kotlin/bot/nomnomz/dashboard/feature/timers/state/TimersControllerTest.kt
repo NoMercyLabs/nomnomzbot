@@ -279,6 +279,58 @@ class TimersControllerTest {
         assertEquals(Res.string.feedback_timer_save_failed, feedback.only.label)
         assertEquals(listOf<Any>("no permission"), feedback.only.formatArgs)
     }
+
+    // S-BUDGETS-b3: the values [TimersScreen] feeds its warn-before-refuse New-button wrapper must be exactly
+    // what the billing-limits endpoint returned — never a client-recomputed count — and must find the "timers"
+    // row among other unrelated resources in the same report.
+    @Test
+    fun load_exposes_the_channels_real_timers_usage_from_the_billing_limits_report() = runTest {
+        val usage =
+            bot.nomnomz.dashboard.core.network.ResourceUsage(
+                limitKey = "timers",
+                classWire = 1,
+                displayName = "Timers",
+                currentCount = 97,
+                limit = 100,
+                safetyBaseline = 100,
+            )
+        val unrelated =
+            bot.nomnomz.dashboard.core.network.ResourceUsage(
+                limitKey = "custom_commands",
+                classWire = 1,
+                displayName = "Custom commands",
+                currentCount = 1,
+                limit = 200,
+                safetyBaseline = 200,
+            )
+        val controller =
+            timersController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                timersApi = FakeTimersApi(emptyList()),
+                resourceLimits = { ApiResult.Ok(listOf(unrelated, usage)) },
+            )
+
+        controller.load()
+
+        val resolved: bot.nomnomz.dashboard.core.network.ResourceUsage? = controller.timersUsage.value
+        assertEquals(97L, resolved?.currentCount)
+        assertEquals(100L, resolved?.limit)
+    }
+
+    @Test
+    fun a_failed_limits_fetch_leaves_the_usage_null_rather_than_failing_the_page() = runTest {
+        val controller =
+            timersController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                timersApi = FakeTimersApi(emptyList()),
+                resourceLimits = { ApiResult.Failure(ApiError(500, "ERR", "boom")) },
+            )
+
+        controller.load()
+
+        assertEquals(null, controller.timersUsage.value)
+        assertTrue(controller.state.value is TimersState.Empty)
+    }
 }
 
 // Builds a controller with an empty-pipeline fake so the tests that don't exercise the picker stay unchanged.
@@ -287,7 +339,10 @@ private fun timersController(
     timersApi: TimersApi,
     pipelinesApi: PipelinesApi = FakePipelinesApi(),
     feedback: Feedback = NoOpFeedback,
-): TimersController = TimersController(channelsApi, timersApi, pipelinesApi, FakePickListsApi(), feedback)
+    resourceLimits: suspend (String) -> ApiResult<List<bot.nomnomz.dashboard.core.network.ResourceUsage>> =
+        { ApiResult.Ok(emptyList()) },
+): TimersController =
+    TimersController(channelsApi, timersApi, pipelinesApi, FakePickListsApi(), feedback, resourceLimits)
 
 private class FakePickListsApi : bot.nomnomz.dashboard.core.network.PickListsApi {
     override suspend fun list(): ApiResult<List<bot.nomnomz.dashboard.core.network.PickList>> =
