@@ -10,7 +10,6 @@
 
 using System.Net;
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Domain.Music.Interfaces;
@@ -75,11 +74,7 @@ public sealed class YouTubeMusicProviderManageTests
         // never reach an outbound call. Proven on the wire, not on non-null: the fake HTTP handler only
         // answers a request carrying the vault's bearer — if the stale Service value leaked through, the
         // request would 404 and the call would fail.
-        MusicTestDbContext db = new(
-            new DbContextOptionsBuilder<MusicTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
-        );
+        MusicTestDbContext db = MusicTestDbContext.New();
         db.Services.Add(
             new()
             {
@@ -690,11 +685,7 @@ public sealed class YouTubeMusicProviderManageTests
         bool connectYouTube = true
     )
     {
-        MusicTestDbContext db = new(
-            new DbContextOptionsBuilder<MusicTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
-        );
+        MusicTestDbContext db = MusicTestDbContext.New();
         FakeIntegrationTokenVault vault = new(db);
         if (connectYouTube)
             vault.SeedConnectedYouTube(ChannelId, BearerToken);

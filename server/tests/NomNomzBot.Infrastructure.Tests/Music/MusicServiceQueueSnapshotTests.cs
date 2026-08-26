@@ -11,7 +11,6 @@
 using System.Net;
 using System.Text;
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Music.Events;
@@ -101,11 +100,7 @@ public sealed class MusicServiceQueueSnapshotTests
 
     private static (MusicService Sut, RecordingEventBus Bus) Build()
     {
-        MusicTestDbContext db = new(
-            new DbContextOptionsBuilder<MusicTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
-        );
+        MusicTestDbContext db = MusicTestDbContext.New();
         db.Services.Add(
             new()
             {

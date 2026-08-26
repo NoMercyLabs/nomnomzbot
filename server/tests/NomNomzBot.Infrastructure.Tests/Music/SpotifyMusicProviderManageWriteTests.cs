@@ -10,7 +10,6 @@
 
 using System.Net;
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Music;
@@ -407,11 +406,7 @@ public sealed class SpotifyMusicProviderManageWriteTests
 
     private static (MusicProviderManageApi Api, RecordingHttpHandler Handler) Build()
     {
-        MusicTestDbContext db = new(
-            new DbContextOptionsBuilder<MusicTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
-        );
+        MusicTestDbContext db = MusicTestDbContext.New();
         FakeIntegrationTokenVault vault = new(db);
         vault.SeedConnectedSpotify(ChannelId);
 

@@ -9,7 +9,6 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
@@ -292,13 +291,19 @@ public sealed class MusicStatePollingServiceTests
         // channels: which channels were asked is the distinction, not how many calls were made.
         bus.Published.Count.Should()
             .Be(publishedAfterFirstTick, "unchanged state publishes nothing");
+        // Order-insensitive on purpose: the candidate-channel query is a Distinct() with no ORDER BY,
+        // so no real database promises an order. The multiset is the contract - every connected channel
+        // asked exactly once per tick, twice over two ticks.
         handover
             .Calls.Should()
-            .Equal(
-                ChannelA.ToString(),
-                ChannelB.ToString(),
-                ChannelA.ToString(),
-                ChannelB.ToString()
+            .BeEquivalentTo(
+                new[]
+                {
+                    ChannelA.ToString(),
+                    ChannelB.ToString(),
+                    ChannelA.ToString(),
+                    ChannelB.ToString(),
+                }
             );
     }
 
@@ -310,11 +315,7 @@ public sealed class MusicStatePollingServiceTests
         RecordingHandover Handover
     ) Build(IReadOnlyList<Guid> connectedChannels)
     {
-        MusicTestDbContext db = new(
-            new DbContextOptionsBuilder<MusicTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
-        );
+        MusicTestDbContext db = MusicTestDbContext.New();
         foreach (Guid channelId in connectedChannels)
         {
             db.Services.Add(

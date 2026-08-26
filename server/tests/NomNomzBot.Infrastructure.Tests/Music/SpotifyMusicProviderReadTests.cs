@@ -10,7 +10,6 @@
 
 using System.Net;
 using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Music;
@@ -442,11 +441,7 @@ public sealed class SpotifyMusicProviderReadTests
     public async Task Embedded_playback_token_is_null_when_the_streaming_scope_was_not_granted()
     {
         // A real pre-feature Spotify connection: playback scopes granted, "streaming" never requested.
-        MusicTestDbContext db = new(
-            new DbContextOptionsBuilder<MusicTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
-        );
+        MusicTestDbContext db = MusicTestDbContext.New();
         FakeIntegrationTokenVault vault = new(db);
         vault.SeedConnectedSpotify(
             ChannelId,
@@ -485,11 +480,7 @@ public sealed class SpotifyMusicProviderReadTests
     [Fact]
     public async Task Embedded_playback_token_returns_the_live_access_token_when_streaming_is_granted()
     {
-        MusicTestDbContext db = new(
-            new DbContextOptionsBuilder<MusicTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
-        );
+        MusicTestDbContext db = MusicTestDbContext.New();
         FakeIntegrationTokenVault vault = new(db);
         vault.SeedConnectedSpotify(
             ChannelId,
@@ -547,11 +538,7 @@ public sealed class SpotifyMusicProviderReadTests
         bool connectSpotify = true
     )
     {
-        MusicTestDbContext db = new(
-            new DbContextOptionsBuilder<MusicTestDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
-        );
+        MusicTestDbContext db = MusicTestDbContext.New();
         FakeIntegrationTokenVault vault = new(db);
         if (connectSpotify)
             vault.SeedConnectedSpotify(ChannelId);
