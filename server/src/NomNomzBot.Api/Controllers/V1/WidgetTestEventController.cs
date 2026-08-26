@@ -12,12 +12,15 @@ using System.Text.Json;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Identifiers;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Widgets.Services;
+using NomNomzBot.Domain.Widgets.Entities;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -33,11 +36,17 @@ public sealed class WidgetTestEventController : BaseController
 {
     private readonly IApplicationDbContext _db;
     private readonly IWidgetNotifier _notifier;
+    private readonly IOverlayPresenceRegistry _presence;
 
-    public WidgetTestEventController(IApplicationDbContext db, IWidgetNotifier notifier)
+    public WidgetTestEventController(
+        IApplicationDbContext db,
+        IWidgetNotifier notifier,
+        IOverlayPresenceRegistry presence
+    )
     {
         _db = db;
         _notifier = notifier;
+        _presence = presence;
     }
 
     /// <summary>Fire a sample event of <paramref name="request"/>.EventType to the channel's subscribed widgets.</summary>
@@ -73,7 +82,39 @@ public sealed class WidgetTestEventController : BaseController
             data,
             ct
         );
-        return Ok(new StatusResponseDto<string> { Data = $"fired {request.EventType}" });
+        return Ok(
+            new StatusResponseDto<string>
+            {
+                Data = await DescribeReachAsync(broadcasterId, request.EventType, ct),
+            }
+        );
+    }
+
+    /// <summary>
+    /// Says who could actually have received the test event. Reporting a bare "fired {eventType}" made a test
+    /// that reached NOTHING look identical to one the stream heard: a channel with no subscribing widget, and a
+    /// channel whose browser source is not open, both read as success — which is exactly how two identically
+    /// configured channels appear to behave differently. The dispatch is the same either way; only the report
+    /// changes, and it now names the reason nothing played.
+    /// </summary>
+    private async Task<string> DescribeReachAsync(
+        Guid broadcasterId,
+        string eventType,
+        CancellationToken ct
+    )
+    {
+        List<Widget> widgets = await _db
+            .Widgets.AsNoTracking()
+            .Where(w => w.BroadcasterId == broadcasterId)
+            .ToListAsync(ct);
+        List<Widget> subscribers = WidgetAlertRouting.Subscribers(widgets, eventType).ToList();
+        if (subscribers.Count == 0)
+            return $"fired {eventType} — no widget on this channel subscribes it";
+
+        int attached = subscribers.Count(w => _presence.IsWidgetAttached(broadcasterId, w.Id));
+        return attached == 0
+            ? $"fired {eventType} to {subscribers.Count} widget(s) — none has a browser source open, so nothing played it"
+            : $"fired {eventType} to {subscribers.Count} widget(s), {attached} with a browser source open";
     }
 
     /// <summary>Coerce a value (a <see cref="JsonElement"/> when it came from the request body) to a plain CLR
