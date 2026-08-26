@@ -365,6 +365,62 @@ public class PipelineService : IPipelineService
         return Result.Success();
     }
 
+    public async Task<Result<PipelineBlastRadiusDto>> GetBlastRadiusAsync(
+        string broadcasterId,
+        Guid id,
+        CancellationToken ct = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result<PipelineBlastRadiusDto>.Failure(
+                $"Invalid channel ID '{broadcasterId}'.",
+                "VALIDATION_FAILED"
+            );
+
+        bool exists = await _db.Pipelines.AnyAsync(
+            p => p.BroadcasterId == broadcaster && p.Id == id,
+            ct
+        );
+        if (!exists)
+            return Result<PipelineBlastRadiusDto>.Failure(
+                $"Pipeline '{id}' was not found.",
+                "NOT_FOUND"
+            );
+
+        List<string> commandNames = await _db
+            .Commands.Where(c => c.BroadcasterId == broadcaster && c.PipelineId == id)
+            .Select(c => c.Name)
+            .ToListAsync(ct);
+
+        List<string> chatTriggerPatterns = await _db
+            .ChatTriggers.Where(t => t.BroadcasterId == broadcaster && t.PipelineId == id)
+            .Select(t => t.Pattern)
+            .ToListAsync(ct);
+
+        List<string> timerNames = await _db
+            .Timers.Where(t => t.BroadcasterId == broadcaster && t.PipelineId == id)
+            .Select(t => t.Name)
+            .ToListAsync(ct);
+
+        List<string> eventResponseEventTypes = await _db
+            .EventResponses.Where(r => r.BroadcasterId == broadcaster && r.PipelineId == id)
+            .Select(r => r.EventType)
+            .ToListAsync(ct);
+
+        return Result<PipelineBlastRadiusDto>.Success(
+            new PipelineBlastRadiusDto(
+                commandNames.Count,
+                commandNames,
+                chatTriggerPatterns.Count,
+                chatTriggerPatterns,
+                timerNames.Count,
+                timerNames,
+                eventResponseEventTypes.Count,
+                eventResponseEventTypes
+            )
+        );
+    }
+
     /// <summary>
     /// A pipeline's steps are only ever reached through a bound <c>Command</c> or <c>ChatTrigger</c>, and both
     /// resolve the pipeline's <c>GraphJsonCache</c> once, at cache-load time, into <see cref="Domain.Platform.Interfaces.CachedCommand.PipelineGraphJson"/>

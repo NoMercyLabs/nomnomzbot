@@ -111,3 +111,23 @@ public sealed record UpdatePipelineDto
     [JsonPropertyName("graph")]
     public object? GraphJsonCache { get; init; }
 }
+
+/// <summary>
+/// The real, counted set of rows that reference a pipeline right now — surfaced in the delete
+/// confirmation BEFORE the save, never estimated. <see cref="TotalReferences"/> is zero exactly
+/// when nothing references the pipeline; the dashboard must render that as an explicit
+/// "nothing else references this" statement, not an empty/ambiguous state.
+/// </summary>
+public sealed record PipelineBlastRadiusDto(
+    int CommandCount,
+    IReadOnlyList<string> CommandNames,
+    int ChatTriggerCount,
+    IReadOnlyList<string> ChatTriggerPatterns,
+    int TimerCount,
+    IReadOnlyList<string> TimerNames,
+    int EventResponseCount,
+    IReadOnlyList<string> EventResponseEventTypes
+)
+{
+    public int TotalReferences => CommandCount + ChatTriggerCount + TimerCount + EventResponseCount;
+}

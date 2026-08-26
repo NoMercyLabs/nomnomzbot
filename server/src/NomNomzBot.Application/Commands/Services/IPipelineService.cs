@@ -44,4 +44,15 @@ public interface IPipelineService
     );
 
     Task<Result> DeleteAsync(string broadcasterId, Guid id, CancellationToken ct = default);
+
+    /// <summary>
+    /// Real, counted rows (commands / chat triggers / timers / event responses) that reference this
+    /// pipeline right now — for the delete confirmation, computed from the live tenant data, never
+    /// estimated.
+    /// </summary>
+    Task<Result<PipelineBlastRadiusDto>> GetBlastRadiusAsync(
+        string broadcasterId,
+        Guid id,
+        CancellationToken ct = default
+    );
 }

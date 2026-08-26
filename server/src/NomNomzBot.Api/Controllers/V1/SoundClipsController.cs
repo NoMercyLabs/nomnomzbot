@@ -191,6 +191,9 @@ public sealed class SoundClipsController : BaseController
     // ── DELETE /sound-clips/{id} ─────────────────────────────────────────────
 
     /// <summary>Delete a sound clip.</summary>
+    [NotDestructive(
+        "Pipeline steps can reference a sound clip id, but only inside PipelineStep.ConfigJson (a JSON blob, not a queryable FK) — counting real references needs a JSON-scan mechanism out of scope for this slice; tracked as a follow-up, not silently skipped."
+    )]
     [HttpDelete("{id:guid}")]
     [RequireAction("sounds:write")]
     [ProducesResponseType<StatusResponseDto<bool>>(StatusCodes.Status200OK)]
