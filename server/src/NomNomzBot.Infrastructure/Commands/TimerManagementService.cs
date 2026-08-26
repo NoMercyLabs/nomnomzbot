@@ -15,6 +15,7 @@ using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Billing;
+using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using DomainTimer = NomNomzBot.Domain.Commands.Entities.Timer;
@@ -25,19 +26,19 @@ public class TimerManagementService : ITimerManagementService
 {
     private readonly IApplicationDbContext _db;
     private readonly IEventBus _eventBus;
-    private readonly IBillingTierService _tiers;
+    private readonly IResourceQuotaService _quota;
     private readonly ITemplateHelperValidator _templateHelperValidator;
 
     public TimerManagementService(
         IApplicationDbContext db,
         IEventBus eventBus,
-        IBillingTierService tiers,
+        IResourceQuotaService quota,
         ITemplateHelperValidator templateHelperValidator
     )
     {
         _db = db;
         _eventBus = eventBus;
-        _tiers = tiers;
+        _quota = quota;
         _templateHelperValidator = templateHelperValidator;
     }
 
@@ -135,22 +136,22 @@ public class TimerManagementService : ITimerManagementService
         if (exists)
             return Errors.AlreadyExists("timer", request.Name).ToTyped<TimerDto>();
 
-        // Tier quotas (monetization-billing §3.3): the timer count and the per-timer message-variation
-        // list are both capped by the plan; -1 (self-host / unseeded) is unlimited.
-        Result<long> timerCap = await _tiers.GetLimitAsync(
-            broadcaster,
-            "timers",
+        // timers is NEAR_FREE (S-BUDGETS-a): checked against the registry's uniform safety baseline via the
+        // quota seam — never tier-scaled, self-host included.
+        int existingTimerCount = await _db.Timers.CountAsync(
+            t => t.BroadcasterId == broadcaster,
             cancellationToken
         );
-        if (timerCap is { IsSuccess: true, Value: >= 0 })
-        {
-            int current = await _db.Timers.CountAsync(
-                t => t.BroadcasterId == broadcaster,
-                cancellationToken
-            );
-            if (current >= timerCap.Value)
-                return Errors.QuotaExceeded("timers", timerCap.Value).ToTyped<TimerDto>();
-        }
+        Result<QuotaCheckDto> timerQuota = await _quota.CheckAsync(
+            broadcaster,
+            "timers",
+            existingTimerCount + 1,
+            cancellationToken
+        );
+        if (timerQuota.IsFailure)
+            return timerQuota.ToTyped<TimerDto>();
+        if (!timerQuota.Value.Allowed)
+            return Errors.QuotaExceeded("timers", timerQuota.Value.Limit).ToTyped<TimerDto>();
 
         Result variationsOk = await CheckVariationCapAsync(
             broadcaster,
@@ -295,21 +296,27 @@ public class TimerManagementService : ITimerManagementService
         return Result.Success(ToDto(timer));
     }
 
-    /// <summary>The per-trigger variation cap (<c>response_variations_per_trigger</c>) — -1 is unlimited.</summary>
+    /// <summary>
+    /// The per-timer variation cap (<c>response_variations_per_trigger</c>) — NEAR_FREE, the registry's
+    /// uniform safety baseline, never tier-scaled.
+    /// </summary>
     private async Task<Result> CheckVariationCapAsync(
         Guid broadcaster,
         int requestedCount,
         CancellationToken ct
     )
     {
-        Result<long> cap = await _tiers.GetLimitAsync(
+        Result<QuotaCheckDto> check = await _quota.CheckAsync(
             broadcaster,
             "response_variations_per_trigger",
+            requestedCount,
             ct
         );
-        return cap is { IsSuccess: true, Value: >= 0 } && requestedCount > cap.Value
-            ? Errors.QuotaExceeded("message variations per timer", cap.Value)
-            : Result.Success();
+        if (check.IsFailure)
+            return check;
+        return check.Value.Allowed
+            ? Result.Success()
+            : Errors.QuotaExceeded("message variations per timer", check.Value.Limit);
     }
 
     /// <summary>E5 dashboard live-sync: fired after every successful write so other open dashboards refetch.</summary>

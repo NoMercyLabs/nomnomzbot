@@ -106,7 +106,7 @@ public sealed class BundleParityTypesTests
             Substitute.For<IPipelineEngine>(),
             Substitute.For<IChannelRegistry>(),
             bus,
-            Billing.TestTiers.Unlimited(),
+            Billing.TestQuota.Unlimited(),
             new TemplateHelperValidator()
         );
         ICommandConfigValidator permissiveValidator = Substitute.For<ICommandConfigValidator>();
@@ -129,7 +129,7 @@ public sealed class BundleParityTypesTests
         EventResponseService eventResponses = new(
             db,
             bus,
-            Billing.TestTiers.Unlimited(),
+            Billing.TestQuota.Unlimited(),
             new TemplateHelperValidator()
         );
         ITwitchChannelPointsApi channelPoints = Substitute.For<ITwitchChannelPointsApi>();
@@ -145,7 +145,7 @@ public sealed class BundleParityTypesTests
         TimerManagementService timers = new(
             db,
             bus,
-            Billing.TestTiers.Unlimited(),
+            Billing.TestQuota.Unlimited(),
             new TemplateHelperValidator()
         );
         ChatTriggerService chatTriggers = new(db, Substitute.For<IChannelRegistry>());

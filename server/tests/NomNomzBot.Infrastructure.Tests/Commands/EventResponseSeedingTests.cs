@@ -66,7 +66,7 @@ public sealed class EventResponseSeedingTests
             new EventResponseService(
                 db,
                 Substitute.For<IEventBus>(),
-                Billing.TestTiers.Unlimited(),
+                Billing.TestQuota.Unlimited(),
                 new TemplateHelperValidator()
             ),
             new EventResponseDefaultsSeeder(db),

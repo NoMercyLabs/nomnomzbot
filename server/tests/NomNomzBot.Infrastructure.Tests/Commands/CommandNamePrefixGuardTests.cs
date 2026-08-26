@@ -56,7 +56,7 @@ public sealed class CommandNamePrefixGuardTests
             Substitute.For<IPipelineEngine>(),
             Substitute.For<IChannelRegistry>(),
             new RecordingEventBus(),
-            Billing.TestTiers.Unlimited(),
+            Billing.TestQuota.Unlimited(),
             new TemplateHelperValidator()
         );
         return (sut, db);

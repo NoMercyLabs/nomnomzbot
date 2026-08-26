@@ -10,6 +10,7 @@
 
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using NomNomzBot.Domain.Billing;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform;
 
@@ -19,6 +20,7 @@ namespace NomNomzBot.Domain.Commands.Entities;
 /// An authored command: T1 template, T2 visual pipeline, or T3 code-triggered.
 /// Schema: G.2 (commands-pipelines.md §1).
 /// </summary>
+[CountedResource("custom_commands", ResourceClass.NearFree)]
 public class Command : SoftDeletableEntity, ITenantScoped
 {
     public Guid Id { get; set; }

@@ -15,6 +15,7 @@ using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Billing;
+using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -25,19 +26,19 @@ public class EventResponseService : IEventResponseService
 {
     private readonly IApplicationDbContext _db;
     private readonly IEventBus _eventBus;
-    private readonly IBillingTierService _tiers;
+    private readonly IResourceQuotaService _quota;
     private readonly ITemplateHelperValidator _templateHelperValidator;
 
     public EventResponseService(
         IApplicationDbContext db,
         IEventBus eventBus,
-        IBillingTierService tiers,
+        IResourceQuotaService quota,
         ITemplateHelperValidator templateHelperValidator
     )
     {
         _db = db;
         _eventBus = eventBus;
-        _tiers = tiers;
+        _quota = quota;
         _templateHelperValidator = templateHelperValidator;
     }
 
@@ -140,29 +141,29 @@ public class EventResponseService : IEventResponseService
             entity!.DeletedAt = null;
         }
 
-        // Tier quota (monetization-billing §3.3): `event_responses` caps ENABLED responses, never raw
-        // rows — EventResponseDefaultsSeeder seeds a disabled row per catalog event type for every
-        // channel, so raw counts are always at catalog size. Gate only a write that ENABLES a currently-
-        // disabled (or new) response.
+        // event_responses is NEAR_FREE (S-BUDGETS-a) and caps ENABLED responses, never raw rows —
+        // EventResponseDefaultsSeeder seeds a disabled row per catalog event type for every channel, so raw
+        // counts are always at catalog size. Gate only a write that ENABLES a currently-disabled (or new)
+        // response, via the quota seam — the registry's uniform safety baseline, never tier-scaled.
         bool wantsEnabled = request.IsEnabled ?? entity is null; // create default is enabled
         if (wantsEnabled && entity is not { IsEnabled: true })
         {
-            Result<long> cap = await _tiers.GetLimitAsync(
-                broadcaster,
-                "event_responses",
+            int enabledCount = await _db.EventResponses.CountAsync(
+                e => e.BroadcasterId == broadcaster && e.IsEnabled,
                 cancellationToken
             );
-            if (cap is { IsSuccess: true, Value: >= 0 })
-            {
-                int enabled = await _db.EventResponses.CountAsync(
-                    e => e.BroadcasterId == broadcaster && e.IsEnabled,
-                    cancellationToken
-                );
-                if (enabled >= cap.Value)
-                    return Errors
-                        .QuotaExceeded("enabled event responses", cap.Value)
-                        .ToTyped<EventResponseDto>();
-            }
+            Result<QuotaCheckDto> quota = await _quota.CheckAsync(
+                broadcaster,
+                "event_responses",
+                enabledCount + 1,
+                cancellationToken
+            );
+            if (quota.IsFailure)
+                return quota.ToTyped<EventResponseDto>();
+            if (!quota.Value.Allowed)
+                return Errors
+                    .QuotaExceeded("enabled event responses", quota.Value.Limit)
+                    .ToTyped<EventResponseDto>();
         }
 
         bool isNew = entity is null;
