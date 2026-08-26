@@ -166,6 +166,7 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
     public DbSet<PipelineStepCondition> PipelineStepConditions => Set<PipelineStepCondition>();
     public DbSet<PipelineTrigger> PipelineTriggers => Set<PipelineTrigger>();
     public DbSet<PipelineExecution> PipelineExecutions => Set<PipelineExecution>();
+    public DbSet<PipelineRunState> PipelineRunStates => throw new NotSupportedException();
     public DbSet<ChannelBuiltinCommand> ChannelBuiltinCommands => Set<ChannelBuiltinCommand>();
     public DbSet<CommandCooldownState> CommandCooldownStates => Set<CommandCooldownState>();
     public DbSet<NamedCounter> NamedCounters => Set<NamedCounter>();

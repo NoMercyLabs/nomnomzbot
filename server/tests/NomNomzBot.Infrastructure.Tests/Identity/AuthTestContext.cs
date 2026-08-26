@@ -664,6 +664,8 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineExecution> PipelineExecutions =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Commands.Entities.PipelineRunState> PipelineRunStates =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.ChannelBuiltinCommand> ChannelBuiltinCommands =>
         Set<NomNomzBot.Domain.Commands.Entities.ChannelBuiltinCommand>();
     public DbSet<NomNomzBot.Domain.Commands.Entities.CommandCooldownState> CommandCooldownStates =>

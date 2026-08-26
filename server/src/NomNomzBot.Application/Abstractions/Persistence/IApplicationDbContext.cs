@@ -129,6 +129,7 @@ public interface IApplicationDbContext
     DbSet<PipelineStepCondition> PipelineStepConditions { get; }
     DbSet<PipelineTrigger> PipelineTriggers { get; }
     DbSet<PipelineExecution> PipelineExecutions { get; }
+    DbSet<PipelineRunState> PipelineRunStates { get; }
     DbSet<ChannelBuiltinCommand> ChannelBuiltinCommands { get; }
     DbSet<CommandCooldownState> CommandCooldownStates { get; }
     DbSet<NamedCounter> NamedCounters { get; }

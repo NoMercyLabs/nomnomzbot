@@ -232,6 +232,8 @@ internal sealed class PipelineGraphRoundTripDbContext : DbContext, IApplicationD
     public DbSet<PipelineStepCondition> PipelineStepConditions => Set<PipelineStepCondition>();
     public DbSet<PipelineTrigger> PipelineTriggers => Set<PipelineTrigger>();
     public DbSet<PipelineExecution> PipelineExecutions => throw new NotSupportedException();
+
+    public DbSet<PipelineRunState> PipelineRunStates => throw new NotSupportedException();
     public DbSet<ChannelBuiltinCommand> ChannelBuiltinCommands => throw new NotSupportedException();
     public DbSet<CommandCooldownState> CommandCooldownStates => throw new NotSupportedException();
     public DbSet<NamedCounter> NamedCounters => throw new NotSupportedException();

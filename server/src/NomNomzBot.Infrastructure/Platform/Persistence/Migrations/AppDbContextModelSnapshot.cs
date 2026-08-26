@@ -1575,6 +1575,67 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.ToTable("PipelineExecutions");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Commands.Entities.PipelineRunState", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AccumulatedRuntimeMs")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CursorJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("PipelineId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("ResumedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTimeOffset?>("SuspendedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("SuspendedAtStepId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("TriggeredByDisplayName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<Guid>("TriggeredByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("VariablesJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PipelineId");
+
+                    b.ToTable("PipelineRunStates");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Commands.Entities.PipelineStep", b =>
                 {
                     b.Property<Guid>("Id")
@@ -9729,6 +9790,17 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.HasOne("NomNomzBot.Domain.Commands.Entities.Pipeline", "Pipeline")
                         .WithMany()
                         .HasForeignKey("PipelineId");
+
+                    b.Navigation("Pipeline");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Commands.Entities.PipelineRunState", b =>
+                {
+                    b.HasOne("NomNomzBot.Domain.Commands.Entities.Pipeline", "Pipeline")
+                        .WithMany()
+                        .HasForeignKey("PipelineId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Pipeline");
                 });
