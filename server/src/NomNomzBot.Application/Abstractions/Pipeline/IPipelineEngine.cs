@@ -37,6 +37,16 @@ public interface IPipelineEngine
         IReadOnlyList<string>? args,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// Resumes a previously suspended run from its persisted <c>PipelineRunState</c> — a fresh engine
+    /// instance over the same row (e.g. after a process restart) continues at the exact next step with
+    /// its variable bag, loop cursors and switch/try arm intact (S-PIPE-TREE-d3a). Wall-clock time spent
+    /// suspended is excluded from <c>MaxRuntime</c>: only <see cref="PipelineRunState.AccumulatedRuntimeMs"/>
+    /// counts toward the cap, so a run parked for an hour has not "run" for an hour. Returns
+    /// <see cref="PipelineOutcome.Failed"/> when no suspended row matches <paramref name="runStateId"/>.
+    /// </summary>
+    Task<PipelineExecutionResult> ResumeAsync(Guid runStateId, CancellationToken ct = default);
 }
 
 public class PipelineRequest
@@ -74,6 +84,19 @@ public class PipelineExecutionResult
     public int Total { get; init; }
     public string? ErrorMessage { get; init; }
     public IReadOnlyList<StepExecutionLog> StepLogs { get; init; } = [];
+
+    /// <summary>Set only when <see cref="Outcome"/> is <see cref="PipelineOutcome.Suspended"/> — the
+    /// leaf step the run is now parked at.</summary>
+    public Guid? SuspendedAtStepId { get; init; }
+
+    /// <summary>Set only when <see cref="Outcome"/> is <see cref="PipelineOutcome.Suspended"/> — the
+    /// block-nesting cursor path (JSON), persisted verbatim into <c>PipelineRunState.CursorJson</c> so a
+    /// later resume can walk back down to <see cref="SuspendedAtStepId"/> (S-PIPE-TREE-d3a).</summary>
+    public string? SuspendCursorJson { get; init; }
+
+    /// <summary>Set only when <see cref="Outcome"/> is <see cref="PipelineOutcome.Suspended"/> — the
+    /// persisted <c>PipelineRunState.Id</c> to pass to <see cref="IPipelineEngine.ResumeAsync"/> later.</summary>
+    public Guid? SuspendedRunStateId { get; init; }
 }
 
 public enum PipelineOutcome
@@ -99,6 +122,11 @@ public enum PipelineOutcome
     /// reason is recorded on <see cref="PipelineExecutionResult.ErrorMessage"/>.
     /// </summary>
     AbortedBudget,
+
+    /// <summary>A leaf action requested suspension (S-PIPE-TREE-d3a) — the run's state is persisted to
+    /// <c>PipelineRunState</c> and it will resume later at the exact next step, not lost to an
+    /// in-memory-only continuation.</summary>
+    Suspended,
 }
 
 public class StepExecutionLog

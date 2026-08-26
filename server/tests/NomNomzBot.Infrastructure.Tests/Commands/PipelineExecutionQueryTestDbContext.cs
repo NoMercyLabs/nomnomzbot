@@ -54,6 +54,7 @@ internal sealed class PipelineExecutionQueryTestDbContext : DbContext, IApplicat
         );
 
     public DbSet<PipelineExecution> PipelineExecutions => Set<PipelineExecution>();
+    public DbSet<PipelineRunState> PipelineRunStates => throw new NotSupportedException();
 
     protected override void OnModelCreating(ModelBuilder b)
     {

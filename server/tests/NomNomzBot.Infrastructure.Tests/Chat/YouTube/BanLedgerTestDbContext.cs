@@ -215,6 +215,8 @@ internal sealed class BanLedgerTestDbContext : DbContext, IApplicationDbContext
     public DbSet<PipelineStepCondition> PipelineStepConditions => throw new NotSupportedException();
     public DbSet<PipelineTrigger> PipelineTriggers => throw new NotSupportedException();
     public DbSet<PipelineExecution> PipelineExecutions => throw new NotSupportedException();
+
+    public DbSet<PipelineRunState> PipelineRunStates => throw new NotSupportedException();
     public DbSet<ChannelBuiltinCommand> ChannelBuiltinCommands => throw new NotSupportedException();
     public DbSet<CommandCooldownState> CommandCooldownStates => throw new NotSupportedException();
     public DbSet<NamedCounter> NamedCounters => throw new NotSupportedException();

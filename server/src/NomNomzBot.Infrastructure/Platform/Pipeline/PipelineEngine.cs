@@ -280,10 +280,234 @@ public sealed class PipelineEngine : IPipelineEngine
             _activeCount.AddOrUpdate(request.BroadcasterId, 0, (_, v) => Math.Max(0, v - 1));
         }
 
+        // A suspended run gets its own row (PipelineRunState) — persisted BEFORE the telemetry write
+        // below so a cap breach can still downgrade the outcome to Failed on the SAME telemetry row,
+        // never silently drop the run (S-PIPE-TREE-d3a REQUIRED #3).
+        if (result.Outcome == PipelineOutcome.Suspended)
+            result = await PersistSuspendedRunAsync(request, execCtx, result, ct);
+
         // Persist outside the finally block: SaveChangesAsync can itself throw (e.g. transient DB
         // failure) and must not mask the pipeline's own outcome above, nor prevent the active-count
         // decrement in `finally` from running first.
         await PersistExecutionAsync(request, definition, startedAt, result, ct);
+        return result;
+    }
+
+    // ─── Suspend / resume persistence core (S-PIPE-TREE-d3a) ─────────────────
+
+    /// <summary>Per-channel cap on concurrently SUSPENDED runs — distinct from
+    /// <see cref="MaxConcurrentPerChannel"/> (actively running). A spammer could otherwise pile up an
+    /// unbounded number of parked runs; exceeding this fails the run honestly (Outcome=Failed with a
+    /// named reason) rather than silently dropping it.</summary>
+    private const int MaxSuspendedRunsPerChannel = 50;
+
+    private async Task<PipelineExecutionResult> PersistSuspendedRunAsync(
+        PipelineRequest request,
+        PipelineExecutionContext execCtx,
+        PipelineExecutionResult result,
+        CancellationToken ct
+    )
+    {
+        int suspendedCount = await _db.PipelineRunStates.CountAsync(
+            r => r.BroadcasterId == request.BroadcasterId && r.Status == "suspended",
+            ct
+        );
+        if (suspendedCount >= MaxSuspendedRunsPerChannel)
+        {
+            _logger.LogWarning(
+                "Channel {BroadcasterId} already has {Count} suspended pipeline runs (cap {Max}) — "
+                    + "run {ExecutionId} could not be parked and failed instead",
+                request.BroadcasterId,
+                suspendedCount,
+                MaxSuspendedRunsPerChannel,
+                result.ExecutionId
+            );
+            return new()
+            {
+                ExecutionId = result.ExecutionId,
+                Outcome = PipelineOutcome.Failed,
+                Duration = result.Duration,
+                StepsExecuted = result.StepsExecuted,
+                StepsSkipped = result.StepsSkipped,
+                Total = result.Total,
+                StepLogs = result.StepLogs,
+                ErrorMessage =
+                    $"suspended_run_cap_exceeded: channel already has {MaxSuspendedRunsPerChannel} suspended pipeline runs",
+            };
+        }
+
+        Guid runStateId = Guid.NewGuid();
+        Guid triggeredByUserId = Guid.TryParse(request.TriggeredByUserId, out Guid parsed)
+            ? parsed
+            : Guid.Empty;
+
+        PipelineRunState runState = new()
+        {
+            Id = runStateId,
+            BroadcasterId = request.BroadcasterId,
+            PipelineId = request.PipelineId ?? Guid.Empty,
+            Status = "suspended",
+            SuspendedAtStepId = result.SuspendedAtStepId,
+            VariablesJson = JsonSerializer.Serialize(execCtx.Variables, JsonOpts),
+            CursorJson = result.SuspendCursorJson ?? "[]",
+            TriggeredByUserId = triggeredByUserId,
+            TriggeredByDisplayName = request.TriggeredByDisplayName,
+            // Duration already elapsed on THIS segment is the run's first slice of accumulated
+            // runtime — suspended wall-clock from here on is never added to it (MaxRuntime guard).
+            AccumulatedRuntimeMs = (int)result.Duration.TotalMilliseconds,
+            SuspendedAt = _timeProvider.GetUtcNow(),
+        };
+
+        _db.PipelineRunStates.Add(runState);
+        await _db.SaveChangesAsync(ct);
+
+        return new()
+        {
+            ExecutionId = result.ExecutionId,
+            Outcome = PipelineOutcome.Suspended,
+            Duration = result.Duration,
+            StepsExecuted = result.StepsExecuted,
+            StepsSkipped = result.StepsSkipped,
+            Total = result.Total,
+            StepLogs = result.StepLogs,
+            SuspendedAtStepId = result.SuspendedAtStepId,
+            SuspendCursorJson = result.SuspendCursorJson,
+            SuspendedRunStateId = runStateId,
+        };
+    }
+
+    public async Task<PipelineExecutionResult> ResumeAsync(
+        Guid runStateId,
+        CancellationToken ct = default
+    )
+    {
+        PipelineRunState? runState = await _db.PipelineRunStates.FirstOrDefaultAsync(
+            r => r.Id == runStateId && r.Status == "suspended",
+            ct
+        );
+        if (runState is null)
+            return new()
+            {
+                ExecutionId = runStateId.ToString("N")[..12],
+                Outcome = PipelineOutcome.Failed,
+                Duration = TimeSpan.Zero,
+                ErrorMessage = "pipeline_run_state_not_found",
+            };
+
+        DateTimeOffset startedAt = _timeProvider.GetUtcNow();
+
+        // MaxRuntime excludes suspended wall-clock: only time already spent ACTUALLY RUNNING (never
+        // the interval a run sat parked) counts against the budget — a run paused for an hour has not
+        // "run" for an hour (settled CTO decision). A run that had already burned its whole budget
+        // across earlier segments is timed out immediately, before touching a single step.
+        TimeSpan remaining =
+            ExecutionTimeout - TimeSpan.FromMilliseconds(runState.AccumulatedRuntimeMs);
+        if (remaining <= TimeSpan.Zero)
+        {
+            runState.Status = "failed";
+            runState.CompletedAt = startedAt;
+            await _db.SaveChangesAsync(ct);
+            return new()
+            {
+                ExecutionId = runStateId.ToString("N")[..12],
+                Outcome = PipelineOutcome.TimedOut,
+                Duration = TimeSpan.Zero,
+                ErrorMessage = "max_runtime_exceeded",
+            };
+        }
+
+        List<PipelineStep> rows = await LoadStepRowsAsync(runState.PipelineId, ct);
+
+        Dictionary<string, string> variables =
+            JsonSerializer.Deserialize<Dictionary<string, string>>(runState.VariablesJson, JsonOpts)
+            ?? [];
+        List<PipelineRunFrame> cursorPath =
+            JsonSerializer.Deserialize<List<PipelineRunFrame>>(runState.CursorJson, JsonOpts) ?? [];
+
+        PipelineExecutionContext execCtx = new()
+        {
+            BroadcasterId = runState.BroadcasterId,
+            TriggeredByUserId = runState.TriggeredByUserId.ToString(),
+            TriggeredByDisplayName = runState.TriggeredByDisplayName,
+            MessageId = string.Empty,
+            RawMessage = string.Empty,
+            CancellationToken = ct,
+        };
+        foreach ((string k, string v) in variables)
+            execCtx.Variables[k] = v;
+
+        // No SuspendedAtStepId means nothing had run yet when this row was persisted (or the leaf it
+        // suspended at was the very first thing at the top level with an empty cursor path) — either
+        // way there is nothing to relocate past, so resume with no cursor at all rather than trying to
+        // match a step id that was never recorded.
+        PipelineResumeCursor? resume = runState.SuspendedAtStepId is { } suspendedLeafId
+            ? new()
+            {
+                Path = cursorPath,
+                Index = 0,
+                SuspendedLeafStepId = suspendedLeafId,
+            }
+            : null;
+
+        using CancellationTokenSource timeoutCts = new(remaining);
+        using CancellationTokenSource linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+            ct,
+            timeoutCts.Token
+        );
+
+        PipelineExecutionResult result;
+        try
+        {
+            result = await RunTreeAsync(execCtx, rows, startedAt, linkedCts.Token, resume);
+        }
+        catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested)
+        {
+            result = new()
+            {
+                ExecutionId = execCtx.ExecutionId,
+                Outcome = PipelineOutcome.TimedOut,
+                Duration = _timeProvider.GetUtcNow() - startedAt,
+                StepLogs = execCtx.StepLogs,
+            };
+        }
+
+        int segmentMs = (int)(_timeProvider.GetUtcNow() - startedAt).TotalMilliseconds;
+        runState.AccumulatedRuntimeMs += segmentMs;
+
+        if (result.Outcome == PipelineOutcome.Suspended)
+        {
+            runState.SuspendedAtStepId = result.SuspendedAtStepId;
+            runState.VariablesJson = JsonSerializer.Serialize(execCtx.Variables, JsonOpts);
+            runState.CursorJson = result.SuspendCursorJson ?? "[]";
+            runState.SuspendedAt = _timeProvider.GetUtcNow();
+            result = new()
+            {
+                ExecutionId = result.ExecutionId,
+                Outcome = result.Outcome,
+                Duration = result.Duration,
+                StepsExecuted = result.StepsExecuted,
+                StepsSkipped = result.StepsSkipped,
+                Total = result.Total,
+                StepLogs = result.StepLogs,
+                SuspendedAtStepId = result.SuspendedAtStepId,
+                SuspendCursorJson = result.SuspendCursorJson,
+                SuspendedRunStateId = runState.Id,
+            };
+        }
+        else
+        {
+            runState.Status = result.Outcome switch
+            {
+                PipelineOutcome.Completed or PipelineOutcome.Stopped => "completed",
+                PipelineOutcome.Cancelled => "cancelled",
+                _ => "failed",
+            };
+            runState.CompletedAt = _timeProvider.GetUtcNow();
+        }
+
+        runState.ResumedAt = startedAt;
+        await _db.SaveChangesAsync(ct);
+
         return result;
     }
 
@@ -633,16 +857,19 @@ public sealed class PipelineEngine : IPipelineEngine
         PipelineExecutionContext ctx,
         List<PipelineStep> rows,
         DateTimeOffset startedAt,
-        CancellationToken ct
+        CancellationToken ct,
+        PipelineResumeCursor? resume = null
     )
     {
         List<PipelineTreeNode> roots = BuildTree(rows);
         PipelineTreeRunState state = new();
+        PipelineTreeWalk walk = new() { Resume = resume };
 
-        await ExecuteNodesAsync(roots, ctx, state, depth: 0, ct);
+        await ExecuteNodesAsync(roots, ctx, state, depth: 0, ct, walk);
 
         PipelineOutcome outcome =
-            state.AbortedBudget ? PipelineOutcome.AbortedBudget
+            state.SuspendRequested ? PipelineOutcome.Suspended
+            : state.AbortedBudget ? PipelineOutcome.AbortedBudget
             : state.FailedBreak ? PipelineOutcome.PartiallyFailed
             : state.StoppedDeliberately ? PipelineOutcome.Stopped
             : PipelineOutcome.Completed;
@@ -657,6 +884,10 @@ public sealed class PipelineEngine : IPipelineEngine
             Total = rows.Count(r => r.BlockKind is null),
             StepLogs = ctx.StepLogs,
             ErrorMessage = state.AbortReason,
+            SuspendedAtStepId = state.SuspendRequested ? state.SuspendStepId : null,
+            SuspendCursorJson = state.SuspendRequested
+                ? JsonSerializer.Serialize(walk.LivePath, JsonOpts)
+                : null,
         };
     }
 
@@ -713,7 +944,8 @@ public sealed class PipelineEngine : IPipelineEngine
         {
             List<PipelineTreeNode> calleeRoots = BuildTree(rows);
             PipelineTreeRunState calleeState = new();
-            await ExecuteNodesAsync(calleeRoots, callerCtx, calleeState, depth: 0, ct);
+            PipelineTreeWalk calleeWalk = new();
+            await ExecuteNodesAsync(calleeRoots, callerCtx, calleeState, depth: 0, ct, calleeWalk);
 
             if (calleeState.AbortedBudget)
                 return Result.Failure<string?>(
@@ -778,7 +1010,8 @@ public sealed class PipelineEngine : IPipelineEngine
         PipelineExecutionContext ctx,
         PipelineTreeRunState state,
         int depth,
-        CancellationToken ct
+        CancellationToken ct,
+        PipelineTreeWalk walk
     )
     {
         if (depth > MaxRecursionDepth)
@@ -796,11 +1029,38 @@ public sealed class PipelineEngine : IPipelineEngine
                 || state.StoppedDeliberately
                 || state.BreakLoop
                 || state.ContinueLoop
+                || state.SuspendRequested
             )
                 return;
 
             ct.ThrowIfCancellationRequested();
-            await ExecuteNodeAsync(node, ctx, state, depth, ct);
+
+            // Resuming a suspended run: relocate to the exact point it left off before doing any real
+            // work again — every sibling before the recorded frame/leaf already ran pre-suspend and
+            // must never re-run (S-PIPE-TREE-d3a).
+            if (walk.Resume is { } resume)
+            {
+                if (resume.Index < resume.Path.Count)
+                {
+                    if (node.Step.Id != resume.Path[resume.Index].BlockStepId)
+                        continue;
+
+                    resume.Index++;
+                    await ExecuteNodeAsync(node, ctx, state, depth, ct, walk);
+                    walk.Resume = null; // consumed — every later sibling here runs normally
+                    continue;
+                }
+
+                if (node.Step.Id != resume.SuspendedLeafStepId)
+                    continue;
+
+                // The suspended leaf itself already executed (it's the one that requested
+                // suspension) — never re-run it; resume from the sibling right after it.
+                walk.Resume = null;
+                continue;
+            }
+
+            await ExecuteNodeAsync(node, ctx, state, depth, ct, walk);
         }
     }
 
@@ -809,10 +1069,20 @@ public sealed class PipelineEngine : IPipelineEngine
         PipelineExecutionContext ctx,
         PipelineTreeRunState state,
         int depth,
-        CancellationToken ct
+        CancellationToken ct,
+        PipelineTreeWalk walk
     )
     {
         PipelineStep step = node.Step;
+
+        // Non-null only when THIS node was just relocated to by a resume (ExecuteNodesAsync matched it
+        // and incremented Resume.Index right before calling in) — the frame that says how to resolve
+        // this block's arm/case/iteration WITHOUT re-evaluating anything.
+        PipelineRunFrame? resumeFrame =
+            walk.Resume is { } r && r.Index > 0 && r.Path[r.Index - 1].BlockStepId == step.Id
+                ? r.Path[r.Index - 1]
+                : null;
+
         switch (step.BlockKind)
         {
             case null:
@@ -820,28 +1090,42 @@ public sealed class PipelineEngine : IPipelineEngine
                 break;
 
             case "if":
-                bool matched = await EvaluateConditionTreeAsync(ctx, step.Conditions);
+            {
+                bool matched = resumeFrame is not null
+                    ? resumeFrame.Branch == "then"
+                    : await EvaluateConditionTreeAsync(ctx, step.Conditions);
                 List<PipelineTreeNode> arm =
                 [
                     .. node.Children.Where(c => c.Step.Branch == (matched ? "then" : "else")),
                 ];
-                await ExecuteNodesAsync(arm, ctx, state, depth + 1, ct);
+                walk.LivePath.Add(
+                    new()
+                    {
+                        BlockStepId = step.Id,
+                        Kind = "if",
+                        Branch = matched ? "then" : "else",
+                    }
+                );
+                await ExecuteNodesAsync(arm, ctx, state, depth + 1, ct, walk);
+                if (!state.SuspendRequested)
+                    walk.LivePath.RemoveAt(walk.LivePath.Count - 1);
                 break;
+            }
 
             case "switch":
-                await ExecuteSwitchAsync(node, ctx, state, depth, ct);
+                await ExecuteSwitchAsync(node, ctx, state, depth, ct, walk, resumeFrame);
                 break;
 
             case "loop":
-                await ExecuteLoopAsync(node, ctx, state, depth, ct);
+                await ExecuteLoopAsync(node, ctx, state, depth, ct, walk, resumeFrame);
                 break;
 
             case "random_branch":
-                await ExecuteRandomBranchAsync(node, ctx, state, depth, ct);
+                await ExecuteRandomBranchAsync(node, ctx, state, depth, ct, walk, resumeFrame);
                 break;
 
             case "try":
-                await ExecuteTryAsync(node, ctx, state, depth, ct);
+                await ExecuteTryAsync(node, ctx, state, depth, ct, walk, resumeFrame);
                 break;
 
             case "detached_step":
@@ -975,6 +1259,15 @@ public sealed class PipelineEngine : IPipelineEngine
         else
         {
             state.FailedBreak = true;
+            return;
+        }
+
+        if (actionResult.Suspended)
+        {
+            // Suspension is not a failure — the run parks here cleanly and resumes later
+            // (S-PIPE-TREE-d3a). Never combined with break/continue/stop handling below.
+            state.SuspendRequested = true;
+            state.SuspendStepId = step.Id;
             return;
         }
 
@@ -1112,42 +1405,71 @@ public sealed class PipelineEngine : IPipelineEngine
         PipelineExecutionContext ctx,
         PipelineTreeRunState state,
         int depth,
-        CancellationToken ct
+        CancellationToken ct,
+        PipelineTreeWalk walk,
+        PipelineRunFrame? resumeFrame
     )
     {
-        SwitchBlockConfig? config = ParseBlockConfig<SwitchBlockConfig>(node.Step.BlockConfigJson);
-        string switchValue = ResolveScalar(config?.Value, ctx);
+        PipelineTreeNode? matched;
 
-        List<PipelineTreeNode> cases =
-        [
-            .. node
-                .Children.Where(c => c.Step.BlockKind == "switch_case")
-                .OrderBy(c => c.Step.Order),
-        ];
-
-        PipelineTreeNode? matched = null;
-        PipelineTreeNode? defaultCase = null;
-        foreach (PipelineTreeNode candidate in cases)
+        if (resumeFrame is not null)
         {
-            SwitchCaseBlockConfig? caseConfig = ParseBlockConfig<SwitchCaseBlockConfig>(
-                candidate.Step.BlockConfigJson
+            // Resuming: re-enter the SAME arm that was chosen before suspension, never re-evaluate
+            // the switch value — it could have drifted from the restored variable bag in principle,
+            // and the whole point of the cursor is to relocate exactly, not re-decide.
+            matched = node.Children.FirstOrDefault(c => c.Step.Id == resumeFrame.CaseStepId);
+        }
+        else
+        {
+            SwitchBlockConfig? config = ParseBlockConfig<SwitchBlockConfig>(
+                node.Step.BlockConfigJson
             );
-            if (caseConfig?.IsDefault == true)
+            string switchValue = ResolveScalar(config?.Value, ctx);
+
+            List<PipelineTreeNode> cases =
+            [
+                .. node
+                    .Children.Where(c => c.Step.BlockKind == "switch_case")
+                    .OrderBy(c => c.Step.Order),
+            ];
+
+            PipelineTreeNode? defaultCase = null;
+            matched = null;
+            foreach (PipelineTreeNode candidate in cases)
             {
-                defaultCase ??= candidate;
-                continue;
+                SwitchCaseBlockConfig? caseConfig = ParseBlockConfig<SwitchCaseBlockConfig>(
+                    candidate.Step.BlockConfigJson
+                );
+                if (caseConfig?.IsDefault == true)
+                {
+                    defaultCase ??= candidate;
+                    continue;
+                }
+
+                if (MatchesCase(switchValue, caseConfig))
+                {
+                    matched = candidate;
+                    break;
+                }
             }
 
-            if (MatchesCase(switchValue, caseConfig))
-            {
-                matched = candidate;
-                break;
-            }
+            matched ??= defaultCase;
         }
 
-        matched ??= defaultCase;
-        if (matched is not null)
-            await ExecuteNodesAsync(matched.Children, ctx, state, depth + 1, ct);
+        if (matched is null)
+            return;
+
+        walk.LivePath.Add(
+            new()
+            {
+                BlockStepId = node.Step.Id,
+                Kind = "switch",
+                CaseStepId = matched.Step.Id,
+            }
+        );
+        await ExecuteNodesAsync(matched.Children, ctx, state, depth + 1, ct, walk);
+        if (!state.SuspendRequested)
+            walk.LivePath.RemoveAt(walk.LivePath.Count - 1);
     }
 
     private static bool MatchesCase(string switchValue, SwitchCaseBlockConfig? config)
@@ -1200,7 +1522,9 @@ public sealed class PipelineEngine : IPipelineEngine
         PipelineExecutionContext ctx,
         PipelineTreeRunState state,
         int depth,
-        CancellationToken ct
+        CancellationToken ct,
+        PipelineTreeWalk walk,
+        PipelineRunFrame? resumeFrame
     )
     {
         LoopBlockConfig config =
@@ -1225,8 +1549,15 @@ public sealed class PipelineEngine : IPipelineEngine
             ? System.Diagnostics.Stopwatch.StartNew()
             : null;
 
-        int index = 0;
-        string previousItem = string.Empty;
+        // Resuming: jump straight to the recorded iteration — every earlier pass already ran and
+        // committed its effects before suspension (S-PIPE-TREE-d3a). Fresh runs start at 0 as before.
+        int index = resumeFrame?.LoopIndex ?? 0;
+        string previousItem =
+            resumeFrame is not null && index > 0
+                ? mode == "foreach"
+                    ? items[index - 1]
+                    : (index - 1).ToString()
+                : string.Empty;
 
         while (true)
         {
@@ -1267,11 +1598,19 @@ public sealed class PipelineEngine : IPipelineEngine
             ctx.Variables["loop.count"] =
                 mode == "foreach" ? items.Count.ToString() : (config.Count ?? 0).ToString();
 
+            walk.LivePath.Add(
+                new()
+                {
+                    BlockStepId = node.Step.Id,
+                    Kind = "loop",
+                    LoopIndex = index,
+                }
+            );
             PipelineTreeRunState iterationState = new();
             ctx.LoopDepth++;
             try
             {
-                await ExecuteNodesAsync(node.Children, ctx, iterationState, depth + 1, ct);
+                await ExecuteNodesAsync(node.Children, ctx, iterationState, depth + 1, ct, walk);
             }
             finally
             {
@@ -1280,6 +1619,16 @@ public sealed class PipelineEngine : IPipelineEngine
 
             state.Executed += iterationState.Executed;
             state.Skipped += iterationState.Skipped;
+
+            if (iterationState.SuspendRequested)
+            {
+                // Leave this iteration's frame on the path — it IS the resume point.
+                state.SuspendRequested = true;
+                state.SuspendStepId = iterationState.SuspendStepId;
+                return;
+            }
+
+            walk.LivePath.RemoveAt(walk.LivePath.Count - 1);
 
             if (iterationState.AbortedBudget)
             {
@@ -1316,43 +1665,73 @@ public sealed class PipelineEngine : IPipelineEngine
         PipelineExecutionContext ctx,
         PipelineTreeRunState state,
         int depth,
-        CancellationToken ct
+        CancellationToken ct,
+        PipelineTreeWalk walk,
+        PipelineRunFrame? resumeFrame
     )
     {
-        List<PipelineTreeNode> cases =
-        [
-            .. node
-                .Children.Where(c => c.Step.BlockKind == "random_case")
-                .OrderBy(c => c.Step.Order),
-        ];
-        if (cases.Count == 0)
-            return;
+        PipelineTreeNode? chosen;
 
-        List<(PipelineTreeNode Node, decimal Weight)> weighted =
-        [
-            .. cases.Select(c =>
-                (c, ParseBlockConfig<RandomCaseBlockConfig>(c.Step.BlockConfigJson)?.Weight ?? 1m)
-            ),
-        ];
-        decimal total = weighted.Sum(w => w.Weight);
-        if (total <= 0)
-            return;
-
-        double roll = _randomSource() * (double)total;
-        decimal cumulative = 0;
-        PipelineTreeNode? chosen = null;
-        foreach ((PipelineTreeNode candidate, decimal weight) in weighted)
+        if (resumeFrame is not null)
         {
-            cumulative += weight;
-            if ((double)cumulative >= roll)
-            {
-                chosen = candidate;
-                break;
-            }
+            // Resuming: re-enter the SAME case the roll picked before suspension — a fresh roll here
+            // would defeat the entire point of persisting the cursor.
+            chosen = node.Children.FirstOrDefault(c => c.Step.Id == resumeFrame.CaseStepId);
         }
-        chosen ??= weighted[^1].Node;
+        else
+        {
+            List<PipelineTreeNode> cases =
+            [
+                .. node
+                    .Children.Where(c => c.Step.BlockKind == "random_case")
+                    .OrderBy(c => c.Step.Order),
+            ];
+            if (cases.Count == 0)
+                return;
 
-        await ExecuteNodesAsync(chosen.Children, ctx, state, depth + 1, ct);
+            List<(PipelineTreeNode Node, decimal Weight)> weighted =
+            [
+                .. cases.Select(c =>
+                    (
+                        c,
+                        ParseBlockConfig<RandomCaseBlockConfig>(c.Step.BlockConfigJson)?.Weight
+                            ?? 1m
+                    )
+                ),
+            ];
+            decimal total = weighted.Sum(w => w.Weight);
+            if (total <= 0)
+                return;
+
+            double roll = _randomSource() * (double)total;
+            decimal cumulative = 0;
+            chosen = null;
+            foreach ((PipelineTreeNode candidate, decimal weight) in weighted)
+            {
+                cumulative += weight;
+                if ((double)cumulative >= roll)
+                {
+                    chosen = candidate;
+                    break;
+                }
+            }
+            chosen ??= weighted[^1].Node;
+        }
+
+        if (chosen is null)
+            return;
+
+        walk.LivePath.Add(
+            new()
+            {
+                BlockStepId = node.Step.Id,
+                Kind = "random_branch",
+                CaseStepId = chosen.Step.Id,
+            }
+        );
+        await ExecuteNodesAsync(chosen.Children, ctx, state, depth + 1, ct, walk);
+        if (!state.SuspendRequested)
+            walk.LivePath.RemoveAt(walk.LivePath.Count - 1);
     }
 
     private async Task ExecuteTryAsync(
@@ -1360,7 +1739,9 @@ public sealed class PipelineEngine : IPipelineEngine
         PipelineExecutionContext ctx,
         PipelineTreeRunState state,
         int depth,
-        CancellationToken ct
+        CancellationToken ct,
+        PipelineTreeWalk walk,
+        PipelineRunFrame? resumeFrame
     )
     {
         List<PipelineTreeNode> body = [.. node.Children.Where(c => c.Step.Branch == "then")];
@@ -1369,11 +1750,48 @@ public sealed class PipelineEngine : IPipelineEngine
             .. node.Children.Where(c => c.Step.Branch == "else"),
         ];
 
+        // Resuming directly into the catch arm: the body already ran to completion (and failed) before
+        // suspension, so re-running it would duplicate its effects — go straight to catch instead.
+        if (resumeFrame is { Branch: "else" })
+        {
+            walk.LivePath.Add(
+                new()
+                {
+                    BlockStepId = node.Step.Id,
+                    Kind = "try",
+                    Branch = "else",
+                }
+            );
+            PipelineTreeRunState resumedCatchState = new();
+            await ExecuteNodesAsync(catchChildren, ctx, resumedCatchState, depth + 1, ct, walk);
+            FoldTryCatchResult(state, walk, node.Step.Id, resumedCatchState);
+            return;
+        }
+
+        walk.LivePath.Add(
+            new()
+            {
+                BlockStepId = node.Step.Id,
+                Kind = "try",
+                Branch = "then",
+            }
+        );
         PipelineTreeRunState bodyState = new();
-        await ExecuteNodesAsync(body, ctx, bodyState, depth + 1, ct);
+        await ExecuteNodesAsync(body, ctx, bodyState, depth + 1, ct, walk);
 
         state.Executed += bodyState.Executed;
         state.Skipped += bodyState.Skipped;
+
+        if (bodyState.SuspendRequested)
+        {
+            // Never caught by this try's catch — same posture as break/continue below. Leaves the
+            // "then" frame on the path as the resume point.
+            state.SuspendRequested = true;
+            state.SuspendStepId = bodyState.SuspendStepId;
+            return;
+        }
+
+        walk.LivePath.RemoveAt(walk.LivePath.Count - 1);
 
         if (bodyState.AbortedBudget)
         {
@@ -1395,33 +1813,61 @@ public sealed class PipelineEngine : IPipelineEngine
 
         if (bodyState.FailedBreak)
         {
+            walk.LivePath.Add(
+                new()
+                {
+                    BlockStepId = node.Step.Id,
+                    Kind = "try",
+                    Branch = "else",
+                }
+            );
             PipelineTreeRunState catchState = new();
-            await ExecuteNodesAsync(catchChildren, ctx, catchState, depth + 1, ct);
-
-            state.Executed += catchState.Executed;
-            state.Skipped += catchState.Skipped;
-
-            if (catchState.AbortedBudget)
-            {
-                state.AbortedBudget = true;
-                state.AbortReason = catchState.AbortReason;
-                return;
-            }
-            if (catchState.FailedBreak)
-            {
-                // The catch handler's own failure is not further caught — propagates normally.
-                state.FailedBreak = true;
-                return;
-            }
-            if (catchState.StoppedDeliberately)
-                state.StoppedDeliberately = true;
-
-            // Failure caught and (optionally) handled — continue past the try block.
+            await ExecuteNodesAsync(catchChildren, ctx, catchState, depth + 1, ct, walk);
+            FoldTryCatchResult(state, walk, node.Step.Id, catchState);
             return;
         }
 
         if (bodyState.StoppedDeliberately)
             state.StoppedDeliberately = true;
+    }
+
+    /// <summary>Shared fold logic for a <c>try</c> block's catch arm, used both by the normal
+    /// body-failed path and by a resume that relocates straight into the catch arm.</summary>
+    private static void FoldTryCatchResult(
+        PipelineTreeRunState state,
+        PipelineTreeWalk walk,
+        Guid tryStepId,
+        PipelineTreeRunState catchState
+    )
+    {
+        state.Executed += catchState.Executed;
+        state.Skipped += catchState.Skipped;
+
+        if (catchState.SuspendRequested)
+        {
+            state.SuspendRequested = true;
+            state.SuspendStepId = catchState.SuspendStepId;
+            return;
+        }
+
+        walk.LivePath.RemoveAt(walk.LivePath.Count - 1);
+
+        if (catchState.AbortedBudget)
+        {
+            state.AbortedBudget = true;
+            state.AbortReason = catchState.AbortReason;
+            return;
+        }
+        if (catchState.FailedBreak)
+        {
+            // The catch handler's own failure is not further caught — propagates normally.
+            state.FailedBreak = true;
+            return;
+        }
+        if (catchState.StoppedDeliberately)
+            state.StoppedDeliberately = true;
+
+        // Failure caught and (optionally) handled — continue past the try block.
     }
 
     private void ExecuteDetachedStep(PipelineTreeNode node, PipelineExecutionContext ctx)
@@ -1564,6 +2010,7 @@ public sealed class PipelineEngine : IPipelineEngine
             PipelineOutcome.PartiallyFailed => "partially_failed",
             PipelineOutcome.TimedOut => "timed_out",
             PipelineOutcome.Cancelled => "cancelled",
+            PipelineOutcome.Suspended => "suspended",
             _ => "unknown",
         };
 

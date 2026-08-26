@@ -46,6 +46,64 @@ internal sealed class PipelineTreeRunState
     /// <summary>A <c>continue</c> action fired somewhere in this walk; bubbles up unconsumed until the
     /// innermost enclosing <c>loop</c> block claims it.</summary>
     public bool ContinueLoop;
+
+    /// <summary>A leaf action returned <see cref="ActionResult.Suspended"/>; bubbles all the way up to
+    /// <c>RunTreeAsync</c> — never caught by an enclosing <c>try</c> (same posture as break/continue),
+    /// since a suspended run has not failed. S-PIPE-TREE-d3a.</summary>
+    public bool SuspendRequested;
+
+    /// <summary>The leaf step that requested suspension, once <see cref="SuspendRequested"/> is set.</summary>
+    public Guid? SuspendStepId;
+}
+
+/// <summary>
+/// One entry in the block-nesting path from the run's roots down to the block directly containing the
+/// step that suspended the run (S-PIPE-TREE-d3a). Captured live as the tree walk descends (pushed before
+/// recursing into a child list, popped again on the way back out — UNLESS the walk is unwinding because
+/// of a suspend, in which case the frame is left in place) and persisted as <c>PipelineRunState.CursorJson</c>
+/// so a later resume can walk the exact same path back down to the exact same point.
+/// </summary>
+internal sealed class PipelineRunFrame
+{
+    /// <summary>The block step (if/switch/loop/random_branch/try) this frame descends through.</summary>
+    public required Guid BlockStepId { get; init; }
+
+    /// <summary>if | switch | loop | random_branch | try.</summary>
+    public required string Kind { get; init; }
+
+    /// <summary>if: "then"/"else". try: "then" (body) / "else" (catch).</summary>
+    public string? Branch { get; init; }
+
+    /// <summary>switch: the matched switch_case step id. random_branch: the chosen random_case step id.</summary>
+    public Guid? CaseStepId { get; init; }
+
+    /// <summary>loop: the 0-based iteration index the walk was inside when it suspended.</summary>
+    public int? LoopIndex { get; init; }
+}
+
+/// <summary>
+/// Drives a resumed tree walk back down to the exact point a prior run suspended at, then hands control
+/// back to normal execution. Consumed top-down: each level matches the next unconsumed <see cref="PipelineRunFrame"/>
+/// against its own children, skips every preceding sibling (already executed before suspension), recurses
+/// into the matching one, then goes null for every sibling that follows — from there the walk is indistinguishable
+/// from a fresh run. S-PIPE-TREE-d3a.
+/// </summary>
+internal sealed class PipelineResumeCursor
+{
+    public required IReadOnlyList<PipelineRunFrame> Path { get; init; }
+    public int Index { get; set; }
+    public required Guid SuspendedLeafStepId { get; init; }
+}
+
+/// <summary>Threaded through the whole tree walk: <see cref="Resume"/> drives a resumed run back down
+/// to its suspend point (consumed and nulled out once reached — see <see cref="PipelineResumeCursor"/>);
+/// <see cref="LivePath"/> is pushed/popped by each block handler as it descends/backtracks, so whatever
+/// is still on it at the moment <c>PipelineTreeRunState.SuspendRequested</c> fires IS the new cursor path
+/// to persist. S-PIPE-TREE-d3a.</summary>
+internal sealed class PipelineTreeWalk
+{
+    public PipelineResumeCursor? Resume { get; set; }
+    public List<PipelineRunFrame> LivePath { get; } = [];
 }
 
 // ─── Block-kind configuration DTOs (PipelineStep.BlockConfigJson) ────────────

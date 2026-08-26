@@ -18,9 +18,22 @@ public sealed class ActionResult
     public string? Output { get; init; }
     public string? ErrorMessage { get; init; }
 
+    /// <summary>Set by a leaf action (e.g. the future <c>wait_for_event</c>) that wants the run
+    /// suspended right after it — persisted via <c>PipelineRunState</c> and resumed later rather than
+    /// held open in memory (S-PIPE-TREE-d3a). Never set together with a failure.</summary>
+    public bool Suspended { get; init; }
+
     public static ActionResult Success(string? output = null) =>
         new() { Succeeded = true, Output = output };
 
     public static ActionResult Failure(string error) =>
         new() { Succeeded = false, ErrorMessage = error };
+
+    public static ActionResult Suspend(string? output = null) =>
+        new()
+        {
+            Succeeded = true,
+            Suspended = true,
+            Output = output,
+        };
 }
