@@ -265,20 +265,18 @@ stable — without dropping the planned requirements behind them.
 
 ## Phase 3 — form infrastructure (stabilizes existing authoring; every 'raw text box' finding rides on it)
 
-- **S042** SHIPPED aae0a48d, VERIFIED (Infrastructure +14 green; `TemplatesControllerTests` 4/4 green,
-  run by the orchestrator in a worktree at the commit because another agent's WIP blocked Api.Tests on
-  the shared tree). Registry drives `TemplateResolver` with a BOTH-DIRECTIONS coverage guard (resolvable
-  but unregistered, or registered but unresolvable, both fail); `GET /api/v1/templates/helpers?context=`
-  returns the per-context set and 400s an unknown context; helper descriptions are `LocalizedText` keys
-  with 73 en+nl pairs, not English in C#.
-  **SAVE-PATH COVERAGE IS 3 OF 19 — this is the remaining work, tracked as S042b:**
-  covered = CommandService, EventResponseService, TimerManagementService (unknown key rejected NAMING
-  the key, valid key still saves). NOT covered = PipelineService action fields (send_message/send_reply/
-  wait — the biggest authoring surface, was off-limits to that agent), and Discord notifications,
-  Giveaways and Rewards accept free template text but are **not wired to `ITemplateResolver` at all**, a
-  pre-existing gap. Until all 19 are covered, a streamer can still save `{{user.nmae}}` on most surfaces
-  and watch it render as nothing on stream. Enumerate the consumers structurally; a guard must fail when
-  a NEW save path accepts a template without validating it.
+- **S042/S042b CLOSED + VERIFIED** (aae0a48d, 4dbc9f94, 6103825e). Registry drives `TemplateResolver`
+  with a both-directions coverage guard; `GET /api/v1/templates/helpers?context=` (gated `commands:read`,
+  982807e9) 400s an unknown context; 73 helper descriptions are en+nl keys. ALL FOUR REAL SAVE PATHS
+  validate: CommandService, EventResponseService, TimerManagementService, PipelineService action fields —
+  unknown key rejected BY NAME, valid key still saves, brace-shaped text in a numeric field never
+  validated as a template, enforced by a DI-driven guard over every registered action.
+  Correction to the earlier "3 of 19": 15 of those 19 `ITemplateResolver` consumers are execution-only
+  leaves that resolve already-saved text, not save paths. Giveaways/Rewards hold no user-authored
+  template text today. Discord is the one genuine hole and is blocked on S-TWO-TEMPLATE-ENGINES.
+  ONE GAP LEFT (S042c): the guard covers pipeline save paths only — there is no cross-service structural
+  scanner that fails when a FUTURE non-pipeline service starts persisting user-authored template text
+  without validating it. Enumerate persisting services structurally and fail loud on the unclassifiable.
 
 - **S043** "All helpers" dialog — shared `TemplateHelpersLink` + `Dialog` (search, namespace groups,
   insert) in every template field (commands, event responses, timers, rewards, pipelines, chat
