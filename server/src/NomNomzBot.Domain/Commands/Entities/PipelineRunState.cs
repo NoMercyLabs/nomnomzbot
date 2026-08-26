@@ -57,6 +57,17 @@ public class PipelineRunState : BaseEntity, ITenantScoped
     /// an hour).</summary>
     public int AccumulatedRuntimeMs { get; set; }
 
+    /// <summary>The named event this run is parked waiting for (S-PIPE-TREE-d3b's <c>wait_for_event</c>
+    /// action) — null unless the leaf it suspended at was a wait. Matched case-insensitively against a
+    /// published event's name; a non-matching event never resumes this row.</summary>
+    [MaxLength(200)]
+    public string? WaitEventName { get; set; }
+
+    /// <summary>Absolute deadline for <see cref="WaitEventName"/> — once elapsed, the run is resumed
+    /// down the honest timeout path (never left parked forever, never silently dropped) rather than
+    /// waiting for a match that may never come. Null unless waiting on an event.</summary>
+    public DateTimeOffset? WaitTimeoutAt { get; set; }
+
     public DateTimeOffset? SuspendedAt { get; set; }
 
     public DateTimeOffset? ResumedAt { get; set; }

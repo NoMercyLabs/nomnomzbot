@@ -54,6 +54,14 @@ internal sealed class PipelineTreeRunState
 
     /// <summary>The leaf step that requested suspension, once <see cref="SuspendRequested"/> is set.</summary>
     public Guid? SuspendStepId;
+
+    /// <summary>Set alongside <see cref="SuspendRequested"/> when the suspending leaf was
+    /// <c>wait_for_event</c> (S-PIPE-TREE-d3b) — the named event it is now parked waiting for.</summary>
+    public string? SuspendWaitEventName;
+
+    /// <summary>Set alongside <see cref="SuspendWaitEventName"/> — seconds from now the wait may stay
+    /// parked before the engine resumes it down the timeout path.</summary>
+    public int? SuspendWaitTimeoutSeconds;
 }
 
 /// <summary>
