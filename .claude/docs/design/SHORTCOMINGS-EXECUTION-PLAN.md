@@ -149,13 +149,6 @@ stable — without dropping the planned requirements behind them.
   and is cancelled on stream-offline — each proven, plus a test that a non-matching event does NOT
   resume it.
 
-- **S-JB-INSPECT-GATE** (reported by the d3a builder) `scripts/slice-check.ps1` runs `jb inspectcode`,
-  but the builder could not run that gate: it builds a scoped target dynamically and there is no `.sln`
-  in the repo (the solution file is `NomNomzBot.slnx`). So the redundant-suppression / merge-into-pattern
-  checks that ONLY ReSharper catches went unverified on this slice — and on any slice whose builder hits
-  the same wall. Done-when: the inspection gate runs from a clean checkout with the repo's real solution
-  file, or the script fails loudly saying it could not inspect rather than being silently skipped.
-
 - **S-BUDGETS** (owner, 2026-08-25) "a proper budget system to track the payment tiers — most of it is
   based on resource usage, hence the amount of files you can store or commands you can register."
   ESTABLISHED BY GREP: the plumbing already exists — `TierLimit` (TierId/LimitKey/LimitValue),
@@ -233,23 +226,6 @@ stable — without dropping the planned requirements behind them.
   no-source case leaving the literal rather than a blank. REMAINING under S030: **no YouTube ingest
   exists at all**, so `supporter-events.md` §4.1's YouTube sponsor/gift/super-chat mapping has nothing
   to map from. Kick has `KickWebhookIngest`; YouTube has no equivalent.
-
-- **S-WEBHOOK-JSON-FALLBACK** (found reviewing 55f5ba52, which correctly deleted the second template
-  engine and made webhook bodies render by JSON-AWARE substitution: placeholders resolve only inside
-  string leaves of the parsed tree, so values are escaped on re-serialize and structural corruption is
-  impossible. `ITemplateEngine` is gone from the tree, verified by grep.)
-  THE HOLE: `WebhookBodyTemplateRenderer` catches `JsonReaderException` and falls back to
-  `templateResolver.Resolve(bodyTemplate, vars)` — the plain, UNESCAPED path. Correct for a body that
-  was never JSON (a form post, plain text); WRONG for a body the author INTENDED as JSON with a syntax
-  error, which then silently takes the unsafe path where a viewer-supplied `"` can still break the
-  payload, with no signal to the author that their template stopped being JSON-safe.
-  Done-when: an intended-JSON body that fails to parse is REPORTED to the author (save-time or
-  delivery-time error naming the parse position), never silently downgraded; a genuinely non-JSON body
-  still renders; a test proves what a hostile value does in each case. Determine "intended as JSON" from
-  the endpoint's content-type, not by guessing at the body text.
-  ALSO NOTED by that slice: there is no `TemplateHelperContext.Webhook` save-time validation
-  (`OutboundWebhookEndpointService.cs:179,221`) because a webhook body has no closed helper-key set the
-  way Command/Discord/Timer contexts do — decide whether it gets one or is deliberately open.
 
 - **S027** Kick go-live + reads — `livestream.status.updated` publishes canonical online/offline;
   Kick channel read (viewer count, title/category), `KickPlatformApi` + `channel:read/write`; operator
