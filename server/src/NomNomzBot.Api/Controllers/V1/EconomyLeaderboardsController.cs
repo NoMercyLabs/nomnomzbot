@@ -52,6 +52,7 @@ public class EconomyLeaderboardsController(IEconomyLeaderboardService leaderboar
     }
 
     /// <summary>Delete a leaderboard configuration by id.</summary>
+    [DestructiveAction(PendingBlastRadiusSince = "2026-08-26")]
     [HttpDelete("configs/{configId:guid}")]
     [RequireAction("economy:leaderboards:config:delete")]
     public async Task<IActionResult> DeleteConfig(

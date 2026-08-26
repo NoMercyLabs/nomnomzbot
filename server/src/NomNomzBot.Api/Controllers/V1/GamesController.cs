@@ -149,6 +149,9 @@ public class GamesController(
     }
 
     /// <summary>Revoke a viewer's 18+ consent on this channel.</summary>
+    [NotDestructive(
+        "Deletes one ViewerAgeConsent row; no entity carries a ViewerAgeConsentId FK and consent can be re-granted."
+    )]
     [HttpDelete("consent/{viewerUserId:guid}")]
     [RequireAction("economy:consent:revoke")]
     public async Task<IActionResult> RevokeConsent(

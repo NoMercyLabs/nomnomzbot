@@ -58,6 +58,9 @@ public class ChannelFederationController(
     }
 
     /// <summary>Disable a federation opt-in, returning that flow to default-deny.</summary>
+    [NotDestructive(
+        "Flips one federation opt-in row to disabled; no entity carries an opt-in FK and it can be re-enabled."
+    )]
     [HttpDelete("opt-ins/{optInId:guid}")]
     [RequireAction("federation:optin:delete")]
     public async Task<IActionResult> Disable(string channelId, Guid optInId, CancellationToken ct)

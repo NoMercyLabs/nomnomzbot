@@ -151,6 +151,7 @@ public class PickListsController : BaseController
 
     /// <summary>Delete a pick-list by its id.</summary>
     [RequireAction("picklists:delete")]
+    [DestructiveAction(PendingBlastRadiusSince = "2026-08-26")]
     [HttpDelete("{id:guid}")]
     [ProducesResponseType<StatusResponseDto<PickListDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> DeletePickList(Guid id, CancellationToken ct)

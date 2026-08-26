@@ -287,7 +287,9 @@ public class ChatController : BaseController
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
 
-        string message = request.Message?.Trim() ?? string.Empty;
+        string message = string.IsNullOrWhiteSpace(request.Message)
+            ? string.Empty
+            : request.Message.Trim();
         if (message.Length == 0)
             return BadRequestResponse("Message cannot be empty.");
         if (message.Length > 500)
@@ -389,6 +391,9 @@ public class ChatController : BaseController
 
     /// <summary>Delete a chat message — a moderator's quick-action from the dashboard's chat page, attributed to them.</summary>
     [RequireAction("moderation:delete_message")]
+    [NotDestructive(
+        "Removes one chat message on the platform; no entity carries a ChatMessageId FK."
+    )]
     [HttpDelete("messages/{messageId}")]
     [ProducesResponseType<StatusResponseDto<bool>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> DeleteMessage(

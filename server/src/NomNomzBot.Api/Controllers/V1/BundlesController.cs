@@ -114,6 +114,7 @@ public class BundlesController(
     }
 
     /// <summary>Uninstall a bundle: removes exactly the entities it installed, then retires the ledger row.</summary>
+    [DestructiveAction(PendingBlastRadiusSince = "2026-08-26")]
     [HttpDelete("installed/{id:guid}")]
     [RequireAction("bundles:import")]
     public async Task<IActionResult> Uninstall(string channelId, Guid id, CancellationToken ct)

@@ -230,6 +230,7 @@ public sealed class CustomDataSourcesController : BaseController
     // ── DELETE /custom-data-sources/{id} ─────────────────────────────────────
 
     /// <summary>Delete a custom data source.</summary>
+    [DestructiveAction(PendingBlastRadiusSince = "2026-08-26")]
     [HttpDelete("{id:guid}")]
     [RequireAction("customdata:write")]
     [ProducesResponseType<StatusResponseDto<bool>>(StatusCodes.Status200OK)]

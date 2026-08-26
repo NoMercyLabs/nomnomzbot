@@ -106,6 +106,9 @@ public class TtsConfigController : BaseController
     }
 
     /// <summary>Remove a stored BYOK key so the provider falls back to the operator/app configuration.</summary>
+    [NotDestructive(
+        "Clears one stored BYOK provider key on the channel TTS config; no rows are deleted and it can be re-entered."
+    )]
     [HttpDelete("config/byok/{provider}")]
     [RequireAction("tts:config:write")]
     [ProducesResponseType<StatusResponseDto<TtsConfigDto>>(StatusCodes.Status200OK)]
@@ -251,6 +254,7 @@ public class TtsConfigController : BaseController
     }
 
     /// <summary>Remove a pronunciation rule.</summary>
+    [NotDestructive("Deletes one TTS lexicon entry; no entity carries a lexicon-entry FK.")]
     [HttpDelete("lexicon/{entryId}")]
     [RequireAction("tts:config:write")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
@@ -341,6 +345,9 @@ public class TtsConfigController : BaseController
     }
 
     /// <summary>Remove a viewer's voice assignment so they fall back to the channel default.</summary>
+    [NotDestructive(
+        "Deletes one UserTtsVoice row; no entity carries a UserTtsVoiceId FK and the voice falls back to the channel default."
+    )]
     [HttpDelete("users/{userId}/voice")]
     [RequireAction("tts:uservoice:write")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
@@ -404,6 +411,9 @@ public class TtsConfigController : BaseController
     }
 
     /// <summary>Reset the caller's own voice back to the channel default (toggle-gated).</summary>
+    [NotDestructive(
+        "Deletes the caller's own UserTtsVoice row; no entity carries a UserTtsVoiceId FK and the voice falls back to the channel default."
+    )]
     [HttpDelete("me/voice")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ClearOwnVoice(string channelId, CancellationToken ct)

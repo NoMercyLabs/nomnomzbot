@@ -88,6 +88,9 @@ public class CurrencyController(
     }
 
     /// <summary>Delete an earning rule from the channel.</summary>
+    [NotDestructive(
+        "Deletes one earning-rule row; no entity carries an earning-rule FK (ledger entries record the amount, not the rule id)."
+    )]
     [HttpDelete("earning-rules/{ruleId:guid}")]
     [RequireAction("economy:earning-rules:delete")]
     public async Task<IActionResult> DeleteEarningRule(

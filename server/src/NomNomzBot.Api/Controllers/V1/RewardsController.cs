@@ -267,6 +267,7 @@ public class RewardsController : BaseController
 
     /// <summary>Delete a channel point reward.</summary>
     [RequireAction("reward:manage")]
+    [DestructiveAction(PendingBlastRadiusSince = "2026-08-26")]
     [HttpDelete("{rewardId}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteReward(

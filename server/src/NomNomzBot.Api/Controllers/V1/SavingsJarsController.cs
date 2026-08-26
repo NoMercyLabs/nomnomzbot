@@ -97,6 +97,9 @@ public class SavingsJarsController(ISavingsJarService jars, ICurrentUserService 
     }
 
     /// <summary>Revoke a jar membership, removing the channel from the jar.</summary>
+    [NotDestructive(
+        "Deletes one jar membership row; no entity carries a membership FK (contributions record the jar and the user)."
+    )]
     [HttpDelete("memberships/{membershipId:guid}")]
     [RequireAction("economy:jars:membership:revoke")]
     public async Task<IActionResult> RevokeMembership(

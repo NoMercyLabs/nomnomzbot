@@ -296,8 +296,7 @@ public class ChannelsController : BaseController
             "moderator",
             null,
             null,
-            AuthEnums.Platform.Twitch,
-            null
+            AuthEnums.Platform.Twitch
         );
         return Ok(new StatusResponseDto<ChannelSummaryDto> { Data = summary });
     }
@@ -502,6 +501,7 @@ public class ChannelsController : BaseController
     }
 
     /// <summary>Delete a channel and all its associated data.</summary>
+    [DestructiveAction(PendingBlastRadiusSince = "2026-08-26")]
     [HttpDelete("{channelId}")]
     [RequireAction("setup:write")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

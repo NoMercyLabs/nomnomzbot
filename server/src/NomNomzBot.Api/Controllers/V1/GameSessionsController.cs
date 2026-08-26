@@ -90,6 +90,9 @@ public class GameSessionsController(
     }
 
     /// <summary>Cancel a non-terminal session — every entry fee is refunded.</summary>
+    [NotDestructive(
+        "Cancels an in-flight session by status; the GamePlay rows that carry GameSessionId are kept, not deleted."
+    )]
     [HttpDelete("{sessionId:guid}")]
     [RequireAction("games:session:cancel")]
     public async Task<IActionResult> Cancel(string channelId, Guid sessionId, CancellationToken ct)

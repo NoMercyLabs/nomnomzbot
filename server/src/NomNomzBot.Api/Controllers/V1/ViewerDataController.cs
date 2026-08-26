@@ -98,6 +98,7 @@ public class ViewerDataController : BaseController
 
     /// <summary>Delete one key.</summary>
     [RequireAction("viewerdata:write")]
+    [NotDestructive("Deletes one ViewerDatum key/value row; no entity carries a ViewerDatumId FK.")]
     [HttpDelete("{key}")]
     [ProducesResponseType<StatusResponseDto<bool>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Delete(string viewerId, string key, CancellationToken ct)

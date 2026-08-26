@@ -128,6 +128,9 @@ public class PermissionsController : BaseController
 
     /// <summary>Revoke a permission from a user for the channel.</summary>
     [RequireAction("roles:manage")]
+    [NotDestructive(
+        "Revokes one per-user permission grant; no entity carries a grant FK and it can be re-granted."
+    )]
     [HttpDelete("{userId}")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> RevokePermission(

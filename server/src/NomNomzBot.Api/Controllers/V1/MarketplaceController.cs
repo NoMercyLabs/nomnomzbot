@@ -193,6 +193,9 @@ public class MarketplaceController(
     }
 
     /// <summary>Clear the stored publisher token. Idempotent.</summary>
+    [NotDestructive(
+        "Clears the stored publisher token on the channel; no rows are deleted and it can be re-entered."
+    )]
     [HttpDelete("publisher-token")]
     [RequireAction("bundles:publish")]
     public async Task<IActionResult> ClearPublisherToken(string channelId, CancellationToken ct)

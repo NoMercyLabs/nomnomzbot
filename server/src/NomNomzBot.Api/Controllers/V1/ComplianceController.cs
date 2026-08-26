@@ -12,6 +12,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Common.Models;
@@ -43,7 +44,29 @@ public class ComplianceController : BaseController
     /// Gated on <c>compliance:erasure</c> — a destructive, irreversible action distinct from the
     /// support-visit <c>tenant:access</c> key; holding tenant:access alone must not permit erasure.
     /// </summary>
+    /// <summary>
+    /// Counted preview of what erasing <paramref name="subjectUserId"/> would destroy (S-CONSEQ) — the same
+    /// real row counts the operator confirm surface must render before the irreversible erasure. Read-only.
+    /// </summary>
+    [HttpGet("erasure/preview")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
+    [Authorize(Policy = IamPermissionKeys.ComplianceErasure)]
+    [ProducesResponseType<StatusResponseDto<ErasurePreviewDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> PreviewErasure(
+        [FromQuery] Guid subjectUserId,
+        [FromQuery] Guid? broadcasterId,
+        CancellationToken ct
+    )
+    {
+        Result<ErasurePreviewDto> result = await _erasure.PreviewErasureAsync(
+            new(subjectUserId, broadcasterId),
+            ct
+        );
+        return ResultResponse(result);
+    }
+
     [HttpPost("erasure")]
+    [DestructiveAction(HasCountedBlastRadius = true)]
     [Authorize(Policy = IamPermissionKeys.ComplianceErasure)]
     [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
     [ProducesResponseType<StatusResponseDto<ErasureRequestDto>>(StatusCodes.Status200OK)]

@@ -260,6 +260,9 @@ public class AuthController : BaseController
     }
 
     /// <summary>Unlink one of the caller's own external identities (platform-identity §4). Self-scoped.</summary>
+    [NotDestructive(
+        "Deletes one UserIdentity row; no entity carries a UserIdentityId FK (rows key on UserId, which survives) and the identity can be re-linked."
+    )]
     [HttpDelete("identities/{identityId:guid}")]
     [Authorize]
     [EnableRateLimiting("auth")]
@@ -1258,6 +1261,9 @@ public class AuthController : BaseController
     }
 
     /// <summary>Disconnect the platform-shared bot account, revoking its Twitch token (platform-operator only).</summary>
+    [NotDestructive(
+        "Clears the bot account's stored authorization; no rows are deleted and the account re-authorizes through the device-code flow."
+    )]
     [HttpDelete("twitch/bot")]
     [Authorize(Policy = IamPermissionKeys.IamManage)]
     public async Task<IActionResult> DisconnectBot(CancellationToken ct)

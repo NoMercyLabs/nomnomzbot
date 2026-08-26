@@ -103,3 +103,29 @@ public sealed record AnonymizationReport(
     int RowsAffected,
     IReadOnlyList<string> TablesAffected
 );
+
+/// <summary>
+/// The subject's erasure request for a read-only, counted preview (S-CONSEQ): what an erasure WOULD destroy,
+/// counted from the real rows, before the irreversible save.
+/// </summary>
+public sealed record PreviewErasureRequest(Guid SubjectUserId, Guid? BroadcasterId);
+
+/// <summary>
+/// One counted category of the erasure blast radius. <paramref name="CategoryKey"/> is an i18n resource KEY
+/// (never a rendered sentence — the client owns the language); <paramref name="RowCount"/> is a real
+/// <c>COUNT</c> over the rows the erasure pipeline would destroy, never an estimate.
+/// </summary>
+public sealed record ErasurePreviewCategoryDto(string CategoryKey, int RowCount);
+
+/// <summary>
+/// The counted preview of a GDPR erasure. <paramref name="Categories"/> lists ONLY non-zero categories, each
+/// counted from real rows; <paramref name="TotalRows"/> is their sum. An empty list with a zero total is the
+/// genuine "nothing would be destroyed" answer — the client must say so explicitly, never render a blank.
+/// <paramref name="SubjectAlreadyAnonymized"/> is true when the profile row has already been anonymized (a
+/// repeat erasure is idempotent and would not re-anonymize it).
+/// </summary>
+public sealed record ErasurePreviewDto(
+    bool SubjectAlreadyAnonymized,
+    int TotalRows,
+    IReadOnlyList<ErasurePreviewCategoryDto> Categories
+);

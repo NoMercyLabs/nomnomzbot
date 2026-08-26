@@ -47,7 +47,9 @@ import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ConsentRecord
+import bot.nomnomz.dashboard.core.network.ErasurePreview
 import bot.nomnomz.dashboard.core.network.ErasureRequest
 import bot.nomnomz.dashboard.feature.mydata.state.MyDataController
 import bot.nomnomz.dashboard.feature.mydata.state.MyDataUiState
@@ -64,9 +66,6 @@ import nomnomzbot.composeapp.generated.resources.mydata_consent_withdrawn_at
 import nomnomzbot.composeapp.generated.resources.mydata_consents_empty
 import nomnomzbot.composeapp.generated.resources.mydata_consents_title
 import nomnomzbot.composeapp.generated.resources.mydata_erase_button
-import nomnomzbot.composeapp.generated.resources.mydata_erase_confirm
-import nomnomzbot.composeapp.generated.resources.mydata_erase_confirm_message
-import nomnomzbot.composeapp.generated.resources.mydata_erase_confirm_title
 import nomnomzbot.composeapp.generated.resources.mydata_erasure_desc
 import nomnomzbot.composeapp.generated.resources.mydata_erasure_title
 import nomnomzbot.composeapp.generated.resources.mydata_error
@@ -170,12 +169,18 @@ fun MyDataScreen(controller: MyDataController) {
     }
 
     if (showErase) {
-        ConfirmDialog(
-            title = stringResource(Res.string.mydata_erase_confirm_title),
-            message = stringResource(Res.string.mydata_erase_confirm_message),
-            confirmLabel = stringResource(Res.string.mydata_erase_confirm),
-            dismissLabel = stringResource(Res.string.mydata_cancel),
-            destructive = true,
+        // Fetched fresh every time the confirm opens (never cached, never guessed) — the counted blast radius
+        // the irreversible erasure MUST show before it can proceed (S-CONSEQ).
+        var preview: ErasurePreviewLoadState by remember { mutableStateOf(ErasurePreviewLoadState.Loading) }
+        LaunchedEffect(Unit) {
+            preview =
+                when (val result: ApiResult<ErasurePreview> = controller.fetchErasurePreview()) {
+                    is ApiResult.Ok -> ErasurePreviewLoadState.Loaded(result.value)
+                    is ApiResult.Failure -> ErasurePreviewLoadState.Failed
+                }
+        }
+        ErasureConfirmDialog(
+            preview = preview,
             onConfirm = {
                 showErase = false
                 scope.launch { controller.requestErasure() }

@@ -27,6 +27,14 @@ public sealed class DestructiveActionAttribute : Attribute
     /// exists so the requirement is visible at the call site, not just enforced by a test.
     /// </summary>
     public bool HasCountedBlastRadius { get; init; }
+
+    /// <summary>
+    /// Set (ISO date) on an action that NEEDS a counted blast radius but does not have one yet. The scanner
+    /// admits it ONLY while it is listed in the dated baseline in <c>DestructiveActionScannerTests</c>, which
+    /// may only shrink — a new destructive action can never join it. Never set this together with
+    /// <see cref="HasCountedBlastRadius"/>.
+    /// </summary>
+    public string? PendingBlastRadiusSince { get; init; }
 }
 
 /// <summary>

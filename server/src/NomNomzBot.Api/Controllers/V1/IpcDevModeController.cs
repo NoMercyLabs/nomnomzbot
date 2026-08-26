@@ -11,6 +11,7 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
@@ -94,6 +95,9 @@ public class IpcDevModeController(
     }
 
     /// <summary>Revoke an IPC key (soft-delete tombstone — the row stays for the audit trail).</summary>
+    [NotDestructive(
+        "Revokes one dev-mode key; no entity carries a dev-mode-key FK and a new key can be issued."
+    )]
     [HttpDelete("keys/{keyId:guid}")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status503ServiceUnavailable)]
