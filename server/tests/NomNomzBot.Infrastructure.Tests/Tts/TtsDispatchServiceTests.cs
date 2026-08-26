@@ -969,6 +969,7 @@ public sealed class TtsDispatchServiceTests
             .Tts.Received(1)
             .SynthesizeAsync("hello", "en-us-arianeural", Arg.Any<CancellationToken>());
     }
+
     // ── MinPermission floor + per-viewer voice ────────────────────────────────────────────────────
     // Both are what a streamer actually configures, and MinPermission was reaching dispatch as pure
     // decoration: stored, editable in the dashboard, and read by nothing, so a "moderators only"
@@ -997,7 +998,8 @@ public sealed class TtsDispatchServiceTests
             return;
 
         result.ErrorCode.Should().Be("FORBIDDEN");
-        await h.Tts.DidNotReceive()
+        await h
+            .Tts.DidNotReceive()
             .SynthesizeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
@@ -1031,5 +1033,4 @@ public sealed class TtsDispatchServiceTests
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
         result.Value!.VoiceId.Should().Be("channel-voice");
     }
-
 }
