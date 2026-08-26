@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Analytics.Entities;
@@ -29,6 +30,7 @@ using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 using DomainTimer = NomNomzBot.Domain.Commands.Entities.Timer;
 
 namespace NomNomzBot.Api.Tests.Controllers.Pipelines;
@@ -36,7 +38,7 @@ namespace NomNomzBot.Api.Tests.Controllers.Pipelines;
 /// <summary>
 /// A focused <see cref="IApplicationDbContext"/> over only the pipeline graph
 /// (<see cref="NomNomzBot.Domain.Commands.Entities.Pipeline"/> + <see cref="PipelineStep"/> +
-/// <see cref="PipelineStepCondition"/>) on the EF Core InMemory provider, backing the real
+/// <see cref="PipelineStepCondition"/>) on a REAL relational SQLite connection, backing the real
 /// <c>PipelineService</c> behind a real HTTP <c>TestServer</c> round-trip through
 /// <c>PipelinesController</c> (S-PIPE-BLANK-b). Everything else throws — the controller/service path this test
 /// exercises never reaches it. Same "declare every DbSet, auto-ignore the unmapped ones" shape as the
@@ -45,17 +47,43 @@ namespace NomNomzBot.Api.Tests.Controllers.Pipelines;
 /// </summary>
 internal sealed class PipelineGraphRoundTripDbContext : DbContext, IApplicationDbContext
 {
-    private PipelineGraphRoundTripDbContext(
-        DbContextOptions<PipelineGraphRoundTripDbContext> options
-    )
-        : base(options) { }
+    // One private, non-shared in-memory SQLite connection per context instance — a REAL relational
+    // database (S-API-TESTS-INMEMORY; the EF InMemory provider is retired here because it ignores unique
+    // indexes, FK constraints and query translation, so it green-lights writes the real database rejects).
+    // Opened by New(), closed by this context's own Dispose/DisposeAsync overrides.
+    private readonly SqliteConnection _connection;
 
-    public static PipelineGraphRoundTripDbContext New() =>
-        new(
+    private PipelineGraphRoundTripDbContext(
+        DbContextOptions<PipelineGraphRoundTripDbContext> options,
+        SqliteConnection connection
+    )
+        : base(options) => _connection = connection;
+
+    public static PipelineGraphRoundTripDbContext New()
+    {
+        SqliteConnection connection = new("Data Source=:memory:");
+        connection.Open();
+        PipelineGraphRoundTripDbContext db = new(
             new DbContextOptionsBuilder<PipelineGraphRoundTripDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options
+                .UseSqlite(connection)
+                .Options,
+            connection
         );
+        db.Database.EnsureCreated();
+        return db;
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        _connection.Dispose();
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        await base.DisposeAsync();
+        await _connection.DisposeAsync();
+    }
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -90,6 +118,8 @@ internal sealed class PipelineGraphRoundTripDbContext : DbContext, IApplicationD
         // bodies; ignore every entity this test does not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
+
+        b.ApplySqliteCompatibility();
     }
 
     private static readonly HashSet<Type> Mapped =
