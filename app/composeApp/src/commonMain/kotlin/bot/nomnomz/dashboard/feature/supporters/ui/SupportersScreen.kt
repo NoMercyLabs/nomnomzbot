@@ -350,7 +350,7 @@ private fun ProviderTile(
                 )
                 ManageGate(decision = configManage) { enabled ->
                     GlyphButton(
-                        imageVector = TrashGlyph,
+                        icon = TrashGlyph,
                         label = stringResource(Res.string.supporters_disconnect_action, name),
                         onClick = onDisconnect,
                         enabled = enabled,

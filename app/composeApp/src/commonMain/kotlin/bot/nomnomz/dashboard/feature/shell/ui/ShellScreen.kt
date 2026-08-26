@@ -50,7 +50,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.SheetSide
 import bot.nomnomz.dashboard.core.designsystem.icon.ChevronDownGlyph
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import androidx.compose.runtime.key
-import androidx.compose.ui.graphics.vector.ImageVector
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.painterResource
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -843,7 +844,7 @@ internal fun SidebarHeader(switcher: ChannelSwitcherController) {
                 modifier = Modifier.weight(1f),
             )
             Icon(
-                imageVector = if (expanded) ChevronUpGlyph else ChevronDownGlyph,
+                painter = painterResource(if (expanded) ChevronUpGlyph else ChevronDownGlyph),
                 contentDescription = null,
                 tint = tokens.mutedForeground,
                 modifier = Modifier.size(spacing.s4),
@@ -945,7 +946,7 @@ private fun SidebarSection(
                 modifier = Modifier.weight(1f),
             )
             Icon(
-                imageVector = ChevronDownGlyph,
+                painter = painterResource(ChevronDownGlyph),
                 contentDescription = null,
                 tint = tokens.mutedForeground,
                 modifier = Modifier.size(spacing.s4).rotate(chevronRotation),
@@ -1040,7 +1041,7 @@ private fun NavItem(route: ShellRoute, selected: Boolean, onClick: () -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
         Icon(
-            imageVector = route.icon(),
+            painter = painterResource(route.icon()),
             contentDescription = null,
             tint = content,
             modifier = Modifier.size(spacing.s4),
@@ -1390,7 +1391,7 @@ private fun HubDot() {
 
 // ── Label mappings (the single place each route/group/role/language maps to its localized string) ──────────
 
-private fun ShellRoute.icon(): ImageVector =
+private fun ShellRoute.icon(): DrawableResource =
     when (this) {
         ShellRoute.Dashboard -> DashboardGlyph
         ShellRoute.Chat -> ChatGlyph

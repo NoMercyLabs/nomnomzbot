@@ -127,14 +127,14 @@ fun VtsScreen(controller: VtsController, role: ManagementRole?) {
 
     LaunchedEffect(Unit) { controller.load() }
 
-    Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
+    Box(modifier = Modifier.fillMaxSize()) {
         when (val current: VtsUiState = state) {
             is VtsUiState.Loading -> CenteredMessage(stringResource(Res.string.vts_loading))
             is VtsUiState.Error ->
                 ErrorContent(detail = current.detail, onRetry = { scope.launch { controller.load() } })
             is VtsUiState.Ready ->
                 Column(
-                    modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                    modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s6),
                     verticalArrangement = Arrangement.spacedBy(spacing.s4),
                 ) {
                     PageHeader(

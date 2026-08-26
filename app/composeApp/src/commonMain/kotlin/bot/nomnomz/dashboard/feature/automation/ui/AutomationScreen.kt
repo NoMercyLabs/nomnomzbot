@@ -150,14 +150,14 @@ fun AutomationScreen(controller: AutomationController, role: ManagementRole?) {
 
     LaunchedEffect(Unit) { controller.load() }
 
-    Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
+    Box(modifier = Modifier.fillMaxSize()) {
         when (val current: AutomationUiState = state) {
             is AutomationUiState.Loading -> CenteredMessage(stringResource(Res.string.automation_loading))
             is AutomationUiState.Error ->
                 ErrorContent(detail = current.detail, onRetry = { scope.launch { controller.load() } })
             is AutomationUiState.Ready ->
                 Column(
-                    modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                    modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s6),
                     verticalArrangement = Arrangement.spacedBy(spacing.s4),
                 ) {
                     PageHeader(

@@ -74,7 +74,7 @@ fun NowPlayingScreen(controller: ParticipantController) {
 
     LaunchedEffect(Unit) { controller.loadNowPlaying() }
 
-    Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
+    Box(modifier = Modifier.fillMaxSize()) {
         when (val current: NowPlayingState = state) {
             is NowPlayingState.Loading -> ParticipantMessage(stringResource(Res.string.participant_loading))
             is NowPlayingState.Error ->
@@ -92,7 +92,7 @@ fun NowPlayingScreen(controller: ParticipantController) {
 private fun Ready(state: NowPlayingState.Ready, onSubmit: (String) -> Unit) {
     val spacing = LocalSpacing.current
 
-    Column(verticalArrangement = Arrangement.spacedBy(spacing.s4), modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s4), modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s6)) {
         state.actionError?.let { ActionErrorBanner(detail = it) }
         NowPlayingCard(track = state.snapshot.nowPlaying)
         SubmitCard(

@@ -62,6 +62,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
+import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.AppIcon
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
@@ -316,7 +318,11 @@ private fun ManagedContent(
             // count. Both numbers come straight from the billing-limits report, never estimated client-side.
             LimitedCreateAction(usage = customCommandsUsage) { limitAllowed ->
                 ManageGate(decision = manage) { manageAllowed ->
-                    Button(onClick = onNew, enabled = manageAllowed && limitAllowed) {
+                    Button(
+                        onClick = onNew,
+                        enabled = manageAllowed && limitAllowed,
+                        leftIcon = { AppIcon(AddGlyph, contentDescription = null) },
+                    ) {
                         Text(text = stringResource(Res.string.commands_new_action))
                     }
                 }
@@ -475,11 +481,11 @@ private fun CommandTableRow(
         }
 
         ManageGate(decision = manage) { enabled ->
-            GlyphButton(imageVector = EditGlyph, label = editLabel, onClick = onEdit, enabled = enabled)
+            GlyphButton(icon = EditGlyph, label = editLabel, onClick = onEdit, enabled = enabled)
         }
         ManageGate(decision = manage) { enabled ->
             GlyphButton(
-                imageVector = TrashGlyph,
+                icon = TrashGlyph,
                 label = deleteLabel,
                 onClick = onDelete,
                 enabled = enabled,
@@ -914,7 +920,7 @@ private fun ListEditor(
                     placeholder = placeholder,
                 )
                 GlyphButton(
-                    imageVector = TrashGlyph,
+                    icon = TrashGlyph,
                     label = removeLabel,
                     onClick = { values.removeAt(index) },
                     tint = tokens.destructive,
@@ -922,6 +928,7 @@ private fun ListEditor(
             }
         }
         TextButton(onClick = { values.add("") }) {
+            AppIcon(AddGlyph, contentDescription = null, tint = tokens.primary, size = spacing.s4)
             Text(text = addLabel, color = tokens.primary)
         }
     }

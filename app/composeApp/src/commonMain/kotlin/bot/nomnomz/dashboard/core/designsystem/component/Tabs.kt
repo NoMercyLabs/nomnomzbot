@@ -38,6 +38,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -51,6 +52,7 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -64,6 +66,7 @@ private val TrackRadius: Dp = 53.dp
 private val SegmentHeight: Dp = 40.dp
 private val SegmentRadius: Dp = 32.dp
 private val SegmentFocusWidth: Dp = 2.dp
+private val SegmentLabelPadding: Dp = 16.dp
 private const val SegmentTransitionMillis: Int = 120
 
 private data class SegmentEntry(
@@ -160,16 +163,17 @@ fun RowScope.TabsTrigger(
     val contentColor: Color by
         animateColorAsState(contentTarget, tween(SegmentTransitionMillis), label = "segmentContent")
     val shape = RoundedCornerShape(SegmentRadius)
+    val segmentTextStyle: TextStyle =
+        typography.base.copy(
+            color = contentColor,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+            fontSize = 16.sp,
+            lineHeight = 20.sp,
+            letterSpacing = 0.48.sp,
+        )
 
     CompositionLocalProvider(
-        LocalTextStyle provides
-            typography.base.copy(
-                color = contentColor,
-                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-                fontSize = 16.sp,
-                lineHeight = 20.sp,
-                letterSpacing = 0.48.sp,
-            ),
+        LocalTextStyle provides segmentTextStyle,
         LocalContentColor provides contentColor,
     ) {
         Box(
@@ -216,12 +220,33 @@ fun RowScope.TabsTrigger(
                     .pointerHoverIcon(if (enabled) PointerIcon.Hand else PointerIcon.Default),
             contentAlignment = Alignment.Center,
         ) {
+            SegmentLabel(
+                sizerStyle = segmentTextStyle.copy(fontWeight = FontWeight.SemiBold),
+                content = content,
+            )
+        }
+    }
+}
+
+// Lays out a segment's label at a width fixed to its SELECTED (SemiBold) form, so toggling the weight on
+// selection never resizes the segment and shifts the track. An invisible, always-SemiBold copy ([sizerStyle])
+// claims the width; the visible label draws over it at the current weight from the surrounding text style.
+@Composable
+private fun SegmentLabel(sizerStyle: TextStyle, content: @Composable RowScope.() -> Unit) {
+    Box(contentAlignment = Alignment.Center) {
+        CompositionLocalProvider(LocalTextStyle provides sizerStyle) {
             Row(
-                modifier = Modifier.padding(horizontal = 16.dp),
+                modifier = Modifier.padding(horizontal = SegmentLabelPadding).alpha(0f),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
                 content = content,
             )
         }
+        Row(
+            modifier = Modifier.padding(horizontal = SegmentLabelPadding),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+            content = content,
+        )
     }
 }

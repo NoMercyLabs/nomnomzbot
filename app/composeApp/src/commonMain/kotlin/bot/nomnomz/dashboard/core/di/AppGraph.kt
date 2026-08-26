@@ -259,8 +259,9 @@ class AppGraph {
     // subscribes to it for the live status panel + channel registry (no polling).
     val adminHubClient: AdminHubClient = AdminHubClient()
 
-    // The streamer's Twitch chat color (#RRGGBB) — null until HomeController resolves the primary channel.
-    // App.kt reads this to supply the dynamic accent to NomNomzTheme (design-system §2).
+    // The streamer's Twitch chat color (#RRGGBB) — null until the ChannelSwitcherController resolves the
+    // active channel on shell mount (every authenticated page), with HomeController.load and channel switches
+    // refreshing it thereafter. App.kt reads this to supply the dynamic accent to NomNomzTheme (design-system §2).
     private val _chatAccentColor: MutableStateFlow<String?> = MutableStateFlow(null)
     val chatAccentColor: StateFlow<String?> = _chatAccentColor.asStateFlow()
 

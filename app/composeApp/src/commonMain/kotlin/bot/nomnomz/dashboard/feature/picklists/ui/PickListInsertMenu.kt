@@ -21,12 +21,15 @@ import androidx.compose.ui.Modifier
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
+import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.AppIcon
+import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import org.jetbrains.compose.resources.stringResource
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.editor_insert_random_response
 
-// A small insert helper for the command / response / timer text editors: a "+ Random response" button that opens a
+// A small insert helper for the command / response / timer text editors: a plus-led "Random response" button that opens a
 // dropdown of the channel's random-response lists (the pick-lists) and inserts the matching `{list.pick.<name>}`
 // template into the field — so the bot substitutes a random line from that list at runtime. It exists so the
 // feature is discoverable where it is USED (the editors), not only where lists are managed (roles-permissions.md /
@@ -40,10 +43,12 @@ fun PickListInsertMenu(
 ) {
     if (names.isEmpty()) return
     val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
     var expanded: Boolean by remember { mutableStateOf(false) }
 
     Box(modifier = modifier) {
         TextButton(onClick = { expanded = true }) {
+            AppIcon(AddGlyph, contentDescription = null, tint = tokens.primary, size = spacing.s4)
             Text(text = stringResource(Res.string.editor_insert_random_response), color = tokens.primary)
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {

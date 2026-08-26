@@ -47,6 +47,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.theme.Spacing
 import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
 import bot.nomnomz.dashboard.core.designsystem.theme.Typography
+import org.jetbrains.compose.resources.painterResource
 
 // 1dp border stroke — not a layout spacing value (matches AppTextField's field border).
 private val SelectBorderWidth: Dp = 1.dp
@@ -145,7 +146,7 @@ fun AppSelectField(
                     )
                 }
                 Icon(
-                    imageVector = ChevronDownGlyph,
+                    painter = painterResource(ChevronDownGlyph),
                     contentDescription = null,
                     tint = tokens.mutedForeground,
                     modifier = Modifier.size(spacing.s4),

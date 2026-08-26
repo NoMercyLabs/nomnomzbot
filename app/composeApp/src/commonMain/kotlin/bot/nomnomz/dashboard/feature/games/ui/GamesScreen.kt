@@ -596,7 +596,7 @@ private fun GameRow(
             )
         }
         ManageGate(decision = manage) { enabled ->
-            GlyphButton(imageVector = EditGlyph, label = editLabel, onClick = onEdit, enabled = enabled)
+            GlyphButton(icon = EditGlyph, label = editLabel, onClick = onEdit, enabled = enabled)
         }
         ManageGate(decision = manage) { enabled ->
             Switch(
@@ -793,7 +793,7 @@ private fun GameConfigDialog(
                             label = stringResource(Res.string.games_dialog_config_value_hint),
                         )
                         GlyphButton(
-                            imageVector = EditGlyph,
+                            icon = EditGlyph,
                             label = stringResource(Res.string.games_dialog_config_remove, entry.first),
                             onClick = { configEntries.removeAt(index) },
                         )

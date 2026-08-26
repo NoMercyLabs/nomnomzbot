@@ -521,7 +521,7 @@ private fun RemoveButton(name: String, manage: ManageDecision, onRemove: () -> U
 
     ManageGate(decision = manage) { enabled ->
         GlyphButton(
-            imageVector = TrashGlyph,
+            icon = TrashGlyph,
             label = removeLabel,
             onClick = onRemove,
             enabled = enabled,
@@ -1205,7 +1205,7 @@ private fun ActionPermissionRow(
         }
         ManageGate(decision = manage) { enabled ->
             GlyphButton(
-                imageVector = EditGlyph,
+                icon = EditGlyph,
                 label = stringResource(Res.string.roles_override_set),
                 onClick = onEdit,
                 enabled = enabled,

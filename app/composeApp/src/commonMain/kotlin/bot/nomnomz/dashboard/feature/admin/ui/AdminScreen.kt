@@ -654,7 +654,7 @@ private fun BillingTab(state: AdminState, controller: AdminController) {
                         ) {
                             Text(text = invite.code, style = typography.sm, color = tokens.cardForeground)
                             GlyphButton(
-                                imageVector = TrashGlyph,
+                                icon = TrashGlyph,
                                 label = stringResource(Res.string.admin_invite_revoke),
                                 onClick = { scope.launch { controller.revokeInviteCode(invite.id) } },
                                 tint = tokens.destructive,

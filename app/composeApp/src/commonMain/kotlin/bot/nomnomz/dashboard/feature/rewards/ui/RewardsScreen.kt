@@ -57,6 +57,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.AppIcon
 import bot.nomnomz.dashboard.core.designsystem.icon.CheckCircleGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.RemoveGlyph
@@ -430,6 +432,7 @@ private fun Header(
                 Button(
                     onClick = onNew,
                     enabled = enabled,
+                    leftIcon = { AppIcon(AddGlyph, contentDescription = null) },
                     modifier = Modifier.semantics { contentDescription = newLabel },
                 ) {
                     Text(text = newLabel)
@@ -622,7 +625,7 @@ private fun RedemptionTimerRow(
             }
             ManageGate(decision = edit) { enabled ->
                 GlyphButton(
-                    imageVector = RemoveGlyph,
+                    icon = RemoveGlyph,
                     label = stringResource(Res.string.rewards_timer_cancel),
                     onClick = { onAction(TimerAction.Cancel) },
                     enabled = enabled,
@@ -718,7 +721,7 @@ private fun RedemptionRow(
         // Fulfil / refund gate at the page's Editor manage floor; the backend re-checks reward:manage.
         ManageGate(decision = edit) { enabled ->
             GlyphButton(
-                imageVector = RemoveGlyph,
+                icon = RemoveGlyph,
                 label = refundLabel,
                 onClick = onRefund,
                 enabled = enabled,
@@ -727,7 +730,7 @@ private fun RedemptionRow(
         }
         ManageGate(decision = edit) { enabled ->
             GlyphButton(
-                imageVector = CheckCircleGlyph,
+                icon = CheckCircleGlyph,
                 label = fulfillLabel,
                 onClick = onFulfill,
                 enabled = enabled,
@@ -825,11 +828,11 @@ private fun RewardRow(
         // Secondary actions precede the row's main enabled-state control, which stays at the far right.
         // Edit/toggle gate at the Editor floor; delete is the Broadcaster-only lifecycle action.
         ManageGate(decision = rowEdit) { enabled ->
-            GlyphButton(imageVector = EditGlyph, label = editLabel, onClick = onEdit, enabled = enabled)
+            GlyphButton(icon = EditGlyph, label = editLabel, onClick = onEdit, enabled = enabled)
         }
         ManageGate(decision = rowLifecycle) { enabled ->
             GlyphButton(
-                imageVector = TrashGlyph,
+                icon = TrashGlyph,
                 label = deleteLabel,
                 onClick = onDelete,
                 enabled = enabled,

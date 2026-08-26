@@ -55,8 +55,9 @@ private val ButtonStroke: Dp = 1.dp
 private val ButtonFocusStroke: Dp = 3.dp
 private val ButtonRadius: Dp = 45.dp
 private val CompactButtonHeight: Dp = 44.dp
-private val FigmaButtonHeight: Dp = 60.dp
-private val FigmaIconButtonWidth: Dp = 88.dp
+
+/** Figma pill height: 24px glyph row + 12px vertical padding top & bottom. */
+private val FigmaButtonHeight: Dp = 48.dp
 private const val ButtonTransitionMillis: Int = 120
 
 enum class ButtonVariant {
@@ -88,7 +89,6 @@ private data class ButtonVisuals(
     val content: Color,
     val border: Color,
     val focus: Color,
-    val iconContainer: Color,
     val weight: FontWeight,
 )
 
@@ -122,7 +122,6 @@ private fun buttonVisuals(
                 content = ControlPalette.Ink,
                 border = Color(0x331A2E22),
                 focus = ControlPalette.PrimaryFocus,
-                iconContainer = Color.Black.copy(alpha = 0.10f),
                 weight = FontWeight.ExtraBold,
             )
         }
@@ -138,7 +137,6 @@ private fun buttonVisuals(
                 content = ControlPalette.LilacWhite,
                 border = if (pressed) ControlPalette.SurfaceRaised else Color(0x33000000),
                 focus = ControlPalette.LilacWhite.copy(alpha = 0.64f),
-                iconContainer = ControlPalette.LilacWhite.copy(alpha = 0.10f),
                 weight = FontWeight.SemiBold,
             )
         }
@@ -155,7 +153,6 @@ private fun buttonVisuals(
                 content = ControlPalette.LilacWhite,
                 border = Color(0x331B1B1B),
                 focus = ControlPalette.LilacWhite,
-                iconContainer = Color.Black.copy(alpha = 0.10f),
                 weight = FontWeight.ExtraBold,
             )
         }
@@ -172,7 +169,6 @@ private fun buttonVisuals(
                 content = ControlPalette.DestructiveContent,
                 border = if (pressed) ControlPalette.SurfaceRaised else Color(0x33000000),
                 focus = ControlPalette.DestructiveContent.copy(alpha = 0.64f),
-                iconContainer = ControlPalette.DestructiveTint.copy(alpha = 0.10f),
                 weight = FontWeight.SemiBold,
             )
         }
@@ -184,7 +180,6 @@ private fun buttonVisuals(
                 content = if (hovered || pressed) tokens.accentForeground else tokens.foreground,
                 border = tokens.border,
                 focus = tokens.ring,
-                iconContainer = tokens.foreground.copy(alpha = 0.10f),
                 weight = FontWeight.SemiBold,
             )
         }
@@ -201,7 +196,6 @@ private fun buttonVisuals(
                 content = if (hovered || pressed) ControlPalette.White else tokens.foreground,
                 border = Color.Transparent,
                 focus = ControlPalette.LilacWhite.copy(alpha = 0.64f),
-                iconContainer = Color.Transparent,
                 weight = FontWeight.SemiBold,
             )
         }
@@ -212,33 +206,44 @@ private fun buttonVisuals(
                 content = tokens.primary,
                 border = Color.Transparent,
                 focus = tokens.ring,
-                iconContainer = Color.Transparent,
                 weight = FontWeight.SemiBold,
             )
     }
 
 private data class ButtonDimensions(
-    val paddingH: Dp,
-    val paddingV: Dp,
+    /** Vertical padding = the icon's square inset (Sleak `--pad-y`); icon-side horizontal matches it. */
+    val padSquare: Dp,
+    /** Open/text-end horizontal inset ≈ 2× [padSquare] so the label breathes (Sleak uneven rule). */
+    val padText: Dp,
     val minHeight: Dp,
-    val fixedWidth: Dp? = null,
-    val fixedHeight: Dp? = null,
 )
 
+// Sleak button padding (references/components.md §Buttons): the icon side equals the vertical
+// padding (framing the glyph in a square), the open text end takes ~2× that. The icon-only size is
+// the Figma pill (`px-[24px] py-[12px]`) — symmetric, so [padText] is used on both horizontal sides.
 private fun buttonDimensions(size: ButtonSize, spacing: Spacing): ButtonDimensions =
     when (size) {
-        ButtonSize.Sm -> ButtonDimensions(spacing.s4, spacing.s2, CompactButtonHeight)
-        ButtonSize.Default -> ButtonDimensions(spacing.s8, 18.dp, FigmaButtonHeight)
-        ButtonSize.Lg -> ButtonDimensions(spacing.s8, 18.dp, FigmaButtonHeight)
-        ButtonSize.Icon ->
-            ButtonDimensions(
-                paddingH = spacing.s0,
-                paddingV = spacing.s0,
-                minHeight = FigmaButtonHeight,
-                fixedWidth = FigmaIconButtonWidth,
-                fixedHeight = FigmaButtonHeight,
-            )
+        ButtonSize.Sm -> ButtonDimensions(spacing.s2, spacing.s4, CompactButtonHeight)
+        ButtonSize.Default -> ButtonDimensions(spacing.s3, spacing.s6, FigmaButtonHeight)
+        ButtonSize.Lg -> ButtonDimensions(spacing.s3, spacing.s6, FigmaButtonHeight)
+        ButtonSize.Icon -> ButtonDimensions(spacing.s3, spacing.s6, FigmaButtonHeight)
     }
+
+/**
+ * Resolves the two horizontal insets from icon presence per the Sleak rule:
+ * a side that carries an icon collapses to the square inset; an open text end takes [padText].
+ * The icon-only size keeps symmetric [padText] on both sides (the Figma pill, not a square).
+ */
+private fun ButtonDimensions.horizontalInsets(
+    iconOnly: Boolean,
+    hasLeftIcon: Boolean,
+    hasRightIcon: Boolean,
+): Pair<Dp, Dp> {
+    if (iconOnly) return padText to padText
+    val start: Dp = if (hasLeftIcon) padSquare else padText
+    val end: Dp = if (hasRightIcon) padSquare else padText
+    return start to end
+}
 
 /**
  * Stateful implementation of the four Figma button families. Hover, press, keyboard focus,
@@ -274,6 +279,12 @@ fun Button(
         label = "buttonBorder",
     )
     val dimensions = buttonDimensions(size, spacing)
+    val (startPad: Dp, endPad: Dp) =
+        dimensions.horizontalInsets(
+            iconOnly = size == ButtonSize.Icon,
+            hasLeftIcon = leftIcon != null,
+            hasRightIcon = rightIcon != null,
+        )
     val shape = RoundedCornerShape(ButtonRadius)
     val textStyle =
         typography.base.copy(
@@ -286,12 +297,7 @@ fun Button(
                 if (variant == ButtonVariant.Link && hovered) TextDecoration.Underline
                 else TextDecoration.None,
         )
-    val sizeModifier =
-        if (dimensions.fixedWidth != null && dimensions.fixedHeight != null) {
-            Modifier.size(dimensions.fixedWidth, dimensions.fixedHeight)
-        } else {
-            Modifier.defaultMinSize(minHeight = dimensions.minHeight)
-        }
+    val sizeModifier = Modifier.defaultMinSize(minHeight = dimensions.minHeight)
 
     CompositionLocalProvider(
         LocalTextStyle provides textStyle,
@@ -319,8 +325,10 @@ fun Button(
                     )
                     .pointerHoverIcon(if (interactive) PointerIcon.Hand else PointerIcon.Default)
                     .padding(
-                        horizontal = dimensions.paddingH,
-                        vertical = dimensions.paddingV,
+                        start = startPad,
+                        end = endPad,
+                        top = dimensions.padSquare,
+                        bottom = dimensions.padSquare,
                     ),
             horizontalArrangement = Arrangement.spacedBy(spacing.s2, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically,
@@ -328,22 +336,18 @@ fun Button(
             if (loading) {
                 Spinner(size = SpinnerSize.Lg, color = contentColor)
             } else {
-                leftIcon?.let { ButtonIconSlot(target.iconContainer, it) }
+                leftIcon?.let { ButtonIconSlot(it) }
                 content()
-                rightIcon?.let { ButtonIconSlot(target.iconContainer, it) }
+                rightIcon?.let { ButtonIconSlot(it) }
             }
         }
     }
 }
 
 @Composable
-private fun ButtonIconSlot(background: Color, content: @Composable () -> Unit) {
+private fun ButtonIconSlot(content: @Composable () -> Unit) {
     Box(
-        modifier =
-            Modifier
-                .size(24.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(background),
+        modifier = Modifier.size(24.dp),
         contentAlignment = Alignment.Center,
     ) {
         content()

@@ -226,7 +226,7 @@ fun TtsScreen(
 
     LaunchedEffect(Unit) { controller.load() }
 
-    Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
+    Box(modifier = Modifier.fillMaxSize()) {
         when (val current: TtsState = state) {
             is TtsState.Loading -> CenteredMessage(stringResource(Res.string.tts_loading))
             is TtsState.Error ->
@@ -364,7 +364,7 @@ private fun ReadyContent(
     val canSave: Boolean = maxLengthValid && minBitsValid && edited != loaded && !state.saving
 
     Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s6),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
         PageHeader(title = stringResource(Res.string.shell_nav_tts))
@@ -817,14 +817,14 @@ private fun VoiceBrowserRow(
             }
         }
         GlyphButton(
-            imageVector = PlayCircleGlyph,
+            icon = PlayCircleGlyph,
             label = previewLabel,
             onClick = onPreview,
             tint = tokens.mutedForeground,
         )
         ManageGate(decision = manage) { enabled ->
             GlyphButton(
-                imageVector = CheckCircleGlyph,
+                icon = CheckCircleGlyph,
                 label = useLabel,
                 onClick = onUse,
                 enabled = enabled,
@@ -1477,7 +1477,7 @@ private fun VoiceMatchRow(voice: TtsVoice, manage: ManageDecision, onUse: () -> 
             )
         }
         ManageGate(decision = manage) { enabled ->
-            GlyphButton(imageVector = CheckCircleGlyph, label = useLabel, onClick = onUse, enabled = enabled, tint = tokens.primary)
+            GlyphButton(icon = CheckCircleGlyph, label = useLabel, onClick = onUse, enabled = enabled, tint = tokens.primary)
         }
     }
 }

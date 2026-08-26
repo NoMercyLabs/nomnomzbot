@@ -28,6 +28,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.io.copyToClipboard
 import kotlinx.coroutines.delay
+import org.jetbrains.compose.resources.painterResource
 
 // The `CopyLinkButton` design-system component: a ghost action that copies a URL to the system clipboard so
 // the operator can paste it into another device's browser instead of only opening it in place. It pairs
@@ -75,7 +76,7 @@ fun CopyLinkButton(
         enabled = enabled,
     ) {
         Icon(
-            imageVector = if (copied) CheckCircleGlyph else CopyGlyph,
+            painter = painterResource(if (copied) CheckCircleGlyph else CopyGlyph),
             contentDescription = null,
             tint = if (copied) tokens.primary else tokens.mutedForeground,
             modifier = Modifier.size(spacing.s4),

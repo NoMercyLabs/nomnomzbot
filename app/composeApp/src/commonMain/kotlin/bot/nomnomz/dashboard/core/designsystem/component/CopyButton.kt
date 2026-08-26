@@ -37,6 +37,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.io.copyToClipboard
 import kotlinx.coroutines.delay
+import org.jetbrains.compose.resources.painterResource
 
 // The `CopyValue` design-system component: a read-only value the operator must paste into an external site
 // (an OAuth redirect URI, a console URL) shown in a monospace-style chip with a copy-to-clipboard control.
@@ -97,7 +98,7 @@ fun CopyValue(
             }
         }) {
             Icon(
-                imageVector = if (copied) CheckCircleGlyph else CopyGlyph,
+                painter = painterResource(if (copied) CheckCircleGlyph else CopyGlyph),
                 contentDescription = if (copied) copiedLabel else copyLabel,
                 tint = if (copied) tokens.primary else tokens.mutedForeground,
                 modifier = Modifier.size(spacing.s4),

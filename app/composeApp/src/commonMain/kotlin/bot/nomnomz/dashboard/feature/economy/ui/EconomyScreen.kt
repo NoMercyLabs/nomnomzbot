@@ -46,6 +46,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -70,6 +71,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.AppIcon
 import bot.nomnomz.dashboard.core.designsystem.icon.CheckCircleGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.RemoveGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
@@ -322,7 +325,7 @@ fun EconomyScreen(controller: EconomyController, role: ManagementRole?, hubEvent
 
     }
 
-    Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
+    Box(modifier = Modifier.fillMaxSize()) {
         when (val current: EconomyState = state) {
             is EconomyState.Loading -> CenteredMessage(stringResource(Res.string.economy_loading))
             is EconomyState.Error ->
@@ -478,7 +481,7 @@ private fun ReadyContent(
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s6),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
         PageHeader(title = stringResource(Res.string.shell_nav_economy))
@@ -1918,9 +1921,11 @@ private fun CatalogSection(
         )
         ManageGate(decision = manage) { enabled ->
             TextButton(onClick = { showCreateDialog = true }, enabled = enabled) {
+                val addTint: Color = if (enabled) tokens.primary else tokens.mutedForeground
+                AppIcon(AddGlyph, contentDescription = null, tint = addTint, size = spacing.s4)
                 Text(
                     text = stringResource(Res.string.economy_catalog_add),
-                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    color = addTint,
                     maxLines = 1,
                 )
             }
@@ -2103,7 +2108,7 @@ private fun CatalogItemRow(
                 // Delete — destructive; the caller confirms before calling onDelete.
                 val deleteLabel: String = stringResource(Res.string.economy_catalog_delete_action, item.name)
                 GlyphButton(
-                    imageVector = TrashGlyph,
+                    icon = TrashGlyph,
                     label = deleteLabel,
                     onClick = onDelete,
                     enabled = enabled,
@@ -2228,9 +2233,11 @@ private fun SavingsJarsSection(
         )
         ManageGate(decision = manage) { enabled ->
             TextButton(onClick = { showCreate = true }, enabled = enabled) {
+                val addTint: Color = if (enabled) tokens.primary else tokens.mutedForeground
+                AppIcon(AddGlyph, contentDescription = null, tint = addTint, size = spacing.s4)
                 Text(
                     text = stringResource(Res.string.economy_jars_add),
-                    color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    color = addTint,
                     maxLines = 1,
                 )
             }
@@ -2468,7 +2475,7 @@ private fun JarManageDialog(
                                     if (isPending) {
                                         ManageGate(decision = manage) { enabled ->
                                             GlyphButton(
-                                                imageVector = CheckCircleGlyph,
+                                                icon = CheckCircleGlyph,
                                                 label = stringResource(Res.string.economy_jars_membership_accept),
                                                 onClick = { mutateThenReload { onAcceptMembership(m.id) } },
                                                 enabled = enabled,
@@ -2478,7 +2485,7 @@ private fun JarManageDialog(
                                     }
                                     ManageGate(decision = manage) { enabled ->
                                         GlyphButton(
-                                            imageVector = TrashGlyph,
+                                            icon = TrashGlyph,
                                             label = stringResource(Res.string.economy_jars_membership_revoke),
                                             onClick = { mutateThenReload { onRemoveMembership(m.id) } },
                                             enabled = enabled,
@@ -2861,7 +2868,7 @@ private fun CatalogPurchasesSection(
                         ManageGate(manage) { enabled ->
                             val refundEnabled: Boolean = enabled && purchase.status != "refunded"
                             GlyphButton(
-                                imageVector = RemoveGlyph,
+                                icon = RemoveGlyph,
                                 label = stringResource(Res.string.economy_purchases_refund),
                                 onClick = { pendingRefund = purchase },
                                 enabled = refundEnabled,

@@ -64,7 +64,7 @@ fun MyChannelScreen(controller: ParticipantController) {
 
     LaunchedEffect(Unit) { controller.loadMyChannel() }
 
-    Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
+    Box(modifier = Modifier.fillMaxSize()) {
         when (val current: MyChannelState = state) {
             is MyChannelState.Loading -> ParticipantMessage(stringResource(Res.string.participant_loading))
             is MyChannelState.Error ->
@@ -79,7 +79,7 @@ private fun Ready(state: MyChannelState.Ready) {
     val spacing = LocalSpacing.current
 
     Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s6),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
         IdentityCard(profile = state.profile, standing = state.standing)

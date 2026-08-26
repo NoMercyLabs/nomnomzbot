@@ -70,7 +70,7 @@ fun ParticipantGamesScreen(controller: ParticipantController) {
 
     LaunchedEffect(Unit) { controller.loadGames() }
 
-    Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
+    Box(modifier = Modifier.fillMaxSize()) {
         when (val current: ParticipantGamesState = state) {
             is ParticipantGamesState.Loading -> ParticipantMessage(stringResource(Res.string.participant_loading))
             is ParticipantGamesState.Error ->
@@ -89,7 +89,7 @@ private fun Ready(state: ParticipantGamesState.Ready, onPlay: (String, Long) -> 
     val spacing = LocalSpacing.current
 
     Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s6),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
         state.actionError?.let { ActionErrorBanner(detail = it) }

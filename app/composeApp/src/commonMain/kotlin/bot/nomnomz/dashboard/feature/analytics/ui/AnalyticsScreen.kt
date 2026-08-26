@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -175,7 +176,7 @@ fun AnalyticsScreen(controller: AnalyticsController, role: ManagementRole?) {
     LaunchedEffect(Unit) { controller.load() }
     LaunchedEffect(Unit) { controller.loadViewers() }
 
-    Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
+    Box(modifier = Modifier.fillMaxSize()) {
         when (val current: AnalyticsState = state) {
             is AnalyticsState.Loading -> CenteredMessage(stringResource(Res.string.analytics_loading))
             is AnalyticsState.Error ->
@@ -218,7 +219,10 @@ private fun ReadyContent(
 ) {
     val spacing = LocalSpacing.current
 
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(spacing.s6)) {
+    LazyColumn(
+        contentPadding = PaddingValues(spacing.s6),
+        verticalArrangement = Arrangement.spacedBy(spacing.s6),
+    ) {
         item { PageHeader(title = stringResource(Res.string.shell_nav_analytics)) }
         if (ready.streams.isNotEmpty()) {
             item {

@@ -83,7 +83,7 @@ fun MeScreen(controller: ParticipantController) {
 
     LaunchedEffect(Unit) { controller.loadMe() }
 
-    Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
+    Box(modifier = Modifier.fillMaxSize()) {
         when (val current: MeState = state) {
             is MeState.Loading -> ParticipantMessage(stringResource(Res.string.participant_loading))
             is MeState.Error ->
@@ -107,7 +107,7 @@ private fun Ready(
     val spacing = LocalSpacing.current
 
     Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s6),
         verticalArrangement = Arrangement.spacedBy(spacing.s4),
     ) {
         ProfileCard(

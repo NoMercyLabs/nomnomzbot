@@ -155,14 +155,14 @@ fun ObsScreen(
         LaunchedEffect(hubEvents) { controller.subscribeToHub(hubEvents) }
     }
 
-    Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
+    Box(modifier = Modifier.fillMaxSize()) {
         when (val current: ObsUiState = state) {
             is ObsUiState.Loading -> CenteredMessage(stringResource(Res.string.obs_loading))
             is ObsUiState.Error ->
                 ErrorContent(detail = current.detail, onRetry = { scope.launch { controller.load() } })
             is ObsUiState.Ready ->
                 Column(
-                    modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                    modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s6),
                     verticalArrangement = Arrangement.spacedBy(spacing.s4),
                 ) {
                     PageHeader(

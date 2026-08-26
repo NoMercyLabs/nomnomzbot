@@ -257,7 +257,7 @@ fun WebhooksScreen(controller: WebhooksController, role: ManagementRole?, hubEve
                                 )
                                 ManageGate(manage) { enabled ->
                                     GlyphButton(
-                                        imageVector = AddGlyph,
+                                        icon = AddGlyph,
                                         label = stringResource(Res.string.webhooks_inbound_add),
                                         onClick = { showCreateInbound = true },
                                         enabled = enabled,
@@ -300,7 +300,7 @@ fun WebhooksScreen(controller: WebhooksController, role: ManagementRole?, hubEve
                                 )
                                 ManageGate(manage) { enabled ->
                                     GlyphButton(
-                                        imageVector = AddGlyph,
+                                        icon = AddGlyph,
                                         label = stringResource(Res.string.webhooks_outbound_add),
                                         onClick = { showCreateOutbound = true },
                                         enabled = enabled,
@@ -540,7 +540,7 @@ private fun InboundRow(
             }
             ManageGate(manage) { enabled ->
                 GlyphButton(
-                    imageVector = EditGlyph,
+                    icon = EditGlyph,
                     label = stringResource(Res.string.webhooks_edit),
                     onClick = onEdit,
                     enabled = enabled,
@@ -549,7 +549,7 @@ private fun InboundRow(
             }
             ManageGate(manage) { enabled ->
                 GlyphButton(
-                    imageVector = RefreshGlyph,
+                    icon = RefreshGlyph,
                     label = stringResource(Res.string.webhooks_rotate_inbound_token),
                     onClick = onRotate,
                     enabled = enabled,
@@ -558,7 +558,7 @@ private fun InboundRow(
             }
             ManageGate(manage) { enabled ->
                 GlyphButton(
-                    imageVector = TrashGlyph,
+                    icon = TrashGlyph,
                     label = stringResource(Res.string.webhooks_delete_confirm),
                     onClick = onDelete,
                     enabled = enabled,
@@ -636,7 +636,7 @@ private fun OutboundRow(
             }
             ManageGate(manage) { enabled ->
                 GlyphButton(
-                    imageVector = EditGlyph,
+                    icon = EditGlyph,
                     label = stringResource(Res.string.webhooks_edit),
                     onClick = onEdit,
                     enabled = enabled,
@@ -644,7 +644,7 @@ private fun OutboundRow(
                 )
             }
             GlyphButton(
-                imageVector = FileGlyph,
+                icon = FileGlyph,
                 label = stringResource(Res.string.webhooks_deliveries),
                 onClick = onDeliveries,
                 tint = tokens.mutedForeground,
@@ -652,7 +652,7 @@ private fun OutboundRow(
             if (ep.disabledAt != null) {
                 ManageGate(manage) { enabled ->
                     GlyphButton(
-                        imageVector = PowerGlyph,
+                        icon = PowerGlyph,
                         label = stringResource(Res.string.webhooks_outbound_reenable),
                         onClick = onReenable,
                         enabled = enabled,
@@ -662,7 +662,7 @@ private fun OutboundRow(
             }
             ManageGate(manage) { enabled ->
                 GlyphButton(
-                    imageVector = PlayCircleGlyph,
+                    icon = PlayCircleGlyph,
                     label = stringResource(Res.string.webhooks_outbound_test),
                     onClick = onTest,
                     enabled = enabled,
@@ -671,7 +671,7 @@ private fun OutboundRow(
             }
             ManageGate(manage) { enabled ->
                 GlyphButton(
-                    imageVector = RefreshGlyph,
+                    icon = RefreshGlyph,
                     label = stringResource(Res.string.webhooks_rotate_outbound_secret),
                     onClick = onRotateSecret,
                     enabled = enabled,
@@ -680,7 +680,7 @@ private fun OutboundRow(
             }
             ManageGate(manage) { enabled ->
                 GlyphButton(
-                    imageVector = TrashGlyph,
+                    icon = TrashGlyph,
                     label = stringResource(Res.string.webhooks_delete_confirm),
                     onClick = onDelete,
                     enabled = enabled,

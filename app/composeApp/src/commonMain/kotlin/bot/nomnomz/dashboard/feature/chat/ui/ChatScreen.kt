@@ -174,6 +174,7 @@ import nomnomzbot.composeapp.generated.resources.chat_timeout_dismiss
 import nomnomzbot.composeapp.generated.resources.chat_timeout_message
 import nomnomzbot.composeapp.generated.resources.chat_timeout_title
 import org.jetbrains.compose.resources.stringResource
+import org.jetbrains.compose.resources.painterResource
 
 // The Chat page (frontend-ia.md §3 — the Chat group): the channel's recent chat is real data from
 // [ChatController] (the backend persists it from EventSub `channel.chat.message`). The screen is a pure
@@ -496,7 +497,7 @@ private fun ReplyIndicator(message: ChatMessage) {
                 horizontalArrangement = Arrangement.spacedBy(spacing.s1),
             ) {
                 Icon(
-                    imageVector = ReplyGlyph,
+                    painter = painterResource(ReplyGlyph),
                     contentDescription = null,
                     tint = tokens.mutedForeground,
                     modifier = Modifier.size(spacing.s3),
@@ -546,7 +547,7 @@ private fun ReplyComposerBanner(target: ChatMessage, onCancel: () -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
         Icon(
-            imageVector = ReplyGlyph,
+            painter = painterResource(ReplyGlyph),
             contentDescription = null,
             tint = tokens.mutedForeground,
             modifier = Modifier.size(spacing.s4),
@@ -560,7 +561,7 @@ private fun ReplyComposerBanner(target: ChatMessage, onCancel: () -> Unit) {
             modifier = Modifier.weight(1f),
         )
         GlyphButton(
-            imageVector = CloseGlyph,
+            icon = CloseGlyph,
             label = stringResource(Res.string.chat_reply_cancel),
             onClick = onCancel,
         )
@@ -595,7 +596,7 @@ private fun MessageActions(
     ) {
         ManageGate(decision = manage) { enabled ->
             GlyphButton(
-                imageVector = ReplyGlyph,
+                icon = ReplyGlyph,
                 label = replyLabel,
                 onClick = onReply,
                 enabled = enabled,
@@ -647,7 +648,7 @@ private fun ModerationMenu(
         // per-message delete/timeout menu disabled with its reason, rather than gating each dialog button.
         ManageGate(decision = manage) { enabled ->
             GlyphButton(
-                imageVector = DotsHorizontalGlyph,
+                icon = DotsHorizontalGlyph,
                 label = menuLabel,
                 onClick = { expanded = true },
                 enabled = enabled,
@@ -1013,7 +1014,7 @@ private fun SendBox(
             // Not gated — clearing your own unsent text needs no write floor.
             if (draft.text.isNotEmpty()) {
                 GlyphButton(
-                    imageVector = CloseGlyph,
+                    icon = CloseGlyph,
                     label = stringResource(Res.string.chat_clear_input),
                     onClick = { draft = TextFieldValue("") },
                 )

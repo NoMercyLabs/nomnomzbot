@@ -171,14 +171,14 @@ fun BundlesScreen(controller: BundlesController, role: ManagementRole?) {
 
     LaunchedEffect(Unit) { controller.load() }
 
-    Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
+    Box(modifier = Modifier.fillMaxSize()) {
         when (val current: BundlesUiState = state) {
             is BundlesUiState.Loading -> CenteredMessage(stringResource(Res.string.bundles_loading))
             is BundlesUiState.Error ->
                 ErrorContent(detail = current.detail, onRetry = { scope.launch { controller.load() } })
             is BundlesUiState.Ready ->
                 Column(
-                    modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                    modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s6),
                     verticalArrangement = Arrangement.spacedBy(spacing.s4),
                 ) {
                     PageHeader(

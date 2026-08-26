@@ -48,6 +48,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.theme.Spacing
 import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
 import bot.nomnomz.dashboard.core.designsystem.theme.Typography
+import org.jetbrains.compose.resources.painterResource
 
 // The glyph box + the per-depth indent step. Fixed affordance sizes, not design-token spacing.
 private val RowGlyphSize: Dp = 16.dp
@@ -210,13 +211,13 @@ private fun FileTreeRow(row: VisibleRow, selected: Boolean, onClick: () -> Unit)
     ) {
         if (row.isFolder) {
             Icon(
-                imageVector = if (row.expanded) ChevronDownGlyph else ChevronRightGlyph,
+                painter = painterResource(if (row.expanded) ChevronDownGlyph else ChevronRightGlyph),
                 contentDescription = null,
                 tint = contentColor,
                 modifier = Modifier.size(RowGlyphSize),
             )
             Icon(
-                imageVector = if (row.expanded) FolderOpenGlyph else FolderGlyph,
+                painter = painterResource(if (row.expanded) FolderOpenGlyph else FolderGlyph),
                 contentDescription = null,
                 tint = contentColor,
                 modifier = Modifier.size(RowGlyphSize),
@@ -225,7 +226,7 @@ private fun FileTreeRow(row: VisibleRow, selected: Boolean, onClick: () -> Unit)
             // A file row aligns its icon under the folder icon (past the missing chevron column).
             Spacer(modifier = Modifier.width(RowGlyphSize))
             Icon(
-                imageVector = if (row.name.isCodeFile()) CodeGlyph else FileGlyph,
+                painter = painterResource(if (row.name.isCodeFile()) CodeGlyph else FileGlyph),
                 contentDescription = null,
                 tint = contentColor,
                 modifier = Modifier.size(RowGlyphSize),
