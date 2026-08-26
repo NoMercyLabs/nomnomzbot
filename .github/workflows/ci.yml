@@ -67,9 +67,16 @@ jobs:
 
       - name: Frontend jvmTest (incl. ApiContractTest)
         working-directory: app
+        # xvfb: the schema-i18n tests resolve real Compose Resources through
+        # getSystemResourceEnvironment(), which reads the screen density off AWT and therefore throws
+        # HeadlessException on a runner with no display. They pass on any dev machine and failed only
+        # here. Giving the job a virtual display keeps the tests proving the REAL resource bundle
+        # rather than weakening them to a headless-safe stub that would stop catching a missing
+        # translation.
         run: |
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb
           chmod +x gradlew
-          ./gradlew :composeApp:jvmTest --no-daemon
+          xvfb-run -a ./gradlew :composeApp:jvmTest --no-daemon
 
   build:
     name: Build & push image
