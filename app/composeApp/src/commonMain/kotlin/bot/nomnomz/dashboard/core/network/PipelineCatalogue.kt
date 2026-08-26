@@ -51,6 +51,13 @@ data class BlockField(
     // form. Null on the local hint itself; [PipelineCatalogue.buildPalette] fills it in from the matching
     // backend field by [key] so the palette never carries a hand-maintained copy of backend help text.
     val descriptionKey: String? = null,
+    // The backend's resource-picker wire kind for this field (`PipelineActionFieldRemote.kind`, e.g.
+    // `voice`/`sound_clip`/`discord_channel`) when it names one of [bot.nomnomz.dashboard.core.network.PickerKind]
+    // — null on the local hint itself; [PipelineCatalogue.buildPalette] fills it in from the matching backend
+    // field by [key] (S-RICH-PICKERS). Drives the step form's rich, backend-sourced picker dispatch ahead of
+    // any hand-matched field key, so a NEW picker kind only needs the backend field tagged with that kind —
+    // never a new key-based branch in the editor.
+    val remoteKind: String? = null,
 )
 
 /** What a block is — an action (does something) or a condition (gates the step). */
@@ -743,22 +750,25 @@ object PipelineCatalogue {
             },
         )
 
-    // Merges the backend's per-field help-text translation KEY onto the local hint's fields, matched by [key] —
-    // the backend is the only source of [BlockField.descriptionKey] (S-SCHEMA-I18N-c); the local hint never
-    // hand-copies backend help text. Null when the block has no local hint (the generic key/value editor
-    // renders it instead, so there is no typed field to attach help text to).
+    // Merges the backend's per-field help-text translation KEY and resource-picker [BlockField.remoteKind] onto
+    // the local hint's fields, matched by [key] — the backend is the only source of both
+    // [BlockField.descriptionKey] (S-SCHEMA-I18N-c) and [BlockField.remoteKind] (S-RICH-PICKERS); the local hint
+    // never hand-copies either. Null when the block has no local hint (the generic key/value editor renders it
+    // instead, so there is no typed field to attach either onto).
     private fun withBackendDescriptions(
         hint: BlockType?,
         remoteFields: List<PipelineActionFieldRemote>,
     ): BlockType? {
         if (hint == null || remoteFields.isEmpty()) return hint
-        val descriptionByKey: Map<String, String> =
-            remoteFields.associate { it.name to it.description.key }
+        val remoteByKey: Map<String, PipelineActionFieldRemote> = remoteFields.associateBy { it.name }
         return hint.copy(
             fields =
                 hint.fields.map { field ->
-                    val key: String? = descriptionByKey[field.key]?.ifBlank { null }
-                    if (key == null) field else field.copy(descriptionKey = key)
+                    val remote: PipelineActionFieldRemote? = remoteByKey[field.key]
+                    field.copy(
+                        descriptionKey = remote?.description?.key?.ifBlank { null } ?: field.descriptionKey,
+                        remoteKind = remote?.kind?.ifBlank { null } ?: field.remoteKind,
+                    )
                 }
         )
     }

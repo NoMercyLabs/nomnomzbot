@@ -2144,6 +2144,10 @@
     <string name="viewer_picker_label">Find a viewer</string>
     <string name="viewer_picker_placeholder">Search by name…</string>
     <string name="viewer_picker_empty">No matching viewers.</string>
+    <string name="resource_picker_loading">Loading…</string>
+    <string name="resource_picker_unavailable">Could not load this list right now — %1$s</string>
+    <string name="resource_picker_empty">None found.</string>
+    <string name="resource_picker_search_placeholder">Search…</string>
     <string name="category_picker_label">Category / game</string>
     <string name="category_picker_placeholder">Search Twitch categories…</string>
     <string name="category_picker_empty">No matching categories.</string>

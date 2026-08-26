@@ -61,6 +61,7 @@ import bot.nomnomz.dashboard.core.network.IntegrationsApi
 import bot.nomnomz.dashboard.core.network.ModerationApi
 import bot.nomnomz.dashboard.core.network.MusicApi
 import bot.nomnomz.dashboard.core.network.ParticipantApi
+import bot.nomnomz.dashboard.core.network.PipelineOptionsApi
 import bot.nomnomz.dashboard.core.network.PipelinesApi
 import bot.nomnomz.dashboard.core.network.PipelineExecutionsApi
 import bot.nomnomz.dashboard.core.network.FeaturesApi
@@ -99,6 +100,7 @@ import bot.nomnomz.dashboard.core.network.RestSupportersApi
 import bot.nomnomz.dashboard.core.network.RestModerationApi
 import bot.nomnomz.dashboard.core.network.RestMusicApi
 import bot.nomnomz.dashboard.core.network.RestParticipantApi
+import bot.nomnomz.dashboard.core.network.RestPipelineOptionsApi
 import bot.nomnomz.dashboard.core.network.RestPipelinesApi
 import bot.nomnomz.dashboard.core.network.RestPipelineExecutionsApi
 import bot.nomnomz.dashboard.core.network.RestFeaturesApi
@@ -339,6 +341,7 @@ class AppGraph {
     val musicApi: MusicApi = RestMusicApi(apiClient)
     val participantApi: ParticipantApi = RestParticipantApi(apiClient)
     val pipelinesApi: PipelinesApi = RestPipelinesApi(apiClient)
+    val pipelineOptionsApi: PipelineOptionsApi = RestPipelineOptionsApi(apiClient)
     val pipelineExecutionsApi: PipelineExecutionsApi = RestPipelineExecutionsApi(apiClient)
     val featuresApi: FeaturesApi = RestFeaturesApi(apiClient)
     val webhooksApi: WebhooksApi = RestWebhooksApi(apiClient)
@@ -699,6 +702,7 @@ class AppGraph {
             codeScriptsApi = codeScriptsApi,
             giveawaysApi = giveawaysApi,
             quotesApi = quotesApi,
+            pipelineOptionsApi = pipelineOptionsApi,
             feedback = feedbackController,
         )
 

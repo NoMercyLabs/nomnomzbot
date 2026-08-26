@@ -2140,6 +2140,10 @@
     <string name="viewer_picker_label">Zoek een kijker</string>
     <string name="viewer_picker_placeholder">Zoek op naam…</string>
     <string name="viewer_picker_empty">Geen overeenkomende kijkers.</string>
+    <string name="resource_picker_loading">Laden…</string>
+    <string name="resource_picker_unavailable">Kon deze lijst nu niet laden — %1$s</string>
+    <string name="resource_picker_empty">Niets gevonden.</string>
+    <string name="resource_picker_search_placeholder">Zoeken…</string>
     <string name="category_picker_label">Categorie / game</string>
     <string name="category_picker_placeholder">Zoek Twitch-categorieën…</string>
     <string name="category_picker_empty">Geen overeenkomende categorieën.</string>

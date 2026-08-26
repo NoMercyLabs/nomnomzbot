@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.EntityPickerField
+import bot.nomnomz.dashboard.core.designsystem.component.ResourcePickerField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
@@ -74,6 +75,7 @@ import bot.nomnomz.dashboard.core.i18n.resolveSchemaString
 import bot.nomnomz.dashboard.core.network.BlockField
 import bot.nomnomz.dashboard.core.network.FieldKind
 import bot.nomnomz.dashboard.core.network.PaletteBlock
+import bot.nomnomz.dashboard.core.network.PickerKind
 import bot.nomnomz.dashboard.core.network.PipelineNode
 import bot.nomnomz.dashboard.core.network.PipelineStep
 import bot.nomnomz.dashboard.core.network.PipelineSummary
@@ -944,6 +946,20 @@ private fun TypedParamFields(block: PaletteBlock, params: MutableMap<String, Str
                         label = fieldDisplayName(field),
                         checked = params[field.key].toBoolean(),
                         onCheckedChange = { params[field.key] = it.toString() },
+                    )
+                // A backend-tagged resource-picker field (S-RICH-PICKERS: discord_channel/discord_role/
+                // twitch_user/reward/widget/voice/sound_clip/asset) renders the rich, backend-sourced picker —
+                // label + secondary context + image + disabled-with-reason + source-unavailable — ahead of any
+                // hand-matched key below, so a NEW picker kind only needs the backend field tagged with that
+                // kind. Falls through to the legacy key-based pickers when the API is unavailable (best-effort,
+                // like every other editor picker source).
+                options.pipelineOptionsApi != null && PickerKind.fromWireName(field.remoteKind.orEmpty()) != null ->
+                    ResourcePickerField(
+                        kind = PickerKind.fromWireName(field.remoteKind.orEmpty())!!,
+                        api = options.pipelineOptionsApi,
+                        selectedId = params[field.key].orEmpty().ifBlank { null },
+                        onSelect = { params[field.key] = it.orEmpty() },
+                        label = fieldLabelWithRequired(field),
                     )
                 // A closed value set (OBS action verbs / batch execution mode) is a dropdown over its options.
                 field.options.isNotEmpty() ->
