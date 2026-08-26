@@ -63,6 +63,32 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
         CancellationToken cancellationToken = default
     )
     {
+        // S-PIPE-TREE-d3c: this is THE single choke point every trigger source (74 EventSub
+        // translators, timers, rewards, supporters, …) already dispatches through with a real,
+        // bus-delivered domain event behind it — so it is also the one place a `wait_for_event`
+        // pipeline step can be resumed without inventing a second event-fan-out mechanism. Runs
+        // UNCONDITIONALLY, before the EventResponse lookup below, because a channel can have a run
+        // parked on this event name with no EventResponse row configured for it at all. Failures
+        // here must never block the configured response below or escape into the event bus.
+        try
+        {
+            await _pipeline.ResumeSuspendedRunsForEventAsync(
+                broadcasterId,
+                eventTypeKey,
+                variables,
+                cancellationToken
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to resume wait_for_event runs for {EventType} in {Channel}",
+                eventTypeKey,
+                broadcasterId
+            );
+        }
+
         EventResponse? config = await _db.EventResponses.FirstOrDefaultAsync(
             r => r.BroadcasterId == broadcasterId && r.EventType == eventTypeKey && r.IsEnabled,
             cancellationToken
