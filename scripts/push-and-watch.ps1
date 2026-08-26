@@ -85,7 +85,31 @@ try {
         (gh run view $runId --json jobs | ConvertFrom-Json).jobs |
             ForEach-Object { Write-Host "  $($_.name): $($_.conclusion)" }
         Write-Host 'CI GREEN'
-        exit 0
+
+        # A green run is not a deployed commit. A run can be CANCELLED by the concurrency rule when a
+        # newer push lands mid-run, which skips the image build and the deploy entirely while every
+        # local signal still says "pushed, green". The only ground truth is what the box reports.
+        [string]$head = (git rev-parse HEAD).Trim()
+        Write-Host ''
+        Write-Host "== confirming the box is actually serving $($head.Substring(0,8)) =="
+        [string]$live = ''
+        for ([int]$i = 0; $i -lt 30; $i++) {
+            try {
+                $live = (Invoke-RestMethod -Uri 'https://dev.nomnomz.bot/health/version' -TimeoutSec 10).version
+            }
+            catch { $live = '' }
+            if ($live -like "*$head*") { break }
+            Start-Sleep -Seconds 10
+        }
+        if ($live -like "*$head*") {
+            Write-Host "DEPLOYED: $live"
+            exit 0
+        }
+
+        Write-Host ''
+        Write-Host "NOT DEPLOYED. box reports '$live', HEAD is $head."
+        Write-Host 'A cancelled or skipped run ships nothing - re-run the workflow for THIS commit.'
+        exit 1
     }
 
     Write-Host ''
