@@ -73,6 +73,7 @@ public sealed record OutboundWebhookEndpointDto(
     string Fqdn,
     string? Path,
     IReadOnlyList<string> SubscribedEventTypes,
+    bool BodyIsJson,
     bool IsEnabled,
     int ConsecutiveFailureCount,
     DateTime? DisabledAt,
@@ -110,6 +111,15 @@ public sealed record CreateOutboundWebhookRequest
     public string? Path { get; init; }
     public required List<string> SubscribedEventTypes { get; init; }
     public string? BodyTemplate { get; init; }
+
+    /// <summary>
+    /// Whether <see cref="BodyTemplate"/> is authored as JSON (S-WEBHOOK-JSON-FALLBACK). Defaults to true — every
+    /// delivery is sent with a hardcoded <c>Content-Type: application/json</c> today. When true, the template is
+    /// validated as JSON at save time (rejected with the parse position on failure) and rendered through the
+    /// JSON-safe leaf-substitution path; when false, it is a genuinely non-JSON body (form post, plain text) and
+    /// always renders through the plain-text path, unvalidated.
+    /// </summary>
+    public bool BodyIsJson { get; init; } = true;
     public Dictionary<string, string>? CustomHeaders { get; init; }
     public bool IsEnabled { get; init; } = true;
 }
@@ -119,6 +129,9 @@ public sealed record UpdateOutboundWebhookRequest
     public string? Name { get; init; }
     public List<string>? SubscribedEventTypes { get; init; }
     public string? BodyTemplate { get; init; }
+
+    /// <summary>See <see cref="CreateOutboundWebhookRequest.BodyIsJson"/>. Null leaves the endpoint's current value unchanged.</summary>
+    public bool? BodyIsJson { get; init; }
     public Dictionary<string, string>? CustomHeaders { get; init; }
     public bool? IsEnabled { get; init; }
 }

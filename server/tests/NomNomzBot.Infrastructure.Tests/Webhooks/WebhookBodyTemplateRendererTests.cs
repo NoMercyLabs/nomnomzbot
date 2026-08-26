@@ -50,7 +50,7 @@ public sealed class WebhookBodyTemplateRendererTests
             """{"event":"follow","nested":{"literal":"has {{braces}} inside"},"user":"{user}"}""";
         Dictionary<string, string> variables = new() { ["user"] = "Stoney_Eagle" };
 
-        string rendered = sut.Render(template, variables);
+        string rendered = sut.Render(template, variables, bodyIsJson: true);
 
         JObject parsed = JObject.Parse(rendered); // throws if the JSON is not valid — this IS the assertion
         parsed["event"]!.Value<string>().Should().Be("follow");
@@ -71,7 +71,7 @@ public sealed class WebhookBodyTemplateRendererTests
             ["amount"] = "500",
         };
 
-        JObject parsed = JObject.Parse(sut.Render(template, variables));
+        JObject parsed = JObject.Parse(sut.Render(template, variables, bodyIsJson: true));
 
         parsed["type"]!.Value<string>().Should().Be("channel.cheer");
         parsed["x"]!.Value<string>().Should().Be("1");
@@ -87,7 +87,7 @@ public sealed class WebhookBodyTemplateRendererTests
         const string hostileName = "Sto\"ney\\Eagle\n🔥";
         Dictionary<string, string> variables = new() { ["user"] = hostileName };
 
-        string rendered = sut.Render(template, variables);
+        string rendered = sut.Render(template, variables, bodyIsJson: true);
 
         JObject parsed = JObject.Parse(rendered); // fails if the quote/backslash/newline broke the structure
         parsed["greeting"]!.Value<string>().Should().Be($"Hi {hostileName}!");
@@ -102,19 +102,49 @@ public sealed class WebhookBodyTemplateRendererTests
         WebhookBodyTemplateRenderer sut = BuildSut();
         Dictionary<string, string> variables = new() { ["a"] = "1" };
 
-        JObject parsed = JObject.Parse(sut.Render(null, variables));
+        JObject parsed = JObject.Parse(sut.Render(null, variables, bodyIsJson: true));
 
         parsed["a"]!.Value<string>().Should().Be("1");
     }
 
     [Fact]
-    public void A_non_JSON_template_falls_back_to_plain_text_resolution()
+    public void A_template_declared_as_non_JSON_renders_through_the_plain_text_path()
     {
         WebhookBodyTemplateRenderer sut = BuildSut();
         Dictionary<string, string> variables = new() { ["user"] = "Stoney_Eagle" };
 
-        string rendered = sut.Render("user={user}&event={event}", variables);
+        string rendered = sut.Render("user={user}&event={event}", variables, bodyIsJson: false);
 
         rendered.Should().Be("user=Stoney_Eagle&event={event}");
+    }
+
+    [Fact]
+    public void A_template_declared_as_JSON_that_fails_to_parse_throws_naming_the_position()
+    {
+        WebhookBodyTemplateRenderer sut = BuildSut();
+        Dictionary<string, string> variables = new() { ["user"] = "Stoney_Eagle" };
+        // Missing colon — a syntax error an author who intended JSON would want to be told about,
+        // not have silently downgraded to the unescaped plain-text path (S-WEBHOOK-JSON-FALLBACK).
+        const string brokenJson = /*lang=json,strict*/
+            """{"who" "{user}"}""";
+
+        Action act = () => sut.Render(brokenJson, variables, bodyIsJson: true);
+
+        act.Should().Throw<WebhookBodyTemplateInvalidJsonException>().WithMessage("*line*");
+    }
+
+    [Fact]
+    public void A_template_that_merely_looks_like_JSON_but_is_declared_non_JSON_never_attempts_to_parse()
+    {
+        WebhookBodyTemplateRenderer sut = BuildSut();
+        Dictionary<string, string> variables = new() { ["user"] = "Stoney_Eagle" };
+        // Structurally broken as JSON (missing colon) — but since BodyIsJson is false, the renderer must
+        // never even attempt the JSON parse, so this must NOT throw.
+        const string brokenLookingJson = /*lang=json,strict*/
+            """{"who" "{user}"}""";
+
+        Action act = () => sut.Render(brokenLookingJson, variables, bodyIsJson: false);
+
+        act.Should().NotThrow<WebhookBodyTemplateInvalidJsonException>();
     }
 }

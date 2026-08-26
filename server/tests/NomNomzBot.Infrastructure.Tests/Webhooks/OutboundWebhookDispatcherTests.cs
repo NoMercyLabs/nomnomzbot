@@ -61,7 +61,11 @@ public sealed class OutboundWebhookDispatcherTests
             .Returns("whsec_secret");
         IWebhookBodyTemplateRenderer template = Substitute.For<IWebhookBodyTemplateRenderer>();
         template
-            .Render(Arg.Any<string?>(), Arg.Any<IReadOnlyDictionary<string, string>>())
+            .Render(
+                Arg.Any<string?>(),
+                Arg.Any<IReadOnlyDictionary<string, string>>(),
+                Arg.Any<bool>()
+            )
             .Returns(ci => ci.ArgAt<string?>(0) ?? string.Empty);
         IHttpClientFactory factory = Substitute.For<IHttpClientFactory>();
         factory.CreateClient(Arg.Any<string>()).Returns(_ => new(new StubHandler(status)));
@@ -294,5 +298,42 @@ public sealed class OutboundWebhookDispatcherTests
         JObject parsed = JObject.Parse(handler.Body!);
         parsed["who"]!.Value<string>().Should().Be(hostile);
         parsed["nested"]!["kind"]!.Value<string>().Should().Be("raid");
+    }
+
+    // A JSON-declared template is validated at save time (OutboundWebhookEndpointServiceTests), so this path
+    // should be unreachable in practice — but proves the honest fallback if a bad template somehow reaches
+    // storage anyway (S-WEBHOOK-JSON-FALLBACK): the delivery fails with a recorded reason instead of silently
+    // rendering through the unescaped plain-text path, and no HTTP request is ever sent.
+    [Fact]
+    public async Task A_stored_JSON_declared_template_that_fails_to_parse_fails_delivery_honestly_without_sending()
+    {
+        (OutboundWebhookDispatcher sut, AuthDbContext db, CapturingHandler handler) =
+            BuildWithRealRenderer();
+        Guid endpointId = await SeedEndpointAsync(db);
+        OutboundWebhookEndpoint endpoint = await db.OutboundWebhookEndpoints.FirstAsync(e =>
+            e.Id == endpointId
+        );
+        endpoint.BodyTemplate = /*lang=json,strict*/
+            """{"who" "{user.name}"}"""; // missing colon — bypasses save-time validation by direct seeding
+        endpoint.BodyIsJson = true;
+        await db.SaveChangesAsync();
+
+        OutboundEnqueueResult result = (
+            await sut.EnqueueForEndpointAsync(
+                Channel,
+                endpointId,
+                "test.event",
+                new Dictionary<string, string> { ["user.name"] = "Stoney_Eagle" },
+                null
+            )
+        ).Value;
+
+        result.Status.Should().Be(WebhookDeliveryStatus.Failed);
+        OutboundWebhookDelivery delivery = await db.OutboundWebhookDeliveries.SingleAsync(d =>
+            d.Id == result.DeliveryId
+        );
+        delivery.Error.Should().Contain("line"); // names the parse position
+        delivery.RenderedBody.Should().BeEmpty();
+        handler.Body.Should().BeNull(); // never sent — no HTTP request left the process
     }
 }

@@ -110,7 +110,45 @@ public sealed class OutboundWebhookDispatcher(
     )
     {
         Guid webhookMessageId = Guid.CreateVersion7();
-        string body = bodyTemplateRenderer.Render(endpoint.BodyTemplate, variables);
+
+        string body;
+        try
+        {
+            body = bodyTemplateRenderer.Render(
+                endpoint.BodyTemplate,
+                variables,
+                endpoint.BodyIsJson
+            );
+        }
+        catch (WebhookBodyTemplateInvalidJsonException ex)
+        {
+            // The template is declared as JSON but does not parse — a config problem, not a transport failure.
+            // Endpoint create/update validates this up front, so reaching this means a bad template somehow
+            // landed in storage anyway. Fail the delivery honestly with the reason instead of silently falling
+            // back to the unescaped plain-text path (S-WEBHOOK-JSON-FALLBACK).
+            OutboundWebhookDelivery invalidTemplateDelivery = new()
+            {
+                BroadcasterId = endpoint.BroadcasterId,
+                EndpointId = endpoint.Id,
+                WebhookMessageId = webhookMessageId,
+                JournalEventId = journalEventId,
+                EventType = eventType,
+                RenderedBody = string.Empty,
+                Attempt = 1,
+                Status = WebhookDeliveryStatus.Failed,
+                Error = ex.Message,
+                NextRetryAt = null,
+                CreatedAt = clock.GetUtcNow().UtcDateTime,
+            };
+            db.OutboundWebhookDeliveries.Add(invalidTemplateDelivery);
+            await db.SaveChangesAsync(ct);
+            return new(
+                endpoint.Id,
+                webhookMessageId,
+                invalidTemplateDelivery.Id,
+                WebhookDeliveryStatus.Failed
+            );
+        }
 
         OutboundWebhookDelivery delivery = new()
         {

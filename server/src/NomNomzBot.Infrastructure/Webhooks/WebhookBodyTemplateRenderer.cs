@@ -26,21 +26,31 @@ namespace NomNomzBot.Infrastructure.Webhooks;
 public sealed class WebhookBodyTemplateRenderer(ITemplateResolver templateResolver)
     : IWebhookBodyTemplateRenderer
 {
-    public string Render(string? bodyTemplate, IReadOnlyDictionary<string, string> variables)
+    public string Render(
+        string? bodyTemplate,
+        IReadOnlyDictionary<string, string> variables,
+        bool bodyIsJson
+    )
     {
         if (bodyTemplate is null)
             return JsonConvert.SerializeObject(variables);
 
         Dictionary<string, string> vars = new(variables, StringComparer.OrdinalIgnoreCase);
 
+        if (!bodyIsJson)
+            return templateResolver.Resolve(bodyTemplate, vars);
+
         JToken parsed;
         try
         {
             parsed = JToken.Parse(bodyTemplate);
         }
-        catch (JsonReaderException)
+        catch (JsonReaderException ex)
         {
-            return templateResolver.Resolve(bodyTemplate, vars);
+            throw new WebhookBodyTemplateInvalidJsonException(
+                $"Body template is declared as JSON but does not parse: {ex.Message}",
+                ex
+            );
         }
 
         ResolveStringLeaves(parsed, vars);
