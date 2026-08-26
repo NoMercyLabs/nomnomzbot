@@ -254,7 +254,12 @@ public sealed class OutboundWebhookDispatcher(
         {
             Content = new ByteArrayContent(body),
         };
-        request.Content.Headers.ContentType = new("application/json");
+        // Tell the receiver what we actually sent. `BodyIsJson` decides whether the body was rendered
+        // through JSON-aware substitution or the plain-text path, so labelling a plain body
+        // "application/json" would be a lie the receiver acts on — it would try to parse it and fail.
+        request.Content.Headers.ContentType = new(
+            endpoint.BodyIsJson ? "application/json" : "text/plain"
+        );
         request.Headers.TryAddWithoutValidation("webhook-id", signature.WebhookId);
         request.Headers.TryAddWithoutValidation("webhook-timestamp", signature.Timestamp);
         request.Headers.TryAddWithoutValidation("webhook-signature", signature.Signature);

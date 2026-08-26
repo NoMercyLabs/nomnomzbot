@@ -220,6 +220,8 @@ public sealed class OutboundWebhookDispatcherTests
     {
         public string? Body { get; private set; }
 
+        public string? ContentType { get; private set; }
+
         protected override async Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken
@@ -228,6 +230,7 @@ public sealed class OutboundWebhookDispatcherTests
             Body = request.Content is null
                 ? null
                 : await request.Content.ReadAsStringAsync(cancellationToken);
+            ContentType = request.Content?.Headers.ContentType?.MediaType;
             return new HttpResponseMessage(HttpStatusCode.OK);
         }
     }
@@ -335,5 +338,32 @@ public sealed class OutboundWebhookDispatcherTests
         delivery.Error.Should().Contain("line"); // names the parse position
         delivery.RenderedBody.Should().BeEmpty();
         handler.Body.Should().BeNull(); // never sent — no HTTP request left the process
+    }
+
+    // A non-JSON endpoint renders through the plain-text path, so labelling its body "application/json"
+    // would be a lie the receiver acts on: it would try to parse plain text as JSON and fail.
+    [Fact]
+    public async Task A_non_JSON_endpoint_is_not_labelled_as_JSON_to_the_receiver()
+    {
+        (OutboundWebhookDispatcher sut, AuthDbContext db, CapturingHandler handler) =
+            BuildWithRealRenderer();
+        Guid endpointId = await SeedEndpointAsync(db);
+        OutboundWebhookEndpoint endpoint = await db.OutboundWebhookEndpoints.FirstAsync(e =>
+            e.Id == endpointId
+        );
+        endpoint.BodyIsJson = false;
+        endpoint.BodyTemplate = "plain body for {user.name}";
+        await db.SaveChangesAsync();
+
+        await sut.EnqueueForEndpointAsync(
+            Channel,
+            endpointId,
+            "test.event",
+            new Dictionary<string, string> { ["user.name"] = "qtkitte" },
+            null
+        );
+
+        handler.ContentType.Should().Be("text/plain");
+        handler.Body.Should().Be("plain body for qtkitte");
     }
 }
