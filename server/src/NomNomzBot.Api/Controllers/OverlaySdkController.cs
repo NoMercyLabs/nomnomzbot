@@ -259,12 +259,28 @@ public sealed class OverlaySdkController : ControllerBase
             synth.speak(utter);
           }
 
+          // eventType -> the SDK's own playback for it. WidgetEvent is subscription-routed per widget (only
+          // a widget that DECLARES the event type is ever sent one), so autoplaying here for a recognised
+          // type is exactly as scoped as the raw PlaySound/TtsSpeak hub targets below -- it just also covers
+          // the delivery path server code actually uses for self-host/BYOK TTS (TtsUtteranceDispatchedEvent
+          // routes through WidgetAlertDispatch -> WidgetEvent, never through the raw TtsSpeak target).
+          var AUTOPLAY = { tts_speak: speakTts, play_sound: playSound, stop_sound: stopSound };
+
           function dispatch(target, args) {
             switch (target) {
-              case "WidgetEvent": { var e = args[0] || {}; emit(e.eventType, e.data || {}); break; }
+              case "WidgetEvent": {
+                var e = args[0] || {};
+                var data = e.data || {};
+                var autoplay = AUTOPLAY[e.eventType];
+                if (autoplay) autoplay(data);
+                emit(e.eventType, data);
+                break;
+              }
               case "WidgetSettingsChanged": applySettings((args[0] || {}).settings || {}); break;
               case "WidgetReload": location.reload(); break;
               case "Event": { var oe = args[0] || {}; emit(oe.type, oe.payload); break; }
+              // Raw hub targets: unused by current server code (WidgetNotifier only ever sends WidgetEvent),
+              // kept so a future broadcaster-wide push (bypassing per-widget subscription) still autoplays.
               case "PlaySound": { var ps = args[0] || {}; playSound(ps); emit("play_sound", ps); break; }
               case "StopSound": { var ss = args[0] || {}; stopSound(ss); emit("stop_sound", ss); break; }
               case "TtsSpeak": { var ts = args[0] || {}; speakTts(ts); emit("tts_speak", ts); break; }
