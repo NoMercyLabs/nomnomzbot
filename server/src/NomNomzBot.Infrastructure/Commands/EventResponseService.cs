@@ -148,10 +148,16 @@ public class EventResponseService : IEventResponseService
         bool wantsEnabled = request.IsEnabled ?? entity is null; // create default is enabled
         if (wantsEnabled && entity is not { IsEnabled: true })
         {
-            int enabledCount = await _db.EventResponses.CountAsync(
-                e => e.BroadcasterId == broadcaster && e.IsEnabled,
+            // The count comes from the same GetCurrentCountAsync the read-only usage report (S-BUDGETS-b1)
+            // uses, so the two can never disagree.
+            Result<long> countResult = await _quota.GetCurrentCountAsync(
+                broadcaster,
+                "event_responses",
                 cancellationToken
             );
+            if (countResult.IsFailure)
+                return countResult.ToTyped<EventResponseDto>();
+            long enabledCount = countResult.Value;
             Result<QuotaCheckDto> quota = await _quota.CheckAsync(
                 broadcaster,
                 "event_responses",

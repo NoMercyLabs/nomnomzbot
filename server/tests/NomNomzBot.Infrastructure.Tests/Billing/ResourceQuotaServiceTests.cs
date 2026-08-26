@@ -10,8 +10,10 @@
 
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.DTOs.Billing;
+using NomNomzBot.Domain.Billing;
 using NomNomzBot.Domain.Billing.Entities;
 using NomNomzBot.Domain.Billing.Enums;
 using NomNomzBot.Domain.Identity.Enums;
@@ -34,7 +36,14 @@ public sealed class ResourceQuotaServiceTests
     private static (ResourceQuotaService Sut, AuthDbContext Db) Build()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
-        return (new(new BillingTierService(db)), db);
+        BillingTierService tiers = new(db);
+        UsageMeteringService metering = new(
+            db,
+            tiers,
+            new RecordingEventBus(),
+            new FakeTimeProvider()
+        );
+        return (new(tiers, metering, db), db);
     }
 
     private static void SeedChannel(AuthDbContext db, string deploymentMode) =>
@@ -153,5 +162,100 @@ public sealed class ResourceQuotaServiceTests
         );
 
         result.IsFailure.Should().BeTrue();
+    }
+
+    // ─── S-BUDGETS-b1: the usage report shares ONE count with enforcement ─────
+
+    private static void SeedCommands(AuthDbContext db, Guid broadcasterId, int count)
+    {
+        for (int i = 0; i < count; i++)
+            db.Commands.Add(
+                new()
+                {
+                    BroadcasterId = broadcasterId,
+                    Name = $"cmd{i}",
+                    NameNormalized = $"cmd{i}",
+                    TemplateResponse = "hi",
+                }
+            );
+    }
+
+    [Fact]
+    public async Task GetCurrentCountAsync_matches_the_count_a_write_would_see_at_the_cap()
+    {
+        (ResourceQuotaService sut, AuthDbContext db) = Build();
+        SeedChannel(db, AuthEnums.DeploymentMode.SelfHostFull);
+        // Seed exactly the registry's custom_commands safety baseline (1500).
+        SeedCommands(db, Channel, 1500);
+        await db.SaveChangesAsync();
+
+        // The read-side count (what the usage report would show)...
+        long currentCount = (await sut.GetCurrentCountAsync(Channel, "custom_commands")).Value;
+        currentCount.Should().Be(1500);
+
+        // ...is the EXACT count the write path passes into CheckAsync. Proving the two never disagree: the
+        // (N+1)th create — evaluated the same way CommandService does — is refused at this same count.
+        QuotaCheckDto nextCreate = (
+            await sut.CheckAsync(Channel, "custom_commands", currentCount + 1)
+        ).Value;
+        nextCreate.Allowed.Should().BeFalse();
+        nextCreate.Limit.Should().Be(1500);
+
+        // And the report for the resource under evaluation is built from that same GetCurrentCountAsync call —
+        // never a second, independently-written counting query.
+        ResourceUsageDto report = (await sut.GetUsageReportAsync(Channel)).Value.Single(r =>
+            r.LimitKey == "custom_commands"
+        );
+        report.CurrentCount.Should().Be(currentCount);
+        report.Limit.Should().Be(1500);
+        report.Class.Should().Be(ResourceClass.NearFree);
+    }
+
+    [Fact]
+    public async Task GetUsageReportAsync_never_leaks_another_tenants_rows_into_the_count()
+    {
+        (ResourceQuotaService sut, AuthDbContext db) = Build();
+        Guid channelA = Channel;
+        Guid channelB = Guid.Parse("0192a000-0000-7000-8000-0000000000fa");
+        SeedChannel(db, AuthEnums.DeploymentMode.SelfHostFull);
+        db.Channels.Add(
+            new()
+            {
+                Id = channelB,
+                TwitchChannelId = "t2",
+                Name = "chan2",
+                NameNormalized = "chan2",
+                DeploymentMode = AuthEnums.DeploymentMode.SelfHostFull,
+            }
+        );
+        SeedCommands(db, channelA, 3);
+        SeedCommands(db, channelB, 7);
+        await db.SaveChangesAsync();
+
+        long countA = (await sut.GetCurrentCountAsync(channelA, "custom_commands")).Value;
+        long countB = (await sut.GetCurrentCountAsync(channelB, "custom_commands")).Value;
+
+        countA.Should().Be(3);
+        countB.Should().Be(7);
+    }
+
+    [Fact]
+    public async Task Self_host_usage_report_never_carries_a_commercial_ceiling_for_near_free_resources()
+    {
+        (ResourceQuotaService sut, AuthDbContext db) = Build();
+        SeedChannel(db, AuthEnums.DeploymentMode.SelfHostFull);
+        await db.SaveChangesAsync();
+
+        IReadOnlyList<ResourceUsageDto> report = (await sut.GetUsageReportAsync(Channel)).Value;
+
+        ResourceUsageDto customCommands = report.Single(r => r.LimitKey == "custom_commands");
+        customCommands.Class.Should().Be(ResourceClass.NearFree);
+        // The safety baseline IS the limit — never a tier-scaled, sellable ceiling — on self-host too.
+        customCommands.Limit.Should().Be(customCommands.SafetyBaseline);
+
+        ResourceUsageDto tts = report.Single(r => r.LimitKey == "tts_max_characters");
+        tts.Class.Should().Be(ResourceClass.CostDriving);
+        // -1 = unlimited: self-host reports no paid ceiling at all for the cost-driving resource either.
+        tts.Limit.Should().Be(-1);
     }
 }

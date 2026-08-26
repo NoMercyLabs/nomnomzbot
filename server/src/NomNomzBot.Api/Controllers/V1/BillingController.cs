@@ -33,6 +33,7 @@ public class BillingController(
     ISubscriptionService subscriptions,
     IBillingTierService tiers,
     IUsageMeteringService metering,
+    IResourceQuotaService quota,
     IInviteCodeService invites,
     IConfiguration configuration
 ) : BaseController
@@ -81,6 +82,25 @@ public class BillingController(
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
         return ResultResponse(await metering.GetCurrentUsageAsync(broadcasterId, ct));
+    }
+
+    /// <summary>
+    /// Get the channel's truthful limit usage — every declared <c>LimitedResourceRegistry</c> resource with its
+    /// class (NEAR_FREE vs COST_DRIVING), current count, and effective limit. NEAR_FREE resources report only
+    /// the uniform safety baseline (never a commercial ceiling, self-host included); COST_DRIVING resources
+    /// report the tier limit (self-host resolves to unlimited, <c>-1</c>). The count is read from the exact same
+    /// source enforcement uses, so it can never disagree with what the next write would allow.
+    /// </summary>
+    [HttpGet("limits")]
+    [RequireAction("billing:read")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<ResourceUsageDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> GetLimits(string channelId, CancellationToken ct)
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+        return ResultResponse(await quota.GetUsageReportAsync(broadcasterId, ct));
     }
 
     /// <summary>List the channel's invoices, paginated.</summary>

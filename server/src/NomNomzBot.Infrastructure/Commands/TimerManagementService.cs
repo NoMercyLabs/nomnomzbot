@@ -137,11 +137,16 @@ public class TimerManagementService : ITimerManagementService
             return Errors.AlreadyExists("timer", request.Name).ToTyped<TimerDto>();
 
         // timers is NEAR_FREE (S-BUDGETS-a): checked against the registry's uniform safety baseline via the
-        // quota seam — never tier-scaled, self-host included.
-        int existingTimerCount = await _db.Timers.CountAsync(
-            t => t.BroadcasterId == broadcaster,
+        // quota seam — never tier-scaled, self-host included. The count comes from the same
+        // GetCurrentCountAsync the read-only usage report (S-BUDGETS-b1) uses, so the two can never disagree.
+        Result<long> countResult = await _quota.GetCurrentCountAsync(
+            broadcaster,
+            "timers",
             cancellationToken
         );
+        if (countResult.IsFailure)
+            return countResult.ToTyped<TimerDto>();
+        long existingTimerCount = countResult.Value;
         Result<QuotaCheckDto> timerQuota = await _quota.CheckAsync(
             broadcaster,
             "timers",

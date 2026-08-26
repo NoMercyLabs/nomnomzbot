@@ -53,7 +53,7 @@ public sealed class TierQuotaEnforcementTests
     public async Task Command_create_at_the_cap_is_refused_and_persists_nothing()
     {
         CommandsTestDbContext db = CommandsTestDbContext.New();
-        CommandService sut = Commands(db, TestQuota.WithLimit("custom_commands", 2));
+        CommandService sut = Commands(db, TestQuota.WithLimit("custom_commands", 2, db));
 
         (await sut.CreateAsync(Channel.ToString(), new() { Name = "one", TemplateResponse = "hi" }))
             .IsSuccess.Should()
@@ -123,7 +123,7 @@ public sealed class TierQuotaEnforcementTests
         TimerManagementService sut = new(
             db,
             new RecordingEventBus(),
-            TestQuota.WithLimit("timers", 1),
+            TestQuota.WithLimit("timers", 1, db),
             new TemplateHelperValidator()
         );
 
@@ -149,7 +149,7 @@ public sealed class TierQuotaEnforcementTests
         EventResponseService sut = new(
             db,
             new RecordingEventBus(),
-            TestQuota.WithLimit("event_responses", 1),
+            TestQuota.WithLimit("event_responses", 1, db),
             new TemplateHelperValidator()
         );
 
