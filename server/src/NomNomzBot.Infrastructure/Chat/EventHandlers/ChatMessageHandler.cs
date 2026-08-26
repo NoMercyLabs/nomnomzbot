@@ -1272,6 +1272,9 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             // identity-correctly for non-Twitch chatters ({viewer.data.*}, {viewer.*} stats).
             ["user.provider"] = @event.Provider,
             ["user.role"] = GetUserRole(@event),
+            // Bits carried by THIS message — the TTS bits gate (MinBitsToTts) and any cheer-conditioned
+            // flow need the real number; without it every pipeline-dispatched utterance looked like 0 bits.
+            ["user.bits"] = @event.Bits.ToString(),
             ["target"] = target,
             ["args"] = args,
             ["args.count"] = argParts.Length.ToString(),

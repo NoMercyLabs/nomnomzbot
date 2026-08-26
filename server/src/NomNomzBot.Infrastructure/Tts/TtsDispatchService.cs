@@ -112,6 +112,18 @@ public sealed class TtsDispatchService : ITtsDispatchService
                 ct
             );
 
+        // Community-standing floor (MinPermission). It was stored, editable in the dashboard and read by
+        // NOTHING — a channel set to "moderators only" was read out for every viewer, which is the opposite
+        // of what the setting says. An unknown standing is treated as the lowest, never waved through.
+        if (!MeetsStandingFloor(request.CommunityStanding, config.MinPermission))
+            return await RejectRequestAsync(
+                request,
+                "standing_gate",
+                "TTS on this channel is limited to a higher role.",
+                "FORBIDDEN",
+                ct
+            );
+
         string text = request.Text?.Trim() ?? string.Empty;
         if (text.Length == 0)
             return await RejectRequestAsync(
@@ -691,6 +703,35 @@ public sealed class TtsDispatchService : ITtsDispatchService
     }
 
     /// <summary>Per-viewer voice → explicit override → channel default → first available.</summary>
+    /// <summary>
+    /// Ranks a caller's chat standing against the channel's <c>MinPermission</c> floor. Both vocabularies are
+    /// mapped onto one ladder: the floor speaks in groups (<c>subscribers</c>, <c>moderators</c>) while the
+    /// caller arrives as a single <see cref="ChatRole"/> token (<c>subscriber</c>, <c>lead_moderator</c>, …),
+    /// and every token above the floor clears it.
+    /// </summary>
+    private static bool MeetsStandingFloor(string? standing, string? floor) =>
+        StandingRank(standing) >= FloorRank(floor);
+
+    private static int StandingRank(string? standing) =>
+        (standing ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "broadcaster" => 5,
+            "editor" or "lead_moderator" or "moderator" => 4,
+            "artist" or "vip" => 3,
+            "subscriber" => 2,
+            _ => 1,
+        };
+
+    private static int FloorRank(string? floor) =>
+        (floor ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "broadcaster" => 5,
+            "moderators" or "moderator" => 4,
+            "vip" => 3,
+            "subscribers" or "subscriber" => 2,
+            _ => 1,
+        };
+
     private async Task<string?> ResolveVoiceAsync(
         TtsSpeakRequest request,
         TtsConfigDto config,

@@ -95,8 +95,17 @@ public sealed class PlayTtsAction : ICommandAction
             RequestedByDisplayName: ctx.TriggeredByDisplayName ?? string.Empty,
             Text: text,
             VoiceIdOverride: string.IsNullOrWhiteSpace(voiceOverride) ? null : voiceOverride,
-            BitsAmount: 0,
-            CommunityStanding: "everyone",
+            // The trigger's REAL bits and standing, not placeholders: hardcoding 0/"everyone" meant a
+            // channel with a bits gate could never be spoken to through a pipeline, and the channel's
+            // MinPermission floor was evaluated against a caller who always looked like a stranger.
+            BitsAmount: ctx.Variables.TryGetValue("user.bits", out string? bits)
+            && int.TryParse(bits, out int bitsAmount)
+                ? bitsAmount
+                : 0,
+            CommunityStanding: ctx.Variables.TryGetValue("user.role", out string? role)
+            && !string.IsNullOrWhiteSpace(role)
+                ? role
+                : "everyone",
             SourceMessageId: ctx.MessageId,
             StreamId: null
         );

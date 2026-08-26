@@ -63,6 +63,7 @@ public sealed class TtsDispatchServiceTests
         bool modApprovalRequired = false,
         int? minBitsToTts = null,
         string mode = "self_host",
+        string minPermission = "everyone",
         string defaultProvider = "edge",
         Application.Contracts.Billing.IBillingTierService? tiers = null
     )
@@ -80,7 +81,7 @@ public sealed class TtsDispatchServiceTests
                         defaultProvider,
                         defaultVoice,
                         maxLength,
-                        "everyone",
+                        minPermission,
                         false,
                         false,
                         censorEnabled,
@@ -152,7 +153,11 @@ public sealed class TtsDispatchServiceTests
         };
     }
 
-    private static TtsSpeakRequest Speak(string text, Guid? streamId = null) =>
+    private static TtsSpeakRequest Speak(
+        string text,
+        Guid? streamId = null,
+        string standing = "everyone"
+    ) =>
         new(
             BroadcasterId: Tenant,
             RequestedByUserId: Guid.Empty,
@@ -161,7 +166,7 @@ public sealed class TtsDispatchServiceTests
             Text: text,
             VoiceIdOverride: null,
             BitsAmount: 0,
-            CommunityStanding: "everyone",
+            CommunityStanding: standing,
             SourceMessageId: null,
             StreamId: streamId
         );
@@ -964,4 +969,67 @@ public sealed class TtsDispatchServiceTests
             .Tts.Received(1)
             .SynthesizeAsync("hello", "en-us-arianeural", Arg.Any<CancellationToken>());
     }
+    // ── MinPermission floor + per-viewer voice ────────────────────────────────────────────────────
+    // Both are what a streamer actually configures, and MinPermission was reaching dispatch as pure
+    // decoration: stored, editable in the dashboard, and read by nothing, so a "moderators only"
+    // channel was read out for every viewer. These fail if either goes back to being ignored.
+
+    [Theory]
+    [InlineData("viewer", false)]
+    [InlineData("subscriber", false)]
+    [InlineData("vip", false)]
+    [InlineData("moderator", true)]
+    [InlineData("lead_moderator", true)]
+    [InlineData("broadcaster", true)]
+    public async Task RequestSpeakAsync_ModeratorsOnlyChannel_SpeaksOnlyForModeratorsAndAbove(
+        string standing,
+        bool shouldSpeak
+    )
+    {
+        Harness h = Build(minPermission: "moderators");
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
+            Speak("hello", standing: standing)
+        );
+
+        result.IsSuccess.Should().Be(shouldSpeak, $"standing '{standing}' vs floor 'moderators'");
+        if (shouldSpeak)
+            return;
+
+        result.ErrorCode.Should().Be("FORBIDDEN");
+        await h.Tts.DidNotReceive()
+            .SynthesizeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_ViewersOwnVoice_WinsOverTheChannelDefault()
+    {
+        Harness h = Build(defaultVoice: "channel-voice");
+        h.Db.UserTtsVoices.Add(
+            new()
+            {
+                BroadcasterId = Tenant,
+                UserId = Viewer,
+                VoiceId = "her-own-voice",
+            }
+        );
+        await h.Db.SaveChangesAsync();
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(Speak("hello"));
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value!.VoiceId.Should().Be("her-own-voice");
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_NoViewerChoice_SpeaksWithTheChannelDefault()
+    {
+        Harness h = Build(defaultVoice: "channel-voice");
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(Speak("hello"));
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value!.VoiceId.Should().Be("channel-voice");
+    }
+
 }
