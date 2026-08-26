@@ -164,7 +164,36 @@ public class PipelinesController : BaseController
         return Ok(new StatusResponseDto<PipelineDto> { Data = result.Value });
     }
 
-    /// <summary>Delete a pipeline.</summary>
+    /// <summary>
+    /// Real, counted blast radius for deleting this pipeline — the commands, chat triggers, timers
+    /// and event responses that reference it right now. The dashboard MUST call this and render the
+    /// result before letting the delete confirm proceed (S-CONSEQ).
+    /// </summary>
+    [DestructiveAction(HasCountedBlastRadius = true)]
+    [RequireAction("pipelines:write")]
+    [HttpGet("{id:guid}/blast-radius")]
+    [ProducesResponseType<StatusResponseDto<PipelineBlastRadiusDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetPipelineBlastRadius(
+        string channelId,
+        Guid id,
+        CancellationToken ct
+    )
+    {
+        Result<PipelineBlastRadiusDto> result = await _pipelineService.GetBlastRadiusAsync(
+            channelId,
+            id,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<PipelineBlastRadiusDto> { Data = result.Value });
+    }
+
+    /// <summary>
+    /// Delete a pipeline. The dashboard confirm step calls
+    /// <see cref="GetPipelineBlastRadius"/> first and shows the counted dependents before this runs.
+    /// </summary>
+    [DestructiveAction(HasCountedBlastRadius = true)]
     [RequireAction("pipelines:write")]
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

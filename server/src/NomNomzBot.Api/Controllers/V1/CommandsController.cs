@@ -119,6 +119,9 @@ public class CommandsController : BaseController
     }
 
     /// <summary>Delete a custom command.</summary>
+    [NotDestructive(
+        "No entity holds a real FK to Command.Id — chat triggers, timers and event responses bind to a Pipeline, not a Command; nothing breaks structurally when a command is deleted."
+    )]
     [RequireAction("commands:write")]
     [HttpDelete("{commandName}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
