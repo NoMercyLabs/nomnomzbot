@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 
 namespace NomNomzBot.Application.Sound.Services;
@@ -49,6 +50,18 @@ public interface ISoundClipService
         Guid broadcasterId,
         Guid id,
         Guid actorUserId,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// The real, counted blast radius of deleting this clip (S-CONSEQ). A sound clip has NO foreign key —
+    /// pipeline steps name it by id or name inside <c>PipelineStep.ConfigJson</c> — so the count comes from a
+    /// scan of the tenant's stored step config, and is flagged as a MINIMUM when some references can only be
+    /// resolved at run time. Returns a failure when the clip does not exist in this tenant.
+    /// </summary>
+    Task<Result<BlastRadiusDto>> GetDeleteBlastRadiusAsync(
+        Guid broadcasterId,
+        Guid id,
         CancellationToken ct = default
     );
 

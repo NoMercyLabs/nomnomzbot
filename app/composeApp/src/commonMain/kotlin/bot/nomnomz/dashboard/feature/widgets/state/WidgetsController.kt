@@ -40,6 +40,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.json.JsonObject
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // The Overlays page's state-holder (frontend-ia.md §3 — the Stream group; a plain holder, not a ViewModel).
 // Resolves the active channel, then lists its real OBS overlay widgets from the backend (no fabricated rows) —
@@ -112,6 +113,18 @@ class WidgetsController(
     suspend fun deleteWidget(widgetId: String) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
         afterWrite(widgetsApi.delete(channel, widgetId))
+    }
+
+    /**
+     * The real, backend-counted blast radius of deleting the widget [widgetId] — the delete confirm calls this and renders the
+     * dependents BEFORE the destructive delete can proceed (S-CONSEQ). A channel that is not resolved yet is a
+     * genuine FAILURE, never a silent zero: the dialog must then show its own "could not check" message rather
+     * than an empty radius that reads as verified-safe.
+     */
+    suspend fun fetchBlastRadius(widgetId: String): ApiResult<BlastRadiusSummary> {
+        val channel: String =
+            channelId ?: return ApiResult.Failure(ApiError(status = 0, code = "NO_CHANNEL", message = NoChannelError))
+        return widgetsApi.blastRadius(channel, widgetId)
     }
 
     /**

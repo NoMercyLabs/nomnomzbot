@@ -11,6 +11,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Rewards.Dtos;
@@ -24,6 +25,9 @@ public class RewardService : IRewardService
     private readonly IApplicationDbContext _db;
     private readonly ITwitchChannelPointsApi _channelPoints;
     private readonly ILogger<RewardService> _logger;
+
+    /// <summary>How many dependent names the preview lists by name before it just counts them.</summary>
+    private const int SampleSize = 5;
 
     public RewardService(
         IApplicationDbContext db,
@@ -228,6 +232,83 @@ public class RewardService : IRewardService
         await _db.SaveChangesAsync(cancellationToken);
 
         return Result.Success();
+    }
+
+    /// <summary>
+    /// Counts what breaks if this reward goes. <c>Redemption</c> and <c>RedemptionTimer</c> both carry
+    /// Twitch's reward UUID, not our row id, so the count keys on <see cref="Reward.TwitchRewardId"/>; a
+    /// reward that was never synced to Twitch cannot be referenced at all, which is a verified zero.
+    /// </summary>
+    public async Task<Result<BlastRadiusDto>> GetDeleteBlastRadiusAsync(
+        string broadcasterId,
+        string rewardId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result<BlastRadiusDto>.Failure(
+                $"Invalid channel ID '{broadcasterId}'.",
+                "VALIDATION_FAILED"
+            );
+
+        if (!Guid.TryParse(rewardId, out Guid guid))
+            return Result<BlastRadiusDto>.Failure(
+                $"Invalid reward ID '{rewardId}'.",
+                "VALIDATION_FAILED"
+            );
+
+        Reward? reward = await _db.Rewards.FirstOrDefaultAsync(
+            r => r.Id == guid && r.BroadcasterId == broadcaster,
+            cancellationToken
+        );
+        if (reward is null)
+            return Result<BlastRadiusDto>.Failure(
+                $"Reward '{rewardId}' was not found.",
+                "NOT_FOUND"
+            );
+
+        List<BlastRadiusCategoryDto> categories = [];
+        if (!string.IsNullOrWhiteSpace(reward.TwitchRewardId))
+        {
+            string twitchRewardId = reward.TwitchRewardId;
+
+            List<string> redeemers = await _db
+                .Redemptions.Where(r =>
+                    r.BroadcasterId == broadcaster && r.RewardId == twitchRewardId
+                )
+                .OrderBy(r => r.RedeemedAt)
+                .Select(r => r.UserDisplayName)
+                .Take(SampleSize)
+                .ToListAsync(cancellationToken);
+            int redemptionCount = await _db.Redemptions.CountAsync(
+                r => r.BroadcasterId == broadcaster && r.RewardId == twitchRewardId,
+                cancellationToken
+            );
+            if (redemptionCount > 0)
+                categories.Add(
+                    new BlastRadiusCategoryDto(
+                        BlastRadiusCategoryKeys.Redemptions,
+                        redemptionCount,
+                        redeemers
+                    )
+                );
+
+            int timerCount = await _db.RedemptionTimers.CountAsync(
+                t => t.BroadcasterId == broadcaster && t.RewardId == twitchRewardId,
+                cancellationToken
+            );
+            if (timerCount > 0)
+                categories.Add(
+                    new BlastRadiusCategoryDto(
+                        BlastRadiusCategoryKeys.RedemptionTimers,
+                        timerCount,
+                        []
+                    )
+                );
+        }
+
+        // Every referencing table carries a real FK, so this total is exhaustive — never a floor.
+        return Result<BlastRadiusDto>.Success(new BlastRadiusDto(categories, IsMinimum: false));
     }
 
     public async Task<Result<PagedList<RewardDetail>>> ListAsync(

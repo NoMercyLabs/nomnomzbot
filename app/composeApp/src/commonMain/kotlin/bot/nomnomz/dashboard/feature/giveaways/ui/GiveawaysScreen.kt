@@ -189,6 +189,10 @@ import nomnomzbot.composeapp.generated.resources.giveaways_winners_title
 import nomnomzbot.composeapp.generated.resources.shell_nav_giveaways
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
+import bot.nomnomz.dashboard.core.consequences.BlastRadiusLoadState
+import bot.nomnomz.dashboard.core.consequences.DeleteBlastRadiusDialog
+import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // The Giveaways page (giveaways.md §6, Loyalty group): the channel's giveaway campaigns — all real data from
 // [GiveawaysController]. The screen is a pure projection of the controller's state; it loads on first
@@ -388,12 +392,22 @@ fun GiveawaysScreen(controller: GiveawaysController, heldActionKeys: Set<String>
                 typeLabel = stringResource(Res.string.giveaways_pool_row_type),
                 discriminatorSource = pool.id,
             )
-        ConfirmDialog(
+        // Fetched fresh per row (never cached or guessed) — the counted blast radius the delete confirm MUST
+        // show before the destructive delete can proceed (S-CONSEQ).
+        var blastRadius: BlastRadiusLoadState by remember(pool.id) { mutableStateOf(BlastRadiusLoadState.Loading) }
+        LaunchedEffect(pool.id) {
+            blastRadius =
+                when (val result: ApiResult<BlastRadiusSummary> = controller.fetchCodePoolBlastRadius(pool.id)) {
+                    is ApiResult.Ok -> BlastRadiusLoadState.Loaded(result.value)
+                    is ApiResult.Failure -> BlastRadiusLoadState.Failed
+                }
+        }
+        DeleteBlastRadiusDialog(
             title = stringResource(Res.string.giveaways_pool_delete_title),
             message = stringResource(Res.string.giveaways_pool_delete_message, resolvedPoolName),
             confirmLabel = stringResource(Res.string.giveaways_delete_confirm),
             dismissLabel = stringResource(Res.string.giveaways_cancel),
-            destructive = true,
+            blastRadius = blastRadius,
             onConfirm = {
                 pendingPoolDelete = null
                 scope.launch { controller.deleteCodePool(pool.id) }

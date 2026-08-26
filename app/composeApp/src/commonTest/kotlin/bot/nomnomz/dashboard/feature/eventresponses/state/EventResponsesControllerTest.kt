@@ -386,6 +386,7 @@ private object StubWidgetsApi : bot.nomnomz.dashboard.core.network.WidgetsApi {
     override suspend fun setEnabled(channelId: String, widgetId: String, enabled: Boolean): ApiResult<Unit> =
         error("stub")
     override suspend fun delete(channelId: String, widgetId: String): ApiResult<Unit> = error("stub")
+    override suspend fun blastRadius(channelId: String, widgetId: String) = error("stub")
     override suspend fun create(
         channelId: String,
         body: bot.nomnomz.dashboard.core.network.CreateWidgetBody,

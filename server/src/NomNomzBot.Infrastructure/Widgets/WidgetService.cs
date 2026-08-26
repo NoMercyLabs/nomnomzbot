@@ -13,6 +13,8 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Commands.Services;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.DevPlatform.Dtos;
@@ -38,6 +40,7 @@ public class WidgetService : IWidgetService
     private readonly TimeProvider _timeProvider;
     private readonly IMusicService _musicService;
     private readonly IScriptStorageService _scriptStorage;
+    private readonly IPipelineStepReferenceScanner _stepReferences;
 
     public WidgetService(
         IApplicationDbContext db,
@@ -47,7 +50,8 @@ public class WidgetService : IWidgetService
         IWidgetSettingsSchemaProvider settingsSchemas,
         TimeProvider timeProvider,
         IMusicService musicService,
-        IScriptStorageService scriptStorage
+        IScriptStorageService scriptStorage,
+        IPipelineStepReferenceScanner stepReferences
     )
     {
         _db = db;
@@ -63,6 +67,7 @@ public class WidgetService : IWidgetService
         _timeProvider = timeProvider;
         _musicService = musicService;
         _scriptStorage = scriptStorage;
+        _stepReferences = stepReferences;
     }
 
     public async Task<Result<WidgetDetail>> CreateAsync(
@@ -381,6 +386,67 @@ public class WidgetService : IWidgetService
         return Result.Success();
     }
 
+    /// <summary>
+    /// Counts what breaks if this widget goes: its stored versions follow a real FK (<c>WidgetVersion.WidgetId</c>),
+    /// but pipeline steps name it only inside <c>PipelineStep.ConfigJson</c>, so those are scanned rather than joined.
+    /// </summary>
+    public async Task<Result<BlastRadiusDto>> GetDeleteBlastRadiusAsync(
+        string broadcasterId,
+        string widgetId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (
+            !Guid.TryParse(broadcasterId, out Guid broadcasterGuid)
+            || !Guid.TryParse(widgetId, out Guid widgetGuid)
+        )
+            return Result<BlastRadiusDto>.Failure(
+                $"Widget '{widgetId}' was not found.",
+                "NOT_FOUND"
+            );
+
+        Widget? widget = await _db.Widgets.FirstOrDefaultAsync(
+            w => w.Id == widgetGuid && w.BroadcasterId == broadcasterGuid,
+            cancellationToken
+        );
+        if (widget is null)
+            return Result<BlastRadiusDto>.Failure(
+                $"Widget '{widgetId}' was not found.",
+                "NOT_FOUND"
+            );
+
+        int versionCount = await _db.WidgetVersions.CountAsync(
+            v => v.BroadcasterId == broadcasterGuid && v.WidgetId == widgetGuid,
+            cancellationToken
+        );
+
+        Result<PipelineStepReferenceScan> scan = await _stepReferences.ScanAsync(
+            broadcasterGuid,
+            ["widget_id", "widget"],
+            [widgetGuid.ToString()],
+            cancellationToken
+        );
+        if (scan.IsFailure)
+            return Result<BlastRadiusDto>.Failure(
+                scan.ErrorMessage ?? "The reference scan failed.",
+                scan.ErrorCode ?? "SCAN_FAILED"
+            );
+
+        List<BlastRadiusCategoryDto> categories = [];
+        if (versionCount > 0)
+            categories.Add(new(BlastRadiusCategoryKeys.WidgetVersions, versionCount, []));
+        if (scan.Value.MatchCount > 0)
+            categories.Add(
+                new(
+                    BlastRadiusCategoryKeys.PipelineSteps,
+                    scan.Value.MatchCount,
+                    scan.Value.PipelineNames
+                )
+            );
+
+        return Result<BlastRadiusDto>.Success(new(categories, scan.Value.IsMinimum));
+    }
+
     public async Task<Result<PagedList<WidgetDetail>>> ListAsync(
         string broadcasterId,
         PaginationParams pagination,
@@ -534,12 +600,11 @@ public class WidgetService : IWidgetService
         // Append the next version (append-only: corrections are new versions, never edits). A failed build is a
         // persisted `error` row, so the history is a complete, tamper-evident record of every save.
         int nextNumber =
-            (
-                await _db
-                    .WidgetVersions.Where(v => v.WidgetId == widget.Id)
-                    .Select(v => (int?)v.VersionNumber)
-                    .MaxAsync(cancellationToken)
-            ) ?? 0;
+            await _db
+                .WidgetVersions.Where(v => v.WidgetId == widget.Id)
+                .Select(v => (int?)v.VersionNumber)
+                .MaxAsync(cancellationToken)
+            ?? 0;
         nextNumber += 1;
 
         // Wrap the authored source into a one-file project (dev-platform.md §4.2) — single-file authoring stays a
@@ -686,12 +751,11 @@ public class WidgetService : IWidgetService
             );
 
         int nextNumber =
-            (
-                await _db
-                    .WidgetVersions.Where(v => v.WidgetId == widget.Id)
-                    .Select(v => (int?)v.VersionNumber)
-                    .MaxAsync(cancellationToken)
-            ) ?? 0;
+            await _db
+                .WidgetVersions.Where(v => v.WidgetId == widget.Id)
+                .Select(v => (int?)v.VersionNumber)
+                .MaxAsync(cancellationToken)
+            ?? 0;
         nextNumber += 1;
 
         DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
@@ -1039,7 +1103,7 @@ public class WidgetService : IWidgetService
             channel.Id.ToString(),
             cancellationToken
         );
-        return Result.Success<IReadOnlyList<MusicQueueItem>>(queue.Queue);
+        return Result.Success(queue.Queue);
     }
 
     public async Task<Result<OverlayBundle>> GetOverlayBundleAsync(
@@ -1109,20 +1173,27 @@ public class WidgetService : IWidgetService
         return Guid.TryParse(value, out id);
     }
 
-    public IReadOnlyList<WidgetTemplate> GetTemplates() => WidgetTemplateCatalogue.All;
+    public IReadOnlyList<WidgetTemplate> GetTemplates()
+    {
+        return WidgetTemplateCatalogue.All;
+    }
 
     // Derives the render-time trust tier from Source (widgets-overlays.md §1). Fail-closed: custom / anything
     // unexpected maps to `unverified`, never silently to a higher tier.
-    private static string ResolveTrustTier(string source) =>
-        source switch
+    private static string ResolveTrustTier(string source)
+    {
+        return source switch
         {
             "first_party" => "first_party",
             "verified_gallery" => "verified_community",
             _ => "unverified",
         };
+    }
 
-    private static string GenerateCspNonce() =>
-        Convert.ToBase64String(RandomNumberGenerator.GetBytes(16));
+    private static string GenerateCspNonce()
+    {
+        return Convert.ToBase64String(RandomNumberGenerator.GetBytes(16));
+    }
 
     // Project a stored version's file set + manifest back to the editor's wire shape. A legacy row whose
     // FilesJson/ManifestJson was never backfilled is projected as its one-file scaffold from the compiled SourceCode,
@@ -1144,16 +1215,21 @@ public class WidgetService : IWidgetService
     // A project save either persists a successful version or returns a failure — there is no `error` row. Translate
     // the build boundary's coded failures to an app error code the API maps sanely: a bundler/validation problem is a
     // 400 (user input), a missing build tool a 503. The build's message (the reason / build log) is surfaced verbatim.
-    private static string MapProjectBuildFailureCode(string? buildErrorCode) =>
-        buildErrorCode == "WIDGET_BUILD_TOOL_UNAVAILABLE"
+    private static string MapProjectBuildFailureCode(string? buildErrorCode)
+    {
+        return buildErrorCode == "WIDGET_BUILD_TOOL_UNAVAILABLE"
             ? "SERVICE_UNAVAILABLE"
             : "VALIDATION_FAILED";
+    }
 
-    private static WidgetVersionSummary ToVersionSummary(WidgetVersion v) =>
-        new(v.Id, v.VersionNumber, v.BuildStatus, v.ContentHash, v.CompiledAt, v.CreatedAt);
+    private static WidgetVersionSummary ToVersionSummary(WidgetVersion v)
+    {
+        return new(v.Id, v.VersionNumber, v.BuildStatus, v.ContentHash, v.CompiledAt, v.CreatedAt);
+    }
 
-    private static WidgetVersionDetail ToVersionDetail(WidgetVersion v) =>
-        new(
+    private static WidgetVersionDetail ToVersionDetail(WidgetVersion v)
+    {
+        return new(
             v.Id,
             v.WidgetId,
             v.VersionNumber,
@@ -1165,6 +1241,7 @@ public class WidgetService : IWidgetService
             v.CompiledAt,
             v.CreatedAt
         );
+    }
 
     /// <summary>E5 dashboard live-sync: fired after every successful write so other open dashboards refetch.</summary>
     private Task PublishConfigChangedAsync(
@@ -1172,8 +1249,9 @@ public class WidgetService : IWidgetService
         Guid widgetId,
         string action,
         CancellationToken ct
-    ) =>
-        _eventBus.PublishAsync(
+    )
+    {
+        return _eventBus.PublishAsync(
             new ChannelConfigChangedEvent
             {
                 BroadcasterId = broadcasterId,
@@ -1183,17 +1261,18 @@ public class WidgetService : IWidgetService
             },
             ct
         );
+    }
 
     // The DTO carries nullable values (Dictionary<string, object?>); the store column is non-null
     // (Dictionary<string, object>). Coalesce a null override to "" so a key is never dropped, AND normalize any
     // System.Text.Json.JsonElement (what a value deserialized from the request body actually is) to a plain CLR
     // primitive — otherwise the store/serialize round-trip mangles it into {"ValueKind":...} and the widget's
     // injected window.WIDGET_SETTINGS is unusable (it can't read its own accentColor / durations / toggles).
-    private static Dictionary<string, object> ToSettingsStore(
-        Dictionary<string, object?>? settings
-    ) =>
-        settings?.ToDictionary(k => k.Key, v => NormalizeSetting(v.Value))
-        ?? new Dictionary<string, object>();
+    private static Dictionary<string, object> ToSettingsStore(Dictionary<string, object?>? settings)
+    {
+        return settings?.ToDictionary(k => k.Key, v => NormalizeSetting(v.Value))
+            ?? new Dictionary<string, object>();
+    }
 
     /// <summary>Coerce a settings value to a plain CLR object graph so it round-trips through any serializer — a
     /// value parsed from JSON arrives as a <see cref="JsonElement"/>, which serializes as its reflected properties
@@ -1223,8 +1302,9 @@ public class WidgetService : IWidgetService
         };
     }
 
-    private static WidgetDetail ToDetail(Widget w, string overlayToken, string overlayBaseUrl) =>
-        new(
+    private static WidgetDetail ToDetail(Widget w, string overlayToken, string overlayBaseUrl)
+    {
+        return new(
             w.Id,
             w.Name,
             w.Description,
@@ -1241,4 +1321,5 @@ public class WidgetService : IWidgetService
             w.CreatedAt,
             w.UpdatedAt
         );
+    }
 }

@@ -48,7 +48,6 @@ import bot.nomnomz.dashboard.core.designsystem.component.AppSelectField
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
-import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
@@ -107,6 +106,10 @@ import nomnomzbot.composeapp.generated.resources.sound_clips_size_kb
 import nomnomzbot.composeapp.generated.resources.sound_clips_upload_action
 import nomnomzbot.composeapp.generated.resources.sound_clips_volume_pct
 import org.jetbrains.compose.resources.stringResource
+import bot.nomnomz.dashboard.core.consequences.BlastRadiusLoadState
+import bot.nomnomz.dashboard.core.consequences.DeleteBlastRadiusDialog
+import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // The Sound Clips page: the channel's uploaded audio library. Lists real clips from the backend;
 // brokers upload (native OS file picker → multipart POST), enable/disable, display-name rename,
@@ -177,12 +180,22 @@ fun SoundScreen(controller: SoundController, role: ManagementRole?) {
     }
 
     deleteTarget?.let { clip ->
-        ConfirmDialog(
+        // Fetched fresh per row (never cached or guessed) — the counted blast radius the delete confirm MUST
+        // show before the destructive delete can proceed (S-CONSEQ).
+        var blastRadius: BlastRadiusLoadState by remember(clip.id) { mutableStateOf(BlastRadiusLoadState.Loading) }
+        LaunchedEffect(clip.id) {
+            blastRadius =
+                when (val result: ApiResult<BlastRadiusSummary> = controller.fetchBlastRadius(clip.id)) {
+                    is ApiResult.Ok -> BlastRadiusLoadState.Loaded(result.value)
+                    is ApiResult.Failure -> BlastRadiusLoadState.Failed
+                }
+        }
+        DeleteBlastRadiusDialog(
             title = stringResource(Res.string.sound_clips_delete_title),
             message = stringResource(Res.string.sound_clips_delete_message, clip.displayName),
             confirmLabel = stringResource(Res.string.sound_clips_delete_confirm),
             dismissLabel = stringResource(Res.string.sound_clips_delete_cancel),
-            destructive = true,
+            blastRadius = blastRadius,
             onConfirm = {
                 scope.launch { controller.deleteClip(clip.id) }
                 deleteTarget = null

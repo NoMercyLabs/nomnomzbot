@@ -52,7 +52,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.Card
-import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.EntityPickerField
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
@@ -141,6 +140,10 @@ import nomnomzbot.composeapp.generated.resources.rewards_timer_status_paused
 import nomnomzbot.composeapp.generated.resources.rewards_timer_status_running
 import nomnomzbot.composeapp.generated.resources.rewards_timers_title
 import org.jetbrains.compose.resources.stringResource
+import bot.nomnomz.dashboard.core.consequences.BlastRadiusLoadState
+import bot.nomnomz.dashboard.core.consequences.DeleteBlastRadiusDialog
+import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // The Rewards page (frontend-ia.md §3): the channel's channel-point rewards — every reward is real data from
 // [RewardsController] (the backend sources it from Twitch's Helix Custom Rewards endpoint). The screen is a pure
@@ -305,12 +308,22 @@ fun RewardsScreen(
                 typeLabel = stringResource(Res.string.rewards_row_type),
                 discriminatorSource = reward.id,
             )
-        ConfirmDialog(
+        // Fetched fresh per row (never cached or guessed) — the counted blast radius the delete confirm MUST
+        // show before the destructive delete can proceed (S-CONSEQ).
+        var blastRadius: BlastRadiusLoadState by remember(reward.id) { mutableStateOf(BlastRadiusLoadState.Loading) }
+        LaunchedEffect(reward.id) {
+            blastRadius =
+                when (val result: ApiResult<BlastRadiusSummary> = controller.fetchBlastRadius(reward.id)) {
+                    is ApiResult.Ok -> BlastRadiusLoadState.Loaded(result.value)
+                    is ApiResult.Failure -> BlastRadiusLoadState.Failed
+                }
+        }
+        DeleteBlastRadiusDialog(
             title = stringResource(Res.string.rewards_delete_title),
             message = stringResource(Res.string.rewards_delete_message, resolvedTitle),
             confirmLabel = stringResource(Res.string.rewards_delete_confirm),
             dismissLabel = stringResource(Res.string.rewards_delete_cancel),
-            destructive = true,
+            blastRadius = blastRadius,
             onConfirm = {
                 pendingDelete = null
                 scope.launch { controller.deleteReward(reward.id) }

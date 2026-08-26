@@ -27,6 +27,7 @@ import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_deleted
 import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_save_failed
 import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_saved
 import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_uploaded
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // The Sound page's state-holder. Lists the channel's uploaded sound clips from the backend (real data only).
 // Drives upload, update, delete, and preview; each write re-lists on success so the page stays in sync.
@@ -101,6 +102,14 @@ class SoundController(
     suspend fun deleteClip(id: String) {
         afterWrite(soundApi.delete(id), success = Res.string.feedback_sound_clip_deleted)
     }
+
+    /**
+     * The real, backend-counted blast radius of deleting the clip [id] — the delete confirm calls this and renders the
+     * dependents BEFORE the destructive delete can proceed (S-CONSEQ). A channel that is not resolved yet is a
+     * genuine FAILURE, never a silent zero: the dialog must then show its own "could not check" message rather
+     * than an empty radius that reads as verified-safe.
+     */
+    suspend fun fetchBlastRadius(id: String): ApiResult<BlastRadiusSummary> = soundApi.blastRadius(id)
 
     // Preview plays the clip IN THE DASHBOARD so the operator hears it on click. It used to POST to the backend,
     // which only pushed the clip to the OBS overlay — silent unless OBS was open (the reported "preview doesn't

@@ -27,6 +27,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import bot.nomnomz.dashboard.core.network.ApiError
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // The Rewards page's state-holder (frontend-ia.md §3 — the channel's channel-point rewards). Resolves the active
 // channel, then loads its real reward list from the backend (Twitch Helix Custom Rewards; no fabricated rewards).
@@ -237,6 +239,18 @@ class RewardsController(
     suspend fun deleteReward(rewardId: String) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
         afterWrite(rewardsApi.delete(channel, rewardId))
+    }
+
+    /**
+     * The real, backend-counted blast radius of deleting the reward [rewardId] — the delete confirm calls this and renders the
+     * dependents BEFORE the destructive delete can proceed (S-CONSEQ). A channel that is not resolved yet is a
+     * genuine FAILURE, never a silent zero: the dialog must then show its own "could not check" message rather
+     * than an empty radius that reads as verified-safe.
+     */
+    suspend fun fetchBlastRadius(rewardId: String): ApiResult<BlastRadiusSummary> {
+        val channel: String =
+            channelId ?: return ApiResult.Failure(ApiError(status = 0, code = "NO_CHANNEL", message = NoChannelError))
+        return rewardsApi.blastRadius(channel, rewardId)
     }
 
     /** Fulfil a queued redemption, then reload so it leaves the pending queue. Surfaces the error on failure. */

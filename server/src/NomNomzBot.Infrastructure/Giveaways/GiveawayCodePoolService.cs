@@ -10,6 +10,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Giveaways.Dtos;
@@ -29,6 +30,9 @@ public sealed class GiveawayCodePoolService : IGiveawayCodePoolService
     private readonly IApplicationDbContext _db;
     private readonly ITokenProtector _protector;
     private readonly TimeProvider _clock;
+
+    /// <summary>How many dependent names the preview lists by name before it just counts them.</summary>
+    private const int SampleSize = 5;
 
     public GiveawayCodePoolService(
         IApplicationDbContext db,
@@ -181,6 +185,54 @@ public sealed class GiveawayCodePoolService : IGiveawayCodePoolService
             code.DeletedAt = now;
         await _db.SaveChangesAsync(ct);
         return Result.Success();
+    }
+
+    /// <summary>
+    /// Counts what breaks if this pool goes: both dependents follow a real FK — <c>GiveawayCode.CodePoolId</c>
+    /// and <c>Giveaway.PrizeCodePoolId</c> — so the total is exhaustive, never a floor. Every query is pinned
+    /// to the tenant explicitly so another channel's rows can never land in this channel's count.
+    /// </summary>
+    public async Task<Result<BlastRadiusDto>> GetDeleteBlastRadiusAsync(
+        Guid broadcasterId,
+        Guid poolId,
+        CancellationToken ct = default
+    )
+    {
+        GiveawayCodePool? pool = await FindPoolAsync(broadcasterId, poolId, ct);
+        if (pool is null)
+            return Result<BlastRadiusDto>.Failure("Code pool not found.", "NOT_FOUND");
+
+        int codeCount = await _db.GiveawayCodes.CountAsync(
+            c => c.BroadcasterId == broadcasterId && c.CodePoolId == poolId,
+            ct
+        );
+
+        List<string> giveawayTitles = await _db
+            .Giveaways.Where(g => g.BroadcasterId == broadcasterId && g.PrizeCodePoolId == poolId)
+            .OrderBy(g => g.Title)
+            .Select(g => g.Title)
+            .Take(SampleSize)
+            .ToListAsync(ct);
+        int giveawayCount = await _db.Giveaways.CountAsync(
+            g => g.BroadcasterId == broadcasterId && g.PrizeCodePoolId == poolId,
+            ct
+        );
+
+        List<BlastRadiusCategoryDto> categories = [];
+        if (codeCount > 0)
+            categories.Add(
+                new BlastRadiusCategoryDto(BlastRadiusCategoryKeys.GiveawayCodes, codeCount, [])
+            );
+        if (giveawayCount > 0)
+            categories.Add(
+                new BlastRadiusCategoryDto(
+                    BlastRadiusCategoryKeys.Giveaways,
+                    giveawayCount,
+                    giveawayTitles
+                )
+            );
+
+        return Result<BlastRadiusDto>.Success(new BlastRadiusDto(categories, IsMinimum: false));
     }
 
     public async Task<Result<string>> RevealAssignedCodeAsync(

@@ -161,6 +161,9 @@ import nomnomzbot.composeapp.generated.resources.widgets_gallery_trust_first_par
 import nomnomzbot.composeapp.generated.resources.widgets_gallery_trust_unverified
 import nomnomzbot.composeapp.generated.resources.widgets_gallery_trust_verified
 import org.jetbrains.compose.resources.stringResource
+import bot.nomnomz.dashboard.core.consequences.BlastRadiusLoadState
+import bot.nomnomz.dashboard.core.consequences.DeleteBlastRadiusDialog
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // The Overlays page (frontend-ia.md §3, Stream group): the channel's OBS browser-source overlay widgets, all
 // real data from [WidgetsController]. The screen is a pure projection of the controller's state; it loads on
@@ -302,12 +305,22 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
     }
 
     pendingDelete?.let { target ->
-        ConfirmDialog(
+        // Fetched fresh per row (never cached or guessed) — the counted blast radius the delete confirm MUST
+        // show before the destructive delete can proceed (S-CONSEQ).
+        var blastRadius: BlastRadiusLoadState by remember(target.id) { mutableStateOf(BlastRadiusLoadState.Loading) }
+        LaunchedEffect(target.id) {
+            blastRadius =
+                when (val result: ApiResult<BlastRadiusSummary> = controller.fetchBlastRadius(target.id)) {
+                    is ApiResult.Ok -> BlastRadiusLoadState.Loaded(result.value)
+                    is ApiResult.Failure -> BlastRadiusLoadState.Failed
+                }
+        }
+        DeleteBlastRadiusDialog(
             title = stringResource(Res.string.widgets_delete_title),
             message = stringResource(Res.string.widgets_delete_message, target.name),
             confirmLabel = stringResource(Res.string.widgets_delete_confirm),
             dismissLabel = stringResource(Res.string.widgets_delete_cancel),
-            destructive = true,
+            blastRadius = blastRadius,
             onConfirm = {
                 pendingDelete = null
                 scope.launch { controller.deleteWidget(target.id) }

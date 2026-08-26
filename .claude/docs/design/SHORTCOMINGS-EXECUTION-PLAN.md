@@ -132,19 +132,26 @@ only Stoney can make. Do not burn agent time trying to work around them.
 Owner: move the **stream-facing** work forward — commands and overlays, easier to use and more
 stable — without dropping the planned requirements behind them.
 
-- **S-CONSEQ-c** (the law now works end to end for pipeline delete — 7f17a3f2 backend + d5e574fb UI: the
-  confirm dialog shows the REAL counted dependents before the save, says "nothing else references this"
-  explicitly when there are none, disables confirm while the count is unknown, and on a FAILED lookup
-  shows its own message instead of "0 dependents" — showing zero when the check failed would be a lie
-  that causes the exact data loss the law prevents. 749 jvmTest green.)
-  EXTEND IT, each gap honest and known:
-  (a) command delete has NO entity holding a real FK to `Command.Id`, so its dependents cannot be counted
-  by query — decide whether that reference should exist or whether command delete is genuinely safe;
-  (b) sound-clip and widget references live only inside `PipelineStep.ConfigJson` blobs, so counting them
-  needs a JSON scan rather than a query;
-  (c) `DestructiveActionScannerTests` covers 4 controllers — roughly 60 other `HttpDelete` endpoints
-  (auth revokes, GDPR erasure, moderation, webhooks) are unclassified, and GDPR erasure is the one where
-  an uncounted blast radius is least forgivable.
+- **S-CONSEQ-DELETE-CHANNEL** (c2 closed 4 of the 16 in the dated baseline -- sound clips, widgets,
+  rewards, giveaway code pools all count for real now, the first two via a `PipelineStep.ConfigJson`
+  scan that says "this is a MINIMUM" in those words whenever a template, a `run_code` step or an
+  unparseable blob means it cannot see everything. Baseline is 12 and shrink-only.)
+  `ChannelsController.DeleteChannel` is the largest blast radius in the product and needs its OWN slice:
+  `ChannelService.DeleteAsync` is nine lines that delegate every consequence to cascade, so nothing in
+  the code names what dies. **117 domain entities implement `ITenantScoped`**, plus platform
+  connections, encrypted OAuth tokens, EventSub subscriptions registered with Twitch, the overlay token
+  every live OBS browser source is using, event-journal history, billing rows -- and external side
+  effects a row count cannot express (Twitch-side rewards under our client id, Discord hooks, outbound
+  webhooks). A useful preview is NOT 117 raw counts: it needs a curated, hand-audited category map
+  (chat history, viewers/economy balances, automations, integrations, overlays, billing) plus "and N
+  other records", and a decision on whether confirm requires typing the channel name. Answer FIRST
+  whether the delete is reversible (soft-delete + restore window) -- the counted preview and the
+  recovery story are the same design.
+
+- **S-CONSEQ-c3** the 11 remaining baseline entries: Assets.Delete, Bundles.Uninstall,
+  Catalog.DeleteItem, CodeScripts.Delete, CustomDataSources.Delete, Discord.Disconnect,
+  EconomyLeaderboards.DeleteConfig, Giveaways.Delete, Integrations.Disconnect, PickLists.DeletePickList,
+  Webhooks.DeleteInbound. Reuse `BlastRadiusDto` + the shared dialog; do not invent a second mechanism.
 
 - **S-PIPE-TREE-d2b** (scope narrowings the sub-pipeline slice reported honestly; 5d82f69c shipped the
   core: args in, `return_value` out, `CallDepth` spanning pipeline boundaries, tenant-scoped, try-catchable,

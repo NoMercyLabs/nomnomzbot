@@ -17,6 +17,7 @@ using NomNomzBot.Api.Extensions;
 using NomNomzBot.Api.Identifiers;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Api.RateLimiting;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DevPlatform.Dtos;
 using NomNomzBot.Application.Widgets.Dtos;
@@ -268,8 +269,33 @@ public class WidgetsController : BaseController
         return Ok(new StatusResponseDto<WidgetDetail> { Data = WithOverlayOrigin(result.Value) });
     }
 
-    /// <summary>Delete an overlay widget from a channel.</summary>
-    [DestructiveAction(PendingBlastRadiusSince = "2026-08-26")]
+    /// <summary>
+    /// Real, counted blast radius for deleting this widget (S-CONSEQ). The dashboard MUST call this and
+    /// render the result before the delete confirm can proceed.
+    /// </summary>
+    [DestructiveAction(HasCountedBlastRadius = true)]
+    [RequireAction("widget:write")]
+    [HttpGet("{widgetId}/blast-radius")]
+    [ProducesResponseType<StatusResponseDto<BlastRadiusDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetWidgetDeleteBlastRadius(
+        string channelId,
+        string widgetId,
+        CancellationToken ct
+    )
+    {
+        Result<BlastRadiusDto> result = await _widgetService.GetDeleteBlastRadiusAsync(
+            channelId,
+            Decode(widgetId),
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<BlastRadiusDto> { Data = result.Value });
+    }
+
+    /// <summary>Delete an overlay widget from a channel. The confirm step calls
+    /// <see cref="GetWidgetDeleteBlastRadius"/> first and shows the counted dependents before this runs.</summary>
+    [DestructiveAction(HasCountedBlastRadius = true)]
     [RequireAction("widget:write")]
     [HttpDelete("{widgetId}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

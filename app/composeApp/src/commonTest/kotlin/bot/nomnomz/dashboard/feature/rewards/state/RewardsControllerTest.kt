@@ -25,6 +25,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // Proves the Rewards page state machine the screen renders: resolve the active channel, then surface the real
 // reward list — empty as Empty, a failure of either step as Error. It also proves the page's writes — create /
@@ -491,6 +492,11 @@ private class RecordingRewardsApi(
         }
         return writeResult
     }
+
+    // The controller's blast-radius passthrough: these tests exercise the delete write, not the counted
+    // preview, which has its own dedicated dialog test.
+    override suspend fun blastRadius(channelId: String, rewardId: String): ApiResult<BlastRadiusSummary> =
+        ApiResult.Ok(BlastRadiusSummary())
 
     override suspend fun redemptions(
         channelId: String,

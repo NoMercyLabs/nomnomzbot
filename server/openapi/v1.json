@@ -31286,7 +31286,7 @@
         "tags": [
           "Giveaways"
         ],
-        "summary": "Soft-delete a pool (blocked while it backs an active giveaway).",
+        "summary": "Soft-delete a pool (blocked while it backs an active giveaway). The confirm step calls\r\n    Task&lt;IActionResult&gt; GiveawayCodePoolsController.GetDeleteBlastRadius(Guid poolId, CancellationToken ct) first and shows the counted dependents before this runs.",
         "parameters": [
           {
             "name": "poolId",
@@ -31494,6 +31494,106 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatusResponseDtoOfCodePoolDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/giveaways/code-pools/{poolId}/blast-radius": {
+      "get": {
+        "tags": [
+          "Giveaways"
+        ],
+        "summary": "Real, counted blast radius for deleting this code pool (S-CONSEQ). The dashboard MUST call this and\r\nrender the result before the delete confirm can proceed.",
+        "parameters": [
+          {
+            "name": "poolId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfBlastRadiusDto"
                 }
               }
             }
@@ -56188,7 +56288,7 @@
         "tags": [
           "Rewards"
         ],
-        "summary": "Delete a channel point reward.",
+        "summary": "Delete a channel point reward. The confirm step calls\r\n    Task&lt;IActionResult&gt; RewardsController.GetRewardDeleteBlastRadius(string channelId, string rewardId, CancellationToken ct) first and shows the counted dependents before this runs.",
         "parameters": [
           {
             "name": "channelId",
@@ -56280,6 +56380,112 @@
             "description": "No Content",
             "content": {
               "application/json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/rewards/{rewardId}/blast-radius": {
+      "get": {
+        "tags": [
+          "Rewards"
+        ],
+        "summary": "Real, counted blast radius for deleting this reward (S-CONSEQ). The dashboard MUST call this and\r\nrender the result before the delete confirm can proceed.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "rewardId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfBlastRadiusDto"
+                }
+              }
             }
           }
         }
@@ -58930,7 +59136,7 @@
         "tags": [
           "Sound"
         ],
-        "summary": "Delete a sound clip.",
+        "summary": "Delete a sound clip. The confirm step calls\r\n    Task&lt;IActionResult&gt; SoundClipsController.GetDeleteBlastRadius(Guid id, CancellationToken ct) first and shows the counted dependents before this runs.",
         "parameters": [
           {
             "name": "id",
@@ -59018,6 +59224,106 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatusResponseDtoOfboolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/sound-clips/{id}/blast-radius": {
+      "get": {
+        "tags": [
+          "Sound"
+        ],
+        "summary": "Real, counted blast radius for deleting this sound clip (S-CONSEQ). The dashboard MUST call this and\r\nrender the result before the delete confirm can proceed.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfBlastRadiusDto"
                 }
               }
             }
@@ -69648,7 +69954,7 @@
         "tags": [
           "Widgets"
         ],
-        "summary": "Delete an overlay widget from a channel.",
+        "summary": "Delete an overlay widget from a channel. The confirm step calls\r\n    Task&lt;IActionResult&gt; WidgetsController.GetWidgetDeleteBlastRadius(string channelId, string widgetId, CancellationToken ct) first and shows the counted dependents before this runs.",
         "parameters": [
           {
             "name": "channelId",
@@ -70068,6 +70374,112 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatusResponseDtoOfWidgetDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/widgets/{widgetId}/blast-radius": {
+      "get": {
+        "tags": [
+          "Widgets"
+        ],
+        "summary": "Real, counted blast radius for deleting this widget (S-CONSEQ). The dashboard MUST call this and\r\nrender the result before the delete confirm can proceed.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "widgetId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfBlastRadiusDto"
                 }
               }
             }
@@ -72238,6 +72650,66 @@
           }
         },
         "description": "A Stripe billing-portal redirect."
+      },
+      "BlastRadiusCategoryDto": {
+        "required": [
+          "categoryKey",
+          "count",
+          "sample"
+        ],
+        "type": "object",
+        "properties": {
+          "categoryKey": {
+            "type": "string",
+            "description": "i18n resource key naming the kind of dependent that was counted."
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The real number of rows counted right now. Never estimated.",
+            "format": "int32"
+          },
+          "sample": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Up to a handful of human-readable names of the counted rows, so the user recognises WHICH things break.\r\nA shorter list than Count means the sample was truncated, never that the count is soft."
+          }
+        },
+        "description": "One counted category of a destructive action's blast radius. CategoryKey is an i18n\r\nresource KEY, never a sentence — the language lives in the dashboard's string resources\r\n(`strings.xml`), so the backend never ships English."
+      },
+      "BlastRadiusDto": {
+        "required": [
+          "categories",
+          "isMinimum"
+        ],
+        "type": "object",
+        "properties": {
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BlastRadiusCategoryDto"
+            },
+            "description": "Only the categories with a non-zero count; an empty list means a genuine zero."
+          },
+          "isMinimum": {
+            "type": "boolean",
+            "description": "True when the count is a verified FLOOR rather than an exhaustive total — set when some references can\r\nonly be resolved at run time (a pipeline field whose value is a template placeholder, or a user code\r\nscript that resolves the resource through the SDK). The dashboard must then say the number is a MINIMUM\r\nrather than implying completeness."
+          },
+          "totalReferences": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "The real, counted set of things that reference a resource right now — surfaced in the delete confirmation\r\nBEFORE the save (S-CONSEQ). int BlastRadiusDto.TotalReferences is zero exactly when nothing references the\r\nresource; the dashboard renders that as an explicit \"nothing else references this\" statement, never as an\r\nempty area. A lookup that FAILED is a `Result` failure and never reaches this type — reporting zero\r\nfor a failed check would cause exactly the loss the preview exists to prevent."
       },
       "BlockedTrackDto": {
         "required": [
@@ -87362,6 +87834,36 @@
               },
               {
                 "$ref": "#/components/schemas/BillingPortalDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfBlastRadiusDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BlastRadiusDto"
               }
             ]
           },

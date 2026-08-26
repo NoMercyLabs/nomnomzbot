@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Giveaways.Dtos;
 using NomNomzBot.Application.Giveaways.Services;
@@ -99,9 +100,25 @@ public class GiveawayCodePoolsController : BaseController
         return ResultResponse(await _pools.AddCodesAsync(broadcasterId, poolId, request, ct));
     }
 
-    /// <summary>Soft-delete a pool (blocked while it backs an active giveaway).</summary>
+    /// <summary>
+    /// Real, counted blast radius for deleting this code pool (S-CONSEQ). The dashboard MUST call this and
+    /// render the result before the delete confirm can proceed.
+    /// </summary>
     [RequireAction("giveaways:codes:write")]
-    [DestructiveAction(PendingBlastRadiusSince = "2026-08-26")]
+    [DestructiveAction(HasCountedBlastRadius = true)]
+    [HttpGet("{poolId:guid}/blast-radius")]
+    [ProducesResponseType<StatusResponseDto<BlastRadiusDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetDeleteBlastRadius(Guid poolId, CancellationToken ct)
+    {
+        if (_tenant.BroadcasterId is not { } broadcasterId)
+            return UnauthenticatedResponse("No tenant resolved.");
+        return ResultResponse(await _pools.GetDeleteBlastRadiusAsync(broadcasterId, poolId, ct));
+    }
+
+    /// <summary>Soft-delete a pool (blocked while it backs an active giveaway). The confirm step calls
+    /// <see cref="GetDeleteBlastRadius"/> first and shows the counted dependents before this runs.</summary>
+    [RequireAction("giveaways:codes:write")]
+    [DestructiveAction(HasCountedBlastRadius = true)]
     [HttpDelete("{poolId:guid}")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Delete(Guid poolId, CancellationToken ct)

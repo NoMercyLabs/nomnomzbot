@@ -22,6 +22,7 @@ using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Domain.Widgets.Events;
+using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Content.Widgets;
 using NomNomzBot.Infrastructure.Widgets;
 using NomNomzBot.Infrastructure.Widgets.Bundling;
@@ -68,7 +69,8 @@ public sealed class WidgetServiceProjectTests : IClassFixture<VueSfcCompilerFixt
             new WidgetSettingsSchemaProvider(),
             Clock,
             Substitute.For<IMusicService>(),
-            Substitute.For<IScriptStorageService>()
+            Substitute.For<IScriptStorageService>(),
+            new PipelineStepReferenceScanner(db)
         );
 
     private static async Task<Guid> SeedChannelAsync(WidgetSqliteTestDatabase database)
