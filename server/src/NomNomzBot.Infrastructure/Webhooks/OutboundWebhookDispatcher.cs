@@ -37,7 +37,7 @@ public sealed class OutboundWebhookDispatcher(
     IApplicationDbContext db,
     ITokenProtector tokenProtector,
     IOutboundWebhookSigner signer,
-    ITemplateEngine templateEngine,
+    IWebhookBodyTemplateRenderer bodyTemplateRenderer,
     IHttpClientFactory httpClientFactory,
     IEventBus eventBus,
     TimeProvider clock
@@ -110,9 +110,7 @@ public sealed class OutboundWebhookDispatcher(
     )
     {
         Guid webhookMessageId = Guid.CreateVersion7();
-        string body = endpoint.BodyTemplate is null
-            ? JsonConvert.SerializeObject(variables)
-            : templateEngine.Render(endpoint.BodyTemplate, variables);
+        string body = bodyTemplateRenderer.Render(endpoint.BodyTemplate, variables);
 
         OutboundWebhookDelivery delivery = new()
         {

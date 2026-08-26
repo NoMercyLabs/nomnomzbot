@@ -56,10 +56,10 @@ public sealed class OutboundWebhookDispatcherTests
                 Arg.Any<CancellationToken>()
             )
             .Returns("whsec_secret");
-        ITemplateEngine template = Substitute.For<ITemplateEngine>();
+        IWebhookBodyTemplateRenderer template = Substitute.For<IWebhookBodyTemplateRenderer>();
         template
-            .Render(Arg.Any<string>(), Arg.Any<IReadOnlyDictionary<string, string>>())
-            .Returns(ci => ci.ArgAt<string>(0));
+            .Render(Arg.Any<string?>(), Arg.Any<IReadOnlyDictionary<string, string>>())
+            .Returns(ci => ci.ArgAt<string?>(0) ?? string.Empty);
         IHttpClientFactory factory = Substitute.For<IHttpClientFactory>();
         factory.CreateClient(Arg.Any<string>()).Returns(_ => new(new StubHandler(status)));
         RecordingEventBus bus = new();
