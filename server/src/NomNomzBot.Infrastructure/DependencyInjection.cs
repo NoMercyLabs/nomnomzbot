@@ -154,9 +154,7 @@ public static class DependencyInjection
                     // S038: WAL + busy-timeout on every connection this DbContext opens — see the
                     // interceptor's own doc comment for why this is the common-path fix, not an edge case
                     // (SQLite is the self-host default runtime).
-                    options.AddInterceptors(
-                        new Platform.Persistence.Interceptors.SqliteResilienceInterceptor()
-                    );
+                    options.AddInterceptors(new SqliteResilienceInterceptor());
                 }
                 else
                 {
@@ -172,11 +170,7 @@ public static class DependencyInjection
                             );
                             // S038: transient Postgres blips (connection reset, brief unreachability)
                             // otherwise surface as a hard 500 on whatever request happened to be mid-query.
-                            npgsqlOptions.EnableRetryOnFailure(
-                                maxRetryCount: 5,
-                                maxRetryDelay: TimeSpan.FromSeconds(10),
-                                errorCodesToAdd: null
-                            );
+                            npgsqlOptions.EnableRetryOnFailure(5, TimeSpan.FromSeconds(10), null);
                         }
                     );
                 }
@@ -260,7 +254,7 @@ public static class DependencyInjection
         );
         services.AddScoped<
             Application.Contracts.Pipeline.IPipelineOptionRegistry,
-            Platform.Pipeline.PipelineOptionRegistry
+            PipelineOptionRegistry
         >();
 
         // Music providers (scoped — multi-binding consumed as IEnumerable<IMusicProvider>).
@@ -353,19 +347,19 @@ public static class DependencyInjection
         // The song-request queue must outlive the scoped MusicService instance that mutates it — one instance
         // per HTTP request / chat dispatch would otherwise reset the queue on every call. Singleton, keyed
         // per-tenant internally (Music.ISongRequestQueueStore); every FairQueue<T> mutation is lock-protected.
-        services.AddSingleton<Music.ISongRequestQueueStore, Music.SongRequestQueueStore>();
+        services.AddSingleton<ISongRequestQueueStore, SongRequestQueueStore>();
 
         // S001b — durable mirror of the fair queue (write-through on every mutation) + the once-at-startup
         // restore that replays it back into the (freshly empty) singleton store above before any live
         // traffic can reach it.
-        services.AddScoped<Music.ISongRequestQueuePersistence, Music.SongRequestQueuePersistence>();
+        services.AddScoped<ISongRequestQueuePersistence, SongRequestQueuePersistence>();
         // The handover seam the reconciler uses to push the next request. Resolved FROM the registered
         // IMusicService so both views share one scoped instance — provider resolution, capability gating
         // and the queue store must be the same objects the request path used.
-        services.AddScoped<Music.ISongRequestHandover>(sp =>
-            (Music.MusicService)sp.GetRequiredService<Application.Music.Services.IMusicService>()
+        services.AddScoped<ISongRequestHandover>(sp =>
+            (MusicService)sp.GetRequiredService<Application.Music.Services.IMusicService>()
         );
-        services.AddHostedService<Music.SongRequestQueueRestoreHostedService>();
+        services.AddHostedService<SongRequestQueueRestoreHostedService>();
         // Scoped: it resolves the channel's feature toggles through the scoped IFeatureService (cache-backed, so the
         // hot path stays cheap). Consumes the singleton adapters + cache fine.
         services.AddScoped<Application.Chat.Services.IChatMessageDecorator, ChatMessageDecorator>();
@@ -472,10 +466,7 @@ public static class DependencyInjection
         >();
         // No-op fallback; the API host replaces this with the SignalR-backed EventResponseOverlayNotifierAdapter
         // (drives an EventResponse's `overlay` ResponseType — commands-pipelines.md §3.2.1).
-        services.AddScoped<
-            Application.Commands.Services.IEventResponseOverlayNotifier,
-            Commands.NullEventResponseOverlayNotifier
-        >();
+        services.AddScoped<IEventResponseOverlayNotifier, NullEventResponseOverlayNotifier>();
         // No-op fallback for the generic overlay event feed; the API host replaces it with the hub-backed adapter.
         // The OverlayEventFeedHook that drives it is auto-registered by the IJournalPostCommitHook scan below.
         services.AddScoped<
@@ -524,11 +515,11 @@ public static class DependencyInjection
         // Webhook HMAC primitives (stateless; not name-convention "*Service", so registered explicitly).
         services.AddSingleton<
             Application.Contracts.Webhooks.IInboundSignatureVerifier,
-            Webhooks.InboundSignatureVerifier
+            InboundSignatureVerifier
         >();
         services.AddSingleton<
             Application.Contracts.Webhooks.IOutboundWebhookSigner,
-            Webhooks.OutboundWebhookSigner
+            OutboundWebhookSigner
         >();
 
         // Inbound webhook adapters (transient — stateless, multi-binding by WebhookAdapterKind).
@@ -628,11 +619,11 @@ public static class DependencyInjection
         // Webhook dispatchers (I*Dispatcher — not the name-convention "*Service", so registered explicitly).
         services.AddScoped<
             Application.Contracts.Webhooks.IInboundWebhookDispatcher,
-            Webhooks.InboundWebhookDispatcher
+            InboundWebhookDispatcher
         >();
         services.AddScoped<
             Application.Contracts.Webhooks.IOutboundWebhookDispatcher,
-            Webhooks.OutboundWebhookDispatcher
+            OutboundWebhookDispatcher
         >();
         services.AddScoped<
             Application.Contracts.Billing.IStripeWebhookHandler,
@@ -640,7 +631,7 @@ public static class DependencyInjection
         >();
 
         // Outbound webhook retry drain (scoped processor + the hosted worker that ticks it).
-        services.AddScoped<Webhooks.WebhookRetryProcessor>();
+        services.AddScoped<WebhookRetryProcessor>();
         services.AddHostedService<WebhookDeliveryWorker>();
 
         // Analytics — the shared viewer-as-User resolver the per-viewer projections fold through.
@@ -796,7 +787,7 @@ public static class DependencyInjection
         // for the same reason: it creates its own scope per read so it never shares a DbContext with its
         // caller.
         services.AddSingleton<
-            Application.Common.Interfaces.IChannelCredentialsResolver,
+            IChannelCredentialsResolver,
             Platform.Configuration.ChannelCredentialsResolver
         >();
 
@@ -877,7 +868,7 @@ public static class DependencyInjection
                 return StackExchange.Redis.ConnectionMultiplexer.Connect(redisOptions);
             });
             services.AddSingleton<IRateLimiterPartitionStore, RedisRateLimiterPartitionStore>();
-            services.AddSingleton<Platform.Deployment.RedisHealthCheck>();
+            services.AddSingleton<RedisHealthCheck>();
         }
         else
         {
@@ -916,6 +907,9 @@ public static class DependencyInjection
         services.AddScoped<IEventResponseExecutor, EventResponseExecutor>();
         // Save-time, fail-closed validator (broker-pattern invariant + type registry check).
         services.AddScoped<ICommandConfigValidator, CommandConfigValidator>();
+        // S-CONSEQ: counts the pipeline steps that name a keyless resource (sound clip, widget) inside
+        // PipelineStep.ConfigJson. Not an I<X>Service — registered explicitly.
+        services.AddScoped<IPipelineStepReferenceScanner, PipelineStepReferenceScanner>();
 
         // Identity / tenant — HttpContext accessor + UnitOfWork are framework/infra, kept explicit.
         // The I<X>Service impls (ICurrentTenantService, IChannelAccessService, ICurrentUserService,
@@ -1067,6 +1061,7 @@ public static class DependencyInjection
                 )
             );
         }
+
         services.AddSingleton<
             Application.AutomationApi.Services.IAutomationEventRegistry,
             AutomationApi.Events.AutomationEventRegistry
@@ -1215,12 +1210,12 @@ public static class DependencyInjection
         // BotSelfEchoGuard (S009) — singleton so its per-tenant bot-identity cache survives across the
         // scoped DbContext each of the three chat ingests runs under; registered under both its query
         // surface and its cache-invalidation seam so the one instance serves both.
-        services.AddSingleton<Chat.BotSelfEchoGuard>();
+        services.AddSingleton<BotSelfEchoGuard>();
         services.AddSingleton<Application.Contracts.Chat.IBotSelfEchoGuard>(sp =>
-            sp.GetRequiredService<Chat.BotSelfEchoGuard>()
+            sp.GetRequiredService<BotSelfEchoGuard>()
         );
         services.AddSingleton<Application.Contracts.Chat.IBotIdentityCacheInvalidation>(sp =>
-            sp.GetRequiredService<Chat.BotSelfEchoGuard>()
+            sp.GetRequiredService<BotSelfEchoGuard>()
         );
 
         // BotLifecycleService, TimerService, and TokenRefreshService are auto-registered as
@@ -1404,13 +1399,10 @@ public static class DependencyInjection
         services.AddSingleton<ISharedChatSessionTracker, SharedChatSessionTracker>();
         // Outbound line shaping + pacing (S010): both singleton — the per-queue-key "last line sent"
         // memory and the token-bucket state must outlive the scoped ChatPlatformRouter created per request.
-        services.AddSingleton<
-            Application.Contracts.Chat.IOutboundChatShaper,
-            Chat.OutboundChatShaper
-        >();
+        services.AddSingleton<Application.Contracts.Chat.IOutboundChatShaper, OutboundChatShaper>();
         services.AddSingleton<
             Application.Contracts.Chat.IChatSendQueue,
-            Chat.TokenBucketChatSendQueue
+            TokenBucketChatSendQueue
         >();
         services.AddScoped<IChatPlatform, HelixChatProvider>();
         services.AddScoped<IChatPlatform, YouTubeChatPlatform>();
@@ -1564,7 +1556,14 @@ public static class DependencyInjection
     public static IServiceCollection AddEventHandlersFromAssembly(
         this IServiceCollection services,
         Assembly assembly
-    ) => services.AddOpenGenericHandlers(assembly, typeof(IEventHandler<>), ServiceLifetime.Scoped);
+    )
+    {
+        return services.AddOpenGenericHandlers(
+            assembly,
+            typeof(IEventHandler<>),
+            ServiceLifetime.Scoped
+        );
+    }
 }
 
 /// <summary>

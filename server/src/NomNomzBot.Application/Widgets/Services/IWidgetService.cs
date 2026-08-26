@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DevPlatform.Dtos;
 using NomNomzBot.Application.Music.Services;
@@ -37,6 +38,18 @@ public interface IWidgetService
 
     /// <summary>Delete a widget.</summary>
     Task<Result> DeleteAsync(
+        string broadcasterId,
+        string widgetId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// The real, counted blast radius of deleting this widget (S-CONSEQ): its stored versions (which carry
+    /// <c>WidgetId</c>) plus the pipeline steps that name it inside <c>PipelineStep.ConfigJson</c>. The step
+    /// count comes from a config scan and is flagged as a MINIMUM when some references can only be resolved
+    /// at run time. Returns a failure when the widget does not exist in this tenant.
+    /// </summary>
+    Task<Result<BlastRadiusDto>> GetDeleteBlastRadiusAsync(
         string broadcasterId,
         string widgetId,
         CancellationToken cancellationToken = default

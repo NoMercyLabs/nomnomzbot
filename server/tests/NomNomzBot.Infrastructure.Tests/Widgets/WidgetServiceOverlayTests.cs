@@ -19,6 +19,7 @@ using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Content.Widgets;
 using NomNomzBot.Infrastructure.Widgets;
 using NSubstitute;
@@ -50,7 +51,8 @@ public sealed class WidgetServiceOverlayTests
             new WidgetSettingsSchemaProvider(),
             Clock,
             musicService ?? Substitute.For<IMusicService>(),
-            scriptStorage ?? Substitute.For<IScriptStorageService>()
+            scriptStorage ?? Substitute.For<IScriptStorageService>(),
+            new PipelineStepReferenceScanner(db)
         );
 
     private static IWidgetBuildService BuildReturning(string bundle, string hash)

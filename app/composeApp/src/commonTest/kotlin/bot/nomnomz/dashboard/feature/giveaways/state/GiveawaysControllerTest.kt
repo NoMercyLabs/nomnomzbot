@@ -37,6 +37,7 @@ import nomnomzbot.composeapp.generated.resources.feedback_giveaway_deleted
 import nomnomzbot.composeapp.generated.resources.feedback_giveaway_drawn
 import nomnomzbot.composeapp.generated.resources.feedback_giveaway_opened
 import nomnomzbot.composeapp.generated.resources.feedback_giveaway_save_failed
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // Proves the Giveaways page state machine the screen renders: surface the channel's real campaigns (empty when
 // there are none, error if the list call fails), and follow through on every action by observing its CONSEQUENCE
@@ -464,6 +465,11 @@ private class RecordingGiveawaysApi(
         if (writeResult is ApiResult.Ok) pools.removeAll { it.id == poolId }
         return writeResult
     }
+
+    // The controller's blast-radius passthrough: these tests exercise the delete write, not the counted
+    // preview, which has its own dedicated dialog test.
+    override suspend fun codePoolBlastRadius(poolId: String): ApiResult<BlastRadiusSummary> =
+        ApiResult.Ok(BlastRadiusSummary())
 
     override suspend fun addCodes(poolId: String, body: AddCodesBody): ApiResult<Unit> {
         addedCodes += poolId to body

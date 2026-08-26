@@ -88,6 +88,13 @@ interface GiveawaysApi {
     /** Soft-delete a code pool (backend DELETE; blocked while it backs an active giveaway). */
     suspend fun deleteCodePool(poolId: String): ApiResult<Unit>
 
+    /**
+     * The real, backend-counted blast radius of deleting this code pool (S-CONSEQ). The delete confirm MUST call
+     * this and render the result before the destructive delete can proceed; no count is ever computed
+     * client-side.
+     */
+    suspend fun codePoolBlastRadius(poolId: String): ApiResult<BlastRadiusSummary>
+
     /** Bulk-add codes to a pool — AEAD-encrypted on write, never echoed back (backend POST). */
     suspend fun addCodes(poolId: String, body: AddCodesBody): ApiResult<Unit>
 }
@@ -169,6 +176,9 @@ class RestGiveawaysApi(private val client: ApiClient) : GiveawaysApi {
 
     override suspend fun deleteCodePool(poolId: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/giveaways/code-pools/$poolId")
+
+    override suspend fun codePoolBlastRadius(poolId: String): ApiResult<BlastRadiusSummary> =
+        client.getEnvelope("api/v1/giveaways/code-pools/$poolId/blast-radius")
 
     override suspend fun addCodes(poolId: String, body: AddCodesBody): ApiResult<Unit> =
         client.postUnit("api/v1/giveaways/code-pools/$poolId/codes", body)

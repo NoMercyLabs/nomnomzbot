@@ -34,6 +34,13 @@ interface SoundApi {
     /** Delete a clip by its UUID. */
     suspend fun delete(id: String): ApiResult<Unit>
 
+    /**
+     * The real, backend-counted blast radius of deleting this sound clip (S-CONSEQ). The delete confirm MUST call
+     * this and render the result before the destructive delete can proceed; no count is ever computed
+     * client-side.
+     */
+    suspend fun blastRadius(id: String): ApiResult<BlastRadiusSummary>
+
     /** Preview a clip on the overlay (pushes PlaySound via SignalR). */
     suspend fun preview(id: String): ApiResult<Unit>
 
@@ -68,6 +75,9 @@ class RestSoundApi(private val client: ApiClient) : SoundApi {
 
     override suspend fun delete(id: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/sound-clips/$id")
+
+    override suspend fun blastRadius(id: String): ApiResult<BlastRadiusSummary> =
+        client.getEnvelope("api/v1/sound-clips/$id/blast-radius")
 
     override suspend fun preview(id: String): ApiResult<Unit> =
         client.postUnit("api/v1/sound-clips/$id/preview", Unit)

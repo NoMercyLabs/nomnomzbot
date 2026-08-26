@@ -4186,4 +4186,24 @@
     <string name="eventresponse_preset_vts_ModelLoadedEvent_template">Model {vts.event.modelName} loaded!</string>
     <string name="eventresponse_preset_vts_HotkeyTriggeredEvent_template">Hotkey {vts.event.hotkeyName} fired!</string>
     <string name="eventresponse_preset_vts_ModelClickedEvent_template">Someone poked the model!</string>
+    <!-- Counted delete blast radius (S-CONSEQ) - shared by every delete confirm the backend counts. -->
+    <string name="blast_radius_checking">Checking what depends on this…</string>
+    <string name="blast_radius_check_failed">Could not check what depends on this - deleting it may break other things without warning.</string>
+    <string name="blast_radius_none">Nothing else references this.</string>
+    <string name="blast_radius_summary">Deleting this affects:</string>
+    <string name="blast_radius_minimum_note">This is a MINIMUM. Pipeline steps that build the reference from a variable, and custom code scripts, cannot be counted - there may be more.</string>
+    <string name="blast_radius_sample"> - %1$s</string>
+    <string name="blast_radius_category_unknown">%1$d dependent of another kind</string>
+    <string name="blast_radius_category_pipeline_steps_one">%1$d pipeline step</string>
+    <string name="blast_radius_category_pipeline_steps_other">%1$d pipeline steps</string>
+    <string name="blast_radius_category_widget_versions_one">%1$d saved version</string>
+    <string name="blast_radius_category_widget_versions_other">%1$d saved versions</string>
+    <string name="blast_radius_category_redemptions_one">%1$d redemption</string>
+    <string name="blast_radius_category_redemptions_other">%1$d redemptions</string>
+    <string name="blast_radius_category_redemption_timers_one">%1$d running countdown</string>
+    <string name="blast_radius_category_redemption_timers_other">%1$d running countdowns</string>
+    <string name="blast_radius_category_giveaway_codes_one">%1$d code</string>
+    <string name="blast_radius_category_giveaway_codes_other">%1$d codes</string>
+    <string name="blast_radius_category_giveaways_one">%1$d giveaway</string>
+    <string name="blast_radius_category_giveaways_other">%1$d giveaways</string>
 </resources>

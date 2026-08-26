@@ -51,7 +51,7 @@ public class DestructiveActionScannerTests
 
     /// <summary>
     /// The dated baseline of destructive actions that NEED a counted blast radius and do not have one yet
-    /// (established 2026-08-26, S-CONSEQ-c1). This list may only SHRINK: the test asserts set EQUALITY, so a
+    /// (established 2026-08-26, S-CONSEQ-c1; four covered by S-CONSEQ-c2). This list may only SHRINK: the test asserts set EQUALITY, so a
     /// newly added destructive action cannot slip in, and a fixed one must be removed from here in the same
     /// commit that covers it. Each entry is a real referencing-schema fact, not a shrug:
     /// <list type="bullet">
@@ -63,14 +63,10 @@ public class DestructiveActionScannerTests
     /// <item>CustomDataSourcesController.Delete — pipeline steps and widgets read the source by key.</item>
     /// <item>DiscordController.Disconnect — SupporterConnection carries IntegrationConnectionId.</item>
     /// <item>EconomyLeaderboardsController.DeleteConfig — LeaderboardSnapshot carries LeaderboardConfigId.</item>
-    /// <item>GiveawayCodePoolsController.Delete — GiveawayCode carries CodePoolId; Giveaway carries PrizeCodePoolId.</item>
     /// <item>GiveawaysController.Delete — GiveawayEntry and GiveawayWinner carry GiveawayId.</item>
     /// <item>IntegrationsController.Disconnect — SupporterConnection carries IntegrationConnectionId.</item>
     /// <item>PickListsController.DeletePickList — PickFromListAction resolves lists by name from pipeline steps.</item>
-    /// <item>RewardsController.DeleteReward — Redemption and RedemptionTimer carry RewardId.</item>
-    /// <item>SoundClipsController.Delete — pipeline steps reference the clip id inside PipelineStep.ConfigJson.</item>
     /// <item>WebhooksController.DeleteInbound — CustomDataSource and SupporterConnection carry InboundWebhookEndpointId.</item>
-    /// <item>WidgetsController.DeleteWidget — WidgetVersion carries WidgetId; pipeline steps reference it in ConfigJson.</item>
     /// </list>
     /// </summary>
     private static readonly HashSet<string> PendingBaseline =
@@ -83,14 +79,10 @@ public class DestructiveActionScannerTests
         "CustomDataSourcesController.Delete",
         "DiscordController.Disconnect",
         "EconomyLeaderboardsController.DeleteConfig",
-        "GiveawayCodePoolsController.Delete",
         "GiveawaysController.Delete",
         "IntegrationsController.Disconnect",
         "PickListsController.DeletePickList",
-        "RewardsController.DeleteReward",
-        "SoundClipsController.Delete",
         "WebhooksController.DeleteInbound",
-        "WidgetsController.DeleteWidget",
     ];
 
     private static bool IsDestructive(MethodInfo method)

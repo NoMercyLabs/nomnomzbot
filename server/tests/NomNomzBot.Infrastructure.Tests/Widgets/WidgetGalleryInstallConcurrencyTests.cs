@@ -21,6 +21,7 @@ using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Platform.Persistence.Interceptors;
 using NomNomzBot.Infrastructure.Widgets;
 using NSubstitute;
@@ -109,7 +110,8 @@ public sealed class WidgetGalleryInstallConcurrencyTests : IDisposable
             settingsSchemas,
             Clock,
             musicService,
-            scriptStorage
+            scriptStorage,
+            new PipelineStepReferenceScanner(db)
         );
     }
 

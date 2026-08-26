@@ -20,6 +20,7 @@ using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Assets;
 using NomNomzBot.Infrastructure.Billing;
+using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Sound;
 using NomNomzBot.Infrastructure.Tests.Identity;
 
@@ -58,7 +59,8 @@ public sealed class StorageBudgetAgreementTests
             new FakeSoundClipStore(),
             new FakeOverlayNotifier(),
             new FakeChannelRegistry(),
-            quota
+            quota,
+            new PipelineStepReferenceScanner(db)
         );
         ChannelAssetService assets = new(db, new FakeAssetStore(), quota);
         return (soundClips, assets, quota, db);

@@ -10,6 +10,8 @@
 
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Commands.Services;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.DTOs.Billing;
@@ -40,13 +42,15 @@ internal sealed class SoundClipService : ISoundClipService
     private readonly ISoundClipOverlayNotifier _overlay;
     private readonly IChannelRegistry _registry;
     private readonly IResourceQuotaService _quota;
+    private readonly IPipelineStepReferenceScanner _stepReferences;
 
     public SoundClipService(
         IApplicationDbContext db,
         ISoundClipStore store,
         ISoundClipOverlayNotifier overlay,
         IChannelRegistry registry,
-        IResourceQuotaService quota
+        IResourceQuotaService quota,
+        IPipelineStepReferenceScanner stepReferences
     )
     {
         _db = db;
@@ -54,6 +58,7 @@ internal sealed class SoundClipService : ISoundClipService
         _overlay = overlay;
         _registry = registry;
         _quota = quota;
+        _stepReferences = stepReferences;
     }
 
     public async Task<Result<PagedList<SoundClipDto>>> ListAsync(
@@ -290,6 +295,48 @@ internal sealed class SoundClipService : ISoundClipService
 
         await _store.DeleteAsync(storageKey, ct);
         return Result.Success();
+    }
+
+    /// <summary>
+    /// Counts what breaks if this clip goes. There is no FK to follow: <c>play_sound</c> stores the clip's id
+    /// OR its name slug in <c>PipelineStep.ConfigJson</c>, so both are scanned as tokens.
+    /// </summary>
+    public async Task<Result<BlastRadiusDto>> GetDeleteBlastRadiusAsync(
+        Guid broadcasterId,
+        Guid id,
+        CancellationToken ct = default
+    )
+    {
+        SoundClip? clip = await _db.SoundClips.FirstOrDefaultAsync(
+            c => c.BroadcasterId == broadcasterId && c.Id == id,
+            ct
+        );
+        if (clip is null)
+            return Result<BlastRadiusDto>.Failure("Sound clip not found.", "NOT_FOUND");
+
+        Result<PipelineStepReferenceScan> scan = await _stepReferences.ScanAsync(
+            broadcasterId,
+            ["clip"],
+            [clip.Id.ToString(), clip.Name],
+            ct
+        );
+        if (scan.IsFailure)
+            return Result<BlastRadiusDto>.Failure(
+                scan.ErrorMessage ?? "The reference scan failed.",
+                scan.ErrorCode ?? "SCAN_FAILED"
+            );
+
+        List<BlastRadiusCategoryDto> categories = [];
+        if (scan.Value.MatchCount > 0)
+            categories.Add(
+                new BlastRadiusCategoryDto(
+                    BlastRadiusCategoryKeys.PipelineSteps,
+                    scan.Value.MatchCount,
+                    scan.Value.PipelineNames
+                )
+            );
+
+        return Result<BlastRadiusDto>.Success(new BlastRadiusDto(categories, scan.Value.IsMinimum));
     }
 
     public async Task<Result<SoundPlaybackDto>> ResolveForPlaybackAsync(

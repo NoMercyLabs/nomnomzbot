@@ -38,6 +38,7 @@ import nomnomzbot.composeapp.generated.resources.feedback_giveaway_opened
 import nomnomzbot.composeapp.generated.resources.feedback_giveaway_save_failed
 import nomnomzbot.composeapp.generated.resources.feedback_giveaway_saved
 import org.jetbrains.compose.resources.StringResource
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // The Giveaways page's state-holder (giveaways.md §6 — the channel's giveaway campaigns and their code pools).
 // Lists the channel's real giveaways from the backend (no fabricated rows) and drives the full lifecycle:
@@ -223,6 +224,15 @@ class GiveawaysController(
     suspend fun deleteCodePool(poolId: String) {
         afterPoolWrite(giveawaysApi.deleteCodePool(poolId), success = Res.string.feedback_codepool_deleted)
     }
+
+    /**
+     * The real, backend-counted blast radius of deleting the code pool [poolId] — the delete confirm calls this and renders the
+     * dependents BEFORE the destructive delete can proceed (S-CONSEQ). A channel that is not resolved yet is a
+     * genuine FAILURE, never a silent zero: the dialog must then show its own "could not check" message rather
+     * than an empty radius that reads as verified-safe.
+     */
+    suspend fun fetchCodePoolBlastRadius(poolId: String): ApiResult<BlastRadiusSummary> =
+        giveawaysApi.codePoolBlastRadius(poolId)
 
     /**
      * Add [codes] to the pool [poolId] (each trimmed; blanks dropped) as label-less code inputs, then reload the

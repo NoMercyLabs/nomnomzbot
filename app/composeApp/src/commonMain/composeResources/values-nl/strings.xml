@@ -4171,4 +4171,24 @@
     <string name="eventresponse_preset_vts_ModelLoadedEvent_template">Model {vts.event.modelName} geladen!</string>
     <string name="eventresponse_preset_vts_HotkeyTriggeredEvent_template">Sneltoets {vts.event.hotkeyName} geactiveerd!</string>
     <string name="eventresponse_preset_vts_ModelClickedEvent_template">Iemand heeft het model aangetikt!</string>
+    <!-- Getelde impact van verwijderen (S-CONSEQ) - gedeeld door elke bevestiging die de backend telt. -->
+    <string name="blast_radius_checking">Bezig met controleren wat hiervan afhangt…</string>
+    <string name="blast_radius_check_failed">Kon niet controleren wat hiervan afhangt - verwijderen kan andere dingen zonder waarschuwing stukmaken.</string>
+    <string name="blast_radius_none">Niets anders verwijst hiernaar.</string>
+    <string name="blast_radius_summary">Dit verwijderen raakt:</string>
+    <string name="blast_radius_minimum_note">Dit is een MINIMUM. Pijplijnstappen die de verwijzing uit een variabele opbouwen, en eigen codescripts, kunnen niet geteld worden - er kunnen er meer zijn.</string>
+    <string name="blast_radius_sample"> - %1$s</string>
+    <string name="blast_radius_category_unknown">%1$d afhankelijkheid van een andere soort</string>
+    <string name="blast_radius_category_pipeline_steps_one">%1$d pijplijnstap</string>
+    <string name="blast_radius_category_pipeline_steps_other">%1$d pijplijnstappen</string>
+    <string name="blast_radius_category_widget_versions_one">%1$d opgeslagen versie</string>
+    <string name="blast_radius_category_widget_versions_other">%1$d opgeslagen versies</string>
+    <string name="blast_radius_category_redemptions_one">%1$d inwisseling</string>
+    <string name="blast_radius_category_redemptions_other">%1$d inwisselingen</string>
+    <string name="blast_radius_category_redemption_timers_one">%1$d lopende aftelling</string>
+    <string name="blast_radius_category_redemption_timers_other">%1$d lopende aftellingen</string>
+    <string name="blast_radius_category_giveaway_codes_one">%1$d code</string>
+    <string name="blast_radius_category_giveaway_codes_other">%1$d codes</string>
+    <string name="blast_radius_category_giveaways_one">%1$d weggeefactie</string>
+    <string name="blast_radius_category_giveaways_other">%1$d weggeefacties</string>
 </resources>

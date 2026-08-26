@@ -19,6 +19,7 @@ using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Content.Widgets;
 using NomNomzBot.Infrastructure.Widgets;
 using NSubstitute;
@@ -50,7 +51,8 @@ public sealed class WidgetServiceCloneTests
             new WidgetSettingsSchemaProvider(),
             Clock,
             Substitute.For<IMusicService>(),
-            Substitute.For<IScriptStorageService>()
+            Substitute.For<IScriptStorageService>(),
+            new PipelineStepReferenceScanner(db)
         );
     }
 

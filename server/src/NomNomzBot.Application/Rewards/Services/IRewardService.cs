@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Rewards.Dtos;
 
@@ -35,6 +36,18 @@ public interface IRewardService
 
     /// <summary>Delete a reward.</summary>
     Task<Result> DeleteAsync(
+        string broadcasterId,
+        string rewardId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// The real, counted blast radius of deleting this reward (S-CONSEQ): the redemption-queue rows and the
+    /// live redemption countdowns that carry its Twitch reward id. A reward never synced to Twitch has no
+    /// <c>TwitchRewardId</c>, so nothing can reference it — that is a genuine, verified zero, not a skipped
+    /// check. Returns a failure when the reward does not exist in this tenant.
+    /// </summary>
+    Task<Result<BlastRadiusDto>> GetDeleteBlastRadiusAsync(
         string broadcasterId,
         string rewardId,
         CancellationToken cancellationToken = default

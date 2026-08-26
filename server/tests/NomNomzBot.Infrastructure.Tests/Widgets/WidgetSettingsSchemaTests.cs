@@ -18,6 +18,7 @@ using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Content.Widgets;
 using NomNomzBot.Infrastructure.Widgets;
 using NSubstitute;
@@ -278,6 +279,7 @@ public sealed class WidgetSettingsSchemaTests
             new WidgetSettingsSchemaProvider(),
             new FakeTimeProvider(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)),
             Substitute.For<IMusicService>(),
-            Substitute.For<IScriptStorageService>()
+            Substitute.For<IScriptStorageService>(),
+            new PipelineStepReferenceScanner(db)
         );
 }

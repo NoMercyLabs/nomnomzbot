@@ -38,6 +38,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // Proves the Overlays page state machine the screen renders: resolve the active channel, then surface the
 // channel's real overlay widgets — empty when there are none, error if either step fails — and prove the writes
@@ -610,6 +611,11 @@ private class RecordingWidgetsApi(
         if (writeResult is ApiResult.Ok) store.removeAll { it.id == widgetId }
         return writeResult
     }
+
+    // The controller's blast-radius passthrough: these tests exercise the delete write, not the counted
+    // preview, which has its own dedicated dialog test.
+    override suspend fun blastRadius(channelId: String, widgetId: String): ApiResult<BlastRadiusSummary> =
+        ApiResult.Ok(BlastRadiusSummary())
 
     override suspend fun create(channelId: String, body: CreateWidgetBody): ApiResult<WidgetSummary> {
         created += body

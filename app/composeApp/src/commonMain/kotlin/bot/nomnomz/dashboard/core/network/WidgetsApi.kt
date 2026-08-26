@@ -48,6 +48,13 @@ interface WidgetsApi {
      */
     suspend fun delete(channelId: String, widgetId: String): ApiResult<Unit>
 
+    /**
+     * The real, backend-counted blast radius of deleting this widget (S-CONSEQ). The delete confirm MUST call
+     * this and render the result before the destructive delete can proceed; no count is ever computed
+     * client-side.
+     */
+    suspend fun blastRadius(channelId: String, widgetId: String): ApiResult<BlastRadiusSummary>
+
     /** Create a new widget with [body] ({ name, framework }). Returns the created row (including its [WidgetSummary.id]). */
     suspend fun create(channelId: String, body: CreateWidgetBody): ApiResult<WidgetSummary>
 
@@ -148,6 +155,9 @@ class RestWidgetsApi(private val client: ApiClient) : WidgetsApi {
 
     override suspend fun delete(channelId: String, widgetId: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/widgets/$widgetId")
+
+    override suspend fun blastRadius(channelId: String, widgetId: String): ApiResult<BlastRadiusSummary> =
+        client.getEnvelope("api/v1/channels/$channelId/widgets/$widgetId/blast-radius")
 
     // POST to the list endpoint; backend returns StatusResponseDto<WidgetDetail> — postEnvelope unwraps `.data`.
     override suspend fun create(channelId: String, body: CreateWidgetBody): ApiResult<WidgetSummary> =

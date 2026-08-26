@@ -17,6 +17,7 @@ using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Rewards.Dtos;
 using NomNomzBot.Application.Rewards.Services;
@@ -265,9 +266,34 @@ public class RewardsController : BaseController
         return Ok(new StatusResponseDto<RewardDetail> { Data = result.Value });
     }
 
-    /// <summary>Delete a channel point reward.</summary>
+    /// <summary>
+    /// Real, counted blast radius for deleting this reward (S-CONSEQ). The dashboard MUST call this and
+    /// render the result before the delete confirm can proceed.
+    /// </summary>
     [RequireAction("reward:manage")]
-    [DestructiveAction(PendingBlastRadiusSince = "2026-08-26")]
+    [DestructiveAction(HasCountedBlastRadius = true)]
+    [HttpGet("{rewardId}/blast-radius")]
+    [ProducesResponseType<StatusResponseDto<BlastRadiusDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetRewardDeleteBlastRadius(
+        string channelId,
+        string rewardId,
+        CancellationToken ct
+    )
+    {
+        Result<BlastRadiusDto> result = await _rewardService.GetDeleteBlastRadiusAsync(
+            channelId,
+            rewardId,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<BlastRadiusDto> { Data = result.Value });
+    }
+
+    /// <summary>Delete a channel point reward. The confirm step calls
+    /// <see cref="GetRewardDeleteBlastRadius"/> first and shows the counted dependents before this runs.</summary>
+    [RequireAction("reward:manage")]
+    [DestructiveAction(HasCountedBlastRadius = true)]
     [HttpDelete("{rewardId}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteReward(

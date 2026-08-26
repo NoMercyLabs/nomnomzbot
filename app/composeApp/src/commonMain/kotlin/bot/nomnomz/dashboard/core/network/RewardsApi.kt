@@ -44,6 +44,13 @@ interface RewardsApi {
     suspend fun delete(channelId: String, rewardId: String): ApiResult<Unit>
 
     /**
+     * The real, backend-counted blast radius of deleting this reward (S-CONSEQ). The delete confirm MUST call
+     * this and render the result before the destructive delete can proceed; no count is ever computed
+     * client-side.
+     */
+    suspend fun blastRadius(channelId: String, rewardId: String): ApiResult<BlastRadiusSummary>
+
+    /**
      * The channel-points redemption queue (backend `RewardsController.ListRedemptions`, newest-first). Pass
      * [status] = "unfulfilled" for the pending lane, or null for the whole queue. Flat `PaginatedResponse`.
      */
@@ -123,6 +130,9 @@ class RestRewardsApi(private val client: ApiClient) : RewardsApi {
 
     override suspend fun delete(channelId: String, rewardId: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/rewards/$rewardId")
+
+    override suspend fun blastRadius(channelId: String, rewardId: String): ApiResult<BlastRadiusSummary> =
+        client.getEnvelope("api/v1/channels/$channelId/rewards/$rewardId/blast-radius")
 
     override suspend fun redemptions(
         channelId: String,

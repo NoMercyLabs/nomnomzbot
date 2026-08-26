@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Giveaways.Dtos;
 
@@ -48,6 +49,17 @@ public interface IGiveawayCodePoolService
     );
 
     Task<Result> DeletePoolAsync(Guid broadcasterId, Guid poolId, CancellationToken ct = default);
+
+    /// <summary>
+    /// The real, counted blast radius of deleting this pool (S-CONSEQ): the codes that carry its
+    /// <c>CodePoolId</c> and the giveaways that carry it as <c>PrizeCodePoolId</c>. Returns a failure when the
+    /// pool does not exist in this tenant.
+    /// </summary>
+    Task<Result<BlastRadiusDto>> GetDeleteBlastRadiusAsync(
+        Guid broadcasterId,
+        Guid poolId,
+        CancellationToken ct = default
+    );
 
     /// <summary>Broadcaster-only fallback when the winner's whisper failed (D6): decrypts the assigned
     /// code for manual relay — the one read path that ever returns plaintext.</summary>
