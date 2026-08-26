@@ -60,6 +60,15 @@ data class CurrentUser(
     val isAdmin: Boolean = false,
 )
 
+/**
+ * The `StatusResponseDto` error envelope — the OTHER shape a failing endpoint answers with. Controllers that
+ * map a `Result` failure (every `BadRequestResponse`/`ConflictResponse`/… helper in `BaseController`) return
+ * `{"status":"error","message":"..."}` rather than problem details, so the reason has to be read from here or
+ * it is lost and the user sees only a bare status code.
+ */
+@Serializable
+data class ErrorEnvelope(val message: String? = null)
+
 /** RFC-7807 problem details the backend returns for 4xx/5xx. */
 @Serializable
 data class ProblemDetails(

@@ -109,7 +109,7 @@ data class AdminState(
 enum class ImpersonationRefusal {
     /** No open, audited support session for this tenant — minting is refused until one is begun. */
     NoOpenSupportSession,
-    /** The caller's role does not carry the impersonation grant (SaaS + platform-owner only). */
+    /** The caller's role does not carry the impersonation grant (platform-owner role only). */
     NotPermitted,
 }
 
@@ -479,10 +479,15 @@ class AdminController(
         reResolveIdentity()
     }
 
-    /** Recognizes the two refusals the confirm dialog must explain specifically; everything else is generic. */
-    private fun classifyImpersonationRefusal(error: ApiError): ImpersonationRefusal? = when (error.code) {
-        "NoOpenSupportSession" -> ImpersonationRefusal.NoOpenSupportSession
-        "NotPermitted", "Forbidden" -> ImpersonationRefusal.NotPermitted
+    /**
+     * Recognizes the two refusals the confirm dialog must explain specifically; everything else is generic.
+     * Classified on the HTTP status, not on [ApiError.code] — that code is the problem-details `type`, and these
+     * endpoints answer with the StatusResponseDto envelope, which carries no type, so matching names there never
+     * fired and every refusal fell through to the generic banner.
+     */
+    private fun classifyImpersonationRefusal(error: ApiError): ImpersonationRefusal? = when (error.status) {
+        403 -> ImpersonationRefusal.NotPermitted
+        409 -> ImpersonationRefusal.NoOpenSupportSession
         else -> null
     }
 
