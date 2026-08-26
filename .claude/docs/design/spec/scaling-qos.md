@@ -231,16 +231,44 @@ Registered once as a set (`services.AddScoped<IChatProvider, HelixChatProvider>(
 
 ---
 
-## 8. Per-unit resource budgets (the inner guards, reaffirmed)
+## 8. Per-unit resource budgets — `LimitedResourceRegistry` (as shipped)
 
-This subsystem owns the *between-tenant* fairness; the *within-unit* ceilings are owned by their subsystems and are **mandatory prerequisites** of this design:
+This subsystem owns the *between-tenant* fairness (§3–§5); the *within-unit* ceilings on countable/meterable resources are owned by one declaration point, `LimitedResourceRegistry` (`NomNomzBot.Application/Contracts/Billing/`). Every limited resource declares a **key** and a **`ResourceClass`**, and the class — not the resource's identity — decides whether it ever carries a tier ceiling. This is the design's core, driven by the owner's binding governance: **limits exist to recover real marginal cost, never to manufacture upsell pressure.**
 
-- **Pipeline** (`commands-pipelines.md` §3.3): per-channel + global concurrency admission, wall-clock-including-host watchdog, host-call budget, step-count cap, cumulative `Wait` cap. A runaway workflow self-terminates.
-- **Sandbox** (`code-execution-sandbox.md`): `ScriptResourceBudget` (CPU/mem/wall-clock), distributed admission, egress caps. A runaway `run_code` self-terminates. Per D11, **both** the sandbox per-execution budget **and** the sandbox rate/concurrency limits are **tier-scaled on top of the safety baseline** — the three budget/limit levels map to `base`/`pro`/`premium` (the `sandbox_exec_ms` `TierLimit` quota and the per-execution `ScriptResourceBudget` both scale with tier), and self-host is host-sized (`-1` quota, budget from detected host capacity). The per-execution clamp values and the `sandbox_exec_ms` reserve-then-settle metering remain **owned by `code-execution-sandbox.md` / `custom-code.md`**; this spec only states the tier-scaling governance.
-- **Webhooks** (`webhooks.md`): payload size cap, pre-resolution rate limit (now an `IRateLimiter` caller), retry/dead-letter, self-amplification guard.
+### 8.1 The two `ResourceClass` values
+
+- **`NEAR_FREE`** — the resource is one cheap DB row (commands, timers, event responses, response variations). It gets a **generous safety floor against abuse** and **never a paid ceiling**. Advertising a paid gate on a resource that costs the platform nothing to serve is a thing this project does not ship. The billing seeder no longer writes per-tier rows for `NEAR_FREE` keys (12 rows removed) — the tier catalogue no longer advertises a limit nothing enforces.
+- **`COST_DRIVING`** — the resource maps to a real bill, so it is **tier-scaled** (`base` < `pro` < `premium`, D11): `tts_max_characters`, `sandbox_exec_ms`, `sound_clip_storage_bytes`, `channel_asset_storage_bytes`. These read the same `TierLimit` rows as §3.2/§4.3, sourced from `IBillingService.GetEntitlementAsync` (`monetization-billing.md`).
+
+`[CountedResource]` marks the entities that count against a registry key. A **reflection guard** fails the build when a `[CountedResource]`-marked entity has no matching registry entry — the resource inventory is enumerated structurally off the codebase, never from a hand-maintained list, so a new countable entity cannot silently ship unmetered.
+
+### 8.2 Enforcement path — one method, write and read agree
+
+Enforcement happens at the **write path** through `IResourceQuotaService.GetCurrentCountAsync`, and `GET /api/v1/billing/usage` (Gate-2 `billing:read`) **reports through the same method** — the number a user is shown can never disagree with the number that refuses them. The storage write paths (sound clips, channel assets) are wired to the same service, with a **per-file size cap kept as an abuse guard that survives any tier** (it is not a `TierLimit` row — it applies uniformly).
+
+**Self-host enforces only the safety baseline** (the `NEAR_FREE` abuse floor, and the `COST_DRIVING` per-execution/per-file guards) — **never a commercial ceiling** — because self-host runs on the operator's own hardware and there is no bill to protect.
+
+### 8.3 Explicitly not metered (known gaps, not oversights)
+
+- **Bandwidth / egress** — no request-byte counter exists anywhere in the stack. Not metered.
+- **Retained `EventJournal` rows** — no retention policy exists to hang a limit on (§7 partitioning is storage layout, not a retention/eviction policy). Not metered.
+
+Both are recorded here as known gaps rather than implied coverage; closing either is a separate, undecided piece of work with no fork to resolve today.
+
+### 8.4 Dashboard surface
+
+The dashboard's resource-limits section renders "X of Y used" from real counts returned by `GET /api/v1/billing/usage`. `NEAR_FREE` floors render as **abuse guards with no upgrade prompt** (there is nothing to upgrade). Create surfaces disable at-limit **with the reason** and warn when approaching the limit. A missing/failed usage report **never blocks a create** — it fails open, consistent with the platform's backpressure posture (§5: no request type blocks on a non-critical dependency being unavailable).
+
+### 8.5 Still owned by their subsystems
+
+The following remain **mandatory prerequisites** of this design, owned and detailed by their own specs; this section only states how they plug into `LimitedResourceRegistry`'s class split:
+
+- **Pipeline** (`commands-pipelines.md` §3.3): per-channel + global concurrency admission, wall-clock-including-host watchdog, host-call budget, step-count cap, cumulative `Wait` cap. A runaway workflow self-terminates. Not a `LimitedResourceRegistry` key — an admission control, not a count.
+- **Sandbox** (`code-execution-sandbox.md`): `ScriptResourceBudget` (CPU/mem/wall-clock), distributed admission, egress caps. A runaway `run_code` self-terminates. `sandbox_exec_ms` is `COST_DRIVING` (§8.1) — both the `TierLimit` quota and the per-execution `ScriptResourceBudget` scale with tier; self-host is host-sized (`-1` quota, budget from detected host capacity). The per-execution clamp values and the reserve-then-settle metering remain owned by `code-execution-sandbox.md` / `custom-code.md`.
+- **Webhooks** (`webhooks.md`): payload size cap, pre-resolution rate limit (an `IRateLimiter` caller, §4), retry/dead-letter, self-amplification guard.
 - **Regex** (`commands-pipelines.md` §6.4): `NonBacktracking` + ~50 ms match timeout.
 
-A single request/workflow is bounded by these; a single channel is bounded by §3.2 caps + §4.3 buckets; the platform is bounded by §5 backpressure. The three layers compose — no escape hatch.
+A single request/workflow is bounded by these; a single channel is bounded by §3.2 caps + §4.3 buckets + §8's resource registry; the platform is bounded by §5 backpressure. The layers compose — no escape hatch.
 
 ---
 
