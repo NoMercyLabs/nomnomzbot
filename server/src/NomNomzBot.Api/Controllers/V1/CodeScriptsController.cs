@@ -16,6 +16,7 @@ using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Auth;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.DevPlatform.Dtos;
@@ -188,8 +189,24 @@ public class CodeScriptsController(
             : ResultResponse(await scripts.SetEnabledAsync(id, request.IsEnabled, ct));
     }
 
-    /// <summary>Delete a code script.</summary>
-    [DestructiveAction(PendingBlastRadiusSince = "2026-08-26")]
+    /// <summary>
+    /// Real, counted blast radius for deleting this code script (S-CONSEQ). The dashboard MUST call this and render the
+    /// result before the confirm can proceed.
+    /// </summary>
+    [DestructiveAction(HasCountedBlastRadius = true)]
+    [HttpGet("{id:guid}/blast-radius")]
+    [ProducesResponseType<StatusResponseDto<BlastRadiusDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetDeleteBlastRadius(Guid id, CancellationToken ct)
+    {
+        Result gate = await FeatureGateAsync(ct);
+        return gate.IsFailure
+            ? ResultResponse(gate)
+            : ResultResponse(await scripts.GetDeleteBlastRadiusAsync(id, ct));
+    }
+
+    /// <summary>Delete a code script. The confirm step calls <see cref="GetDeleteBlastRadius"/> first and
+    /// shows the counted dependents before this runs.</summary>
+    [DestructiveAction(HasCountedBlastRadius = true)]
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {

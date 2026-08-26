@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 
 namespace NomNomzBot.Application.Assets.Services;
@@ -57,6 +58,18 @@ public interface IChannelAssetService
     Task<Result<ChannelAssetContent>> OpenForServingAsync(
         Guid broadcasterId,
         string name,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// The real, counted blast radius of deleting this media asset (S-CONSEQ). An asset has NO foreign key —
+    /// it is referenced by its stable serving path, pasted into widget source or into a pipeline step's config
+    /// — so the count comes from a literal search for that path. Nested config and template-built URLs cannot
+    /// be read, which makes the total a MINIMUM. Returns a failure when the asset does not exist in this tenant.
+    /// </summary>
+    Task<Result<BlastRadiusDto>> GetDeleteBlastRadiusAsync(
+        Guid broadcasterId,
+        Guid id,
         CancellationToken ct = default
     );
 }

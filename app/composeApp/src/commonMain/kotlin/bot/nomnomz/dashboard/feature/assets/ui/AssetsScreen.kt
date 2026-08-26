@@ -79,6 +79,10 @@ import nomnomzbot.composeapp.generated.resources.assets_size_mb
 import nomnomzbot.composeapp.generated.resources.assets_upload_action
 import nomnomzbot.composeapp.generated.resources.shell_nav_assets
 import org.jetbrains.compose.resources.stringResource
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
+import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.consequences.DeleteBlastRadiusDialog
+import bot.nomnomz.dashboard.core.consequences.BlastRadiusLoadState
 
 // The Assets page (Sound Clips twin): the channel's uploaded media library for overlays and widgets.
 // Lists real assets from the backend; brokers upload (native OS file picker → multipart POST — same
@@ -126,12 +130,22 @@ fun AssetsScreen(controller: AssetsController, role: ManagementRole?) {
     }
 
     deleteTarget?.let { asset ->
-        ConfirmDialog(
+        // Fetched fresh per row (never cached or guessed) — the counted blast radius the confirm MUST show
+        // before the destructive save can proceed (S-CONSEQ).
+        var blastRadius: BlastRadiusLoadState by remember(asset.id) { mutableStateOf(BlastRadiusLoadState.Loading) }
+        LaunchedEffect(asset.id) {
+            blastRadius =
+                when (val result: ApiResult<BlastRadiusSummary> = controller.fetchBlastRadius(asset.id)) {
+                    is ApiResult.Ok -> BlastRadiusLoadState.Loaded(result.value)
+                    is ApiResult.Failure -> BlastRadiusLoadState.Failed
+                }
+        }
+        DeleteBlastRadiusDialog(
             title = stringResource(Res.string.assets_delete_title),
             message = stringResource(Res.string.assets_delete_message, asset.displayName),
             confirmLabel = stringResource(Res.string.assets_delete_confirm),
             dismissLabel = stringResource(Res.string.assets_delete_cancel),
-            destructive = true,
+            blastRadius = blastRadius,
             onConfirm = {
                 scope.launch { controller.deleteAsset(asset.id) }
                 deleteTarget = null

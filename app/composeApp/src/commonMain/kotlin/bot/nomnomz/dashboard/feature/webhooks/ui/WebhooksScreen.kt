@@ -179,6 +179,10 @@ import nomnomzbot.composeapp.generated.resources.webhooks_subtitle
 import nomnomzbot.composeapp.generated.resources.webhooks_test_result_title
 import nomnomzbot.composeapp.generated.resources.webhooks_url_label
 import org.jetbrains.compose.resources.stringResource
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
+import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.consequences.DeleteBlastRadiusDialog
+import bot.nomnomz.dashboard.core.consequences.BlastRadiusLoadState
 
 // The Webhooks page: inbound endpoints (events → pipeline) and outbound endpoints (events → external URL).
 // Both lists load in parallel via [WebhooksController]. All mutations go through the controller which reloads
@@ -343,12 +347,22 @@ fun WebhooksScreen(controller: WebhooksController, role: ManagementRole?, hubEve
     val catalogue: List<OutboundEventCatalogueEntry> = (state as? WebhooksState.Ready)?.catalogue ?: emptyList()
 
     pendingDeleteInbound?.let { ep ->
-        ConfirmDialog(
+        // Fetched fresh per row (never cached or guessed) — the counted blast radius the confirm MUST show
+        // before the destructive save can proceed (S-CONSEQ).
+        var blastRadius: BlastRadiusLoadState by remember(ep.id) { mutableStateOf(BlastRadiusLoadState.Loading) }
+        LaunchedEffect(ep.id) {
+            blastRadius =
+                when (val result: ApiResult<BlastRadiusSummary> = controller.fetchInboundBlastRadius(ep.id)) {
+                    is ApiResult.Ok -> BlastRadiusLoadState.Loaded(result.value)
+                    is ApiResult.Failure -> BlastRadiusLoadState.Failed
+                }
+        }
+        DeleteBlastRadiusDialog(
             title = stringResource(Res.string.webhooks_delete_title),
             message = stringResource(Res.string.webhooks_delete_message, ep.name),
             confirmLabel = stringResource(Res.string.webhooks_delete_confirm),
             dismissLabel = stringResource(Res.string.webhooks_delete_cancel),
-            destructive = true,
+            blastRadius = blastRadius,
             onConfirm = { pendingDeleteInbound = null; scope.launch { controller.deleteInbound(ep.id) } },
             onDismiss = { pendingDeleteInbound = null },
         )

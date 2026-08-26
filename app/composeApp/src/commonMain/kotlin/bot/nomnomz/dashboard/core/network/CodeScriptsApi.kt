@@ -54,6 +54,13 @@ interface CodeScriptsApi {
     suspend fun delete(id: String): ApiResult<Unit>
 
     /**
+     * The real, backend-counted blast radius of deleting this code script (S-CONSEQ). The confirm dialog MUST call
+     * this and render the result before the destructive save can proceed; nothing is counted client-side, and
+     * a failed lookup surfaces as a failure rather than as a reassuring zero.
+     */
+    suspend fun blastRadius(id: String): ApiResult<BlastRadiusSummary>
+
+    /**
      * Dry-run the script's current version with sample inputs (backend `POST /code-scripts/{id}/test-run`). The real
      * sandbox runs the real logic, but every outward/mutating effect (chat, TTS, widgets, storage writes, rewards,
      * schedules) is CAPTURED and returned rather than performed; reads run live. Nothing is dispatched or persisted.
@@ -96,6 +103,9 @@ class RestCodeScriptsApi(private val client: ApiClient) : CodeScriptsApi {
 
     override suspend fun delete(id: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/code-scripts/$id")
+
+    override suspend fun blastRadius(id: String): ApiResult<BlastRadiusSummary> =
+        client.getEnvelope("api/v1/code-scripts/$id/blast-radius")
 
     override suspend fun testRun(id: String, body: ScriptTestRunBody): ApiResult<TestRunResult> =
         client.postEnvelope("api/v1/code-scripts/$id/test-run", body)

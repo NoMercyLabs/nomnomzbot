@@ -55,6 +55,13 @@ interface GiveawaysApi {
     /** Soft-delete a giveaway, addressed by its [id] (backend DELETE). */
     suspend fun delete(id: String): ApiResult<Unit>
 
+    /**
+     * The real, backend-counted blast radius of deleting this giveaway (S-CONSEQ). The confirm dialog MUST call
+     * this and render the result before the destructive save can proceed; nothing is counted client-side, and
+     * a failed lookup surfaces as a failure rather than as a reassuring zero.
+     */
+    suspend fun blastRadius(id: String): ApiResult<BlastRadiusSummary>
+
     /** Open a giveaway for entries — one active giveaway per channel (backend POST). */
     suspend fun open(id: String): ApiResult<Unit>
 
@@ -124,6 +131,9 @@ class RestGiveawaysApi(private val client: ApiClient) : GiveawaysApi {
 
     override suspend fun delete(id: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/giveaways/$id")
+
+    override suspend fun blastRadius(id: String): ApiResult<BlastRadiusSummary> =
+        client.getEnvelope("api/v1/giveaways/$id/blast-radius")
 
     override suspend fun open(id: String): ApiResult<Unit> =
         client.postUnit("api/v1/giveaways/$id/open")

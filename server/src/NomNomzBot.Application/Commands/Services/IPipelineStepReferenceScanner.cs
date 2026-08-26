@@ -29,6 +29,22 @@ public sealed record PipelineStepReferenceScan(
     bool IsMinimum
 );
 
+/// <summary>How a scanned config value is compared to the resource's tokens.</summary>
+public enum ReferenceMatchMode
+{
+    /// <summary>The stored value IS the token — a resource named by id or by name slug.</summary>
+    Exact,
+
+    /// <summary>The stored value CONTAINS the token — a resource embedded in a longer string, such as an
+    /// asset whose serving URL is pasted into a config field.</summary>
+    Contains,
+
+    /// <summary>Like <see cref="Contains"/>, but EVERY top-level string field is examined rather than a named
+    /// few — the mode for a resource that can be pasted into any field, such as an asset URL. A non-string
+    /// field (a nested object or array) cannot be read this way and makes the total a floor.</summary>
+    ContainsAnyField,
+}
+
 /// <summary>
 /// Counts the pipeline steps that reference a resource which has NO foreign key — sound clips and widgets are
 /// named inside the opaque <c>PipelineStep.ConfigJson</c> blob, so the database cannot answer "what breaks if
@@ -40,13 +56,26 @@ public interface IPipelineStepReferenceScanner
 {
     /// <summary>
     /// Scan every pipeline step in <paramref name="broadcasterId"/> for a top-level config field named in
-    /// <paramref name="fieldNames"/> whose string value equals any of <paramref name="tokens"/>
-    /// (case-insensitive). A resource referenced by id OR by name passes both as tokens.
+    /// <paramref name="fieldNames"/> whose string value matches any of <paramref name="tokens"/>
+    /// (case-insensitive) under <paramref name="matchMode"/>. A resource referenced by id OR by name passes
+    /// both as tokens.
     /// </summary>
     Task<Result<PipelineStepReferenceScan>> ScanAsync(
         Guid broadcasterId,
         IReadOnlyList<string> fieldNames,
         IReadOnlyList<string> tokens,
+        ReferenceMatchMode matchMode = ReferenceMatchMode.Exact,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// Count the tenant's pipeline steps whose ACTION TYPE is one of <paramref name="actionTypes"/> — the way
+    /// to answer "what stops working if this provider is disconnected?", where the dependency is the action
+    /// itself (a Spotify skip, a Discord notification) rather than a value inside its config.
+    /// </summary>
+    Task<Result<PipelineStepReferenceScan>> CountByActionTypesAsync(
+        Guid broadcasterId,
+        IReadOnlyList<string> actionTypes,
         CancellationToken ct = default
     );
 }

@@ -47,6 +47,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // Proves the integrations onboarding state machine — the behavior the screen renders and the connect
 // flows the user drives. These assert the resulting STATE and the SIDE EFFECTS (which authorize URL the
@@ -781,6 +782,11 @@ private class FakeIntegrationsApi(
     status: List<IntegrationStatus>,
     private val authorizeUrl: String = "https://provider/authorize",
 ) : IntegrationsApi {
+    // Not exercised here: the counted delete preview has its own tests. The seam is implemented so the double
+    // stays a real implementation of the interface rather than a partial one.
+    override suspend fun disconnectBlastRadius(channelId: String, provider: String): ApiResult<BlastRadiusSummary> =
+        ApiResult.Ok(BlastRadiusSummary())
+
     // `statusAfter` lets a test model the backend connecting/disconnecting between the initial load and
     // the post-action refresh, so the re-read (not an optimistic flip) is what changes the row.
     private val initial: List<IntegrationStatus> = status

@@ -10,6 +10,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Application.Economy.Services;
@@ -58,8 +59,8 @@ public sealed class EconomyLeaderboardService(IApplicationDbContext db, TimeProv
         CancellationToken ct = default
     )
     {
-        string metric = (request.Metric ?? string.Empty).Trim().ToLowerInvariant();
-        string scope = (request.Scope ?? string.Empty).Trim().ToLowerInvariant();
+        string metric = request.Metric.Trim().ToLowerInvariant();
+        string scope = request.Scope.Trim().ToLowerInvariant();
         if (!AllowedMetrics.Contains(metric))
             return Result.Failure<LeaderboardConfigDto>(
                 "Metric must be balance, earned, or spent.",
@@ -95,7 +96,7 @@ public sealed class EconomyLeaderboardService(IApplicationDbContext db, TimeProv
 
         config.Metric = metric;
         config.Scope = scope;
-        config.Period = (request.Period ?? "alltime").Trim().ToLowerInvariant();
+        config.Period = request.Period.Trim().ToLowerInvariant();
         config.IsPublic = request.IsPublic;
         config.TopN = request.TopN;
         config.JarId = request.JarId;
@@ -381,4 +382,40 @@ public sealed class EconomyLeaderboardService(IApplicationDbContext db, TimeProv
             c.CreatedAt,
             c.UpdatedAt
         );
+
+    /// <summary>Counts the stored snapshots that would lose their leaderboard. FK-backed, so exhaustive.</summary>
+    public async Task<Result<BlastRadiusDto>> GetDeleteConfigBlastRadiusAsync(
+        Guid broadcasterId,
+        Guid configId,
+        CancellationToken ct = default
+    )
+    {
+        bool exists = await db.LeaderboardConfigs.AnyAsync(
+            config => config.BroadcasterId == broadcasterId && config.Id == configId,
+            ct
+        );
+        if (!exists)
+            return Result<BlastRadiusDto>.Failure(
+                $"Leaderboard configuration '{configId}' was not found.",
+                "NOT_FOUND"
+            );
+
+        int snapshots = await db.LeaderboardSnapshots.CountAsync(
+            snapshot =>
+                snapshot.BroadcasterId == broadcasterId && snapshot.LeaderboardConfigId == configId,
+            ct
+        );
+
+        List<BlastRadiusCategoryDto> categories = [];
+        if (snapshots > 0)
+            categories.Add(
+                new BlastRadiusCategoryDto(
+                    BlastRadiusCategoryKeys.LeaderboardSnapshots,
+                    snapshots,
+                    []
+                )
+            );
+
+        return Result<BlastRadiusDto>.Success(new BlastRadiusDto(categories, IsMinimum: false));
+    }
 }

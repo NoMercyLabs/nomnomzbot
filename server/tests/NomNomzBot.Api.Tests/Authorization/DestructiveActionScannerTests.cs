@@ -51,39 +51,15 @@ public class DestructiveActionScannerTests
 
     /// <summary>
     /// The dated baseline of destructive actions that NEED a counted blast radius and do not have one yet
-    /// (established 2026-08-26, S-CONSEQ-c1; four covered by S-CONSEQ-c2). This list may only SHRINK: the test asserts set EQUALITY, so a
-    /// newly added destructive action cannot slip in, and a fixed one must be removed from here in the same
-    /// commit that covers it. Each entry is a real referencing-schema fact, not a shrug:
+    /// (established 2026-08-26, S-CONSEQ-c1; four covered by S-CONSEQ-c2, eleven more by S-CONSEQ-c3). This
+    /// list may only SHRINK: the test asserts set EQUALITY, so a newly added destructive action cannot slip
+    /// in, and a fixed one must be removed from here in the same commit that covers it. The one entry left is
+    /// a real referencing-schema fact, not a shrug:
     /// <list type="bullet">
-    /// <item>AssetsController.Delete — widgets/sound clips reference an asset by URL.</item>
-    /// <item>BundlesController.Uninstall — removes the commands/widgets/pick-lists the bundle installed.</item>
-    /// <item>CatalogController.DeleteItem — CatalogPurchase rows carry CatalogItemId.</item>
     /// <item>ChannelsController.DeleteChannel — nearly every tenant-scoped table carries BroadcasterId.</item>
-    /// <item>CodeScriptsController.Delete — CodeScriptVersion and PipelineStep carry CodeScriptId.</item>
-    /// <item>CustomDataSourcesController.Delete — pipeline steps and widgets read the source by key.</item>
-    /// <item>DiscordController.Disconnect — SupporterConnection carries IntegrationConnectionId.</item>
-    /// <item>EconomyLeaderboardsController.DeleteConfig — LeaderboardSnapshot carries LeaderboardConfigId.</item>
-    /// <item>GiveawaysController.Delete — GiveawayEntry and GiveawayWinner carry GiveawayId.</item>
-    /// <item>IntegrationsController.Disconnect — SupporterConnection carries IntegrationConnectionId.</item>
-    /// <item>PickListsController.DeletePickList — PickFromListAction resolves lists by name from pipeline steps.</item>
-    /// <item>WebhooksController.DeleteInbound — CustomDataSource and SupporterConnection carry InboundWebhookEndpointId.</item>
     /// </list>
     /// </summary>
-    private static readonly HashSet<string> PendingBaseline =
-    [
-        "AssetsController.Delete",
-        "BundlesController.Uninstall",
-        "CatalogController.DeleteItem",
-        "ChannelsController.DeleteChannel",
-        "CodeScriptsController.Delete",
-        "CustomDataSourcesController.Delete",
-        "DiscordController.Disconnect",
-        "EconomyLeaderboardsController.DeleteConfig",
-        "GiveawaysController.Delete",
-        "IntegrationsController.Disconnect",
-        "PickListsController.DeletePickList",
-        "WebhooksController.DeleteInbound",
-    ];
+    private static readonly HashSet<string> PendingBaseline = ["ChannelsController.DeleteChannel"];
 
     private static bool IsDestructive(MethodInfo method)
     {

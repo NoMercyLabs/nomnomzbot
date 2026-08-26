@@ -57,6 +57,7 @@ import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_pipeline_deleted
 import nomnomzbot.composeapp.generated.resources.feedback_pipeline_saved
 import nomnomzbot.composeapp.generated.resources.feedback_pipeline_save_failed
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // Proves the Pipelines page state machine: resolve the active channel, list its real pipelines, drive the
 // full list-level management surface (create / rename / toggle / delete), open a pipeline's action-chain
@@ -451,6 +452,11 @@ private fun pipelinesController(
 // The editor picker sources are best-effort in the controller; these stubs return empty so the fields fall
 // back to free text — the pipeline-behaviour tests don't exercise the pickers.
 private object StubWebhooksApi : WebhooksApi {
+    // Not exercised here: the counted delete preview has its own tests. The seam is implemented so the double
+    // stays a real implementation of the interface rather than a partial one.
+    override suspend fun inboundBlastRadius(channelId: String, endpointId: String): ApiResult<BlastRadiusSummary> =
+        ApiResult.Ok(BlastRadiusSummary())
+
     override suspend fun listInbound(channelId: String): ApiResult<List<InboundWebhook>> = ApiResult.Ok(emptyList())
     override suspend fun createInbound(channelId: String, body: CreateInboundBody): ApiResult<InboundWebhook> =
         ApiResult.Ok(InboundWebhook())
@@ -481,6 +487,11 @@ private object StubWebhooksApi : WebhooksApi {
 }
 
 private object StubPickListsApi : PickListsApi {
+    // Not exercised here: the counted delete preview has its own tests (DeleteBlastRadiusDialogTest and the
+    // backend's blast-radius suites). The seam is implemented so the double stays a real implementation.
+    override suspend fun blastRadius(id: String): ApiResult<BlastRadiusSummary> =
+        ApiResult.Ok(BlastRadiusSummary())
+
     override suspend fun list(): ApiResult<List<PickList>> = ApiResult.Ok(emptyList())
     override suspend fun get(id: String): ApiResult<PickList> = ApiResult.Ok(PickList())
     override suspend fun create(body: CreatePickListBody): ApiResult<Unit> = ApiResult.Ok(Unit)

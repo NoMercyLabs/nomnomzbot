@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.DevPlatform.Dtos;
@@ -546,4 +547,61 @@ public sealed class CodeScriptService(
     private static T? Deserialize<T>(string? json)
         where T : class =>
         string.IsNullOrEmpty(json) ? null : JsonConvert.DeserializeObject<T>(json);
+
+    /// <summary>
+    /// Counts the saved revisions and the pipeline steps that run this script. Both dependents carry a real
+    /// <c>CodeScriptId</c> FK, so the total is exhaustive — a script nothing runs is a VERIFIED zero.
+    /// </summary>
+    public async Task<Result<BlastRadiusDto>> GetDeleteBlastRadiusAsync(
+        Guid codeScriptId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (tenant.BroadcasterId is not { } broadcasterId)
+            return Result<BlastRadiusDto>.Failure("No tenant.", "NO_TENANT");
+
+        CodeScript? script = await LoadAsync(codeScriptId, cancellationToken);
+        if (script is null)
+            return Result<BlastRadiusDto>.Failure("Script not found.", "NOT_FOUND");
+
+        int versions = await db.CodeScriptVersions.CountAsync(
+            version => version.CodeScriptId == codeScriptId,
+            cancellationToken
+        );
+
+        List<Guid> pipelineIds = await db
+            .PipelineSteps.Where(step =>
+                step.BroadcasterId == broadcasterId && step.CodeScriptId == codeScriptId
+            )
+            .Select(step => step.PipelineId)
+            .ToListAsync(cancellationToken);
+
+        List<string> pipelineNames =
+            pipelineIds.Count == 0
+                ? []
+                : await db
+                    .Pipelines.Where(pipeline =>
+                        pipeline.BroadcasterId == broadcasterId && pipelineIds.Contains(pipeline.Id)
+                    )
+                    .OrderBy(pipeline => pipeline.Name)
+                    .Select(pipeline => pipeline.Name)
+                    .Take(5)
+                    .ToListAsync(cancellationToken);
+
+        List<BlastRadiusCategoryDto> categories = [];
+        if (pipelineIds.Count > 0)
+            categories.Add(
+                new BlastRadiusCategoryDto(
+                    BlastRadiusCategoryKeys.PipelineSteps,
+                    pipelineIds.Count,
+                    pipelineNames
+                )
+            );
+        if (versions > 0)
+            categories.Add(
+                new BlastRadiusCategoryDto(BlastRadiusCategoryKeys.CodeScriptVersions, versions, [])
+            );
+
+        return Result<BlastRadiusDto>.Success(new BlastRadiusDto(categories, IsMinimum: false));
+    }
 }

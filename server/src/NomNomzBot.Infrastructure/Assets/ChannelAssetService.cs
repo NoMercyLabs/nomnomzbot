@@ -12,6 +12,8 @@ using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Assets.Services;
+using NomNomzBot.Application.Commands.Services;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.DTOs.Billing;
@@ -27,16 +29,19 @@ internal sealed partial class ChannelAssetService : IChannelAssetService
     private readonly IApplicationDbContext _db;
     private readonly IChannelAssetStore _store;
     private readonly IResourceQuotaService _quota;
+    private readonly IPipelineStepReferenceScanner _stepReferences;
 
     public ChannelAssetService(
         IApplicationDbContext db,
         IChannelAssetStore store,
-        IResourceQuotaService quota
+        IResourceQuotaService quota,
+        IPipelineStepReferenceScanner stepReferences
     )
     {
         _db = db;
         _store = store;
         _quota = quota;
+        _stepReferences = stepReferences;
     }
 
     [GeneratedRegex("^[A-Za-z0-9_-]{1,50}$")]
@@ -258,4 +263,78 @@ internal sealed partial class ChannelAssetService : IChannelAssetService
             // Stable public serving URL (anonymous, immutable-cached); `v` busts caches on replace.
             $"/api/v1/assets/file/{a.BroadcasterId}/{a.Name}?v={a.UpdatedAt.Ticks}"
         );
+
+    /// <summary>
+    /// Counts what stops rendering if this asset goes. The reference is the asset's stable serving path
+    /// (<c>assets/file/{channel}/{name}</c>), which is pasted into widget source code and into pipeline step
+    /// config; matching on that path rather than on the bare name is what keeps a short name like "logo" from
+    /// producing invented hits. The total is a floor, never a completeness claim.
+    /// </summary>
+    public async Task<Result<BlastRadiusDto>> GetDeleteBlastRadiusAsync(
+        Guid broadcasterId,
+        Guid id,
+        CancellationToken ct = default
+    )
+    {
+        ChannelAsset? asset = await _db.ChannelAssets.FirstOrDefaultAsync(
+            row => row.BroadcasterId == broadcasterId && row.Id == id,
+            ct
+        );
+        if (asset is null)
+            return Result<BlastRadiusDto>.Failure($"Asset '{id}' was not found.", "NOT_FOUND");
+
+        string servingPath = $"assets/file/{broadcasterId}/{asset.Name}";
+
+        Result<PipelineStepReferenceScan> scan = await _stepReferences.ScanAsync(
+            broadcasterId,
+            [],
+            [servingPath],
+            ReferenceMatchMode.ContainsAnyField,
+            ct
+        );
+        if (scan.IsFailure)
+            return Result<BlastRadiusDto>.Failure(
+                scan.ErrorMessage ?? "The reference scan failed.",
+                scan.ErrorCode ?? "SCAN_FAILED"
+            );
+
+        List<string> widgetNames = await _db
+            .WidgetVersions.Where(version =>
+                version.BroadcasterId == broadcasterId
+                && (
+                    (version.SourceCode != null && version.SourceCode.Contains(servingPath))
+                    || (version.FilesJson != null && version.FilesJson.Contains(servingPath))
+                )
+            )
+            .Join(
+                _db.Widgets.Where(widget => widget.BroadcasterId == broadcasterId),
+                version => version.WidgetId,
+                widget => widget.Id,
+                (version, widget) => widget.Name
+            )
+            .Distinct()
+            .OrderBy(name => name)
+            .ToListAsync(ct);
+
+        List<BlastRadiusCategoryDto> categories = [];
+        if (scan.Value.MatchCount > 0)
+            categories.Add(
+                new BlastRadiusCategoryDto(
+                    BlastRadiusCategoryKeys.PipelineSteps,
+                    scan.Value.MatchCount,
+                    scan.Value.PipelineNames
+                )
+            );
+        if (widgetNames.Count > 0)
+            categories.Add(
+                new BlastRadiusCategoryDto(
+                    BlastRadiusCategoryKeys.Widgets,
+                    widgetNames.Count,
+                    [.. widgetNames.Take(5)]
+                )
+            );
+
+        // A URL can also be assembled at run time (a template, a code script), so this is always a FLOOR.
+        return Result<BlastRadiusDto>.Success(new BlastRadiusDto(categories, IsMinimum: true));
+    }
 }

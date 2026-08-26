@@ -41,6 +41,16 @@ interface WebhooksApi {
     suspend fun rotateInboundToken(channelId: String, endpointId: String): ApiResult<String>
     suspend fun deleteInbound(channelId: String, endpointId: String): ApiResult<Unit>
 
+    /**
+     * The real, backend-counted blast radius of deleting this inbound webhook endpoint (S-CONSEQ). The confirm dialog MUST call
+     * this and render the result before the destructive save can proceed; nothing is counted client-side, and
+     * a failed lookup surfaces as a failure rather than as a reassuring zero.
+     */
+    suspend fun inboundBlastRadius(
+        channelId: String,
+        endpointId: String,
+    ): ApiResult<BlastRadiusSummary>
+
     suspend fun outboundEventCatalogue(channelId: String): ApiResult<List<OutboundEventCatalogueEntry>>
     suspend fun listOutbound(channelId: String): ApiResult<List<OutboundWebhook>>
     suspend fun createOutbound(channelId: String, body: CreateOutboundBody): ApiResult<OutboundWebhookCreated>
@@ -78,6 +88,12 @@ class RestWebhooksApi(private val client: ApiClient) : WebhooksApi {
 
     override suspend fun deleteInbound(channelId: String, endpointId: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/webhooks/inbound/$endpointId")
+
+    override suspend fun inboundBlastRadius(
+        channelId: String,
+        endpointId: String,
+    ): ApiResult<BlastRadiusSummary> =
+        client.getEnvelope("api/v1/channels/$channelId/webhooks/inbound/$endpointId/blast-radius")
 
     override suspend fun outboundEventCatalogue(channelId: String): ApiResult<List<OutboundEventCatalogueEntry>> =
         client.getEnvelope("api/v1/channels/$channelId/webhooks/outbound/event-catalogue")

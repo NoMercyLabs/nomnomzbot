@@ -44,6 +44,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // Proves the Economy page state machine the screen renders: resolve the active channel, then surface the real
 // currency config and the real top-holders leaderboard — or an error if a step fails — and persist the operator's
@@ -547,6 +548,11 @@ private class FakeEconomyApi(
     private val earningRulesResult: ApiResult<List<EarningRule>> = ApiResult.Ok(emptyList()),
     private val catalogResult: ApiResult<List<CatalogItem>> = ApiResult.Ok(emptyList()),
 ) : EconomyApi {
+    // Not exercised here: the counted delete preview has its own tests. The seam is implemented so the double
+    // stays a real implementation of the interface rather than a partial one.
+    override suspend fun catalogItemBlastRadius(channelId: String, itemId: String): ApiResult<BlastRadiusSummary> =
+        ApiResult.Ok(BlastRadiusSummary())
+
     var lastUpdate: UpsertCurrencyConfig? = null
         private set
 

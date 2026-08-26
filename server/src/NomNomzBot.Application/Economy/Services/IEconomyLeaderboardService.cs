@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Economy;
 
@@ -59,4 +60,15 @@ public interface IEconomyLeaderboardService
 
     /// <summary>Removes the opt-out (re-includes the viewer). Idempotent.</summary>
     Task<Result> OptInAsync(Guid broadcasterId, Guid viewerUserId, CancellationToken ct = default);
+
+    /// <summary>
+    /// The real, counted blast radius of deleting this leaderboard configuration (S-CONSEQ).
+    /// <c>LeaderboardSnapshot</c> carries <c>LeaderboardConfigId</c>, so the stored history it would orphan is
+    /// an exhaustive FK count. Returns a failure when the config does not exist in this tenant.
+    /// </summary>
+    Task<Result<BlastRadiusDto>> GetDeleteConfigBlastRadiusAsync(
+        Guid broadcasterId,
+        Guid configId,
+        CancellationToken ct = default
+    );
 }

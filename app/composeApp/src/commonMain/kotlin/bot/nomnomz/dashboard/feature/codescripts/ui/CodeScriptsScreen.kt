@@ -122,6 +122,10 @@ import nomnomzbot.composeapp.generated.resources.scripts_versions_subtitle
 import nomnomzbot.composeapp.generated.resources.scripts_versions_title
 import nomnomzbot.composeapp.generated.resources.shell_nav_code_scripts
 import org.jetbrains.compose.resources.stringResource
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
+import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.consequences.DeleteBlastRadiusDialog
+import bot.nomnomz.dashboard.core.consequences.BlastRadiusLoadState
 
 // The Code Scripts page: a list of versioned Lua scripts on the left (or in the main column) and an inline
 // editor when one is open. The editor is a plain multi-line Textarea — no syntax highlighting
@@ -245,12 +249,22 @@ fun CodeScriptsScreen(controller: CodeScriptsController, role: ManagementRole?) 
                 typeLabel = stringResource(Res.string.scripts_row_type),
                 discriminatorSource = script.id,
             )
-        ConfirmDialog(
+        // Fetched fresh per row (never cached or guessed) — the counted blast radius the confirm MUST show
+        // before the destructive save can proceed (S-CONSEQ).
+        var blastRadius: BlastRadiusLoadState by remember(script.id) { mutableStateOf(BlastRadiusLoadState.Loading) }
+        LaunchedEffect(script.id) {
+            blastRadius =
+                when (val result: ApiResult<BlastRadiusSummary> = controller.fetchBlastRadius(script.id)) {
+                    is ApiResult.Ok -> BlastRadiusLoadState.Loaded(result.value)
+                    is ApiResult.Failure -> BlastRadiusLoadState.Failed
+                }
+        }
+        DeleteBlastRadiusDialog(
             title = stringResource(Res.string.scripts_delete_title),
             message = stringResource(Res.string.scripts_delete_message, deleteDisplayName),
             confirmLabel = stringResource(Res.string.scripts_delete_confirm),
             dismissLabel = stringResource(Res.string.scripts_delete_cancel),
-            destructive = true,
+            blastRadius = blastRadius,
             onConfirm = { pendingDelete = null; scope.launch { controller.delete(script.id) } },
             onDismiss = { pendingDelete = null },
         )

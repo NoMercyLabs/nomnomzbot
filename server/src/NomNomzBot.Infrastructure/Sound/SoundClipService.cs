@@ -318,7 +318,7 @@ internal sealed class SoundClipService : ISoundClipService
             broadcasterId,
             ["clip"],
             [clip.Id.ToString(), clip.Name],
-            ct
+            ct: ct
         );
         if (scan.IsFailure)
             return Result<BlastRadiusDto>.Failure(

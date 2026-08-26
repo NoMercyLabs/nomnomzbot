@@ -13,6 +13,7 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
+using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Discord;
 using NomNomzBot.Infrastructure.Tests.Identity;
 
@@ -53,7 +54,8 @@ public sealed class DiscordTemplateEngineUnificationTests
             new RecordingVault(),
             new DiscordTestUnitOfWork(db),
             new RecordingEventBus(),
-            Clock
+            Clock,
+            new PipelineStepReferenceScanner(db)
         );
         DiscordNotificationDispatcher dispatcher = new(
             db,
@@ -140,7 +142,8 @@ public sealed class DiscordTemplateEngineUnificationTests
                 new RecordingVault(),
                 new DiscordTestUnitOfWork(db),
                 new RecordingEventBus(),
-                Clock
+                Clock,
+                new PipelineStepReferenceScanner(db)
             );
             DiscordNotificationDispatcher dispatcher = new(
                 db,

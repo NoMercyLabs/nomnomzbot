@@ -342,6 +342,11 @@ private class RecordingGiveawaysApi(
     private val drawWinners: List<GiveawayWinner> = emptyList(),
     private val revealResult: ApiResult<String> = ApiResult.Ok("PLAINTEXT-CODE"),
 ) : GiveawaysApi {
+    // Not exercised here: the counted delete preview has its own tests (DeleteBlastRadiusDialogTest and the
+    // backend's blast-radius suites). The seam is implemented so the double stays a real implementation.
+    override suspend fun blastRadius(id: String): ApiResult<BlastRadiusSummary> =
+        ApiResult.Ok(BlastRadiusSummary())
+
     private val listFailure: ApiError? = (initial as? ApiResult.Failure)?.error
     private val store: MutableList<Giveaway> =
         (initial as? ApiResult.Ok)?.value?.toMutableList() ?: mutableListOf()

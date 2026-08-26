@@ -99,6 +99,10 @@ import nomnomzbot.composeapp.generated.resources.picklists_requires_write
 import nomnomzbot.composeapp.generated.resources.picklists_retry
 import nomnomzbot.composeapp.generated.resources.shell_nav_pick_lists
 import org.jetbrains.compose.resources.stringResource
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
+import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.consequences.DeleteBlastRadiusDialog
+import bot.nomnomz.dashboard.core.consequences.BlastRadiusLoadState
 
 // The Pick Lists page (frontend-ia.md §3, Chat group): the channel's named pick-lists — the generic primitive
 // behind the `{list.pick.<name>}` template variable — all real data from [PickListsController]. The screen is a
@@ -208,12 +212,22 @@ fun PickListsScreen(controller: PickListsController, heldActionKeys: Set<String>
                 typeLabel = stringResource(Res.string.picklists_row_type),
                 discriminatorSource = list.id,
             )
-        ConfirmDialog(
+        // Fetched fresh per row (never cached or guessed) — the counted blast radius the confirm MUST show
+        // before the destructive save can proceed (S-CONSEQ).
+        var blastRadius: BlastRadiusLoadState by remember(list.id) { mutableStateOf(BlastRadiusLoadState.Loading) }
+        LaunchedEffect(list.id) {
+            blastRadius =
+                when (val result: ApiResult<BlastRadiusSummary> = controller.fetchBlastRadius(list.id)) {
+                    is ApiResult.Ok -> BlastRadiusLoadState.Loaded(result.value)
+                    is ApiResult.Failure -> BlastRadiusLoadState.Failed
+                }
+        }
+        DeleteBlastRadiusDialog(
             title = stringResource(Res.string.picklists_delete_title),
             message = stringResource(Res.string.picklists_delete_message, deleteName),
             confirmLabel = stringResource(Res.string.picklists_delete_confirm),
             dismissLabel = stringResource(Res.string.picklists_delete_cancel),
-            destructive = true,
+            blastRadius = blastRadius,
             onConfirm = {
                 pendingDelete = null
                 scope.launch { controller.deletePickList(list.id) }

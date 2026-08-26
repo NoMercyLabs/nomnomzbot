@@ -23,6 +23,7 @@ using NomNomzBot.Application.Sound.Services;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Assets.Entities;
 using NomNomzBot.Infrastructure.Assets;
+using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Marketplace;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NomNomzBot.Infrastructure.Tests.Marketplace;
@@ -71,7 +72,7 @@ public sealed class ChannelAssetBundleTests
                     new(true, call.ArgAt<string>(1), call.ArgAt<long>(2), -1, -1)
                 )
             );
-        ChannelAssetService assets = new(db, store, quota);
+        ChannelAssetService assets = new(db, store, quota, new PipelineStepReferenceScanner(db));
 
         ICurrentTenantService tenant = Substitute.For<ICurrentTenantService>();
         tenant.BroadcasterId.Returns(actingChannel);

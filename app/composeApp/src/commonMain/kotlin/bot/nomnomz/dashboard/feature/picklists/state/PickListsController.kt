@@ -28,6 +28,7 @@ import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_picklist_deleted
 import nomnomzbot.composeapp.generated.resources.feedback_picklist_save_failed
 import nomnomzbot.composeapp.generated.resources.feedback_picklist_saved
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // The Pick Lists page's state-holder (frontend-ia.md §3 — the Chat group). Lists the channel's real named
 // pick-lists from the backend (no fabricated rows) — the generic primitive behind the `{list.pick.<name>}`
@@ -98,7 +99,18 @@ class PickListsController(
     }
 
     /** Delete a pick-list, addressed by its [id]. Reloads on success. Surfaces the error on failure. */
+
+    /**
+     * The real, backend-counted blast radius of deleting the pick-list [id] (S-CONSEQ) - the delete confirm calls this and
+     * renders the dependents BEFORE the destructive save can proceed. A lookup that fails is a genuine
+     * FAILURE, never a silent zero: the dialog then shows its own "could not check" message rather than an
+     * empty radius that reads as verified-safe.
+     */
+    suspend fun fetchBlastRadius(id: String): ApiResult<BlastRadiusSummary> =
+        pickListsApi.blastRadius(id)
+
     suspend fun deletePickList(id: String) {
+
         afterWrite(pickListsApi.delete(id), success = Res.string.feedback_picklist_deleted)
     }
 

@@ -10,6 +10,8 @@
 
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Commands.Services;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
 using NomNomzBot.Application.Identity.Dtos;
@@ -33,18 +35,23 @@ public sealed class DiscordGuildService : IDiscordGuildService
     private const string Pending = "pending";
     private const string Revoked = "revoked";
 
+    /// <summary>The pipeline action that posts to the linked guild; it is dead the moment the guild is gone.</summary>
+    private const string DiscordNotificationActionType = "send_discord_notification";
+
     private readonly IApplicationDbContext _db;
     private readonly IIntegrationTokenVault _vault;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IEventBus _eventBus;
     private readonly TimeProvider _timeProvider;
+    private readonly IPipelineStepReferenceScanner _stepReferences;
 
     public DiscordGuildService(
         IApplicationDbContext db,
         IIntegrationTokenVault vault,
         IUnitOfWork unitOfWork,
         IEventBus eventBus,
-        TimeProvider timeProvider
+        TimeProvider timeProvider,
+        IPipelineStepReferenceScanner stepReferences
     )
     {
         _db = db;
@@ -52,6 +59,7 @@ public sealed class DiscordGuildService : IDiscordGuildService
         _unitOfWork = unitOfWork;
         _eventBus = eventBus;
         _timeProvider = timeProvider;
+        _stepReferences = stepReferences;
     }
 
     public async Task<Result<IReadOnlyList<DiscordGuildConnectionDto>>> GetConnectionsAsync(
@@ -371,4 +379,70 @@ public sealed class DiscordGuildService : IDiscordGuildService
             c.CreatedAt,
             c.UpdatedAt
         );
+
+    /// <summary>
+    /// Counts what STOPS WORKING on disconnect, not just the rows removed: the notification rules and role
+    /// buttons cascade with the connection, and every Discord pipeline step loses its destination.
+    /// </summary>
+    public async Task<Result<BlastRadiusDto>> GetDisconnectBlastRadiusAsync(
+        Guid broadcasterId,
+        Guid connectionId,
+        CancellationToken ct = default
+    )
+    {
+        DiscordGuildConnection? connection = await FindAsync(broadcasterId, connectionId, ct);
+        if (connection is null)
+            return Result<BlastRadiusDto>.Failure(
+                $"Discord connection '{connectionId}' was not found.",
+                "NOT_FOUND"
+            );
+
+        int rules = await _db.DiscordNotificationConfigs.CountAsync(
+            config => config.GuildConnectionId == connectionId,
+            ct
+        );
+        int roleButtons = await _db.DiscordNotificationRoles.CountAsync(
+            role => role.GuildConnectionId == connectionId,
+            ct
+        );
+
+        Result<PipelineStepReferenceScan> scan = await _stepReferences.CountByActionTypesAsync(
+            broadcasterId,
+            [DiscordNotificationActionType],
+            ct
+        );
+        if (scan.IsFailure)
+            return Result<BlastRadiusDto>.Failure(
+                scan.ErrorMessage ?? "The reference scan failed.",
+                scan.ErrorCode ?? "SCAN_FAILED"
+            );
+
+        List<BlastRadiusCategoryDto> categories = [];
+        if (rules > 0)
+            categories.Add(
+                new BlastRadiusCategoryDto(
+                    BlastRadiusCategoryKeys.DiscordNotificationRules,
+                    rules,
+                    []
+                )
+            );
+        if (roleButtons > 0)
+            categories.Add(
+                new BlastRadiusCategoryDto(
+                    BlastRadiusCategoryKeys.DiscordRoleButtons,
+                    roleButtons,
+                    []
+                )
+            );
+        if (scan.Value.MatchCount > 0)
+            categories.Add(
+                new BlastRadiusCategoryDto(
+                    BlastRadiusCategoryKeys.PipelineSteps,
+                    scan.Value.MatchCount,
+                    scan.Value.PipelineNames
+                )
+            );
+
+        return Result<BlastRadiusDto>.Success(new BlastRadiusDto(categories, scan.Value.IsMinimum));
+    }
 }

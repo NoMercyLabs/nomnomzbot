@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Giveaways.Dtos;
 using NomNomzBot.Application.Giveaways.Services;
@@ -105,9 +106,25 @@ public class GiveawaysController : BaseController
         return ResultResponse(await _giveaways.UpdateAsync(broadcasterId, id, request, ct));
     }
 
-    /// <summary>Soft-delete a giveaway.</summary>
+    /// <summary>
+    /// Real, counted blast radius for deleting this giveaway (S-CONSEQ). The dashboard MUST call this and render the
+    /// result before the confirm can proceed.
+    /// </summary>
+    [RequireAction("giveaways:read")]
+    [DestructiveAction(HasCountedBlastRadius = true)]
+    [HttpGet("{id:guid}/blast-radius")]
+    [ProducesResponseType<StatusResponseDto<BlastRadiusDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetDeleteBlastRadius(Guid id, CancellationToken ct)
+    {
+        if (_tenant.BroadcasterId is not { } broadcasterId)
+            return UnauthenticatedResponse("No tenant resolved.");
+        return ResultResponse(await _giveaways.GetDeleteBlastRadiusAsync(broadcasterId, id, ct));
+    }
+
+    /// <summary>Soft-delete a giveaway. The confirm step calls <see cref="GetDeleteBlastRadius"/> first and
+    /// shows the counted dependents before this runs.</summary>
     [RequireAction("giveaways:write")]
-    [DestructiveAction(PendingBlastRadiusSince = "2026-08-26")]
+    [DestructiveAction(HasCountedBlastRadius = true)]
     [HttpDelete("{id:guid}")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)

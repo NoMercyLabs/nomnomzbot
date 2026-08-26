@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.DTOs.Economy;
@@ -98,8 +99,30 @@ public class CatalogController(
         return ResultResponse(await catalog.UpdateItemAsync(broadcasterId, itemId, request, ct));
     }
 
-    /// <summary>Delete a catalog item from the channel's store.</summary>
-    [DestructiveAction(PendingBlastRadiusSince = "2026-08-26")]
+    /// <summary>
+    /// Real, counted blast radius for deleting this catalog item (S-CONSEQ). The dashboard MUST call this and render the
+    /// result before the confirm can proceed.
+    /// </summary>
+    [DestructiveAction(HasCountedBlastRadius = true)]
+    [HttpGet("{itemId:guid}/blast-radius")]
+    [RequireAction("economy:catalog:read")]
+    [ProducesResponseType<StatusResponseDto<BlastRadiusDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetDeleteItemBlastRadius(
+        string channelId,
+        Guid itemId,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+        return ResultResponse(
+            await catalog.GetDeleteItemBlastRadiusAsync(broadcasterId, itemId, ct)
+        );
+    }
+
+    /// <summary>Delete a catalog item from the channel's store. The confirm step calls
+    /// <see cref="GetDeleteItemBlastRadius"/> first and shows the counted dependents before this runs.</summary>
+    [DestructiveAction(HasCountedBlastRadius = true)]
     [HttpDelete("{itemId:guid}")]
     [RequireAction("economy:catalog:delete")]
     public async Task<IActionResult> DeleteItem(string channelId, Guid itemId, CancellationToken ct)

@@ -15,6 +15,7 @@ using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.PickLists.Dtos;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.PickLists;
 using NSubstitute;
 
@@ -34,7 +35,11 @@ public sealed class PickListsControllerPreviewTests
         ICurrentTenantService tenant = Substitute.For<ICurrentTenantService>();
         tenant.BroadcasterId.Returns(Broadcaster);
 
-        PickListService service = new(db, Substitute.For<IEventBus>());
+        PickListService service = new(
+            db,
+            Substitute.For<IEventBus>(),
+            new PipelineStepReferenceScanner(db)
+        );
         return new(service, tenant);
     }
 

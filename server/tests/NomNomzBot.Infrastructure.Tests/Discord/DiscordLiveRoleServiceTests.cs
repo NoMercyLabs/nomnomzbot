@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Discord.Entities;
+using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Discord;
 using NomNomzBot.Infrastructure.Tests.Identity;
 
@@ -230,7 +231,8 @@ public sealed class DiscordLiveRoleServiceTests
                 new RecordingVault(),
                 new DiscordTestUnitOfWork(db),
                 new RecordingEventBus(),
-                Clock
+                Clock,
+                new PipelineStepReferenceScanner(db)
             ),
             gateway,
             NullLogger<DiscordLiveRoleService>.Instance

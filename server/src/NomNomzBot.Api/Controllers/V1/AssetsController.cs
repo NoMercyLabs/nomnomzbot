@@ -17,6 +17,7 @@ using NomNomzBot.Api.Models;
 using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Assets.Services;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 
 namespace NomNomzBot.Api.Controllers.V1;
@@ -156,8 +157,33 @@ public sealed class AssetsController : BaseController
 
     // ── DELETE /assets/{id} ───────────────────────────────────────────────────
 
-    /// <summary>Delete a media asset (its serving URL stops resolving).</summary>
-    [DestructiveAction(PendingBlastRadiusSince = "2026-08-26")]
+    /// <summary>
+    /// Real, counted blast radius for deleting this media asset (S-CONSEQ). The dashboard MUST call this and render the
+    /// result before the confirm can proceed.
+    /// </summary>
+    [DestructiveAction(HasCountedBlastRadius = true)]
+    [HttpGet("{id:guid}/blast-radius")]
+    [RequireAction("sounds:write")]
+    [ProducesResponseType<StatusResponseDto<BlastRadiusDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetDeleteBlastRadius(Guid id, CancellationToken ct)
+    {
+        if (!TryGetIds(out Guid broadcasterId, out Guid _))
+            return Unauthorized();
+
+        Result<BlastRadiusDto> result = await _service.GetDeleteBlastRadiusAsync(
+            broadcasterId,
+            id,
+            ct
+        );
+        return result.IsSuccess
+            ? Ok(new StatusResponseDto<BlastRadiusDto> { Data = result.Value })
+            : NotFound(new StatusResponseDto<object> { Message = result.ErrorMessage });
+    }
+
+    /// <summary>Delete a media asset (its serving URL stops resolving). The confirm step calls
+    /// <see cref="GetDeleteBlastRadius"/> first and shows the counted dependents before this runs.</summary>
+    [DestructiveAction(HasCountedBlastRadius = true)]
     [HttpDelete("{id:guid}")]
     [RequireAction("sounds:write")]
     [ProducesResponseType<StatusResponseDto<bool>>(StatusCodes.Status200OK)]

@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
 
@@ -120,9 +121,24 @@ public class DiscordController : BaseController
             await _guilds.SetStreamerEnabledAsync(channelId, connectionId, request.Enabled, ct)
         );
 
-    /// <summary>Disconnect a Discord guild from the channel entirely.</summary>
+    /// <summary>
+    /// Real, counted blast radius for disconnecting this Discord guild - what STOPS WORKING, not just rows removed (S-CONSEQ). The dashboard MUST call this and render the
+    /// result before the confirm can proceed.
+    /// </summary>
+    [RequireAction("discord:connection:read")]
+    [DestructiveAction(HasCountedBlastRadius = true)]
+    [HttpGet("connections/{connectionId:guid}/blast-radius")]
+    [ProducesResponseType<StatusResponseDto<BlastRadiusDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetDisconnectBlastRadius(
+        Guid channelId,
+        Guid connectionId,
+        CancellationToken ct
+    ) => ResultResponse(await _guilds.GetDisconnectBlastRadiusAsync(channelId, connectionId, ct));
+
+    /// <summary>Disconnect a Discord guild from the channel entirely. The confirm step calls
+    /// <see cref="GetDisconnectBlastRadius"/> first and shows what stops working before this runs.</summary>
     [RequireAction("discord:connection:write")]
-    [DestructiveAction(PendingBlastRadiusSince = "2026-08-26")]
+    [DestructiveAction(HasCountedBlastRadius = true)]
     [HttpDelete("connections/{connectionId:guid}")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Disconnect(

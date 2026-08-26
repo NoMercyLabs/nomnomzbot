@@ -83,6 +83,48 @@ class DeleteBlastRadiusDialogTest {
     }
 
     @Test
+    fun the_categories_added_for_disconnects_and_bundles_render_through_the_same_table() =
+        runComposeUiTest {
+            setContent {
+                dialogContent(
+                    BlastRadiusLoadState.Loaded(
+                        BlastRadiusSummary(
+                            categories =
+                                listOf(
+                                    BlastRadiusCategory(
+                                        categoryKey =
+                                            "blast_radius_category_discord_notification_rules",
+                                        count = 2,
+                                    ),
+                                    BlastRadiusCategory(
+                                        categoryKey = "blast_radius_category_giveaway_entries",
+                                        count = 1,
+                                    ),
+                                    BlastRadiusCategory(
+                                        categoryKey = "blast_radius_category_pick_lists",
+                                        count = 1,
+                                        sample = listOf("compliments"),
+                                    ),
+                                )
+                        )
+                    )
+                )()
+            }
+            waitUntil(timeoutMillis = 5_000) {
+                onAllNodesWithText("2 Discord notification rules", substring = true)
+                    .fetchSemanticsNodes()
+                    .isNotEmpty()
+            }
+            onNodeWithText("2 Discord notification rules", substring = true).assertExists()
+            // Singular form, proving the table carries BOTH plural forms per key.
+            onNodeWithText("1 entrant", substring = true).assertExists()
+            onNodeWithText("1 pick-list", substring = true).assertExists()
+            onNodeWithText("compliments", substring = true).assertExists()
+            // None of these is a floor, so the minimum caveat must not appear.
+            onNodeWithText("MINIMUM", substring = true).assertDoesNotExist()
+        }
+
+    @Test
     fun a_genuine_zero_renders_the_explicit_nothing_references_this_sentence() = runComposeUiTest {
         setContent { dialogContent(BlastRadiusLoadState.Loaded(BlastRadiusSummary()))() }
         waitUntil(timeoutMillis = 5_000) {

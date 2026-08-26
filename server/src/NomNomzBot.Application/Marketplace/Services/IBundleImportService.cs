@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Marketplace;
 
@@ -57,6 +58,19 @@ public interface IBundleImportService
         Guid broadcasterId,
         Guid installedBundleId,
         Guid actorUserId,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// The real, counted blast radius of uninstalling this bundle (S-CONSEQ). Uninstall removes MANY objects
+    /// at once, so the preview says WHAT it removes: the install ledger
+    /// (<c>InstalledBundle.InstalledEntityIdsJson</c>) records every entity id the import created, and
+    /// uninstall deletes exactly those — an exhaustive, per-kind count with the names of what goes. Returns a
+    /// failure when the installed bundle does not exist in this tenant.
+    /// </summary>
+    Task<Result<BlastRadiusDto>> GetUninstallBlastRadiusAsync(
+        Guid broadcasterId,
+        Guid installedBundleId,
         CancellationToken ct = default
     );
 }

@@ -32,6 +32,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // Proves the channel-scoped Spotify BYOC credential card's state machine (S-BYOC-spotify-b): saving PUTs the
 // exact typed body to the channel-scoped route and the resulting state reports OWN credentials with the
@@ -209,6 +210,11 @@ private class FakeIntegrationsApiForSpotifyCreds(
     private val initial: ChannelSpotifyCredentials,
     private val saveError: String? = null,
 ) : IntegrationsApi {
+    // Not exercised here: the counted delete preview has its own tests. The seam is implemented so the double
+    // stays a real implementation of the interface rather than a partial one.
+    override suspend fun disconnectBlastRadius(channelId: String, provider: String): ApiResult<BlastRadiusSummary> =
+        ApiResult.Ok(BlastRadiusSummary())
+
     var afterSave: ChannelSpotifyCredentials? = null
     var afterClear: ChannelSpotifyCredentials? = null
     private var current: ChannelSpotifyCredentials = initial

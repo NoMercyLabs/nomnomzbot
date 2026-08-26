@@ -16,6 +16,7 @@ using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Domain.Assets.Entities;
 using NomNomzBot.Infrastructure.Assets;
+using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Tests.Marketplace;
 
 namespace NomNomzBot.Infrastructure.Tests.Assets;
@@ -42,7 +43,16 @@ public sealed class ChannelAssetServiceTests
         // 64 MB — this suite's fixture reproduces the historical fixed channel ceiling so the pre-existing
         // budget tests keep their exact numbers; the REAL tier-scaled agreement is proven end-to-end against
         // IResourceQuotaService in Billing/StorageBudgetAgreementTests.cs.
-        return (new(db, store, new FixedChannelBudgetQuota(64L * 1024 * 1024)), db, store);
+        return (
+            new(
+                db,
+                store,
+                new FixedChannelBudgetQuota(64L * 1024 * 1024),
+                new PipelineStepReferenceScanner(db)
+            ),
+            db,
+            store
+        );
     }
 
     /// <summary>Reproduces a fixed per-channel byte ceiling without a full billing-tier fixture.</summary>
@@ -414,10 +424,7 @@ public sealed class ChannelAssetServiceTests
             Request("mine", PngBytes(), "mine.png")
         );
 
-        Result<PagedList<ChannelAssetDto>> otherList = await service.ListAsync(
-            OtherChannel,
-            new(1, 25)
-        );
+        Result<PagedList<ChannelAssetDto>> otherList = await service.ListAsync(OtherChannel, new());
         otherList.Value.Items.Should().BeEmpty();
 
         Result<ChannelAssetDto> otherGet = await service.GetAsync(OtherChannel, created.Value.Id);

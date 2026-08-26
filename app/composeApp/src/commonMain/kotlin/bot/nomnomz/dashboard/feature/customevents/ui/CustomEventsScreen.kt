@@ -124,6 +124,10 @@ import nomnomzbot.composeapp.generated.resources.custom_events_test_payload_labe
 import nomnomzbot.composeapp.generated.resources.custom_events_test_success
 import nomnomzbot.composeapp.generated.resources.shell_nav_custom_events
 import org.jetbrains.compose.resources.stringResource
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
+import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.consequences.DeleteBlastRadiusDialog
+import bot.nomnomz.dashboard.core.consequences.BlastRadiusLoadState
 
 // The Custom Events page: the channel's external data source integrations (custom-events.md). Each source
 // (push / poll / socket ingress) maps a raw JSON payload to named fields that fire a `custom.<name>` pipeline
@@ -279,11 +283,22 @@ fun CustomEventsScreen(controller: CustomEventsController, role: ManagementRole?
                     typeLabel = stringResource(Res.string.custom_events_row_type),
                     discriminatorSource = target.id,
                 )
-            ConfirmDialog(
+            // Fetched fresh per row (never cached or guessed) — the counted blast radius the confirm MUST show
+            // before the destructive save can proceed (S-CONSEQ).
+            var blastRadius: BlastRadiusLoadState by remember(target.id) { mutableStateOf(BlastRadiusLoadState.Loading) }
+            LaunchedEffect(target.id) {
+                blastRadius =
+                    when (val result: ApiResult<BlastRadiusSummary> = controller.fetchBlastRadius(target.id)) {
+                        is ApiResult.Ok -> BlastRadiusLoadState.Loaded(result.value)
+                        is ApiResult.Failure -> BlastRadiusLoadState.Failed
+                    }
+            }
+            DeleteBlastRadiusDialog(
                 title = stringResource(Res.string.custom_events_delete_confirm_title),
                 message = stringResource(Res.string.custom_events_delete_confirm_body, resolvedName),
                 confirmLabel = stringResource(Res.string.custom_events_delete_confirm),
                 dismissLabel = stringResource(Res.string.custom_events_delete_cancel),
+                blastRadius = blastRadius,
                 onConfirm = { scope.launch { controller.delete(target.id) }; deleteTarget = null },
                 onDismiss = { deleteTarget = null },
             )

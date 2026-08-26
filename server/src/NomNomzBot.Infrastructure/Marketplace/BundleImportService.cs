@@ -17,6 +17,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Assets.Services;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.Marketplace;
@@ -1595,10 +1596,7 @@ public class BundleImportService : IBundleImportService
                             || !Validate(item, export.SchemaVersion, export.Name, issues)
                         )
                             break;
-                        if (
-                            export.Manifest is null
-                            || !export.Files.ContainsKey(export.Manifest.Entry)
-                        )
+                        if (!export.Files.ContainsKey(export.Manifest.Entry))
                         {
                             issues.Add(
                                 $"Code script '{item.Name}' has no project entry file — the manifest entry must be present in its file set."
@@ -1645,7 +1643,7 @@ public class BundleImportService : IBundleImportService
             string scriptEdgePrefix = $"{BundleFormat.CodeScriptType}:";
             foreach (BundleManifestItem item in manifest.Items)
             {
-                foreach (string dependency in item.Dependencies ?? [])
+                foreach (string dependency in item.Dependencies)
                 {
                     if (!dependency.StartsWith(scriptEdgePrefix, StringComparison.Ordinal))
                         continue;
@@ -1910,4 +1908,177 @@ public class BundleImportService : IBundleImportService
 
     private static InstalledBundleDto ToDto(InstalledBundle row) =>
         new(row.Id, row.Name, row.Source, row.MarketplaceItemId, row.Version, row.CreatedAt);
+
+    /// <summary>The blast-radius category each bundle entity kind is counted under.</summary>
+    private static readonly Dictionary<string, string> UninstallCategoryKeys = new(
+        StringComparer.OrdinalIgnoreCase
+    )
+    {
+        [BundleFormat.PipelineType] = BlastRadiusCategoryKeys.Pipelines,
+        [BundleFormat.CommandType] = BlastRadiusCategoryKeys.Commands,
+        [BundleFormat.WidgetType] = BlastRadiusCategoryKeys.Widgets,
+        [BundleFormat.SoundType] = BlastRadiusCategoryKeys.SoundClips,
+        [BundleFormat.AssetType] = BlastRadiusCategoryKeys.Assets,
+        [BundleFormat.CustomDataSourceType] = BlastRadiusCategoryKeys.CustomDataSources,
+        [BundleFormat.EventResponseType] = BlastRadiusCategoryKeys.EventResponses,
+        [BundleFormat.RewardType] = BlastRadiusCategoryKeys.Rewards,
+        [BundleFormat.TimerType] = BlastRadiusCategoryKeys.Timers,
+        [BundleFormat.ChatTriggerType] = BlastRadiusCategoryKeys.ChatTriggers,
+        [BundleFormat.PickListType] = BlastRadiusCategoryKeys.PickLists,
+        [BundleFormat.CodeScriptType] = BlastRadiusCategoryKeys.CodeScripts,
+    };
+
+    /// <summary>
+    /// Says WHAT an uninstall removes. The install ledger is the authoritative record of the entities the
+    /// import created and is exactly what <see cref="UninstallAsync"/> deletes, so the per-kind counts are
+    /// exhaustive. A ledger that will not parse is a FAILURE, never an empty preview: an uninstall that
+    /// silently claimed to remove nothing would remove the whole bundle anyway.
+    /// </summary>
+    public async Task<Result<BlastRadiusDto>> GetUninstallBlastRadiusAsync(
+        Guid broadcasterId,
+        Guid installedBundleId,
+        CancellationToken ct = default
+    )
+    {
+        InstalledBundle? row = await _db.InstalledBundles.FirstOrDefaultAsync(
+            b => b.BroadcasterId == broadcasterId && b.Id == installedBundleId,
+            ct
+        );
+        if (row is null)
+            return Result<BlastRadiusDto>.Failure(
+                $"Installed bundle '{installedBundleId}' was not found.",
+                "NOT_FOUND"
+            );
+
+        Dictionary<string, List<Guid>>? installedIds;
+        try
+        {
+            installedIds = JsonConvert.DeserializeObject<Dictionary<string, List<Guid>>>(
+                row.InstalledEntityIdsJson
+            );
+        }
+        catch (JsonException)
+        {
+            return Result<BlastRadiusDto>.Failure(
+                "The install ledger for this bundle could not be read, so what the uninstall removes cannot be listed.",
+                "LEDGER_UNREADABLE"
+            );
+        }
+
+        if (installedIds is null)
+            return Result<BlastRadiusDto>.Failure(
+                "The install ledger for this bundle could not be read, so what the uninstall removes cannot be listed.",
+                "LEDGER_UNREADABLE"
+            );
+
+        List<BlastRadiusCategoryDto> categories = [];
+        bool unknownKind = false;
+
+        foreach ((string type, List<Guid> ids) in installedIds.OrderBy(pair => pair.Key))
+        {
+            if (ids.Count == 0)
+                continue;
+
+            if (!UninstallCategoryKeys.TryGetValue(type, out string? categoryKey))
+            {
+                // A kind this build does not know still gets counted — dropping it would understate what goes.
+                unknownKind = true;
+                categoryKey = type;
+            }
+
+            List<string> names = await ResolveInstalledNamesAsync(broadcasterId, type, ids, ct);
+            categories.Add(new BlastRadiusCategoryDto(categoryKey, ids.Count, names));
+        }
+
+        return Result<BlastRadiusDto>.Success(new BlastRadiusDto(categories, unknownKind));
+    }
+
+    /// <summary>Names the removed entities so the operator recognises what disappears, not just how many.</summary>
+    private async Task<List<string>> ResolveInstalledNamesAsync(
+        Guid broadcasterId,
+        string type,
+        List<Guid> ids,
+        CancellationToken ct
+    )
+    {
+        const int maxNames = 5;
+        return type switch
+        {
+            BundleFormat.PipelineType => await _db
+                .Pipelines.Where(p => p.BroadcasterId == broadcasterId && ids.Contains(p.Id))
+                .OrderBy(p => p.Name)
+                .Select(p => p.Name)
+                .Take(maxNames)
+                .ToListAsync(ct),
+            BundleFormat.CommandType => await _db
+                .Commands.Where(c => c.BroadcasterId == broadcasterId && ids.Contains(c.Id))
+                .OrderBy(c => c.Name)
+                .Select(c => c.Name)
+                .Take(maxNames)
+                .ToListAsync(ct),
+            BundleFormat.WidgetType => await _db
+                .Widgets.Where(w => w.BroadcasterId == broadcasterId && ids.Contains(w.Id))
+                .OrderBy(w => w.Name)
+                .Select(w => w.Name)
+                .Take(maxNames)
+                .ToListAsync(ct),
+            BundleFormat.SoundType => await _db
+                .SoundClips.Where(s => s.BroadcasterId == broadcasterId && ids.Contains(s.Id))
+                .OrderBy(s => s.Name)
+                .Select(s => s.Name)
+                .Take(maxNames)
+                .ToListAsync(ct),
+            BundleFormat.AssetType => await _db
+                .ChannelAssets.Where(a => a.BroadcasterId == broadcasterId && ids.Contains(a.Id))
+                .OrderBy(a => a.Name)
+                .Select(a => a.DisplayName)
+                .Take(maxNames)
+                .ToListAsync(ct),
+            BundleFormat.CustomDataSourceType => await _db
+                .CustomDataSources.Where(s =>
+                    s.BroadcasterId == broadcasterId && ids.Contains(s.Id)
+                )
+                .OrderBy(s => s.DisplayName)
+                .Select(s => s.DisplayName)
+                .Take(maxNames)
+                .ToListAsync(ct),
+            BundleFormat.EventResponseType => await _db
+                .EventResponses.Where(e => e.BroadcasterId == broadcasterId && ids.Contains(e.Id))
+                .OrderBy(e => e.EventType)
+                .Select(e => e.EventType)
+                .Take(maxNames)
+                .ToListAsync(ct),
+            BundleFormat.RewardType => await _db
+                .Rewards.Where(r => r.BroadcasterId == broadcasterId && ids.Contains(r.Id))
+                .OrderBy(r => r.Title)
+                .Select(r => r.Title)
+                .Take(maxNames)
+                .ToListAsync(ct),
+            BundleFormat.TimerType => await _db
+                .Timers.Where(t => t.BroadcasterId == broadcasterId && ids.Contains(t.Id))
+                .OrderBy(t => t.Name)
+                .Select(t => t.Name)
+                .Take(maxNames)
+                .ToListAsync(ct),
+            BundleFormat.ChatTriggerType => await _db
+                .ChatTriggers.Where(t => t.BroadcasterId == broadcasterId && ids.Contains(t.Id))
+                .OrderBy(t => t.Pattern)
+                .Select(t => t.Pattern)
+                .Take(maxNames)
+                .ToListAsync(ct),
+            BundleFormat.PickListType => await _db
+                .PickLists.Where(l => l.BroadcasterId == broadcasterId && ids.Contains(l.Id))
+                .OrderBy(l => l.Name)
+                .Select(l => l.Name)
+                .Take(maxNames)
+                .ToListAsync(ct),
+            BundleFormat.CodeScriptType => await _db
+                .CodeScripts.Where(s => s.BroadcasterId == broadcasterId && ids.Contains(s.Id))
+                .OrderBy(s => s.Name)
+                .Select(s => s.Name)
+                .Take(maxNames)
+                .ToListAsync(ct),
+            _ => [],
+        };
+    }
 }

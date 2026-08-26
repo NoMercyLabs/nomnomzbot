@@ -77,6 +77,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // Proves the participant rung's state machine — the consequence of each self-service action, not just that a call
 // returned. Each test asserts the REAL outcome: the correct read/community API was hit for the caller's own id, the
@@ -576,6 +577,11 @@ private class FakeDashboardApi(private val result: ApiResult<DashboardStats>) : 
 private class FakeEconomyApi(
     private val leaderboard: List<LeaderboardEntry> = emptyList(),
 ) : EconomyApi {
+    // Not exercised here: the counted delete preview has its own tests. The seam is implemented so the double
+    // stays a real implementation of the interface rather than a partial one.
+    override suspend fun catalogItemBlastRadius(channelId: String, itemId: String): ApiResult<BlastRadiusSummary> =
+        ApiResult.Ok(BlastRadiusSummary())
+
     val leaderboardCalls: MutableList<String> = mutableListOf()
 
     override suspend fun config(channelId: String): ApiResult<CurrencyConfig?> = ApiResult.Ok(null)

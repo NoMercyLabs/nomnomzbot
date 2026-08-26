@@ -37,6 +37,7 @@ import bot.nomnomz.dashboard.core.network.WidgetsApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // The Bundles page state-holder (bundles.md §5–§6): the channel's portable content packs. It resolves the active
 // channel, then drives three surfaces off the same holder:
@@ -184,6 +185,20 @@ class BundlesController(
     }
 
     /** Uninstall an installed bundle by its [id] — removes exactly what that pack created. Re-lists on success. */
+    /**
+     * The real, counted blast radius of uninstalling the bundle [id] (S-CONSEQ) — WHAT it removes, per kind,
+     * by name, read from the install ledger. Rendered in the confirm BEFORE the uninstall; no resolved channel
+     * and an unreadable ledger are both genuine failures, never an empty radius that reads as "removes nothing".
+     */
+    suspend fun uninstallBlastRadius(id: String): ApiResult<BlastRadiusSummary> {
+        val channel: String =
+            channelId
+                ?: return ApiResult.Failure(
+                    ApiError(status = 0, code = "NO_CHANNEL", message = NoChannelError)
+                )
+        return bundlesApi.uninstallBlastRadius(channel, id)
+    }
+
     suspend fun uninstall(id: String) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
         when (val result: ApiResult<Unit> = bundlesApi.uninstall(channel, id)) {

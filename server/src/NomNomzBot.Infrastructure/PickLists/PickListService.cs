@@ -11,6 +11,8 @@
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Commands.Services;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.PickLists.Dtos;
 using NomNomzBot.Application.PickLists.Services;
@@ -38,11 +40,17 @@ public sealed partial class PickListService : IPickListService
 
     private readonly IApplicationDbContext _db;
     private readonly IEventBus _eventBus;
+    private readonly IPipelineStepReferenceScanner _stepReferences;
 
-    public PickListService(IApplicationDbContext db, IEventBus eventBus)
+    public PickListService(
+        IApplicationDbContext db,
+        IEventBus eventBus,
+        IPipelineStepReferenceScanner stepReferences
+    )
     {
         _db = db;
         _eventBus = eventBus;
+        _stepReferences = stepReferences;
     }
 
     public async Task<Result<PagedList<PickListDto>>> ListAsync(
@@ -105,7 +113,7 @@ public sealed partial class PickListService : IPickListService
         CancellationToken ct = default
     )
     {
-        string trimmed = name?.Trim() ?? string.Empty;
+        string trimmed = name.Trim();
         if (trimmed.Length == 0)
             return Result.Failure<PickListDto>(
                 "A pick list name is required.",
@@ -269,7 +277,7 @@ public sealed partial class PickListService : IPickListService
         CancellationToken ct = default
     )
     {
-        string trimmed = name?.Trim() ?? string.Empty;
+        string trimmed = name.Trim();
         if (trimmed.Length == 0)
             return Result.Failure<string>("A pick list name is required.", "VALIDATION_FAILED");
 
@@ -368,4 +376,46 @@ public sealed partial class PickListService : IPickListService
 
     [GeneratedRegex("^[A-Za-z0-9_-]+$")]
     private static partial Regex NamePattern();
+
+    /// <summary>
+    /// Counts the <c>pick_from_list</c> steps that name this list. There is no FK: the action stores the list's
+    /// id OR its name in config, so both are scanned as tokens.
+    /// </summary>
+    public async Task<Result<BlastRadiusDto>> GetDeleteBlastRadiusAsync(
+        Guid broadcasterId,
+        Guid id,
+        CancellationToken ct = default
+    )
+    {
+        PickList? list = await _db.PickLists.FirstOrDefaultAsync(
+            row => row.BroadcasterId == broadcasterId && row.Id == id,
+            ct
+        );
+        if (list is null)
+            return Result<BlastRadiusDto>.Failure($"Pick-list '{id}' was not found.", "NOT_FOUND");
+
+        Result<PipelineStepReferenceScan> scan = await _stepReferences.ScanAsync(
+            broadcasterId,
+            ["list"],
+            [list.Id.ToString(), list.Name],
+            ct: ct
+        );
+        if (scan.IsFailure)
+            return Result<BlastRadiusDto>.Failure(
+                scan.ErrorMessage ?? "The reference scan failed.",
+                scan.ErrorCode ?? "SCAN_FAILED"
+            );
+
+        List<BlastRadiusCategoryDto> categories = [];
+        if (scan.Value.MatchCount > 0)
+            categories.Add(
+                new BlastRadiusCategoryDto(
+                    BlastRadiusCategoryKeys.PipelineSteps,
+                    scan.Value.MatchCount,
+                    scan.Value.PipelineNames
+                )
+            );
+
+        return Result<BlastRadiusDto>.Success(new BlastRadiusDto(categories, scan.Value.IsMinimum));
+    }
 }

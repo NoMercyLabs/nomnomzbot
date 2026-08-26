@@ -47,6 +47,8 @@ import nomnomzbot.composeapp.generated.resources.feedback_credentials_saved
 import nomnomzbot.composeapp.generated.resources.feedback_disconnect_failed
 import nomnomzbot.composeapp.generated.resources.feedback_disconnected
 import org.jetbrains.compose.resources.StringResource
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
+import bot.nomnomz.dashboard.core.network.ApiError
 
 // The integrations/onboarding screen's state-holder (frontend.md §4 — a plain holder, not a ViewModel).
 // It owns the bot-account connect and the Spotify / YouTube / Discord connects, all against the REAL
@@ -335,6 +337,20 @@ class IntegrationsController(
     }
 
     /** Disconnect a provider (spotify/youtube/discord), then refresh. Announces the outcome on the frame. */
+    /**
+     * The real, backend-counted blast radius of disconnecting [provider] (S-CONSEQ) — what STOPS WORKING, not
+     * what is deleted. Rendered in the confirm BEFORE the disconnect; a provider that is not connected, or an
+     * unresolved channel, is a genuine failure the dialog reports on its own rather than a reassuring zero.
+     */
+    suspend fun fetchDisconnectBlastRadius(provider: String): ApiResult<BlastRadiusSummary> {
+        val id: String =
+            channelId
+                ?: return ApiResult.Failure(
+                    ApiError(status = 0, code = "NO_CHANNEL", message = "No active channel.")
+                )
+        return integrationsApi.disconnectBlastRadius(id, provider)
+    }
+
     suspend fun disconnect(provider: String) {
         val id: String = channelId ?: return
         withBusy(

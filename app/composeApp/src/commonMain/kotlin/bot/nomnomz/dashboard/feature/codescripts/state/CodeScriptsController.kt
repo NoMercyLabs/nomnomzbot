@@ -25,6 +25,7 @@ import bot.nomnomz.dashboard.core.network.TestRunResult
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
 // The Code Scripts page's state-holder. Lists all scripts, opens a project view for one (its `src/` file set +
 // manifest), and drives create / enable-toggle / delete. Editing a script's code opens the shared multi-file
@@ -205,7 +206,18 @@ class CodeScriptsController(
     }
 
     /** Delete a script. Reloads the list on success. */
+
+    /**
+     * The real, backend-counted blast radius of deleting the code script [id] (S-CONSEQ) - the delete confirm calls this and
+     * renders the dependents BEFORE the destructive save can proceed. A lookup that fails is a genuine
+     * FAILURE, never a silent zero: the dialog then shows its own "could not check" message rather than an
+     * empty radius that reads as verified-safe.
+     */
+    suspend fun fetchBlastRadius(id: String): ApiResult<BlastRadiusSummary> =
+        api.blastRadius(id)
+
     suspend fun delete(id: String) {
+
         when (val result: ApiResult<Unit> = api.delete(id)) {
             is ApiResult.Ok -> load()
             is ApiResult.Failure -> failWrite(result.error.message)

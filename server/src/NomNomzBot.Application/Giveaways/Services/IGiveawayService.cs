@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Giveaways.Dtos;
 
@@ -97,6 +98,17 @@ public interface IGiveawayService
         Guid broadcasterId,
         Guid giveawayId,
         PaginationParams pagination,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// The real, counted blast radius of deleting this giveaway (S-CONSEQ). <c>GiveawayEntry</c> and
+    /// <c>GiveawayWinner</c> both carry <c>GiveawayId</c>, so the entrants and drawn winners that vanish are an
+    /// exhaustive FK count. Returns a failure when the giveaway does not exist in this tenant.
+    /// </summary>
+    Task<Result<BlastRadiusDto>> GetDeleteBlastRadiusAsync(
+        Guid broadcasterId,
+        Guid giveawayId,
         CancellationToken ct = default
     );
 }

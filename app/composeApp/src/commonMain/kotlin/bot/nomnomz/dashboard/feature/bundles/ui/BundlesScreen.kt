@@ -146,6 +146,10 @@ import nomnomzbot.composeapp.generated.resources.bundles_uninstall_title
 import nomnomzbot.composeapp.generated.resources.bundles_version_label
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
+import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
+import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.consequences.DeleteBlastRadiusDialog
+import bot.nomnomz.dashboard.core.consequences.BlastRadiusLoadState
 
 // The Bundles page (frontend-ia.md, Connect group; bundles.md §5–§6): portable content packs. Four tabs off one
 // [BundlesController] — Export (pick the channel's own content → a portable ZIP), Import (pick a ZIP, inspect it
@@ -223,6 +227,7 @@ fun BundlesScreen(controller: BundlesController, role: ManagementRole?) {
                                 installed = current.installed,
                                 manage = manage,
                                 onUninstall = { id -> scope.launch { controller.uninstall(id) } },
+                                onUninstallBlastRadius = controller::uninstallBlastRadius,
                             )
                         else ->
                             MarketplaceTab(
@@ -536,6 +541,8 @@ private fun InstalledTab(
     installed: List<InstalledBundle>,
     manage: ManageDecision,
     onUninstall: (id: String) -> Unit,
+    // The real, counted blast radius of the uninstall (S-CONSEQ) — what it removes, rendered in the confirm.
+    onUninstallBlastRadius: suspend (String) -> ApiResult<BlastRadiusSummary>,
 ) {
     if (installed.isEmpty()) {
         CenteredMessage(stringResource(Res.string.bundles_installed_empty))
@@ -560,12 +567,22 @@ private fun InstalledTab(
                 typeLabel = stringResource(Res.string.bundles_installed_row_type),
                 discriminatorSource = bundle.id,
             )
-        ConfirmDialog(
+        // Fetched fresh per row (never cached or guessed) â€” the counted blast radius the confirm MUST show
+        // before the destructive save can proceed (S-CONSEQ).
+        var blastRadius: BlastRadiusLoadState by remember(bundle.id) { mutableStateOf(BlastRadiusLoadState.Loading) }
+        LaunchedEffect(bundle.id) {
+            blastRadius =
+                when (val result: ApiResult<BlastRadiusSummary> = onUninstallBlastRadius(bundle.id)) {
+                    is ApiResult.Ok -> BlastRadiusLoadState.Loaded(result.value)
+                    is ApiResult.Failure -> BlastRadiusLoadState.Failed
+                }
+        }
+        DeleteBlastRadiusDialog(
             title = stringResource(Res.string.bundles_uninstall_title),
             message = stringResource(Res.string.bundles_uninstall_message, uninstallDisplayName),
             confirmLabel = stringResource(Res.string.bundles_uninstall_confirm),
             dismissLabel = stringResource(Res.string.bundles_cancel),
-            destructive = true,
+            blastRadius = blastRadius,
             onConfirm = {
                 pendingUninstall = null
                 onUninstall(bundle.id)

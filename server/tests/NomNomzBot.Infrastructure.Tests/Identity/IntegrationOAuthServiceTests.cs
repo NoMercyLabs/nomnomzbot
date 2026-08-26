@@ -16,6 +16,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Caching;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
@@ -1176,6 +1177,12 @@ public sealed class IntegrationOAuthServiceTests
             Guid broadcasterId,
             Guid connectionId,
             bool enabled,
+            CancellationToken ct = default
+        ) => throw new NotSupportedException();
+
+        public Task<Result<BlastRadiusDto>> GetDisconnectBlastRadiusAsync(
+            Guid broadcasterId,
+            Guid connectionId,
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 
