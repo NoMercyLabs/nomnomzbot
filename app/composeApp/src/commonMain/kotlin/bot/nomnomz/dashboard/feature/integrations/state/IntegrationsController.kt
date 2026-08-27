@@ -404,12 +404,25 @@ class IntegrationsController(
 
     private suspend fun regrantScopesInner(ready: IntegrationsState.Ready) {
 
+        // The redirect re-grant's authorize URL must stay short (a ~79-scope, 2301-char URL 502'd on Twitch's
+        // own end once — identity-auth's progressive-scopes fix), so the backend only ever widens it by scopes
+        // ACTUALLY recorded missing (a live 403 already hit) — never the proactively-detected rest of the
+        // catalogue this banner also surfaces (AuthService.WidenedStreamerScopesAsync). A scope the code needs
+        // but has never been exercised live (detectedAtRuntime == false) is therefore invisible to the redirect
+        // no matter how many times it's clicked — the device-code flow has no such URL, so it's the only path
+        // that can actually close those gaps. Falling back to it here (instead of always preferring the
+        // seamless redirect) is what makes the button work for every gap the banner reports, not just the
+        // reactively-detected subset.
+        val hasProactiveOnlyGap: Boolean = ready.missingScopes.any { !it.detectedAtRuntime }
+
         // On WEB, the streamer IS the logged-in account, so prefer the seamless REDIRECT re-grant when a client
-        // secret is configured (twitchApp.ok): one tap → Twitch → back, re-vaulting the full scope set with no
-        // code to type. The secret-less public client (which can't exchange a code) — and ALWAYS the desktop
-        // app (its system browser carries no dashboard cookie, so the redirect can't widen scopes there) — fall
-        // back to the device-code path, whose additive scope set the backend computes server-side.
-        if (isWeb && ready.checks?.twitchApp?.ok == true) regrantScopesViaRedirect()
+        // secret is configured (twitchApp.ok) AND every gap is one it can actually close: one tap → Twitch →
+        // back, re-vaulting the full scope set with no code to type. The secret-less public client (which can't
+        // exchange a code), ALWAYS the desktop app (its system browser carries no dashboard cookie, so the
+        // redirect can't widen scopes there), and any proactive-only gap all fall back to the device-code path,
+        // whose additive scope set the backend computes server-side with no URL-length ceiling.
+        if (isWeb && ready.checks?.twitchApp?.ok == true && !hasProactiveOnlyGap)
+            regrantScopesViaRedirect()
         else regrantScopesViaDevice(ready)
     }
 
