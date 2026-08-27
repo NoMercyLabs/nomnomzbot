@@ -228,6 +228,23 @@ public sealed partial class ViewerDataService : IViewerDataService
         return Result.Success();
     }
 
+    public async Task<Result<int>> ClearKeyForAllAsync(
+        Guid broadcasterId,
+        string key,
+        CancellationToken ct = default
+    )
+    {
+        Result<string> normalized = NormalizeKey(key);
+        if (normalized.IsFailure)
+            return Result.Failure<int>(normalized.ErrorMessage!, normalized.ErrorCode);
+
+        DateTime now = _clock.GetUtcNow().UtcDateTime;
+        int cleared = await _db
+            .ViewerData.Where(d => d.BroadcasterId == broadcasterId && d.Key == normalized.Value)
+            .ExecuteUpdateAsync(s => s.SetProperty(d => d.DeletedAt, now), ct);
+        return Result.Success(cleared);
+    }
+
     public async Task<Result<IReadOnlyDictionary<string, string>>> LoadKeysAsync(
         Guid broadcasterId,
         Guid viewerUserId,

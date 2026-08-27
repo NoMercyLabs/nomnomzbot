@@ -3889,6 +3889,7 @@
     <string name="pipeline_adjust_viewer_data_target_help">Which viewer's data to adjust. Blank targets the user who triggered this pipeline.</string>
     <string name="pipeline_check_balance_min_help">The minimum balance the condition checks for. Leave blank to just read the balance without comparing it.</string>
     <string name="pipeline_check_balance_set_var_help">The variable name the viewer's currency balance is stored in, for later steps to read (e.g. {{balance}}).</string>
+    <string name="pipeline_clear_viewer_data_key_help">The per-viewer data field to clear for every viewer in the channel at once.</string>
     <string name="pipeline_delete_message_message_id_help">The chat message to delete. Blank deletes the message that triggered this pipeline.</string>
     <string name="pipeline_draw_giveaway_giveaway_id_help">Which giveaway to draw a winner from. Blank uses the channel's currently active giveaway.</string>
     <string name="pipeline_enter_giveaway_giveaway_id_help">Which giveaway the triggering viewer enters. Blank uses the channel's currently active giveaway.</string>
@@ -4050,6 +4051,7 @@
     <string name="pipeline_break_description">Break out of the enclosing loop</string>
     <string name="pipeline_cancel_live_game_description">Cancel the currently running live game</string>
     <string name="pipeline_check_balance_description">Check a viewer&apos;s currency balance against a minimum</string>
+    <string name="pipeline_clear_viewer_data_description">Clear a stored value for every viewer in the channel</string>
     <string name="pipeline_continue_description">Skip to the next iteration of the enclosing loop</string>
     <string name="pipeline_deduct_currency_description">Deduct currency from a viewer&apos;s balance</string>
     <string name="pipeline_delete_message_description">Delete a chat message</string>

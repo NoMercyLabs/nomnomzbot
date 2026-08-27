@@ -3874,6 +3874,7 @@
     <string name="pipeline_adjust_viewer_data_target_help">Van welke kijker de gegevens worden aangepast. Leeg richt zich op de gebruiker die deze pipeline activeerde.</string>
     <string name="pipeline_check_balance_min_help">Het minimale saldo waarop wordt gecontroleerd. Leeg laten om alleen het saldo te lezen zonder te vergelijken.</string>
     <string name="pipeline_check_balance_set_var_help">De variabelenaam waarin het valutasaldo van de kijker wordt opgeslagen, zodat latere stappen deze kunnen lezen (bijv. {{balance}}).</string>
+    <string name="pipeline_clear_viewer_data_key_help">Het per-kijker gegevensveld dat voor alle kijkers in het kanaal tegelijk wordt gewist.</string>
     <string name="pipeline_delete_message_message_id_help">Het chatbericht dat wordt verwijderd. Leeg verwijdert het bericht dat deze pipeline activeerde.</string>
     <string name="pipeline_draw_giveaway_giveaway_id_help">Van welke giveaway een winnaar wordt getrokken. Leeg gebruikt de momenteel actieve giveaway van het kanaal.</string>
     <string name="pipeline_enter_giveaway_giveaway_id_help">Aan welke giveaway de kijker die dit activeerde deelneemt. Leeg gebruikt de momenteel actieve giveaway van het kanaal.</string>
@@ -4035,6 +4036,7 @@
     <string name="pipeline_break_description">Breek uit de omsluitende lus</string>
     <string name="pipeline_cancel_live_game_description">Annuleer het momenteel lopende live spel</string>
     <string name="pipeline_check_balance_description">Controleer het valutasaldo van een kijker tegen een minimum</string>
+    <string name="pipeline_clear_viewer_data_description">Wis een opgeslagen waarde voor alle kijkers in het kanaal</string>
     <string name="pipeline_continue_description">Ga door naar de volgende iteratie van de omsluitende lus</string>
     <string name="pipeline_deduct_currency_description">Trek valuta af van het saldo van een kijker</string>
     <string name="pipeline_delete_message_description">Verwijder een chatbericht</string>

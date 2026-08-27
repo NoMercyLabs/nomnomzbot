@@ -58,6 +58,16 @@ public interface IViewerDataService
     );
 
     /// <summary>
+    /// Bulk-clears <paramref name="key"/> for every viewer in the channel (soft delete) — e.g. resetting a
+    /// per-viewer flag like a lurk/AFK marker when the stream goes live. Returns the number of rows cleared.
+    /// </summary>
+    Task<Result<int>> ClearKeyForAllAsync(
+        Guid broadcasterId,
+        string key,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
     /// Bulk read for the template layer: the referenced keys for one viewer in a single round-trip.
     /// Missing keys are simply absent from the result — the resolver renders them empty.
     /// </summary>
