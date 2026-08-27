@@ -135,6 +135,53 @@ public sealed class LegacyChannelEventImporterTests
         head.Value.Should().Be(3);
     }
 
+    /// <summary>
+    /// The 2026-08-27 incident: the legacy source reads rows by CreatedAt (its capture time), but a redemption's
+    /// real Twitch RedeemedAt can be EARLIER than a follow's capture time even though the follow was read first —
+    /// batched writes and retries mean capture order and event-time order diverge. Replay walks the journal by
+    /// StreamPosition, so if StreamPosition followed capture order, the redemption played back AFTER the follow
+    /// that actually happened later, live, out of order. The importer must assign StreamPosition by the events'
+    /// real OccurredAt, not by the order the source happened to yield them in.
+    /// </summary>
+    [Fact]
+    public async Task Assigns_StreamPosition_by_real_event_time_even_when_the_source_read_order_disagrees()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        await using EventStoreTestDbContext db = database.NewContext();
+        EventJournalService journal = NewJournal(db);
+        LegacyChannelEventImporter importer = new(journal, new());
+
+        // Read order: follow (captured Aug 14) then redemption (captured Aug 14, same row batch) — but the
+        // redemption's REAL RedeemedAt (Aug 1) precedes the follow's REAL FollowedAt (Aug 10).
+        LegacyChannelEventRow lateFollow = Row(
+            "channel.follow",
+            """{"UserId":"100","UserName":"Alice","UserLogin":"alice","FollowedAt":"2025-08-10T00:00:00+00:00"}""",
+            "f1"
+        );
+        LegacyChannelEventRow earlyRedemption = Row(
+            "channel.points.custom.reward.redemption.add",
+            """{"Id":"r1","UserId":"200","UserName":"Bob","RedeemedAt":"2025-08-01T00:00:00+00:00","Reward":{"Id":"rw1","Title":"Hydrate","Cost":50}}""",
+            "r1"
+        );
+
+        Result<LegacyImportSummary> result = await importer.ImportAsync(
+            Tenant,
+            new InMemorySource([lateFollow, earlyRedemption])
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Imported.Should().Be(2);
+
+        Result<IReadOnlyList<EventRecord>> stream = await journal.ReadStreamAsync(Tenant, 0, 100);
+        stream.IsSuccess.Should().BeTrue(stream.ErrorMessage);
+        // The redemption (real time Aug 1) gets StreamPosition 1; the follow (real time Aug 10) gets
+        // StreamPosition 2 — chronological by OccurredAt, the opposite of the read order.
+        stream
+            .Value.Select(e => e.EventType)
+            .Should()
+            .Equal("RewardRedeemedEvent", "FollowEvent");
+    }
+
     private sealed class InMemorySource : ILegacyChannelEventSource
     {
         private readonly IReadOnlyList<LegacyChannelEventRow> _rows;

@@ -12,7 +12,6 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.DTOs.Billing;
-using NomNomzBot.Infrastructure.EventStore;
 
 namespace NomNomzBot.Infrastructure.CustomCode;
 
@@ -21,13 +20,6 @@ namespace NomNomzBot.Infrastructure.CustomCode;
 /// usage meter (the single owner of <c>TierLimit</c> resolution + the <c>UsageRecord</c> increment). Self-host is
 /// unlimited (billing no-ops). (Deferred — documented: per-ExecutionId idempotency; the billing record accumulates,
 /// so a double-call would double-count — the runner calls it once per run.)
-/// <para>
-/// A historical event replay (event-store §1.1) re-runs every imported <c>run_code</c> command for real — that is
-/// real CPU time, but it is the operator's own backfill action, not the channel's live monthly usage, so it must
-/// not eat the same-period budget a viewer's live command needs. 250+ replayed hugs burning a free-tier channel's
-/// entire 300s/month sandbox budget in minutes (blocking the CURRENT, live !hug) is exactly what this guards
-/// against — see <see cref="ReplayContext"/> for the matching chat/overlay suppression.
-/// </para>
 /// </summary>
 public sealed class ScriptExecutionMeter(IUsageMeteringService usage, TimeProvider clock)
     : IScriptExecutionMeter
@@ -39,23 +31,6 @@ public sealed class ScriptExecutionMeter(IUsageMeteringService usage, TimeProvid
         CancellationToken cancellationToken = default
     )
     {
-        if (ReplayContext.IsReplaying)
-        {
-            DateTime replayNow = clock.GetUtcNow().UtcDateTime;
-            DateTime replayPeriodStart = new(
-                replayNow.Year,
-                replayNow.Month,
-                1,
-                0,
-                0,
-                0,
-                DateTimeKind.Utc
-            );
-            return Result.Success(
-                new QuotaCheck(true, -1, 0, replayPeriodStart, replayPeriodStart.AddMonths(1))
-            );
-        }
-
         Result<QuotaCheckDto> check = await usage.CheckAsync(
             broadcasterId,
             MetricKey,
@@ -87,7 +62,7 @@ public sealed class ScriptExecutionMeter(IUsageMeteringService usage, TimeProvid
         string executionId,
         CancellationToken cancellationToken = default
     ) =>
-        elapsedMs <= 0 || ReplayContext.IsReplaying
+        elapsedMs <= 0
             ? Task.FromResult(Result.Success())
             : usage.RecordAsync(broadcasterId, MetricKey, elapsedMs, cancellationToken);
 }

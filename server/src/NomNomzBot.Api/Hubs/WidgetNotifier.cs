@@ -11,7 +11,6 @@
 using Microsoft.AspNetCore.SignalR;
 using NomNomzBot.Api.Hubs.Clients;
 using NomNomzBot.Api.Hubs.Dtos;
-using NomNomzBot.Infrastructure.EventStore;
 
 namespace NomNomzBot.Api.Hubs;
 
@@ -79,12 +78,7 @@ public class WidgetNotifier : IWidgetNotifier
         string widgetId,
         WidgetEventDto dto,
         CancellationToken ct = default
-    ) =>
-        // A historical replay (event-store §1.1) must not flash real alerts/TTS/sounds on the live overlay —
-        // see ReplayContext and HelixChatProvider.PostChatMessageAsync for the matching chat-side guard.
-        ReplayContext.IsReplaying
-            ? Task.CompletedTask
-            : _hub.Clients.Group($"widget-{broadcasterId}-{widgetId}").WidgetEvent(dto);
+    ) => _hub.Clients.Group($"widget-{broadcasterId}-{widgetId}").WidgetEvent(dto);
 
     public Task ReloadWidgetAsync(
         string broadcasterId,
@@ -110,35 +104,23 @@ public class WidgetNotifier : IWidgetNotifier
         string broadcasterId,
         PlaySoundPayload payload,
         CancellationToken ct = default
-    ) =>
-        ReplayContext.IsReplaying
-            ? Task.CompletedTask
-            : _hub.Clients.Group($"overlay-{broadcasterId}").PlaySound(payload);
+    ) => _hub.Clients.Group($"overlay-{broadcasterId}").PlaySound(payload);
 
     public Task StopSoundAsync(
         string broadcasterId,
         StopSoundPayload payload,
         CancellationToken ct = default
-    ) =>
-        ReplayContext.IsReplaying
-            ? Task.CompletedTask
-            : _hub.Clients.Group($"overlay-{broadcasterId}").StopSound(payload);
+    ) => _hub.Clients.Group($"overlay-{broadcasterId}").StopSound(payload);
 
     public Task TtsSpeakAsync(
         string broadcasterId,
         TtsSpeakPayload payload,
         CancellationToken ct = default
-    ) =>
-        ReplayContext.IsReplaying
-            ? Task.CompletedTask
-            : _hub.Clients.Group($"overlay-{broadcasterId}").TtsSpeak(payload);
+    ) => _hub.Clients.Group($"overlay-{broadcasterId}").TtsSpeak(payload);
 
     public Task BroadcastOverlayEventAsync(
         string broadcasterId,
         OverlayEventDto evt,
         CancellationToken ct = default
-    ) =>
-        ReplayContext.IsReplaying
-            ? Task.CompletedTask
-            : _hub.Clients.Group($"overlay-{broadcasterId}").Event(evt);
+    ) => _hub.Clients.Group($"overlay-{broadcasterId}").Event(evt);
 }

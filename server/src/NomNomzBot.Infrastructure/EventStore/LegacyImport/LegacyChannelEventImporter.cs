@@ -85,6 +85,17 @@ public sealed class LegacyChannelEventImporter
 
         long skippedUnmapped = skippedByType.Values.Sum();
 
+        // StreamPosition is assigned in the order rows are appended below, and every read path (including
+        // replay) walks the stream in StreamPosition order — so THIS is what "chronological" means for the
+        // journal. The source query orders by the legacy row's CreatedAt (its capture time), but the mapper
+        // stamps OccurredAt from the REAL Twitch payload timestamp for the topics that carry one (follow,
+        // redemption, ban, stream online, shoutout, poll/hype-train/prediction begin/end) — capture time and
+        // event time can diverge (retries, batched writes, backfills), which is exactly what put a redemption
+        // ahead of the follow that actually preceded it and made a rebuild replay events "out of order" live
+        // (2026-08-27 incident). A final stable sort by OccurredAt (ties broken by the CreatedAt/Id read order
+        // already in `mapped`) guarantees StreamPosition and OccurredAt agree for the whole imported batch.
+        mapped = [.. mapped.OrderBy(r => r.OccurredAt)];
+
         // One bulk existence check across all mapped ids → an honest duplicate count and a re-run that writes nothing.
         Result<IReadOnlySet<Guid>> existingResult = await _journal.GetExistingEventIdsAsync(
             [.. mapped.Select(r => r.EventId)],
