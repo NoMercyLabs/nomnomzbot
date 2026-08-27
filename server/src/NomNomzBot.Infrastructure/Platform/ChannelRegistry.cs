@@ -342,6 +342,13 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
             .Where(t => t.BroadcasterId == ctx.BroadcasterId && t.IsEnabled)
             .ToListAsync(ct);
 
+        Dictionary<Guid, List<Domain.Commands.Entities.PipelineStep>> triggerStepsByPipeline =
+            await LoadStepsByPipelineAsync(
+                db,
+                triggers.Where(t => t.PipelineId.HasValue).Select(t => t.PipelineId!.Value),
+                ct
+            );
+
         foreach (Domain.Commands.Entities.ChatTrigger trigger in triggers)
         {
             System.Text.RegularExpressions.Regex? compiled = null;
@@ -378,7 +385,18 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
                 MatchType = trigger.MatchType,
                 CaseSensitive = trigger.CaseSensitive,
                 Response = trigger.Response,
-                PipelineGraphJson = trigger.Pipeline?.GraphJsonCache,
+                // Live PipelineStep rows are the execution truth (PipelineGraphJson is only a build-time
+                // performance cache that can drift from them — event-store.md's own "DB steps take
+                // priority" precedent); only fall back to the cache when a pipeline has no split-out rows
+                // at all (e.g. content untouched since an old-bot import).
+                PipelineGraphJson =
+                    trigger.PipelineId.HasValue
+                    && triggerStepsByPipeline.TryGetValue(
+                        trigger.PipelineId.Value,
+                        out List<Domain.Commands.Entities.PipelineStep>? triggerSteps
+                    )
+                        ? Commands.PipelineGraphBuilder.BuildGraphJson(triggerSteps)
+                        : trigger.Pipeline?.GraphJsonCache,
                 CooldownSeconds = trigger.CooldownSeconds,
                 MinPermissionLevel = trigger.MinPermissionLevel,
                 CompiledRegex = compiled,
@@ -413,6 +431,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
                 PipelineGraphJson = c.Pipeline != null && c.Pipeline.IsEnabled
                     ? c.Pipeline.GraphJsonCache
                     : null,
+                PipelineId = c.Pipeline != null && c.Pipeline.IsEnabled ? c.PipelineId : null,
                 c.Aliases,
                 c.PrefixMode,
                 c.CustomPrefix,
@@ -421,9 +440,28 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
             })
             .ToListAsync(ct);
 
+        Dictionary<Guid, List<Domain.Commands.Entities.PipelineStep>> commandStepsByPipeline =
+            await LoadStepsByPipelineAsync(
+                db,
+                rows.Where(r => r.PipelineId.HasValue).Select(r => r.PipelineId!.Value),
+                ct
+            );
+
         List<CachedCommand> commands = new(rows.Count);
         foreach (var c in rows)
         {
+            // Live PipelineStep rows are the execution truth (PipelineGraphJson is only a build-time
+            // performance cache that can drift from them); only fall back to the cache when a pipeline has
+            // no split-out rows at all (e.g. content untouched since an old-bot import).
+            string? pipelineGraphJson =
+                c.PipelineId.HasValue
+                && commandStepsByPipeline.TryGetValue(
+                    c.PipelineId.Value,
+                    out List<Domain.Commands.Entities.PipelineStep>? commandSteps
+                )
+                    ? Commands.PipelineGraphBuilder.BuildGraphJson(commandSteps)
+                    : c.PipelineGraphJson;
+
             System.Text.RegularExpressions.Regex? compiledRegex = null;
             if (c.MatchMode == "Regex" && !string.IsNullOrEmpty(c.MatchPattern))
             {
@@ -458,7 +496,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
                     UserCooldown = c.CooldownPerUser ? c.CooldownSeconds : 0,
                     MinPermissionLevel = c.MinPermissionLevel,
                     Tier = c.Tier,
-                    PipelineGraphJson = c.PipelineGraphJson,
+                    PipelineGraphJson = pipelineGraphJson,
                     Aliases = [.. c.Aliases],
                     PrefixMode = c.PrefixMode,
                     CustomPrefix = c.CustomPrefix,
@@ -483,6 +521,30 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
             commands.Count,
             ctx.BroadcasterId
         );
+    }
+
+    /// <summary>Bulk-loads normalized <see cref="Domain.Commands.Entities.PipelineStep"/> rows (with their
+    /// first condition) for every given pipeline id, grouped by pipeline — one query per cache load instead
+    /// of one per command/trigger.</summary>
+    private static async Task<
+        Dictionary<Guid, List<Domain.Commands.Entities.PipelineStep>>
+    > LoadStepsByPipelineAsync(
+        IApplicationDbContext db,
+        IEnumerable<Guid> pipelineIds,
+        CancellationToken ct
+    )
+    {
+        List<Guid> ids = [.. pipelineIds.Distinct()];
+        if (ids.Count == 0)
+            return [];
+
+        List<Domain.Commands.Entities.PipelineStep> steps = await db
+            .PipelineSteps.Where(s => ids.Contains(s.PipelineId))
+            .Include(s => s.Conditions)
+            .OrderBy(s => s.Order)
+            .ToListAsync(ct);
+
+        return steps.GroupBy(s => s.PipelineId).ToDictionary(g => g.Key, g => g.ToList());
     }
 
     // A command authored as a single response persists it in the singular TemplateResponse (the plural array stays

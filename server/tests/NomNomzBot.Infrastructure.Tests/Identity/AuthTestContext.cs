@@ -383,13 +383,12 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         b.Ignore<NomNomzBot.Domain.Widgets.Entities.WidgetGalleryItem>();
         b.Ignore<NomNomzBot.Domain.Widgets.Entities.WidgetGallerySubmissionEvent>();
 
-        // Command: mapped scalar-only (both navs ignored; Aliases/TemplateResponses are primitive
-        // collections that materialize on InMemory) so CommandUseCountHandler tests can prove the
-        // UseCount/LastUsedAt fold through this harness.
+        // Command: mapped scalar + its Pipeline nav (Aliases/TemplateResponses are primitive collections
+        // that materialize on InMemory) so CommandUseCountHandler tests can prove the UseCount/LastUsedAt
+        // fold through this harness, and so ChannelRegistry's command-cache load (which joins Pipeline for
+        // GraphJsonCache/IsEnabled) runs cleanly through this harness too.
         b.Entity<NomNomzBot.Domain.Commands.Entities.Command>().HasKey(e => e.Id);
-        b.Entity<NomNomzBot.Domain.Commands.Entities.Command>()
-            .Ignore(e => e.Channel)
-            .Ignore(e => e.Pipeline);
+        b.Entity<NomNomzBot.Domain.Commands.Entities.Command>().Ignore(e => e.Channel);
 
         // Reward is scalar-only (no jsonb-of-complex-type column), so it materializes on InMemory. Mapped
         // (navs ignored) so the reward-sync tests can prove the Twitch read path through this harness.
