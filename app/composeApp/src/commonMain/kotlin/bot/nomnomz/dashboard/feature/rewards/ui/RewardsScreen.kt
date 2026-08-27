@@ -25,6 +25,7 @@ import androidx.compose.foundation.verticalScroll
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.designsystem.component.Avatar
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.ColorField
 import bot.nomnomz.dashboard.core.designsystem.component.parseHexColor
@@ -685,6 +686,11 @@ private fun RedemptionRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
+        Avatar(
+            name = redemption.userDisplayName.ifBlank { redemption.userId },
+            size = spacing.s8,
+            imageUrl = redemption.userAvatarUrl,
+        )
         Column(
             modifier = Modifier
                 .weight(1f)
