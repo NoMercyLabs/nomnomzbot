@@ -176,7 +176,7 @@ fun GamesScreen(controller: GamesController, role: ManagementRole?) {
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
+    Box(modifier = Modifier.fillMaxSize()) {
         when (val current: GamesState = state) {
             is GamesState.Loading -> CenteredMessage(stringResource(Res.string.games_loading))
             is GamesState.Empty -> CenteredMessage(stringResource(Res.string.games_empty))
@@ -249,7 +249,7 @@ private fun ManagedContent(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(vertical = spacing.s1),
+        contentPadding = PaddingValues(spacing.s6),
         verticalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
         item(key = "page-header") { PageHeader(title = stringResource(Res.string.shell_nav_games)) }

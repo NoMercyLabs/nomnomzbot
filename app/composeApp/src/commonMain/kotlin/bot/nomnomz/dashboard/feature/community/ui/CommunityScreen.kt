@@ -14,6 +14,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -223,7 +224,7 @@ fun CommunityScreen(controller: CommunityController, role: ManagementRole?) {
         viewerData = controller.getViewerData(target.id)
     }
 
-    Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
+    Box(modifier = Modifier.fillMaxSize()) {
         when (val current: CommunityState = state) {
             is CommunityState.Loading -> CenteredMessage(stringResource(Res.string.community_loading))
             is CommunityState.Empty -> CenteredMessage(stringResource(Res.string.community_empty))
@@ -343,6 +344,7 @@ private fun MemberList(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(spacing.s6),
         verticalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
         item(key = "page-header") { PageHeader(title = stringResource(Res.string.shell_nav_community)) }

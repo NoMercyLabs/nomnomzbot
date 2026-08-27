@@ -13,6 +13,7 @@ package bot.nomnomz.dashboard.feature.liveops.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -114,7 +115,7 @@ fun ScheduleScreen(
 
     LaunchedEffect(controller) { controller.load() }
 
-    Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
+    Box(modifier = Modifier.fillMaxSize()) {
         when (val current: ScheduleState = state) {
             is ScheduleState.Loading -> CenteredMessage(stringResource(Res.string.schedule_loading))
             is ScheduleState.Error ->
@@ -216,6 +217,7 @@ private fun ScheduleContent(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(spacing.s6),
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
         item(key = "header") {
