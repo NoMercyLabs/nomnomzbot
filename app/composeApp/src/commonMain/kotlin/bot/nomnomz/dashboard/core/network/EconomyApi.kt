@@ -508,14 +508,17 @@ data class LeaderboardConfig(
 
 /**
  * One viewer's currency account (backend `CurrencyAccountDto`) — the account-admin row. camelCase mirror; the
- * Economy page reads the balance + lifetime totals + frozen flag. [viewerTwitchUserId] identifies the holder
- * (the display name is resolved elsewhere); [lastActivityAt] is the ISO-8601 last-movement time, or null.
+ * Economy page reads the balance + lifetime totals + frozen flag. [viewerDisplayName] / [viewerAvatarUrl] are
+ * the backend's live join against the Users table (never stored on the account itself, so a Twitch name/avatar
+ * change is always reflected); [lastActivityAt] is the ISO-8601 last-movement time, or null.
  */
 @Serializable
 data class CurrencyAccountSummary(
     val id: String = "",
     val viewerUserId: String = "",
     val viewerTwitchUserId: String = "",
+    val viewerDisplayName: String = "",
+    val viewerAvatarUrl: String? = null,
     val balance: Long = 0,
     val lifetimeEarned: Long = 0,
     val lifetimeSpent: Long = 0,

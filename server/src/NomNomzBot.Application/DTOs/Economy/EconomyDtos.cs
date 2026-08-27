@@ -44,6 +44,12 @@ public sealed record CurrencyAccountDto(
     Guid Id,
     Guid ViewerUserId,
     string ViewerTwitchUserId,
+    // The viewer's current Twitch display name / avatar (User.DisplayName / User.ProfileImageUrl), joined at
+    // read time so the dashboard's account list can render who a wallet belongs to without a second lookup.
+    // Never persisted on the account row itself — a viewer's display name/avatar can change on Twitch, so the
+    // account table would just go stale; this always reflects the live User row.
+    string ViewerDisplayName,
+    string? ViewerAvatarUrl,
     long Balance,
     long LifetimeEarned,
     long LifetimeSpent,

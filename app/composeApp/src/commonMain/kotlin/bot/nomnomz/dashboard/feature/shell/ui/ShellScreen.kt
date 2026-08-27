@@ -69,17 +69,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.flow.filterNotNull
 import bot.nomnomz.dashboard.core.connection.SessionUser
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
+import bot.nomnomz.dashboard.core.designsystem.component.Avatar
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.feature.shell.state.ChannelSwitcherController
@@ -1186,32 +1185,6 @@ private fun ProfileBlock(
                     onLogout()
                 },
             )
-        }
-    }
-}
-
-// Shows the channel or user avatar. When imageUrl is provided, renders it with a colored
-// background (acts as both placeholder and error fallback — the image covers it when loaded).
-@Composable
-private fun Avatar(name: String, size: Dp, imageUrl: String? = null) {
-    val tokens = LocalTokens.current
-    val typography = LocalTypography.current
-
-    val initial: String = name.trim().firstOrNull()?.uppercase() ?: "?"
-
-    Box(
-        modifier = Modifier.size(size).clip(CircleShape).background(tokens.sidebarPrimary),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (imageUrl != null) {
-            AsyncImage(
-                model = imageUrl,
-                contentDescription = name,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-            )
-        } else {
-            Text(text = initial, style = typography.sm, color = tokens.sidebarPrimaryForeground)
         }
     }
 }

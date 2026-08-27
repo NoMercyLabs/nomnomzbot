@@ -52,6 +52,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
+import bot.nomnomz.dashboard.core.designsystem.component.Avatar
 import bot.nomnomz.dashboard.core.designsystem.component.AppSelectField
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Card
@@ -1097,14 +1098,14 @@ private fun AccountRow(
     val rowDescription: String =
         stringResource(
             Res.string.economy_accounts_row_description,
-            account.viewerTwitchUserId,
+            account.viewerDisplayName,
             account.balance,
         )
     val freezeLabel: String =
         stringResource(
             if (account.isFrozen) Res.string.economy_account_unfreeze_action
             else Res.string.economy_account_freeze_action,
-            account.viewerTwitchUserId,
+            account.viewerDisplayName,
         )
 
     Row(
@@ -1123,8 +1124,9 @@ private fun AccountRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(spacing.s3),
         ) {
+            Avatar(name = account.viewerDisplayName, size = spacing.s8, imageUrl = account.viewerAvatarUrl)
             Text(
-                text = account.viewerTwitchUserId,
+                text = account.viewerDisplayName,
                 style = typography.base,
                 color = tokens.cardForeground,
                 maxLines = 1,
@@ -1188,7 +1190,7 @@ private fun AccountRow(
         AccountAdjustDialog(
             // Opened from a row, so the target is pre-selected (the row already carries the platform User GUID);
             // the picker shows it with a "Change" affordance so the operator can retarget without leaving.
-            initial = PickerRef(account.viewerUserId, account.viewerTwitchUserId),
+            initial = PickerRef(account.viewerUserId, account.viewerDisplayName),
             searchViewers = searchViewers,
             onConfirm = { viewerUserId, amount, reason ->
                 showAdjust = false
@@ -1200,7 +1202,7 @@ private fun AccountRow(
 
     if (showLedger) {
         LedgerDialog(
-            viewerLabel = account.viewerTwitchUserId,
+            viewerLabel = account.viewerDisplayName,
             loading = ledgerLoading,
             entries = ledgerEntries,
             onDismiss = { showLedger = false; ledgerEntries = null },

@@ -30,6 +30,8 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         : base(options) { }
 
     public DbSet<EventJournal> EventJournals => Set<EventJournal>();
+    public DbSet<NomNomzBot.Domain.Identity.Entities.User> Users =>
+        Set<NomNomzBot.Domain.Identity.Entities.User>();
     public DbSet<NomNomzBot.Domain.Identity.Entities.UserIdentity> UserIdentities =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Rewards.Entities.Redemption> Redemptions =>
@@ -216,10 +218,20 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
             b.Ignore(e => e.Pipeline);
         });
 
+        // User: CurrencyAccountService joins Users to enrich the account list with a display name/avatar, so
+        // this harness needs a real (if minimal) mapping rather than the throwing stub the rest of the unused
+        // surface uses. Channel/Pronoun/AltPronoun are Ignore()d below (not exercised here) — drop the navs so
+        // EF doesn't try to map an FK to an ignored entity, same pattern as PipelineExecution.Pipeline above.
+        modelBuilder.Entity<NomNomzBot.Domain.Identity.Entities.User>(b =>
+        {
+            b.Ignore(e => e.Channel);
+            b.Ignore(e => e.Pronoun);
+            b.Ignore(e => e.AltPronoun);
+        });
+
         // EF discovers entity types from every DbSet<T> property (an IApplicationDbContext requirement) and
         // would try to map their jsonb-of-complex-type columns (unsupported on SQLite). Ignore every entity
         // these tests do not exercise so the model stays minimal and provider-agnostic.
-        modelBuilder.Ignore<NomNomzBot.Domain.Identity.Entities.User>();
         modelBuilder.Ignore<NomNomzBot.Domain.Identity.Entities.Channel>();
         modelBuilder.Ignore<NomNomzBot.Domain.Identity.Entities.ChannelModerator>();
         modelBuilder.Ignore<NomNomzBot.Domain.Platform.Entities.Service>();
@@ -297,8 +309,6 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
     }
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
-    public DbSet<NomNomzBot.Domain.Identity.Entities.User> Users =>
-        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Identity.Entities.ConsentRecord> ConsentRecords =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Identity.Entities.ErasureRequest> ErasureRequests =>
