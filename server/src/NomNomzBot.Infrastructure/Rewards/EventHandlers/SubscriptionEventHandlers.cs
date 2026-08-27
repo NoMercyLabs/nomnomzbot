@@ -17,6 +17,21 @@ using NomNomzBot.Infrastructure.Platform.Eventing;
 
 namespace NomNomzBot.Infrastructure.Rewards.EventHandlers;
 
+/// <summary>Twitch's own sub-tier codes ("1000"/"2000"/"3000"/"Prime") are not what a viewer reads as a tier —
+/// the {{tier}} template variable must carry the human label ("1"/"2"/"3"/"Prime"), never the raw Helix code.</summary>
+internal static class TwitchSubTier
+{
+    public static string ToLabel(string? tier) =>
+        tier switch
+        {
+            "1000" => "1",
+            "2000" => "2",
+            "3000" => "3",
+            "Prime" or "prime" => "Prime",
+            _ => tier ?? string.Empty,
+        };
+}
+
 /// <summary>Handles new subscription events.</summary>
 public sealed class NewSubscriptionEventHandler
     : TwitchAlertHandlerBase<NewSubscriptionEvent>,
@@ -40,7 +55,7 @@ public sealed class NewSubscriptionEventHandler
         {
             ["user"] = e.UserDisplayName,
             ["user.id"] = e.UserId,
-            ["tier"] = e.Tier,
+            ["tier"] = TwitchSubTier.ToLabel(e.Tier),
             ["provider"] = e.Provider,
         };
 
@@ -71,7 +86,7 @@ public sealed class ResubscriptionEventHandler
         {
             ["user"] = e.UserDisplayName,
             ["user.id"] = e.UserId,
-            ["tier"] = e.Tier,
+            ["tier"] = TwitchSubTier.ToLabel(e.Tier),
             ["months"] = e.CumulativeMonths.ToString(),
             ["streak"] = e.StreakMonths.ToString(),
             ["message"] = e.Message ?? string.Empty,
@@ -107,7 +122,7 @@ public sealed class GiftSubscriptionEventHandler
         {
             ["user"] = e.IsAnonymous ? "Anonymous" : e.GifterDisplayName,
             ["user.id"] = e.IsAnonymous ? string.Empty : e.GifterUserId,
-            ["tier"] = e.Tier,
+            ["tier"] = TwitchSubTier.ToLabel(e.Tier),
             ["count"] = e.GiftCount.ToString(),
             ["anonymous"] = e.IsAnonymous ? "true" : "false",
             ["provider"] = e.Provider,

@@ -107,7 +107,8 @@ public sealed class ImportReplayProjection : IProjection
         // OccurredAt from the journal row itself — deserializing it back onto the same concrete type preserves
         // all three, so the republish is byte-for-byte the same tenant/identity/time the import committed.
         MethodInfo generic = PublishMethod.MakeGenericMethod(clrType);
-        await (Task)generic.Invoke(_eventBus, [domainEvent, cancellationToken])!;
+        using (ReplayContext.Enter())
+            await (Task)generic.Invoke(_eventBus, [domainEvent, cancellationToken])!;
 
         return Result.Success();
     }

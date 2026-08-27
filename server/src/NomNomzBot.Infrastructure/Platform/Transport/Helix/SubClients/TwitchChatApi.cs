@@ -11,6 +11,7 @@
 using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Infrastructure.EventStore;
 
 namespace NomNomzBot.Infrastructure.Platform.Transport.Helix.SubClients;
 
@@ -40,6 +41,10 @@ public sealed class TwitchChatApi(
         CancellationToken ct = default
     )
     {
+        // See HelixChatProvider.PostChatMessageAsync — a historical replay never re-posts to live chat.
+        if (ReplayContext.IsReplaying)
+            return Result.Success();
+
         Result scope = await RequireScopeAsync(
             broadcasterId,
             TwitchScopes.ModeratorManageAnnouncements,
@@ -72,6 +77,9 @@ public sealed class TwitchChatApi(
         CancellationToken ct = default
     )
     {
+        if (ReplayContext.IsReplaying)
+            return Result.Success();
+
         Result scope = await RequireScopeAsync(
             broadcasterId,
             TwitchScopes.ModeratorManageShoutouts,
