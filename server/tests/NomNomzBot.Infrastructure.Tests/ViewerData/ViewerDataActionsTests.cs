@@ -273,4 +273,36 @@ public sealed class ViewerDataActionsTests
         result.Succeeded.Should().BeFalse();
         (await _db.ViewerData.CountAsync()).Should().Be(0);
     }
+
+    [Fact]
+    public async Task ClearViewerData_ClearsTheKeyForEveryViewerInTheChannel_NotJustTheTriggeringOne()
+    {
+        await _service.SetAsync(Channel, Alice, "lurking", "1");
+        await _service.SetAsync(Channel, Bob, "lurking", "1");
+        await _service.SetAsync(Channel, Alice, "deaths", "3");
+        ClearViewerDataAction sut = new(_service);
+
+        ActionResult result = await sut.ExecuteAsync(
+            Context(),
+            Action("clear_viewer_data", ("key", "lurking"))
+        );
+
+        result.Succeeded.Should().BeTrue();
+        result.Output.Should().Be("2");
+        (await _service.GetAsync(Channel, Alice, "lurking")).Value.Should().BeNull();
+        (await _service.GetAsync(Channel, Bob, "lurking")).Value.Should().BeNull();
+        (await _service.GetAsync(Channel, Alice, "deaths")).Value.Should().Be("3");
+    }
+
+    [Fact]
+    public async Task ClearViewerData_MissingKey_FailsWithoutTouchingAnyRow()
+    {
+        await _service.SetAsync(Channel, Alice, "lurking", "1");
+        ClearViewerDataAction sut = new(_service);
+
+        ActionResult result = await sut.ExecuteAsync(Context(), Action("clear_viewer_data"));
+
+        result.Succeeded.Should().BeFalse();
+        (await _service.GetAsync(Channel, Alice, "lurking")).Value.Should().Be("1");
+    }
 }

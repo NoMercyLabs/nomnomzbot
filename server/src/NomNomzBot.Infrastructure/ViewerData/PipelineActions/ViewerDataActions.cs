@@ -189,6 +189,51 @@ public sealed class AdjustViewerDataAction(
 }
 
 /// <summary>
+/// Pipeline action <c>clear_viewer_data</c> (per-viewer-data.md §4): bulk-clears a per-viewer key for
+/// EVERY viewer in the channel — e.g. resetting a lurk/AFK flag on <c>stream.online</c>, the way the legacy
+/// bot cleared its lurker set when a stream went live. Params: <c>key</c> (slug). Not viewer-scoped, so it
+/// has no <c>target</c> — it always acts channel-wide.
+/// </summary>
+public sealed class ClearViewerDataAction(IViewerDataService viewerData) : ICommandAction
+{
+    public string ActionType => "clear_viewer_data";
+
+    public LocalizedText Category => new("pipeline.category.viewer_data");
+
+    public LocalizedText Description => new("pipeline.clear_viewer_data.description");
+
+    public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
+        [
+            new(
+                "key",
+                PipelineActionFieldKind.Text,
+                Required: true,
+                Description: new("pipeline.clear_viewer_data.key.help")
+            ),
+        ];
+
+    public async Task<ActionResult> ExecuteAsync(
+        PipelineExecutionContext ctx,
+        ActionDefinition action
+    )
+    {
+        string? key = action.GetString("key");
+        if (string.IsNullOrWhiteSpace(key))
+            return ActionResult.Failure("clear_viewer_data requires a 'key'.");
+
+        Result<int> cleared = await viewerData.ClearKeyForAllAsync(
+            ctx.BroadcasterId,
+            key,
+            ctx.CancellationToken
+        );
+        if (cleared.IsFailure)
+            return ActionResult.Failure(cleared.ErrorMessage ?? "clear_viewer_data failed.");
+
+        return ActionResult.Success(cleared.Value.ToString(CultureInfo.InvariantCulture));
+    }
+}
+
+/// <summary>
 /// Shared subject resolution for the viewer-data actions. The <c>target</c> parameter accepts a
 /// <c>{variable}</c> reference (e.g. <c>{target.id}</c>, the dispatcher-seeded @mention), an
 /// <c>@login</c>/login, a platform external id, or a platform user Guid; absent means the triggering

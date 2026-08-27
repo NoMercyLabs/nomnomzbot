@@ -254,6 +254,46 @@ public sealed class ViewerDataServiceTests
     }
 
     [Fact]
+    public async Task ClearKeyForAll_SoftDeletesTheKeyForEveryViewerInTheChannel_ButLeavesOtherKeysAndOtherChannels()
+    {
+        (ViewerDataService sut, ViewerDataTestDbContext db) = Build();
+        Guid otherChannel = Guid.NewGuid();
+        await sut.SetAsync(Channel, Viewer, "lurking", "1");
+        await sut.SetAsync(Channel, OtherViewer, "lurking", "1");
+        await sut.SetAsync(Channel, Viewer, "deaths", "3");
+        await sut.SetAsync(otherChannel, Viewer, "lurking", "1");
+
+        Result<int> cleared = await sut.ClearKeyForAllAsync(Channel, "lurking");
+
+        cleared.IsSuccess.Should().BeTrue();
+        cleared.Value.Should().Be(2);
+        (await sut.GetAsync(Channel, Viewer, "lurking")).Value.Should().BeNull();
+        (await sut.GetAsync(Channel, OtherViewer, "lurking")).Value.Should().BeNull();
+        (await sut.GetAsync(Channel, Viewer, "deaths")).Value.Should().Be("3");
+        (await sut.GetAsync(otherChannel, Viewer, "lurking")).Value.Should().Be("1");
+        // Soft-deleted, not erased. AsNoTracking: ExecuteUpdateAsync writes straight to the database and
+        // does not refresh already-tracked instances, so a tracked read here would see stale in-memory state.
+        ViewerDatum tombstone = await db
+            .ViewerData.AsNoTracking()
+            .IgnoreQueryFilters()
+            .SingleAsync(d =>
+                d.BroadcasterId == Channel && d.ViewerUserId == Viewer && d.Key == "lurking"
+            );
+        tombstone.DeletedAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task ClearKeyForAll_OfANeverSetKey_SucceedsWithZeroCleared()
+    {
+        (ViewerDataService sut, _) = Build();
+
+        Result<int> cleared = await sut.ClearKeyForAllAsync(Channel, "lurking");
+
+        cleared.IsSuccess.Should().BeTrue();
+        cleared.Value.Should().Be(0);
+    }
+
+    [Fact]
     public async Task Reads_AreTenantAndViewerScoped()
     {
         (ViewerDataService sut, _) = Build();

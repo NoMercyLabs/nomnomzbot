@@ -73,6 +73,8 @@
     "pipeline.check_balance.description",
     "pipeline.check_balance.min.help",
     "pipeline.check_balance.set_var.help",
+    "pipeline.clear_viewer_data.description",
+    "pipeline.clear_viewer_data.key.help",
     "pipeline.continue.description",
     "pipeline.deduct_currency.amount.help",
     "pipeline.deduct_currency.description",
