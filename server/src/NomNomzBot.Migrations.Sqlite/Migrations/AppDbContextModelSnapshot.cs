@@ -8076,6 +8076,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<bool>("IsUserInputRequired")
                         .HasColumnType("INTEGER");
 
+                    b.Property<DateTime?>("PendingMigrationRequestedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Permission")
                         .IsRequired()
                         .ValueGeneratedOnAdd()

@@ -652,6 +652,39 @@ public class RewardService : IRewardService
                 "ALREADY_EXISTS"
             );
 
+        // Twitch's Create Custom Reward requires the title be unique amongst ALL of the broadcaster's custom
+        // rewards — regardless of enabled/paused state — so creating a copy of `external` under the title it
+        // already occupies always 400s. And an unmanaged external reward can't be renamed, disabled, or deleted
+        // through this client_id (only the client_id that created it can), so "take control" can never succeed
+        // on Twitch's side while that title is still taken. Rather than a dead-end failure, we PARK the request:
+        // `external` already carries every field the recreate needs, so nothing is lost — mark it pending and
+        // tell the operator what to do on Twitch. The dashboard swaps the button to "Finalize migration"; the
+        // NEXT click re-enters this same method, re-checks Twitch, and — once the title is free — completes the
+        // recreate below and clears the pending marker.
+        bool titleStillTaken = await _db.Rewards.AnyAsync(
+            r => r.BroadcasterId == broadcaster && r.Id != external.Id && r.Title == external.Title,
+            cancellationToken
+        );
+        if (titleStillTaken)
+        {
+            if (external.PendingMigrationRequestedAt is null)
+            {
+                external.PendingMigrationRequestedAt = DateTime.UtcNow;
+                await _db.SaveChangesAsync(cancellationToken);
+            }
+            return Result.Failure<RewardDetail>(
+                $"Twitch won't allow a second reward titled \"{external.Title}\" — and the bot can't rename or "
+                    + "remove the original since it wasn't created by this client. Rename or delete "
+                    + $"\"{external.Title}\" in your Twitch Creator Dashboard, then click Finalize migration to "
+                    + "finish taking control — nothing you've configured here will be lost while you wait.",
+                "MIGRATION_PENDING_EXTERNAL_REMOVAL"
+            );
+        }
+
+        // The title is free — either this is a first attempt, or the operator cleared the conflict on Twitch
+        // and is finalizing a previously-parked migration. Either way, proceed and drop any pending marker.
+        external.PendingMigrationRequestedAt = null;
+
         // We cannot take over the original (another client_id owns it), so we recreate an equivalent reward
         // under the bot's client. The new reward gets its own Twitch id and IS manageable.
         Result<TwitchCustomReward> created = await _channelPoints.CreateCustomRewardAsync(
@@ -798,6 +831,7 @@ public class RewardService : IRewardService
             r.IsManageable,
             r.IsUserInputRequired,
             r.IsPaused,
+            r.PendingMigrationRequestedAt.HasValue,
             null,
             null,
             null,

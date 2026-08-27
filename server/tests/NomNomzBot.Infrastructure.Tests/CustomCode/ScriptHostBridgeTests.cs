@@ -615,7 +615,7 @@ public sealed class ScriptHostBridgeTests
             .BeNull();
         await overlay
             .DidNotReceiveWithAnyArgs()
-            .SendWidgetEventAsync(default, default, default!, default, default);
+            .SendWidgetEventAsync(default, default, default!, default);
     }
 
     [Fact]
@@ -637,7 +637,7 @@ public sealed class ScriptHostBridgeTests
             .BeNull();
         await overlay
             .DidNotReceiveWithAnyArgs()
-            .SendWidgetEventAsync(default, default, default!, default, default);
+            .SendWidgetEventAsync(default, default, default!, default);
     }
 
     // ── reward.get / reward.update ──
@@ -654,6 +654,7 @@ public sealed class ScriptHostBridgeTests
             IsManageable: manageable,
             IsUserInputRequired: false,
             IsPaused: false,
+            IsMigrationPending: false,
             BackgroundColor: null,
             ImageUrl: null,
             MaxPerStream: null,
@@ -763,7 +764,7 @@ public sealed class ScriptHostBridgeTests
             )
             .Should()
             .BeNull();
-        await rewards.DidNotReceiveWithAnyArgs().UpdateAsync(default!, default!, default!, default);
+        await rewards.DidNotReceiveWithAnyArgs().UpdateAsync(default!, default!, default!);
     }
 
     [Fact]
@@ -782,7 +783,7 @@ public sealed class ScriptHostBridgeTests
             )
             .Should()
             .BeNull();
-        await rewards.DidNotReceiveWithAnyArgs().UpdateAsync(default!, default!, default!, default);
+        await rewards.DidNotReceiveWithAnyArgs().UpdateAsync(default!, default!, default!);
     }
 
     // ─── stats.viewer ─────────────────────────────────────────────────────────
@@ -879,7 +880,7 @@ public sealed class ScriptHostBridgeTests
         stats.Value<long>("redemptions").Should().Be(0);
         stats.Value<long>("songRequests").Should().Be(0);
         // No resolvable viewer → the analytics service is never asked (nothing to ask about).
-        await analytics.DidNotReceiveWithAnyArgs().GetProfileAsync(default, default, default);
+        await analytics.DidNotReceiveWithAnyArgs().GetProfileAsync(default, default);
     }
 
     // ─── tts.voice.get / tts.voice.set ────────────────────────────────────────
@@ -1007,9 +1008,7 @@ public sealed class ScriptHostBridgeTests
         await ttsConfig
             .Received(1)
             .ClearUserVoiceAsync(Channel, "555006", Arg.Any<CancellationToken>());
-        await ttsConfig
-            .DidNotReceiveWithAnyArgs()
-            .SetUserVoiceAsync(default, default!, default!, default);
+        await ttsConfig.DidNotReceiveWithAnyArgs().SetUserVoiceAsync(default, default!, default!);
     }
 
     [Fact]
@@ -1152,7 +1151,7 @@ public sealed class ScriptHostBridgeTests
             .BeNull();
         await scheduler
             .DidNotReceiveWithAnyArgs()
-            .ScheduleByNameAsync(default, default!, default, default!, default!, default!, default);
+            .ScheduleByNameAsync(default, default!, default, default!, default!, default!);
     }
 
     [Fact]

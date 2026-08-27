@@ -49,6 +49,9 @@ public sealed record RewardDetail(
     bool IsManageable,
     bool IsUserInputRequired,
     bool IsPaused,
+    // Set once "take control" hit Twitch's title-uniqueness conflict and is waiting on the operator to
+    // rename/delete the external reward on Twitch; the dashboard swaps the action to "Finalize migration".
+    bool IsMigrationPending,
     string? BackgroundColor,
     string? ImageUrl,
     int? MaxPerStream,

@@ -279,6 +279,10 @@ data class RewardSummary(
     val prompt: String? = null,
     val isEnabled: Boolean = false,
     val isManageable: Boolean = false,
+    // Set once "Take control" hit a Twitch title conflict it can't resolve on its own (another reward — still
+    // on Twitch — holds this title) and parked instead of failing outright: nothing configured here was lost,
+    // but the row needs the operator to free the title on Twitch, then "Finalize migration" to complete it.
+    val isMigrationPending: Boolean = false,
     // Paused = live but temporarily not redeemable (Twitch "pause"); read so the edit dialog pre-fills the toggle.
     val isPaused: Boolean = false,
     // Whether redeeming requires the viewer to type text; read so the edit dialog pre-fills the toggle.
