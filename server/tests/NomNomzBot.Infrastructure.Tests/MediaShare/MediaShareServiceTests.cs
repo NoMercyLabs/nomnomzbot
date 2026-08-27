@@ -265,7 +265,14 @@ public sealed class MediaShareServiceTests
                 Arg.Any<CancellationToken>()
             );
 
-        await h.Sut.RejectAsync(Channel, submit.Value.Id, Mod);
+        Result<MediaShareRequestDto> rejected = await h.Sut.RejectAsync(
+            Channel,
+            submit.Value.Id,
+            Mod
+        );
+        rejected.IsSuccess.Should().BeTrue();
+        rejected.Value.Id.Should().Be(submit.Value.Id);
+        rejected.Value.Status.Should().Be(MediaShareStatus.Rejected);
 
         // Refunded: a RefundMedia entry of +100.
         await h
@@ -287,7 +294,10 @@ public sealed class MediaShareServiceTests
         SeedConfig(h.Db, requireApproval: false, entryCost: 50);
         Result<MediaShareRequestDto> submit = await h.Sut.SubmitAsync(Channel, Viewer, Req());
 
-        await h.Sut.SkipAsync(Channel, submit.Value.Id);
+        Result<MediaShareRequestDto> skipped = await h.Sut.SkipAsync(Channel, submit.Value.Id);
+        skipped.IsSuccess.Should().BeTrue();
+        skipped.Value.Id.Should().Be(submit.Value.Id);
+        skipped.Value.Status.Should().Be(MediaShareStatus.Skipped);
 
         await h
             .Accounts.Received(1)
@@ -350,7 +360,13 @@ public sealed class MediaShareServiceTests
             .Value!.Id.Should()
             .Be(first.Value.Id);
 
-        await h.Sut.MarkPlayedAsync(Channel, first.Value.Id);
+        Result<MediaShareRequestDto> played = await h.Sut.MarkPlayedAsync(Channel, first.Value.Id);
+        // Regression: the dashboard deserializes this response as the updated request object — a bare
+        // Result (data: true) fails client-side deserialization instead of advancing the UI.
+        played.IsSuccess.Should().BeTrue();
+        played.Value.Id.Should().Be(first.Value.Id);
+        played.Value.Status.Should().Be(MediaShareStatus.Played);
+
         Result<MediaShareRequestDto?> afterPlayed = await h.Sut.GetNextAsync(Channel);
         afterPlayed.Value!.Id.Should().Be(second.Value.Id);
     }
@@ -391,9 +407,10 @@ public sealed class MediaShareServiceTests
         Result<MediaShareRequestDto> c = await h.Sut.SubmitAsync(Channel, Viewer, Req());
 
         // Move c (pos 3) to the front.
-        (await h.Sut.ReorderAsync(Channel, c.Value.Id, 1))
-            .IsSuccess.Should()
-            .BeTrue();
+        Result<MediaShareRequestDto> reordered = await h.Sut.ReorderAsync(Channel, c.Value.Id, 1);
+        reordered.IsSuccess.Should().BeTrue();
+        reordered.Value.Id.Should().Be(c.Value.Id);
+        reordered.Value.QueuePosition.Should().Be(1);
 
         MediaShareRequest cRow = await h.Db.MediaShareRequests.SingleAsync(r => r.Id == c.Value.Id);
         MediaShareRequest aRow = await h.Db.MediaShareRequests.SingleAsync(r => r.Id == a.Value.Id);
