@@ -17,6 +17,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Infrastructure.EventStore;
 using NomNomzBot.Infrastructure.Platform;
 
 namespace NomNomzBot.Infrastructure.Chat;
@@ -136,6 +137,18 @@ public sealed class HelixChatProvider : IChatPlatform
         CancellationToken ct
     )
     {
+        // A historical event being replayed (event-store §1.1) must not re-post to the LIVE channel — the
+        // viewer already saw the original bot say this months ago. Every other side effect (currency,
+        // streaks, TTS) still runs for real; only the visible chat text is suppressed here.
+        if (ReplayContext.IsReplaying)
+        {
+            _logger.LogDebug(
+                "HelixChatProvider: suppressed chat send for {BroadcasterId} during historical replay",
+                broadcasterId
+            );
+            return true;
+        }
+
         string? twitchBroadcasterId = await ResolveTwitchChannelIdAsync(broadcasterId, ct);
         if (twitchBroadcasterId is null)
             return false;
