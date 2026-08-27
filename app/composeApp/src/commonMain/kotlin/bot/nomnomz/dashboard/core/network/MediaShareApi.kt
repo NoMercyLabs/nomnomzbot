@@ -117,6 +117,8 @@ class RestMediaShareApi(private val client: ApiClient) : MediaShareApi {
 data class MediaShareRequest(
     val id: String = "",
     val requesterUserId: String = "",
+    val requesterDisplayName: String = "",
+    val requesterAvatarUrl: String? = null,
     val sourceType: String = "",
     val sourceUrl: String = "",
     val mediaRef: String = "",

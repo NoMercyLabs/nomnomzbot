@@ -182,6 +182,50 @@ public sealed class MediaShareServiceTests
     }
 
     [Fact]
+    public async Task Submit_ReturnsTheRequestersLiveDisplayNameAndAvatar_NotJustTheirId()
+    {
+        Harness h = Build();
+        SeedConfig(h.Db, requireApproval: true);
+
+        Result<MediaShareRequestDto> result = await h.Sut.SubmitAsync(Channel, Viewer, Req());
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.RequesterUserId.Should().Be(Viewer);
+        result.Value.RequesterDisplayName.Should().Be("Alice");
+    }
+
+    [Fact]
+    public async Task GetQueue_EnrichesEveryRowWithItsRequestersDisplayNameInOneBatch()
+    {
+        Harness h = Build();
+        SeedConfig(h.Db, requireApproval: false);
+        (await h.Sut.SubmitAsync(Channel, Viewer, Req())).IsSuccess.Should().BeTrue();
+
+        Result<PagedList<MediaShareRequestDto>> queue = await h.Sut.GetQueueAsync(
+            Channel,
+            new(null),
+            new()
+        );
+
+        queue.IsSuccess.Should().BeTrue();
+        queue.Value.Items.Should().ContainSingle(r => r.RequesterDisplayName == "Alice");
+    }
+
+    [Fact]
+    public async Task Submit_ARequesterWithNoUserRow_FallsBackToAPlaceholderName_NotACrash()
+    {
+        Harness h = Build();
+        SeedConfig(h.Db, requireApproval: true);
+        Guid ghostViewer = Guid.Parse("0192d000-0000-7000-8000-00000000dead");
+
+        Result<MediaShareRequestDto> result = await h.Sut.SubmitAsync(Channel, ghostViewer, Req());
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.RequesterDisplayName.Should().Be("Unknown viewer");
+        result.Value.RequesterAvatarUrl.Should().BeNull();
+    }
+
+    [Fact]
     public async Task Submit_ApprovalOff_EnqueuesApproved_WithQueuePosition()
     {
         Harness h = Build();

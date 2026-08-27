@@ -37,6 +37,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.designsystem.component.Avatar
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Button
@@ -309,6 +310,11 @@ private fun QueueRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
+        Avatar(
+            name = request.requesterDisplayName.ifBlank { request.requesterUserId },
+            size = spacing.s8,
+            imageUrl = request.requesterAvatarUrl,
+        )
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
                 Text(
@@ -327,7 +333,7 @@ private fun QueueRow(
                 }
             }
             Text(
-                text = "${formatMmSs(request.durationSeconds)} · ${stringResource(Res.string.mediashare_requested_by, request.requesterUserId)}",
+                text = "${formatMmSs(request.durationSeconds)} · ${stringResource(Res.string.mediashare_requested_by, request.requesterDisplayName.ifBlank { request.requesterUserId })}",
                 style = typography.xs,
                 color = tokens.mutedForeground,
                 maxLines = 1,
