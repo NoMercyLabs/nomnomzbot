@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
@@ -90,6 +91,19 @@ public sealed class ChannelOnlineHandler : IEventHandler<ChannelOnlineEvent>
             channel.Title = title;
         if (!string.IsNullOrEmpty(gameName))
             channel.GameName = gameName;
+
+        // Backstop: if a previous Stream row for this channel is still open (its own stream.offline was
+        // missed — e.g. a process restart mid-delivery, and the poll reconciler hasn't run yet either), close
+        // it now rather than leaving it open forever. An open-ended Stream row makes ILiveWindowResolver treat
+        // every future instant as still "inside" it, so the next viewer activity — even much later — folds
+        // the whole gap into watch time (the root cause of the 2026-08-27 watch-time inflation bug). Folded
+        // into the SaveChangesAsync below rather than a separate ExecuteUpdateAsync — there is normally at
+        // most one stale row, so a tracked read-modify-write costs nothing extra here.
+        List<Domain.Stream.Entities.Stream> staleOpenStreams = await db
+            .Streams.Where(s => s.ChannelId == broadcasterId && s.EndedAt == null)
+            .ToListAsync(cancellationToken);
+        foreach (Domain.Stream.Entities.Stream stale in staleOpenStreams)
+            stale.EndedAt = @event.StartedAt;
 
         string? streamId = Ulid.NewUlid().ToString();
         Domain.Stream.Entities.Stream stream = new()

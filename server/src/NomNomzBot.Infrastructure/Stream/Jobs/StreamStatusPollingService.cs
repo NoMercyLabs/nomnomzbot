@@ -30,6 +30,16 @@ namespace NomNomzBot.Infrastructure.Stream.Jobs;
 /// <see cref="ChannelContext.IsLive"/> + <see cref="Channel.IsLive"/> (and title / game) fresh from the
 /// authoritative Helix read.
 /// <para>
+/// It also closes a <c>Stream</c> row it never created (the online→offline creation/finalization stays
+/// <see cref="NomNomzBot.Infrastructure.Stream.EventHandlers.ChannelOnlineHandler"/>/<c>ChannelOfflineHandler</c>'s
+/// job) when it detects a live→offline edge on a channel whose <c>Stream.EndedAt</c> is still null — the backstop
+/// for a dropped/missed <c>stream.offline</c> EventSub notification. Without this, that row's <c>EndedAt</c> stays
+/// null forever, so <c>ILiveWindowResolver</c> treats every future instant as still "inside" that one stream and
+/// the next viewer activity — even days later — folds the entire gap into <c>WatchSession</c>/
+/// <c>ViewerProfile.TotalWatchSeconds</c> as watch time. This was the root cause of every viewer showing
+/// thousands of minutes of watch time far beyond real elapsed streaming time (found 2026-08-27).
+/// </para>
+/// <para>
 /// It is a status RECONCILER only — it never creates <c>Stream</c> records or runs <c>stream_online</c>
 /// event-response pipelines (those stay the EventSub path's job in <c>ChannelOnlineHandler</c>), so a poll-detected
 /// transition can never double-fire a "we're live!" announcement. Helix Get Streams runs on the platform bot (app)
@@ -45,6 +55,7 @@ public sealed class StreamStatusPollingService : BackgroundService
 
     private readonly IChannelRegistry _channels;
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly TimeProvider _timeProvider;
     private readonly ILogger<StreamStatusPollingService> _logger;
 
     // Latches the "waiting for onboarding" log so the dormant path logs once, not on every tick.
@@ -53,11 +64,13 @@ public sealed class StreamStatusPollingService : BackgroundService
     public StreamStatusPollingService(
         IChannelRegistry channels,
         IServiceScopeFactory scopeFactory,
+        TimeProvider timeProvider,
         ILogger<StreamStatusPollingService> logger
     )
     {
         _channels = channels;
         _scopeFactory = scopeFactory;
+        _timeProvider = timeProvider;
         _logger = logger;
     }
 
@@ -118,12 +131,33 @@ public sealed class StreamStatusPollingService : BackgroundService
                     if (dbChannel is null)
                         continue;
 
+                    bool wasLive = ctx.IsLive;
+                    string? openStreamId = ctx.CurrentStreamId;
+
                     Result<TwitchStream> result = await streams.GetStreamAsync(
                         ctx.BroadcasterId,
                         ct
                     );
                     if (ApplyStreamState(ctx, dbChannel, result))
                         changed++;
+
+                    // Backstop for a dropped/missed stream.offline EventSub notification: the poll just
+                    // detected the live→offline edge itself, but the Stream row ChannelOnlineHandler opened
+                    // is only ever closed by ChannelOfflineHandler — which never ran. Close it here so it
+                    // doesn't stay open forever (see the class doc for the watch-time inflation this caused).
+                    if (wasLive && !ctx.IsLive && openStreamId is not null)
+                    {
+                        Domain.Stream.Entities.Stream? openStream = await db.Streams.FindAsync(
+                            [openStreamId],
+                            ct
+                        );
+                        if (openStream is not null && openStream.EndedAt is null)
+                        {
+                            openStream.EndedAt = _timeProvider.GetUtcNow();
+                            changed++;
+                        }
+                        ctx.CurrentStreamId = null;
+                    }
 
                     // Each live poll doubles as a viewer-count sample: journaled, it becomes the
                     // per-stream viewer time series the daily PeakViewers aggregate folds from.

@@ -9,8 +9,10 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -375,6 +377,7 @@ public sealed class StreamStatusPollingServiceTests
         StreamStatusPollingService sut = new(
             channels,
             provider.GetRequiredService<IServiceScopeFactory>(),
+            TimeProvider.System,
             NullLogger<StreamStatusPollingService>.Instance
         );
 
@@ -382,5 +385,90 @@ public sealed class StreamStatusPollingServiceTests
 
         await act.Should().NotThrowAsync("a timeout on one channel must not abort the poll tick");
         await streams.Received(1).GetStreamAsync(healthyChannel, Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>
+    /// The root cause of the 2026-08-27 watch-time inflation bug, reproduced and proven fixed: a channel goes
+    /// offline WITHOUT its stream.offline EventSub ever arriving (dropped webhook / reconnect gap), so its
+    /// Stream row is left with EndedAt == null. Before this fix that row stayed open forever and
+    /// ILiveWindowResolver treated every later instant as still "inside" it. The poll must detect the
+    /// live→offline edge itself and close the stale row as a backstop.
+    /// </summary>
+    [Fact]
+    public async Task A_missed_offline_event_leaves_the_stream_open_until_the_poll_closes_it()
+    {
+        Guid broadcaster = Guid.Parse("0192f000-0000-7000-8000-0000000000b1");
+        Guid owner = Guid.Parse("0192f000-0000-7000-8000-0000000000b9");
+        const string openStreamId = "stream-open-1";
+        DateTimeOffset fixedNow = new(2026, 8, 27, 15, 0, 0, TimeSpan.Zero);
+
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Channels.Add(
+            new()
+            {
+                Id = broadcaster,
+                OwnerUserId = owner,
+                Provider = AuthEnums.Platform.Twitch,
+                ExternalChannelId = "tw-3",
+                TwitchChannelId = "tw-3",
+                Name = "streamer3",
+                NameNormalized = "streamer3",
+                IsOnboarded = true,
+                DeploymentMode = AuthEnums.DeploymentMode.Saas,
+                BillingTierKey = "free",
+                IsLive = true,
+            }
+        );
+        db.Streams.Add(
+            new()
+            {
+                Id = openStreamId,
+                ChannelId = broadcaster,
+                StartedAt = StartedAt,
+                EndedAt = null, // the missed-offline symptom
+            }
+        );
+        db.SaveChanges();
+
+        ChannelContext ctx = new()
+        {
+            BroadcasterId = broadcaster,
+            TwitchChannelId = "tw-3",
+            ChannelName = "streamer3",
+            IsLive = true,
+            CurrentStreamId = openStreamId,
+        };
+        IChannelRegistry channels = Substitute.For<IChannelRegistry>();
+        channels.GetAll().Returns(new List<ChannelContext> { ctx });
+
+        IPlatformBotReadinessGate gate = Substitute.For<IPlatformBotReadinessGate>();
+        gate.IsPlatformBotConfiguredAsync(Arg.Any<CancellationToken>()).Returns(true);
+
+        ITwitchStreamsApi streams = Substitute.For<ITwitchStreamsApi>();
+        streams.GetStreamAsync(broadcaster, Arg.Any<CancellationToken>()).Returns(Offline());
+
+        ServiceProvider provider = new ServiceCollection()
+            .AddSingleton<IApplicationDbContext>(db)
+            .AddSingleton(gate)
+            .AddSingleton(streams)
+            .AddSingleton(Substitute.For<IEventBus>())
+            .BuildServiceProvider();
+
+        StreamStatusPollingService sut = new(
+            channels,
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            new FakeTimeProvider(fixedNow),
+            NullLogger<StreamStatusPollingService>.Instance
+        );
+
+        await sut.PollAllAsync(CancellationToken.None);
+
+        NomNomzBot.Domain.Stream.Entities.Stream closed = await db.Streams.SingleAsync(s =>
+            s.Id == openStreamId
+        );
+        closed.EndedAt.Should().Be(fixedNow, "the poll's backstop must close the stale-open row");
+        ctx.IsLive.Should().BeFalse();
+        ctx.CurrentStreamId.Should()
+            .BeNull("the closed stream must not keep being polled as current");
     }
 }
