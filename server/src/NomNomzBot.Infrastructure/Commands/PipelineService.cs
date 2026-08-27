@@ -331,12 +331,7 @@ public class PipelineService : IPipelineService
             return false;
         if (!condition.Parameters.TryGetValue(key, out JsonElement elem))
             return false;
-        return elem.ValueKind switch
-        {
-            JsonValueKind.True => true,
-            JsonValueKind.False => false,
-            _ => false,
-        };
+        return elem.ValueKind == JsonValueKind.True;
     }
 
     public async Task<Result> DeleteAsync(
@@ -529,51 +524,7 @@ public class PipelineService : IPipelineService
     /// <c>steps[].condition</c>) — the same shape the editor's builder + <see cref="ValidateAndSerializeGraphAsync"/>
     /// already speak.</summary>
     private static PipelineDto ToDto(PipelineEntity p, List<PipelineStep> steps) =>
-        ToDto(p, BuildGraphFromSteps(steps));
-
-    private static JsonElement BuildGraphFromSteps(List<PipelineStep> steps)
-    {
-        List<object> stepNodes = [];
-        foreach (PipelineStep step in steps)
-        {
-            JsonElement actionJson;
-            try
-            {
-                using JsonDocument doc = JsonDocument.Parse(step.ConfigJson);
-                Dictionary<string, JsonElement> actionFields = doc
-                    .RootElement.EnumerateObject()
-                    .Where(prop =>
-                        !string.Equals(prop.Name, "type", StringComparison.OrdinalIgnoreCase)
-                    )
-                    .ToDictionary(prop => prop.Name, prop => prop.Value.Clone());
-                actionFields["type"] = JsonSerializer.SerializeToElement(step.ActionType);
-                actionJson = JsonSerializer.SerializeToElement(actionFields);
-            }
-            catch (JsonException)
-            {
-                actionJson = JsonSerializer.SerializeToElement(new { type = step.ActionType });
-            }
-
-            PipelineStepCondition? firstCondition = step
-                .Conditions?.OrderBy(c => c.Order)
-                .FirstOrDefault();
-
-            object? conditionNode = firstCondition is null
-                ? null
-                : new
-                {
-                    type = firstCondition.ConditionType,
-                    @operator = firstCondition.Operator ?? "eq",
-                    left = firstCondition.LeftOperand ?? string.Empty,
-                    right = firstCondition.RightOperand ?? string.Empty,
-                    negate = firstCondition.Negate,
-                };
-
-            stepNodes.Add(new { action = actionJson, condition = conditionNode });
-        }
-
-        return JsonSerializer.SerializeToElement(new { steps = stepNodes });
-    }
+        ToDto(p, PipelineGraphBuilder.BuildGraph(steps));
 
     private static PipelineDto ToDto(PipelineEntity p, JsonElement? graph) =>
         new(
