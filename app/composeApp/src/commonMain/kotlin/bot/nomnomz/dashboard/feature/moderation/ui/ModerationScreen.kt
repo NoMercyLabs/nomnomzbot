@@ -13,6 +13,7 @@ package bot.nomnomz.dashboard.feature.moderation.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -358,7 +359,7 @@ fun ModerationScreen(
         LaunchedEffect(hubEvents) { controller.subscribeToHub(hubEvents) }
     }
 
-    Box(modifier = Modifier.fillMaxSize().padding(spacing.s6)) {
+    Box(modifier = Modifier.fillMaxSize()) {
         when (val current: ModerationState = state) {
             is ModerationState.Loading ->
                 CenteredMessage(stringResource(Res.string.moderation_loading))
@@ -555,6 +556,7 @@ private fun BansList(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(spacing.s6),
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
         item(key = "page-header") {
