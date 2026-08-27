@@ -341,6 +341,80 @@ public class BaseControllerTests
         result!.StatusCode.Should().Be(409);
     }
 
+    // ─── Raw TwitchErrorCodes forwarded through the app-level ResultResponse (twitch-helix.md §3) ───
+    //
+    // Regression coverage for the moderation shield/blocked-terms/unban-requests 500s: those services
+    // forward a Helix call's Result untouched (lowercase TwitchErrorCodes, a different code space than
+    // the app-level UPPER_SNAKE_CASE ones above), and ResultResponse's switch only matched the latter —
+    // so a real Twitch 401 fell through to the unmatched-code default and came back as a bare 500.
+
+    [Fact]
+    public void ResultResponse_TwitchUnauthorized_Returns401NotInternalServerError()
+    {
+        TestController ctrl = CreateController();
+        ObjectResult? result =
+            ctrl.TestResultResponse(Result.Failure("Twitch rejected the token.", "unauthorized"))
+            as ObjectResult;
+
+        result!.StatusCode.Should().Be(401);
+    }
+
+    [Fact]
+    public void ResultResponse_TwitchMissingScope_Returns403()
+    {
+        TestController ctrl = CreateController();
+        ObjectResult? result =
+            ctrl.TestResultResponse(Result.Failure("Missing scope.", "missing_scope"))
+            as ObjectResult;
+
+        result!.StatusCode.Should().Be(403);
+    }
+
+    [Fact]
+    public void ResultResponse_TwitchNoToken_Returns409NotInternalServerError()
+    {
+        TestController ctrl = CreateController();
+        ObjectResult? result =
+            ctrl.TestResultResponse(Result.Failure("No linked Twitch identity.", "no_token"))
+            as ObjectResult;
+
+        result!.StatusCode.Should().Be(409);
+    }
+
+    [Fact]
+    public void ResultResponse_TwitchNotFound_Returns404()
+    {
+        TestController ctrl = CreateController();
+        ObjectResult? result =
+            ctrl.TestResultResponse(Result.Failure("Not found on Twitch.", "not_found"))
+            as ObjectResult;
+
+        result!.StatusCode.Should().Be(404);
+    }
+
+    [Fact]
+    public void ResultResponse_TwitchRateLimited_Returns429()
+    {
+        TestController ctrl = CreateController();
+        ObjectResult? result =
+            ctrl.TestResultResponse(Result.Failure("Rate limited.", "rate_limited"))
+            as ObjectResult;
+
+        result!.StatusCode.Should().Be(429);
+    }
+
+    [Theory]
+    [InlineData("twitch_error")]
+    [InlineData("transport")]
+    public void ResultResponse_TwitchUpstreamCodes_Return503NotInternalServerError(string code)
+    {
+        TestController ctrl = CreateController();
+        ObjectResult? result =
+            ctrl.TestResultResponse(Result.Failure("Twitch request failed.", code)) as ObjectResult;
+
+        result!.StatusCode.Should().Be(503);
+    }
+
     [Fact]
     public void ResultResponse_VoidSuccess_HasNoDataField()
     {
