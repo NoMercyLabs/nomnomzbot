@@ -171,7 +171,14 @@ public sealed class AuthService : IAuthService
     /// This is what makes the redirect re-auth equivalent to the device-code re-grant
     /// (<c>BuildRegrantScopeSetAsync</c>): a runtime-detected gap outside the base set still gets requested,
     /// and an extra scope the connection already holds (e.g. <c>user:bot</c> on a single-account self-host) is
-    /// re-consented rather than silently dropped by the narrower base list.
+    /// re-consented rather than silently dropped by the narrower base list. Deliberately NOT the full
+    /// catalogue (<see cref="TwitchScopeRegistry.FullCatalogue"/>, ~79 scopes) — that is what made a fresh
+    /// login's authorize URL 502 on Twitch's end (<see cref="_requiredScopes"/>'s own doc comment); this GET
+    /// redirect must stay short for the same reason, so it only widens by what's ACTUALLY been recorded
+    /// missing, never every proactively-detected-but-unexercised gap. A scope the code needs but has never hit
+    /// a live 403 for (e.g. a feature that was never called) stays invisible here by design — the caller must
+    /// fall back to the device-code re-grant (unbounded scope count, no GET URL) to close those; see
+    /// IntegrationsController.regrantScopesInner's isWeb branch on the frontend.
     /// </summary>
     private async Task<string[]> WidenedStreamerScopesAsync(
         Guid broadcasterId,
