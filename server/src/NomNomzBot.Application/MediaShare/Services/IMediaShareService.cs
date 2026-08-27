@@ -40,19 +40,23 @@ public interface IMediaShareService
         CancellationToken ct = default
     );
 
-    /// <summary>Reject an item → rejected (refunds the entry cost if it was charged).</summary>
-    Task<Result> RejectAsync(
+    /// <summary>Reject an item → rejected (refunds the entry cost if it was charged). Returns the updated request.</summary>
+    Task<Result<MediaShareRequestDto>> RejectAsync(
         Guid broadcasterId,
         Guid requestId,
         Guid moderatorUserId,
         CancellationToken ct = default
     );
 
-    /// <summary>Skip a playing/approved item → skipped (refunds the entry cost if it was charged).</summary>
-    Task<Result> SkipAsync(Guid broadcasterId, Guid requestId, CancellationToken ct = default);
+    /// <summary>Skip a playing/approved item → skipped (refunds the entry cost if it was charged). Returns the updated request.</summary>
+    Task<Result<MediaShareRequestDto>> SkipAsync(
+        Guid broadcasterId,
+        Guid requestId,
+        CancellationToken ct = default
+    );
 
-    /// <summary>Move an approved item to a new 1-based play position.</summary>
-    Task<Result> ReorderAsync(
+    /// <summary>Move an approved item to a new 1-based play position. Returns the moved request.</summary>
+    Task<Result<MediaShareRequestDto>> ReorderAsync(
         Guid broadcasterId,
         Guid requestId,
         int newPosition,
@@ -72,8 +76,8 @@ public interface IMediaShareService
         CancellationToken ct = default
     );
 
-    /// <summary>The overlay reports completion → played, and the queue advances.</summary>
-    Task<Result> MarkPlayedAsync(
+    /// <summary>The overlay reports completion → played, and the queue advances. Returns the updated request.</summary>
+    Task<Result<MediaShareRequestDto>> MarkPlayedAsync(
         Guid broadcasterId,
         Guid requestId,
         CancellationToken ct = default

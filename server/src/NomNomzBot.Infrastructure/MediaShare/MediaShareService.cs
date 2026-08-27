@@ -231,7 +231,7 @@ public sealed class MediaShareService : IMediaShareService
         return Result.Success(ToDto(entity));
     }
 
-    public async Task<Result> RejectAsync(
+    public async Task<Result<MediaShareRequestDto>> RejectAsync(
         Guid broadcasterId,
         Guid requestId,
         Guid moderatorUserId,
@@ -240,14 +240,17 @@ public sealed class MediaShareService : IMediaShareService
     {
         MediaShareRequest? entity = await FindAsync(broadcasterId, requestId, ct);
         if (entity is null)
-            return Result.Failure("Media request not found.", "NOT_FOUND");
+            return Result.Failure<MediaShareRequestDto>("Media request not found.", "NOT_FOUND");
         if (
             entity.Status
             is MediaShareStatus.Rejected
                 or MediaShareStatus.Played
                 or MediaShareStatus.Skipped
         )
-            return Result.Failure("That request is already resolved.", "VALIDATION_FAILED");
+            return Result.Failure<MediaShareRequestDto>(
+                "That request is already resolved.",
+                "VALIDATION_FAILED"
+            );
 
         DateTime now = _clock.GetUtcNow().UtcDateTime;
         await RefundIfChargedAsync(broadcasterId, entity, ct);
@@ -256,10 +259,10 @@ public sealed class MediaShareService : IMediaShareService
         entity.DecidedAt = now;
         entity.DecidedByUserId = moderatorUserId;
         await _db.SaveChangesAsync(ct);
-        return Result.Success();
+        return Result.Success(ToDto(entity));
     }
 
-    public async Task<Result> SkipAsync(
+    public async Task<Result<MediaShareRequestDto>> SkipAsync(
         Guid broadcasterId,
         Guid requestId,
         CancellationToken ct = default
@@ -267,9 +270,9 @@ public sealed class MediaShareService : IMediaShareService
     {
         MediaShareRequest? entity = await FindAsync(broadcasterId, requestId, ct);
         if (entity is null)
-            return Result.Failure("Media request not found.", "NOT_FOUND");
+            return Result.Failure<MediaShareRequestDto>("Media request not found.", "NOT_FOUND");
         if (entity.Status is not (MediaShareStatus.Approved or MediaShareStatus.Playing))
-            return Result.Failure(
+            return Result.Failure<MediaShareRequestDto>(
                 "Only an approved or playing item can be skipped.",
                 "VALIDATION_FAILED"
             );
@@ -281,10 +284,10 @@ public sealed class MediaShareService : IMediaShareService
         await _db.SaveChangesAsync(ct);
 
         await PublishPlaybackAsync(broadcasterId, entity.Id, MediaShareStatus.Skipped, now, ct);
-        return Result.Success();
+        return Result.Success(ToDto(entity));
     }
 
-    public async Task<Result> ReorderAsync(
+    public async Task<Result<MediaShareRequestDto>> ReorderAsync(
         Guid broadcasterId,
         Guid requestId,
         int newPosition,
@@ -292,7 +295,10 @@ public sealed class MediaShareService : IMediaShareService
     )
     {
         if (newPosition < 1)
-            return Result.Failure("Position must be 1 or greater.", "VALIDATION_FAILED");
+            return Result.Failure<MediaShareRequestDto>(
+                "Position must be 1 or greater.",
+                "VALIDATION_FAILED"
+            );
 
         List<MediaShareRequest> approved = await _db
             .MediaShareRequests.Where(r =>
@@ -304,7 +310,10 @@ public sealed class MediaShareService : IMediaShareService
 
         MediaShareRequest? target = approved.FirstOrDefault(r => r.Id == requestId);
         if (target is null)
-            return Result.Failure("That approved item is not in the queue.", "NOT_FOUND");
+            return Result.Failure<MediaShareRequestDto>(
+                "That approved item is not in the queue.",
+                "NOT_FOUND"
+            );
 
         approved.Remove(target);
         int insertAt = Math.Min(newPosition - 1, approved.Count);
@@ -314,7 +323,7 @@ public sealed class MediaShareService : IMediaShareService
         for (int i = 0; i < approved.Count; i++)
             approved[i].QueuePosition = i + 1;
         await _db.SaveChangesAsync(ct);
-        return Result.Success();
+        return Result.Success(ToDto(target));
     }
 
     public async Task<Result<PagedList<MediaShareRequestDto>>> GetQueueAsync(
@@ -379,7 +388,7 @@ public sealed class MediaShareService : IMediaShareService
         return Result.Success<MediaShareRequestDto?>(ToDto(next));
     }
 
-    public async Task<Result> MarkPlayedAsync(
+    public async Task<Result<MediaShareRequestDto>> MarkPlayedAsync(
         Guid broadcasterId,
         Guid requestId,
         CancellationToken ct = default
@@ -387,9 +396,12 @@ public sealed class MediaShareService : IMediaShareService
     {
         MediaShareRequest? entity = await FindAsync(broadcasterId, requestId, ct);
         if (entity is null)
-            return Result.Failure("Media request not found.", "NOT_FOUND");
+            return Result.Failure<MediaShareRequestDto>("Media request not found.", "NOT_FOUND");
         if (entity.Status is not (MediaShareStatus.Playing or MediaShareStatus.Approved))
-            return Result.Failure("Only a playing item can be marked played.", "VALIDATION_FAILED");
+            return Result.Failure<MediaShareRequestDto>(
+                "Only a playing item can be marked played.",
+                "VALIDATION_FAILED"
+            );
 
         DateTime now = _clock.GetUtcNow().UtcDateTime;
         entity.Status = MediaShareStatus.Played;
@@ -397,7 +409,7 @@ public sealed class MediaShareService : IMediaShareService
         await _db.SaveChangesAsync(ct);
 
         await PublishPlaybackAsync(broadcasterId, entity.Id, MediaShareStatus.Played, now, ct);
-        return Result.Success();
+        return Result.Success(ToDto(entity));
     }
 
     public async Task<Result<MediaShareConfigDto>> GetConfigAsync(

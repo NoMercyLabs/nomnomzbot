@@ -100,7 +100,7 @@ public class MediaShareController : BaseController
     /// <summary>Reject an item (refunds the entry cost if charged).</summary>
     [RequireAction("media:moderate")]
     [HttpPost("{id:guid}/reject")]
-    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<StatusResponseDto<MediaShareRequestDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Reject(Guid id, CancellationToken ct)
     {
         if (_tenant.BroadcasterId is not { } broadcasterId)
@@ -108,31 +108,25 @@ public class MediaShareController : BaseController
         if (!TryGetActor(out Guid moderatorUserId))
             return UnauthenticatedResponse("No acting user resolved.");
 
-        Result rejected = await _media.RejectAsync(broadcasterId, id, moderatorUserId, ct);
-        return rejected.IsFailure
-            ? ResultResponse(Result.Failure<bool>(rejected.ErrorMessage!, rejected.ErrorCode))
-            : ResultResponse(Result.Success(true));
+        return ResultResponse(await _media.RejectAsync(broadcasterId, id, moderatorUserId, ct));
     }
 
     /// <summary>Skip an approved/playing item (refunds the entry cost if charged).</summary>
     [RequireAction("media:moderate")]
     [HttpPost("{id:guid}/skip")]
-    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<StatusResponseDto<MediaShareRequestDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Skip(Guid id, CancellationToken ct)
     {
         if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
 
-        Result skipped = await _media.SkipAsync(broadcasterId, id, ct);
-        return skipped.IsFailure
-            ? ResultResponse(Result.Failure<bool>(skipped.ErrorMessage!, skipped.ErrorCode))
-            : ResultResponse(Result.Success(true));
+        return ResultResponse(await _media.SkipAsync(broadcasterId, id, ct));
     }
 
     /// <summary>Move an approved item to a new 1-based play position.</summary>
     [RequireAction("media:moderate")]
     [HttpPost("{id:guid}/reorder")]
-    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<StatusResponseDto<MediaShareRequestDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Reorder(
         Guid id,
         [FromBody] ReorderMediaRequest request,
@@ -142,25 +136,19 @@ public class MediaShareController : BaseController
         if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
 
-        Result reordered = await _media.ReorderAsync(broadcasterId, id, request.Position, ct);
-        return reordered.IsFailure
-            ? ResultResponse(Result.Failure<bool>(reordered.ErrorMessage!, reordered.ErrorCode))
-            : ResultResponse(Result.Success(true));
+        return ResultResponse(await _media.ReorderAsync(broadcasterId, id, request.Position, ct));
     }
 
     /// <summary>The overlay reports the current item finished → played, the queue advances.</summary>
     [RequireAction("media:moderate")]
     [HttpPost("{id:guid}/played")]
-    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<StatusResponseDto<MediaShareRequestDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> MarkPlayed(Guid id, CancellationToken ct)
     {
         if (_tenant.BroadcasterId is not { } broadcasterId)
             return UnauthenticatedResponse("No tenant resolved.");
 
-        Result played = await _media.MarkPlayedAsync(broadcasterId, id, ct);
-        return played.IsFailure
-            ? ResultResponse(Result.Failure<bool>(played.ErrorMessage!, played.ErrorCode))
-            : ResultResponse(Result.Success(true));
+        return ResultResponse(await _media.MarkPlayedAsync(broadcasterId, id, ct));
     }
 
     /// <summary>The channel's media-share config (defaults when never set).</summary>
