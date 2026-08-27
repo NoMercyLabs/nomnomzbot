@@ -118,7 +118,8 @@ public abstract class BaseController : ControllerBase
             or "TOKEN_REVOKED"
             or "SESSION_INVALID"
             or "SESSION_NOT_ACTIVE"
-            or "UNAUTHENTICATED" => UnauthenticatedResponse(result.ErrorMessage),
+            or "UNAUTHENTICATED"
+            or TwitchErrorCodes.Unauthorized => UnauthenticatedResponse(result.ErrorMessage),
             "FORBIDDEN"
             or "FEATURE_DISABLED"
             or "NOT_ENTITLED"
@@ -131,6 +132,7 @@ public abstract class BaseController : ControllerBase
             or "tier_limit_reached"
             or "EGRESS_NOT_ALLOWED"
             or "MISSING_SCOPE"
+            or TwitchErrorCodes.MissingScope
             or "PREMIUM_REQUIRED"
             or "NOT_ELIGIBLE"
             or "MUSIC_FORBIDDEN"
@@ -142,6 +144,7 @@ public abstract class BaseController : ControllerBase
             or "WIDGET_DEPENDENCY_NOT_ALLOWED"
             or "TENANT_MISMATCH" => UnauthorizedResponse(result.ErrorMessage),
             "NOT_FOUND"
+            or TwitchErrorCodes.NotFound
             or "CHANNEL_NOT_FOUND"
             or "CHANNEL_NOT_ONBOARDED"
             or "QUOTES_EMPTY"
@@ -189,6 +192,7 @@ public abstract class BaseController : ControllerBase
             or "NO_SCOPES"
             or "NO_TENANT" => BadRequestResponse(result.ErrorMessage),
             "ALREADY_EXISTS"
+            or TwitchErrorCodes.NoToken
             or "INSUFFICIENT_FUNDS"
             or "ACCOUNT_FROZEN"
             or "CURRENCY_DISABLED"
@@ -240,9 +244,8 @@ public abstract class BaseController : ControllerBase
                 result.ErrorMessage
             ),
             "DISCORD_NOT_FOUND" => NotFoundResponse(result.ErrorMessage),
-            "RATE_LIMITED" or "DISCORD_RATE_LIMITED" => TooManyRequestsResponse(
-                result.ErrorMessage
-            ),
+            "RATE_LIMITED" or "DISCORD_RATE_LIMITED" or TwitchErrorCodes.RateLimited =>
+                TooManyRequestsResponse(result.ErrorMessage),
             "SERVICE_UNAVAILABLE"
             or "MARKETPLACE_UNAVAILABLE"
             or "DISCORD_ERROR"
@@ -252,6 +255,8 @@ public abstract class BaseController : ControllerBase
             or "PROVIDER_NOT_CONNECTED"
             or "MUSIC_AUTH_FAILED"
             or "TWITCH_ERROR"
+            or TwitchErrorCodes.TwitchError
+            or TwitchErrorCodes.Transport
             or "VTS_ERROR"
             or "VTS_BRIDGE_OFFLINE"
             or "VTS_NOT_CONNECTED"
