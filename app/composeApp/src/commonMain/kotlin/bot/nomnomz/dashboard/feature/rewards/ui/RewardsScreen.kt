@@ -110,6 +110,7 @@ import nomnomzbot.composeapp.generated.resources.rewards_enabled
 import nomnomzbot.composeapp.generated.resources.rewards_error
 import nomnomzbot.composeapp.generated.resources.rewards_loading
 import nomnomzbot.composeapp.generated.resources.rewards_external_readonly_reason
+import nomnomzbot.composeapp.generated.resources.rewards_finalize_migration_action
 import nomnomzbot.composeapp.generated.resources.rewards_import_action
 import nomnomzbot.composeapp.generated.resources.rewards_new_action
 import nomnomzbot.composeapp.generated.resources.rewards_recreate_action
@@ -769,7 +770,11 @@ private fun RewardRow(
     val toggleLabel: String = stringResource(Res.string.rewards_toggle_action, displayTitle)
     val editLabel: String = stringResource(Res.string.rewards_edit_action, displayTitle)
     val deleteLabel: String = stringResource(Res.string.rewards_delete_action, displayTitle)
-    val recreateLabel: String = stringResource(Res.string.rewards_recreate_action)
+    val recreateLabel: String =
+        if (reward.isMigrationPending)
+            stringResource(Res.string.rewards_finalize_migration_action)
+        else
+            stringResource(Res.string.rewards_recreate_action)
 
     // Twitch reality: the bot can only edit/toggle/delete rewards ITS OWN client created. An EXTERNAL reward
     // (isManageable == false — made in the Twitch UI or by another app) is read-only to us until recreated under

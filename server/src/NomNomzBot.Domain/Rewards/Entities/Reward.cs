@@ -66,6 +66,15 @@ public class Reward : SoftDeletableEntity, ITenantScoped
     [MaxLength(50)]
     public string? TwitchRewardId { get; set; }
 
+    /// <summary>
+    /// Set on an unmanaged (externally-created) reward the moment "take control" is attempted but Twitch's
+    /// title-uniqueness rule blocks it (another reward — this one — still holds the title). Nothing is lost:
+    /// this row keeps every field the recreate needs. The dashboard shows "Finalize migration" instead of
+    /// "Take control" while set, telling the operator to rename/delete the reward on Twitch first; retrying
+    /// the same action re-checks Twitch and, once the title is free, completes the recreate and clears this.
+    /// </summary>
+    public DateTime? PendingMigrationRequestedAt { get; set; }
+
     public int? Cost { get; set; }
 
     /// <summary>

@@ -98,7 +98,7 @@ public sealed class RewardServiceImportTests
                 onlyManageableRewards: false,
                 Arg.Any<CancellationToken>()
             )
-            .Returns(Result.Success<IReadOnlyList<TwitchCustomReward>>(full));
+            .Returns(Result.Success(full));
         points
             .GetCustomRewardsAsync(
                 Channel,
@@ -106,7 +106,7 @@ public sealed class RewardServiceImportTests
                 onlyManageableRewards: true,
                 Arg.Any<CancellationToken>()
             )
-            .Returns(Result.Success<IReadOnlyList<TwitchCustomReward>>(manageable));
+            .Returns(Result.Success(manageable));
     }
 
     [Fact]
@@ -350,6 +350,88 @@ public sealed class RewardServiceImportTests
                 Arg.Any<CancellationToken>()
             );
         (await db.Rewards.CountAsync(r => r.BroadcasterId == Channel)).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Recreate_parks_a_title_conflict_instead_of_losing_the_request_then_finalizes_once_cleared()
+    {
+        (RewardService sut, AuthDbContext db, ITwitchChannelPointsApi points) = Build();
+        Guid externalId = Guid.Parse("0192a000-0000-7000-8000-00000000e003");
+        db.Rewards.AddRange(
+            new Reward
+            {
+                Id = externalId,
+                BroadcasterId = Channel,
+                Title = "Dunglish",
+                Description = "redeem me",
+                Cost = 250,
+                IsEnabled = true,
+                TwitchRewardId = "ext-2",
+                IsManageable = false,
+                IsPlatform = false,
+            },
+            // A leftover row already occupies the title — the real conflict that makes Twitch 400 the create.
+            new Reward
+            {
+                Id = Guid.Parse("0192a000-0000-7000-8000-00000000e004"),
+                BroadcasterId = Channel,
+                Title = "Dunglish",
+                Cost = 250,
+                IsEnabled = true,
+                TwitchRewardId = "stray-1",
+                IsManageable = false,
+                IsPlatform = false,
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<RewardDetail> parked = await sut.RecreateUnderBotAsync(
+            Channel.ToString(),
+            externalId.ToString()
+        );
+
+        // Parked, not lost: a specific, actionable error code — never a bare Twitch 400 — and nothing deleted.
+        parked.IsFailure.Should().BeTrue();
+        parked.ErrorCode.Should().Be("MIGRATION_PENDING_EXTERNAL_REMOVAL");
+        await points
+            .DidNotReceive()
+            .CreateCustomRewardAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<CreateCustomRewardRequest>(),
+                Arg.Any<CancellationToken>()
+            );
+
+        Reward parkedExternal = await db.Rewards.SingleAsync(r => r.Id == externalId);
+        parkedExternal.PendingMigrationRequestedAt.Should().NotBeNull();
+        // Every field the eventual recreate needs is still exactly as it was — nothing was lost while parked.
+        parkedExternal.Title.Should().Be("Dunglish");
+        parkedExternal.Cost.Should().Be(250);
+        parkedExternal.Description.Should().Be("redeem me");
+
+        // The operator clears the title conflict on Twitch (deletes/renames the stray reward there) — we
+        // simulate that by removing the local record of it, then retry the SAME action to finalize.
+        db.Rewards.Remove(await db.Rewards.SingleAsync(r => r.TwitchRewardId == "stray-1"));
+        await db.SaveChangesAsync();
+
+        points
+            .CreateCustomRewardAsync(
+                Channel,
+                Arg.Any<CreateCustomRewardRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(TwitchReward("bot-2", "Dunglish", 250, enabled: true)));
+
+        Result<RewardDetail> finalized = await sut.RecreateUnderBotAsync(
+            Channel.ToString(),
+            externalId.ToString()
+        );
+
+        finalized.IsSuccess.Should().BeTrue(finalized.ErrorMessage);
+        finalized.Value.TimerDurationSeconds.Should().BeNull(); // sanity: a real detail, not a stub
+        Reward finalizedExternal = await db.Rewards.SingleAsync(r => r.Id == externalId);
+        finalizedExternal
+            .PendingMigrationRequestedAt.Should()
+            .BeNull("the marker clears once it finalizes");
     }
 
     [Fact]
