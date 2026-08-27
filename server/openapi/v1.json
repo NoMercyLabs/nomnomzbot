@@ -12750,7 +12750,7 @@
         "tags": [
           "Channels"
         ],
-        "summary": "Delete a channel and all its associated data.",
+        "summary": "Soft-delete a channel and everything under it. Reversible for 30 days via the restore endpoint; the\r\nblast radius the caller must be shown first comes from the delete-preview endpoint.",
         "parameters": [
           {
             "name": "channelId",
@@ -13567,6 +13567,202 @@
           "Channels"
         ],
         "summary": "Bot leaves the channel (unsubscribes from EventSub).",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/delete-preview": {
+      "get": {
+        "tags": [
+          "Channels"
+        ],
+        "summary": "What deleting this channel destroys, counted from the real database, plus the consequences outside it.\r\nThe delete confirm MUST render this before the destructive action can be armed.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfChannelDeletePreviewDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/restore": {
+      "post": {
+        "tags": [
+          "Channels"
+        ],
+        "summary": "Bring a soft-deleted channel back, within its restore window.",
         "parameters": [
           {
             "name": "channelId",
@@ -38930,7 +39126,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                  "$ref": "#/components/schemas/StatusResponseDtoOfMediaShareRequestDto"
                 }
               }
             }
@@ -39030,7 +39226,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                  "$ref": "#/components/schemas/StatusResponseDtoOfMediaShareRequestDto"
                 }
               }
             }
@@ -39150,7 +39346,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                  "$ref": "#/components/schemas/StatusResponseDtoOfMediaShareRequestDto"
                 }
               }
             }
@@ -39250,7 +39446,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                  "$ref": "#/components/schemas/StatusResponseDtoOfMediaShareRequestDto"
                 }
               }
             }
@@ -74423,6 +74619,48 @@
         },
         "description": "The channel's onboarding \"basics\" — the settable-anywhere command string ChannelBasicsDto.Prefix, the default\r\nstring? ChannelBasicsDto.Locale, the bool ChannelBasicsDto.AutoJoin toggle, and the streamer's string? ChannelBasicsDto.Timezone.\r\nBacks both the Settings \"Bot basics\" card and the onboarding basics step."
       },
+      "ChannelDeletePreviewDto": {
+        "required": [
+          "channelName",
+          "blastRadius",
+          "externalConsequences",
+          "restoreWindowDays",
+          "permanentAfterUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "channelName": {
+            "type": "string",
+            "description": "The channel's real name — the dialog requires the operator to TYPE it to arm the confirm, so a delete can\r\nnever be a mis-click, and so the operator sees which channel they are actually on."
+          },
+          "blastRadius": {
+            "description": "The counted, curated categories of rows that disappear. bool BlastRadiusDto.IsMinimum is set when\r\nany category could not be counted exhaustively.",
+            "$ref": "#/components/schemas/BlastRadiusDto"
+          },
+          "externalConsequences": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExternalConsequenceDto"
+            },
+            "description": "What stops working OUTSIDE our database. Never numbers alone — each names an effect."
+          },
+          "restoreWindowDays": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "How many days the channel can be restored for. Never zero.",
+            "format": "int32"
+          },
+          "permanentAfterUtc": {
+            "type": "string",
+            "description": "The instant the soft-deleted tenant becomes unrecoverable, computed from the server clock at preview time.",
+            "format": "date-time"
+          }
+        },
+        "description": "            Everything the delete-channel confirmation must state BEFORE the button can be pressed — the largest blast\r\n            radius in the product.\r\n            Channel delete is a SOFT delete with a restore window: the tenant's rows stay on disk and every query\r\nfilter hides them, and only after DateTime ChannelDeletePreviewDto.PermanentAfterUtc does the data become unrecoverable. The\r\ndialog states both the window and the date, because a button that looks irreversible and is not is as\r\ndishonest as one that looks reversible and is not."
+      },
       "ChannelDto": {
         "required": [
           "id",
@@ -77250,6 +77488,8 @@
           "id",
           "viewerUserId",
           "viewerTwitchUserId",
+          "viewerDisplayName",
+          "viewerAvatarUrl",
           "balance",
           "lifetimeEarned",
           "lifetimeSpent",
@@ -77270,6 +77510,15 @@
           },
           "viewerTwitchUserId": {
             "type": "string"
+          },
+          "viewerDisplayName": {
+            "type": "string"
+          },
+          "viewerAvatarUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "balance": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -79533,6 +79782,37 @@
           }
         },
         "description": "The export order: which entities to bundle, and the bundle's author metadata."
+      },
+      "ExternalConsequenceDto": {
+        "required": [
+          "consequenceKey",
+          "count",
+          "sample"
+        ],
+        "type": "object",
+        "properties": {
+          "consequenceKey": {
+            "type": "string",
+            "description": "i18n resource key naming what stops working outside our database."
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "How many external things are affected, counted from the real rows that back them (a reward that never\r\nsynced to Twitch has no id and is not counted). Zero categories are dropped, so a listed consequence\r\nalways affects at least one real thing.",
+            "format": "int32"
+          },
+          "sample": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Up to a handful of the affected things' names, so the user recognises WHICH break."
+          }
+        },
+        "description": "A consequence a row count cannot express: something OUTSIDE our database stops working. Deleting a channel\r\nrevokes an overlay token every live OBS browser source is polling, drops EventSub subscriptions registered\r\nwith Twitch, and orphans channel-point rewards created under our client id — none of which is \"N rows\".\r\nConsequenceKey is an i18n resource KEY naming the effect (\"N Twitch channel-point\r\nrewards stop working\"), never a table name and never a sentence."
       },
       "FeatureStatusDto": {
         "required": [
@@ -81953,6 +82233,8 @@
         "required": [
           "id",
           "requesterUserId",
+          "requesterDisplayName",
+          "requesterAvatarUrl",
           "sourceType",
           "sourceUrl",
           "mediaRef",
@@ -81974,6 +82256,15 @@
             "type": "string",
             "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
             "format": "ulid"
+          },
+          "requesterDisplayName": {
+            "type": "string"
+          },
+          "requesterAvatarUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "sourceType": {
             "type": "string"
@@ -86976,6 +87267,7 @@
           "rewardTitle",
           "userId",
           "userDisplayName",
+          "userAvatarUrl",
           "cost",
           "userInput",
           "status",
@@ -86997,6 +87289,12 @@
           },
           "userDisplayName": {
             "type": "string"
+          },
+          "userAvatarUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "cost": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -87474,6 +87772,7 @@
           "isManageable",
           "isUserInputRequired",
           "isPaused",
+          "isMigrationPending",
           "backgroundColor",
           "imageUrl",
           "maxPerStream",
@@ -87518,6 +87817,9 @@
             "type": "boolean"
           },
           "isPaused": {
+            "type": "boolean"
+          },
+          "isMigrationPending": {
             "type": "boolean"
           },
           "backgroundColor": {
@@ -89157,6 +89459,36 @@
               },
               {
                 "$ref": "#/components/schemas/ChannelBasicsDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfChannelDeletePreviewDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ChannelDeletePreviewDto"
               }
             ]
           },
