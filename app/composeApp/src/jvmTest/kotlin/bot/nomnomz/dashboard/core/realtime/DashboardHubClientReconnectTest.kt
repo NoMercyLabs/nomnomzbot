@@ -17,6 +17,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -148,7 +149,11 @@ class DashboardHubClientReconnectTest {
     fun an_inbound_duplicate_after_resume_is_dropped_not_redelivered() = runBlocking {
         MiniWsServer().use { server ->
             val client = DashboardHubClient()
-            val received = mutableListOf<HubEvent>()
+            // Written from the collector coroutine and read from the spin-waits below, on different
+            // threads — a plain ArrayList would give the reader no happens-before edge to the writes, so
+            // its cached [size] could stay 0 forever and time out. CopyOnWriteArrayList's size reads a
+            // volatile array reference, so every add is visible to the waiting thread.
+            val received = CopyOnWriteArrayList<HubEvent>()
             val collectScope = CoroutineScope(Dispatchers.Default)
             val collectJob = collectScope.launch { client.events.collect { received.add(it) } }
             client.connect(
