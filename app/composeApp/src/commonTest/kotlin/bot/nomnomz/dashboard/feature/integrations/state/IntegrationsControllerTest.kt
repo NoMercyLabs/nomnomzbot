@@ -554,10 +554,23 @@ class IntegrationsControllerTest {
     fun regrant_uses_the_streamer_redirect_when_a_secret_is_configured() = runTest {
         // The streamer is the logged-in account, so with a client secret the re-grant is the seamless REDIRECT
         // (the same streamer authorize flow login/reconnect use) — no device code panel. It re-vaults the full
-        // scope set; the backend then reports the gap cleared, proven by the status re-read.
+        // scope set; the backend then reports the gap cleared, proven by the status re-read. The redirect's
+        // authorize URL only ever widens by scopes a live 403 already recorded (never the whole catalogue, or
+        // it 502s on Twitch's end) — so this scenario must be a REACTIVELY-detected gap (detectedAtRuntime =
+        // true); a proactive-only gap correctly falls back to the device flow instead (see the sibling test).
         val diagnostics =
             FakeTwitchDiagnosticsApi(
-                missing = MissingScopes(scopes = listOf(MissingScope("channel:bot", listOf("bot_badge"))))
+                missing =
+                    MissingScopes(
+                        scopes =
+                            listOf(
+                                MissingScope(
+                                    "channel:bot",
+                                    listOf("bot_badge"),
+                                    detectedAtRuntime = true,
+                                )
+                            )
+                    )
             )
         val launcher = FakeConnectLauncher()
         val controller =
@@ -578,6 +591,62 @@ class IntegrationsControllerTest {
 
         // The streamer authorize REDIRECT ran (never a device-code panel), and the gaps re-read as cleared.
         assertTrue(launcher.authorizeStreamerCalled)
+        val ready: IntegrationsState.Ready = controller.state.value as IntegrationsState.Ready
+        assertNull(ready.regrant)
+        assertTrue(ready.missingScopes.isEmpty())
+    }
+
+    @Test
+    fun regrant_falls_back_to_device_flow_when_a_gap_is_proactive_only_even_with_a_secret() = runTest {
+        // The redirect's authorize URL must stay short (a full-catalogue URL 502'd on Twitch's end once), so it
+        // only ever widens by scopes a live 403 already recorded — a scope the code needs but has never been
+        // exercised live (detectedAtRuntime = false, e.g. moderator:manage:chat_messages before the
+        // delete-message feature's first use) is invisible to it no matter how many times the button is
+        // clicked. Even with a client secret configured, that gap must route through the device flow instead —
+        // the only path with no URL-length ceiling.
+        val diagnostics =
+            FakeTwitchDiagnosticsApi(
+                missing =
+                    MissingScopes(
+                        scopes =
+                            listOf(
+                                MissingScope(
+                                    "moderator:manage:chat_messages",
+                                    listOf("chat_delete"),
+                                    detectedAtRuntime = false,
+                                )
+                            )
+                    ),
+                regrant =
+                    ScopeRegrantStart(
+                        deviceCode = "DEV-456",
+                        userCode = "ABCD-1234",
+                        verificationUri = "https://twitch.tv/activate",
+                        interval = 0,
+                        expiresIn = 60,
+                        requestedScopes = listOf("moderator:manage:chat_messages"),
+                    ),
+            )
+        val auth = FakeAuthApi(pollStatuses = listOf("authorized"))
+        val launcher = FakeConnectLauncher()
+        val controller =
+            controller(
+                channels = FakeChannelsApi(ApiResult.Ok(channel)),
+                bot = FakeBotAuthApi(BotStatus(connected = true)),
+                integrations = FakeIntegrationsApi(emptyList()),
+                launcher = launcher,
+                diagnostics = diagnostics,
+                auth = auth,
+                system = FakeSystemApi(twitchSecretConfigured = true), // secret configured, but doesn't matter
+            )
+        controller.load()
+
+        diagnostics.missingAfter = MissingScopes(scopes = emptyList())
+        controller.regrantScopes()
+
+        // The device flow ran (the only path that can close a proactive-only gap); the redirect never did.
+        assertFalse(launcher.authorizeStreamerCalled)
+        assertEquals("DEV-456", auth.polledDeviceCode)
         val ready: IntegrationsState.Ready = controller.state.value as IntegrationsState.Ready
         assertNull(ready.regrant)
         assertTrue(ready.missingScopes.isEmpty())
