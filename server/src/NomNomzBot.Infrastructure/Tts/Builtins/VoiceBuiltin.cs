@@ -10,6 +10,7 @@
 
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Common.Picking;
 using NomNomzBot.Application.Tts.Dtos;
 using NomNomzBot.Application.Tts.Services;
 
@@ -148,7 +149,10 @@ public sealed class VoiceBuiltin : IBuiltinCommand
         if (catalogue.Count == 0)
             return Result.Success("No voices available for roulette!");
 
-        TtsVoiceDto pick = catalogue[Random.Shared.Next(catalogue.Count)];
+        TtsVoiceDto pick = NoImmediateRepeatPicker.Pick(
+            catalogue,
+            $"tts.roulette:{broadcasterId}:{viewerId}"
+        );
         Result<UserTtsVoiceDto> set = await _tts.SetOwnVoiceAsync(
             broadcasterId,
             viewerId,
