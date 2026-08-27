@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Authorization;
+using NomNomzBot.Api.Identifiers;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Auth;
@@ -242,7 +243,7 @@ public class TtsConfigController : BaseController
     {
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
-        if (!Guid.TryParse(entryId, out Guid id))
+        if (!GuidUlidCodec.TryDecode(entryId, out Guid id))
             return BadRequestResponse("Invalid lexicon entry id.");
         Result<TtsLexiconEntryDto> result = await _ttsLexiconService.UpdateAsync(
             broadcasterId,
@@ -266,7 +267,7 @@ public class TtsConfigController : BaseController
     {
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
-        if (!Guid.TryParse(entryId, out Guid id))
+        if (!GuidUlidCodec.TryDecode(entryId, out Guid id))
             return BadRequestResponse("Invalid lexicon entry id.");
         Result result = await _ttsLexiconService.DeleteAsync(broadcasterId, id, ct);
         return ResultResponse(result);
