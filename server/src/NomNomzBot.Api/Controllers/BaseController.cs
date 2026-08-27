@@ -105,6 +105,15 @@ public abstract class BaseController : ControllerBase
         );
     }
 
+    /// <summary>
+    /// Appends a failure's <c>ErrorDetail</c> — a downstream provider's own rejection reason (e.g. Twitch's
+    /// "The reward title is not unique") — onto its <c>ErrorMessage</c> when present, so the client sees WHY,
+    /// not just a generic "(400)". <c>ErrorDetail</c> was previously read only for retry-after headers and
+    /// silently dropped everywhere a message reaches the user (consequences-must-be-visible.md).
+    /// </summary>
+    private static string? WithDetail(string? message, string? detail) =>
+        string.IsNullOrWhiteSpace(detail) ? message : $"{message} — {detail}";
+
     protected IActionResult ResultResponse<T>(NomNomzBot.Application.Common.Models.Result<T> result)
     {
         if (result.IsSuccess)
@@ -119,7 +128,9 @@ public abstract class BaseController : ControllerBase
             or "SESSION_INVALID"
             or "SESSION_NOT_ACTIVE"
             or "UNAUTHENTICATED"
-            or TwitchErrorCodes.Unauthorized => UnauthenticatedResponse(result.ErrorMessage),
+            or TwitchErrorCodes.Unauthorized => UnauthenticatedResponse(
+                WithDetail(result.ErrorMessage, result.ErrorDetail)
+            ),
             "FORBIDDEN"
             or "FEATURE_DISABLED"
             or "NOT_ENTITLED"
@@ -142,7 +153,9 @@ public abstract class BaseController : ControllerBase
             or "SOURCE_NOT_ALLOWED"
             or "PROJECT_DEPENDENCY_NOT_ALLOWED"
             or "WIDGET_DEPENDENCY_NOT_ALLOWED"
-            or "TENANT_MISMATCH" => UnauthorizedResponse(result.ErrorMessage),
+            or "TENANT_MISMATCH" => UnauthorizedResponse(
+                WithDetail(result.ErrorMessage, result.ErrorDetail)
+            ),
             "NOT_FOUND"
             or TwitchErrorCodes.NotFound
             or "CHANNEL_NOT_FOUND"
@@ -162,7 +175,9 @@ public abstract class BaseController : ControllerBase
             or "WIDGET_NO_SOURCE"
             or "WIDGET_NO_SETTINGS_SCHEMA"
             or "PROJECT_ENTRY_MISSING"
-            or "WIDGET_PROJECT_ENTRY_MISSING" => NotFoundResponse(result.ErrorMessage),
+            or "WIDGET_PROJECT_ENTRY_MISSING" => NotFoundResponse(
+                WithDetail(result.ErrorMessage, result.ErrorDetail)
+            ),
             "VALIDATION_FAILED"
             or "BET_OUT_OF_RANGE"
             or "TWITCH_NOT_CONFIGURED"
@@ -190,8 +205,11 @@ public abstract class BaseController : ControllerBase
             or "SUBJECT_KEY_MISSING"
             or "GAME_NOT_CONFIGURED"
             or "NO_SCOPES"
-            or "NO_TENANT" => BadRequestResponse(result.ErrorMessage),
+            or "NO_TENANT" => BadRequestResponse(
+                WithDetail(result.ErrorMessage, result.ErrorDetail)
+            ),
             "ALREADY_EXISTS"
+            or "MIGRATION_PENDING_EXTERNAL_REMOVAL"
             or TwitchErrorCodes.NoToken
             or "INSUFFICIENT_FUNDS"
             or "ACCOUNT_FROZEN"
@@ -236,16 +254,20 @@ public abstract class BaseController : ControllerBase
             or "KEY_NOT_ACTIVE"
             or "KEY_DESTROYED"
             or "PROJECTION_RUN_IN_PROGRESS"
-            or "FIRST_PARTY_IMMUTABLE" => ConflictResponse(result.ErrorMessage),
+            or "FIRST_PARTY_IMMUTABLE" => ConflictResponse(
+                WithDetail(result.ErrorMessage, result.ErrorDetail)
+            ),
             // Discord upstream results are never our fault (500). An invalid/expired bot token or a missing
             // connection is an actionable "reconnect the Discord bot" state → 409, so the client shows a
             // reconnect prompt instead of a generic failure; other upstream conditions map to their true class.
             "DISCORD_UNAUTHORIZED" or "DISCORD_NOT_CONNECTED" => ConflictResponse(
-                result.ErrorMessage
+                WithDetail(result.ErrorMessage, result.ErrorDetail)
             ),
-            "DISCORD_NOT_FOUND" => NotFoundResponse(result.ErrorMessage),
+            "DISCORD_NOT_FOUND" => NotFoundResponse(
+                WithDetail(result.ErrorMessage, result.ErrorDetail)
+            ),
             "RATE_LIMITED" or "DISCORD_RATE_LIMITED" or TwitchErrorCodes.RateLimited =>
-                TooManyRequestsResponse(result.ErrorMessage),
+                TooManyRequestsResponse(WithDetail(result.ErrorMessage, result.ErrorDetail)),
             "SERVICE_UNAVAILABLE"
             or "MARKETPLACE_UNAVAILABLE"
             or "DISCORD_ERROR"
@@ -270,7 +292,9 @@ public abstract class BaseController : ControllerBase
             or "OBS_TIMEOUT"
             or "OBS_WRONG_MODE"
             or "EMOTE_PROVIDER_ERROR"
-            or "WIDGET_BUILD_TOOL_UNAVAILABLE" => ServiceUnavailableResponse(result.ErrorMessage),
+            or "WIDGET_BUILD_TOOL_UNAVAILABLE" => ServiceUnavailableResponse(
+                WithDetail(result.ErrorMessage, result.ErrorDetail)
+            ),
             // Genuinely internal — our own machinery (journal append, projections, crypto, token exchange,
             // import/export, provisioning) faulted; there is no client action that avoids this, so 500 is the
             // correct, intentional class rather than an omission.
@@ -290,8 +314,10 @@ public abstract class BaseController : ControllerBase
             or "USER_FETCH_FAILED"
             or "DEVICE_TRANSFER_FAILED"
             or "UPCASTER_CHAIN_BROKEN"
-            or "INTERNAL_ERROR" => InternalServerErrorResponse(result.ErrorMessage),
-            _ => InternalServerErrorResponse(result.ErrorMessage),
+            or "INTERNAL_ERROR" => InternalServerErrorResponse(
+                WithDetail(result.ErrorMessage, result.ErrorDetail)
+            ),
+            _ => InternalServerErrorResponse(WithDetail(result.ErrorMessage, result.ErrorDetail)),
         };
     }
 
@@ -325,14 +351,14 @@ public abstract class BaseController : ControllerBase
     ) =>
         result.IsSuccess
             ? Ok(new StatusResponseDto<object> { Status = "ok" })
-            : MapTwitchError(result.ErrorCode, result.ErrorMessage);
+            : MapTwitchError(result.ErrorCode, WithDetail(result.ErrorMessage, result.ErrorDetail));
 
     protected IActionResult TwitchResultResponse<T>(
         NomNomzBot.Application.Common.Models.Result<T> result
     ) =>
         result.IsSuccess
             ? Ok(new StatusResponseDto<T> { Data = result.Value })
-            : MapTwitchError(result.ErrorCode, result.ErrorMessage);
+            : MapTwitchError(result.ErrorCode, WithDetail(result.ErrorMessage, result.ErrorDetail));
 
     private IActionResult MapTwitchError(string? code, string? message) =>
         code switch
