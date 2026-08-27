@@ -9,14 +9,11 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.EventStore;
 using NomNomzBot.Domain.Community.Events;
-using NomNomzBot.Domain.Platform;
-using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.EventStore;
 using NomNomzBot.Infrastructure.Platform.Deployment;
 using NSubstitute;
@@ -24,14 +21,14 @@ using NSubstitute;
 namespace NomNomzBot.Infrastructure.Tests.EventStore;
 
 /// <summary>
-/// Proves "replay" (what Stoney asked for: hitting replay actually re-runs a migrated channel's history through
-/// the real handler path). Driven end-to-end via the SAME <see cref="ProjectionRunner"/>/<see cref="EventJournalService"/>
-/// stack production uses (event-store.md §3.3) — this isn't a mock of the plumbing, it's the plumbing. Proves:
-/// an imported event republishes as the SAME concrete domain event (identity preserved — see the "distinctions
-/// that can silently collapse" note below), a live ("domain"-sourced) event is never re-fired, an unrecognized
-/// or malformed imported row is skipped without failing the whole catch-up run, and running Replay twice in a
-/// row is a safe no-op (the checkpoint already caught up) — the concrete guard against "make sure I cannot
-/// sneak in events from someone else": a SECOND tenant's own import never appears in the FIRST tenant's replay.
+/// Proves the 2026-08-27 incident fix: "replay" is a permanently silent no-op. It used to re-publish every
+/// imported event onto the live event bus, and because <see cref="EventStoreProjectionDriver"/> drives every
+/// registered projection for every channel forever, that turned a single rebuild into a live side-effect
+/// cannon — real Spotify calls, TTS utterances, and Helix redemption updates re-fired across 17 broadcasters
+/// on a schedule nobody could see or stop. Owner directive: a replay must never touch any outside system
+/// again. <see cref="ImportReplayProjection"/> no longer even holds an event bus reference — publishing is
+/// structurally impossible, not merely skipped — so these tests only need to prove the checkpoint bookkeeping
+/// (advance, safe re-run, tenant scoping, tolerate garbage) still behaves correctly.
 /// </summary>
 public sealed class ImportReplayProjectionTests
 {
@@ -91,64 +88,26 @@ public sealed class ImportReplayProjectionTests
         );
 
     [Fact]
-    public async Task RunOnce_ImportedEvent_RepublishesTheSameConcreteEventThroughTheBus()
+    public async Task RunOnce_ImportedEvent_AdvancesTheCheckpoint()
     {
         using SqliteTestDatabase database = SqliteTestDatabase.Open();
         Guid tenant = Guid.NewGuid();
 
         await using EventStoreTestDbContext db = database.NewContext();
         EventJournalService journal = NewJournal(db);
-        AppendEventRequest request = ImportedFollow(tenant, "viewer-42");
-        await journal.AppendAsync(request);
+        await journal.AppendAsync(ImportedFollow(tenant, "viewer-42"));
 
-        RecordingEventBus bus = new();
-        ImportReplayProjection projection = new(
-            bus,
-            new(),
-            NullLogger<ImportReplayProjection>.Instance
-        );
+        ImportReplayProjection projection = new();
         ProjectionRunner runner = NewRunner(db, journal, projection);
 
         Result<long> applied = await runner.RunOnceAsync(projection.Name, tenant);
 
         applied.IsSuccess.Should().BeTrue(applied.ErrorMessage);
         applied.Value.Should().Be(1);
-        bus.Published.Should().ContainSingle();
-        FollowEvent published = bus.Published[0].Should().BeOfType<FollowEvent>().Subject;
-        // Distinctions that must NOT collapse: the republished event carries the SAME EventId/tenant as the
-        // journal row, not a fresh identity — a count check alone would miss a swapped/duplicated id.
-        published.EventId.Should().Be(request.EventId);
-        published.BroadcasterId.Should().Be(tenant);
-        published.UserId.Should().Be("viewer-42");
     }
 
     [Fact]
-    public async Task RunOnce_LiveSourcedEvent_IsNeverRepublished()
-    {
-        using SqliteTestDatabase database = SqliteTestDatabase.Open();
-        Guid tenant = Guid.NewGuid();
-
-        await using EventStoreTestDbContext db = database.NewContext();
-        EventJournalService journal = NewJournal(db);
-        await journal.AppendAsync(ImportedFollow(tenant, "viewer-1") with { Source = "domain" });
-
-        RecordingEventBus bus = new();
-        ImportReplayProjection projection = new(
-            bus,
-            new(),
-            NullLogger<ImportReplayProjection>.Instance
-        );
-        ProjectionRunner runner = NewRunner(db, journal, projection);
-
-        Result<long> applied = await runner.RunOnceAsync(projection.Name, tenant);
-
-        applied.IsSuccess.Should().BeTrue(applied.ErrorMessage);
-        applied.Value.Should().Be(1); // counted as applied so the checkpoint advances past it
-        bus.Published.Should().BeEmpty(); // but never republished — it already ran live
-    }
-
-    [Fact]
-    public async Task RunOnce_UnknownEventType_SkipsWithoutFailingTheRun()
+    public async Task RunOnce_AnUnrecognizedOrMalformedEvent_StillAdvancesWithoutFailingTheRun()
     {
         using SqliteTestDatabase database = SqliteTestDatabase.Open();
         Guid tenant = Guid.NewGuid();
@@ -164,20 +123,13 @@ public sealed class ImportReplayProjectionTests
         );
         await journal.AppendAsync(ImportedFollow(tenant, "viewer-2"));
 
-        RecordingEventBus bus = new();
-        ImportReplayProjection projection = new(
-            bus,
-            new(),
-            NullLogger<ImportReplayProjection>.Instance
-        );
+        ImportReplayProjection projection = new();
         ProjectionRunner runner = NewRunner(db, journal, projection);
 
         Result<long> applied = await runner.RunOnceAsync(projection.Name, tenant);
 
         applied.IsSuccess.Should().BeTrue(applied.ErrorMessage);
         applied.Value.Should().Be(2);
-        bus.Published.Should().ContainSingle(); // only the recognizable one republished
-        bus.Published[0].Should().BeOfType<FollowEvent>();
     }
 
     [Fact]
@@ -190,26 +142,19 @@ public sealed class ImportReplayProjectionTests
         EventJournalService journal = NewJournal(db);
         await journal.AppendAsync(ImportedFollow(tenant, "viewer-1"));
 
-        RecordingEventBus bus = new();
-        ImportReplayProjection projection = new(
-            bus,
-            new(),
-            NullLogger<ImportReplayProjection>.Instance
-        );
+        ImportReplayProjection projection = new();
         ProjectionRunner runner = NewRunner(db, journal, projection);
 
         await runner.RunOnceAsync(projection.Name, tenant);
-        bus.Published.Should().ContainSingle();
 
         Result<long> second = await runner.RunOnceAsync(projection.Name, tenant);
 
         second.IsSuccess.Should().BeTrue(second.ErrorMessage);
         second.Value.Should().Be(0); // checkpoint already at head — nothing new to apply
-        bus.Published.Should().ContainSingle(); // still exactly one — never re-fired
     }
 
     [Fact]
-    public async Task RunOnce_ScopedToOneTenant_NeverSeesAnotherTenantsImportedEvents()
+    public async Task RunOnce_ScopedToOneTenant_NeverTouchesAnotherTenantsCheckpoint()
     {
         using SqliteTestDatabase database = SqliteTestDatabase.Open();
         Guid tenantA = Guid.NewGuid();
@@ -220,37 +165,18 @@ public sealed class ImportReplayProjectionTests
         await journal.AppendAsync(ImportedFollow(tenantA, "a-viewer"));
         await journal.AppendAsync(ImportedFollow(tenantB, "b-viewer"));
 
-        RecordingEventBus bus = new();
-        ImportReplayProjection projection = new(
-            bus,
-            new(),
-            NullLogger<ImportReplayProjection>.Instance
-        );
+        ImportReplayProjection projection = new();
         ProjectionRunner runner = NewRunner(db, journal, projection);
 
-        await runner.RunOnceAsync(projection.Name, tenantA);
+        Result<long> applied = await runner.RunOnceAsync(projection.Name, tenantA);
 
-        bus.Published.Should().ContainSingle();
-        FollowEvent published = bus.Published[0].Should().BeOfType<FollowEvent>().Subject;
-        published.BroadcasterId.Should().Be(tenantA);
-        published.UserId.Should().Be("a-viewer"); // never tenant B's imported follow
-    }
+        applied.IsSuccess.Should().BeTrue(applied.ErrorMessage);
+        applied.Value.Should().Be(1); // only tenant A's own imported row, never tenant B's
 
-    private sealed class RecordingEventBus : IEventBus
-    {
-        public List<IDomainEvent> Published { get; } = [];
-
-        public Task PublishAsync<TEvent>(
-            TEvent @event,
-            CancellationToken cancellationToken = default
-        )
-            where TEvent : class, IDomainEvent
-        {
-            Published.Add(@event);
-            return Task.CompletedTask;
-        }
-
-        public void PublishFireAndForget<TEvent>(TEvent @event)
-            where TEvent : class, IDomainEvent => Published.Add(@event);
+        Result<ProjectionCheckpointDto> checkpointB = await runner.GetCheckpointAsync(
+            projection.Name,
+            tenantB
+        );
+        checkpointB.IsFailure.Should().BeTrue(); // tenant B was never touched — no checkpoint exists for it
     }
 }
