@@ -98,6 +98,41 @@ public sealed class CurrencyAccountServiceTests
     }
 
     [Fact]
+    public async Task ListAccountsAsync_enriches_each_row_with_the_viewers_live_display_name_and_avatar()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        (CurrencyAccountService sut, EventStoreTestDbContext db, _) = New(database);
+        await SeedConfigAsync(db, startingBalance: 100);
+
+        db.Users.Add(
+            new()
+            {
+                Id = Viewer,
+                Username = "bamo",
+                UsernameNormalized = "bamo",
+                DisplayName = "Bamo",
+                ProfileImageUrl = "https://static-cdn.jtvnw.net/bamo.png",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<CurrencyAccountDto> created = await sut.GetOrCreateAccountAsync(Channel, Viewer);
+        created.IsSuccess.Should().BeTrue(created.ErrorMessage);
+
+        Result<PagedList<CurrencyAccountDto>> listed = await sut.ListAccountsAsync(
+            Channel,
+            new(1, 25, null, null)
+        );
+
+        listed.IsSuccess.Should().BeTrue(listed.ErrorMessage);
+        CurrencyAccountDto row = listed.Value.Items.Should().ContainSingle().Subject;
+        // The bug: the account row itself never stores a display name/avatar, so an unjoined list renders
+        // bare GUIDs with no way to tell whose wallet it is. This must come from the live User row.
+        row.ViewerDisplayName.Should().Be("Bamo");
+        row.ViewerAvatarUrl.Should().Be("https://static-cdn.jtvnw.net/bamo.png");
+    }
+
+    [Fact]
     public async Task Debit_below_zero_is_rejected_as_insufficient_funds()
     {
         using SqliteTestDatabase database = SqliteTestDatabase.Open();

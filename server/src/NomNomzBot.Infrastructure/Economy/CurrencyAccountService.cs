@@ -18,6 +18,7 @@ using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Domain.Economy.Entities;
 using NomNomzBot.Domain.Economy.Enums;
 using NomNomzBot.Domain.Economy.Events;
+using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Economy;
@@ -46,8 +47,9 @@ public sealed class CurrencyAccountService(
     )
     {
         CurrencyAccount? existing = await FindAccountAsync(broadcasterId, viewerUserId, ct);
+        User? viewer = await db.Users.FirstOrDefaultAsync(u => u.Id == viewerUserId, ct);
         if (existing is not null)
-            return Result.Success(ToDto(existing));
+            return Result.Success(ToDto(existing, viewer));
 
         CurrencyConfig? config = await LoadConfigAsync(broadcasterId, ct);
         return await unitOfWork.ExecuteInTransactionAsync(
@@ -60,7 +62,7 @@ public sealed class CurrencyAccountService(
                     token
                 );
                 await unitOfWork.SaveChangesAsync(token);
-                return Result.Success(ToDto(account));
+                return Result.Success(ToDto(account, viewer));
             },
             ct
         );
@@ -91,9 +93,17 @@ public sealed class CurrencyAccountService(
             .Skip((pagination.Page - 1) * pagination.PageSize)
             .Take(pagination.PageSize)
             .ToListAsync(ct);
+
+        // One batched lookup for the page's viewers rather than N+1 — the account row itself carries no
+        // display name/avatar (see CurrencyAccountDto), so the list is otherwise unreadable (bare GUIDs).
+        List<Guid> viewerIds = [.. rows.Select(a => a.ViewerUserId).Distinct()];
+        Dictionary<Guid, User> viewersById = await db
+            .Users.Where(u => viewerIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, ct);
+
         return Result.Success(
             new PagedList<CurrencyAccountDto>(
-                [.. rows.Select(ToDto)],
+                [.. rows.Select(a => ToDto(a, viewersById.GetValueOrDefault(a.ViewerUserId)))],
                 pagination.Page,
                 pagination.PageSize,
                 total
@@ -329,7 +339,8 @@ public sealed class CurrencyAccountService(
             return Result.Failure<CurrencyAccountDto>("No wallet for that viewer.", "NOT_FOUND");
         account.IsFrozen = frozen;
         await db.SaveChangesAsync(ct);
-        return Result.Success(ToDto(account));
+        User? viewer = await db.Users.FirstOrDefaultAsync(u => u.Id == viewerUserId, ct);
+        return Result.Success(ToDto(account, viewer));
     }
 
     public async Task<Result<PagedList<CurrencyLedgerEntryDto>>> GetLedgerAsync(
@@ -610,11 +621,13 @@ public sealed class CurrencyAccountService(
         );
     }
 
-    private static CurrencyAccountDto ToDto(CurrencyAccount a) =>
+    private static CurrencyAccountDto ToDto(CurrencyAccount a, User? viewer) =>
         new(
             a.Id,
             a.ViewerUserId,
             a.ViewerTwitchUserId,
+            viewer?.DisplayName ?? "Unknown viewer",
+            viewer?.ProfileImageUrl,
             a.Balance,
             a.LifetimeEarned,
             a.LifetimeSpent,
