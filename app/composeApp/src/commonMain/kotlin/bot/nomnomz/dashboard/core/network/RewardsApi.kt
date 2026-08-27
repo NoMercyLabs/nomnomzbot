@@ -336,6 +336,7 @@ data class RedemptionSummary(
     val rewardTitle: String = "",
     val userId: String = "",
     val userDisplayName: String = "",
+    val userAvatarUrl: String? = null,
     val cost: Int = 0,
     val userInput: String? = null,
     val status: String = "",

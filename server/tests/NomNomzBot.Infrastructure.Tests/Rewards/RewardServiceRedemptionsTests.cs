@@ -60,7 +60,7 @@ public sealed class RewardServiceRedemptionsTests
         await db.SaveChangesAsync();
 
         Result<PagedList<RedemptionListItem>> result = await Build(db)
-            .ListRedemptionsAsync(Channel.ToString(), "unfulfilled", new(1, 25));
+            .ListRedemptionsAsync(Channel.ToString(), "unfulfilled", new());
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
         result.Value.TotalCount.Should().Be(2); // only the two unfulfilled, not the fulfilled one
@@ -69,6 +69,31 @@ public sealed class RewardServiceRedemptionsTests
         result.Value.Items[0].RewardTitle.Should().Be("Spotify Song Request");
         result.Value.Items[0].UserDisplayName.Should().Be("Stoney_Eagle");
         result.Value.Items[0].Cost.Should().Be(50);
+    }
+
+    [Fact]
+    public async Task ListRedemptions_enriches_the_redeemer_with_their_avatar_when_the_user_row_exists()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Users.Add(
+            new()
+            {
+                Id = Guid.Parse("0192a000-0000-7000-8000-00000000f001"),
+                TwitchUserId = "u1",
+                Username = "stoney_eagle",
+                UsernameNormalized = "stoney_eagle",
+                DisplayName = "Stoney_Eagle",
+                ProfileImageUrl = "https://static-cdn.jtvnw.net/avatar.png",
+            }
+        );
+        db.Redemptions.Add(Redeem("r1", "unfulfilled", new(2025, 8, 1, 0, 0, 0, DateTimeKind.Utc)));
+        await db.SaveChangesAsync();
+
+        Result<PagedList<RedemptionListItem>> result = await Build(db)
+            .ListRedemptionsAsync(Channel.ToString(), "unfulfilled", new());
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Items[0].UserAvatarUrl.Should().Be("https://static-cdn.jtvnw.net/avatar.png");
     }
 
     [Fact]
@@ -82,7 +107,7 @@ public sealed class RewardServiceRedemptionsTests
         await db.SaveChangesAsync();
 
         Result<PagedList<RedemptionListItem>> result = await Build(db)
-            .ListRedemptionsAsync(Channel.ToString(), status: null, new(1, 25));
+            .ListRedemptionsAsync(Channel.ToString(), status: null, new());
 
         result.Value.TotalCount.Should().Be(2);
     }
@@ -93,7 +118,7 @@ public sealed class RewardServiceRedemptionsTests
         AuthDbContext db = AuthTestBuilder.NewContext();
 
         Result<PagedList<RedemptionListItem>> result = await Build(db)
-            .ListRedemptionsAsync("not-a-guid", null, new(1, 25));
+            .ListRedemptionsAsync("not-a-guid", null, new());
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("VALIDATION_FAILED");

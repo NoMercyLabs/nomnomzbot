@@ -32,6 +32,7 @@ public sealed record RedemptionListItem(
     string RewardTitle,
     string UserId,
     string UserDisplayName,
+    string? UserAvatarUrl,
     int Cost,
     string? UserInput,
     string Status,

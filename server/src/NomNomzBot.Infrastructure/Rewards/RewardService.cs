@@ -366,16 +366,23 @@ public class RewardService : IRewardService
             .OrderByDescending(r => r.RedeemedAt)
             .Skip((pagination.Page - 1) * pagination.PageSize)
             .Take(pagination.PageSize)
-            .Select(r => new RedemptionListItem(
-                r.RedemptionId,
-                r.RewardId,
-                r.RewardTitle,
-                r.UserId,
-                r.UserDisplayName,
-                r.Cost,
-                r.UserInput,
-                r.Status,
-                r.RedeemedAt
+            .GroupJoin(
+                _db.Users,
+                r => r.UserId,
+                u => u.TwitchUserId,
+                (r, users) => new { Redemption = r, User = users.FirstOrDefault() }
+            )
+            .Select(x => new RedemptionListItem(
+                x.Redemption.RedemptionId,
+                x.Redemption.RewardId,
+                x.Redemption.RewardTitle,
+                x.Redemption.UserId,
+                x.Redemption.UserDisplayName,
+                x.User != null ? x.User.ProfileImageUrl : null,
+                x.Redemption.Cost,
+                x.Redemption.UserInput,
+                x.Redemption.Status,
+                x.Redemption.RedeemedAt
             ))
             .ToListAsync(cancellationToken);
 
