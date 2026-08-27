@@ -14,6 +14,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Common.Picking;
 using NomNomzBot.Application.PickLists.Dtos;
 using NomNomzBot.Application.PickLists.Services;
 using NomNomzBot.Domain.PickLists.Entities;
@@ -294,7 +295,7 @@ public sealed partial class PickListService : IPickListService
         if (list.Items.Count == 0)
             return Result.Failure<string>($"Pick list '{trimmed}' is empty.", "PICKLIST_EMPTY");
 
-        return Result.Success(list.Items[Random.Shared.Next(list.Items.Count)]);
+        return Result.Success(NoImmediateRepeatPicker.Pick(list.Items, $"picklist:{list.Id}"));
     }
 
     private Task PublishChangedAsync(

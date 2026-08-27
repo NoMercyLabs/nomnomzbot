@@ -11,6 +11,7 @@
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Common.Picking;
 using NomNomzBot.Application.Contracts.EventStore;
 using NomNomzBot.Application.Quotes.Dtos;
 using NomNomzBot.Application.Quotes.Services;
@@ -167,7 +168,7 @@ public sealed class QuoteService : IQuoteService
         if (total == 0)
             return Result.Failure<QuoteDto>("This channel has no quotes yet.", "QUOTES_EMPTY");
 
-        int offset = Random.Shared.Next(total);
+        int offset = NoImmediateRepeatPicker.NextIndex(total, $"quote:{broadcasterId}");
         Quote quote = await query.OrderBy(q => q.Number).Skip(offset).Take(1).FirstAsync(ct);
 
         return Result.Success(ToDto(quote));

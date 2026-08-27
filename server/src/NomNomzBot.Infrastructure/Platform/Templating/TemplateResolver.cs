@@ -19,6 +19,7 @@ using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Common.Picking;
 using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.PickLists.Services;
@@ -467,7 +468,10 @@ public sealed partial class TemplateResolver : ITemplateResolver
                     List<string> chatters = [.. channelCtx.SessionChatters.Values];
                     vars[key] =
                         chatters.Count > 0
-                            ? chatters[Random.Shared.Next(chatters.Count)]
+                            ? NoImmediateRepeatPicker.Pick(
+                                chatters,
+                                $"random.user:{channelCtx.BroadcasterId}"
+                            )
                             : vars.GetValueOrDefault("user", "someone");
                 }
                 else if (key.StartsWith("random.number.", StringComparison.OrdinalIgnoreCase))
@@ -484,7 +488,10 @@ public sealed partial class TemplateResolver : ITemplateResolver
                     if (parts.Length > 2)
                     {
                         string[] options = parts[2..];
-                        vars[key] = options[Random.Shared.Next(options.Length)];
+                        vars[key] = NoImmediateRepeatPicker.Pick(
+                            options,
+                            $"random.pick:{channelCtx.BroadcasterId}:{key}"
+                        );
                     }
                 }
             }

@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Common.Picking;
 using NomNomzBot.Domain.Identity.Enums;
 
 namespace NomNomzBot.Application.Commands.Builtin.Personality;
@@ -59,9 +60,10 @@ public static class ToneTemplateCatalog
         IReadOnlyList<string> variations = Get(tone, builtinKey, slot);
         if (variations.Count == 0)
             return null;
-        return variations.Count == 1
-            ? variations[0]
-            : variations[Random.Shared.Next(variations.Count)];
+        return NoImmediateRepeatPicker.Pick(
+            variations,
+            $"{builtinKey}:{slot}:{PersonalityTone.Normalize(tone)}"
+        );
     }
 
     // ─────────────────────────────────────────────────────────────────────────

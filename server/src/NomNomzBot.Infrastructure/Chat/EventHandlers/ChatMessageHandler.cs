@@ -8,7 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -20,6 +19,7 @@ using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Common.Picking;
 using NomNomzBot.Application.Community.Services;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Games;
@@ -976,33 +976,14 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
     }
 
     /// <summary>
-    /// The line a random-response command speaks, never the same one twice running. A uniform draw repeats
-    /// back-to-back 1-in-N of the time — with a 20-line pool that is every twentieth use, and in chat an
-    /// immediately repeated "random" line reads as the bot being broken rather than as chance. Excluding
-    /// only the PREVIOUS line keeps every other line equally likely, so the pool still feels random; it does
-    /// not cycle or exhaust.
+    /// The line a random-response command speaks, never the same one twice running (see
+    /// <see cref="NoImmediateRepeatPicker"/>) — a uniform draw repeats back-to-back 1-in-N of the time, and in
+    /// chat an immediately repeated "random" line reads as the bot being broken rather than as chance.
+    /// <paramref name="commandKey"/> is keyed by channel+command, so unrelated commands never influence
+    /// each other's memory.
     /// </summary>
-    private string PickResponse(string[] responses, string commandKey)
-    {
-        if (responses.Length == 0)
-            return string.Empty;
-        if (responses.Length == 1)
-            return responses[0];
-
-        _lastResponseIndex.TryGetValue(commandKey, out int previous);
-        int index = Random.Shared.Next(responses.Length - 1);
-        // Map the drawn index around the previous one, so the previous line is the only one excluded and
-        // the remaining N-1 stay uniformly likely.
-        if (index >= previous)
-            index++;
-        _lastResponseIndex[commandKey] = index;
-        return responses[index];
-    }
-
-    /// <summary>The last line each command spoke, so the next draw can avoid repeating it. Keyed by
-    /// channel+command, bounded by the number of authored commands, and purely cosmetic — losing it on a
-    /// restart costs nothing more than one possible repeat.</summary>
-    private readonly ConcurrentDictionary<string, int> _lastResponseIndex = new();
+    private static string PickResponse(string[] responses, string commandKey) =>
+        responses.Length == 0 ? string.Empty : NoImmediateRepeatPicker.Pick(responses, commandKey);
 
     /// <summary>
     /// Matches the channel's cached keyword triggers against an ordinary chat line: role floor first,
