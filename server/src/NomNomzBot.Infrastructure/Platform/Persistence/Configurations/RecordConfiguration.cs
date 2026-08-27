@@ -24,7 +24,11 @@ public class RecordConfiguration : IEntityTypeConfiguration<Record>
 
         builder.Property(e => e.RecordType).IsRequired().HasMaxLength(50);
 
-        builder.Property(e => e.Data).IsRequired().HasColumnType("jsonb");
+        // Portable text, not "jsonb": a Postgres-only column type breaks string.Contains() substring
+        // scans (translates to LIKE, which the jsonb ~~ operator doesn't support) and violates the
+        // provider-agnostic model (deployment-profile.md "Data layer" — no Postgres-only jsonb/array
+        // columns in the shared model).
+        builder.Property(e => e.Data).IsRequired();
 
         builder.Property(e => e.UserId).IsRequired().HasMaxLength(50);
 
