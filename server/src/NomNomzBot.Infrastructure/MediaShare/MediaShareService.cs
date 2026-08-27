@@ -17,6 +17,7 @@ using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.MediaShare.Dtos;
 using NomNomzBot.Application.MediaShare.Services;
 using NomNomzBot.Domain.Economy.Enums;
+using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.MediaShare.Entities;
 using NomNomzBot.Domain.MediaShare.Events;
@@ -201,7 +202,7 @@ public sealed class MediaShareService : IMediaShareService
                 ct
             );
 
-        return Result.Success(ToDto(entity));
+        return Result.Success(await ToDtoAsync(entity, ct));
     }
 
     public async Task<Result<MediaShareRequestDto>> ApproveAsync(
@@ -228,7 +229,7 @@ public sealed class MediaShareService : IMediaShareService
         await _db.SaveChangesAsync(ct);
 
         await PublishPlaybackAsync(broadcasterId, entity.Id, MediaShareStatus.Approved, now, ct);
-        return Result.Success(ToDto(entity));
+        return Result.Success(await ToDtoAsync(entity, ct));
     }
 
     public async Task<Result<MediaShareRequestDto>> RejectAsync(
@@ -259,7 +260,7 @@ public sealed class MediaShareService : IMediaShareService
         entity.DecidedAt = now;
         entity.DecidedByUserId = moderatorUserId;
         await _db.SaveChangesAsync(ct);
-        return Result.Success(ToDto(entity));
+        return Result.Success(await ToDtoAsync(entity, ct));
     }
 
     public async Task<Result<MediaShareRequestDto>> SkipAsync(
@@ -284,7 +285,7 @@ public sealed class MediaShareService : IMediaShareService
         await _db.SaveChangesAsync(ct);
 
         await PublishPlaybackAsync(broadcasterId, entity.Id, MediaShareStatus.Skipped, now, ct);
-        return Result.Success(ToDto(entity));
+        return Result.Success(await ToDtoAsync(entity, ct));
     }
 
     public async Task<Result<MediaShareRequestDto>> ReorderAsync(
@@ -323,7 +324,7 @@ public sealed class MediaShareService : IMediaShareService
         for (int i = 0; i < approved.Count; i++)
             approved[i].QueuePosition = i + 1;
         await _db.SaveChangesAsync(ct);
-        return Result.Success(ToDto(target));
+        return Result.Success(await ToDtoAsync(target, ct));
     }
 
     public async Task<Result<PagedList<MediaShareRequestDto>>> GetQueueAsync(
@@ -347,9 +348,14 @@ public sealed class MediaShareService : IMediaShareService
             .Take(pagination.PageSize)
             .ToListAsync(ct);
 
+        Guid[] requesterIds = [.. rows.Select(r => r.RequesterUserId).Distinct()];
+        Dictionary<Guid, User> requesters = await _db
+            .Users.Where(u => requesterIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, ct);
+
         return Result.Success(
             new PagedList<MediaShareRequestDto>(
-                [.. rows.Select(ToDto)],
+                [.. rows.Select(r => ToDto(r, requesters.GetValueOrDefault(r.RequesterUserId)))],
                 pagination.Page,
                 pagination.PageSize,
                 total
@@ -368,7 +374,7 @@ public sealed class MediaShareService : IMediaShareService
             ct
         );
         if (playing is not null)
-            return Result.Success<MediaShareRequestDto?>(ToDto(playing));
+            return Result.Success<MediaShareRequestDto?>(await ToDtoAsync(playing, ct));
 
         MediaShareRequest? next = await _db
             .MediaShareRequests.Where(r =>
@@ -385,7 +391,7 @@ public sealed class MediaShareService : IMediaShareService
         await _db.SaveChangesAsync(ct);
 
         await PublishPlaybackAsync(broadcasterId, next.Id, MediaShareStatus.Playing, now, ct);
-        return Result.Success<MediaShareRequestDto?>(ToDto(next));
+        return Result.Success<MediaShareRequestDto?>(await ToDtoAsync(next, ct));
     }
 
     public async Task<Result<MediaShareRequestDto>> MarkPlayedAsync(
@@ -409,7 +415,7 @@ public sealed class MediaShareService : IMediaShareService
         await _db.SaveChangesAsync(ct);
 
         await PublishPlaybackAsync(broadcasterId, entity.Id, MediaShareStatus.Played, now, ct);
-        return Result.Success(ToDto(entity));
+        return Result.Success(await ToDtoAsync(entity, ct));
     }
 
     public async Task<Result<MediaShareConfigDto>> GetConfigAsync(
@@ -491,7 +497,7 @@ public sealed class MediaShareService : IMediaShareService
             .MediaShareRequests.Where(r =>
                 r.BroadcasterId == broadcasterId && r.Status == MediaShareStatus.Approved
             )
-            .MaxAsync(r => (int?)r.QueuePosition, ct);
+            .MaxAsync(r => r.QueuePosition, ct);
         return (max ?? 0) + 1;
     }
 
@@ -604,10 +610,18 @@ public sealed class MediaShareService : IMediaShareService
             System.Security.Cryptography.SHA256.HashData(viewerUserId.ToByteArray())
         )[..32];
 
-    private static MediaShareRequestDto ToDto(MediaShareRequest r) =>
+    private async Task<MediaShareRequestDto> ToDtoAsync(MediaShareRequest r, CancellationToken ct)
+    {
+        User? requester = await _db.Users.FirstOrDefaultAsync(u => u.Id == r.RequesterUserId, ct);
+        return ToDto(r, requester);
+    }
+
+    private static MediaShareRequestDto ToDto(MediaShareRequest r, User? requester) =>
         new(
             r.Id,
             r.RequesterUserId,
+            requester?.DisplayName ?? "Unknown viewer",
+            requester?.ProfileImageUrl,
             r.SourceType,
             r.SourceUrl,
             r.MediaRef,

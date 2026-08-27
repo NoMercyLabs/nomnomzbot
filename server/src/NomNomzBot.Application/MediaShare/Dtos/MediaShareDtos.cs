@@ -17,6 +17,10 @@ public sealed record SubmitMediaRequest(string Url);
 public sealed record MediaShareRequestDto(
     Guid Id,
     Guid RequesterUserId,
+    // Joined live from the Users table at read time (never stored on the request row itself, so a
+    // Twitch name/avatar change is always reflected) so the mod queue can show who submitted a clip.
+    string RequesterDisplayName,
+    string? RequesterAvatarUrl,
     string SourceType,
     string SourceUrl,
     string MediaRef,
