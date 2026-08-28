@@ -42,6 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -49,12 +50,16 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import bot.nomnomz.dashboard.core.connection.SessionUser
+import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
+import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Sheet
 import bot.nomnomz.dashboard.core.designsystem.component.SheetSide
+import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -226,16 +231,14 @@ private fun PreviewBanner(onExit: () -> Unit) {
             color = tokens.accentForeground,
             modifier = Modifier.weight(1f),
         )
-        Text(
-            text = stringResource(Res.string.shell_preview_exit),
-            style = typography.sm,
-            fontWeight = FontWeight.SemiBold,
-            color = tokens.accentForeground,
-            modifier = Modifier
-                .clip(RoundedCornerShape(tokens.radius.sm))
-                .clickable(onClick = onExit)
-                .padding(horizontal = spacing.s2, vertical = spacing.s1),
-        )
+        TextButton(onClick = onExit) {
+            Text(
+                text = stringResource(Res.string.shell_preview_exit),
+                style = typography.sm,
+                fontWeight = FontWeight.SemiBold,
+                color = tokens.accentForeground,
+            )
+        }
     }
 }
 
@@ -480,22 +483,24 @@ private fun HamburgerButton(onClick: () -> Unit) {
     val spacing = LocalSpacing.current
     val label: String = stringResource(Res.string.shell_nav_menu_open)
 
-    Column(
-        modifier = Modifier
-            .clip(RoundedCornerShape(tokens.radius.md))
-            .clickable(onClick = onClick)
-            .semantics { contentDescription = label }
-            .padding(spacing.s2),
-        verticalArrangement = Arrangement.spacedBy(spacing.s1),
+    // Custom-drawn three-bar glyph — the icon pack has no hamburger — but the button chrome (hover/press/focus,
+    // touch target, semantics) still comes from the catalogue [Button], not a bare clickable Column.
+    Button(
+        onClick = onClick,
+        variant = ButtonVariant.Ghost,
+        size = ButtonSize.Icon,
+        modifier = Modifier.clearAndSetSemantics { contentDescription = label },
     ) {
-        repeat(3) {
-            Box(
-                modifier = Modifier
-                    .width(spacing.s4)
-                    .height(spacing.s0_5)
-                    .clip(RoundedCornerShape(tokens.radius.sm))
-                    .background(tokens.foreground),
-            )
+        Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+            repeat(3) {
+                Box(
+                    modifier = Modifier
+                        .width(spacing.s4)
+                        .height(spacing.s0_5)
+                        .clip(RoundedCornerShape(tokens.radius.sm))
+                        .background(tokens.foreground),
+                )
+            }
         }
     }
 }
