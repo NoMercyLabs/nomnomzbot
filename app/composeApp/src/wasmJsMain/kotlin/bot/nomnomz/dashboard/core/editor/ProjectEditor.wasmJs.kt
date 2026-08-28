@@ -18,43 +18,44 @@ import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 
-// Web multi-file project editor — a full-screen DOM overlay hosting a file list + tabs + ONE CodeMirror 6 view +
-// a live-preview pane, mounted above the Compose canvas. It extends CustomCodeEditor.wasmJs to a whole `src/`
-// project:
-//   • the file map lives on the JS slot (`globalThis.__nnzProjectEdit.files`, a `path → content` object);
-//   • the left sidebar lists the files (add / rename / delete; the entry file is pinned);
-//   • ONE CodeMirror view is reused — switching the active file flushes the current doc back into the map and
-//     re-creates the view's EditorState with the new file's content + a language matched to the extension;
-//   • "Save & Compile" stages the whole map as JSON and Kotlin round-trips it to the caller's compile.
+// Web multi-file project editor -- a full-screen DOM overlay hosting a file list + tabs + ONE Monaco Editor
+// instance + a live-preview pane, mounted above the Compose canvas. It extends CustomCodeEditor.wasmJs to a whole
+// `src/` project:
+//   - the file map lives on the JS slot (`globalThis.__nnzProjectEdit.files`, a `path -> content` object);
+//   - the left sidebar lists the files (add / rename / delete; the entry file is pinned);
+//   - ONE Monaco Editor instance is reused -- each file gets its own `monaco.editor.ITextModel` (so each file
+//     keeps its own undo/redo stack), and switching the active file just calls `editor.setModel(...)`, creating
+//     the model lazily on first visit with a language id matched to the extension;
+//   - "Save & Compile" stages the whole map as JSON and Kotlin round-trips it to the caller's compile.
 //
-// Two enhancements layer on top of that base, both pure conveniences that degrade silently if their esm.sh
-// modules can't be reached (the editor stays fully usable without either):
-//   1. TypeScript language service — the generated `nnz.d.ts` (passed in as `sdkTypes`) is loaded as an ambient
-//      lib into an in-browser TypeScript language service (`@typescript/vfs` + `typescript`, on the MAIN thread —
-//      Monaco's Wasm worker is CORS-blocked, and a same-origin worker is not trivially wireable from CDN ESM, so
-//      v1 runs the service on-thread). It backs `nnz.` autocompletion (`@codemirror/autocomplete`) + inline
-//      red-squiggle diagnostics (`@codemirror/lint`) for the JS/TS-family files. The service extensions live in a
-//      CodeMirror Compartment so they can be reconfigured into the live view the moment the service finishes
-//      loading and survive every active-file swap.
-//   2. esbuild-wasm live preview — a preview pane bundles the CURRENT project client-side with esbuild-wasm
-//      (pinned to the server's esbuild 0.28.1) over an in-memory virtual file system and renders the bundle in a
-//      sandboxed `<iframe>` that hot-reloads on edit (debounced). This is a DEV-LOOP convenience ONLY — the
-//      server rebuild on Save & Compile stays the trust boundary, unchanged. Bare imports are left external and
-//      resolved in the iframe by an import map (react / react-dom / vue), so vanilla + react projects preview
-//      end-to-end. Vue SFCs (`.vue`) need @vue/compiler-sfc's non-trivial @vue/repl-style assembly to match the
-//      server exactly, so their preview is scoped to the server build (a clear note in the pane); code-scripts
-//      have no DOM to render, so their pane shows a "validate with Save & Compile" note while autocomplete stays
-//      live.
+// S-CODE-EDITOR-a is SHELL-ONLY: Monaco mounted, get/set text, JS/HTML syntax highlighting, undo/redo, and line
+// numbers (all Monaco defaults). Monaco's built-in JS/TS semantic + syntax validation is explicitly turned off
+// (see `setDiagnosticsOptions` below) so this slice adds no completion/hover/diagnostics surface -- the previous
+// CodeMirror build's in-browser TypeScript language service (autocompletion + lint wired through a CodeMirror
+// Compartment) does not carry over to Monaco in this slice; a follow-up slice re-introduces `nnz.` IntelliSense
+// against `sdkTypes` using Monaco's own extraLib mechanism.
+//
+// The other pure convenience layered on top of the base editor, unaffected by the Monaco swap:
+//   esbuild-wasm live preview -- a preview pane bundles the CURRENT project client-side with esbuild-wasm
+//   (pinned to the server's esbuild 0.28.1) over an in-memory virtual file system and renders the bundle in a
+//   sandboxed `<iframe>` that hot-reloads on edit (debounced). This is a DEV-LOOP convenience ONLY -- the
+//   server rebuild on Save & Compile stays the trust boundary, unchanged. Bare imports are left external and
+//   resolved in the iframe by an import map (react / react-dom / vue), so vanilla + react projects preview
+//   end-to-end. Vue SFCs (`.vue`) need @vue/compiler-sfc's non-trivial @vue/repl-style assembly to match the
+//   server exactly, so their preview is scoped to the server build (a clear note in the pane); code-scripts have
+//   no DOM to render, so their pane shows a "validate with Save & Compile" note.
 //
 // Handshake (same global-slot polling as CustomCodeEditor): JS stages { status, pendingFilesJson, ... } and Kotlin
-// polls it. `compile` → JS stages the full file JSON; Kotlin flips 'busy', awaits the caller's compile, paints the
-// result, flips back to 'editing'. 'closed' → Kotlin returns. CodeMirror + the two enhancements load from a CDN via
-// a Function()-hidden dynamic import (webpack rejects a literal import()); a <textarea> fallback keeps the editor
-// usable offline.
+// polls it. `compile` -> JS stages the full file JSON; Kotlin flips 'busy', awaits the caller's compile, paints
+// the result, flips back to 'editing'. 'closed' -> Kotlin returns. Monaco loads from a CDN via its own AMD loader
+// script (`loader.js`), the standard non-npm-pipeline embed for Monaco; the loader + the `monaco` global it
+// installs are cached on `globalThis` so re-opening the editor never re-injects the loader script (the
+// CodeMirror-era CDN-dedup pattern, ported to Monaco's own loading mechanism). A <textarea> fallback keeps the
+// editor usable offline or if the CDN is unreachable.
 //
 // CRITICAL: the overlay mounts into `document.body.shadowRoot || document.body`. Compose/Wasm renders the app into
-// a shadow root, and a light-DOM child of a shadow host is NOT laid out — appending to document.body would leave
-// the overlay 0×0 and invisible. The preview iframe is a child of the overlay, so it inherits that shadow-root
+// a shadow root, and a light-DOM child of a shadow host is NOT laid out -- appending to document.body would leave
+// the overlay 0x0 and invisible. The preview iframe is a child of the overlay, so it inherits that shadow-root
 // mount automatically.
 private val filesJson: Json = Json { encodeDefaults = true }
 private val filesSerializer = MapSerializer(String.serializer(), String.serializer())
@@ -126,15 +127,15 @@ private fun reportCompile(ok: Boolean, message: String) {
     )
 }
 
-// Tears the overlay out of the DOM and clears the slot (removing the element disposes its CodeMirror view).
+// Tears the overlay out of the DOM and clears the slot (removing the element disposes its Monaco models/editor).
 private fun closeProjectEditor() {
     js(
-        "{ var s = globalThis.__nnzProjectEdit; if (s) { if (s.previewTimer) { clearTimeout(s.previewTimer); } if (s.el && s.el.parentNode) { s.el.parentNode.removeChild(s.el); } } globalThis.__nnzProjectEdit = null; }"
+        "{ var s = globalThis.__nnzProjectEdit; if (s) { if (s.previewTimer) { clearTimeout(s.previewTimer); } if (s.editor) { s.editor.dispose(); } if (s.models) { for (var k in s.models) { if (Object.prototype.hasOwnProperty.call(s.models, k)) { s.models[k].dispose(); } } } if (s.el && s.el.parentNode) { s.el.parentNode.removeChild(s.el); } } globalThis.__nnzProjectEdit = null; }"
     )
 }
 
 // Builds the full-screen multi-file editor overlay and stages its state on globalThis.__nnzProjectEdit.
-// `title`, `initialFilesJson`, `entryPath`, `language`, and `sdkTypes` are the enclosing function's parameters —
+// `title`, `initialFilesJson`, `entryPath`, `language`, and `sdkTypes` are the enclosing function's parameters --
 // referenced directly in the JS body (Kotlin/Wasm js() marshals them as real JS values, so there is no
 // string-injection surface). NOTE: the JS body must not contain a literal `$` (Kotlin string templates), so all
 // string building uses `+` concatenation and identifier-only regexes.
@@ -155,10 +156,9 @@ private fun openProjectEditor(
 
             var slot = {
                 status: 'editing', files: files, entry: entry, active: entry, pendingFilesJson: '',
-                el: null, host: null, view: null, textarea: null, result: null, saveBtn: null,
+                el: null, host: null, textarea: null, result: null, saveBtn: null,
                 fileListEl: null, tabsEl: null,
-                CmView: null, CmState: null, langHtml: null, langJs: null, baseExt: null,
-                tsCompartment: null, tsReady: false, tsExtensions: null, tsEnv: null, tsLib: null,
+                monaco: null, editor: null, models: {},
                 previewFrame: null, previewNote: null, previewMode: 'esbuild', previewNoteText: '',
                 esbuild: null, previewTimer: null, vue: false, vueSfc: null, fireBar: null
             };
@@ -205,7 +205,7 @@ private fun openProjectEditor(
             result.style.cssText = 'display:none;padding:8px 16px;font-size:13px;font-weight:600;border-bottom:1px solid #262626;';
             slot.result = result;
 
-            // Body: a fixed-width file sidebar + the main editor column (tabs strip over the CodeMirror host) + a
+            // Body: a fixed-width file sidebar + the main editor column (tabs strip over the Monaco host) + a
             // live-preview column on the right.
             var body = document.createElement('div');
             body.style.cssText = 'flex:1;min-height:0;display:flex;';
@@ -298,9 +298,10 @@ private fun openProjectEditor(
             var mountRoot = document.body.shadowRoot || document.body;
             mountRoot.appendChild(overlay);
 
-            // ── File-content plumbing ────────────────────────────────────────────
+            // -- File-content plumbing --------------------------------------------
             function flushActive() {
-                if (slot.view) { slot.files[slot.active] = slot.view.state.doc.toString(); }
+                var model = slot.models[slot.active];
+                if (model) { slot.files[slot.active] = model.getValue(); }
                 else if (slot.textarea) { slot.files[slot.active] = slot.textarea.value; }
             }
             function snapshotFiles() {
@@ -314,25 +315,29 @@ private fun openProjectEditor(
                 var e = extOf(path);
                 return e === 'js' || e === 'jsx' || e === 'ts' || e === 'tsx' || e === 'mjs' || e === 'cjs';
             }
-            function langExtFor(path) {
-                if (isJsFamily(path)) { return slot.langJs ? [slot.langJs()] : []; }
-                return slot.langHtml ? [slot.langHtml()] : [];
+            // Monaco's built-in Monarch language ids -- 'javascript' covers .js/.jsx/.mjs/.cjs highlighting well
+            // enough for shell purposes (this slice does not wire the dedicated 'typescript' language service),
+            // everything else falls back to 'html' (the file kinds this editor actually opens: .vue/.html/.htm).
+            function monacoLanguageFor(path) {
+                return isJsFamily(path) ? 'javascript' : 'html';
             }
-            // The TypeScript language-service extensions for a file — only the JS/TS family once the service is up.
-            function tsExtFor(path) {
-                if (slot.tsReady && slot.tsExtensions && isJsFamily(path)) { return slot.tsExtensions; }
-                return [];
+            function disposeModel(path) {
+                var m = slot.models[path];
+                if (m) { m.dispose(); delete slot.models[path]; }
             }
-            function extsFor(path) {
-                var arr = slot.baseExt.concat(langExtFor(path));
-                if (slot.tsCompartment) { arr = arr.concat([slot.tsCompartment.of(tsExtFor(path))]); }
-                return arr;
+            function modelFor(path) {
+                var m = slot.models[path];
+                if (!m && slot.monaco) {
+                    m = slot.monaco.editor.createModel(slot.files[path] || '', monacoLanguageFor(path));
+                    m.onDidChangeContent(function () { schedulePreview(); });
+                    slot.models[path] = m;
+                }
+                return m;
             }
             function applyDoc(path) {
-                if (slot.view && slot.CmState && slot.baseExt) {
-                    var state = slot.CmState.create({ doc: slot.files[path] || '', extensions: extsFor(path) });
-                    slot.view.setState(state);
-                    slot.view.focus();
+                if (slot.editor && slot.monaco) {
+                    slot.editor.setModel(modelFor(path));
+                    slot.editor.focus();
                 } else if (slot.textarea) {
                     slot.textarea.value = slot.files[path] || '';
                     slot.textarea.focus();
@@ -372,6 +377,7 @@ private fun openProjectEditor(
                 flushActive();
                 slot.files[next] = slot.files[path];
                 delete slot.files[path];
+                disposeModel(path);
                 if (slot.active === path) { slot.active = next; }
                 applyDoc(slot.active);
                 renderFiles();
@@ -381,6 +387,7 @@ private fun openProjectEditor(
             function deleteFile(path) {
                 if (path === slot.entry) { return; }
                 delete slot.files[path];
+                disposeModel(path);
                 if (slot.active === path) { slot.active = slot.entry; }
                 applyDoc(slot.active);
                 renderFiles();
@@ -462,7 +469,7 @@ private fun openProjectEditor(
                 else if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) { e.preventDefault(); doSave(); }
             });
 
-            // ── Live preview ─────────────────────────────────────────────────────
+            // -- Live preview ------------------------------------------------------
             function showPreviewNote(text, isError) {
                 slot.previewFrame.style.display = 'none';
                 if (slot.fireBar) { slot.fireBar.style.display = 'none'; }
@@ -510,7 +517,7 @@ private fun openProjectEditor(
                 slot.previewFrame.srcdoc = doc;
                 refreshFireBar();
             }
-            // Scan every file for the events the widget subscribes to — nnz.on('evt') / NomNomz.on(\"evt\") — and
+            // Scan every file for the events the widget subscribes to -- nnz.on('evt') / NomNomz.on(\"evt\") -- and
             // render one fire button each. Clicking posts the event into the sandboxed preview iframe.
             function refreshFireBar() {
                 if (!slot.fireBar) { return; }
@@ -580,7 +587,7 @@ private fun openProjectEditor(
                 return null;
             }
             // Synthetic entry for Vue projects: the entry SFC exports a component but mounts nothing, so we bundle
-            // from a generated root that imports it and mounts with a fresh createApp — matching the overlay runtime.
+            // from a generated root that imports it and mounts with a fresh createApp -- matching the overlay runtime.
             var VUE_ENTRY = '__nnz_vue_main__.js';
             function vueEntrySource() {
                 return 'import __App from "./' + slot.entry + '";\n' +
@@ -601,7 +608,7 @@ private fun openProjectEditor(
                 var scoped = descriptor.styles.some(function (s) { return s.scoped; });
                 if (!descriptor.scriptSetup && !descriptor.script) { throw new Error('SFC has no <script> block'); }
                 var cs = sfc.compileScript(descriptor, { id: id, inlineTemplate: true, templateOptions: { scoped: scoped }, babelParserPlugins: ['typescript'] });
-                // rewriteDefault re-parses the compiled script (still TS) — it needs the typescript plugin too.
+                // rewriteDefault re-parses the compiled script (still TS) -- it needs the typescript plugin too.
                 var code = sfc.rewriteDefault(cs.content, '__sfc_main', ['typescript']);
                 if (scoped) { code += '\n__sfc_main.__scopeId = "data-v-' + id + '";'; }
                 var css = '';
@@ -623,7 +630,7 @@ private fun openProjectEditor(
                             if (r) { return { path: r, namespace: 'nnzvfs' }; }
                             return { errors: [{ text: 'Cannot resolve ' + a.path + ' from ' + a.importer }] };
                         }
-                        // Bare specifier — leave external so the iframe import map resolves it (react / vue / …).
+                        // Bare specifier -- leave external so the iframe import map resolves it (react / vue / …).
                         return { path: a.path, external: true };
                     });
                     build.onLoad({ filter: /.*/, namespace: 'nnzvfs' }, function (a) {
@@ -642,7 +649,7 @@ private fun openProjectEditor(
                 if (!slot.esbuild) { return; }
                 var f = snapshotFiles();
                 if (!(slot.entry in f)) { showPreviewNote('Entry file ' + slot.entry + ' is missing.', true); return; }
-                // Vue projects need @vue/compiler-sfc — load it once, then rebuild.
+                // Vue projects need @vue/compiler-sfc -- load it once, then rebuild.
                 if (slot.vue && !slot.vueSfc) {
                     showPreviewNote('Loading Vue compiler…', false);
                     var diVue = new Function('u', 'return import(u);');
@@ -693,10 +700,10 @@ private fun openProjectEditor(
                 var ee = extOf(slot.entry);
                 if (fw === 'script') {
                     slot.previewMode = 'note';
-                    slot.previewNoteText = 'Code scripts run in the bot sandbox — press Save & Compile to validate. Autocomplete + inline errors are live in the editor.';
+                    slot.previewNoteText = 'Code scripts run in the bot sandbox -- press Save & Compile to validate.';
                 } else if (fw === 'vue') {
                     // Vue SFCs compile client-side with @vue/compiler-sfc (same as the server) and bundle through
-                    // the same esbuild path as vanilla/react — a live, hot-reloading preview that mounts the widget
+                    // the same esbuild path as vanilla/react -- a live, hot-reloading preview that mounts the widget
                     // with a socket-free NomNomz SDK stub. The fire bar (built once the source is scanned) drives
                     // the widget's events so transient widgets (alerts/BSOD) can be seen reacting without OBS.
                     slot.vue = true;
@@ -709,7 +716,7 @@ private fun openProjectEditor(
             })();
 
             function mountTextarea() {
-                if (slot.textarea || slot.view) { return; }
+                if (slot.textarea || slot.editor) { return; }
                 var ta = document.createElement('textarea');
                 ta.value = slot.files[slot.active] || '';
                 ta.spellcheck = false;
@@ -732,123 +739,44 @@ private fun openProjectEditor(
             renderFiles();
             renderTabs();
 
-            // ── TypeScript language service (autocomplete + diagnostics over nnz.d.ts) ───────────────────────────
-            // Runs on the MAIN thread with @typescript/vfs. One virtual file '/main.tsx' mirrors the active JS/TS
-            // doc; '/nnz.d.ts' is loaded as an ambient lib so the global `declare const nnz` is in scope. Any load
-            // failure is swallowed — the editor keeps working with no autocomplete.
-            function tsKindToCmType(kind) {
-                if (kind === 'method' || kind === 'function') { return 'function'; }
-                if (kind === 'property' || kind === 'getter' || kind === 'setter') { return 'property'; }
-                if (kind === 'const' || kind === 'let' || kind === 'var' || kind === 'parameter') { return 'variable'; }
-                if (kind === 'class') { return 'class'; }
-                if (kind === 'interface' || kind === 'type') { return 'interface'; }
-                if (kind === 'enum') { return 'enum'; }
-                if (kind === 'keyword') { return 'keyword'; }
-                return 'text';
-            }
-            function wireLanguageService(ts, vfsMod, autocompleteMod, lintMod) {
-                var compilerOptions = {
-                    target: ts.ScriptTarget.ES2020,
-                    module: ts.ModuleKind.ESNext,
-                    moduleResolution: ts.ModuleResolutionKind.Bundler || ts.ModuleResolutionKind.NodeNext,
-                    lib: ['es2020', 'dom', 'dom.iterable'],
-                    allowJs: true, checkJs: false, strict: false, noImplicitAny: false,
-                    jsx: ts.JsxEmit.Preserve, allowNonTsExtensions: true, skipLibCheck: true, noEmit: true
-                };
-                // Fetch the standard lib files from jsdelivr (raw npm) — reliable + CORS-enabled — instead of the
-                // deprecated azure CDN default. No localStorage cache (avoids quota with the ~500kb dom lib).
-                function libFetch(url) {
-                    var name = url.slice(url.lastIndexOf('/') + 1);
-                    return fetch('https://cdn.jsdelivr.net/npm/typescript@' + ts.version + '/lib/' + name);
+            // -- Monaco Editor (AMD loader from a CDN, pinned; shell-only -- highlighting + editing, no
+            // completion/hover/diagnostics) -----------------------------------------------------------------------
+            // Loaded exactly once per page: the loader script installs a global `require`/`monaco`, and re-injecting
+            // the loader script a second time would redefine that global mid-session and break any editor instance
+            // still using it -- so the loaded `monaco` namespace is cached as a Promise on `globalThis` and every
+            // editor open (including this one, on a later re-open) awaits the same promise. This is the Monaco
+            // equivalent of the CodeMirror build's esm.sh ?deps dedup: one shared module instance, not one per open.
+            function loadMonaco() {
+                if (!globalThis.__nnzMonacoReady) {
+                    globalThis.__nnzMonacoReady = new Promise(function (resolve, reject) {
+                        if (globalThis.monaco) { resolve(globalThis.monaco); return; }
+                        function onLoaderReady() {
+                            var req = globalThis.require;
+                            if (!req || !req.config) { reject(new Error('Monaco AMD loader did not install require()')); return; }
+                            req.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs' } });
+                            req(['vs/editor/editor.main'], function () {
+                                if (globalThis.monaco) { resolve(globalThis.monaco); }
+                                else { reject(new Error('monaco global missing after vs/editor/editor.main load')); }
+                            }, function (err) { reject(err || new Error('vs/editor/editor.main failed to load')); });
+                        }
+                        var existing = document.querySelector('script[data-nnz-monaco-loader]');
+                        if (existing) {
+                            if (globalThis.require) { onLoaderReady(); }
+                            else { existing.addEventListener('load', onLoaderReady); existing.addEventListener('error', function () { reject(new Error('Monaco loader script failed to load')); }); }
+                            return;
+                        }
+                        var script = document.createElement('script');
+                        script.setAttribute('data-nnz-monaco-loader', '');
+                        script.src = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js';
+                        script.onload = onLoaderReady;
+                        script.onerror = function () { reject(new Error('Monaco loader script failed to load')); };
+                        document.head.appendChild(script);
+                    });
                 }
-                vfsMod.createDefaultMapFromCDN(compilerOptions, ts.version, false, ts, undefined, libFetch)
-                    .then(function (fsMap) {
-                        fsMap.set('/nnz.d.ts', sdkTypes || '// nnz SDK types unavailable');
-                        fsMap.set('/main.tsx', ' ');
-                        var system = vfsMod.createSystem(fsMap);
-                        var env = vfsMod.createVirtualTypeScriptEnvironment(system, ['/nnz.d.ts', '/main.tsx'], ts, compilerOptions);
-                        slot.tsEnv = env;
-
-                        function syncDoc(doc) {
-                            env.updateFile('/main.tsx', doc.length ? doc : ' ');
-                        }
-                        function completionSource(context) {
-                            if (!isJsFamily(slot.active)) { return null; }
-                            syncDoc(context.state.doc.toString());
-                            var word = context.matchBefore(/[A-Za-z0-9_]*/);
-                            var pos = context.pos;
-                            if (!context.explicit && word && word.from === word.to) {
-                                // Only auto-open after a member '.' or while typing an identifier.
-                                var prev = pos > 0 ? context.state.doc.sliceString(pos - 1, pos) : '';
-                                if (prev !== '.') { return null; }
-                            }
-                            var info;
-                            try { info = slot.tsEnv.languageService.getCompletionsAtPosition('/main.tsx', pos, {}); }
-                            catch (e) { return null; }
-                            if (!info || !info.entries) { return null; }
-                            var from = word ? word.from : pos;
-                            var options = [];
-                            var limit = Math.min(info.entries.length, 200);
-                            for (var i = 0; i < limit; i++) {
-                                var en = info.entries[i];
-                                options.push({ label: en.name, type: tsKindToCmType(en.kind) });
-                            }
-                            return { from: from, options: options };
-                        }
-                        function tsLinter(view) {
-                            syncDoc(view.state.doc.toString());
-                            var diags = [];
-                            var svc = slot.tsEnv.languageService;
-                            var all;
-                            try {
-                                all = svc.getSyntacticDiagnostics('/main.tsx').concat(svc.getSemanticDiagnostics('/main.tsx'));
-                            } catch (e) { return diags; }
-                            var docLen = view.state.doc.length;
-                            for (var i = 0; i < all.length; i++) {
-                                var d = all[i];
-                                if (d.start == null || d.length == null) { continue; }
-                                var from = Math.max(0, Math.min(d.start, docLen));
-                                var to = Math.max(from, Math.min(d.start + d.length, docLen));
-                                diags.push({
-                                    from: from, to: to,
-                                    severity: d.category === 1 ? 'error' : (d.category === 0 ? 'warning' : 'info'),
-                                    message: ts.flattenDiagnosticMessageText(d.messageText, '\n')
-                                });
-                            }
-                            return diags;
-                        }
-                        slot.tsExtensions = [
-                            autocompleteMod.autocompletion({ override: [completionSource] }),
-                            lintMod.lintGutter(),
-                            lintMod.linter(tsLinter, { delay: 400 })
-                        ];
-                        slot.tsReady = true;
-                        // Fold the service into the live view for the active file (and every later swap via extsFor).
-                        if (slot.view && slot.tsCompartment) {
-                            slot.view.dispatch({ effects: slot.tsCompartment.reconfigure(tsExtFor(slot.active)) });
-                        }
-                    })
-                    .catch(function () { /* no autocomplete — silently degrade */ });
-            }
-            function loadLanguageService() {
-                var dynImport2 = new Function('u', 'return import(u);');
-                Promise.all([
-                    dynImport2('https://esm.sh/typescript@5.6.3'),
-                    dynImport2('https://esm.sh/@typescript/vfs@1.6.0'),
-                    // Same-state pin as the base editor — the autocomplete + lint extensions land in the live view's
-                    // Compartment, so they must share the one @codemirror/state instance or they never take effect.
-                    dynImport2('https://esm.sh/@codemirror/autocomplete@6.18.1?deps=@codemirror/state@6.4.1'),
-                    dynImport2('https://esm.sh/@codemirror/lint@6.8.1?deps=@codemirror/state@6.4.1')
-                ]).then(function (mods) {
-                    if (slot.status === 'closed') { return; }
-                    var tsMod = mods[0], vfsMod = mods[1], acMod = mods[2], lintMod = mods[3];
-                    var ts = tsMod.default || tsMod;
-                    if (!ts || !ts.createLanguageService) { return; }
-                    wireLanguageService(ts, vfsMod, acMod, lintMod);
-                }).catch(function () { /* degrade silently */ });
+                return globalThis.__nnzMonacoReady;
             }
 
-            // ── esbuild-wasm (client-side dev preview; pinned to the server's esbuild 0.28.1) ────────────────────
+            // -- esbuild-wasm (client-side dev preview; pinned to the server's esbuild 0.28.1) ---------------------
             // Initialised at most once per page (guarded on globalThis), reused across editor opens.
             function loadEsbuild() {
                 if (slot.previewMode !== 'esbuild') {
@@ -860,7 +788,7 @@ private fun openProjectEditor(
                 if (!globalThis.__nnzEsbuild) {
                     var dynImport3 = new Function('u', 'return import(u);');
                     globalThis.__nnzEsbuild = dynImport3('https://esm.sh/esbuild-wasm@0.28.1').then(function (m) {
-                        // esm.sh nests the CJS module under .default — the top-level namespace has no initialize/build.
+                        // esm.sh nests the CJS module under .default -- the top-level namespace has no initialize/build.
                         var eb = m.default || m;
                         return eb.initialize({ wasmURL: 'https://esm.sh/esbuild-wasm@0.28.1/esbuild.wasm' }).then(function () { return eb; });
                     });
@@ -876,46 +804,31 @@ private fun openProjectEditor(
                 });
             }
 
-            // Load CodeMirror 6 + its languages/theme from a CDN. On any failure fall back to the textarea.
-            // CRITICAL: every CodeMirror package that contributes facets (basicSetup, the languages, the theme)
-            // MUST resolve the SAME @codemirror/state instance that EditorState.create uses, or its facets — the
-            // language parser, the highlight style, AND the height/scroll theme — register against a different
-            // state module and silently never apply (flat monochrome text, no scrollbar). esm.sh serves each
-            // package its own bundled copy of @codemirror/state unless pinned, so pin them all to ours via ?deps.
-            var dynImport = new Function('u', 'return import(u);');
-            var cmPin = '?deps=@codemirror/state@6.4.1';
-            Promise.all([
-                dynImport('https://esm.sh/codemirror@6.0.1' + cmPin),
-                dynImport('https://esm.sh/@codemirror/state@6.4.1'),
-                dynImport('https://esm.sh/@codemirror/lang-html@6.4.9' + cmPin),
-                dynImport('https://esm.sh/@codemirror/lang-javascript@6.2.2' + cmPin),
-                dynImport('https://esm.sh/@codemirror/theme-one-dark@6.1.2' + cmPin)
-            ]).then(function (mods) {
+            loadMonaco().then(function (monaco) {
                 if (slot.textarea || slot.status === 'closed') { return; }
-                var cm = mods[0], cmState = mods[1], langHtml = mods[2], langJs = mods[3], dark = mods[4];
-                slot.CmState = cmState.EditorState;
-                slot.langHtml = langHtml.html;
-                slot.langJs = langJs.javascript;
-                slot.tsCompartment = new cmState.Compartment();
-                slot.baseExt = [
-                    cm.basicSetup,
-                    dark.oneDark,
-                    cm.EditorView.updateListener.of(function (u) { if (u.docChanged) { schedulePreview(); } }),
-                    cm.EditorView.theme({
-                        '&': { height: '100%' },
-                        '.cm-scroller': { overflow: 'auto', fontFamily: '\"Cascadia Code\",\"Fira Code\",Menlo,Consolas,monospace' }
-                    })
-                ];
-                var state = slot.CmState.create({ doc: slot.files[slot.active] || '', extensions: extsFor(slot.active) });
-                var view = new cm.EditorView({ state: state, parent: host });
-                slot.view = view;
-                slot.CmView = cm.EditorView;
-                view.focus();
-                loadLanguageService();
+                slot.monaco = monaco;
+                // Shell-only: no completion/hover/diagnostics in this slice -- silence Monaco's own built-in
+                // JS/TS semantic + syntax validation so it stays a pure highlighting + editing surface until a
+                // follow-up slice wires real diagnostics against the nnz SDK types (sdkTypes is unused here).
+                if (monaco.languages && monaco.languages.typescript) {
+                    monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({ noSemanticValidation: true, noSyntaxValidation: true });
+                }
+                var editor = monaco.editor.create(host, {
+                    model: modelFor(slot.active),
+                    theme: 'vs-dark',
+                    automaticLayout: true,
+                    minimap: { enabled: false },
+                    fontFamily: '\"Cascadia Code\",\"Fira Code\",Menlo,Consolas,monospace',
+                    fontSize: 13,
+                    scrollBeyondLastLine: false,
+                });
+                slot.editor = editor;
+                editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, function () { doSave(); });
+                editor.focus();
             }).catch(function () { mountTextarea(); });
 
             setTimeout(function () {
-                if (!slot.view && !slot.textarea && slot.status !== 'closed') { mountTextarea(); }
+                if (!slot.editor && !slot.textarea && slot.status !== 'closed') { mountTextarea(); }
             }, 2500);
 
             // Kick off the preview independently of the editor surface.
