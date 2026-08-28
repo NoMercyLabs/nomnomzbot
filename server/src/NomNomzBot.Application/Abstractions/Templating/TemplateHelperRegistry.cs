@@ -56,10 +56,24 @@ public static class TemplateHelperRegistry
         TemplateHelperContext.Pipeline,
     ];
 
-    /// <summary>Seeded by <c>AdBreakBeganAlertHandler.BuildVariables</c> for the <c>channel.ad_break.begin</c>
-    /// trigger — an EventSub-only source, so no Command/Timer/Discord/Webhook context.</summary>
-    private static readonly TemplateHelperContext[] AdBreakContexts =
+    /// <summary>Seeded directly by an EventSub/webhook-ingest handler's <c>BuildVariables</c> (ad breaks,
+    /// moderation, subscriptions, cheers, raids, redemptions, reward lifecycle, stream lifecycle,
+    /// engagement, supporter events) — every one of these fires only through
+    /// <see cref="TemplateHelperContext.EventResponse"/> or a pipeline bound to that EventSub trigger,
+    /// never a chat command, timer, Discord notification, or webhook body.</summary>
+    private static readonly TemplateHelperContext[] EventSourceOnlyContexts =
     [
+        TemplateHelperContext.EventResponse,
+        TemplateHelperContext.Pipeline,
+    ];
+
+    /// <summary>Bare stream-identity keys ("broadcaster"/"title"/"game") shared verbatim by the Discord
+    /// go-live seed aliases AND <c>ChannelOnlineHandler</c>/<c>ChannelOfflineHandler</c>'s
+    /// <c>stream.online</c>/<c>stream.offline</c> triggers — same meaning (the channel now going live),
+    /// so one entry per key covers both instead of two colliding literals.</summary>
+    private static readonly TemplateHelperContext[] StreamLifecycleAndDiscordContexts =
+    [
+        TemplateHelperContext.Discord,
         TemplateHelperContext.EventResponse,
         TemplateHelperContext.Pipeline,
     ];
@@ -101,8 +115,89 @@ public static class TemplateHelperRegistry
             // ── Delivering platform (event response only; the event that fired the template) ──
             Literal("provider", [TemplateHelperContext.EventResponse], "template.helper.provider"),
             // ── Ad breaks (channel.ad_break.begin only) ─────────────────────
-            Literal("ad.duration", AdBreakContexts, "template.helper.ad_duration"),
-            Literal("ad.automatic", AdBreakContexts, "template.helper.ad_automatic"),
+            Literal("ad.duration", EventSourceOnlyContexts, "template.helper.ad_duration"),
+            Literal("ad.automatic", EventSourceOnlyContexts, "template.helper.ad_automatic"),
+            // ── Follow (channel.follow) ──────────────────────────────────────
+            Literal("followed_at", EventSourceOnlyContexts, "template.helper.followed_at"),
+            // ── Subscriptions / gifts / cheers (channel.subscribe, .subscription.message/.gift, .cheer) ──
+            Literal("tier", EventSourceOnlyContexts, "template.helper.tier"),
+            Literal("months", EventSourceOnlyContexts, "template.helper.months"),
+            Literal("streak", EventSourceOnlyContexts, "template.helper.streak"),
+            Literal("message", EventSourceOnlyContexts, "template.helper.message"),
+            Literal("count", EventSourceOnlyContexts, "template.helper.event_count"),
+            Literal("anonymous", EventSourceOnlyContexts, "template.helper.anonymous"),
+            Literal("bits", EventSourceOnlyContexts, "template.helper.bits"),
+            // ── Raids (channel.raid, channel.raid.out) ──────────────────────
+            Literal("viewers", EventSourceOnlyContexts, "template.helper.viewers"),
+            // ── Reward redemptions + lifecycle (redemption.add, reward.paused/resumed/enabled/disabled) ──
+            Literal("reward", EventSourceOnlyContexts, "template.helper.reward"),
+            Literal("reward.id", EventSourceOnlyContexts, "template.helper.reward_id"),
+            Literal("redemption.id", EventSourceOnlyContexts, "template.helper.redemption_id"),
+            Literal("cost", EventSourceOnlyContexts, "template.helper.cost"),
+            Literal("input", EventSourceOnlyContexts, "template.helper.input"),
+            // ── Moderation (channel.ban, channel.unban) + stream.offline (shares the "duration" key) ──
+            Literal("moderator", EventSourceOnlyContexts, "template.helper.moderator"),
+            Literal("reason", EventSourceOnlyContexts, "template.helper.reason"),
+            Literal("duration", EventSourceOnlyContexts, "template.helper.event_duration"),
+            // ── Stream lifecycle (stream.online, stream.offline) ─────────────
+            Literal(
+                "broadcaster",
+                StreamLifecycleAndDiscordContexts,
+                "template.helper.broadcaster"
+            ),
+            Literal("title", StreamLifecycleAndDiscordContexts, "template.helper.title"),
+            Literal("game", StreamLifecycleAndDiscordContexts, "template.helper.game"),
+            // ── Engagement triggers (engagement.first_time_chatter/.returning_chatter/.watch_streak/.session_first_message) ──
+            Literal("viewer.name", EventSourceOnlyContexts, "template.helper.viewer_name"),
+            Literal(
+                "engagement.daysSinceLastSeen",
+                EventSourceOnlyContexts,
+                "template.helper.engagement_days_since_last_seen"
+            ),
+            Literal(
+                "engagement.streak",
+                EventSourceOnlyContexts,
+                "template.helper.engagement_streak"
+            ),
+            // ── Supporter events (supporter.tip/.membership/.merch/.charity/.any) ──
+            Literal("supporter.name", EventSourceOnlyContexts, "template.helper.supporter_name"),
+            Literal("supporter.kind", EventSourceOnlyContexts, "template.helper.supporter_kind"),
+            Literal(
+                "supporter.amount",
+                EventSourceOnlyContexts,
+                "template.helper.supporter_amount"
+            ),
+            Literal(
+                "supporter.currency",
+                EventSourceOnlyContexts,
+                "template.helper.supporter_currency"
+            ),
+            Literal("supporter.tier", EventSourceOnlyContexts, "template.helper.supporter_tier"),
+            Literal(
+                "supporter.quantity",
+                EventSourceOnlyContexts,
+                "template.helper.supporter_quantity"
+            ),
+            Literal(
+                "supporter.message",
+                EventSourceOnlyContexts,
+                "template.helper.supporter_message"
+            ),
+            // ── OBS events (obs.<EventType> — obs-control.md §6): flat payload fields are dynamic per
+            // event type, so this is a prefix family like custom.<name>.<field> ──
+            Prefixed(
+                "obs.event.<field>",
+                "obs.event.",
+                EventSourceOnlyContexts,
+                "template.helper.obs_event_field"
+            ),
+            // ── VTube Studio events (vts.<EventType> — vtube-studio.md §4): same dynamic-field shape ──
+            Prefixed(
+                "vts.event.<field>",
+                "vts.event.",
+                EventSourceOnlyContexts,
+                "template.helper.vts_event_field"
+            ),
             // ── Time / date (all contexts) ──────────────────────────────────
             Literal("time", AllContexts, "template.helper.time"),
             Literal("time.utc", AllContexts, "template.helper.time_utc"),
@@ -218,12 +313,11 @@ public static class TemplateHelperRegistry
                 "template.helper.target_verb"
             ),
             // ── Discord notification seed aliases (Discord only — S-TWO-TEMPLATE-ENGINES) ──
-            Literal("broadcaster", DiscordOnly, "template.helper.broadcaster"),
+            // "broadcaster"/"title"/"game" are registered above (StreamLifecycleAndDiscordContexts) —
+            // shared verbatim with stream.online/.offline, not duplicated here.
             Literal("channel.name", DiscordOnly, "template.helper.channel_name"),
             Literal("channel.title", DiscordOnly, "template.helper.channel_title"),
             Literal("channel.game", DiscordOnly, "template.helper.channel_game"),
-            Literal("title", DiscordOnly, "template.helper.title"),
-            Literal("game", DiscordOnly, "template.helper.game"),
             Literal("raw.message", DiscordOnly, "template.helper.raw_message"),
         ];
 }

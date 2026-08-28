@@ -10,6 +10,8 @@
 
 using FluentAssertions;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Commands.Dtos;
+using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Infrastructure.Platform.Templating;
 
@@ -138,4 +140,32 @@ public sealed class TemplateHelperValidatorTests
         result.IsFailure.Should().BeTrue();
         result.ErrorMessage.Should().Contain("ad.duration");
     }
+
+    // The general form of the ad-break bug: EventResponsePresetCatalog is the dashboard's own claim
+    // about which variables each event type seeds (verified by its authors against each handler's
+    // BuildVariables), so every one of those variables MUST validate in EventResponse context — a gap
+    // here is the exact "not a recognized template helper" 400 a streamer would hit saving the preset
+    // AS SHIPPED, with no edits. Runs every preset individually so a failure names the offending one.
+    [Theory]
+    [MemberData(nameof(AllPresetEventTypes))]
+    public void Every_preset_catalog_variable_validates_in_its_own_shipped_template(
+        string eventType
+    )
+    {
+        EventResponsePresetDto preset = EventResponsePresetCatalog.Presets.Single(p =>
+            p.EventType == eventType
+        );
+        string template = string.Join(" ", preset.Variables.Select(v => $"{{{v}}}"));
+
+        Result result = _sut.Validate(template, TemplateHelperContext.EventResponse);
+
+        result
+            .IsSuccess.Should()
+            .BeTrue(
+                $"preset '{eventType}' advertises {template} but the validator rejects it: {result.ErrorMessage}"
+            );
+    }
+
+    public static IEnumerable<object[]> AllPresetEventTypes() =>
+        EventResponsePresetCatalog.Presets.Select(p => new object[] { p.EventType });
 }

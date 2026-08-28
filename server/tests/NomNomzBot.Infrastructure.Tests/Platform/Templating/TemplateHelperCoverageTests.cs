@@ -96,6 +96,42 @@ public sealed partial class TemplateHelperCoverageTests
         "ad.duration",
         "ad.automatic", // supplied by AdBreakBeganAlertHandler.BuildVariables, never assigned inside
         // TemplateResolver.cs
+        // Supplied directly by each EventSub/webhook-ingest handler's BuildVariables — the same
+        // seed-passthrough shape as ad.duration/ad.automatic above, never assigned inside
+        // TemplateResolver.cs. See TemplateHelperRegistry's EventSourceOnlyContexts doc comment for
+        // the full handler list this covers.
+        "followed_at",
+        "tier",
+        "months",
+        "streak",
+        "message",
+        "count",
+        "anonymous",
+        "bits",
+        "viewers",
+        "reward",
+        "reward.id",
+        "redemption.id",
+        "cost",
+        "input",
+        "moderator",
+        "reason",
+        "duration",
+        "viewer.name",
+        "engagement.daysSinceLastSeen",
+        "engagement.streak",
+        "supporter.name",
+        "supporter.kind",
+        "supporter.amount",
+        "supporter.currency",
+        "supporter.tier",
+        "supporter.quantity",
+        "supporter.message",
+        // "broadcaster"/"title"/"game" (listed above as Discord-only seed aliases) are ALSO seeded by
+        // ChannelOnlineHandler/ChannelOfflineHandler now (stream.online/.offline) — same passthrough
+        // shape, no separate entry needed since HashSet<string> membership doesn't distinguish source.
+        "obs.event.", // ObsEventTriggerSource.BuildVariables — dynamic per-event-type field prefix
+        "vts.event.", // VtsEventTriggerSource.BuildVariables — dynamic per-event-type field prefix
     };
 
     // Resolved via a colon-containing literal (verb:.../user.verb:.../target.verb:...) or a dedicated
