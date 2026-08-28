@@ -11,6 +11,14 @@
 package bot.nomnomz.dashboard.feature.pipelines.ui
 
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -243,6 +251,15 @@ import nomnomzbot.composeapp.generated.resources.pipelines_field_target_variable
 import nomnomzbot.composeapp.generated.resources.pipelines_field_duration_minutes
 import nomnomzbot.composeapp.generated.resources.pipelines_field_widget_id
 import nomnomzbot.composeapp.generated.resources.pipelines_field_data
+import nomnomzbot.composeapp.generated.resources.pipelines_block_run_pipeline
+import nomnomzbot.composeapp.generated.resources.pipelines_field_mode
+import nomnomzbot.composeapp.generated.resources.pipelines_field_wait
+import nomnomzbot.composeapp.generated.resources.pipelines_field_args
+import nomnomzbot.composeapp.generated.resources.pipelines_field_named_args
+import nomnomzbot.composeapp.generated.resources.pipelines_run_pipeline_named_arg_label
+import nomnomzbot.composeapp.generated.resources.pipelines_run_pipeline_no_target_hint
+import nomnomzbot.composeapp.generated.resources.pipelines_run_pipeline_args_add
+import nomnomzbot.composeapp.generated.resources.pipelines_run_pipeline_args_remove
 import nomnomzbot.composeapp.generated.resources.pipelines_loading
 import nomnomzbot.composeapp.generated.resources.pipelines_new_action
 import nomnomzbot.composeapp.generated.resources.pipelines_no_description
@@ -1038,6 +1055,20 @@ private fun TypedParamFields(block: PaletteBlock, params: MutableMap<String, Str
                         labelOf = { it.label },
                         label = fieldLabelWithRequired(field),
                     )
+                // run_pipeline's dynamic argument editor renders under the "named_args" slot for BOTH the
+                // named-args and positional-args cases (whichever applies to the currently-picked target); the
+                // catalogue's separate "args" field entry is a placeholder for the encoder only and renders
+                // nothing here, so the section appears exactly once.
+                block.type == "run_pipeline" && field.key == "named_args" ->
+                    RunPipelineArgumentsField(
+                        targetPipelineName = params["pipeline"].orEmpty(),
+                        declaredNamesByPipeline = options.pipelineParameterNames,
+                        namedArgsJson = params["named_args"].orEmpty(),
+                        onNamedArgsJsonChange = { params["named_args"] = it },
+                        argsJson = params["args"].orEmpty(),
+                        onArgsJsonChange = { params["args"] = it },
+                    )
+                block.type == "run_pipeline" && field.key == "args" -> Unit
                 else ->
                     AppTextField(
                         value = params[field.key].orEmpty(),
@@ -1112,6 +1143,106 @@ private fun GenericParamFields(entries: SnapshotStateList<GenericEntry>) {
         )
     }
 }
+
+// run_pipeline's argument editor (S-PIPE-TREE-d2b-UI): once a target pipeline is picked, renders one labelled
+// field per DECLARED parameter name (bound into the "named_args" JSON object param) when the target declares
+// any; otherwise falls back to the generic positional argument list (bound into the "args" JSON array param) —
+// the same fallback the engine itself applies (RunPipelineAction/PipelineEngine.RunInlineSubPipelineAsync).
+// Visible at module scope (not private) so PipelinesScreenRunPipelineArgumentsFieldTest can render and assert
+// on it directly, the same way the step dialog reaches it — a bespoke test-only duplicate would drift from the
+// real editor instead of proving it.
+@Composable
+internal fun RunPipelineArgumentsField(
+    targetPipelineName: String,
+    declaredNamesByPipeline: Map<String, List<String>>,
+    namedArgsJson: String,
+    onNamedArgsJsonChange: (String) -> Unit,
+    argsJson: String,
+    onArgsJsonChange: (String) -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    val declaredNames: List<String> = declaredNamesByPipeline[targetPipelineName].orEmpty()
+
+    if (targetPipelineName.isBlank()) {
+        Text(
+            text = stringResource(Res.string.pipelines_run_pipeline_no_target_hint),
+            style = LocalTypography.current.xs,
+            color = LocalTokens.current.mutedForeground,
+        )
+        return
+    }
+
+    if (declaredNames.isNotEmpty()) {
+        val current: Map<String, String> = remember(namedArgsJson) { decodeNamedArgs(namedArgsJson) }
+        Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+            for (name in declaredNames) {
+                AppTextField(
+                    value = current[name].orEmpty(),
+                    onValueChange = { newValue ->
+                        onNamedArgsJsonChange(encodeNamedArgs(current + (name to newValue)))
+                    },
+                    label = stringResource(Res.string.pipelines_run_pipeline_named_arg_label, name),
+                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = name },
+                )
+            }
+        }
+        return
+    }
+
+    val current: List<String> = remember(argsJson) { decodeArgsList(argsJson) }
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+        LabeledText(stringResource(Res.string.pipelines_field_args))
+        current.forEachIndexed { index, value ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                AppTextField(
+                    value = value,
+                    onValueChange = { newValue ->
+                        onArgsJsonChange(encodeArgsList(current.toMutableList().also { it[index] = newValue }))
+                    },
+                    label = stringResource(Res.string.pipelines_run_pipeline_named_arg_label, (index + 1).toString()),
+                    modifier = Modifier.weight(1f),
+                )
+                GlyphButton(
+                    icon = TrashGlyph,
+                    label = stringResource(Res.string.pipelines_run_pipeline_args_remove),
+                    onClick = { onArgsJsonChange(encodeArgsList(current.toMutableList().also { it.removeAt(index) })) },
+                    tint = LocalTokens.current.destructive,
+                )
+            }
+        }
+        GlyphButton(
+            icon = AddGlyph,
+            label = stringResource(Res.string.pipelines_run_pipeline_args_add),
+            onClick = { onArgsJsonChange(encodeArgsList(current + "")) },
+            tint = LocalTokens.current.primary,
+        )
+    }
+}
+
+// A blank/unparsable stored value degrades to an empty map/list rather than throwing — the editor must always
+// render, even against a hand-edited or legacy graph.
+private fun decodeNamedArgs(json: String): Map<String, String> =
+    runCatching {
+            Json.parseToJsonElement(json).jsonObject.mapValues { (_, v) ->
+                (v as? JsonPrimitive)?.contentOrNull ?: v.toString()
+            }
+        }
+        .getOrDefault(emptyMap())
+
+private fun encodeNamedArgs(map: Map<String, String>): String =
+    JsonObject(map.filterValues { it.isNotBlank() }.mapValues { (_, v) -> JsonPrimitive(v) as JsonElement }).toString()
+
+private fun decodeArgsList(json: String): List<String> =
+    runCatching {
+            Json.parseToJsonElement(json).jsonArray.map { (it as? JsonPrimitive)?.contentOrNull ?: it.toString() }
+        }
+        .getOrDefault(emptyList())
+
+private fun encodeArgsList(list: List<String>): String = JsonArray(list.map { JsonPrimitive(it) }).toString()
 
 // A closed-set value picker (endpoint / pick-list): a labelled dropdown when options exist, else a free-text
 // field so a channel with no endpoints/lists yet can still type an id/name by hand.

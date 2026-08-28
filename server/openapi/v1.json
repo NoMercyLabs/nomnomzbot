@@ -86338,7 +86338,8 @@
           "triggerCount",
           "lastTriggeredAt",
           "createdAt",
-          "updatedAt"
+          "updatedAt",
+          "parameterNames"
         ],
         "type": "object",
         "properties": {
@@ -86397,6 +86398,15 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "parameterNames": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
           }
         },
         "description": "Full pipeline details including the deserialized node graph cache."
@@ -86615,7 +86625,8 @@
           "isEnabled",
           "triggerCount",
           "lastTriggeredAt",
-          "updatedAt"
+          "updatedAt",
+          "parameterNames"
         ],
         "type": "object",
         "properties": {
@@ -86654,6 +86665,15 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "parameterNames": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
           }
         },
         "description": "Lightweight pipeline summary for list views."

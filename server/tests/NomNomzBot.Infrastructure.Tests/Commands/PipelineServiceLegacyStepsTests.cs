@@ -215,7 +215,8 @@ public sealed class PipelineServiceLegacyStepsTests
             0,
             null,
             DateTime.UtcNow,
-            DateTime.UtcNow
+            DateTime.UtcNow,
+            null
         );
 
         string responseJson = JsonSerializer.Serialize(dto, apiOptions);

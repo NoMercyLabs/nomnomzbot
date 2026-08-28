@@ -15,7 +15,16 @@ using NomNomzBot.Application.Abstractions.Localization;
 
 namespace NomNomzBot.Application.Commands.Dtos;
 
-/// <summary>Full pipeline details including the deserialized node graph cache.</summary>
+/// <summary>
+/// Full pipeline details including the deserialized node graph cache.
+/// </summary>
+/// <param name="ParameterNames">
+/// The named sub-pipeline parameters this pipeline declares (S-PIPE-TREE-d2b(a)), deserialized from
+/// <see cref="NomNomzBot.Domain.Commands.Entities.Pipeline.ParameterNamesJson"/> — null/empty when the
+/// pipeline declares none, in which case a caller's <c>run_pipeline</c> block falls back to positional
+/// <c>args</c>. Surfaced so the pipeline builder can render one labelled field per declared name when this
+/// pipeline is picked as a <c>run_pipeline</c> target, instead of a raw positional/generic argument list.
+/// </param>
 public sealed record PipelineDto(
     Guid Id,
     string ChannelId,
@@ -27,10 +36,14 @@ public sealed record PipelineDto(
     long TriggerCount,
     DateTime? LastTriggeredAt,
     DateTime CreatedAt,
-    DateTime UpdatedAt
+    DateTime UpdatedAt,
+    IReadOnlyList<string>? ParameterNames
 );
 
 /// <summary>Lightweight pipeline summary for list views.</summary>
+/// <param name="ParameterNames">See <see cref="PipelineDto.ParameterNames"/> — carried on the list item too so
+/// the <c>run_pipeline</c> target picker (fed by the list endpoint) knows a target's declared parameters without
+/// a second per-row fetch.</param>
 public sealed record PipelineListItemDto(
     Guid Id,
     string Name,
@@ -38,8 +51,34 @@ public sealed record PipelineListItemDto(
     bool IsEnabled,
     long TriggerCount,
     DateTime? LastTriggeredAt,
-    DateTime UpdatedAt
+    DateTime UpdatedAt,
+    IReadOnlyList<string>? ParameterNames
 );
+
+/// <summary>
+/// Parses <see cref="NomNomzBot.Domain.Commands.Entities.Pipeline.ParameterNamesJson"/> into its declared name
+/// list. Malformed/absent JSON is treated as "no declared parameters" — a labelling aid, never a hard schema a
+/// bad row should be able to break a mapping over. Shared by every place a
+/// <see cref="NomNomzBot.Domain.Commands.Entities.Pipeline"/> entity is projected into a DTO that carries
+/// <c>ParameterNames</c>.
+/// </summary>
+public static class PipelineParameterNames
+{
+    public static IReadOnlyList<string>? Parse(string? parameterNamesJson)
+    {
+        if (string.IsNullOrWhiteSpace(parameterNamesJson))
+            return null;
+        try
+        {
+            List<string>? names = JsonSerializer.Deserialize<List<string>>(parameterNamesJson);
+            return names is { Count: > 0 } ? names : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+}
 
 /// <summary>
 /// One configuration field of a pipeline action block — drives which typed control the builder's step form

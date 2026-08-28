@@ -11,6 +11,7 @@
 package bot.nomnomz.dashboard.core.network
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -196,6 +197,13 @@ data class PipelineSummary(
     val description: String? = null,
     val isEnabled: Boolean = false,
     val triggerCount: Int = 0,
+    /**
+     * The named sub-pipeline parameters this pipeline declares (backend `PipelineListItemDto.parameterNames`,
+     * S-PIPE-TREE-d2b(a)) — null/empty when it declares none. Read by the `run_pipeline` block's target picker
+     * to decide whether to render one labelled field per declared name or fall back to the generic/positional
+     * argument editor.
+     */
+    val parameterNames: List<String>? = null,
 )
 
 /**
@@ -211,6 +219,8 @@ data class PipelineDetail(
     val isEnabled: Boolean = false,
     val triggerCount: Int = 0,
     val graph: JsonElement? = null,
+    /** See [PipelineSummary.parameterNames] (backend `PipelineDto.parameterNames`). */
+    val parameterNames: List<String>? = null,
 ) {
     /** The decoded action chain — an empty chain when the stored graph is null/blank/`{}`. */
     val chain: PipelineGraph
@@ -331,6 +341,15 @@ data class PipelineNode(val type: String, val params: Map<String, String> = empt
             FieldKind.Bool -> {
                 val flag: Boolean? = value.trim().lowercase().toBooleanStrictOrNull()
                 if (flag != null) return JsonPrimitive(flag)
+            }
+            FieldKind.Json -> {
+                // `run_pipeline`'s named_args/args: the stored text is already-encoded JSON (an object/array
+                // built by the dynamic argument editor) — embed it verbatim so the engine's
+                // JsonElement.EnumerateObject/EnumerateArray reads see the real shape, not a quoted string. A
+                // blank value omits the param entirely (paramsFor already filters blanks before this runs, but
+                // an unparsable non-blank value still degrades to a plain string rather than crashing the save).
+                if (value.isBlank()) return JsonPrimitive(value)
+                return runCatching { Json.parseToJsonElement(value) }.getOrElse { JsonPrimitive(value) }
             }
             else -> Unit
         }

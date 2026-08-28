@@ -236,12 +236,22 @@ class PipelinesController(
                 is ApiResult.Ok -> result.value.map { labeledOption(it.id, it.name, "Widget") }
                 else -> emptyList()
             }
-        // The channel's pipelines by NAME (for `schedule_pipeline`) — the action resolves the pipeline by its name.
-        val pipelines: List<PickerOption> =
+        // The channel's pipelines by NAME (for `schedule_pipeline` / `run_pipeline`) — the action resolves the
+        // pipeline by its name. The same fetch also yields each pipeline's declared parameter names
+        // (S-PIPE-TREE-d2b-UI), keyed by name, so the `run_pipeline` block's argument editor can tell — once a
+        // target is picked — whether to render one labelled field per declared name or fall back to the
+        // generic positional `args` editor.
+        val pipelineList: List<PipelineSummary> =
             when (val result: ApiResult<List<PipelineSummary>> = pipelinesApi.list(channel)) {
-                is ApiResult.Ok -> result.value.map { labeledOption(it.name, it.name, "Pipeline") }
+                is ApiResult.Ok -> result.value
                 is ApiResult.Failure -> emptyList()
             }
+        val pipelines: List<PickerOption> =
+            pipelineList.map { labeledOption(it.name, it.name, "Pipeline") }
+        val pipelineParameterNames: Map<String, List<String>> =
+            pipelineList
+                .filter { !it.parameterNames.isNullOrEmpty() }
+                .associate { it.name to it.parameterNames.orEmpty() }
         // The remaining cross-feature entity references the step editor can pick (play_sound, play_tts,
         // jar_contribute, run_code, giveaway_*, post_quote). Each is best-effort: a null API or a failed fetch
         // yields an empty list and that field simply shows an empty picker.
@@ -281,6 +291,7 @@ class PipelinesController(
             pickLists = pickLists,
             widgets = widgets,
             pipelines = pipelines,
+            pipelineParameterNames = pipelineParameterNames,
             soundClips = soundClips,
             ttsVoices = ttsVoices,
             jars = jars,
@@ -461,8 +472,15 @@ data class EditorOptions(
     val pickLists: List<PickerOption> = emptyList(),
     /** The channel's overlay widgets — the `widget_event` block's `widget_id` picker (value = widget id). */
     val widgets: List<PickerOption> = emptyList(),
-    /** The channel's pipelines by NAME — the `schedule_pipeline` block's `pipeline` picker (value = name). */
+    /** The channel's pipelines by NAME — the `schedule_pipeline`/`run_pipeline` blocks' `pipeline` picker (value = name). */
     val pipelines: List<PickerOption> = emptyList(),
+    /**
+     * Each pipeline's declared sub-pipeline parameter names (S-PIPE-TREE-d2b-UI), keyed by pipeline NAME (the
+     * same key space as [pipelines]) — only pipelines that declare at least one name appear. The `run_pipeline`
+     * block's argument editor looks up the currently-picked target here to decide whether to render one
+     * labelled field per declared name or fall back to the generic positional `args` editor.
+     */
+    val pipelineParameterNames: Map<String, List<String>> = emptyMap(),
     /** The channel's sound clips — the `play_sound` block's `clip` picker (value = clip id). */
     val soundClips: List<PickerOption> = emptyList(),
     /** The channel's TTS voices — the `play_tts` block's `voice` picker (value = voice id). */

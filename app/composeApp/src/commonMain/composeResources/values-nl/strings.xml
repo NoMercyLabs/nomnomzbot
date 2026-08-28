@@ -2367,6 +2367,7 @@
     <string name="pipelines_block_send_discord_notification">Discord-melding</string>
     <string name="pipelines_block_require_tier">Tier vereisen</string>
     <string name="pipelines_block_run_code">Script uitvoeren</string>
+    <string name="pipelines_block_run_pipeline">Pipeline uitvoeren</string>
     <string name="pipelines_field_message">Bericht</string>
     <string name="pipelines_field_user_id">Gebruikers-ID</string>
     <string name="pipelines_field_duration_seconds">Duur (seconden)</string>
@@ -2464,6 +2465,14 @@
     <string name="pipelines_field_duration_minutes">Duur (minuten)</string>
     <string name="pipelines_field_widget_id">Widget</string>
     <string name="pipelines_field_data">Data (JSON)</string>
+    <string name="pipelines_field_mode">Modus</string>
+    <string name="pipelines_field_wait">Wacht tot de run klaar is</string>
+    <string name="pipelines_field_args">Argumenten (op volgorde, {{args.1}}, {{args.2}}, …)</string>
+    <string name="pipelines_field_named_args">Argumenten</string>
+    <string name="pipelines_run_pipeline_named_arg_label">Argument “%1$s”</string>
+    <string name="pipelines_run_pipeline_no_target_hint">Kies een doelpipeline om de argumenten in te stellen.</string>
+    <string name="pipelines_run_pipeline_args_add">Argument toevoegen</string>
+    <string name="pipelines_run_pipeline_args_remove">Argument verwijderen</string>
     <!-- Algemene sleutel/waarde-editor voor een backend-blok zonder getypte veldhints. -->
     <string name="pipelines_generic_params_label">Parameters</string>
     <string name="pipelines_generic_param_key">Naam</string>
