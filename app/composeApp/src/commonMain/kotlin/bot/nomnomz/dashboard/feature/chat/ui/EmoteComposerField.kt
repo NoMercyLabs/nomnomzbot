@@ -53,9 +53,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.InputFieldAction
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
+import bot.nomnomz.dashboard.core.designsystem.icon.CloseGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.ControlMetrics
 import bot.nomnomz.dashboard.core.designsystem.theme.ControlPalette
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -83,6 +85,8 @@ internal fun EmoteComposerField(
     actionEnabled: Boolean,
     onActionClick: () -> Unit,
     modifier: Modifier = Modifier,
+    clearLabel: String? = null,
+    onClear: (() -> Unit)? = null,
 ) {
     val typography = LocalTypography.current
     val density = LocalDensity.current
@@ -215,6 +219,15 @@ internal fun EmoteComposerField(
                             }
                         }
                     }
+                }
+                // Clear-all sits INSIDE the field, immediately before Send. Only shown while there's a
+                // draft to wipe, and never gated — clearing your own unsent text needs no write floor.
+                if (onClear != null && clearLabel != null && value.text.isNotEmpty()) {
+                    GlyphButton(
+                        icon = CloseGlyph,
+                        label = clearLabel,
+                        onClick = onClear,
+                    )
                 }
                 // Keep the permission gate on the Send action itself—not the editable composer—so
                 // denied users can still type/clear a draft and assistive tech announces why Send is inert.
