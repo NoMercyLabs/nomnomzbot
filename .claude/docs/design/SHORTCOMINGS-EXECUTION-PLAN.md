@@ -116,13 +116,6 @@ only Stoney can make. Do not burn agent time trying to work around them.
   entry (toggleable only)? Done-when: the model is settled in the spec, the UI matches it, the limit is
   either reachable or removed, and Delete means what it says.
 
-- **S-API-TESTS-INMEMORY** 13 Api test contexts moved to SQLite in f1eeeef7 (779 tests still pass, so
-  nothing was hidden and no coverage dropped). THE PLAN UNDERCOUNTED THIS: `UseInMemoryDatabase` appears
-  in **60 test files** across the suite, not 14. Three remain in Api.Tests; the rest are spread over the
-  other projects. EF InMemory ignores unique indexes, FK constraints, cascade behaviour and concurrency
-  tokens, so each one can pass against behaviour the real database rejects -- the same move on the
-  Infrastructure suite surfaced 188 hidden failures. Convert in batches, and treat every surfaced failure
-  as a real bug until proven a fixture artefact.
 - **S-PIPE-TREE-d2b** (scope narrowings the sub-pipeline slice reported honestly; 5d82f69c shipped the
   core: args in, `return_value` out, `CallDepth` spanning pipeline boundaries, tenant-scoped, try-catchable,
   4108 tests green) TWO REAL LIMITATIONS REMAIN:
