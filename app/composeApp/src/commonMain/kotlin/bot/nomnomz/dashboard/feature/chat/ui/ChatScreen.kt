@@ -1009,16 +1009,6 @@ private fun SendBox(
         ) {
             // Identity selector: send as the operator's own account ("You") or the channel bot ("Bot").
             SendIdentitySelector(identity = identity, onSelect = { identity = it })
-            // Clear-all: wipe the whole draft in one tap. Only shown while there's something to clear so the
-            // empty composer stays uncluttered. It precedes the composer so Send remains the far-right action.
-            // Not gated — clearing your own unsent text needs no write floor.
-            if (draft.text.isNotEmpty()) {
-                GlyphButton(
-                    icon = CloseGlyph,
-                    label = stringResource(Res.string.chat_clear_input),
-                    onClick = { draft = TextFieldValue("") },
-                )
-            }
             EmoteComposerField(
                 value = draft,
                 onValueChange = { draft = it },
@@ -1030,6 +1020,11 @@ private fun SendBox(
                 actionDecision = manage,
                 actionEnabled = canSend,
                 onActionClick = { submit() },
+                // Clear-all lives INSIDE the field, next to Send — wipes the whole draft in one tap. Only
+                // shown while there's something to clear. Not gated: clearing your own unsent text needs no
+                // write floor.
+                clearLabel = stringResource(Res.string.chat_clear_input),
+                onClear = { draft = TextFieldValue("") },
                 modifier = Modifier.weight(1f),
             )
         }
