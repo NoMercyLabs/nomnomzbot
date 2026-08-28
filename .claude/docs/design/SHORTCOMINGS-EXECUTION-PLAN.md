@@ -106,16 +106,6 @@ only Stoney can make. Do not burn agent time trying to work around them.
 
 ---
 
-- **S-EVENTRESPONSE-NO-CREATE** (found by S-BUDGETS-b3) `EventResponsesScreen.kt` has NO create
-  affordance: event responses are a fixed per-event-type catalogue seeded by the backend, edit/toggle
-  only. Consequences worth deciding rather than leaving: (1) the `event_responses` NEAR_FREE limit is
-  enforced on a resource a user cannot create from the dashboard, so the limit is decorative there —
-  either the surface should allow creating them or the limit should not be advertised; (2) this is the
-  same root as S048, where Delete is really a RESET because `ListAsync` top-up-seeds on read. Decide the
-  model: is an event response a user-authored row (creatable, deletable, countable) or a seeded catalogue
-  entry (toggleable only)? Done-when: the model is settled in the spec, the UI matches it, the limit is
-  either reachable or removed, and Delete means what it says.
-
 - **S-CODE-EDITOR** The code-scripts surface gets a **VS Code-for-web grade editor that functions like
   one** — Monaco-class: completion, hover types, go-to-definition, diagnostics, multi-file — loading a
   **REAL fully-typed SDK from npm** (the actual published types, not hand-written `.d.ts`
