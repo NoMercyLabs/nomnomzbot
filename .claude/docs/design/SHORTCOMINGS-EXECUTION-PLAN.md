@@ -118,17 +118,21 @@ only Stoney can make. Do not burn agent time trying to work around them.
 
 - **S-PIPE-TREE-d2b** (scope narrowings the sub-pipeline slice reported honestly; 5d82f69c shipped the
   core: args in, `return_value` out, `CallDepth` spanning pipeline boundaries, tenant-scoped, try-catchable,
-  4108 tests green) TWO REAL LIMITATIONS REMAIN:
-  (a) `run_pipeline` arguments are POSITIONAL-ONLY. Named parameters need `Pipeline.ParameterNamesJson`
-  (a new column, hence BOTH EF migration sets + ~40 test fakes). Positional args are a usability trap in
-  an authoring UI — the editor cannot label what argument 2 means. Done-when: a sub-pipeline declares
-  NAMED parameters, the caller binds by name, and the editor can render them as labelled fields.
-  (b) `return_value`'s value and `run_pipeline`'s params are stored RAW — no template rendering happens at
+  4108 tests green) ONE REAL LIMITATION REMAINS (backend named-parameter binding shipped in ef24435e —
+  `Pipeline.ParameterNamesJson`, both EF migration sets, `run_pipeline` binds by name, proven by
+  `RunPipelineInline_NamedArgs_BindByName_RegardlessOfCallerOrder`; the pipeline-editor UI does not yet
+  render a sub-pipeline's declared parameters as labelled fields — still open, small UI-only slice):
+  `return_value`'s value and `run_pipeline`'s params are stored RAW — no template rendering happens at
   the core-action layer for ANY action (this matches `SetVariableAction`, so it is a pre-existing systemic
   gap, not a regression). Consequence: you cannot pass `{{user.name}}` as a sub-pipeline argument.
   Done-when: decide where template resolution belongs for core actions (the leaf executor, or per-action)
   and apply it as ONE mechanism across every core action rather than per-action patches — then a templated
   argument and a templated return value both resolve, proven by tests.
+- **S-PIPE-TREE-d2b-UI** the pipeline editor (`app/` `feature/pipelines`) does not render a called
+  sub-pipeline's `ParameterNamesJson` as labelled argument fields — `run_pipeline` blocks still show
+  positional/raw args in the UI even though the backend now supports named binding (ef24435e). Done-when:
+  when the target pipeline declares parameter names, the block shows one labelled input per name instead
+  of a positional list, proven by a jvmTest.
 
 - **S-NAMELESS-ROWS-b** (17 of 19 files remain; Commands + Rewards done in 8c349816, jvmTest 702/702)
   Mechanism `resolveRowLabel` + `RowLabelGuardTest` shipped in fa9391a3; `PickListsScreen` is the worked
