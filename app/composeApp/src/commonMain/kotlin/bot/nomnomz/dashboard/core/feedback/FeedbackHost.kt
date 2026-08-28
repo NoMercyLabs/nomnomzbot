@@ -100,7 +100,9 @@ fun FeedbackHost(
         }
     }
 
-    Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+    // Top-right, flowing down from off-screen — the Sonner-style toast corner, not a center-page banner
+    // that competes with page content for the same horizontal band.
+    Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.TopEnd) {
         AnimatedVisibility(
             visible = shown != null,
             enter = slideInVertically { full -> -full } + fadeIn(),
