@@ -114,4 +114,28 @@ public sealed class TemplateHelperValidatorTests
         _sut.Validate(null, TemplateHelperContext.Command).IsSuccess.Should().BeTrue();
         _sut.Validate(string.Empty, TemplateHelperContext.Command).IsSuccess.Should().BeTrue();
     }
+
+    // Regression for the exact operator-facing bug: the ad-break event-response preset suggested
+    // {ad.duration}/{ad.automatic} (EventResponsePresetCatalog) and AdBreakBeganAlertHandler seeded
+    // them at runtime, but neither was in TemplateHelperRegistry, so saving this EXACT template 400'd
+    // with "not a recognized template helper" even though it would have resolved correctly.
+    [Fact]
+    public void Ad_break_preset_variables_are_accepted_on_an_event_response()
+    {
+        Result result = _sut.Validate(
+            "Ads incoming for {ad.duration} (automatic: {ad.automatic})",
+            TemplateHelperContext.EventResponse
+        );
+
+        result.IsSuccess.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Ad_break_preset_variables_are_rejected_outside_their_context()
+    {
+        Result result = _sut.Validate("Ads: {ad.duration}", TemplateHelperContext.Command);
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorMessage.Should().Contain("ad.duration");
+    }
 }

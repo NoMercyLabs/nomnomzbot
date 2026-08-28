@@ -70,7 +70,7 @@ public sealed class StreamAlertDispatchTests
                 "555",
                 "StoneyMod",
                 Arg.Is<Dictionary<string, string>>(v =>
-                    v["ad.duration"] == "180"
+                    v["ad.duration"] == "3 minutes"
                     && v["ad.automatic"] == "false"
                     && v["user"] == "StoneyMod"
                 ),
@@ -107,8 +107,45 @@ public sealed class StreamAlertDispatchTests
                 null,
                 null,
                 Arg.Is<Dictionary<string, string>>(v =>
-                    v["ad.automatic"] == "true" && v["user"] == ""
+                    v["ad.duration"] == "1 minute" // singular — the plural "3 minutes" case above must not be the only one pinned
+                    && v["ad.automatic"] == "true"
+                    && v["user"] == ""
                 ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task An_ad_break_with_a_non_round_duration_falls_back_to_seconds()
+    {
+        (IServiceScopeFactory scopes, IEventResponseExecutor executor) = Harness();
+        AdBreakBeganAlertHandler handler = new(
+            scopes,
+            Substitute.For<IPipelineEngine>(),
+            NullLogger<AdBreakBeganAlertHandler>.Instance
+        );
+
+        await handler.HandleAsync(
+            new()
+            {
+                BroadcasterId = Channel,
+                OccurredAt = DateTimeOffset.UtcNow,
+                DurationSeconds = 45,
+                IsAutomatic = false,
+                StartedAt = DateTimeOffset.UtcNow,
+                RequesterUserId = "555",
+                RequesterDisplayName = "StoneyMod",
+            }
+        );
+
+        await executor
+            .Received(1)
+            .ExecuteAsync(
+                Channel,
+                "channel.ad_break.begin",
+                "555",
+                "StoneyMod",
+                Arg.Is<Dictionary<string, string>>(v => v["ad.duration"] == "45 seconds"),
                 Arg.Any<CancellationToken>()
             );
     }
