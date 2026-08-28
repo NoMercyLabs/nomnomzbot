@@ -49,6 +49,21 @@ public abstract class TwitchAlertHandlerBase<TEvent>
     protected abstract string? GetUserDisplayName(TEvent @event);
     protected abstract Dictionary<string, string> BuildVariables(TEvent @event);
 
+    /// <summary>Renders a seconds count as chat-friendly text ("3 minutes", "45 seconds") instead of a raw
+    /// number — shared by every handler that seeds a duration-typed template variable (ad breaks, timeouts,
+    /// polls). Twitch-sourced durations run in whole minutes far more often than not, so a clean minute count
+    /// only falls back to seconds when the value doesn't divide evenly.</summary>
+    protected static string HumanDuration(int seconds)
+    {
+        if (seconds >= 60 && seconds % 60 == 0)
+        {
+            int minutes = seconds / 60;
+            return $"{minutes} minute{(minutes == 1 ? "" : "s")}";
+        }
+
+        return $"{seconds} second{(seconds == 1 ? "" : "s")}";
+    }
+
     protected async Task HandleCoreAsync(TEvent @event, CancellationToken ct)
     {
         Guid broadcasterId = @event.BroadcasterId;

@@ -110,7 +110,7 @@ public sealed class ModerationAlertHandlersTests
                 "1234",
                 "Troll",
                 Arg.Is<Dictionary<string, string>>(v =>
-                    v["duration"] == "600"
+                    v["duration"] == "10 minutes"
                     // No display name on this ingest → the moderator id is the honest fallback.
                     && v["moderator"] == "mod-1"
                     && v["reason"] == ""

@@ -3803,6 +3803,8 @@
     <string name="widget_custom_data_render_option_number">Number</string>
     <string name="widget_custom_data_render_option_gauge">Gauge</string>
     <string name="widget_custom_data_render_option_text">Text</string>
+    <string name="template_helper_ad_duration">The ad break length (e.g. "3 minutes")</string>
+    <string name="template_helper_ad_automatic">Whether the ad break was automatic ("true") or requester-triggered ("false")</string>
     <string name="template_helper_args">Command argument N (e.g. {args.1} is the first word after the command)</string>
     <string name="template_helper_botname">The bot display name</string>
     <string name="template_helper_broadcaster">The broadcaster display name (Discord go-live seed alias)</string>

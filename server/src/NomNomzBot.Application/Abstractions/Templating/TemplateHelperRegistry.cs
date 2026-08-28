@@ -56,6 +56,14 @@ public static class TemplateHelperRegistry
         TemplateHelperContext.Pipeline,
     ];
 
+    /// <summary>Seeded by <c>AdBreakBeganAlertHandler.BuildVariables</c> for the <c>channel.ad_break.begin</c>
+    /// trigger — an EventSub-only source, so no Command/Timer/Discord/Webhook context.</summary>
+    private static readonly TemplateHelperContext[] AdBreakContexts =
+    [
+        TemplateHelperContext.EventResponse,
+        TemplateHelperContext.Pipeline,
+    ];
+
     public static IReadOnlyList<TemplateHelperEntry> All { get; } = BuildEntries();
 
     /// <summary>The full valid set for one context — the exact contract behind <c>GET /templates/helpers?context=</c>.</summary>
@@ -92,6 +100,9 @@ public static class TemplateHelperRegistry
             Literal("tense", AllContexts, "template.helper.tense"),
             // ── Delivering platform (event response only; the event that fired the template) ──
             Literal("provider", [TemplateHelperContext.EventResponse], "template.helper.provider"),
+            // ── Ad breaks (channel.ad_break.begin only) ─────────────────────
+            Literal("ad.duration", AdBreakContexts, "template.helper.ad_duration"),
+            Literal("ad.automatic", AdBreakContexts, "template.helper.ad_automatic"),
             // ── Time / date (all contexts) ──────────────────────────────────
             Literal("time", AllContexts, "template.helper.time"),
             Literal("time.utc", AllContexts, "template.helper.time_utc"),

@@ -44,7 +44,7 @@ public sealed class AdBreakBeganAlertHandler
         {
             ["user"] = e.RequesterDisplayName ?? string.Empty,
             ["user.id"] = e.RequesterUserId ?? string.Empty,
-            ["ad.duration"] = e.DurationSeconds.ToString(),
+            ["ad.duration"] = HumanDuration(e.DurationSeconds),
             ["ad.automatic"] = e.IsAutomatic ? "true" : "false",
         };
 

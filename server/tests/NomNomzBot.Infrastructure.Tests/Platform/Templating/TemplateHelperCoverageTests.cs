@@ -93,6 +93,9 @@ public sealed partial class TemplateHelperCoverageTests
         "game",
         "raw.message", // Discord-only seed aliases — supplied by DiscordGoLiveNotificationHandler /
         // SendDiscordNotificationAction, never assigned inside TemplateResolver.cs
+        "ad.duration",
+        "ad.automatic", // supplied by AdBreakBeganAlertHandler.BuildVariables, never assigned inside
+        // TemplateResolver.cs
     };
 
     // Resolved via a colon-containing literal (verb:.../user.verb:.../target.verb:...) or a dedicated

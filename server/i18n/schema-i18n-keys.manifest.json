@@ -319,6 +319,8 @@
     "pipeline.widget_event.description",
     "pipeline.widget_event.event_type.help",
     "pipeline.widget_event.widget_id.help",
+    "template.helper.ad_automatic",
+    "template.helper.ad_duration",
     "template.helper.args",
     "template.helper.botname",
     "template.helper.broadcaster",

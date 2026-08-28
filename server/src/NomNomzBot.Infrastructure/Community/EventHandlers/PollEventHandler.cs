@@ -39,7 +39,7 @@ public sealed class PollBeganHandler
         {
             ["poll.id"] = e.PollId,
             ["poll.title"] = e.Title,
-            ["poll.duration"] = e.DurationSeconds.ToString(),
+            ["poll.duration"] = HumanDuration(e.DurationSeconds),
             ["poll.choices"] = string.Join(", ", e.Choices.Select(c => c.Title)),
         };
 

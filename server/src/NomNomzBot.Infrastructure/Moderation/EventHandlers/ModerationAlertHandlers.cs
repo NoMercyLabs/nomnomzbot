@@ -21,8 +21,8 @@ namespace NomNomzBot.Infrastructure.Moderation.EventHandlers;
 /// The moderation-notice trigger sources: <c>channel.ban</c> (permanent bans AND timeouts — Twitch's own
 /// <c>channel.ban</c> topic covers both, split only by duration) and <c>channel.unban</c>. Variables:
 /// <c>{user}</c> (the affected viewer), <c>{moderator}</c> (display name, falling back to the moderator id on
-/// non-Twitch ingests), <c>{reason}</c>, and <c>{duration}</c> ("permanent" for a ban, the seconds for a
-/// timeout). Grouped in one file because the three handlers are one surface — the same variable contract over
+/// non-Twitch ingests), <c>{reason}</c>, and <c>{duration}</c> ("permanent" for a ban, a human-readable span
+/// for a timeout). Grouped in one file because the three handlers are one surface — the same variable contract over
 /// the three moderation events.
 /// </summary>
 public sealed class UserBannedAlertHandler
@@ -81,7 +81,7 @@ public sealed class UserTimedOutAlertHandler
             ["user.id"] = e.TargetUserId,
             ["moderator"] = e.ModeratorDisplayName ?? e.ModeratorUserId,
             ["reason"] = e.Reason ?? string.Empty,
-            ["duration"] = e.DurationSeconds.ToString(),
+            ["duration"] = HumanDuration(e.DurationSeconds),
         };
 
     public Task HandleAsync(UserTimedOutEvent @event, CancellationToken ct = default) =>
