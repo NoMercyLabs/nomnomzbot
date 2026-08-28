@@ -1826,19 +1826,22 @@ public class BundleImportService : IBundleImportService
                     await _dataSources.DeleteAsync(broadcasterId, id, actorUserId, ct);
                     break;
                 case BundleFormat.EventResponseType:
-                    // Event responses are addressed by EventType; the lazy catalog seed restores the
-                    // disabled default row afterwards, so deleting an upserted response is safe.
-                    string? eventType =
-                        name.Length > 0
-                            ? name
-                            : await _db
-                                .EventResponses.Where(e =>
-                                    e.BroadcasterId == broadcasterId && e.Id == id
-                                )
-                                .Select(e => e.EventType)
-                                .FirstOrDefaultAsync(ct);
-                    if (eventType is not null)
-                        await _eventResponses.DeleteAsync(channelId, eventType, ct);
+                    // Event responses are a fixed, seeded catalogue keyed by EventType, never
+                    // user-created/deletable through the public API (S-EVENTRESPONSE-NO-CREATE) — but a
+                    // failed import can still CREATE a row this channel never had seeded (an event type
+                    // the target's catalog didn't cover yet), tracked in [entities] only because it's new.
+                    // Rolling that back means removing exactly that row, not resetting a pre-existing
+                    // catalogue entry — IEventResponseService.ResetToDefaultAsync intentionally never
+                    // deletes, so this internal compensating action removes it directly instead.
+                    EventResponse? created = await _db.EventResponses.FirstOrDefaultAsync(
+                        e => e.BroadcasterId == broadcasterId && e.Id == id,
+                        ct
+                    );
+                    if (created is not null)
+                    {
+                        _db.EventResponses.Remove(created);
+                        await _db.SaveChangesAsync(ct);
+                    }
                     break;
                 case BundleFormat.RewardType:
                     await _rewards.DeleteAsync(channelId, id.ToString(), ct);

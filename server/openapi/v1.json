@@ -27111,12 +27111,14 @@
             }
           }
         }
-      },
-      "delete": {
+      }
+    },
+    "/api/v{version}/channels/{channelId}/event-responses/{eventType}/reset": {
+      "post": {
         "tags": [
           "EventResponses"
         ],
-        "summary": "Delete the configured response for an event type.",
+        "summary": "Reset the configured response for an event type back to its seeded default (disabled, chat_message, no message/pipeline). The row is a fixed catalogue entry keyed by event type - this never deletes it.",
         "parameters": [
           {
             "name": "channelId",

@@ -14,14 +14,15 @@ import kotlinx.serialization.Serializable
 
 // The typed event-responses facade — the channel's configured reactions to Twitch channel events (follow, sub,
 // cheer, raid, etc.). Each event type can be bound to a chat message, an overlay feed, a pipeline, or left
-// silent (none). The list is seeded by the backend on channel join with sensible defaults; the dashboard edits
-// them (enable/disable + response body) and may delete one to restore the default on next seed.
+// silent (none). Rows are a FIXED, SEEDED CATALOGUE (one per known event type, S-EVENTRESPONSE-NO-CREATE) —
+// never user-created or user-deletable; the dashboard only toggles/edits a row, or resets it back to its
+// seeded default in place.
 //
 // Backend routes (EventResponsesController):
-//   GET    /api/v1/channels/{channelId}/event-responses            →  PaginatedResponse<EventResponseListItem>
-//   GET    /api/v1/channels/{channelId}/event-responses/{type}     →  StatusResponseDto<EventResponseDto>
-//   PUT    /api/v1/channels/{channelId}/event-responses/{type}     ←  UpdateEventResponseDto  →  StatusResponseDto<EventResponseDto>
-//   DELETE /api/v1/channels/{channelId}/event-responses/{type}     →  204 No Content
+//   GET  /api/v1/channels/{channelId}/event-responses               →  PaginatedResponse<EventResponseListItem>
+//   GET  /api/v1/channels/{channelId}/event-responses/{type}        →  StatusResponseDto<EventResponseDto>
+//   PUT  /api/v1/channels/{channelId}/event-responses/{type}        ←  UpdateEventResponseDto  →  StatusResponseDto<EventResponseDto>
+//   POST /api/v1/channels/{channelId}/event-responses/{type}/reset  →  204 No Content (resets the row in place; never removes it)
 //
 // Floors: read = eventresponses:read (Moderator+), write = eventresponses:write (Editor+).
 interface EventResponsesApi {
@@ -45,8 +46,8 @@ interface EventResponsesApi {
         body: UpdateEventResponseBody,
     ): ApiResult<EventResponse>
 
-    /** Delete an event response (restores it to seed state on next channel join). */
-    suspend fun delete(channelId: String, eventType: String): ApiResult<Unit>
+    /** Reset an event response back to its seeded default (disabled, chat_message, no message/pipeline). Never removes the row. */
+    suspend fun resetToDefault(channelId: String, eventType: String): ApiResult<Unit>
 }
 
 class RestEventResponsesApi(private val client: ApiClient) : EventResponsesApi {
@@ -69,8 +70,8 @@ class RestEventResponsesApi(private val client: ApiClient) : EventResponsesApi {
     ): ApiResult<EventResponse> =
         client.putEnvelope("api/v1/channels/$channelId/event-responses/$eventType", body)
 
-    override suspend fun delete(channelId: String, eventType: String): ApiResult<Unit> =
-        client.deleteUnit("api/v1/channels/$channelId/event-responses/$eventType")
+    override suspend fun resetToDefault(channelId: String, eventType: String): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/event-responses/$eventType/reset")
 }
 
 /**

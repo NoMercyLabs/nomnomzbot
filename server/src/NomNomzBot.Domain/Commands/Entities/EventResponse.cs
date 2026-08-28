@@ -10,7 +10,6 @@
 
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using NomNomzBot.Domain.Billing;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform;
 
@@ -21,7 +20,12 @@ namespace NomNomzBot.Domain.Commands.Entities;
 /// (e.g. a follow → send a chat message; a sub → trigger a pipeline).
 /// Schema: I.2 (commands-pipelines.md §1).
 /// </summary>
-[CountedResource("event_responses", ResourceClass.NearFree)]
+/// <remarks>
+/// NOT a <c>[CountedResource]</c> (S-EVENTRESPONSE-NO-CREATE): rows are a fixed, seeded catalogue — one
+/// per known event type (<see cref="Content.Commands.EventResponsePresetCatalog"/>) — never user-created,
+/// so a per-channel limit on this resource can never be reached and would be decorative. See
+/// commands-pipelines.md §3.8.
+/// </remarks>
 public class EventResponse : SoftDeletableEntity, ITenantScoped
 {
     public Guid Id { get; set; }

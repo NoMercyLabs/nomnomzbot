@@ -115,20 +115,23 @@ public class EventResponsesController : BaseController
         return Ok(new StatusResponseDto<EventResponseDto> { Data = result.Value });
     }
 
-    /// <summary>Delete the configured response for an event type.</summary>
+    /// <summary>
+    /// Reset the configured response for an event type back to its seeded default (disabled, chat_message,
+    /// no message/pipeline). The row is a fixed catalogue entry keyed by event type — this never deletes it.
+    /// </summary>
     [RequireAction("eventresponses:write")]
     [NotDestructive(
-        "Deletes one EventResponse row; EventResponse REFERENCES a pipeline (PipelineId) but no entity carries an EventResponseId FK - the pipeline it points at is untouched."
+        "Resets one EventResponse row to its seeded default (disabled, no message/pipeline) - the row itself is never removed; EventResponse REFERENCES a pipeline (PipelineId) but no entity carries an EventResponseId FK, so the pipeline it pointed at is untouched."
     )]
-    [HttpDelete("{eventType}")]
+    [HttpPost("{eventType}/reset")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public async Task<IActionResult> DeleteEventResponse(
+    public async Task<IActionResult> ResetEventResponse(
         string channelId,
         string eventType,
         CancellationToken ct
     )
     {
-        Result result = await _eventResponseService.DeleteAsync(channelId, eventType, ct);
+        Result result = await _eventResponseService.ResetToDefaultAsync(channelId, eventType, ct);
         if (result.IsFailure)
             return ResultResponse(result);
         return NoContent();

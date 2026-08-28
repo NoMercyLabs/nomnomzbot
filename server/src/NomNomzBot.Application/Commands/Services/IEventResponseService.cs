@@ -34,7 +34,13 @@ public interface IEventResponseService
         UpdateEventResponseDto request,
         CancellationToken cancellationToken = default
     );
-    Task<Result> DeleteAsync(
+
+    /// <summary>
+    /// Resets one event-response row back to its seeded default (disabled, chat_message, no message/pipeline).
+    /// Never removes the row — rows are a fixed, seeded catalogue keyed by event type
+    /// (S-EVENTRESPONSE-NO-CREATE), not user-created/deletable.
+    /// </summary>
+    Task<Result> ResetToDefaultAsync(
         string broadcasterId,
         string eventType,
         CancellationToken cancellationToken = default

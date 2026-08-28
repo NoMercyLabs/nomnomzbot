@@ -2776,7 +2776,6 @@
     <string name="event_responses_toggle_action">Toggle %1$s</string>
     <string name="event_responses_edit_action">Edit %1$s</string>
     <string name="event_responses_edit_action_short">Edit</string>
-    <string name="event_responses_delete_action">Delete %1$s</string>
     <string name="event_responses_row_description">%1$s, %2$s, %3$s</string>
     <string name="event_responses_type_none">None</string>
     <string name="event_responses_type_chat_message">Chat message</string>
@@ -2800,7 +2799,7 @@
     <string name="event_responses_dialog_cancel">Cancel</string>
     <string name="event_responses_dialog_reset">Reset to default</string>
     <string name="event_responses_reset_confirm_title">Reset this response?</string>
-    <string name="event_responses_reset_confirm_message">%1$s goes back to its default: disabled, with no message. This does not stay deleted — the list re-adds it as the default the next time it loads.</string>
+    <string name="event_responses_reset_confirm_message">%1$s goes back to its default: disabled, with no message. This event response is a fixed entry and is never removed — the reset applies in place.</string>
     <!-- Friendly labels for event type keys -->
     <string name="event_type_engagement_session_first_message">First message this stream</string>
     <string name="event_type_engagement_first_time_chatter">First-time chatter</string>
