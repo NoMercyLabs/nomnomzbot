@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.feature.chat.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRowScope
 import androidx.compose.foundation.layout.size
@@ -18,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -41,9 +43,10 @@ internal fun FlowRowScope.ChatMessageFragments(
 ) {
     val tokens = LocalTokens.current
     val typography = LocalTypography.current
+    val uriHandler = LocalUriHandler.current
 
     if (fragments.isEmpty()) {
-        EmojiText(text = fallbackText, style = typography.sm, color = tokens.cardForeground)
+        PlainRun(text = fallbackText)
         return
     }
 
@@ -83,17 +86,77 @@ internal fun FlowRowScope.ChatMessageFragments(
                 )
             }
             "link" -> {
+                // Backend-tagged link fragment — [linkUrl] carries the resolved target (bare `www.` links have no
+                // scheme, so default to https for `openUri`); fall back to the visible text when it's absent.
+                val target: String = fragment.linkUrl?.takeIf { it.isNotBlank() } ?: fragment.text
                 Text(
                     text = fragment.text,
                     style = typography.sm.copy(textDecoration = TextDecoration.Underline),
                     color = tokens.primary,
+                    modifier = Modifier.clickable { uriHandler.openUri(if ("://" in target) target else "https://$target") },
                 )
             }
             else -> {
-                // Plain text run — may carry Unicode emoji, so render through [EmojiText] (inline Twemoji
-                // images) rather than raw `Text`, which draws □ tofu on the web build.
-                EmojiText(text = fragment.text, style = typography.sm, color = tokens.cardForeground)
+                // Plain text run — may carry Unicode emoji AND raw URLs. Twitch only tags emote/cheermote/mention
+                // fragments, so any link lives inside a plain run and must be detected here.
+                PlainRun(text = fragment.text)
             }
         }
     }
 }
+
+// A plain (untagged) chat run: splits out any URLs so they render as coloured, underlined links, and passes the
+// non-link stretches through [EmojiText] (inline Twemoji images) rather than raw `Text`, which draws □ tofu on
+// the web build. Each segment is its own [FlowRow] child, consistent with how tagged fragments already flow.
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun FlowRowScope.PlainRun(text: String) {
+    val tokens = LocalTokens.current
+    val typography = LocalTypography.current
+    val uriHandler = LocalUriHandler.current
+
+    val matches: Sequence<MatchResult> = UrlRegex.findAll(text)
+    if (matches.none()) {
+        EmojiText(text = text, style = typography.sm, color = tokens.cardForeground)
+        return
+    }
+
+    var cursor = 0
+    matches.forEach { match ->
+        // Keep the URL itself, but leave any trailing sentence punctuation (".", ",", ")", …) as plain text so a
+        // link at the end of a sentence doesn't swallow the period or a closing bracket that follows it.
+        val url: String = match.value.trimEnd(*TrailingUrlPunctuation)
+        val urlStart: Int = match.range.first
+        val urlEnd: Int = urlStart + url.length
+
+        if (urlStart > cursor) {
+            EmojiText(text = text.substring(cursor, urlStart), style = typography.sm, color = tokens.cardForeground)
+        }
+        Text(
+            text = url,
+            style = typography.sm.copy(textDecoration = TextDecoration.Underline),
+            color = tokens.primary,
+            // Bare `www.` links have no scheme; `openUri` needs one, so default to https.
+            modifier = Modifier.clickable { uriHandler.openUri(if ("://" in url) url else "https://$url") },
+        )
+        cursor = urlEnd
+    }
+    if (cursor < text.length) {
+        EmojiText(text = text.substring(cursor), style = typography.sm, color = tokens.cardForeground)
+    }
+}
+
+// URLs inside plain chat text. Two shapes:
+//   1. an explicit `http(s)://…` or `www.…` run, taken greedily to the next whitespace; or
+//   2. a bare domain with no scheme — any dotted host (`google.com`, `mysite.design`, `sub.example.co.uk/path`),
+//      no TLD allow-list so new gTLDs (`.store`, `.dev`, …) just work. Two guards keep noise down: the final
+//      label (the TLD) must be letters-only and 2+ chars, so decimals/versions like `3.5` or `v1.2` don't match;
+//      and the leading lookbehind stops it firing inside an email address (`foo@bar.com`) or mid-token.
+private val UrlRegex: Regex =
+    Regex(
+        """(?:https?://|www\.)\S+""" +
+            """|(?<![\w@./-])(?:[a-z0-9-]+\.)+[a-z]{2,}(?::\d+)?(?:/\S*)?""",
+        RegexOption.IGNORE_CASE,
+    )
+
+private val TrailingUrlPunctuation: CharArray = charArrayOf('.', ',', '!', '?', ';', ':', ')', ']', '}', '>', '"', '\'')
