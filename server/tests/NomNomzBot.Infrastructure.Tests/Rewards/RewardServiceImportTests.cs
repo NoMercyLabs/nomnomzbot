@@ -257,6 +257,13 @@ public sealed class RewardServiceImportTests
         );
         await db.SaveChangesAsync();
 
+        // The live Twitch list carries only the one external reward — no title conflict.
+        StubGetRewards(
+            points,
+            full: [TwitchReward("ext-1", "First Light", 500, enabled: true)],
+            manageable: []
+        );
+
         // Twitch echoes the newly created reward with a brand-new id under OUR client.
         points
             .CreateCustomRewardAsync(
@@ -357,7 +364,7 @@ public sealed class RewardServiceImportTests
     {
         (RewardService sut, AuthDbContext db, ITwitchChannelPointsApi points) = Build();
         Guid externalId = Guid.Parse("0192a000-0000-7000-8000-00000000e003");
-        db.Rewards.AddRange(
+        db.Rewards.Add(
             new Reward
             {
                 Id = externalId,
@@ -369,21 +376,22 @@ public sealed class RewardServiceImportTests
                 TwitchRewardId = "ext-2",
                 IsManageable = false,
                 IsPlatform = false,
-            },
-            // A leftover row already occupies the title — the real conflict that makes Twitch 400 the create.
-            new Reward
-            {
-                Id = Guid.Parse("0192a000-0000-7000-8000-00000000e004"),
-                BroadcasterId = Channel,
-                Title = "Dunglish",
-                Cost = 250,
-                IsEnabled = true,
-                TwitchRewardId = "stray-1",
-                IsManageable = false,
-                IsPlatform = false,
             }
         );
         await db.SaveChangesAsync();
+
+        // The title is still taken on Twitch by a SEPARATE reward (ext-2 is the one we're converting;
+        // stray-1 is the actual conflict) — the real conflict that makes Twitch 400 the create. A stray
+        // LOCAL row would never catch this: the local table can be stale or never knew about it at all.
+        StubGetRewards(
+            points,
+            full:
+            [
+                TwitchReward("ext-2", "Dunglish", 250, enabled: true),
+                TwitchReward("stray-1", "Dunglish", 250, enabled: true),
+            ],
+            manageable: []
+        );
 
         Result<RewardDetail> parked = await sut.RecreateUnderBotAsync(
             Channel.ToString(),
@@ -408,10 +416,10 @@ public sealed class RewardServiceImportTests
         parkedExternal.Cost.Should().Be(250);
         parkedExternal.Description.Should().Be("redeem me");
 
-        // The operator clears the title conflict on Twitch (deletes/renames the stray reward there) — we
-        // simulate that by removing the local record of it, then retry the SAME action to finalize.
-        db.Rewards.Remove(await db.Rewards.SingleAsync(r => r.TwitchRewardId == "stray-1"));
-        await db.SaveChangesAsync();
+        // The operator clears the title conflict on Twitch itself (deletes/renames the reward there) — we
+        // simulate that by re-stubbing the live list to no longer carry that title, then retry the SAME
+        // action to finalize.
+        StubGetRewards(points, full: [], manageable: []);
 
         points
             .CreateCustomRewardAsync(
@@ -432,6 +440,62 @@ public sealed class RewardServiceImportTests
         finalizedExternal
             .PendingMigrationRequestedAt.Should()
             .BeNull("the marker clears once it finalizes");
+    }
+
+    [Fact]
+    public async Task Recreate_parks_a_conflict_the_local_table_never_knew_about()
+    {
+        // The exact bug this guards: no OTHER local row shares the title (the local table has nothing to
+        // find), but Twitch's live list still carries a second reward under that title — something the bot
+        // never imported. A local-only check would say "not taken" and sail into CreateCustomReward, which
+        // Twitch then 400s with a raw CREATE_CUSTOM_REWARD_DUPLICATE_REWARD. This must park instead.
+        (RewardService sut, AuthDbContext db, ITwitchChannelPointsApi points) = Build();
+        Guid externalId = Guid.Parse("0192a000-0000-7000-8000-00000000e005");
+        db.Rewards.Add(
+            new Reward
+            {
+                Id = externalId,
+                BroadcasterId = Channel,
+                Title = "Steal the Lucky Feather",
+                Description = "redeem me",
+                Cost = 1000,
+                IsEnabled = true,
+                TwitchRewardId = "ext-5",
+                IsManageable = false,
+                IsPlatform = false,
+            }
+        );
+        await db.SaveChangesAsync();
+
+        // Live Twitch shows the same title twice (ext-5 itself, plus an untracked stray reward) — the local
+        // table only ever knew about ext-5.
+        StubGetRewards(
+            points,
+            full:
+            [
+                TwitchReward("ext-5", "Steal the Lucky Feather", 1000, enabled: true),
+                TwitchReward("untracked-1", "Steal the Lucky Feather", 250, enabled: true),
+            ],
+            manageable: []
+        );
+
+        Result<RewardDetail> result = await sut.RecreateUnderBotAsync(
+            Channel.ToString(),
+            externalId.ToString()
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("MIGRATION_PENDING_EXTERNAL_REMOVAL");
+        await points
+            .DidNotReceive()
+            .CreateCustomRewardAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<CreateCustomRewardRequest>(),
+                Arg.Any<CancellationToken>()
+            );
+        (await db.Rewards.SingleAsync(r => r.Id == externalId))
+            .PendingMigrationRequestedAt.Should()
+            .NotBeNull();
     }
 
     [Fact]
@@ -457,6 +521,11 @@ public sealed class RewardServiceImportTests
         );
         await db.SaveChangesAsync();
 
+        StubGetRewards(
+            points,
+            full: [TwitchReward("ext-1", "First Light", 500, enabled: true)],
+            manageable: []
+        );
         points
             .CreateCustomRewardAsync(
                 Channel,

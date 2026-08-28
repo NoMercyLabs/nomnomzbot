@@ -668,9 +668,26 @@ public class RewardService : IRewardService
         // tell the operator what to do on Twitch. The dashboard swaps the button to "Finalize migration"; the
         // NEXT click re-enters this same method, re-checks Twitch, and — once the title is free — completes the
         // recreate below and clears the pending marker.
-        bool titleStillTaken = await _db.Rewards.AnyAsync(
-            r => r.BroadcasterId == broadcaster && r.Id != external.Id && r.Title == external.Title,
-            cancellationToken
+        //
+        // This has to re-check the LIVE Twitch reward list, not the local table: `external` itself is the only
+        // local row that ever carried this title, so a local-only check always finds nothing taken and sails
+        // straight into CreateCustomReward, which Twitch then 400s with the raw DUPLICATE_REWARD error (the
+        // operator-parking path never engages). Same reasoning as CreateAsync's pre-check above.
+        Result<IReadOnlyList<TwitchCustomReward>> liveRewards =
+            await _channelPoints.GetCustomRewardsAsync(
+                broadcaster,
+                onlyManageableRewards: false,
+                ct: cancellationToken
+            );
+        if (liveRewards.IsFailure)
+            return liveRewards.WithValue<RewardDetail>(default!);
+
+        // Exclude `external`'s own live entry — it hasn't been deleted yet by definition (we're trying to
+        // take it over), so it always matches its own title; the conflict we care about is any OTHER entry
+        // still sitting on that name.
+        bool titleStillTaken = liveRewards.Value.Any(r =>
+            r.Id != external.TwitchRewardId
+            && string.Equals(r.Title, external.Title, StringComparison.OrdinalIgnoreCase)
         );
         if (titleStillTaken)
         {
