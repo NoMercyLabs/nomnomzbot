@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
+import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 
@@ -41,11 +42,16 @@ fun GlyphButton(
 ) {
     val spacing = LocalSpacing.current
 
+    // A destructive tint (delete actions) upgrades the ghost to its destructive sibling so the hover/press
+    // wash is red, not the neutral white overlay — the icon alone reading red wasn't enough of a signal.
+    val destructive: Boolean = tint == LocalTokens.current.destructive
+    val variant: ButtonVariant = if (destructive) ButtonVariant.DestructiveGhost else ButtonVariant.Ghost
+
     Tooltip(text = label, modifier = modifier) {
         Button(
             onClick = onClick,
             enabled = enabled,
-            variant = ButtonVariant.Ghost,
+            variant = variant,
             size = ButtonSize.Icon,
             modifier = Modifier.clearAndSetSemantics { contentDescription = label },
         ) {
