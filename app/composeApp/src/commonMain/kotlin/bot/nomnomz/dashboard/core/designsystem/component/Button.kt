@@ -71,6 +71,8 @@ enum class ButtonVariant {
     /** Figma node 391:1892 — quiet destructive pill. */
     DestructiveSecondary,
     Ghost,
+    /** Ghost sibling for destructive icon actions: transparent at rest, red tint on hover/press (shadcn `hover:bg-destructive/10`). */
+    DestructiveGhost,
     Link,
 }
 
@@ -196,6 +198,24 @@ private fun buttonVisuals(
                 content = if (hovered || pressed) ControlPalette.White else tokens.foreground,
                 border = Color.Transparent,
                 focus = ControlPalette.LilacWhite.copy(alpha = 0.64f),
+                weight = FontWeight.SemiBold,
+            )
+        }
+        ButtonVariant.DestructiveGhost -> {
+            // Transparent at rest like Ghost, but the hover/press wash is the destructive red (shadcn
+            // `hover:bg-destructive/10`) so a delete action reads as destructive before it's clicked.
+            val fill =
+                when {
+                    pressed -> ControlPalette.DestructiveTint.copy(alpha = 0.20f)
+                    hovered -> ControlPalette.DestructiveTint.copy(alpha = 0.12f)
+                    else -> Color.Transparent
+                }
+            ButtonVisuals(
+                gradientTop = fill,
+                gradientBottom = fill,
+                content = ControlPalette.DestructiveContent,
+                border = Color.Transparent,
+                focus = ControlPalette.DestructiveContent.copy(alpha = 0.64f),
                 weight = FontWeight.SemiBold,
             )
         }
