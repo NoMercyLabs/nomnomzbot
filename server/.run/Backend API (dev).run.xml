@@ -1,0 +1,18 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Backend API (dev)" type="DotNetProject" factoryName=".NET Project">
+    <option name="EXE_PATH" />
+    <option name="PROGRAM_PARAMETERS" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/src/NomNomzBot.Api" />
+    <option name="PASS_PARENT_ENVS" value="1" />
+    <option name="USE_EXTERNAL_CONSOLE" value="0" />
+    <option name="USE_MONO" value="0" />
+    <option name="RUNTIME_ARGUMENTS" />
+    <option name="PROJECT_PATH" value="$PROJECT_DIR$/src/NomNomzBot.Api/NomNomzBot.Api.csproj" />
+    <option name="PROJECT_EXE_PATH_TRACKING" value="1" />
+    <option name="PROJECT_ARGUMENTS_TRACKING" value="1" />
+    <option name="PROJECT_WORKING_DIRECTORY_TRACKING" value="1" />
+    <option name="PROJECT_KIND" value="DotNetCore" />
+    <option name="PROJECT_TFM" value="net10.0" />
+    <method v="2" />
+  </configuration>
+</component>
