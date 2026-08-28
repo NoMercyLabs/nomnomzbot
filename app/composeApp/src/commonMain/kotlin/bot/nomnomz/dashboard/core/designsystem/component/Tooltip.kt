@@ -11,6 +11,9 @@
 package bot.nomnomz.dashboard.core.designsystem.component
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.hoverable
@@ -28,6 +31,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
@@ -72,15 +77,28 @@ fun Tooltip(
     val interactionSource: MutableInteractionSource = remember { MutableInteractionSource() }
     val hovered: Boolean by interactionSource.collectIsHoveredAsState()
     var focused: Boolean by remember { mutableStateOf(false) }
+    // True while the anchor is pressed/held (CSS :active) — cleared on release. A click on the anchor
+    // also LEAVES it focused afterward (like a native button), so this additionally marks that the
+    // upcoming focus was pointer-acquired rather than keyboard (Tab) reached: it starts true on the
+    // down event, before onFocusChanged below observes the resulting focus change.
+    var pointerDown: Boolean by remember { mutableStateOf(false) }
+    // Cleared only when focus is fully lost, so a click-acquired focus stays "not focus-visible" for as
+    // long as it's held, exactly like CSS :focus-visible on a mouse-focused button.
+    var pointerAcquiredFocus: Boolean by remember { mutableStateOf(false) }
     var visible: Boolean by remember { mutableStateOf(false) }
+    val focusVisible: Boolean = focused && !pointerAcquiredFocus
 
-    // Keyboard focus opens immediately; pointer hover retains the deliberate open delay.
-    LaunchedEffect(hovered, focused) {
-        if (focused) {
+    // Keyboard (focus-visible) opens immediately; pointer hover retains the deliberate open delay.
+    // Active (pointerDown) always wins and hides it right away — a tooltip must never linger over a
+    // button the user is actively pressing/clicking.
+    LaunchedEffect(hovered, focusVisible, pointerDown) {
+        if (pointerDown) {
+            visible = false
+        } else if (focusVisible) {
             visible = true
         } else if (hovered) {
             kotlinx.coroutines.delay(TooltipDelayMillis)
-            visible = true
+            visible = hovered && !pointerDown
         } else {
             visible = false
         }
@@ -89,8 +107,22 @@ fun Tooltip(
     Box(
         modifier =
             modifier
-                .onFocusChanged { focused = it.hasFocus }
+                .onFocusChanged { state ->
+                    focused = state.hasFocus
+                    if (!state.hasFocus) pointerAcquiredFocus = false
+                }
                 .hoverable(interactionSource)
+                // Initial pass, never consumed: observes the anchor's own press/release without
+                // interfering with its click handling — just tracks active/pointer-focus state above.
+                .pointerInput(Unit) {
+                    awaitEachGesture {
+                        awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                        pointerDown = true
+                        pointerAcquiredFocus = true
+                        waitForUpOrCancellation(pass = PointerEventPass.Initial)
+                        pointerDown = false
+                    }
+                }
     ) {
         content()
         if (visible) {

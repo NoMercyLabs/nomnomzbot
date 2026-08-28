@@ -13,7 +13,6 @@ package bot.nomnomz.dashboard.feature.shell.ui
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -72,35 +71,34 @@ fun ImpersonationBanner(
         val name: String = active?.displayName ?: ""
         val minutesRemaining: Long = active?.let { (it.expiresAt - now).inWholeMinutes } ?: 0L
 
+        // Single compact row (name + remaining time joined by " — ") instead of a two-line stack: this banner
+        // OVERLAYS the top of the shell on every page (ShellScreen.kt), so its height directly eats into the
+        // space the sidebar's channel-selector chip needs — a stacked layout pushed it low enough to block
+        // that chip entirely while impersonating.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(tokens.accent)
-                .padding(horizontal = spacing.s4, vertical = spacing.s3),
+                .padding(horizontal = spacing.s4, vertical = spacing.s1_5),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(spacing.s3),
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(Res.string.shell_impersonation_banner, name),
-                    style = typography.sm,
-                    fontWeight = FontWeight.Medium,
-                    color = tokens.accentForeground,
-                )
-                Text(
-                    text = if (minutesRemaining >= 1) {
-                        stringResource(Res.string.shell_impersonation_expires, minutesRemaining)
-                    } else {
-                        stringResource(Res.string.shell_impersonation_expires_soon)
-                    },
-                    style = typography.xs,
-                    color = tokens.accentForeground,
-                )
+            val remainingText: String = if (minutesRemaining >= 1) {
+                stringResource(Res.string.shell_impersonation_expires, minutesRemaining)
+            } else {
+                stringResource(Res.string.shell_impersonation_expires_soon)
             }
+            Text(
+                text = stringResource(Res.string.shell_impersonation_banner, name) + " — " + remainingText,
+                style = typography.xs,
+                fontWeight = FontWeight.Medium,
+                color = tokens.accentForeground,
+                modifier = Modifier.weight(1f),
+            )
             TextButton(onClick = onExit) {
                 Text(
                     text = stringResource(Res.string.shell_impersonation_exit),
-                    style = typography.sm,
+                    style = typography.xs,
                     fontWeight = FontWeight.SemiBold,
                     color = tokens.accentForeground,
                 )
