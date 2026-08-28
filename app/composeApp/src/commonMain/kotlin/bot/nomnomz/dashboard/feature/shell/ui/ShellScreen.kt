@@ -1035,7 +1035,10 @@ private fun NavItem(route: ShellRoute, selected: Boolean, onClick: () -> Unit) {
             .background(container)
             .hoverable(interactionSource)
             .selectable(selected = selected, role = Role.Tab, onClick = onClick)
-            .padding(horizontal = spacing.s3, vertical = spacing.s2),
+            // Sleak icon framing (same rule as Button): the icon side collapses to the square inset
+            // (== vertical padding), so the glyph sits concentric in the rounded corner; the open text
+            // end takes ~2× that so the label breathes.
+            .padding(start = spacing.s2, end = spacing.s4, top = spacing.s2, bottom = spacing.s2),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s2),
     ) {
