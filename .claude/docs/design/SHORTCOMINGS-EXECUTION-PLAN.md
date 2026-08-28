@@ -116,23 +116,20 @@ only Stoney can make. Do not burn agent time trying to work around them.
   entry (toggleable only)? Done-when: the model is settled in the spec, the UI matches it, the limit is
   either reachable or removed, and Delete means what it says.
 
-- **S-PIPE-TREE-d2b** (scope narrowings the sub-pipeline slice reported honestly; 5d82f69c shipped the
-  core: args in, `return_value` out, `CallDepth` spanning pipeline boundaries, tenant-scoped, try-catchable,
-  4108 tests green) ONE REAL LIMITATION REMAINS (backend named-parameter binding shipped in ef24435e —
-  `Pipeline.ParameterNamesJson`, both EF migration sets, `run_pipeline` binds by name, proven by
-  `RunPipelineInline_NamedArgs_BindByName_RegardlessOfCallerOrder`; the pipeline-editor UI does not yet
-  render a sub-pipeline's declared parameters as labelled fields — still open, small UI-only slice):
-  `return_value`'s value and `run_pipeline`'s params are stored RAW — no template rendering happens at
-  the core-action layer for ANY action (this matches `SetVariableAction`, so it is a pre-existing systemic
-  gap, not a regression). Consequence: you cannot pass `{{user.name}}` as a sub-pipeline argument.
-  Done-when: decide where template resolution belongs for core actions (the leaf executor, or per-action)
-  and apply it as ONE mechanism across every core action rather than per-action patches — then a templated
-  argument and a templated return value both resolve, proven by tests.
-- **S-PIPE-TREE-d2b-UI** the pipeline editor (`app/` `feature/pipelines`) does not render a called
-  sub-pipeline's `ParameterNamesJson` as labelled argument fields — `run_pipeline` blocks still show
-  positional/raw args in the UI even though the backend now supports named binding (ef24435e). Done-when:
-  when the target pipeline declares parameter names, the block shows one labelled input per name instead
-  of a positional list, proven by a jvmTest.
+- **S-PIPE-TREE-d2b-UI** backend is fully done (ef24435e): `Pipeline.ParameterNamesJson`, both EF
+  migration sets, `run_pipeline` binds named args, AND core-action template resolution (the leaf-executor
+  seam `PipelineEngine.ResolveTemplatedFieldsAsync` — every `Templated: true` field including
+  `run_pipeline`'s args/named_args and `return_value` resolves `{{user.name}}`-style templates before
+  execution) — proven by `RunPipelineInline_NamedArgs_BindByName_RegardlessOfCallerOrder`,
+  `RunPipelineInline_PassesArgs_CalleeReturnsValue_CallerUsesItNextStep`,
+  `ReturnValue_TemplatedValue_ResolvesBeforeBecomingCallResult` (`PipelineEngineTreeExecutionTests.cs`).
+  REMAINING GAP IS BIGGER THAN A LABEL: the pipeline editor (`app/` `feature/pipelines`) has **no
+  `run_pipeline` block config UI at all** yet — there is no Composable to add labelled fields to — and
+  `server/openapi/v1.json`'s `Pipeline` DTO does not expose `ParameterNamesJson`/`parameterNames`, so the
+  frontend can't even see the field. Done-when: (1) backend publishes `parameterNames` on the Pipeline DTO
+  in the OpenAPI snapshot + KMP client, (2) the pipeline editor gets a `run_pipeline` block config
+  Composable at all (pick target pipeline, show its params), (3) when the target declares parameter names
+  it renders one labelled input per name instead of a positional list, proven by a jvmTest.
 
 - **S-NAMELESS-ROWS-b** (17 of 19 files remain; Commands + Rewards done in 8c349816, jvmTest 702/702)
   Mechanism `resolveRowLabel` + `RowLabelGuardTest` shipped in fa9391a3; `PickListsScreen` is the worked
