@@ -67,6 +67,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -79,6 +80,9 @@ import kotlinx.coroutines.flow.filterNotNull
 import bot.nomnomz.dashboard.core.connection.SessionUser
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.component.Avatar
+import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
+import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.feature.shell.state.ChannelSwitcherController
@@ -1304,22 +1308,24 @@ private fun HamburgerButton(onClick: () -> Unit) {
     val spacing = LocalSpacing.current
     val label: String = stringResource(Res.string.shell_nav_menu_open)
 
-    Column(
-        modifier = Modifier
-            .clip(RoundedCornerShape(tokens.radius.md))
-            .clickable(onClick = onClick)
-            .semantics { contentDescription = label }
-            .padding(spacing.s2),
-        verticalArrangement = Arrangement.spacedBy(spacing.s1),
+    // Custom-drawn three-bar glyph — the icon pack has no hamburger — but the button chrome (hover/press/focus,
+    // touch target, semantics) still comes from the catalogue [Button], not a bare clickable Column.
+    Button(
+        onClick = onClick,
+        variant = ButtonVariant.Ghost,
+        size = ButtonSize.Icon,
+        modifier = Modifier.clearAndSetSemantics { contentDescription = label },
     ) {
-        repeat(3) {
-            Box(
-                modifier = Modifier
-                    .width(spacing.s4)
-                    .height(spacing.s0_5)
-                    .clip(RoundedCornerShape(tokens.radius.sm))
-                    .background(tokens.foreground),
-            )
+        Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+            repeat(3) {
+                Box(
+                    modifier = Modifier
+                        .width(spacing.s4)
+                        .height(spacing.s0_5)
+                        .clip(RoundedCornerShape(tokens.radius.sm))
+                        .background(tokens.foreground),
+                )
+            }
         }
     }
 }

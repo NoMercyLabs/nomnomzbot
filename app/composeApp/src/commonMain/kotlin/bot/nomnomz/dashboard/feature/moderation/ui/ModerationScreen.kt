@@ -25,6 +25,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import androidx.compose.material3.Text
+import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
+import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
@@ -69,7 +71,11 @@ import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.designsystem.icon.AppIcon
+import bot.nomnomz.dashboard.core.designsystem.icon.HistoryGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.NetworkGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.UnlockGlyph
 import bot.nomnomz.dashboard.core.network.AutomodConfig
 import bot.nomnomz.dashboard.core.network.BannedUser
 import bot.nomnomz.dashboard.core.network.EscalationLadderStep
@@ -1261,6 +1267,7 @@ private fun BanRow(
         ban.reason.takeIf { it.isNotBlank() } ?: stringResource(Res.string.moderation_no_reason)
     val bannedOn: String? = ban.bannedAt.takeIf { it.isNotBlank() }?.let { datePart(it) }
     val unbanLabel: String = stringResource(Res.string.moderation_unban_action, name)
+    val networkUnbanLabel: String = stringResource(Res.string.moderation_unban_everywhere_short)
     val viewHistoryLabel: String = stringResource(Res.string.moderation_context_view, name)
 
     Row(
@@ -1310,37 +1317,41 @@ private fun BanRow(
             }
         }
 
-        TextButton(
+        // Action hierarchy (quick-read left→right): History and Unban-everywhere are quiet Ghost buttons,
+        // the primary Unban is the emphasised Outline button on the far right — the action a moderator reaches
+        // for most on a ban list. All three are the same labelled Sm Button (matching glyph, icon size, height
+        // and the concentric Sleak padding), so hierarchy comes from the variant, not from mismatched shapes.
+        Button(
             onClick = onViewContext,
+            variant = ButtonVariant.Ghost,
+            size = ButtonSize.Sm,
+            leftIcon = { AppIcon(HistoryGlyph, contentDescription = null) },
             modifier = Modifier.clearAndSetSemantics { contentDescription = viewHistoryLabel },
         ) {
-            Text(
-                text = stringResource(Res.string.moderation_context_action_short),
-                color = tokens.primary,
-                maxLines = 1,
-            )
+            Text(text = stringResource(Res.string.moderation_context_action_short), maxLines = 1)
         }
-
         ManageGate(decision = manage) { enabled ->
-            TextButton(
-                onClick = onUnban,
+            Button(
+                onClick = onNetworkUnban,
                 enabled = enabled,
-                modifier = Modifier.clearAndSetSemantics { contentDescription = unbanLabel },
+                variant = ButtonVariant.Ghost,
+                size = ButtonSize.Sm,
+                leftIcon = { AppIcon(NetworkGlyph, contentDescription = null) },
+                modifier = Modifier.clearAndSetSemantics { contentDescription = networkUnbanLabel },
             ) {
-                Text(
-                    text = stringResource(Res.string.moderation_unban_action_short),
-                    color = if (enabled) tokens.primary else tokens.mutedForeground,
-                    maxLines = 1,
-                )
+                Text(text = stringResource(Res.string.moderation_unban_everywhere_short), maxLines = 1)
             }
         }
         ManageGate(decision = manage) { enabled ->
-            TextButton(onClick = onNetworkUnban, enabled = enabled) {
-                Text(
-                    text = stringResource(Res.string.moderation_unban_everywhere_short),
-                    color = if (enabled) tokens.primary else tokens.mutedForeground,
-                    maxLines = 1,
-                )
+            Button(
+                onClick = onUnban,
+                enabled = enabled,
+                variant = ButtonVariant.Outline,
+                size = ButtonSize.Sm,
+                leftIcon = { AppIcon(UnlockGlyph, contentDescription = null) },
+                modifier = Modifier.clearAndSetSemantics { contentDescription = unbanLabel },
+            ) {
+                Text(text = stringResource(Res.string.moderation_unban_action_short), maxLines = 1)
             }
         }
     }
@@ -2255,18 +2266,16 @@ private fun BlockedTermRow(term: String, manage: ManageDecision, onRemove: () ->
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
+        // Destructive removal uses the same trash glyph as every other remove/delete on the page (rules,
+        // automod lists) — a consistent, quick-read icon rather than a plain text button.
         ManageGate(decision = manage) { enabled ->
-            TextButton(
+            GlyphButton(
+                icon = TrashGlyph,
+                label = removeLabel,
                 onClick = onRemove,
                 enabled = enabled,
-                modifier = Modifier.semantics { contentDescription = removeLabel },
-            ) {
-                Text(
-                    text = stringResource(Res.string.moderation_terms_remove),
-                    color = if (enabled) tokens.primary else tokens.mutedForeground,
-                    maxLines = 1,
-                )
-            }
+                tint = tokens.destructive,
+            )
         }
     }
 }
