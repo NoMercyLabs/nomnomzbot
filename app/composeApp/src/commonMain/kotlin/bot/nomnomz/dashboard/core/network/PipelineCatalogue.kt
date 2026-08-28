@@ -27,11 +27,17 @@ package bot.nomnomz.dashboard.core.network
  *  - [Text]: free text → JSON string.
  *  - [Number]: numeric field → JSON number (falls back to a string when non-integer, e.g. a `-6.0` dB volume).
  *  - [Bool]: a toggle → JSON boolean (the engine's `GetBool` reads it; an unset toggle omits the param).
+ *  - [Json]: the stored text IS already-encoded JSON (an object or array) — written to the wire verbatim
+ *    instead of as a JSON string. Used for `run_pipeline`'s `named_args` (an object map) and `args` (an array),
+ *    which the engine reads via `JsonElement.EnumerateObject`/`EnumerateArray` (`RunPipelineAction`), not
+ *    `GetString`. A blank/unparsable value falls back to a plain JSON string so a half-typed field never breaks
+ *    the save.
  */
 enum class FieldKind {
     Text,
     Number,
     Bool,
+    Json,
 }
 
 /**
@@ -348,6 +354,30 @@ object PipelineCatalogue {
                 role = BlockRole.Action,
                 labelKey = "run_code",
                 fields = listOf(BlockField("code_script_id", "code_script_id", required = true)),
+            ),
+            // ── Flow (sub-pipeline call) ─────────────────────────────────────
+            // run_pipeline: invokes another of the channel's pipelines (RunPipelineAction). `pipeline` is
+            // rendered as the same by-name picker as `schedule_pipeline`. `named_args`/`args` get a dedicated
+            // dynamic editor in the screen (RunPipelineArgumentsField) rather than a plain typed field — the
+            // right shape depends on whether the picked target declares parameter names — so both are declared
+            // here as FieldKind.Json placeholders the dynamic editor writes into, not rendered generically.
+            BlockType(
+                type = "run_pipeline",
+                role = BlockRole.Action,
+                labelKey = "run_pipeline",
+                fields =
+                    listOf(
+                        BlockField("pipeline", "pipeline", required = true),
+                        BlockField(
+                            "mode",
+                            "mode",
+                            required = false,
+                            options = listOf("inline", "detached"),
+                        ),
+                        BlockField("named_args", "named_args", required = false, kind = FieldKind.Json),
+                        BlockField("args", "args", required = false, kind = FieldKind.Json),
+                        BlockField("wait", "wait", required = false, kind = FieldKind.Bool),
+                    ),
             ),
             // ── Integrations / overlay / live ─────────────────────────────────
             // send_webhook: POSTs the pipeline's current variables to one of the channel's outbound webhook

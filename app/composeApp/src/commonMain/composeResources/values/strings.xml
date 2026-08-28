@@ -2371,6 +2371,7 @@
     <string name="pipelines_block_send_discord_notification">Discord notification</string>
     <string name="pipelines_block_require_tier">Require tier</string>
     <string name="pipelines_block_run_code">Run script</string>
+    <string name="pipelines_block_run_pipeline">Run pipeline</string>
     <string name="pipelines_field_message">Message</string>
     <string name="pipelines_field_user_id">User ID</string>
     <string name="pipelines_field_duration_seconds">Duration (seconds)</string>
@@ -2468,6 +2469,14 @@
     <string name="pipelines_field_duration_minutes">Duration (minutes)</string>
     <string name="pipelines_field_widget_id">Widget</string>
     <string name="pipelines_field_data">Data (JSON)</string>
+    <string name="pipelines_field_mode">Mode</string>
+    <string name="pipelines_field_wait">Wait for the run to finish</string>
+    <string name="pipelines_field_args">Arguments (in order, {{args.1}}, {{args.2}}, …)</string>
+    <string name="pipelines_field_named_args">Arguments</string>
+    <string name="pipelines_run_pipeline_named_arg_label">Argument “%1$s”</string>
+    <string name="pipelines_run_pipeline_no_target_hint">Pick a target pipeline to configure its arguments.</string>
+    <string name="pipelines_run_pipeline_args_add">Add argument</string>
+    <string name="pipelines_run_pipeline_args_remove">Remove argument</string>
     <!-- Generic key/value editor for a backend block the client has no typed field hints for. -->
     <string name="pipelines_generic_params_label">Parameters</string>
     <string name="pipelines_generic_param_key">Name</string>

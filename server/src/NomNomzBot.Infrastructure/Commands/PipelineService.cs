@@ -60,10 +60,16 @@ public class PipelineService : IPipelineService
         IQueryable<PipelineEntity> query = _db.Pipelines.Where(p => p.BroadcasterId == broadcaster);
         int total = await query.CountAsync(ct);
 
-        List<PipelineListItemDto> items = await query
+        // ParameterNamesJson parsing (PipelineParameterNames.Parse) is plain C#, not SQL-translatable, so the
+        // page of entities is materialized first and mapped to DTOs afterward rather than inside the
+        // IQueryable.Select.
+        List<PipelineEntity> pageRows = await query
             .OrderBy(p => p.Name)
             .Skip((pagination.Page - 1) * pagination.PageSize)
             .Take(pagination.PageSize)
+            .ToListAsync(ct);
+
+        List<PipelineListItemDto> items = pageRows
             .Select(p => new PipelineListItemDto(
                 p.Id,
                 p.Name,
@@ -71,9 +77,10 @@ public class PipelineService : IPipelineService
                 p.IsEnabled,
                 p.TriggerCount,
                 p.LastTriggeredAt,
-                p.UpdatedAt
+                p.UpdatedAt,
+                PipelineParameterNames.Parse(p.ParameterNamesJson)
             ))
-            .ToListAsync(ct);
+            .ToList();
 
         return Result.Success(
             new PagedList<PipelineListItemDto>(items, pagination.Page, pagination.PageSize, total)
@@ -538,6 +545,7 @@ public class PipelineService : IPipelineService
             p.TriggerCount,
             p.LastTriggeredAt,
             p.CreatedAt,
-            p.UpdatedAt
+            p.UpdatedAt,
+            PipelineParameterNames.Parse(p.ParameterNamesJson)
         );
 }
