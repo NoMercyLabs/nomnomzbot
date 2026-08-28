@@ -116,15 +116,6 @@ only Stoney can make. Do not burn agent time trying to work around them.
   entry (toggleable only)? Done-when: the model is settled in the spec, the UI matches it, the limit is
   either reachable or removed, and Delete means what it says.
 
-- **S-NAMELESS-ROWS-b** frontend half is DONE (verified 2026-08-28): all 7 previously-open screens
-  (GiveawaysScreen, WidgetSettingsForms, PipelinesScreen, RolesScreen, ParticipantShell, ShellScreen,
-  AutomationScreen) were already wired to `resolveRowLabel` in untracked prior commits 2bd1c1bb and
-  91383100 — `RowLabelGuardTest` shows 0 rendered offenders for all of them. REMAINING: the BACKEND half
-  — confirm PipelinesController, HomeController, ModerationController, EconomyController,
-  CommunityController, ScheduleController, TtsController, CodeScriptsController response DTOs carry a
-  reliably non-blank human-readable label for every row (not just an id) — a backend batch is in flight.
-  CONFIRMED NOT blank-capable (skip): AnalyticsScreen `tile.label` and ConnectScreen `cta.label` — static
-  literals with no row actions.
 - **S-CODE-EDITOR** The code-scripts surface gets a **VS Code-for-web grade editor that functions like
   one** — Monaco-class: completion, hover types, go-to-definition, diagnostics, multi-file — loading a
   **REAL fully-typed SDK from npm** (the actual published types, not hand-written `.d.ts`
