@@ -3788,6 +3788,8 @@
     <string name="widget_custom_data_render_option_number">Getal</string>
     <string name="widget_custom_data_render_option_gauge">Meter</string>
     <string name="widget_custom_data_render_option_text">Tekst</string>
+    <string name="template_helper_ad_duration">De lengte van de reclamepauze (bijv. "3 minuten")</string>
+    <string name="template_helper_ad_automatic">Of de reclamepauze automatisch was ("true") of aangevraagd ("false")</string>
     <string name="template_helper_args">Commando-argument N (bijv. {args.1} is het eerste woord na het commando)</string>
     <string name="template_helper_botname">De weergavenaam van de bot</string>
     <string name="template_helper_broadcaster">De weergavenaam van de streamer (Discord go-live seed-alias)</string>
