@@ -28,12 +28,15 @@ import kotlinx.serialization.json.Json
 //     the model lazily on first visit with a language id matched to the extension;
 //   - "Save & Compile" stages the whole map as JSON and Kotlin round-trips it to the caller's compile.
 //
-// S-CODE-EDITOR-a is SHELL-ONLY: Monaco mounted, get/set text, JS/HTML syntax highlighting, undo/redo, and line
-// numbers (all Monaco defaults). Monaco's built-in JS/TS semantic + syntax validation is explicitly turned off
-// (see `setDiagnosticsOptions` below) so this slice adds no completion/hover/diagnostics surface -- the previous
-// CodeMirror build's in-browser TypeScript language service (autocompletion + lint wired through a CodeMirror
-// Compartment) does not carry over to Monaco in this slice; a follow-up slice re-introduces `nnz.` IntelliSense
-// against `sdkTypes` using Monaco's own extraLib mechanism.
+// S-CODE-EDITOR-a was SHELL-ONLY: Monaco mounted, get/set text, JS/HTML syntax highlighting, undo/redo, and line
+// numbers. S-CODE-EDITOR-b re-enables Monaco's built-in JS/TS semantic + syntax validation and feeds it `sdkTypes`
+// (the caller-fetched `nnz.d.ts`, itself pulled from the server-generated `GET /api/v1/sdk/types.d.ts` -- see
+// SdkTypesApi.kt -- which reflects the real `SdkRuntimeSurface` at runtime, so there is no hand-written stand-in to
+// drift) via `monaco.languages.typescript.javascriptDefaults.addExtraLib(sdkTypes, path)`. This gives `nnz.`
+// completion, hover-type info, and diagnostics driven by the actual reflected SDK surface. There is no version/etag
+// on the endpoint and the codebase has no existing cache-bust pattern for this kind of fetch, so the caller
+// (WidgetsController / CodeScriptsController) simply fetches fresh on every editor-open and the extra lib is
+// registered once per Monaco load in this open -- no additional caching layer is introduced here.
 //
 // The other pure convenience layered on top of the base editor, unaffected by the Monaco swap:
 //   esbuild-wasm live preview -- a preview pane bundles the CURRENT project client-side with esbuild-wasm
@@ -807,11 +810,20 @@ private fun openProjectEditor(
             loadMonaco().then(function (monaco) {
                 if (slot.textarea || slot.status === 'closed') { return; }
                 slot.monaco = monaco;
-                // Shell-only: no completion/hover/diagnostics in this slice -- silence Monaco's own built-in
-                // JS/TS semantic + syntax validation so it stays a pure highlighting + editing surface until a
-                // follow-up slice wires real diagnostics against the nnz SDK types (sdkTypes is unused here).
+                // Wire the language service to the server-generated ground-truth SDK types: `sdkTypes` is the
+                // `nnz.d.ts` text fetched by the caller from GET /api/v1/sdk/types.d.ts (reflects the real
+                // SdkRuntimeSurface). Registered as an extra lib on BOTH the JS and TS defaults so `nnz.`
+                // completion/hover/diagnostics work whether the active file is highlighted as javascript or
+                // typescript. Full semantic + syntax validation is turned back on now that real types back it.
                 if (monaco.languages && monaco.languages.typescript) {
-                    monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({ noSemanticValidation: true, noSyntaxValidation: true });
+                    var tsNs = monaco.languages.typescript;
+                    tsNs.javascriptDefaults.setDiagnosticsOptions({ noSemanticValidation: false, noSyntaxValidation: false });
+                    tsNs.typescriptDefaults.setDiagnosticsOptions({ noSemanticValidation: false, noSyntaxValidation: false });
+                    if (typeof sdkTypes === 'string' && sdkTypes.length > 0) {
+                        var libPath = 'file:///nnz-sdk.d.ts';
+                        tsNs.javascriptDefaults.addExtraLib(sdkTypes, libPath);
+                        tsNs.typescriptDefaults.addExtraLib(sdkTypes, libPath);
+                    }
                 }
                 var editor = monaco.editor.create(host, {
                     model: modelFor(slot.active),

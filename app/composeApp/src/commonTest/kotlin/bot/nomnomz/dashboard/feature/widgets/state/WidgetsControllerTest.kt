@@ -277,6 +277,53 @@ class WidgetsControllerTest {
     }
 
     @Test
+    fun edit_widget_code_feeds_the_editor_the_real_reflected_sdk_surface() = runTest {
+        // A distinctive symbol that only appears in the server-generated `nnz.d.ts` (reflected from the real
+        // SdkRuntimeSurface, never a hand-written approximation) -- proves the fetched declarations reach the
+        // editor's `editAndCompile(sdkTypes = ...)` call unmodified, which the wasmJs actual then registers
+        // verbatim via `monaco.languages.typescript.javascriptDefaults.addExtraLib(sdkTypes, ...)`.
+        val reflectedDeclarations: String =
+            "declare namespace nnz { function sendChatMessage(text: string): void; }"
+        val widgetsApi =
+            RecordingWidgetsApi(
+                ApiResult.Ok(
+                    listOf(
+                        WidgetSummary(id = "w-1", name = "Timer", framework = "vanilla", activeVersionId = "v-1")
+                    )
+                ),
+                projectResult =
+                    ApiResult.Ok(
+                        ProjectDto(
+                            files = mapOf("index.html" to "<old/>"),
+                            manifest =
+                                ProjectManifestDto(entry = "index.html", kind = "widget", framework = "vanilla"),
+                        )
+                    ),
+                putProjectResult = ApiResult.Ok(WidgetVersionDetail(versionNumber = 2, buildStatus = "success")),
+            )
+        val editor = FakeProjectEditor(toSave = emptyList())
+        val sdkTypesApi = FakeSdkTypesApi(reflectedDeclarations)
+        val controller =
+            widgetsController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                widgetsApi,
+                editor,
+                sdkTypesApi = sdkTypesApi,
+            )
+        controller.load()
+
+        controller.editWidgetCode(
+            WidgetSummary(id = "w-1", name = "Timer", framework = "vanilla", activeVersionId = "v-1"),
+            messages,
+        )
+
+        // Requested the widget-context declarations, and the exact reflected content reached the editor call --
+        // the string the wasmJs actual passes straight into addExtraLib.
+        assertEquals("widget", sdkTypesApi.requestedContext)
+        assertEquals(reflectedDeclarations, editor.openedSdkTypes)
+    }
+
+    @Test
     fun edit_widget_code_surfaces_the_real_build_error_not_a_silent_no_op() = runTest {
         val widgetsApi =
             RecordingWidgetsApi(
@@ -493,13 +540,19 @@ private fun widgetsController(
     widgetsApi: WidgetsApi,
     editor: ProjectEditorIO = FakeProjectEditor(),
     galleryApi: WidgetGalleryApi = FakeWidgetGalleryApi(),
-): WidgetsController = WidgetsController(channelsApi, widgetsApi, galleryApi, editor, FakeSdkTypesApi())
+    sdkTypesApi: SdkTypesApi = FakeSdkTypesApi(),
+): WidgetsController = WidgetsController(channelsApi, widgetsApi, galleryApi, editor, sdkTypesApi)
 
 // A fake SDK-types facade. The editor tests don't assert on the declarations (the fake project editor never
 // opens a real language service), so it just returns an empty d.ts — the same graceful path a fetch failure
 // takes in production.
-private class FakeSdkTypesApi : SdkTypesApi {
-    override suspend fun types(context: String): ApiResult<String> = ApiResult.Ok("")
+private class FakeSdkTypesApi(private val declarations: String = "") : SdkTypesApi {
+    var requestedContext: String? = null
+
+    override suspend fun types(context: String): ApiResult<String> {
+        requestedContext = context
+        return ApiResult.Ok(declarations)
+    }
 }
 
 // A fake multi-file project editor. Records the project it opened with (title + files + entry), "presses Save &
@@ -511,6 +564,7 @@ private class FakeProjectEditor(private val toSave: List<String> = emptyList()) 
     var openedTitle: String? = null
     var openedFiles: Map<String, String>? = null
     var openedEntry: String? = null
+    var openedSdkTypes: String? = null
     val feedbacks: MutableList<CompileFeedback> = mutableListOf()
 
     val openedEntryContent: String?
@@ -527,6 +581,7 @@ private class FakeProjectEditor(private val toSave: List<String> = emptyList()) 
         openedTitle = title
         openedFiles = initialFiles
         openedEntry = entryPath
+        openedSdkTypes = sdkTypes
         for (edit in toSave) {
             // Model editing the entry file's content, then Save & Compile with the full updated file map.
             feedbacks += compile(initialFiles + (entryPath to edit))
