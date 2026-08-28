@@ -1018,6 +1018,13 @@ public static class DependencyInjection
         // "Service", so it is not picked up by AddServicesByConvention; registered explicitly here.
         services.AddSingleton<Application.Contracts.Tts.ITtsProfanityCensor, TtsProfanityCensor>();
 
+        // Per-channel TTS dispatch ordering lock — singleton (its whole point is one shared set of gates
+        // across every request, not a fresh one per scope). Does not end in "Service", so registered here.
+        services.AddSingleton<
+            Application.Contracts.Tts.ITtsChannelSerializer,
+            TtsChannelSerializer
+        >();
+
         // BYOK provider factory (tts.md §3.2) — scoped (reads TtsConfig + decrypts through the vault);
         // not convention-scanned (does not end in "Service").
         services.AddScoped<

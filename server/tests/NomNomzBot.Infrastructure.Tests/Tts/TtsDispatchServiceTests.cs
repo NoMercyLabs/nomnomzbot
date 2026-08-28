@@ -137,6 +137,7 @@ public sealed class TtsDispatchServiceTests
             db,
             bus,
             tiers ?? Billing.TestTiers.Unlimited(),
+            new TtsChannelSerializer(),
             new FakeTimeProvider(new(T0)),
             NullLogger<TtsDispatchService>.Instance
         );
@@ -1035,5 +1036,54 @@ public sealed class TtsDispatchServiceTests
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
         result.Value!.VoiceId.Should().Be("channel-voice");
+    }
+
+    // Reproduces the live bug: a viewer's utterance requested SECOND can have its provider round-trip
+    // resolve FIRST (different network latency, different provider queue depth) — without per-channel
+    // serialization, its audio reaches the overlay before the first request's, so a viewer hears a
+    // DIFFERENT utterance than the one that matches what the pipeline already sent to chat. Proven by
+    // making the SECOND request's synthesis resolve first, then asserting the DISPATCHED-event order (the
+    // signal that reaches the overlay) still matches REQUEST order — synthesis START order is NOT what
+    // matters here (both start close together either way); it's whether "second" is allowed to finish
+    // dispatching before "first" does.
+    [Fact]
+    public async Task Concurrent_requests_on_the_same_channel_dispatch_in_request_order_not_synthesis_order()
+    {
+        Harness h = Build();
+        List<string> dispatchOrder = [];
+        TaskCompletionSource firstSynthesisGate = new();
+        TaskCompletionSource secondSynthesisGate = new();
+
+        h.Tts.SynthesizeAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(async ci =>
+            {
+                string synthesizedText = ci.ArgAt<string>(0);
+                await (
+                    synthesizedText == "first" ? firstSynthesisGate.Task : secondSynthesisGate.Task
+                );
+                return new TtsResult([1, 2, 3, 4], 1200, ci.ArgAt<string>(1), "edge");
+            });
+        h.Bus.PublishAsync(Arg.Any<TtsUtteranceDispatchedEvent>(), Arg.Any<CancellationToken>())
+            .Returns(ci =>
+            {
+                dispatchOrder.Add(ci.ArgAt<TtsUtteranceDispatchedEvent>(0).Text);
+                return Task.CompletedTask;
+            });
+
+        Task<Result<TtsDispatchOutcome>> firstTask = h.Service.RequestSpeakAsync(Speak("first"));
+        // Give "first" a moment to actually acquire the per-channel gate and enter synthesis before
+        // starting "second" — otherwise both could race to acquire and the test would prove nothing.
+        await Task.Delay(20);
+        Task<Result<TtsDispatchOutcome>> secondTask = h.Service.RequestSpeakAsync(Speak("second"));
+        await Task.Delay(20);
+
+        // "second" resolves first — if serialization were absent, its dispatch would race ahead of
+        // "first"'s despite being requested later.
+        secondSynthesisGate.SetResult();
+        await Task.Delay(20);
+        firstSynthesisGate.SetResult();
+        await Task.WhenAll(firstTask, secondTask);
+
+        dispatchOrder.Should().Equal("first", "second");
     }
 }

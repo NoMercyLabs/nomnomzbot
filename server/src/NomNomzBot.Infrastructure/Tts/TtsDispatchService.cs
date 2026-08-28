@@ -48,6 +48,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
     private readonly IApplicationDbContext _db;
     private readonly IEventBus _eventBus;
     private readonly IBillingTierService _tiers;
+    private readonly ITtsChannelSerializer _serializer;
     private readonly TimeProvider _clock;
     private readonly ILogger<TtsDispatchService> _logger;
 
@@ -62,6 +63,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
         IApplicationDbContext db,
         IEventBus eventBus,
         IBillingTierService tiers,
+        ITtsChannelSerializer serializer,
         TimeProvider clock,
         ILogger<TtsDispatchService> logger
     )
@@ -76,6 +78,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
         _db = db;
         _eventBus = eventBus;
         _tiers = tiers;
+        _serializer = serializer;
         _clock = clock;
         _logger = logger;
     }
@@ -209,6 +212,13 @@ public sealed class TtsDispatchService : ITtsDispatchService
                 ct
             );
 
+        // Serialized per channel so this utterance synthesizes/pushes to the overlay strictly in the
+        // order it was requested — never in whatever order concurrent providers' network calls happen
+        // to resolve (see ITtsChannelSerializer).
+        await using IAsyncDisposable gate = await _serializer.AcquireAsync(
+            request.BroadcasterId,
+            ct
+        );
         return await DispatchAsync(
             request.BroadcasterId,
             config,
@@ -245,6 +255,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
             return Result.Failure(configResult.ErrorMessage!, configResult.ErrorCode!);
 
         string spokenText = entry.CensoredText ?? entry.OriginalText;
+        await using IAsyncDisposable gate = await _serializer.AcquireAsync(broadcasterId, ct);
         Result<TtsDispatchOutcome> played = await DispatchAsync(
             broadcasterId,
             configResult.Value,
