@@ -227,7 +227,7 @@ class EventResponsesControllerTest {
     }
 
     @Test
-    fun reset_to_default_calls_the_delete_endpoint_and_reloads() = runTest {
+    fun reset_to_default_calls_the_reset_endpoint_and_reloads() = runTest {
         val api = RecordingEventResponsesApi(listResult = ApiResult.Ok(emptyList()))
         val controller =
             EventResponsesController(
@@ -260,8 +260,8 @@ class EventResponsesControllerTest {
 
         controller.resetToDefault("channel.raid")
 
-        // The reset announces "reset to default", never a generic/permanent "deleted" label — the row comes
-        // right back via the list's top-up seed, so the UI must never claim a permanent removal.
+        // The reset announces "reset to default", never a generic/permanent "deleted" label — the row is a
+        // fixed catalogue entry that is reset in place and never removed.
         assertEquals(
             FeedbackKind.Success,
             feedback.only.kind,
@@ -535,7 +535,7 @@ private class RecordingEventResponsesApi(
         return upsertResult
     }
 
-    override suspend fun delete(channelId: String, eventType: String): ApiResult<Unit> {
+    override suspend fun resetToDefault(channelId: String, eventType: String): ApiResult<Unit> {
         lastDeletedEventType = eventType
         return deleteResult
     }

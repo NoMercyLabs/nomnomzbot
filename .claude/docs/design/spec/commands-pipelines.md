@@ -249,11 +249,25 @@ CRUD for per-event reactions (I.2). **Widen `broadcasterId`→`Guid`; add a runt
 Task<Result<PagedList<EventResponseListItem>>> ListAsync(Guid broadcasterId, PaginationParams pagination, CancellationToken ct = default);
 Task<Result<EventResponseDto>>                 GetByEventTypeAsync(Guid broadcasterId, string eventType, CancellationToken ct = default);
 Task<Result<EventResponseDto>>                 UpsertAsync(Guid broadcasterId, string eventType, UpdateEventResponseDto request, CancellationToken ct = default);
-Task<Result>                                   DeleteAsync(Guid broadcasterId, string eventType, CancellationToken ct = default);
+Task<Result>                                   ResetToDefaultAsync(Guid broadcasterId, string eventType, CancellationToken ct = default);
 Task<Result>                                   TriggerAsync(Guid broadcasterId, string eventType, IReadOnlyDictionary<string, string> eventVariables, CancellationToken ct = default);
 ```
-- `UpsertAsync` — when `ResponseType="pipeline"` requires a valid `PipelineId` (else `Result.Failure`); validates `MetadataJson` shape. **Enforces the tier authoring-count caps** (§3.13a): `event_responses` against the live trigger count **when creating a new** `(BroadcasterId, EventType)` row, and `response_variations_per_trigger` against the response's variation list (the `random_response` action's `Messages` on the bound pipeline) — add-time only, never truncated. **Channel-point reward-redemption responses route through here** (authored as an `EventResponse` keyed on `channel.channel_points_custom_reward_redemption.add`), so the reward variation cap is enforced by this same path — the `Rewards` table is a Twitch mirror and owns no separate variation list. Creates-or-updates one row per `(BroadcasterId, EventType)`.
+- `UpsertAsync` — when `ResponseType="pipeline"` requires a valid `PipelineId` (else `Result.Failure`); validates `MetadataJson` shape. Creates-or-updates one row per `(BroadcasterId, EventType)`.
+- `ResetToDefaultAsync` — resets one row's fields back to its seeded default (disabled, `chat_message`, no message/pipeline/metadata) **in place**. Never removes the row — see the settled model below. Backend route: `POST .../event-responses/{eventType}/reset` (204).
 - `TriggerAsync` — looks up the enabled response for the inbound event, renders `Message` (template) or dispatches `PipelineId`, emits `EventResponseTriggeredEvent`. No-op if disabled/missing.
+
+**Settled model (S-EVENTRESPONSE-NO-CREATE, 2026-08-28) — a seeded catalogue, not a user-authored list.**
+An `EventResponse` row is a **fixed, seeded catalogue entry**, one per known platform event type
+(`EventResponsePresetCatalog`), never user-created and never user-deletable:
+- `EventResponseDefaultsSeeder` seeds one disabled row per catalog event type for every channel (full-startup
+  `ISeeder` pass + a scoped call on onboarding), so a channel's row count always equals the catalog size.
+- The dashboard's only operations on a row are **toggle enabled/disabled**, **edit** (response type, message,
+  pipeline binding, overlay/widget target), and **reset to default** — there is no create affordance and no
+  destructive delete. "Reset" is an honest label: it resets the row's fields in place and the row remains
+  present and enumerable; it is never a removal.
+- `EventResponse` carries **no `[CountedResource]`** and `event_responses` has **no entry** in
+  `LimitedResourceRegistry` — a per-channel cap on a resource the operator can never create more of than the
+  catalog's fixed size would be decorative, unenforceable state (the truthful-data house rule).
 
 ### 3.9 `IBuiltinCommandService` (NET-NEW — `Services/IBuiltinCommandService.cs`)
 
@@ -338,18 +352,21 @@ public interface IConditionEvaluator
 }
 ```
 
-### 3.13a Tier authoring-count enforcement (shared rule for §3.1 / §3.7 / §3.8)
+### 3.13a Tier authoring-count enforcement (shared rule for §3.1 / §3.7)
 
-`ICommandService`, `ITimerService`, and `IEventResponseService` cap the **count** of author-created content per the
+`ICommandService` and `ITimerService` cap the **count** of author-created content per the
 `TierLimit` mechanism (`monetization-billing.md` §8 — the authoritative owner; this is the consumer-side wiring). No new
 infrastructure: each create/update path reads the tenant entitlement through **`IBillingTierService.GetEntitlementAsync`**
 (the single tier-aware source — `IFeatureGateService` is **not** forked) and compares the relevant `LimitValue` to the
 current count **before persisting**.
 
+**`IEventResponseService` (§3.8) is deliberately NOT a participant here (S-EVENTRESPONSE-NO-CREATE):** its rows are a
+fixed, seeded catalogue keyed by event type, never user-created, so an authoring-count cap on it would be decorative —
+`event_responses` carries no `[CountedResource]` and no `LimitedResourceRegistry` entry.
+
 - **Keys consumed here:** `custom_commands` (live `Command` count, §3.1 `CreateAsync`), `timers` (live `Timer` count,
-  §3.7 `CreateAsync`), `event_responses` (live `EventResponse` trigger count, §3.8 `UpsertAsync` on new trigger), and
-  `response_variations_per_trigger` (length of `Command.TemplateResponses` in §3.1, and of the `random_response` action's
-  `Messages` on the event-response/reward pipeline in §3.8). `LimitValue = -1` ⇒ unlimited.
+  §3.7 `CreateAsync`), and `response_variations_per_trigger` (length of `Command.TemplateResponses` in §3.1, and of the
+  `random_response` action's `Messages` on the reward pipeline). `LimitValue = -1` ⇒ unlimited.
 - **Failure shape (never silently truncate):** when `limit != -1 && currentCount >= limit`, return
   `Result.Failure("tier_limit_reached", new { LimitKey, Limit = limit, CurrentTier = entitlement.TierKey, Current = currentCount })`
   — the upsell payload drives the dashboard's in-context upgrade prompt. `BaseController` maps `tier_limit_reached` onto the

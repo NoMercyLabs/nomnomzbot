@@ -27,8 +27,9 @@ namespace NomNomzBot.Infrastructure.Tests.Billing;
 /// <summary>
 /// Proves the seeded tier limits are ENFORCED, not decorative (monetization-billing.md §3.3): an at-cap
 /// create is refused with <c>QUOTA_EXCEEDED</c> and persists nothing; the per-trigger variation cap guards
-/// create AND update; the event-response cap counts ENABLED responses (never the lazily-seeded disabled
-/// rows); and the unlimited (-1, self-host) shape gates nothing.
+/// create AND update; event_responses carries NO cap at all (S-EVENTRESPONSE-NO-CREATE — a fixed, seeded
+/// catalogue can never be user-created past any limit); and the unlimited (-1, self-host) shape gates
+/// nothing.
 /// </summary>
 public sealed class TierQuotaEnforcementTests
 {
@@ -140,52 +141,42 @@ public sealed class TierQuotaEnforcementTests
         (await db.Timers.CountAsync(t => t.BroadcasterId == Channel)).Should().Be(1);
     }
 
-    // ─── event_responses (enabled-count semantics) ──────────────────────────
+    // ─── event_responses (S-EVENTRESPONSE-NO-CREATE: no cap — rows are a fixed catalogue) ──────
 
     [Fact]
-    public async Task Event_response_cap_counts_enabled_rows_and_blocks_the_next_enable()
+    public void Event_responses_is_not_a_declared_limited_resource()
+    {
+        // Rows are seeded per event type and never user-created, so a per-channel cap here could never
+        // be reached — it would be a decorative, unenforceable number (removed from the registry).
+        NomNomzBot
+            .Application.Contracts.Billing.LimitedResourceRegistry.TryGet("event_responses", out _)
+            .Should()
+            .BeFalse(
+                "event_responses carries no limit — the catalogue is fixed-size, never user-created"
+            );
+    }
+
+    [Fact]
+    public async Task Enabling_every_seeded_event_response_is_never_blocked_by_a_quota()
     {
         SupporterTestDbContext db = SupporterTestDbContext.New();
-        EventResponseService sut = new(
-            db,
-            new RecordingEventBus(),
-            TestQuota.WithLimit("event_responses", 1, db),
-            new TemplateHelperValidator()
-        );
+        EventResponseService sut = new(db, new RecordingEventBus(), new TemplateHelperValidator());
 
-        // First enable fits the cap.
-        (
-            await sut.UpsertAsync(
+        // Enabling many more rows than the old NEAR_FREE baseline never existed for this resource would
+        // gate — there is no quota seam in EventResponseService for event_responses any more.
+        foreach (string eventType in new[] { "channel.follow", "channel.raid", "channel.cheer" })
+        {
+            Result<EventResponseDto> upsert = await sut.UpsertAsync(
                 Channel.ToString(),
-                "channel.follow",
-                new() { IsEnabled = true, Message = "welcome {{user.name}}" }
-            )
-        )
-            .IsSuccess.Should()
-            .BeTrue();
-
-        // A second ENABLE is over the cap...
-        Result<EventResponseDto> second = await sut.UpsertAsync(
-            Channel.ToString(),
-            "channel.raid",
-            new() { IsEnabled = true, Message = "raid!" }
-        );
-        second.ErrorCode.Should().Be("QUOTA_EXCEEDED");
-
-        // ...but editing the ALREADY-enabled one is not an enable — never blocked.
-        (
-            await sut.UpsertAsync(
-                Channel.ToString(),
-                "channel.follow",
-                new() { Message = "hi {{user.name}}" }
-            )
-        )
-            .IsSuccess.Should()
-            .BeTrue();
+                eventType,
+                new() { IsEnabled = true, Message = "hi" }
+            );
+            upsert.IsSuccess.Should().BeTrue();
+        }
 
         (await db.EventResponses.CountAsync(e => e.BroadcasterId == Channel && e.IsEnabled))
             .Should()
-            .Be(1);
+            .Be(3);
     }
 
     // ─── unlimited (self-host) shape ─────────────────────────────────────────

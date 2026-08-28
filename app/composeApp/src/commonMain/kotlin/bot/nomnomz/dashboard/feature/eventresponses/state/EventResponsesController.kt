@@ -202,15 +202,16 @@ class EventResponsesController(
     }
 
     /**
-     * Reset an event response to its seeded default. The backend row is actually removed (`DELETE`), but
-     * `ListAsync`'s top-up seed (`EventResponseService.cs:58-80`) re-inserts the catalog default — disabled,
-     * `chat_message`, no message — the moment the list is next read, so the net effect an operator sees is a
-     * RESET to default, not a permanent removal. The confirm dialog and this success label say "reset", never
-     * "deleted", so the UI never claims a permanence the backend doesn't provide.
+     * Reset an event response to its seeded default (disabled, `chat_message`, no message/pipeline). The
+     * row is a fixed catalogue entry (S-EVENTRESPONSE-NO-CREATE) — `POST .../reset` resets its fields in
+     * place and never removes it, matching the "Reset to default" label the confirm dialog already shows.
      */
     suspend fun resetToDefault(eventType: String) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
-        afterWrite(eventResponsesApi.delete(channel, eventType), success = Res.string.feedback_event_response_reset)
+        afterWrite(
+            eventResponsesApi.resetToDefault(channel, eventType),
+            success = Res.string.feedback_event_response_reset,
+        )
     }
 
     // A write either reloads the list AND announces success on the frame, or surfaces its error over the current

@@ -26,18 +26,21 @@ namespace NomNomzBot.Infrastructure.Tests.Commands;
 
 /// <summary>
 /// S048b: <c>EventResponseService.ListAsync</c> used to top-up-seed the catalog as a side effect of
-/// reading (a GET that writes), and <c>DeleteAsync</c>'s removal never stuck because the next
-/// <c>ListAsync</c> silently re-inserted the deleted row. This suite proves the fix:
+/// reading (a GET that writes). S-EVENTRESPONSE-NO-CREATE then settled the model further: a row is a
+/// fixed, seeded catalogue entry, never user-created or user-deletable — the old <c>DeleteAsync</c>
+/// (a hard-coded <c>Remove()</c>) made "Delete" a silent, permanent loss once <c>ListAsync</c> stopped
+/// top-up-seeding, contradicting the dashboard's own "reset to default" framing. It is now
+/// <c>ResetToDefaultAsync</c>, which never removes the row — it resets its fields in place. This suite
+/// proves:
 /// <list type="bullet">
 /// <item><description><c>ListAsync</c> performs zero writes — the persisted set is byte-identical
 /// before/after a call, proven on the ROWS, not the DTO shape it returns.</description></item>
-/// <item><description>A deleted event response does NOT come back after a subsequent list.</description></item>
+/// <item><description><c>ResetToDefaultAsync</c> puts the row back to its seeded default shape (disabled,
+/// chat_message, no message/pipeline/metadata) and the row STAYS PRESENT and enumerable — no
+/// disappearance, no soft-delete.</description></item>
 /// <item><description>The seeding moved to <see cref="EventResponseDefaultsSeeder"/> (mirrors
 /// <c>DefaultCommandsSeeder</c>): a fresh channel still gets the full default set, and a channel seeded
-/// before a new catalog trigger shipped still gets the missing rows — WITHOUT resurrecting a soft-deleted
-/// one, because the seeder's existing-rows lookup uses <c>IgnoreQueryFilters()</c>.</description></item>
-/// <item><description>A user can deliberately restore a deleted default — <c>UpsertAsync</c> revives the
-/// soft-deleted row for that event type instead of leaving it orphaned.</description></item>
+/// before a new catalog trigger shipped still gets the missing rows.</description></item>
 /// </list>
 /// </summary>
 public sealed class EventResponseSeedingTests
@@ -66,7 +69,6 @@ public sealed class EventResponseSeedingTests
             new EventResponseService(
                 db,
                 Substitute.For<IEventBus>(),
-                Billing.TestQuota.Unlimited(),
                 new TemplateHelperValidator()
             ),
             new EventResponseDefaultsSeeder(db),
@@ -120,10 +122,10 @@ public sealed class EventResponseSeedingTests
             .Be(0, "ListAsync no longer seeds — that moved to the seeder");
     }
 
-    // ── Deletion sticks ──────────────────────────────────────────────────────────
+    // ── Reset puts the row back to default WITHOUT removing it ───────────────────
 
     [Fact]
-    public async Task A_deleted_event_response_does_not_come_back_after_a_subsequent_list()
+    public async Task ResetToDefault_clears_the_customized_fields_but_the_row_stays_enumerable()
     {
         (
             EventResponseService service,
@@ -131,56 +133,54 @@ public sealed class EventResponseSeedingTests
             SupporterTestDbContext db
         ) = Build();
         await seeder.SeedAsync(Tenant);
-
-        Result deleteResult = await service.DeleteAsync(Tenant.ToString(), "channel.follow");
-        deleteResult.IsSuccess.Should().BeTrue();
-
-        await ListAsync(service);
-        await ListAsync(service); // the exact bug the owner hit — repeated visits must not resurrect it
-
-        List<EventResponse> rows = await db.EventResponses.AsNoTracking().ToListAsync();
-        rows.Should().NotContain(r => r.EventType == "channel.follow", "the deletion must stick");
-
-        EventResponse? softDeleted = await db
-            .EventResponses.IgnoreQueryFilters()
-            .SingleOrDefaultAsync(r => r.EventType == "channel.follow");
-        softDeleted.Should().NotBeNull("the row survives soft-deleted, not hard-deleted");
-        softDeleted!.DeletedAt.Should().NotBeNull();
-    }
-
-    // ── Deliberate restore ──────────────────────────────────────────────────────
-
-    [Fact]
-    public async Task Upserting_a_deleted_event_type_restores_it_instead_of_creating_a_duplicate()
-    {
-        (
-            EventResponseService service,
-            EventResponseDefaultsSeeder seeder,
-            SupporterTestDbContext db
-        ) = Build();
-        await seeder.SeedAsync(Tenant);
-        await service.DeleteAsync(Tenant.ToString(), "channel.follow");
-
-        Result<EventResponseDto> restoreResult = await service.UpsertAsync(
+        Result<EventResponseDto> customized = await service.UpsertAsync(
             Tenant.ToString(),
             "channel.follow",
-            new UpdateEventResponseDto { IsEnabled = true, Message = "welcome back!" }
+            new UpdateEventResponseDto
+            {
+                IsEnabled = true,
+                ResponseType = "pipeline",
+                Message = "thanks {{user.name}}!",
+                Metadata = new Dictionary<string, string> { ["widgetId"] = "w-1" },
+            }
         );
+        customized.IsSuccess.Should().BeTrue();
 
-        restoreResult.IsSuccess.Should().BeTrue();
-        List<EventResponse> live = await db.EventResponses.AsNoTracking().ToListAsync();
-        live.Count(r => r.EventType == "channel.follow")
+        Result resetResult = await service.ResetToDefaultAsync(Tenant.ToString(), "channel.follow");
+        resetResult.IsSuccess.Should().BeTrue();
+
+        // Two consecutive lists — the exact bug the owner hit with the old Delete: repeated visits must
+        // never make the row vanish.
+        await ListAsync(service);
+        await ListAsync(service);
+
+        List<EventResponse> rows = await db.EventResponses.AsNoTracking().ToListAsync();
+        rows.Should().Contain(r => r.EventType == "channel.follow", "reset never removes the row");
+        EventResponse reset = rows.Single(r => r.EventType == "channel.follow");
+        reset.DeletedAt.Should().BeNull("reset is not a delete — the row is never soft-deleted");
+        reset.IsEnabled.Should().BeFalse();
+        reset.ResponseType.Should().Be("chat_message");
+        reset.Message.Should().BeNull();
+        reset.PipelineId.Should().BeNull();
+        reset.MetadataJson.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ResetToDefault_on_an_unconfigured_seeded_row_is_a_no_op_success()
+    {
+        (
+            EventResponseService service,
+            EventResponseDefaultsSeeder seeder,
+            SupporterTestDbContext db
+        ) = Build();
+        await seeder.SeedAsync(Tenant);
+
+        Result resetResult = await service.ResetToDefaultAsync(Tenant.ToString(), "channel.follow");
+
+        resetResult.IsSuccess.Should().BeTrue();
+        (await db.EventResponses.CountAsync())
             .Should()
-            .Be(1, "no duplicate row for the natural key");
-        EventResponse restored = live.Single(r => r.EventType == "channel.follow");
-        restored.DeletedAt.Should().BeNull("the operator's restore un-deletes the original row");
-        restored.IsEnabled.Should().BeTrue();
-        restored.Message.Should().Be("welcome back!");
-
-        List<EventResponse> allEverStored = await db
-            .EventResponses.IgnoreQueryFilters()
-            .ToListAsync();
-        allEverStored.Count(r => r.EventType == "channel.follow").Should().Be(1);
+            .Be(EventResponsePresetCatalog.EventTypes.Count);
     }
 
     // ── Seeding moved to EventResponseDefaultsSeeder ────────────────────────────
@@ -236,7 +236,7 @@ public sealed class EventResponseSeedingTests
     }
 
     [Fact]
-    public async Task Deleted_event_type_is_never_resurrected_by_the_topup_seeder()
+    public async Task A_reset_row_is_not_touched_or_duplicated_by_a_later_topup_seeder_pass()
     {
         (
             EventResponseService service,
@@ -244,21 +244,22 @@ public sealed class EventResponseSeedingTests
             SupporterTestDbContext db
         ) = Build();
         await seeder.SeedAsync(Tenant);
-        await service.DeleteAsync(Tenant.ToString(), "channel.follow");
+        await service.UpsertAsync(
+            Tenant.ToString(),
+            "channel.follow",
+            new UpdateEventResponseDto { IsEnabled = true, Message = "custom" }
+        );
+        await service.ResetToDefaultAsync(Tenant.ToString(), "channel.follow");
 
-        // Re-run the top-up pass (e.g. the next app boot) — must not resurrect the deleted row.
+        // Re-run the top-up pass (e.g. the next app boot) — the natural key already exists, so this must
+        // not touch it or add a duplicate.
         await seeder.SeedAsync(Tenant);
 
         List<EventResponse> live = await db.EventResponses.ToListAsync();
-        live.Should().NotContain(r => r.EventType == "channel.follow");
-
-        List<EventResponse> allEverStored = await db
-            .EventResponses.IgnoreQueryFilters()
-            .ToListAsync();
-        allEverStored
-            .Count(r => r.EventType == "channel.follow")
-            .Should()
-            .Be(1, "still exactly one soft-deleted row, not a resurrected duplicate");
+        live.Count(r => r.EventType == "channel.follow").Should().Be(1, "no duplicate row");
+        EventResponse follow = live.Single(r => r.EventType == "channel.follow");
+        follow.IsEnabled.Should().BeFalse();
+        follow.Message.Should().BeNull();
     }
 
     [Fact]

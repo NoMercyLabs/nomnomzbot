@@ -68,10 +68,8 @@ public sealed class ResourceQuotaService(
                 ct
             ),
             "timers" => CountAsync(db.Timers.Where(t => t.BroadcasterId == broadcasterId), ct),
-            "event_responses" => CountAsync(
-                db.EventResponses.Where(e => e.BroadcasterId == broadcasterId && e.IsEnabled),
-                ct
-            ),
+            // event_responses deliberately absent (S-EVENTRESPONSE-NO-CREATE): not a declared limited
+            // resource any more — rows are a fixed, seeded catalogue, never user-created.
             // Live gauges — SUM of the SizeBytes of currently-live (non-soft-deleted) rows, computed fresh on
             // every call. This is a real read of actual stored bytes, not an estimate and not an accumulated
             // counter, so a delete lowers it immediately.

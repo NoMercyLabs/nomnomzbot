@@ -40,7 +40,9 @@ public static class LimitedResourceRegistry
         // for every tenant including self-host. Never tier-scaled, never sold as headroom.
         new("custom_commands", ResourceClass.NearFree, "Custom commands", SafetyBaseline: 1500),
         new("timers", ResourceClass.NearFree, "Timers", SafetyBaseline: 200),
-        new("event_responses", ResourceClass.NearFree, "Event responses", SafetyBaseline: 400),
+        // event_responses deliberately absent (S-EVENTRESPONSE-NO-CREATE): rows are a fixed, seeded
+        // catalogue keyed by event type (EventResponsePresetCatalog), never user-created, so a per-channel
+        // limit here could never be reached — it would be a decorative, unenforceable number.
         new(
             "response_variations_per_trigger",
             ResourceClass.NearFree,

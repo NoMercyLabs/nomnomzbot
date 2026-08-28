@@ -14,8 +14,6 @@ using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
-using NomNomzBot.Application.Contracts.Billing;
-using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -26,19 +24,16 @@ public class EventResponseService : IEventResponseService
 {
     private readonly IApplicationDbContext _db;
     private readonly IEventBus _eventBus;
-    private readonly IResourceQuotaService _quota;
     private readonly ITemplateHelperValidator _templateHelperValidator;
 
     public EventResponseService(
         IApplicationDbContext db,
         IEventBus eventBus,
-        IResourceQuotaService quota,
         ITemplateHelperValidator templateHelperValidator
     )
     {
         _db = db;
         _eventBus = eventBus;
-        _quota = quota;
         _templateHelperValidator = templateHelperValidator;
     }
 
@@ -125,52 +120,14 @@ public class EventResponseService : IEventResponseService
         if (helperOk.IsFailure)
             return helperOk.ToTyped<EventResponseDto>();
 
-        // IgnoreQueryFilters: a row the operator soft-deleted (DeleteAsync) is invisible to the normal,
-        // tenant/soft-delete-filtered query — but upserting that same event type is a DELIBERATE restore
-        // (S048b), so it must find and revive that row rather than leave it orphaned while a second,
-        // unrelated row gets created for the same natural key.
-        EventResponse? entity = await _db
-            .EventResponses.IgnoreQueryFilters()
-            .FirstOrDefaultAsync(
-                e => e.BroadcasterId == broadcaster && e.EventType == eventType,
-                cancellationToken
-            );
-        bool isRestore = entity is { DeletedAt: not null };
-        if (isRestore)
-        {
-            entity!.DeletedAt = null;
-        }
-
-        // event_responses is NEAR_FREE (S-BUDGETS-a) and caps ENABLED responses, never raw rows —
-        // EventResponseDefaultsSeeder seeds a disabled row per catalog event type for every channel, so raw
-        // counts are always at catalog size. Gate only a write that ENABLES a currently-disabled (or new)
-        // response, via the quota seam — the registry's uniform safety baseline, never tier-scaled.
-        bool wantsEnabled = request.IsEnabled ?? entity is null; // create default is enabled
-        if (wantsEnabled && entity is not { IsEnabled: true })
-        {
-            // The count comes from the same GetCurrentCountAsync the read-only usage report (S-BUDGETS-b1)
-            // uses, so the two can never disagree.
-            Result<long> countResult = await _quota.GetCurrentCountAsync(
-                broadcaster,
-                "event_responses",
-                cancellationToken
-            );
-            if (countResult.IsFailure)
-                return countResult.ToTyped<EventResponseDto>();
-            long enabledCount = countResult.Value;
-            Result<QuotaCheckDto> quota = await _quota.CheckAsync(
-                broadcaster,
-                "event_responses",
-                enabledCount + 1,
-                cancellationToken
-            );
-            if (quota.IsFailure)
-                return quota.ToTyped<EventResponseDto>();
-            if (!quota.Value.Allowed)
-                return Errors
-                    .QuotaExceeded("enabled event responses", quota.Value.Limit)
-                    .ToTyped<EventResponseDto>();
-        }
+        // Rows are a fixed, seeded catalogue (EventResponseDefaultsSeeder seeds one disabled row per
+        // catalog event type for every channel) — never user-created and never soft-deleted, so this is a
+        // plain tenant-filtered lookup; there is no restore path and no per-channel enable cap
+        // (S-EVENTRESPONSE-NO-CREATE removed the decorative NEAR_FREE limit on this resource).
+        EventResponse? entity = await _db.EventResponses.FirstOrDefaultAsync(
+            e => e.BroadcasterId == broadcaster && e.EventType == eventType,
+            cancellationToken
+        );
 
         bool isNew = entity is null;
         if (entity is null)
@@ -220,7 +177,7 @@ public class EventResponseService : IEventResponseService
         return Result.Success(ToDto(entity));
     }
 
-    public async Task<Result> DeleteAsync(
+    public async Task<Result> ResetToDefaultAsync(
         string broadcasterId,
         string eventType,
         CancellationToken cancellationToken = default
@@ -237,7 +194,18 @@ public class EventResponseService : IEventResponseService
         if (entity is null)
             return Result.Failure($"EventResponse for '{eventType}' was not found.", "NOT_FOUND");
 
-        _db.EventResponses.Remove(entity);
+        // Honest reset (S-EVENTRESPONSE-NO-CREATE): this row is a permanent catalogue entry, never a
+        // user-created/deletable one, so this operation never removes it — it puts the row back to the
+        // same disabled, no-message shape EventResponseDefaultsSeeder gives a fresh channel. Renamed from
+        // the old DeleteAsync, which used to Remove() the row; that made "Delete" a silent, one-way loss
+        // once ListAsync stopped top-up-seeding on read (S048b) — the row simply vanished from the
+        // dashboard instead of coming back, contradicting the "reset to default" label the UI already used.
+        entity.IsEnabled = false;
+        entity.ResponseType = "chat_message";
+        entity.Message = null;
+        entity.PipelineId = null;
+        entity.MetadataJson = new Dictionary<string, string>();
+
         await _db.SaveChangesAsync(cancellationToken);
         await _eventBus.PublishAsync(
             new ChannelConfigChangedEvent
@@ -245,7 +213,7 @@ public class EventResponseService : IEventResponseService
                 BroadcasterId = broadcaster,
                 Domain = "event-responses",
                 EntityId = entity.Id.ToString(),
-                Action = "deleted",
+                Action = "reset",
             },
             cancellationToken
         );

@@ -126,12 +126,7 @@ public sealed class BundleParityTypesTests
             Substitute.For<ICustomDataIngestService>(),
             []
         );
-        EventResponseService eventResponses = new(
-            db,
-            bus,
-            Billing.TestQuota.Unlimited(),
-            new TemplateHelperValidator()
-        );
+        EventResponseService eventResponses = new(db, bus, new TemplateHelperValidator());
         ITwitchChannelPointsApi channelPoints = Substitute.For<ITwitchChannelPointsApi>();
         channelPoints
             .GetCustomRewardsAsync(
