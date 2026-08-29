@@ -67,12 +67,18 @@ import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.TemplateHelperContext
 import bot.nomnomz.dashboard.core.network.TemplateHelpersApi
+import bot.nomnomz.dashboard.core.network.TestRunResult
 import bot.nomnomz.dashboard.core.network.ResourceUsage
 import bot.nomnomz.dashboard.core.network.TimerDetail
 import bot.nomnomz.dashboard.core.network.TimerSummary
+import bot.nomnomz.dashboard.feature.pipelines.state.PipelineTestRunController
+import bot.nomnomz.dashboard.feature.pipelines.state.PipelineTestRunUiState
+import bot.nomnomz.dashboard.feature.pipelines.ui.PipelineTestAction
+import bot.nomnomz.dashboard.feature.pipelines.ui.PipelineTestRunDialog
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
@@ -242,6 +248,7 @@ fun TimersScreen(
                 }
             },
             onCreatePipeline = { name -> controller.createPipelineReturning(name) },
+            onTestRunPipeline = { pipelineId, variables -> controller.testRunPipeline(pipelineId, variables) },
         )
     }
 
@@ -473,10 +480,15 @@ private fun TimerEditDialog(
         pipelineId: String?,
     ) -> Unit,
     onCreatePipeline: suspend (name: String) -> PipelineSummary?,
+    onTestRunPipeline: suspend (pipelineId: String, variables: Map<String, String>) -> ApiResult<TestRunResult>,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+    val testRunController: PipelineTestRunController = remember { PipelineTestRunController(onTestRunPipeline) }
+    val testRunState: PipelineTestRunUiState by testRunController.state.collectAsStateWithLifecycle()
+    var testRunDialogOpen: Boolean by remember { mutableStateOf(false) }
+    val testRunScope: kotlinx.coroutines.CoroutineScope = rememberCoroutineScope()
 
     val existing: TimerSummary? = (target as? TimerEditTarget.Edit)?.timer
     // Seed the form from the loaded detail the moment it arrives (Edit) — keyed on `detail` so the fields
@@ -602,6 +614,11 @@ private fun TimerEditDialog(
                         createLabel = stringResource(Res.string.timers_dialog_pipeline_create_confirm),
                         cancelLabel = stringResource(Res.string.timers_dialog_cancel),
                     )
+                    // S047-remaining: dry-run the bound pipeline from right here.
+                    PipelineTestAction(
+                        pipelineId = pipelineId,
+                        onClick = { testRunController.reset(); testRunDialogOpen = true },
+                    )
                 }
 
                 AppTextField(
@@ -700,6 +717,19 @@ private fun TimerEditDialog(
             }
         },
     )
+
+    if (testRunDialogOpen) {
+        val boundPipelineId: String? = pipelineId
+        PipelineTestRunDialog(
+            running = testRunState.running,
+            result = testRunState.result,
+            error = testRunState.error,
+            onRun = { variables ->
+                boundPipelineId?.let { id -> testRunScope.launch { testRunController.run(id, variables) } }
+            },
+            onDismiss = { testRunDialogOpen = false },
+        )
+    }
 }
 
 @Composable

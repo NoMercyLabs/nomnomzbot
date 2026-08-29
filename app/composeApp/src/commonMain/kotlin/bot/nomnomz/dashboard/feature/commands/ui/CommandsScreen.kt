@@ -71,16 +71,22 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
+import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.BuiltinCommand
 import bot.nomnomz.dashboard.core.network.CommandSummary
 import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.TemplateHelperContext
 import bot.nomnomz.dashboard.core.network.TemplateHelpersApi
+import bot.nomnomz.dashboard.core.network.TestRunResult
 import bot.nomnomz.dashboard.core.network.ResourceUsage
 import bot.nomnomz.dashboard.feature.picklists.ui.PickListInsertMenu
 import bot.nomnomz.dashboard.feature.commands.state.CommandInput
 import bot.nomnomz.dashboard.feature.commands.state.CommandsController
 import bot.nomnomz.dashboard.feature.commands.state.CommandsState
+import bot.nomnomz.dashboard.feature.pipelines.state.PipelineTestRunController
+import bot.nomnomz.dashboard.feature.pipelines.state.PipelineTestRunUiState
+import bot.nomnomz.dashboard.feature.pipelines.ui.PipelineTestAction
+import bot.nomnomz.dashboard.feature.pipelines.ui.PipelineTestRunDialog
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
@@ -253,6 +259,7 @@ fun CommandsScreen(
                 }
             },
             onCreatePipeline = { name -> controller.createPipelineReturning(name) },
+            onTestRunPipeline = { pipelineId, variables -> controller.testRunPipeline(pipelineId, variables) },
         )
     }
 
@@ -572,9 +579,14 @@ private fun CommandFormDialog(
     onDismiss: () -> Unit,
     onSubmit: (CommandInput) -> Unit,
     onCreatePipeline: suspend (name: String) -> PipelineSummary?,
+    onTestRunPipeline: suspend (pipelineId: String, variables: Map<String, String>) -> ApiResult<TestRunResult>,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
+    val testRunController: PipelineTestRunController = remember { PipelineTestRunController(onTestRunPipeline) }
+    val testRunState: PipelineTestRunUiState by testRunController.state.collectAsStateWithLifecycle()
+    var testRunDialogOpen: Boolean by remember { mutableStateOf(false) }
+    val testRunScope: kotlinx.coroutines.CoroutineScope = rememberCoroutineScope()
 
     // Pre-fill a sensible default template when creating a fresh single-response command (owner ask: no empty
     // template inputs); an edit keeps the stored response verbatim.
@@ -681,7 +693,7 @@ private fun CommandFormDialog(
 
                 // Reaction editor per tier.
                 when (tier) {
-                    "pipeline" ->
+                    "pipeline" -> {
                         // A reference to another table (the channel's pipelines) → the shared bind picker: pick an
                         // existing pipeline OR create-and-bind a new one without leaving this dialog (S046).
                         PipelineBindPicker(
@@ -696,6 +708,12 @@ private fun CommandFormDialog(
                             createLabel = stringResource(Res.string.commands_dialog_pipeline_create_confirm),
                             cancelLabel = stringResource(Res.string.commands_dialog_cancel),
                         )
+                        // S047-remaining: dry-run the bound pipeline from right here.
+                        PipelineTestAction(
+                            pipelineId = selectedPipelineId,
+                            onClick = { testRunController.reset(); testRunDialogOpen = true },
+                        )
+                    }
                     "code" ->
                         Text(
                             text = stringResource(Res.string.commands_tier_code_hint),
@@ -890,6 +908,19 @@ private fun CommandFormDialog(
             }
         },
     )
+
+    if (testRunDialogOpen) {
+        val boundPipelineId: String? = selectedPipelineId
+        PipelineTestRunDialog(
+            running = testRunState.running,
+            result = testRunState.result,
+            error = testRunState.error,
+            onRun = { variables ->
+                boundPipelineId?.let { id -> testRunScope.launch { testRunController.run(id, variables) } }
+            },
+            onDismiss = { testRunDialogOpen = false },
+        )
+    }
 }
 
 // A labelled left / Switch right row — the shared toggle layout used by every boolean in the dialog.

@@ -2538,6 +2538,8 @@
     <string name="pipelines_testrun_effects_heading">Vastgelegde effecten</string>
     <string name="pipelines_testrun_effects_empty">Geen effecten vastgelegd.</string>
     <string name="pipelines_effect_row_type">Effect</string>
+    <string name="pipeline_test_action">Pipeline testen</string>
+    <string name="pipeline_test_disabled_reason">Koppel eerst een pipeline om te testen</string>
 
     <!-- Schrijfvergrendeling (frontend-ia.md §7): de reden dat een knop is uitgeschakeld voor een gebruiker
          onder de beheerdrempel. %1$s is de minimale rol, uit de shell_role_*-labels hierboven. -->

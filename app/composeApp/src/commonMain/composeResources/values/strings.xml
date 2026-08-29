@@ -2542,6 +2542,8 @@
     <string name="pipelines_testrun_effects_heading">Captured effects</string>
     <string name="pipelines_testrun_effects_empty">No effects captured.</string>
     <string name="pipelines_effect_row_type">Effect</string>
+    <string name="pipeline_test_action">Test pipeline</string>
+    <string name="pipeline_test_disabled_reason">Bind a pipeline first to test it</string>
 
     <!-- Write-gate (frontend-ia.md §7): the reason a control is disabled for a caller below its manage floor.
          %1$s is the minimum role, filled from the shell_role_* labels above. -->

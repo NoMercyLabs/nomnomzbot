@@ -57,6 +57,7 @@ import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.EventResponse
 import bot.nomnomz.dashboard.core.i18n.resolveSchemaString
 import bot.nomnomz.dashboard.core.network.EventResponsePreset
@@ -64,10 +65,15 @@ import bot.nomnomz.dashboard.core.network.EventResponseSummary
 import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.TemplateHelperContext
 import bot.nomnomz.dashboard.core.network.TemplateHelpersApi
+import bot.nomnomz.dashboard.core.network.TestRunResult
 import bot.nomnomz.dashboard.core.network.WidgetSummary
 import bot.nomnomz.dashboard.feature.eventresponses.state.EventResponsesController
 import bot.nomnomz.dashboard.feature.eventresponses.state.EventResponsesState
 import bot.nomnomz.dashboard.feature.picklists.ui.PickListInsertMenu
+import bot.nomnomz.dashboard.feature.pipelines.state.PipelineTestRunController
+import bot.nomnomz.dashboard.feature.pipelines.state.PipelineTestRunUiState
+import bot.nomnomz.dashboard.feature.pipelines.ui.PipelineTestAction
+import bot.nomnomz.dashboard.feature.pipelines.ui.PipelineTestRunDialog
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
@@ -175,6 +181,7 @@ fun EventResponsesScreen(
                 }
             },
             onCreatePipeline = { name -> controller.createPipelineReturning(name) },
+            onTestRunPipeline = { pipelineId, variables -> controller.testRunPipeline(pipelineId, variables) },
             onResetToDefault = {
                 editing = null
                 scope.launch { controller.resetToDefault(response.eventType) }
@@ -312,12 +319,17 @@ private fun EditDialog(
     onDismiss: () -> Unit,
     onSave: (responseType: String, message: String?, pipelineId: String?, widgetId: String?) -> Unit,
     onCreatePipeline: suspend (name: String) -> PipelineSummary?,
+    onTestRunPipeline: suspend (pipelineId: String, variables: Map<String, String>) -> ApiResult<TestRunResult>,
     onResetToDefault: () -> Unit,
     manage: ManageDecision,
 ) {
     val tokens = LocalTokens.current
     val typography = LocalTypography.current
     val spacing = LocalSpacing.current
+    val testRunController: PipelineTestRunController = remember { PipelineTestRunController(onTestRunPipeline) }
+    val testRunState: PipelineTestRunUiState by testRunController.state.collectAsStateWithLifecycle()
+    var testRunDialogOpen: Boolean by remember { mutableStateOf(false) }
+    val testRunScope: kotlinx.coroutines.CoroutineScope = rememberCoroutineScope()
 
     var selectedType: String by remember { mutableStateOf(response.responseType) }
     var message: String by remember { mutableStateOf("") }
@@ -462,6 +474,11 @@ private fun EditDialog(
                         style = typography.xs,
                         color = tokens.mutedForeground,
                     )
+                    // S047-remaining: dry-run the bound pipeline from right here.
+                    PipelineTestAction(
+                        pipelineId = pipelineChoice,
+                        onClick = { testRunController.reset(); testRunDialogOpen = true },
+                    )
                 }
             }
         },
@@ -518,6 +535,19 @@ private fun EditDialog(
             },
             onDismiss = { confirmingReset = false },
             destructive = true,
+        )
+    }
+
+    if (testRunDialogOpen) {
+        val boundPipelineId: String? = pipelineChoice
+        PipelineTestRunDialog(
+            running = testRunState.running,
+            result = testRunState.result,
+            error = testRunState.error,
+            onRun = { variables ->
+                boundPipelineId?.let { id -> testRunScope.launch { testRunController.run(id, variables) } }
+            },
+            onDismiss = { testRunDialogOpen = false },
         )
     }
 }
