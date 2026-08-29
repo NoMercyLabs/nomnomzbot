@@ -12,6 +12,12 @@ using System.Text.Json.Nodes;
 using FluentAssertions;
 using NomNomzBot.Application.DevPlatform;
 using NomNomzBot.Application.DevPlatform.Dtos;
+using NomNomzBot.Application.DevPlatform.Services;
+using NomNomzBot.Domain.Billing.Events;
+using NomNomzBot.Domain.Discord.Events;
+using NomNomzBot.Domain.Economy.Events;
+using NomNomzBot.Domain.Giveaways.Events;
+using NomNomzBot.Domain.Tts.Events;
 using NomNomzBot.Infrastructure.DevPlatform;
 
 namespace NomNomzBot.Infrastructure.Tests.DevPlatform;
@@ -1213,17 +1219,165 @@ public sealed class EventSamplePayloadsTests
     }
 
     [Fact]
-    public void Events_with_no_verified_fixture_carry_no_fabricated_sample()
+    public void Internal_event_with_no_translator_fixture_gets_a_reflection_generated_sample()
     {
         IReadOnlyList<EventCatalogItemDto> catalog = RealEmitter()
             .EmitEventCatalog(SdkContext.Script);
 
         // commands.command.executed has no translator-test fixture pinned in EventSamplePayloads (there is no
-        // EventSub topic for it — it is raised by the pipeline engine itself) — it must stay null, never a
-        // made-up payload standing in for a real one.
-        catalog
-            .Single(c => c.WireName == "commands.command.executed")
-            .SamplePayloadJson.Should()
-            .BeNull();
+        // EventSub topic for it — it is raised by the pipeline engine itself), so it must fall back to a
+        // reflection-generated sample rather than staying null — every catalog event now carries SOME real
+        // (fixture-sourced or reflection-generated) sample.
+        EventCatalogItemDto item = catalog.Single(c => c.WireName == "commands.command.executed");
+        item.SamplePayloadJson.Should().NotBeNull();
+        AssertSampleConformsToSchema(item.SamplePayloadJson!, item.PayloadSchema);
+    }
+
+    [Theory]
+    [InlineData(typeof(SubscriptionTierChangedEvent))] // billing
+    [InlineData(typeof(TtsUtteranceDispatchedEvent))] // tts
+    [InlineData(typeof(GiveawayOpenedEvent))] // giveaways
+    [InlineData(typeof(DiscordNotificationDispatchedEvent))] // discord
+    [InlineData(typeof(CurrencyCreditedEvent))] // economy
+    public void Reflection_generated_sample_for_internal_event_conforms_to_its_own_json_schema(
+        Type clrType
+    )
+    {
+        EventCatalog catalog = new();
+        EventDescriptor descriptor = catalog.Descriptors.Single(d => d.ClrType == clrType);
+
+        EventCatalogItemDto item = RealEmitter()
+            .EmitEventCatalog(SdkContext.Script)
+            .Single(c => c.WireName == descriptor.WireName);
+
+        item.SamplePayloadJson.Should().NotBeNull();
+        AssertSampleConformsToSchema(item.SamplePayloadJson!, item.PayloadSchema);
+    }
+
+    [Fact]
+    public void Fixture_sourced_events_are_never_overridden_by_the_reflection_fallback()
+    {
+        IReadOnlyList<EventCatalogItemDto> catalog = RealEmitter()
+            .EmitEventCatalog(SdkContext.Script);
+
+        foreach (KeyValuePair<string, string> fixture in EventSamplePayloads.ByWireName)
+        {
+            EventCatalogItemDto item = catalog.Single(c => c.WireName == fixture.Key);
+            item.SamplePayloadJson.Should()
+                .Be(
+                    fixture.Value,
+                    $"'{fixture.Key}' must keep its exact translator-fixture-sourced sample"
+                );
+        }
+    }
+
+    [Fact]
+    public void Every_catalog_event_has_a_non_null_sample_payload()
+    {
+        IReadOnlyList<EventCatalogItemDto> catalog = RealEmitter()
+            .EmitEventCatalog(SdkContext.Script);
+
+        catalog.Should().NotBeEmpty();
+        catalog.Should().OnlyContain(c => c.SamplePayloadJson != null);
+    }
+
+    // Proves the generated/pinned sample is a faithful instance of the schema: every required property is
+    // present, and every property present in the sample carries a value of the schema-declared JSON type.
+    private static void AssertSampleConformsToSchema(string sampleJson, JsonNode schema)
+    {
+        JsonObject sample = (JsonObject)JsonNode.Parse(sampleJson)!;
+        JsonObject schemaObj = (JsonObject)schema;
+        JsonObject properties = (JsonObject)schemaObj["properties"]!;
+
+        if (schemaObj["required"] is JsonArray required)
+        {
+            foreach (JsonNode? requiredName in required)
+            {
+                string name = requiredName!.GetValue<string>();
+                sample
+                    .ContainsKey(name)
+                    .Should()
+                    .BeTrue($"required property '{name}' must be present");
+            }
+        }
+
+        foreach (KeyValuePair<string, JsonNode?> field in sample)
+        {
+            properties
+                .ContainsKey(field.Key)
+                .Should()
+                .BeTrue($"sample property '{field.Key}' must be declared in the schema");
+            if (field.Value is not null)
+                AssertValueMatchesType(field.Value, (JsonObject)properties[field.Key]!, field.Key);
+        }
+    }
+
+    private static void AssertValueMatchesType(
+        JsonNode value,
+        JsonObject propertySchema,
+        string path
+    )
+    {
+        JsonNode typeNode = propertySchema["type"]!;
+        IReadOnlyList<string> allowedTypes = typeNode is JsonArray typeArray
+            ? [.. typeArray.Select(t => t!.GetValue<string>())]
+            : [typeNode.GetValue<string>()];
+
+        switch (value)
+        {
+            case JsonObject nestedObject:
+                allowedTypes.Should().Contain("object", $"'{path}' should be an object");
+                if (propertySchema["properties"] is JsonObject nestedProps)
+                {
+                    foreach (KeyValuePair<string, JsonNode?> field in nestedObject)
+                    {
+                        if (field.Value is not null && nestedProps.ContainsKey(field.Key))
+                            AssertValueMatchesType(
+                                field.Value,
+                                (JsonObject)nestedProps[field.Key]!,
+                                $"{path}.{field.Key}"
+                            );
+                    }
+                }
+                break;
+            case JsonArray array:
+                allowedTypes.Should().Contain("array", $"'{path}' should be an array");
+                if (propertySchema["items"] is JsonObject itemSchema && array.Count > 0)
+                    AssertValueMatchesType(array[0]!, itemSchema, $"{path}[0]");
+                break;
+            case JsonValue scalar:
+                AssertScalarMatchesType(scalar, allowedTypes, path);
+                break;
+        }
+    }
+
+    private static void AssertScalarMatchesType(
+        JsonValue scalar,
+        IReadOnlyList<string> allowedTypes,
+        string path
+    )
+    {
+        if (scalar.TryGetValue(out bool _))
+        {
+            allowedTypes.Should().Contain("boolean", $"'{path}' should be boolean");
+        }
+        else if (scalar.TryGetValue(out long _) || scalar.TryGetValue(out int _))
+        {
+            allowedTypes
+                .Any(t => t is "integer" or "number")
+                .Should()
+                .BeTrue($"'{path}' should be numeric");
+        }
+        else if (scalar.TryGetValue(out double _))
+        {
+            allowedTypes
+                .Any(t => t is "number" or "integer")
+                .Should()
+                .BeTrue($"'{path}' should be numeric");
+        }
+        else if (scalar.TryGetValue(out string? _))
+        {
+            allowedTypes.Should().Contain("string", $"'{path}' should be a string");
+        }
     }
 }

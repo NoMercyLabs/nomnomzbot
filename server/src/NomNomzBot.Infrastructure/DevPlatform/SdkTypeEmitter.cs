@@ -41,6 +41,7 @@ public sealed class SdkTypeEmitter : ISdkTypeEmitter
                     d.Visibility.ToString(),
                     schema.BuildPayloadSchema(d.ClrType),
                     EventSamplePayloads.ByWireName.GetValueOrDefault(d.WireName)
+                        ?? ReflectionSampleGenerator.Generate(d.ClrType, context)
                 )),
         ];
     }
