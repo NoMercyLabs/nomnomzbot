@@ -72,6 +72,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.AppIcon
 import bot.nomnomz.dashboard.core.designsystem.icon.ArrowDownGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.ArrowUpGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
@@ -171,6 +172,10 @@ import nomnomzbot.composeapp.generated.resources.pipelines_error
 import nomnomzbot.composeapp.generated.resources.pipelines_field_amount
 import nomnomzbot.composeapp.generated.resources.pipelines_field_bet_amount
 import nomnomzbot.composeapp.generated.resources.pipelines_field_clip
+import nomnomzbot.composeapp.generated.resources.pipelines_code_script_create
+import nomnomzbot.composeapp.generated.resources.pipelines_code_script_create_new
+import nomnomzbot.composeapp.generated.resources.pipelines_code_script_new_name
+import nomnomzbot.composeapp.generated.resources.pipelines_code_script_open
 import nomnomzbot.composeapp.generated.resources.pipelines_field_code_script_id
 import nomnomzbot.composeapp.generated.resources.pipelines_field_cooldown_minutes
 import nomnomzbot.composeapp.generated.resources.pipelines_field_dedupe_key
@@ -320,6 +325,13 @@ fun PipelinesScreen(
     hubEvents: SharedFlow<HubEvent>? = null,
     historyController: bot.nomnomz.dashboard.feature.pipelines.state.PipelineExecutionHistoryController? = null,
     heldActionKeys: Set<String> = emptySet(),
+    /**
+     * Navigate to the real Code Scripts editor for [scriptId] (S046-code-tier-link). A `run_code` step's script
+     * field fires this when the operator opens its bound script, or right after creating a new one — the actual
+     * source is authored in the Code Scripts feature, never inline in this dialog. Defaults to a no-op so callers
+     * that have not wired the Code Scripts route yet still compile; the shell wires the real navigation.
+     */
+    onOpenCodeScript: (scriptId: String) -> Unit = {},
 ) {
     val state: PipelinesState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
@@ -388,6 +400,7 @@ fun PipelinesScreen(
                     controller = controller,
                     scope = scope,
                     templateHelpersApi = templateHelpersApi,
+                    onOpenCodeScript = onOpenCodeScript,
                 )
         }
     }
@@ -610,6 +623,7 @@ private fun ChainEditor(
     controller: PipelinesController,
     scope: kotlinx.coroutines.CoroutineScope,
     templateHelpersApi: TemplateHelpersApi,
+    onOpenCodeScript: (scriptId: String) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -717,6 +731,8 @@ private fun ChainEditor(
             palette = editing.palette,
             options = editing.options,
             templateHelpersApi = templateHelpersApi,
+            onOpenCodeScript = onOpenCodeScript,
+            createCodeScript = controller::createCodeScript,
             onDismiss = { stepDialog = null },
             onSubmit = { step ->
                 val editIndex: Int? = target.index
@@ -994,6 +1010,8 @@ private fun StepFormDialog(
     palette: RuntimePalette,
     options: EditorOptions,
     templateHelpersApi: TemplateHelpersApi,
+    onOpenCodeScript: (scriptId: String) -> Unit,
+    createCodeScript: suspend (name: String) -> PickerOption?,
     onDismiss: () -> Unit,
     onSubmit: (PipelineStep) -> Unit,
 ) {
@@ -1051,6 +1069,8 @@ private fun StepFormDialog(
                         generic = actionGeneric,
                         options = options,
                         templateHelpersApi = templateHelpersApi,
+                        onOpenCodeScript = onOpenCodeScript,
+                        createCodeScript = createCodeScript,
                     )
                 }
 
@@ -1072,6 +1092,8 @@ private fun StepFormDialog(
                         generic = conditionGeneric,
                         options = options,
                         templateHelpersApi = templateHelpersApi,
+                        onOpenCodeScript = onOpenCodeScript,
+                        createCodeScript = createCodeScript,
                     )
                 }
 
@@ -1124,6 +1146,8 @@ private fun BlockParamEditor(
     generic: SnapshotStateList<GenericEntry>,
     options: EditorOptions,
     templateHelpersApi: TemplateHelpersApi,
+    onOpenCodeScript: (scriptId: String) -> Unit,
+    createCodeScript: suspend (name: String) -> PickerOption?,
 ) {
     if (block.description.isNotBlank()) {
         val tokens = LocalTokens.current
@@ -1131,7 +1155,14 @@ private fun BlockParamEditor(
         Text(text = resolveSchemaString(block.description), style = typography.xs, color = tokens.mutedForeground)
     }
     if (block.hasHints) {
-        TypedParamFields(block = block, params = typed, options = options, templateHelpersApi = templateHelpersApi)
+        TypedParamFields(
+            block = block,
+            params = typed,
+            options = options,
+            templateHelpersApi = templateHelpersApi,
+            onOpenCodeScript = onOpenCodeScript,
+            createCodeScript = createCodeScript,
+        )
     } else {
         GenericParamFields(entries = generic, templateHelpersApi = templateHelpersApi)
     }
@@ -1143,6 +1174,8 @@ private fun TypedParamFields(
     params: MutableMap<String, String>,
     options: EditorOptions,
     templateHelpersApi: TemplateHelpersApi,
+    onOpenCodeScript: (scriptId: String) -> Unit,
+    createCodeScript: suspend (name: String) -> PickerOption?,
 ) {
     val spacing = LocalSpacing.current
 
@@ -1224,16 +1257,27 @@ private fun TypedParamFields(
                         labelOf = { it.label },
                         label = fieldLabelWithRequired(field),
                     )
-                // The remaining entity references (play_sound clip, play_tts voice, jar_contribute jar, run_code
-                // script, giveaway_*, post_quote number) — each a search dropdown over its channel-loaded list.
-                field.key in setOf("clip", "voice", "jar_id", "code_script_id", "giveaway_id", "quote_number") ->
+                // run_code's script reference gets its own field (S046-code-tier-link): pick/create a code
+                // script AND open it in the real Code Scripts editor — never a bare id picker with nowhere to
+                // actually write the script.
+                field.key == "code_script_id" ->
+                    CodeScriptStepField(
+                        scripts = options.codeScripts,
+                        selectedId = params[field.key].orEmpty().ifBlank { null },
+                        onSelect = { params[field.key] = it.orEmpty() },
+                        onOpenScript = onOpenCodeScript,
+                        onCreateScript = createCodeScript,
+                        label = fieldLabelWithRequired(field),
+                    )
+                // The remaining entity references (play_sound clip, play_tts voice, jar_contribute jar,
+                // giveaway_*, post_quote number) — each a search dropdown over its channel-loaded list.
+                field.key in setOf("clip", "voice", "jar_id", "giveaway_id", "quote_number") ->
                     EntityPickerField(
                         items =
                             when (field.key) {
                                 "clip" -> options.soundClips
                                 "voice" -> options.ttsVoices
                                 "jar_id" -> options.jars
-                                "code_script_id" -> options.codeScripts
                                 "giveaway_id" -> options.giveaways
                                 else -> options.quotes
                             },
@@ -1355,6 +1399,101 @@ private fun GenericParamFields(entries: SnapshotStateList<GenericEntry>, templat
                     last.value = if (last.value.isBlank()) token else "${last.value} $token"
                 },
             )
+        }
+    }
+}
+
+// run_code's script field (S046-code-tier-link): pick an existing code script by the shared search dropdown,
+// author a new one inline (name only — its actual source is written in the real Code Scripts editor, never
+// here), and — once one is bound — jump straight to that script's real editor. Visible at module scope (not
+// private) so CodeScriptStepFieldTest can render and assert on it directly, the same way the step dialog
+// reaches it — mirrors [RunPipelineArgumentsField]'s testability rationale below.
+@Composable
+internal fun CodeScriptStepField(
+    scripts: List<PickerOption>,
+    selectedId: String?,
+    onSelect: (String?) -> Unit,
+    onOpenScript: (scriptId: String) -> Unit,
+    onCreateScript: suspend (name: String) -> PickerOption?,
+    label: String,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val scope = rememberCoroutineScope()
+
+    var creatingNew: Boolean by remember { mutableStateOf(false) }
+    var newName: String by remember { mutableStateOf("") }
+    var isSubmitting: Boolean by remember { mutableStateOf(false) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+        if (creatingNew) {
+            AppTextField(
+                value = newName,
+                onValueChange = { newName = it },
+                label = stringResource(Res.string.pipelines_code_script_new_name),
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isSubmitting,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(
+                    onClick = {
+                        creatingNew = false
+                        newName = ""
+                    },
+                    enabled = !isSubmitting,
+                ) {
+                    Text(text = stringResource(Res.string.pipelines_dialog_cancel), color = tokens.mutedForeground)
+                }
+                TextButton(
+                    onClick = {
+                        val name: String = newName.trim()
+                        scope.launch {
+                            isSubmitting = true
+                            // The new script's source is empty — the operator writes it in the real Code
+                            // Scripts editor, which is exactly where this immediately navigates them.
+                            val created: PickerOption? = onCreateScript(name)
+                            isSubmitting = false
+                            if (created != null) {
+                                onSelect(created.value)
+                                creatingNew = false
+                                newName = ""
+                                onOpenScript(created.value)
+                            }
+                        }
+                    },
+                    enabled = !isSubmitting && newName.isNotBlank(),
+                ) {
+                    Text(text = stringResource(Res.string.pipelines_code_script_create), color = tokens.primary)
+                }
+            }
+        } else {
+            EntityPickerField(
+                items = scripts,
+                selectedId = selectedId,
+                onSelect = onSelect,
+                idOf = { it.value },
+                labelOf = { it.label },
+                label = label,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(onClick = { creatingNew = true }) {
+                    AppIcon(AddGlyph, contentDescription = null, tint = tokens.primary, size = spacing.s4)
+                    Text(text = stringResource(Res.string.pipelines_code_script_create_new), color = tokens.primary)
+                }
+                if (selectedId != null) {
+                    TextButton(onClick = { onOpenScript(selectedId) }) {
+                        Text(text = stringResource(Res.string.pipelines_code_script_open), color = tokens.primary)
+                    }
+                }
+            }
         }
     }
 }

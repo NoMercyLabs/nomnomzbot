@@ -2436,6 +2436,10 @@
     <string name="pipelines_field_min_tier">Minimum tier</string>
     <string name="pipelines_field_denied_message">Denied message</string>
     <string name="pipelines_field_code_script_id">Script ID</string>
+    <string name="pipelines_code_script_create_new">Create a new script</string>
+    <string name="pipelines_code_script_open">Open in Code Scripts</string>
+    <string name="pipelines_code_script_new_name">Script name</string>
+    <string name="pipelines_code_script_create">Create</string>
     <string name="pipelines_field_variable_name">Variable name</string>
     <string name="pipelines_field_variable_value">Variable value</string>
     <string name="pipelines_field_wait_seconds">Wait (seconds)</string>

@@ -2432,6 +2432,10 @@
     <string name="pipelines_field_min_tier">Minimale tier</string>
     <string name="pipelines_field_denied_message">Weigeringsbericht</string>
     <string name="pipelines_field_code_script_id">Script-ID</string>
+    <string name="pipelines_code_script_create_new">Nieuw script maken</string>
+    <string name="pipelines_code_script_open">Openen in Codescripts</string>
+    <string name="pipelines_code_script_new_name">Scriptnaam</string>
+    <string name="pipelines_code_script_create">Aanmaken</string>
     <string name="pipelines_field_variable_name">Variabelenaam</string>
     <string name="pipelines_field_variable_value">Variabelewaarde</string>
     <string name="pipelines_field_wait_seconds">Wachten (seconden)</string>
