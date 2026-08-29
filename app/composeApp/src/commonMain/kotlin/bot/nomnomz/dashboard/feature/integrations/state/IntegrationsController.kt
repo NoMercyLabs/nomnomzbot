@@ -540,6 +540,7 @@ class IntegrationsController(
             connected = connected,
             accountName = accountName,
             needsReauth = needsReauth,
+            loginOnly = loginOnly,
         )
 
     /**
@@ -605,6 +606,9 @@ data class ProviderConnection(
     val connected: Boolean,
     val accountName: String?,
     val needsReauth: Boolean,
+    // True when the channel owner signed in with this provider but never granted the actual platform
+    // connection (currently only meaningful for Kick — see IntegrationStatus.loginOnly).
+    val loginOnly: Boolean = false,
 )
 
 /** The in-flight re-grant panel: the user code to enter and the Twitch URL to open. */

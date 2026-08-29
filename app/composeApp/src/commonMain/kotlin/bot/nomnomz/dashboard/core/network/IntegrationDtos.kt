@@ -88,6 +88,10 @@ data class IntegrationStatus(
     val accountName: String? = null,
     val grantedScopeSets: List<String> = emptyList(),
     val needsReauth: Boolean = false,
+    // True when the channel owner signed into the dashboard with this provider (an identity-plane login,
+    // e.g. Kick) but never granted the actual platform connection — a login alone unlocks none of the bot's
+    // scopes and must render as its own distinct state, never as "Connected".
+    val loginOnly: Boolean = false,
 )
 
 /**

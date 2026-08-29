@@ -18,6 +18,7 @@ using NomNomzBot.Application.Contracts.Kick;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Integrations.Entities;
 
 namespace NomNomzBot.Infrastructure.Chat.Kick;
 
@@ -184,7 +185,7 @@ public sealed class KickEventSubscriptionWorker : BackgroundService
             await _client.ListEventSubscriptionsAsync(access.AccessToken, ct);
         if (listed.IsFailure)
         {
-            HandleFailure(kickTenantId, listed.ErrorCode, listed.ErrorMessage, now);
+            await HandleFailureAsync(db, primaryChannelId, kickTenantId, listed.ErrorCode, listed.ErrorMessage, now, ct);
             return;
         }
 
@@ -195,15 +196,19 @@ public sealed class KickEventSubscriptionWorker : BackgroundService
             ),
         ];
         if (missing.Count == 0)
+        {
+            await ClearReauthFlagAsync(db, primaryChannelId, ct);
             return;
+        }
 
         Result created = await _client.SubscribeAsync(access.AccessToken, missing, ct);
         if (created.IsFailure)
         {
-            HandleFailure(kickTenantId, created.ErrorCode, created.ErrorMessage, now);
+            await HandleFailureAsync(db, primaryChannelId, kickTenantId, created.ErrorCode, created.ErrorMessage, now, ct);
             return;
         }
 
+        await ClearReauthFlagAsync(db, primaryChannelId, ct);
         _logger.LogInformation(
             "Kick webhook events {Events} subscribed for tenant {KickTenantId} (account {KickAccountId})",
             string.Join(", ", missing.Select(e => e.Name)),
@@ -212,7 +217,18 @@ public sealed class KickEventSubscriptionWorker : BackgroundService
         );
     }
 
-    private void HandleFailure(Guid kickTenantId, string? code, string? message, DateTime now)
+    // Persists the MISSING_SCOPE backoff onto the real IntegrationConnection row (Status = NeedsReauth) so
+    // the dashboard's existing reconnect banner — the same one Twitch/Spotify use for a stale grant — reflects
+    // this worker's real, observed state instead of a decorative badge nothing backs.
+    private async Task HandleFailureAsync(
+        IApplicationDbContext db,
+        Guid primaryChannelId,
+        Guid kickTenantId,
+        string? code,
+        string? message,
+        DateTime now,
+        CancellationToken ct
+    )
     {
         // A missing events:subscribe grant is a guaranteed 403 until the streamer re-connects with the
         // kick.chat scope-set — back off long instead of retrying every tick; anything else is transient
@@ -220,6 +236,18 @@ public sealed class KickEventSubscriptionWorker : BackgroundService
         if (code == "MISSING_SCOPE")
         {
             _backoffUntilUtc[kickTenantId] = now + MissingScopeBackoff;
+            IntegrationConnection? connection = await db
+                .IntegrationConnections.Where(c =>
+                    c.Provider == AuthEnums.IntegrationProvider.Kick && c.BroadcasterId == primaryChannelId
+                )
+                .FirstOrDefaultAsync(ct);
+            if (connection is not null)
+            {
+                connection.Status = AuthEnums.IntegrationStatus.NeedsReauth;
+                connection.LastErrorAt = now;
+                connection.ConsecutiveFailureCount++;
+                await db.SaveChangesAsync(ct);
+            }
             _logger.LogWarning(
                 "Kick subscription blocked for tenant {KickTenantId}: missing events:subscribe (reconnect with the kick.chat scopes) — backing off",
                 kickTenantId
@@ -233,5 +261,24 @@ public sealed class KickEventSubscriptionWorker : BackgroundService
             message,
             code
         );
+    }
+
+    // Reverses a prior MISSING_SCOPE flag once the worker confirms the subscription actually succeeded —
+    // never leaves a stale "reconnect needed" badge up after the streamer has re-granted the scope.
+    private static async Task ClearReauthFlagAsync(IApplicationDbContext db, Guid primaryChannelId, CancellationToken ct)
+    {
+        IntegrationConnection? connection = await db
+            .IntegrationConnections.Where(c =>
+                c.Provider == AuthEnums.IntegrationProvider.Kick
+                && c.BroadcasterId == primaryChannelId
+                && c.Status == AuthEnums.IntegrationStatus.NeedsReauth
+            )
+            .FirstOrDefaultAsync(ct);
+        if (connection is null)
+            return;
+
+        connection.Status = AuthEnums.IntegrationStatus.Connected;
+        connection.ConsecutiveFailureCount = 0;
+        await db.SaveChangesAsync(ct);
     }
 }

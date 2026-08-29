@@ -99,6 +99,8 @@ import nomnomzbot.composeapp.generated.resources.integrations_spotify_subtitle
 import nomnomzbot.composeapp.generated.resources.integrations_spotify_title
 import nomnomzbot.composeapp.generated.resources.integrations_status_connected
 import nomnomzbot.composeapp.generated.resources.integrations_status_not_connected
+import nomnomzbot.composeapp.generated.resources.integrations_status_login_only
+import nomnomzbot.composeapp.generated.resources.integrations_status_needs_reconnect
 import nomnomzbot.composeapp.generated.resources.integrations_subtitle
 import nomnomzbot.composeapp.generated.resources.shell_nav_integrations
 import nomnomzbot.composeapp.generated.resources.integrations_youtube_subtitle
@@ -323,9 +325,7 @@ fun IntegrationsScreen(
                         onConnect = { openModal = ConnectModalProvider.Discord; stage = ConnectStage.Intro },
                         onDisconnect = { pendingDisconnect = DISCORD },
                     )
-                    ProviderRow(
-                        title = Res.string.integrations_kick_title,
-                        subtitle = Res.string.integrations_kick_subtitle,
+                    KickRow(
                         connection = current.providers.forProvider(KICK),
                         busy = current.busy.isProvider(KICK),
                         manage = manage,
@@ -484,6 +484,35 @@ private fun ProviderRow(
         connected = connection?.connected == true,
         accountName = connection?.accountName,
         needsReauth = connection?.needsReauth == true,
+        loginOnly = false,
+        busy = busy,
+        manage = manage,
+        onConnect = onConnect,
+        onDisconnect = if (connection?.connected == true) onDisconnect else null,
+    )
+}
+
+// The Kick card is the one row that can be "logged in but not connected" — a streamer can sign into the
+// dashboard with a Kick account (identity-plane login) without ever granting the kick.chat platform
+// connection. It also surfaces KickEventSubscriptionWorker's real MISSING_SCOPE backoff (persisted onto the
+// connection's Status as needs_reauth), so this card carries states no other provider needs.
+// Internal (not private) so IntegrationCardTest can mount it directly against a real ProviderConnection —
+// the login-only / needs-reconnect states below are exactly what that test pins.
+@Composable
+internal fun KickRow(
+    connection: ProviderConnection?,
+    busy: Boolean,
+    manage: ManageDecision,
+    onConnect: () -> Unit,
+    onDisconnect: () -> Unit,
+) {
+    IntegrationCard(
+        title = stringResource(Res.string.integrations_kick_title),
+        subtitle = stringResource(Res.string.integrations_kick_subtitle),
+        connected = connection?.connected == true,
+        accountName = connection?.accountName,
+        needsReauth = connection?.needsReauth == true,
+        loginOnly = connection?.loginOnly == true,
         busy = busy,
         manage = manage,
         onConnect = onConnect,
@@ -498,6 +527,7 @@ private fun IntegrationCard(
     connected: Boolean,
     accountName: String?,
     needsReauth: Boolean,
+    loginOnly: Boolean = false,
     busy: Boolean,
     manage: ManageDecision,
     onConnect: () -> Unit,
@@ -521,14 +551,23 @@ private fun IntegrationCard(
             Text(text = subtitle, style = typography.sm, color = tokens.mutedForeground)
             Text(
                 text =
-                    if (connected) {
-                        accountName?.let { stringResource(Res.string.integrations_provider_connected_as, it) }
-                            ?: stringResource(Res.string.integrations_status_connected)
-                    } else {
-                        stringResource(Res.string.integrations_status_not_connected)
+                    when {
+                        // Real backoff state (KickEventSubscriptionWorker's persisted MISSING_SCOPE flag),
+                        // not a decorative badge — the connection genuinely stopped subscribing.
+                        needsReauth -> stringResource(Res.string.integrations_status_needs_reconnect)
+                        connected ->
+                            accountName?.let { stringResource(Res.string.integrations_provider_connected_as, it) }
+                                ?: stringResource(Res.string.integrations_status_connected)
+                        loginOnly -> stringResource(Res.string.integrations_status_login_only)
+                        else -> stringResource(Res.string.integrations_status_not_connected)
                     },
                 style = typography.xs,
-                color = if (connected) tokens.primary else tokens.mutedForeground,
+                color =
+                    when {
+                        needsReauth -> tokens.destructive
+                        connected -> tokens.primary
+                        else -> tokens.mutedForeground
+                    },
             )
         }
 

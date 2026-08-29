@@ -1001,6 +1001,8 @@
     <string name="integrations_kick_subtitle">Read, send and moderate your Kick chat alongside Twitch.</string>
     <string name="integrations_status_connected">Connected</string>
     <string name="integrations_status_not_connected">Not connected</string>
+    <string name="integrations_status_login_only">Signed in only — chat not connected</string>
+    <string name="integrations_status_needs_reconnect">Reconnect needed — Kick chat is paused</string>
     <string name="integrations_provider_connected_as">Connected as %1$s</string>
     <string name="integrations_action_connect">Connect</string>
     <string name="integrations_action_disconnect">Disconnect</string>
