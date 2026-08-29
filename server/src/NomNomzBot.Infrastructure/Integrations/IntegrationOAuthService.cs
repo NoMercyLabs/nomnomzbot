@@ -19,6 +19,7 @@ using NomNomzBot.Application.Abstractions.Caching;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
+using NomNomzBot.Application.Contracts.Kick;
 using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
@@ -42,6 +43,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
     private readonly IOAuthProviderRegistry _registry;
     private readonly IIntegrationTokenVault _vault;
     private readonly IDiscordGuildService _discord;
+    private readonly IKickApiClient _kick;
     private readonly IIntegrationCapabilityStore _capabilities;
     private readonly IChannelCredentialsResolver _channelCredentials;
     private readonly IMusicProviderTokenMirror _musicTokenMirror;
@@ -55,6 +57,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
         IOAuthProviderRegistry registry,
         IIntegrationTokenVault vault,
         IDiscordGuildService discord,
+        IKickApiClient kick,
         IIntegrationCapabilityStore capabilities,
         IChannelCredentialsResolver channelCredentials,
         IMusicProviderTokenMirror musicTokenMirror,
@@ -68,6 +71,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
         _registry = registry;
         _vault = vault;
         _discord = discord;
+        _kick = kick;
         _capabilities = capabilities;
         _channelCredentials = channelCredentials;
         _musicTokenMirror = musicTokenMirror;
@@ -321,11 +325,60 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
         if (connection is null)
             return Result.Success(); // idempotent
 
+        if (string.Equals(provider, "kick", StringComparison.OrdinalIgnoreCase))
+            await UnsubscribeKickWebhooksAsync(connection.Id, cancellationToken);
+
         return await _vault.RevokeConnectionAsync(
             connection.Id,
             "user_disconnect",
             cancellationToken
         );
+    }
+
+    /// <summary>
+    /// Best-effort: tells Kick to stop delivering webhooks for this connection before the token is
+    /// revoked. Without this, Kick keeps the subscriptions registered and <c>KickWebhookIngest</c>
+    /// keeps resolving/processing deliveries for a streamer who just disconnected. Never blocks the
+    /// disconnect itself — a failure here is logged and the revoke proceeds regardless.
+    /// </summary>
+    private async Task UnsubscribeKickWebhooksAsync(
+        Guid connectionId,
+        CancellationToken cancellationToken
+    )
+    {
+        Result<DecryptedTokenDto> token = await _vault.GetAccessTokenAsync(
+            connectionId,
+            cancellationToken
+        );
+        if (token.IsFailure)
+            return;
+
+        Result<IReadOnlyList<KickEventSubscription>> subscriptions =
+            await _kick.ListEventSubscriptionsAsync(token.Value.Value, cancellationToken);
+        if (subscriptions.IsFailure)
+        {
+            _logger.LogWarning(
+                "Kick disconnect: could not list webhook subscriptions for connection {ConnectionId}: {Error}",
+                connectionId,
+                subscriptions.ErrorMessage
+            );
+            return;
+        }
+
+        if (subscriptions.Value.Count == 0)
+            return;
+
+        Result unsubscribed = await _kick.UnsubscribeAsync(
+            token.Value.Value,
+            [.. subscriptions.Value.Select(s => s.Id)],
+            cancellationToken
+        );
+        if (unsubscribed.IsFailure)
+            _logger.LogWarning(
+                "Kick disconnect: could not remove webhook subscriptions for connection {ConnectionId}: {Error}",
+                connectionId,
+                unsubscribed.ErrorMessage
+            );
     }
 
     public async Task<Result<IReadOnlyList<IntegrationStatusDto>>> GetStatusAsync(
