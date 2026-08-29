@@ -43,6 +43,7 @@ public sealed class KickApiClient : IKickApiClient
         long broadcasterUserId,
         string content,
         string? replyToMessageId = null,
+        bool isBotAccount = false,
         CancellationToken cancellationToken = default
     )
     {
@@ -58,15 +59,24 @@ public sealed class KickApiClient : IKickApiClient
 
         HttpRequestMessage request = new(HttpMethod.Post, $"{KickApiBase}/chat");
         request.Headers.Authorization = new("Bearer", accessToken);
-        request.Content = JsonContent.Create(
-            new
+        // A dedicated bot-account send always targets the channel attached to the bot's OWN token — Kick
+        // ignores (and the docs mark as inapplicable) broadcaster_user_id for type:"bot", so it is omitted
+        // rather than sent-and-ignored. A streamer-account send still needs it to name the target channel.
+        object body = isBotAccount
+            ? new
+            {
+                content,
+                type = "bot",
+                reply_to_message_id = replyToMessageId,
+            }
+            : new
             {
                 content,
                 type = "user",
                 broadcaster_user_id = broadcasterUserId,
                 reply_to_message_id = replyToMessageId,
-            }
-        );
+            };
+        request.Content = JsonContent.Create(body);
 
         Result<SendChatResponse> sent = await SendForBodyAsync<SendChatResponse>(
             request,

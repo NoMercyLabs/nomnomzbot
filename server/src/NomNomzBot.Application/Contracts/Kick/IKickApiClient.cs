@@ -28,11 +28,19 @@ public interface IKickApiClient
     /// pass <paramref name="replyToMessageId"/> to thread onto an existing message. Returns the created
     /// message id.
     /// </summary>
+    /// <param name="isBotAccount">
+    /// True when the token belongs to a dedicated Kick bot-account connection rather than the streamer's
+    /// own account. Kick's send-chat-message body takes a required <c>type</c> of <c>"user"</c> or
+    /// <c>"bot"</c>: a <c>"bot"</c> send always lands in the channel attached to the bot's OWN token, so
+    /// <paramref name="broadcasterUserId"/> is omitted from the request in that case rather than sent
+    /// (and ignored). A <c>"user"</c> send still needs it to name the target channel.
+    /// </param>
     Task<Result<string>> SendMessageAsync(
         string accessToken,
         long broadcasterUserId,
         string content,
         string? replyToMessageId = null,
+        bool isBotAccount = false,
         CancellationToken cancellationToken = default
     );
 

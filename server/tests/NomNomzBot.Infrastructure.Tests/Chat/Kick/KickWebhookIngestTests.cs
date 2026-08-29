@@ -324,6 +324,7 @@ public sealed class KickWebhookIngestTests
                 Arg.Any<long>(),
                 Arg.Do<string>(m => capturedMessage = m),
                 Arg.Any<string?>(),
+                Arg.Any<bool>(),
                 Arg.Any<CancellationToken>()
             )
             .Returns(NomNomzBot.Application.Common.Models.Result.Success("m-echo"));

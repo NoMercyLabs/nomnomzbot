@@ -76,6 +76,40 @@ public sealed class KickApiClientTests
     }
 
     [Fact]
+    public async Task Send_as_the_streamers_own_account_uses_type_user_and_carries_the_broadcaster_id()
+    {
+        StubHttpMessageHandler handler = new(
+            (HttpStatusCode.OK, """{"data":{"message_id":"a1b4","is_sent":true}}""")
+        );
+        KickApiClient sut = Build(handler);
+
+        await sut.SendMessageAsync(Token, 12345, "hello kick", isBotAccount: false);
+
+        string body = await handler.LastRequest!.Content!.ReadAsStringAsync();
+        body.Should().Contain("\"type\":\"user\"").And.Contain("\"broadcaster_user_id\":12345");
+    }
+
+    [Fact]
+    public async Task Send_as_the_dedicated_bot_account_uses_type_bot_and_omits_the_broadcaster_id()
+    {
+        StubHttpMessageHandler handler = new(
+            (HttpStatusCode.OK, """{"data":{"message_id":"a1b5","is_sent":true}}""")
+        );
+        KickApiClient sut = Build(handler);
+
+        Result<string> result = await sut.SendMessageAsync(
+            Token,
+            12345,
+            "hello kick",
+            isBotAccount: true
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        string body = await handler.LastRequest!.Content!.ReadAsStringAsync();
+        body.Should().Contain("\"type\":\"bot\"").And.NotContain("broadcaster_user_id");
+    }
+
+    [Fact]
     public async Task Send_rejects_an_over_500_char_message_before_any_call()
     {
         StubHttpMessageHandler handler = new((HttpStatusCode.OK, "{}"));

@@ -24,5 +24,13 @@ public interface IKickAccessTokenProvider
     Task<KickAccess?> GetAsync(Guid broadcasterId, CancellationToken cancellationToken = default);
 }
 
-/// <summary>A usable Kick bearer + the numeric account id the public API keys on.</summary>
-public sealed record KickAccess(string AccessToken, long BroadcasterUserId);
+/// <summary>
+/// A usable Kick bearer + the numeric account id the public API keys on. <c>IsBotAccount</c> is true only
+/// when the token belongs to a dedicated Kick bot-account connection (distinct from the streamer's own
+/// account) — no such connection type exists yet, so this is always false until one is registered.
+/// </summary>
+public sealed record KickAccess(
+    string AccessToken,
+    long BroadcasterUserId,
+    bool IsBotAccount = false
+);
