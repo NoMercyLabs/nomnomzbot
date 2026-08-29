@@ -149,6 +149,59 @@ public sealed class KickWebhookIngestTests
         published.OccurredAt.Should().Be(DateTimeOffset.Parse("2026-07-11T12:34:56Z"));
     }
 
+    [Fact]
+    public async Task A_chat_message_with_an_inline_emote_splits_into_text_and_emote_fragments()
+    {
+        (KickWebhookIngest ingest, _, RecordingEventBus bus) = Build();
+
+        await ingest.HandleAsync("chat.message.sent", ChatBody);
+
+        ChatMessageReceivedEvent published = bus
+            .Published.OfType<ChatMessageReceivedEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject;
+        published
+            .Fragments.Should()
+            .SatisfyRespectively(
+                text =>
+                {
+                    text.Type.Should().Be("text");
+                    text.Text.Should().Be("hello kick ");
+                },
+                emote =>
+                {
+                    emote.Type.Should().Be("emote");
+                    emote.Text.Should().Be("[emote:37226:EZ]");
+                    emote.EmoteId.Should().Be("37226");
+                }
+            );
+    }
+
+    [Fact]
+    public async Task A_chat_message_with_no_emotes_degrades_to_one_flat_text_fragment()
+    {
+        (KickWebhookIngest ingest, _, RecordingEventBus bus) = Build();
+        string body = $$"""
+            {
+              "message_id": "kick-msg-plain",
+              "broadcaster": {{Broadcaster}},
+              "sender": { "user_id": 678, "username": "ChatterBoi", "channel_slug": "chatterboi" },
+              "content": "just plain text",
+              "created_at": "2026-07-11T12:34:56Z"
+            }
+            """;
+
+        await ingest.HandleAsync("chat.message.sent", body);
+
+        ChatMessageReceivedEvent published = bus
+            .Published.OfType<ChatMessageReceivedEvent>()
+            .Single();
+        published.Fragments.Should().ContainSingle();
+        published.Fragments[0].Type.Should().Be("text");
+        published.Fragments[0].Text.Should().Be("just plain text");
+    }
+
     // ─── S009 — the bot cannot trigger itself ─────────────────────────────────
 
     [Fact]
@@ -685,6 +738,89 @@ public sealed class KickWebhookIngestTests
         gifted.GifterUserId.Should().BeEmpty("the Twitch translator convention for anonymous");
         gifted.GifterDisplayName.Should().BeEmpty();
         gifted.GiftCount.Should().Be(1);
+    }
+
+    // ─── redelivery dedupe (non-chat events) ─────────────────────────────────
+
+    [Fact]
+    public async Task A_redelivered_gift_drop_credits_the_gift_exactly_once()
+    {
+        (KickWebhookIngest ingest, _, RecordingEventBus bus) = Build();
+        string body = $$"""
+            {
+              "broadcaster": {{Broadcaster}},
+              "gifter": { "is_anonymous": false, "user_id": 900, "username": "GenerousGal", "channel_slug": "generousgal" },
+              "giftees": [ { "user_id": 901, "username": "LuckyOne", "channel_slug": "luckyone" } ],
+              "created_at": "2026-07-16T10:00:00Z"
+            }
+            """;
+
+        // Kick redelivers the SAME message id when it does not see the delivery acknowledged in time.
+        await ingest.HandleAsync("channel.subscription.gifts", body, "kick-evt-gift-1");
+        await ingest.HandleAsync("channel.subscription.gifts", body, "kick-evt-gift-1");
+
+        bus.Published.OfType<GiftSubscriptionEvent>()
+            .Should()
+            .ContainSingle("a redelivery must not double-credit the gift");
+    }
+
+    [Fact]
+    public async Task A_redelivered_follow_fires_its_alert_exactly_once()
+    {
+        (KickWebhookIngest ingest, _, RecordingEventBus bus) = Build();
+        string body = $$"""
+            {
+              "broadcaster": {{Broadcaster}},
+              "follower": { "user_id": 777, "username": "NewFan", "channel_slug": "newfan" }
+            }
+            """;
+
+        await ingest.HandleAsync("channel.followed", body, "kick-evt-follow-1");
+        await ingest.HandleAsync("channel.followed", body, "kick-evt-follow-1");
+
+        bus.Published.OfType<FollowEvent>()
+            .Should()
+            .ContainSingle("a redelivery must not double-fire the follow alert");
+    }
+
+    [Fact]
+    public async Task A_redelivered_ban_is_applied_exactly_once()
+    {
+        (KickWebhookIngest ingest, _, RecordingEventBus bus) = Build();
+        string body = $$"""
+            {
+              "broadcaster": {{Broadcaster}},
+              "banned_user": { "user_id": 950, "username": "Troublemaker", "channel_slug": "troublemaker" },
+              "moderator": { "user_id": 12345, "username": "StreamerGal", "channel_slug": "streamergal" },
+              "metadata": { "reason": "spam", "created_at": "2026-07-16T10:00:00Z" }
+            }
+            """;
+
+        await ingest.HandleAsync("moderation.banned", body, "kick-evt-ban-1");
+        await ingest.HandleAsync("moderation.banned", body, "kick-evt-ban-1");
+
+        bus.Published.OfType<UserBannedEvent>()
+            .Should()
+            .ContainSingle("a redelivery must not double-fire the ban");
+    }
+
+    [Fact]
+    public async Task A_different_message_id_is_NOT_deduped_against_a_prior_delivery()
+    {
+        (KickWebhookIngest ingest, _, RecordingEventBus bus) = Build();
+        string body = $$"""
+            {
+              "broadcaster": {{Broadcaster}},
+              "follower": { "user_id": 777, "username": "NewFan", "channel_slug": "newfan" }
+            }
+            """;
+
+        await ingest.HandleAsync("channel.followed", body, "kick-evt-follow-a");
+        await ingest.HandleAsync("channel.followed", body, "kick-evt-follow-b");
+
+        bus.Published.OfType<FollowEvent>()
+            .Should()
+            .HaveCount(2, "two genuinely distinct deliveries are not a redelivery");
     }
 
     // ─── channel.reward.redemption.updated → canonical redemption update ─────

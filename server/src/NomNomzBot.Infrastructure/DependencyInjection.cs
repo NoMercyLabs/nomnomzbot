@@ -1428,7 +1428,7 @@ public static class DependencyInjection
         // Kick transport + token custody (slice 3b-2c): the client is stateless HTTP over api.kick.com
         // (singleton); the token provider resolves the tenant's vaulted Kick connection and refreshes
         // with OAuth 2.1 rotation (scoped: DbContext + vault).
-        services.AddHttpClient("kick");
+        services.AddHttpClient("kick").AddKickResilienceHandler();
         services.AddSingleton<IKickApiClient, KickApiClient>();
         services.AddScoped<IKickAccessTokenProvider, KickAccessTokenProvider>();
 

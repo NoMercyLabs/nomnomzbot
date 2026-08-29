@@ -87,7 +87,7 @@ public class KickWebhookController : BaseController
         // The ingest owns the event-type routing; a type without a consumer is a no-op there. Either
         // way the delivery acknowledges 200 — it IS an authenticated Kick delivery, and retrying an
         // event we deliberately ignore would change nothing.
-        await _ingest.HandleAsync(eventType, body, ct);
+        await _ingest.HandleAsync(eventType, body, messageId, ct);
 
         return Ok();
     }

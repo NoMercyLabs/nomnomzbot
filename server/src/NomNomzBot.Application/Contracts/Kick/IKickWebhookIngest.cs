@@ -27,6 +27,7 @@ public interface IKickWebhookIngest
     Task HandleAsync(
         string eventType,
         string rawBody,
+        string messageId = "",
         CancellationToken cancellationToken = default
     );
 }

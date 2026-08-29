@@ -79,7 +79,7 @@ public sealed class KickWebhookControllerTests
         result.Should().BeOfType<OkResult>();
         await ingest
             .Received(1)
-            .HandleAsync("chat.message.sent", Body, Arg.Any<CancellationToken>());
+            .HandleAsync("chat.message.sent", Body, "01JMSGID", Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -95,7 +95,12 @@ public sealed class KickWebhookControllerTests
         result.Should().BeOfType<OkResult>();
         await ingest
             .Received(1)
-            .HandleAsync("livestream.status.updated", Body, Arg.Any<CancellationToken>());
+            .HandleAsync(
+                "livestream.status.updated",
+                Body,
+                "01JMSGID",
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -109,7 +114,7 @@ public sealed class KickWebhookControllerTests
         result.Should().BeOfType<UnauthorizedResult>();
         await ingest
             .DidNotReceiveWithAnyArgs()
-            .HandleAsync(default!, default!, Arg.Any<CancellationToken>());
+            .HandleAsync(default!, default!, default!, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -143,6 +148,6 @@ public sealed class KickWebhookControllerTests
         result.Should().BeOfType<UnauthorizedResult>();
         await ingest
             .DidNotReceiveWithAnyArgs()
-            .HandleAsync(default!, default!, Arg.Any<CancellationToken>());
+            .HandleAsync(default!, default!, default!, Arg.Any<CancellationToken>());
     }
 }

@@ -358,6 +358,10 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         // Global pronoun catalog (scalar-only) — mapped so SetPronounAction tests can seed a catalog entry.
         b.Entity<Pronoun>().HasKey(e => e.Id);
 
+        // At-most-once webhook/event redelivery marker (scalar-only, no navs) — mapped so KickWebhookIngest's
+        // redelivery-dedupe tests can prove a repeated follow/sub/gift/ban/redemption is processed once.
+        b.Entity<NomNomzBot.Domain.Platform.Entities.IdempotencyKey>().HasKey(e => e.Id);
+
         // Mapped standalone (navs ignored, Channel.Moderators already ignored above) so the
         // ChannelAccessService tests can exercise the moderator-grant branch of tenant resolution.
         b.Entity<ChannelModerator>().HasKey(e => new { e.ChannelId, e.UserId });
@@ -405,7 +409,6 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         b.Ignore<NomNomzBot.Domain.Platform.Entities.EventSubSubscription>();
         b.Ignore<NomNomzBot.Domain.Platform.Entities.EventSubConduit>();
         b.Ignore<NomNomzBot.Domain.Platform.Entities.EventSubConduitShard>();
-        b.Ignore<NomNomzBot.Domain.Platform.Entities.IdempotencyKey>();
 
         // Stream / ChannelEvent / CommandUsage: mapped scalar-only (navs + primitive collections
         // ignored) so the per-stream analytics tests can seed a stream window and prove the folds.
@@ -586,7 +589,7 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Platform.Entities.EventSubConduitShard> EventSubConduitShards =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.IdempotencyKey> IdempotencyKeys =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Platform.Entities.IdempotencyKey>();
     public DbSet<NomNomzBot.Domain.Chat.Entities.ChatMessage> ChatMessages =>
         Set<NomNomzBot.Domain.Chat.Entities.ChatMessage>();
     public DbSet<NomNomzBot.Domain.Chat.Entities.YouTubeLiveChatBan> YouTubeLiveChatBans =>
