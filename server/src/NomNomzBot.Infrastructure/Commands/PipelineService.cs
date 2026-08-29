@@ -297,15 +297,42 @@ public class PipelineService : IPipelineService
         if (definition is null)
             return;
 
+        // This is a hard-delete-and-reinsert (see the class summary above), so every row gets a
+        // fresh id on every save. A nested pipeline's parent_step_id references point at another
+        // step's incoming wire id (from a prior GET), not a DB id — resolve those references against
+        // the fresh ids assigned in this pass so parent/child links survive the round trip even
+        // though the underlying rows are brand new each time. A flat pipeline never sets id/
+        // parent_step_id, so this map stays empty and every step's ParentStepId resolves to null —
+        // unchanged from today's behavior.
+        Dictionary<string, Guid> idMap = new(StringComparer.Ordinal);
+        Guid[] freshIds = new Guid[definition.Steps.Count];
+        for (int i = 0; i < definition.Steps.Count; i++)
+        {
+            freshIds[i] = Guid.NewGuid();
+            if (!string.IsNullOrEmpty(definition.Steps[i].Id))
+                idMap[definition.Steps[i].Id!] = freshIds[i];
+        }
+
         for (int i = 0; i < definition.Steps.Count; i++)
         {
             PipelineStepDefinition stepDef = definition.Steps[i];
+            Guid? parentStepId = null;
+            if (
+                !string.IsNullOrEmpty(stepDef.ParentStepId)
+                && idMap.TryGetValue(stepDef.ParentStepId!, out Guid mappedParentId)
+            )
+                parentStepId = mappedParentId;
+
             PipelineStep step = new()
             {
-                Id = Guid.NewGuid(),
+                Id = freshIds[i],
                 PipelineId = pipelineId,
                 BroadcasterId = broadcasterId,
-                Order = i,
+                ParentStepId = parentStepId,
+                Branch = stepDef.Branch,
+                BlockKind = stepDef.BlockKind,
+                BlockConfigJson = stepDef.BlockConfig?.GetRawText(),
+                Order = stepDef.Order ?? i,
                 ActionType = stepDef.Action.Type,
                 ConfigJson = JsonSerializer.Serialize(stepDef.Action),
                 IsEnabled = true,

@@ -14,10 +14,12 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
 
 /**
  * The nil-UUID sentinel that CLEARS a pipeline binding on an update. A client `pipelineId = null` is dropped by
@@ -300,16 +302,35 @@ data class PipelineGraph(val steps: List<PipelineStep> = emptyList()) {
  * One step in the chain: a required [action] (what to do), an optional [condition] (the gate that must pass),
  * and [stopOnMatch] — when the condition matched and the action ran, stop the rest of the chain. Mirrors the
  * backend `PipelineStepDefinition` (`{ condition?, action, stop_on_match }`).
+ *
+ * [id]/[parentStepId]/[branch]/[blockKind]/[blockConfig]/[order] (S046-branching-prereq) mirror the backend's
+ * tree-nesting fields (`PipelineStep.ParentStepId`/`Branch`/`BlockKind`/`BlockConfigJson`/`Order`) so a nested
+ * (if/switch/loop/...) pipeline round-trips through this model without loss. All six are null for a flat,
+ * top-level step — today's shape for every pipeline the editor currently renders — and [toJson] omits a null
+ * field entirely rather than writing an explicit `null`, so a step built the old way encodes byte-identical to
+ * before this slice. No `feature/pipelines/ui/` screen constructs these fields yet; that is later work.
  */
 data class PipelineStep(
     val action: PipelineNode,
     val condition: PipelineNode? = null,
     val stopOnMatch: Boolean = false,
+    val id: String? = null,
+    val parentStepId: String? = null,
+    val branch: String? = null,
+    val blockKind: String? = null,
+    val blockConfig: JsonElement? = null,
+    val order: Int? = null,
 ) {
     fun toJson(): JsonObject {
         val map: MutableMap<String, JsonElement> = mutableMapOf("action" to action.toJson())
         condition?.let { map["condition"] = it.toJson() }
         if (stopOnMatch) map["stop_on_match"] = JsonPrimitive(true)
+        id?.let { map["id"] = JsonPrimitive(it) }
+        parentStepId?.let { map["parent_step_id"] = JsonPrimitive(it) }
+        branch?.let { map["branch"] = JsonPrimitive(it) }
+        blockKind?.let { map["block_kind"] = JsonPrimitive(it) }
+        blockConfig?.let { map["block_config"] = it }
+        order?.let { map["order"] = JsonPrimitive(it) }
         return JsonObject(map)
     }
 
@@ -319,7 +340,17 @@ data class PipelineStep(
             val action: PipelineNode = PipelineNode.fromJson(obj["action"]) ?: return null
             val condition: PipelineNode? = PipelineNode.fromJson(obj["condition"])
             val stop: Boolean = (obj["stop_on_match"] as? JsonPrimitive)?.booleanOrNull ?: false
-            return PipelineStep(action = action, condition = condition, stopOnMatch = stop)
+            return PipelineStep(
+                action = action,
+                condition = condition,
+                stopOnMatch = stop,
+                id = (obj["id"] as? JsonPrimitive)?.contentOrNull,
+                parentStepId = (obj["parent_step_id"] as? JsonPrimitive)?.contentOrNull,
+                branch = (obj["branch"] as? JsonPrimitive)?.contentOrNull,
+                blockKind = (obj["block_kind"] as? JsonPrimitive)?.contentOrNull,
+                blockConfig = obj["block_config"]?.takeUnless { it is JsonNull },
+                order = (obj["order"] as? JsonPrimitive)?.intOrNull,
+            )
         }
     }
 }

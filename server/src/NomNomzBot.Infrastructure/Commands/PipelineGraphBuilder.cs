@@ -61,7 +61,33 @@ public static class PipelineGraphBuilder
                     negate = firstCondition.Negate,
                 };
 
-            stepNodes.Add(new { action = actionJson, condition = conditionNode });
+            JsonElement? blockConfigNode = null;
+            if (!string.IsNullOrEmpty(step.BlockConfigJson))
+            {
+                try
+                {
+                    using JsonDocument blockDoc = JsonDocument.Parse(step.BlockConfigJson);
+                    blockConfigNode = blockDoc.RootElement.Clone();
+                }
+                catch (JsonException)
+                {
+                    blockConfigNode = null;
+                }
+            }
+
+            stepNodes.Add(
+                new
+                {
+                    id = step.Id.ToString(),
+                    parent_step_id = step.ParentStepId?.ToString(),
+                    branch = step.Branch,
+                    block_kind = step.BlockKind,
+                    block_config = blockConfigNode,
+                    order = step.Order,
+                    action = actionJson,
+                    condition = conditionNode,
+                }
+            );
         }
 
         return JsonSerializer.SerializeToElement(new { steps = stepNodes });
