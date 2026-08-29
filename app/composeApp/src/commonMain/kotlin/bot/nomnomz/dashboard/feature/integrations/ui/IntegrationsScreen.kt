@@ -94,6 +94,8 @@ import nomnomzbot.composeapp.generated.resources.integrations_discord_subtitle
 import nomnomzbot.composeapp.generated.resources.integrations_discord_title
 import nomnomzbot.composeapp.generated.resources.integrations_kick_subtitle
 import nomnomzbot.composeapp.generated.resources.integrations_kick_title
+import nomnomzbot.composeapp.generated.resources.integrations_kick_bot_subtitle
+import nomnomzbot.composeapp.generated.resources.integrations_kick_bot_title
 import nomnomzbot.composeapp.generated.resources.integrations_provider_connected_as
 import nomnomzbot.composeapp.generated.resources.integrations_spotify_subtitle
 import nomnomzbot.composeapp.generated.resources.integrations_spotify_title
@@ -135,12 +137,17 @@ private const val SPOTIFY: String = "spotify"
 private const val YOUTUBE: String = "youtube"
 private const val DISCORD: String = "discord"
 private const val KICK: String = "kick"
+// The channel's dedicated Kick bot account — persists as its own connection (kick_bot), never overwriting
+// the streamer's own `kick` row above. Optional: chat runs as the streamer's own Kick account until this
+// is connected, mirroring the Twitch bot row's self-host fallback.
+private const val KICK_BOT: String = "kick_bot"
 // Union scope-set key: Spotify replaces rather than merges scopes across separate authorize calls.
 private const val SPOTIFY_SCOPE_SET: String = "spotify.playback+spotify.streaming"
 private const val YOUTUBE_SCOPE_SET: String = "youtube.manage"
 // Kick connects through the same generic vaulted OAuth flow as Spotify/YouTube against the platform-shared
 // client, requesting the chat scope-set so the bot can read + send + moderate Kick chat (no BYOC step).
 private const val KICK_SCOPE_SET: String = "kick.chat"
+private const val KICK_BOT_SCOPE_SET: String = "kick_bot.chat"
 
 // Which provider's branded connect modal is currently open over the integrations list (null = none). Only
 // the three brand-described providers route through the modal; the bot account connects inline.
@@ -334,6 +341,15 @@ fun IntegrationsScreen(
                         onConnect = { scope.launch { controller.connectProvider(KICK, KICK_SCOPE_SET) } },
                         onDisconnect = { pendingDisconnect = KICK },
                     )
+                    KickBotRow(
+                        connection = current.providers.forProvider(KICK_BOT),
+                        busy = current.busy.isProvider(KICK_BOT),
+                        manage = manage,
+                        // Same generic vaulted flow as the streamer's own Kick connect, its own provider key
+                        // (kick_bot) — persists as a separate connection, never overwrites the row above.
+                        onConnect = { scope.launch { controller.connectProvider(KICK_BOT, KICK_BOT_SCOPE_SET) } },
+                        onDisconnect = { pendingDisconnect = KICK_BOT },
+                    )
                     EventSubSubscriptionsSection(
                         subscriptions = current.eventSubSubscriptions,
                         manage = manage,
@@ -513,6 +529,31 @@ internal fun KickRow(
         accountName = connection?.accountName,
         needsReauth = connection?.needsReauth == true,
         loginOnly = connection?.loginOnly == true,
+        busy = busy,
+        manage = manage,
+        onConnect = onConnect,
+        onDisconnect = if (connection?.connected == true) onDisconnect else null,
+    )
+}
+
+// The channel's optional, dedicated Kick bot account — its own persisted connection (kick_bot, never the
+// streamer's own `kick` row above). Internal (not private) so a jvmTest can mount it directly, mirroring
+// KickRowTest: it must render an honest not-connected/connect affordance until one is registered, then a
+// real connected badge with the bot's own Kick account name — never a faked success state.
+@Composable
+internal fun KickBotRow(
+    connection: ProviderConnection?,
+    busy: Boolean,
+    manage: ManageDecision,
+    onConnect: () -> Unit,
+    onDisconnect: () -> Unit,
+) {
+    IntegrationCard(
+        title = stringResource(Res.string.integrations_kick_bot_title),
+        subtitle = stringResource(Res.string.integrations_kick_bot_subtitle),
+        connected = connection?.connected == true,
+        accountName = connection?.accountName,
+        needsReauth = connection?.needsReauth == true,
         busy = busy,
         manage = manage,
         onConnect = onConnect,

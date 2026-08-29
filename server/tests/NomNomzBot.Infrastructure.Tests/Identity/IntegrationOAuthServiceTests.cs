@@ -507,6 +507,169 @@ public sealed class IntegrationOAuthServiceTests
         revoked.Status.Should().Be(AuthEnums.IntegrationStatus.Revoked);
     }
 
+    // ─── Kick bot account (kick_bot): its own persisted connection, never the streamer's `kick` row ────
+
+    /// <summary>
+    /// Proves the Kick BOT account connect (kick_bot descriptor, the same shape as ChannelBotController's
+    /// Twitch white-label bot, adapted to Kick's actual auth-code+PKCE mechanics — Kick has no device-code
+    /// grant): completing the callback persists a SEPARATE <c>kick_bot</c> connection row under the SAME
+    /// tenant, and does not touch/overwrite a pre-existing streamer `kick` connection for that same tenant.
+    /// </summary>
+    [Fact]
+    public async Task HandleCallback_ForKickBot_PersistsSeparateConnection_NeverOverwritingTheStreamersKick()
+    {
+        // Seed the streamer's own, already-connected Kick platform connection first.
+        StubHandler streamerHandler = new()
+        {
+            TokenJson =
+                """{"access_token":"streamer-access","refresh_token":"streamer-refresh","expires_in":3600,"scope":"user:read chat:write moderation:ban moderation:chat_message:manage events:subscribe"}""",
+            IdentityJson = """{"data":[{"user_id":42,"name":"KickStreamer"}]}""",
+        };
+        (IntegrationOAuthService streamerService, AuthDbContext db, _, _) = Build(streamerHandler);
+        Result<OAuthStartDto> streamerStart = await streamerService.StartConnectAsync(
+            Tenant,
+            AuthEnums.IntegrationProvider.Kick,
+            "kick.chat",
+            null,
+            Actor,
+            publicOrigin: "https://bot-dev.nomercy.tv"
+        );
+        Result<OAuthCallbackResultDto> streamerCallback = await streamerService.HandleCallbackAsync(
+            AuthEnums.IntegrationProvider.Kick,
+            new("streamer-auth-code", streamerStart.Value.State, null, null)
+        );
+        streamerCallback.IsSuccess.Should().BeTrue(streamerCallback.ErrorMessage);
+
+        // Now connect the BOT account — a DIFFERENT Kick account authorizing through the SAME app.
+        StubHandler botHandler = new()
+        {
+            TokenJson =
+                """{"access_token":"bot-access","refresh_token":"bot-refresh","expires_in":3600,"scope":"user:read chat:write moderation:ban moderation:chat_message:manage events:subscribe"}""",
+            IdentityJson = """{"data":[{"user_id":99,"name":"MyStreamBot"}]}""",
+        };
+        (IntegrationOAuthService botService, AuthDbContext botDb, IIntegrationTokenVault vault, _) =
+            BuildOnSameDb(db, botHandler);
+
+        Result<OAuthStartDto> botStart = await botService.StartConnectAsync(
+            Tenant,
+            AuthEnums.IntegrationProvider.KickBot,
+            "kick_bot.chat",
+            null,
+            Actor,
+            publicOrigin: "https://bot-dev.nomercy.tv"
+        );
+        botStart.IsSuccess.Should().BeTrue(botStart.ErrorMessage);
+        // Credentials resolve under the PARENT "kick" key — there is no separate KICK_BOT_CLIENT_ID/SECRET.
+        botStart.Value.AuthorizeUrl.Should().Contain("client_id=kick-client");
+
+        Result<OAuthCallbackResultDto> botCallback = await botService.HandleCallbackAsync(
+            AuthEnums.IntegrationProvider.KickBot,
+            new("bot-auth-code", botStart.Value.State, null, null)
+        );
+        botCallback.IsSuccess.Should().BeTrue(botCallback.ErrorMessage);
+
+        // Two SEPARATE rows for the same tenant — the streamer's `kick` connection is untouched.
+        IntegrationConnection streamerConnection = await botDb
+            .IntegrationConnections.AsNoTracking()
+            .SingleAsync(c => c.Provider == AuthEnums.IntegrationProvider.Kick);
+        streamerConnection.ProviderAccountId.Should().Be("42");
+        streamerConnection.Status.Should().Be(AuthEnums.IntegrationStatus.Connected);
+
+        IntegrationConnection botConnection = await botDb
+            .IntegrationConnections.AsNoTracking()
+            .SingleAsync(c => c.Provider == AuthEnums.IntegrationProvider.KickBot);
+        botConnection.BroadcasterId.Should().Be(Tenant);
+        botConnection.ProviderAccountId.Should().Be("99");
+        botConnection.ProviderAccountName.Should().Be("MyStreamBot");
+        botConnection.Status.Should().Be(AuthEnums.IntegrationStatus.Connected);
+        botConnection.Id.Should().NotBe(streamerConnection.Id);
+
+        // The bot's own token round-trips through the vault under its own connection id.
+        Result<DecryptedTokenDto> botAccess = await vault.GetAccessTokenAsync(botConnection.Id);
+        botAccess.Value.Value.Should().Be("bot-access");
+    }
+
+    /// <summary>
+    /// Proves disconnecting the Kick bot account removes ONLY the <c>kick_bot</c> connection row — the
+    /// streamer's own `kick` connection for the same tenant is left connected and untouched.
+    /// </summary>
+    [Fact]
+    public async Task Disconnect_ForKickBot_RemovesOnlyTheBotConnection_LeavingTheStreamersKickConnected()
+    {
+        StubHandler streamerHandler = new()
+        {
+            TokenJson =
+                """{"access_token":"streamer-access","refresh_token":"streamer-refresh","expires_in":3600,"scope":"user:read chat:write moderation:ban moderation:chat_message:manage events:subscribe"}""",
+            IdentityJson = """{"data":[{"user_id":42,"name":"KickStreamer"}]}""",
+        };
+        (IntegrationOAuthService streamerService, AuthDbContext db, _, _) = Build(streamerHandler);
+        Result<OAuthStartDto> streamerStart = await streamerService.StartConnectAsync(
+            Tenant,
+            AuthEnums.IntegrationProvider.Kick,
+            "kick.chat",
+            null,
+            Actor,
+            publicOrigin: "https://bot-dev.nomercy.tv"
+        );
+        (
+            await streamerService.HandleCallbackAsync(
+                AuthEnums.IntegrationProvider.Kick,
+                new("streamer-auth-code", streamerStart.Value.State, null, null)
+            )
+        )
+            .IsSuccess.Should()
+            .BeTrue();
+
+        StubHandler botHandler = new()
+        {
+            TokenJson =
+                """{"access_token":"bot-access","refresh_token":"bot-refresh","expires_in":3600,"scope":"user:read chat:write moderation:ban moderation:chat_message:manage events:subscribe"}""",
+            IdentityJson = """{"data":[{"user_id":99,"name":"MyStreamBot"}]}""",
+        };
+        (IntegrationOAuthService botService, AuthDbContext botDb, _, _) = BuildOnSameDb(
+            db,
+            botHandler
+        );
+        Result<OAuthStartDto> botStart = await botService.StartConnectAsync(
+            Tenant,
+            AuthEnums.IntegrationProvider.KickBot,
+            "kick_bot.chat",
+            null,
+            Actor,
+            publicOrigin: "https://bot-dev.nomercy.tv"
+        );
+        (
+            await botService.HandleCallbackAsync(
+                AuthEnums.IntegrationProvider.KickBot,
+                new("bot-auth-code", botStart.Value.State, null, null)
+            )
+        )
+            .IsSuccess.Should()
+            .BeTrue();
+
+        Result disconnect = await botService.DisconnectAsync(
+            Tenant,
+            AuthEnums.IntegrationProvider.KickBot,
+            Actor
+        );
+        disconnect.IsSuccess.Should().BeTrue(disconnect.ErrorMessage);
+
+        IntegrationConnection botConnection = await botDb
+            .IntegrationConnections.AsNoTracking()
+            .SingleAsync(c => c.Provider == AuthEnums.IntegrationProvider.KickBot);
+        botConnection.Status.Should().Be(AuthEnums.IntegrationStatus.Revoked);
+
+        IntegrationConnection streamerConnection = await botDb
+            .IntegrationConnections.AsNoTracking()
+            .SingleAsync(c => c.Provider == AuthEnums.IntegrationProvider.Kick);
+        streamerConnection
+            .Status.Should()
+            .Be(
+                AuthEnums.IntegrationStatus.Connected,
+                "disconnecting the BOT account must never touch the streamer's own kick connection"
+            );
+    }
+
     /// <summary>Disconnecting a provider that isn't Kick never touches the Kick client — no cross-talk.</summary>
     [Fact]
     public async Task Disconnect_ForNonKickProvider_NeverCallsKickApi()
@@ -999,6 +1162,7 @@ public sealed class IntegrationOAuthServiceTests
                 AuthEnums.IntegrationProvider.Spotify,
                 AuthEnums.IntegrationProvider.YouTube,
                 AuthEnums.IntegrationProvider.Kick,
+                AuthEnums.IntegrationProvider.KickBot,
                 AuthEnums.IntegrationProvider.Patreon,
                 AuthEnums.IntegrationProvider.Shopify,
                 AuthEnums.IntegrationProvider.Treatstream,
@@ -1123,6 +1287,78 @@ public sealed class IntegrationOAuthServiceTests
             vault,
             discord,
             kick ?? new FakeKickApiClient([]),
+            new InMemoryIntegrationCapabilityStore(),
+            channelCredentials,
+            new MusicProviderTokenMirror(
+                db,
+                protector,
+                NullLogger<MusicProviderTokenMirror>.Instance
+            ),
+            cache,
+            db,
+            new SingleClientFactory(handler),
+            config,
+            TimeProvider.System,
+            NullLogger<IntegrationOAuthService>.Instance
+        );
+        return (service, db, vault, cache);
+    }
+
+    /// <summary>
+    /// A second service instance over the SAME db + config as an earlier <see cref="Build(StubHandler)"/> call
+    /// (a fresh protector/key-service pair over that db is functionally interchangeable — see the analogous
+    /// note on <c>BuildWith</c>), but with its own HTTP handler — needed to prove a bot-account connect lands
+    /// alongside an already-persisted streamer connection in the SAME tenant's row set, not a separate db.
+    /// </summary>
+    private static (
+        IntegrationOAuthService Service,
+        AuthDbContext Db,
+        IIntegrationTokenVault Vault,
+        FakeCache Cache
+    ) BuildOnSameDb(AuthDbContext db, StubHandler handler)
+    {
+        ITokenProtector protector = AuthTestBuilder.RealTokenProtector(
+            db,
+            out ISubjectKeyService keys
+        );
+        IIntegrationTokenVault vault = new IntegrationTokenVault(
+            db,
+            protector,
+            keys,
+            new PassthroughScopeGrant(),
+            new RecordingEventBus(),
+            TimeProvider.System,
+            NullLogger<IntegrationTokenVault>.Instance
+        );
+
+        IConfiguration config = new ConfigurationBuilder()
+            .AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["App:BaseUrl"] = "https://api.example.test",
+                    ["Kick:ClientId"] = "kick-client",
+                    ["Kick:ClientSecret"] = "kick-secret",
+                }
+            )
+            .Build();
+
+        OAuthProviderRegistry registry = new(config);
+        ISystemCredentialsProvider credentials = AuthTestBuilder.CredentialsProvider(
+            db,
+            protector,
+            config
+        );
+        IChannelCredentialsResolver channelCredentials = AuthTestBuilder.ChannelCredentialsResolver(
+            db,
+            protector,
+            credentials
+        );
+        FakeCache cache = new();
+        IntegrationOAuthService service = new(
+            registry,
+            vault,
+            new FakeDiscordGuildService(),
+            new FakeKickApiClient([]),
             new InMemoryIntegrationCapabilityStore(),
             channelCredentials,
             new MusicProviderTokenMirror(

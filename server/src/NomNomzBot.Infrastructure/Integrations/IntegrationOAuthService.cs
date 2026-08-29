@@ -126,7 +126,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
 
         Result<SystemAppCredentials> appResult = await _channelCredentials.ResolveAsync(
             broadcasterId,
-            provider,
+            descriptor.CredentialsProvider ?? provider,
             cancellationToken
         );
         if (appResult.IsFailure)
@@ -220,7 +220,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
 
         Result<SystemAppCredentials> callbackAppResult = await _channelCredentials.ResolveAsync(
             entry.BroadcasterId,
-            provider,
+            descriptor.CredentialsProvider ?? provider,
             cancellationToken
         );
         if (callbackAppResult.IsFailure)

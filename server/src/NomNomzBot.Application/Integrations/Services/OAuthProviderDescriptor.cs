@@ -22,6 +22,12 @@ namespace NomNomzBot.Application.Integrations.Services;
 /// in <paramref name="IdentityTokenHeader"/>; null = standard <c>Authorization: Bearer</c>. A provider with
 /// NO identity endpoint at all (TreatStream) leaves <paramref name="AccountIdentityEndpoint"/> null — the
 /// connect stores the connection without an account identity rather than probing a nonexistent route.
+/// A bot-account variant of an existing provider (e.g. <c>kick_bot</c>) persists under its OWN provider key
+/// (never overwriting the streamer's own connection row) but authorizes through the SAME OAuth app as its
+/// parent — <paramref name="CredentialsProvider"/> names that parent's key so credential resolution
+/// (<c>IChannelCredentialsResolver</c> / <c>ISystemCredentialsProvider</c>) reads the shared
+/// <c>{Provider}:ClientId/ClientSecret</c> config instead of a nonexistent <c>{Provider}_bot:*</c> one; null
+/// means "resolve credentials under my own provider key" (every ordinary provider).
 /// </summary>
 public sealed record OAuthProviderDescriptor(
     string Provider,
@@ -33,5 +39,6 @@ public sealed record OAuthProviderDescriptor(
     IReadOnlyDictionary<string, IReadOnlyList<string>> ScopeSets,
     bool IsByok,
     bool RequiresShopDomain = false,
-    string? IdentityTokenHeader = null
+    string? IdentityTokenHeader = null,
+    string? CredentialsProvider = null
 );

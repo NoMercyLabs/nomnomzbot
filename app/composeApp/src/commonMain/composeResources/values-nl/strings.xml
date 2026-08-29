@@ -996,6 +996,8 @@
     <string name="integrations_discord_subtitle">Plaats meldingen en notificaties op je server.</string>
     <string name="integrations_kick_title">Kick</string>
     <string name="integrations_kick_subtitle">Lees, verstuur en modereer je Kick-chat naast Twitch.</string>
+    <string name="integrations_kick_bot_title">Kick-botaccount</string>
+    <string name="integrations_kick_bot_subtitle">Optioneel — koppel een apart Kick-account zodat botberichten onder een eigen identiteit verschijnen in plaats van de jouwe.</string>
     <string name="integrations_status_connected">Verbonden</string>
     <string name="integrations_status_not_connected">Niet verbonden</string>
     <string name="integrations_status_login_only">Alleen ingelogd — chat niet verbonden</string>
