@@ -256,6 +256,48 @@ class DashboardHubClientReconnectTest {
         }
     }
 
+    // S050 — shell truth: the shell must show a dead-vs-live indicator, not a static dot. Drives the same
+    // real drop → resume → confirm sequence as the tests above and asserts the PUBLISHED [connectionState]
+    // sequence a UI would actually observe, proving the indicator would flip within one liveness window of a
+    // real drop instead of staying stuck on its last value.
+    @Test
+    fun connection_state_reflects_connect_drop_and_resume_within_the_liveness_window() = runBlocking {
+        MiniWsServer().use { server ->
+            val client = DashboardHubClient()
+            assertEquals(HubConnectionState.Disconnected, client.connectionState.value, "idle before the first connect")
+
+            client.connect(
+                baseUrl = "http://127.0.0.1:${server.port}",
+                tokenProvider = { "test-token" },
+                channelId = "channel-under-test",
+            )
+
+            withContext(Dispatchers.IO) {
+                server.acceptConnection().use { first ->
+                    first.receiveHandshake()
+                    first.receiveText() // JoinChannel
+                    awaitState(client, HubConnectionState.Connected)
+                    // Server drops the connection with no close frame — the exact "dead socket" scenario.
+                }
+            }
+            // The drop must surface as Reconnecting well within the done-when bound (dead socket visible in 5s).
+            awaitState(client, HubConnectionState.Reconnecting)
+
+            withContext(Dispatchers.IO) {
+                server.acceptConnection().use { second ->
+                    second.receiveHandshake()
+                    second.receiveText() // Sequence
+                    second.receiveText() // resent JoinChannel
+                    second.sendText("""{"type":6}""")
+                    awaitState(client, HubConnectionState.Connected)
+                }
+            }
+
+            client.disconnect()
+            assertEquals(HubConnectionState.Disconnected, client.connectionState.value, "explicit disconnect is terminal")
+        }
+    }
+
     // Reads the client's handshake request frame and answers with the JSON hub protocol success response `{}`.
     private fun MiniWsServer.Connection.receiveHandshake() {
         receiveText() // `{"protocol":"json","version":1,"useStatefulReconnect":true}` + record separator
@@ -281,6 +323,14 @@ class DashboardHubClientReconnectTest {
     private suspend fun awaitConnected(client: DashboardHubClient) {
         withContext(Dispatchers.Default) {
             withTimeout(LIVENESS_TIMEOUT_MS) { while (!client.isConnected) delay(20) }
+        }
+    }
+
+    // Same shape as [awaitConnected]/[awaitDisconnected] but for the published [DashboardHubClient.connectionState]
+    // — the signal a UI indicator actually observes, not the bare [DashboardHubClient.isConnected] flag.
+    private suspend fun awaitState(client: DashboardHubClient, expected: HubConnectionState) {
+        withContext(Dispatchers.Default) {
+            withTimeout(LIVENESS_TIMEOUT_MS) { while (client.connectionState.value != expected) delay(20) }
         }
     }
 }

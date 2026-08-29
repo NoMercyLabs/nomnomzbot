@@ -23,4 +23,11 @@ enum class Destination {
     Connect,
     Setup,
     Shell,
+
+    /**
+     * A remembered session exists but the backend could not be reached to confirm it (S050 — "remembered-session
+     * vs unreachable distinction"). Distinct from [Connect]/[Landing]: those mean "no session, sign in"; this
+     * means "you have a session, we just cannot reach your bot right now" — never conflate the two.
+     */
+    Unreachable,
 }

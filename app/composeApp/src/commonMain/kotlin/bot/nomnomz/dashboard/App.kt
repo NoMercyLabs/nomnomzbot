@@ -38,6 +38,7 @@ import bot.nomnomz.dashboard.core.i18n.AppEnvironment
 import bot.nomnomz.dashboard.core.navigation.Destination
 import bot.nomnomz.dashboard.core.navigation.RouteStore
 import bot.nomnomz.dashboard.feature.connect.ui.ConnectScreen
+import bot.nomnomz.dashboard.feature.connect.ui.UnreachableScreen
 import bot.nomnomz.dashboard.feature.emoji.state.EmojiStyle
 import bot.nomnomz.dashboard.feature.landing.ui.LandingScreen
 import bot.nomnomz.dashboard.feature.language.state.AppLanguage
@@ -52,6 +53,15 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private const val SPLASH_HOLD_MS: Long = 1_200L
+
+// How long to wait before re-probing effectiveMe after a transient failure (S050). Short enough that a
+// momentary blip self-heals quickly, long enough not to hammer a backend that is actually down.
+private const val RETRY_EFFECTIVE_ME_DELAY_MS: Long = 2_000L
+
+// How long to wait between automatic restore-session retries while the backend is unreachable (S050). Longer
+// than the effectiveMe retry — an unreachable BACKEND (not just one flaky endpoint) more often needs real time
+// (a container restarting, a LAN link coming back) rather than benefiting from a tight poll.
+private const val RESTORE_UNREACHABLE_RETRY_DELAY_MS: Long = 4_000L
 
 // Root composable: theme + connection gate (frontend.md §5). The gate resolves the active
 // Destination from a one-shot boot splash and the session phase:
@@ -142,10 +152,23 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
             if (phase == SessionPhase.Connected) showLanding = false
         }
 
+        val restoreUnreachable: Boolean by graph.connectController.restoreUnreachable.collectAsStateWithLifecycle()
+
+        // S050 — keep retrying the restore automatically while the backend is unreachable, so a returning
+        // operator's session comes back the instant the network/bot recovers with no action required. Re-arms
+        // on every flip back to true (a later blip after a successful — but still-unconfirmed — retry cycle).
+        LaunchedEffect(restoreUnreachable) {
+            if (restoreUnreachable) {
+                delay(RESTORE_UNREACHABLE_RETRY_DELAY_MS)
+                graph.connectController.restoreSession()
+            }
+        }
+
         val destination: Destination = when {
             booting -> Destination.Splash
             phase == SessionPhase.Connected -> Destination.Shell
             phase == SessionPhase.NeedsSetup -> Destination.Setup
+            restoreUnreachable -> Destination.Unreachable
             showLanding -> Destination.Landing
             else -> Destination.Connect
         }
@@ -188,6 +211,10 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
                         Destination.Splash -> SplashScreen()
                         Destination.Landing -> LandingScreen(onGetStarted = { showLanding = false })
                         Destination.Connect -> ConnectScreen(controller = graph.connectController)
+                        Destination.Unreachable ->
+                            UnreachableScreen(
+                                onRetry = { scope.launch { graph.connectController.restoreSession() } },
+                            )
                         Destination.Setup -> SetupWizardScreen(controller = graph.setupController)
                         Destination.Shell -> {
                             val user: SessionUser? by
@@ -204,6 +231,17 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
                             // neutral "switching" state on the channelId mismatch so the old (possibly higher)
                             // role never renders against the newly-selected channel.
                             LaunchedEffect(activeChannelId) { graph.shellAccessController.load() }
+                            // S050 — a TRANSIENT effectiveMe failure (network blip / momentary 5xx) must self-heal,
+                            // not strand the caller on the retry splash forever nor silently downgrade them to a
+                            // fail-closed viewer. Re-probe shortly after landing on [ShellAccess.Retrying]; this
+                            // effect re-arms every time the state flips back to Retrying (a later blip), and stops
+                            // re-firing once a real answer (Loading's first Resolved, or a repeat blip) lands.
+                            LaunchedEffect(access) {
+                                if (access is ShellAccess.Retrying) {
+                                    delay(RETRY_EFFECTIVE_ME_DELAY_MS)
+                                    graph.shellAccessController.load()
+                                }
+                            }
                             // Proactive dead-token recovery (never-logout-for-scope-or-schema-changes): probe Twitch
                             // health once the operator resolves so a dead/expired token raises the reconnect prompt
                             // ON LOAD — one tap to redirect-reconnect, no menu hunt, no logout. Fail-open by design.
@@ -212,6 +250,10 @@ fun App(graph: AppGraph = remember { AppGraph() }) {
                                 // Hold the splash under the one-shot role probe so the shell never flashes the
                                 // wrong (over-granted) surface before the real role lands.
                                 ShellAccess.Loading -> SplashScreen()
+                                // A blip, not a real answer — the same neutral splash as Loading (distinct from
+                                // the fail-closed viewer UI a definitive Resolved failure renders); [load] is
+                                // re-invoked above shortly after landing here.
+                                ShellAccess.Retrying -> SplashScreen()
                                 is ShellAccess.Resolved ->
                                     ShellScreen(
                                         graph = graph,

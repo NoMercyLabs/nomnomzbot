@@ -94,6 +94,17 @@ class ConnectController(
     // operator hunting a menu — one tap, no logout. Cleared once a reconnect re-establishes the session.
     private val _reauthRequired: MutableStateFlow<Boolean> = MutableStateFlow(false)
 
+    // S050 — "remembered-session vs unreachable distinction": true when [restoreSession] found a REMEMBERED
+    // session (a persisted profile + either a stored token or a refresh cookie to try) but could not confirm it
+    // because the backend never answered (a transient network/proxy/cold-start blip) — as opposed to the
+    // backend answering and definitively rejecting it (a dead/revoked token, a real "you are logged out"). The
+    // App gate reads this to render a distinct "can't reach your bot, retrying" surface instead of silently
+    // falling through to the same Landing/Connect screen a NEVER-signed-in visitor sees.
+    private val _restoreUnreachable: MutableStateFlow<Boolean> = MutableStateFlow(false)
+
+    /** True when a remembered session exists but the backend could not be reached to confirm it (see above). */
+    val restoreUnreachable: StateFlow<Boolean> = _restoreUnreachable.asStateFlow()
+
     // The ENABLED login providers the backend offers (GET /api/v1/auth/providers). Seeded with a synthetic
     // Twitch entry so the login screen always offers Twitch — even before [loadProviders] resolves, and even
     // if that probe fails (fail-open: the screen must never be a blank card).
@@ -655,11 +666,16 @@ class ConnectController(
      * a failed restore is a silent fall-through to sign-in, not a visible error on the Connect screen.
      */
     suspend fun restoreSession(): Boolean {
+        _restoreUnreachable.value = false
         val remembered: RestorableSession? = sessionStore.loadPersisted()
         // Web's backend is always the serving origin, so it restores from the HttpOnly cookie even with no
         // persisted profile (e.g. localStorage was cleared); native relies on the saved profile.
         val profile: ConnectionProfile = remembered?.profile ?: servedOriginProfile() ?: return false
         val stored: SessionTokens? = remembered?.tokens
+        // A profile was actually REMEMBERED (as opposed to just the web build's served-origin fallback with no
+        // prior session at all) — only then does an unreachable backend mean "you have a session, we just can't
+        // reach it" rather than "there was never anything to restore".
+        val hadRememberedSession: Boolean = remembered != null
 
         // Point the shared client at the backend BEFORE any call: both the stored-token probe and the cookie
         // refresh need its base URL, and on a fresh boot the store has no active profile yet — so without this
@@ -675,7 +691,8 @@ class ConnectController(
         //    exact 504 observed live behind the dev webpack proxy) is retried a few times before giving up: it
         //    is NOT proof the cookie is dead, and treating it as one bounced a perfectly valid session to the
         //    login screen for what was really a momentary blip.
-        when (val refreshed: ApiResult<AuthPayload> = refreshWithTransientRetry(stored?.refreshToken)) {
+        val refreshed: ApiResult<AuthPayload> = refreshWithTransientRetry(stored?.refreshToken)
+        when (refreshed) {
             is ApiResult.Ok -> {
                 val renewed: SessionTokens =
                     SessionTokens(
@@ -690,11 +707,25 @@ class ConnectController(
             is ApiResult.Failure -> Unit
         }
 
+        // The retries above are STILL failing on a transient status even after being exhausted — the backend
+        // never gave a real (non-transient) answer at all. That is materially different from a definitive
+        // rejection (401/403 — the session really is dead): a remembered session exists, it just could not be
+        // confirmed. Surface that distinctly so the gate never shows the same "you are not signed in" screen a
+        // brand-new visitor sees for what might just be the bot still booting or a dropped LAN link.
+        if (hadRememberedSession && refreshed is ApiResult.Failure && isTransientFailure(refreshed.error)) {
+            _restoreUnreachable.value = true
+        }
+
         // Couldn't restore (expired/absent token or an unreachable backend) — drop only the in-memory session
         // but KEEP the remembered backend + cookie, so a transient failure never forces a re-login. The gate
         // falls to Connect; an explicit logout is what clears custody.
         sessionStore.clearActiveSession()
         return false
+    }
+
+    /** Clear the "remembered session unreachable" flag — the App gate calls this once it has re-tried the restore. */
+    fun clearRestoreUnreachable() {
+        _restoreUnreachable.value = false
     }
 
     /**

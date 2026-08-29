@@ -206,6 +206,9 @@
     <string name="shell_channel_pick">Kanaal wisselen</string>
     <string name="shell_channel_bot_not_installed">Bot niet geïnstalleerd</string>
     <string name="shell_topbar_hub_label">Realtime verbinding</string>
+    <string name="shell_hub_state_connected">Realtime verbinding: actief</string>
+    <string name="shell_hub_state_reconnecting">Realtime verbinding: opnieuw verbinden…</string>
+    <string name="shell_hub_state_disconnected">Realtime verbinding: offline</string>
     <string name="hub_alert">%1$s</string>
     <string name="shell_role_moderator">Moderator</string>
     <string name="shell_role_supermod">Super Mod</string>
@@ -221,8 +224,16 @@
     <string name="reauth_dialog_dismiss">Later</string>
     <string name="shell_reconnect_awaiting">Twitch opnieuw verbinden: ga naar %1$s en voer code %2$s in</string>
     <string name="shell_reconnect_failed">Twitch opnieuw verbinden mislukt. Probeer opnieuw.</string>
+    <string name="shell_reconnect_reason_invalid_url">Dat backend-adres is niet geldig.</string>
+    <string name="shell_reconnect_reason_auth">Twitch opnieuw verbinden mislukt: %1$s</string>
+    <string name="shell_reconnect_reason_expired">De code is verlopen voordat hij werd goedgekeurd.</string>
+    <string name="shell_reconnect_reason_denied">Opnieuw verbinden is geweigerd op Twitch.</string>
+    <string name="shell_reconnect_reason_timeout">Twitch heeft niet teruggestuurd — de aanvraag is verlopen.</string>
     <string name="shell_reconnect_retry">Opnieuw</string>
     <string name="shell_reconnect_close">Sluiten</string>
+    <string name="shell_unreachable_title">Kan je bot niet bereiken</string>
+    <string name="shell_unreachable_message">Je bent ingelogd, maar de backend reageert nu niet. Er wordt automatisch opnieuw geprobeerd — je sessie blijft behouden.</string>
+    <string name="shell_unreachable_retry">Nu opnieuw proberen</string>
     <string name="shell_impersonation_banner">Handelt als %1$s</string>
     <string name="shell_impersonation_expires">Eindigt over %1$d min</string>
     <string name="shell_impersonation_expires_soon">Eindigt binnen een minuut</string>

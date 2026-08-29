@@ -18,8 +18,11 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -137,6 +140,19 @@ class DashboardHubClient {
     var isConnected: Boolean = false
         private set
 
+    private val _connectionState: MutableStateFlow<HubConnectionState> =
+        MutableStateFlow(HubConnectionState.Disconnected)
+
+    /**
+     * The shell's truthful hub-health signal (S050 — "shell truth"): [HubConnectionState.Connected] only while
+     * the handshake is actually complete, [HubConnectionState.Reconnecting] the instant a session drops or a
+     * connect/resume attempt is in flight, and [HubConnectionState.Disconnected] only after an explicit
+     * [disconnect] (or before the first [connect]). A UI observing this — not the bare [isConnected] flag, which
+     * has no "currently retrying" state — can show a dead-vs-live indicator that updates within one
+     * [ReceiveTimeoutMillis] window of a real drop, never a static "always green" dot.
+     */
+    val connectionState: StateFlow<HubConnectionState> = _connectionState.asStateFlow()
+
     /**
      * Open the WebSocket to `{baseUrl}/hubs/dashboard`, complete the SignalR handshake, invoke
      * `JoinChannel({channelId})`, then stream incoming hub invocations into [events].
@@ -177,6 +193,10 @@ class DashboardHubClient {
                 inboundNextExpected = 1
                 inboundHighestProcessed = 0
                 var backoffMs: Long = 1_000
+                // The very first attempt of a brand-new session is still "trying to connect", not "dead" — there
+                // was never a live connection to have dropped. Reconnecting is the correct truthful state for
+                // both cases (an indicator has no need to distinguish "never connected yet" from "lost it").
+                _connectionState.value = HubConnectionState.Reconnecting
                 while (true) {
                     var established = false
                     // Reset the back-off once a session actually establishes, so a long-lived socket that later
@@ -185,10 +205,14 @@ class DashboardHubClient {
                             openSession(baseUrl, tokenProvider) {
                                 established = true
                                 backoffMs = 1_000
+                                _connectionState.value = HubConnectionState.Connected
                             }
                         }
                         .onFailure { /* swallowed — the reconnect loop below handles it */ }
                     isConnected = false
+                    // The attempt ended (dropped, refused, or never established) and the loop is about to retry —
+                    // truthfully reflect that as Reconnecting rather than leaving the last Connected value stale.
+                    _connectionState.value = HubConnectionState.Reconnecting
                     // The session never established this attempt — overwhelmingly an expired/absent JWT (the
                     // handshake upgrade 401s), or a refused resume. Reset resume bookkeeping so the NEXT attempt
                     // falls back to a plain fresh connect instead of retrying a resume the server won't honour.
@@ -245,6 +269,7 @@ class DashboardHubClient {
         socket?.close()
         socket = null
         isConnected = false
+        _connectionState.value = HubConnectionState.Disconnected
     }
 
     /** Release all resources. After this the client cannot be reused. */
@@ -433,7 +458,19 @@ class DashboardHubClient {
             TYPE_PING -> Unit // pong is automatic — nothing to do on an inbound ping
             TYPE_CLOSE -> {
                 isConnected = false
+                _connectionState.value = HubConnectionState.Reconnecting
             }
         }
     }
+}
+
+/**
+ * The shell's truthful hub-health states (S050). [Disconnected] only holds before the first [DashboardHubClient.connect]
+ * call or after an explicit [DashboardHubClient.disconnect] — never while the reconnect loop is still trying, which is
+ * always [Reconnecting] instead (covers both "never established yet" and "just dropped").
+ */
+enum class HubConnectionState {
+    Connected,
+    Reconnecting,
+    Disconnected,
 }

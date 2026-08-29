@@ -29,11 +29,17 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.feature.connect.state.ConnectController
+import bot.nomnomz.dashboard.feature.connect.state.ConnectError
 import bot.nomnomz.dashboard.feature.connect.state.ConnectStatus
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.shell_reconnect_awaiting
 import nomnomzbot.composeapp.generated.resources.shell_reconnect_close
 import nomnomzbot.composeapp.generated.resources.shell_reconnect_failed
+import nomnomzbot.composeapp.generated.resources.shell_reconnect_reason_auth
+import nomnomzbot.composeapp.generated.resources.shell_reconnect_reason_denied
+import nomnomzbot.composeapp.generated.resources.shell_reconnect_reason_expired
+import nomnomzbot.composeapp.generated.resources.shell_reconnect_reason_invalid_url
+import nomnomzbot.composeapp.generated.resources.shell_reconnect_reason_timeout
 import nomnomzbot.composeapp.generated.resources.shell_reconnect_retry
 import nomnomzbot.composeapp.generated.resources.shell_reconnect_starting
 import org.jetbrains.compose.resources.stringResource
@@ -104,8 +110,24 @@ private fun bannerText(status: ConnectStatus): String =
     when (status) {
         is ConnectStatus.AwaitingApproval ->
             stringResource(Res.string.shell_reconnect_awaiting, status.verificationUri, status.userCode)
-        is ConnectStatus.Error -> stringResource(Res.string.shell_reconnect_failed)
+        // The reason WHY the reconnect failed — never a single opaque "failed" message (S050 — shell truth).
+        // [ConnectError] already carries the distinction (bad URL, a rejected/expired/declined Twitch dance,
+        // a dead redirect, or the backend's own error detail); this is just the last mile that surfaces it.
+        is ConnectStatus.Error -> reconnectErrorText(status.error)
         else -> stringResource(Res.string.shell_reconnect_starting)
+    }
+
+@Composable
+private fun reconnectErrorText(error: ConnectError): String =
+    when (error) {
+        ConnectError.InvalidUrl -> stringResource(Res.string.shell_reconnect_reason_invalid_url)
+        is ConnectError.Auth -> stringResource(Res.string.shell_reconnect_reason_auth, error.detail)
+        ConnectError.LoginExpired -> stringResource(Res.string.shell_reconnect_reason_expired)
+        ConnectError.LoginDenied -> stringResource(Res.string.shell_reconnect_reason_denied)
+        ConnectError.RedirectTimedOut -> stringResource(Res.string.shell_reconnect_reason_timeout)
+        // LoginFailed is the genuinely unexpected catch-all (malformed/authorized-without-tokens) — the
+        // generic message is honest here, there is no more specific reason to surface.
+        ConnectError.LoginFailed -> stringResource(Res.string.shell_reconnect_failed)
     }
 
 @Composable
