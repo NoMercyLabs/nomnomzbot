@@ -57,8 +57,12 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_pipeline_deleted
 import nomnomzbot.composeapp.generated.resources.feedback_pipeline_save_failed
@@ -426,6 +430,42 @@ class PipelinesController(
     }
 
     /**
+     * Add a new "loop" block at the end of the root chain: a block-kind step with no action of its own, whose
+     * iteration config is carried by [mode]/[count]/[listVar]/[maxIterations]/[maxLoopRuntimeSeconds] — read by
+     * the engine's `ExecuteLoopAsync` as `LoopBlockConfig { mode, count, list_var, max_iterations,
+     * max_loop_runtime_seconds }` off `BlockConfigJson` (PipelineTreeTypes.cs:137). For `mode == "while"` the
+     * engine evaluates the loop step's own `Conditions` on every pass (`PipelineEngine.cs:1779`) — the SAME
+     * `condition` field an ordinary leaf/if-block step uses, never `blockConfig` — so [whileCondition] is
+     * threaded there, not into the config JSON. `ExecuteLoopAsync` walks `node.Children` with no branch filter
+     * (PipelineEngine.cs:1821), so the loop's body lane needs no branch label — [addBranchStep] with
+     * `branch = null` addresses it via `parentStepId` alone, exactly like a "switch" block's cases. Returns the
+     * new step's id so the caller can attach body steps to it.
+     */
+    fun addLoopBlock(
+        mode: String,
+        count: Int? = null,
+        listVar: String? = null,
+        maxIterations: Int? = null,
+        maxLoopRuntimeSeconds: Int? = null,
+        whileCondition: PipelineNode? = null,
+    ): String {
+        val editing: PipelinesState.Editing = _state.value as? PipelinesState.Editing ?: return ""
+        val id: String = newLocalStepId()
+        val order: Int = editing.steps.count { it.parentStepId == null }
+        val step =
+            PipelineStep(
+                action = PipelineNode(type = "block"),
+                blockKind = "loop",
+                condition = whileCondition,
+                blockConfig = encodeLoopConfig(mode, count, listVar, maxIterations, maxLoopRuntimeSeconds),
+                id = id,
+                order = order,
+            )
+        mutateChain { it + step }
+        return id
+    }
+
+    /**
      * Append [step] to the [branch] ("then"/"else") lane of the block [parentStepId]. Assigns [step] a local
      * id if it doesn't already carry one, and an `order` scoped to just that lane — every other lane (the
      * block's other branch, a sibling block's lanes, the root chain) keeps its own order values untouched.
@@ -701,6 +741,50 @@ sealed interface PipelinesState {
 
 /** One entry in a builder dropdown: the [value] written into the param, and the [label] shown to the user. */
 data class PickerOption(val value: String, val label: String)
+
+/**
+ * Encodes a "loop" block's `blockConfig` exactly as the engine's `LoopBlockConfig` reads it
+ * (PipelineTreeTypes.cs:137): `mode` ("repeat"/"foreach"/"while"), `count` (repeat), `list_var` (foreach),
+ * `max_iterations`, `max_loop_runtime_seconds`. Fields that don't apply to [mode] are simply omitted rather
+ * than written as null/zero, so a "repeat" block's config never carries a stray `list_var`.
+ */
+fun encodeLoopConfig(
+    mode: String,
+    count: Int?,
+    listVar: String?,
+    maxIterations: Int?,
+    maxLoopRuntimeSeconds: Int?,
+): JsonElement {
+    val map: MutableMap<String, JsonElement> = mutableMapOf("mode" to JsonPrimitive(mode))
+    if (mode == "repeat") count?.let { map["count"] = JsonPrimitive(it) }
+    if (mode == "foreach") listVar?.let { map["list_var"] = JsonPrimitive(it) }
+    maxIterations?.let { map["max_iterations"] = JsonPrimitive(it) }
+    maxLoopRuntimeSeconds?.let { map["max_loop_runtime_seconds"] = JsonPrimitive(it) }
+    return JsonObject(map)
+}
+
+/** Reads a "loop" block's `mode`/`count`/`list_var`/`max_iterations`/`max_loop_runtime_seconds` back out of
+ * its `blockConfig` (the mirror of [encodeLoopConfig]), defaulting `mode` to "repeat" as the engine does
+ * (`config.Mode ?? "repeat"`, PipelineEngine.cs:1740) when the field is absent. */
+fun decodeLoopConfig(blockConfig: JsonElement?): LoopConfigFields {
+    val obj: JsonObject? = blockConfig as? JsonObject
+    return LoopConfigFields(
+        mode = obj?.get("mode")?.jsonPrimitive?.contentOrNull ?: "repeat",
+        count = obj?.get("count")?.jsonPrimitive?.intOrNull,
+        listVar = obj?.get("list_var")?.jsonPrimitive?.contentOrNull,
+        maxIterations = obj?.get("max_iterations")?.jsonPrimitive?.intOrNull,
+        maxLoopRuntimeSeconds = obj?.get("max_loop_runtime_seconds")?.jsonPrimitive?.intOrNull,
+    )
+}
+
+/** Decoded shape of a "loop" block's `blockConfig` — see [decodeLoopConfig]. */
+data class LoopConfigFields(
+    val mode: String,
+    val count: Int?,
+    val listVar: String?,
+    val maxIterations: Int?,
+    val maxLoopRuntimeSeconds: Int?,
+)
 
 /**
  * Builds a [PickerOption] for a cross-feature dropdown, routing the label through [resolveRowLabel]

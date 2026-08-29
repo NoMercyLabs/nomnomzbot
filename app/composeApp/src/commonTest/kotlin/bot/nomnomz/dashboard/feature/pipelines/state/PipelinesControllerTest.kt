@@ -61,6 +61,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.intOrNull
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_pipeline_deleted
 import nomnomzbot.composeapp.generated.resources.feedback_pipeline_saved
@@ -637,6 +638,89 @@ class PipelinesControllerTest {
         assertEquals(listOf("a", "c"), cases().map(matchOf))
         assertEquals(listOf(0, 1), cases().map { it.order }) // "c" compacted from order 2 down to 1
         assertEquals(3, (controller.state.value as PipelinesState.Editing).steps.size) // switch + 2 remaining cases
+    }
+
+    // ── Branching ("loop" block) edits (S046-branching-loop) ───────────────────
+
+    @Test
+    fun loop_block_body_lane_adds_reorders_and_removes_a_step() = runTest {
+        val api =
+            RecordingPipelinesApi(
+                listOf(PipelineSummary(id = "00000009-0000-0000-0000-000000000009", name = "Spammer", isEnabled = true)),
+                graphs = mutableMapOf("00000009-0000-0000-0000-000000000009" to PipelineGraph().toJson()),
+            )
+        val controller = pipelinesController(okChannel(), api)
+        controller.load()
+        controller.openEditor(PipelineSummary(id = "00000009-0000-0000-0000-000000000009", name = "Spammer"))
+
+        val loopId: String = controller.addLoopBlock(mode = "repeat", count = 3, maxIterations = 10)
+
+        fun steps(): List<PipelineStep> = (controller.state.value as PipelinesState.Editing).steps
+
+        // The block itself: no runnable action of its own, its iteration config carried by `blockConfig`
+        // (`LoopBlockConfig { mode, count, max_iterations }` on the backend) — never `condition`, since
+        // mode == "repeat" never touches the engine's Conditions read. Top-level order 0.
+        val loopStep: PipelineStep = steps().single { it.id == loopId }
+        assertEquals("loop", loopStep.blockKind)
+        assertNull(loopStep.parentStepId)
+        assertEquals(0, loopStep.order)
+        assertNull(loopStep.condition)
+        val config: JsonObject = loopStep.blockConfig as JsonObject
+        assertEquals("repeat", config["mode"]?.jsonPrimitive?.contentOrNull)
+        assertEquals(3, config["count"]?.jsonPrimitive?.intOrNull)
+        assertEquals(10, config["max_iterations"]?.jsonPrimitive?.intOrNull)
+        assertNull(config["list_var"])
+
+        controller.addBranchStep(loopId, null, PipelineStep(action = PipelineNode("send_message", mapOf("message" to "body-1"))))
+        controller.addBranchStep(loopId, null, PipelineStep(action = PipelineNode("send_message", mapOf("message" to "body-2"))))
+
+        fun body(): List<PipelineStep> = steps().filter { it.parentStepId == loopId }.sortedBy { it.order }
+
+        // Body steps land in the loop's single lane — no branch label needed, `parentStepId` alone
+        // disambiguates it (ExecuteLoopAsync walks node.Children with no branch filter, PipelineEngine.cs:1821).
+        assertTrue(body().all { it.branch == null })
+        assertEquals(listOf("body-1", "body-2"), body().map { it.action.params["message"] })
+        assertEquals(listOf(0, 1), body().map { it.order })
+
+        // Reorder within the body lane.
+        val secondId: String = body()[1].id!!
+        controller.moveBranchStepUp(secondId)
+        assertEquals(listOf("body-2", "body-1"), body().map { it.action.params["message"] })
+        assertEquals(0, steps().single { it.id == loopId }.order)
+
+        // Remove one body step — the other and the loop block are untouched, and order re-compacts.
+        val firstId: String = body()[0].id!!
+        controller.removeBranchStep(firstId)
+        assertEquals(listOf("body-1"), body().map { it.action.params["message"] })
+        assertEquals(listOf(0), body().map { it.order })
+        assertEquals(2, steps().size) // loop + 1 remaining body step
+    }
+
+    @Test
+    fun loop_block_in_while_mode_carries_its_condition_on_the_condition_field_not_blockconfig() = runTest {
+        val api =
+            RecordingPipelinesApi(
+                listOf(PipelineSummary(id = "0000000a-0000-0000-0000-00000000000a", name = "Waiter", isEnabled = true)),
+                graphs = mutableMapOf("0000000a-0000-0000-0000-00000000000a" to PipelineGraph().toJson()),
+            )
+        val controller = pipelinesController(okChannel(), api)
+        controller.load()
+        controller.openEditor(PipelineSummary(id = "0000000a-0000-0000-0000-00000000000a", name = "Waiter"))
+
+        val loopId: String =
+            controller.addLoopBlock(
+                mode = "while",
+                whileCondition = PipelineNode("variable_equals", mapOf("name" to "keep_going", "value" to "true")),
+            )
+
+        val loopStep: PipelineStep =
+            (controller.state.value as PipelinesState.Editing).steps.single { it.id == loopId }
+        // ExecuteLoopAsync's "while" branch calls EvaluateConditionTreeAsync(ctx, node.Step.Conditions) —
+        // the SAME field an "if" block's condition lives on, never blockConfig (PipelineEngine.cs:1779).
+        assertEquals("variable_equals", loopStep.condition?.type)
+        assertEquals("keep_going", loopStep.condition?.params?.get("name"))
+        assertEquals("while", (loopStep.blockConfig as JsonObject)["mode"]?.jsonPrimitive?.contentOrNull)
+        assertNull((loopStep.blockConfig as JsonObject)["count"])
     }
 
     @Test
