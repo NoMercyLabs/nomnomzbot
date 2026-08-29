@@ -283,6 +283,61 @@ public static class ResiliencePolicies
     }
 
     /// <summary>
+    /// Adds Kick API resilience: 2 retries with exponential backoff + jitter on transient 5xx/429, an 8s
+    /// per-attempt timeout, and a 50%/60s circuit breaker. Modelled on the Spotify/Discord handlers — Kick's
+    /// public API is a straightforward REST surface with no documented Retry-After contract, so a 429 falls
+    /// back to the same exponential backoff as a transient 5xx rather than inventing a header to honor.
+    /// </summary>
+    public static IHttpClientBuilder AddKickResilienceHandler(this IHttpClientBuilder builder)
+    {
+        builder.AddResilienceHandler(
+            "kick-resilience",
+            pipeline =>
+            {
+                pipeline.AddRetry(
+                    new HttpRetryStrategyOptions
+                    {
+                        MaxRetryAttempts = 2,
+                        BackoffType = DelayBackoffType.Exponential,
+                        UseJitter = true,
+                        Delay = TimeSpan.FromSeconds(1),
+                        ShouldHandle = args =>
+                        {
+                            HttpStatusCode? status = args.Outcome.Result?.StatusCode;
+                            return ValueTask.FromResult(
+                                status == HttpStatusCode.TooManyRequests
+                                    || RetryableStatuses.Contains(status ?? 0)
+                                    || args.Outcome.Exception is HttpRequestException
+                            );
+                        },
+                    }
+                );
+
+                // Per-request timeout: 8s
+                pipeline.AddTimeout(TimeSpan.FromSeconds(8));
+
+                // Circuit breaker: 50% failure rate over 60s, min 3 requests, break for 60s
+                pipeline.AddCircuitBreaker(
+                    new HttpCircuitBreakerStrategyOptions
+                    {
+                        FailureRatio = 0.5,
+                        SamplingDuration = TimeSpan.FromSeconds(60),
+                        MinimumThroughput = 3,
+                        BreakDuration = TimeSpan.FromSeconds(60),
+                        ShouldHandle = args =>
+                            ValueTask.FromResult(
+                                args.Outcome.Result?.StatusCode
+                                    >= HttpStatusCode.InternalServerError
+                                    || args.Outcome.Exception is HttpRequestException
+                            ),
+                    }
+                );
+            }
+        );
+        return builder;
+    }
+
+    /// <summary>
     /// Adds Spotify API resilience: 2 retries with exponential backoff + circuit breaker.
     /// Respects Retry-After header on 429.
     /// </summary>

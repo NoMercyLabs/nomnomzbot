@@ -15,6 +15,7 @@ using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Contracts.Kick;
 using NomNomzBot.Domain.Chat.Events;
+using NomNomzBot.Domain.Chat.ValueObjects;
 using NomNomzBot.Domain.Community.Events;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
@@ -68,10 +69,56 @@ public sealed class KickWebhookIngest : IKickWebhookIngest
         _selfEchoGuard = selfEchoGuard;
     }
 
-    public Task HandleAsync(
+    /// <summary>Idempotency scope for non-chat Kick webhook redeliveries (follows/subs/gifts/bans/redemptions).
+    /// Chat already dedupes against the persisted <c>ChatMessages</c> row, so it is excluded here.</summary>
+    private const string RedeliveryScope = "kick-webhook";
+
+    /// <summary>How long a redelivery marker is kept before retention may prune it — comfortably longer
+    /// than any plausible Kick retry window.</summary>
+    private static readonly TimeSpan RedeliveryRetention = TimeSpan.FromDays(7);
+
+    public async Task HandleAsync(
         string eventType,
         string rawBody,
+        string messageId = "",
         CancellationToken cancellationToken = default
+    )
+    {
+        // Chat owns its own dedupe (against the persisted ChatMessages row); every other event type is
+        // guarded here by the Kick-Event-Message-Id header so a redelivered follow/sub/gift/ban/redemption
+        // is processed at most once instead of double-crediting or double-firing its alert.
+        bool guardRedelivery = eventType != "chat.message.sent" && messageId.Length > 0;
+        if (guardRedelivery)
+        {
+            bool alreadyProcessed = await _db.IdempotencyKeys.AnyAsync(
+                k => k.Scope == RedeliveryScope && k.Key == messageId,
+                cancellationToken
+            );
+            if (alreadyProcessed)
+                return;
+        }
+
+        await DispatchAsync(eventType, rawBody, cancellationToken);
+
+        if (guardRedelivery)
+        {
+            _db.IdempotencyKeys.Add(
+                new Domain.Platform.Entities.IdempotencyKey
+                {
+                    Scope = RedeliveryScope,
+                    Key = messageId,
+                    CreatedAt = _clock.GetUtcNow().UtcDateTime,
+                    ExpiresAt = _clock.GetUtcNow().Add(RedeliveryRetention).UtcDateTime,
+                }
+            );
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+    }
+
+    private Task DispatchAsync(
+        string eventType,
+        string rawBody,
+        CancellationToken cancellationToken
     ) =>
         eventType switch
         {
@@ -170,7 +217,7 @@ public sealed class KickWebhookIngest : IKickWebhookIngest
                 UserDisplayName = payload.Sender.Username ?? string.Empty,
                 UserLogin = Login(payload.Sender),
                 Message = payload.Content ?? string.Empty,
-                Fragments = [new() { Type = "text", Text = payload.Content ?? string.Empty }],
+                Fragments = BuildFragments(payload.Content ?? string.Empty, payload.Emotes),
                 Badges = [],
                 IsSubscriber = badgeTypes.Contains("subscriber", StringComparer.OrdinalIgnoreCase),
                 IsVip = badgeTypes.Contains("vip", StringComparer.OrdinalIgnoreCase),
@@ -651,6 +698,66 @@ public sealed class KickWebhookIngest : IKickWebhookIngest
                 broadcasterKickId
             );
         return tenant;
+    }
+
+    /// <summary>
+    /// Splits a Kick chat message's flat <c>content</c> into text/emote fragments — the same shape
+    /// Twitch's <c>fragments[]</c> array carries — using the <c>emotes[]</c> character spans Kick's
+    /// <c>chat.message.sent</c> payload provides alongside the inline <c>[emote:ID:NAME]</c> placeholder
+    /// text. No emotes (or an empty content) degrades to a single text fragment, same as before this
+    /// existed. Overlapping/out-of-range spans from a malformed delivery are skipped rather than faulted.
+    /// </summary>
+    private static List<ChatMessageFragment> BuildFragments(
+        string content,
+        List<KickEmoteEntry>? emotes
+    )
+    {
+        List<(int Start, int End, string EmoteId)> spans =
+        [
+            .. (emotes ?? [])
+                .Where(e => e.EmoteId is { Length: > 0 })
+                .SelectMany(e =>
+                    (e.Positions ?? []).Select(p => (Start: p.Start, End: p.End, e.EmoteId!))
+                )
+                .Where(s =>
+                    s.Start is >= 0 && s.End is >= 0 && s.End >= s.Start && s.End < content.Length
+                )
+                .Select(s => (s.Start!.Value, s.End!.Value, s.Item3))
+                .OrderBy(s => s.Item1),
+        ];
+
+        if (spans.Count == 0)
+            return [new() { Type = "text", Text = content }];
+
+        List<ChatMessageFragment> fragments = [];
+        int cursor = 0;
+        foreach ((int start, int endInclusive, string emoteId) in spans)
+        {
+            // A malformed/overlapping span (starts before the previous one ended) is skipped rather
+            // than faulted — the delivery still carries the flat Message for a degraded rendering.
+            if (start < cursor)
+                continue;
+
+            if (start > cursor)
+                fragments.Add(new() { Type = "text", Text = content[cursor..start] });
+
+            // Kick's positions are BOTH ends inclusive — end+1 is the exclusive slice bound.
+            int end = endInclusive + 1;
+            fragments.Add(
+                new()
+                {
+                    Type = "emote",
+                    Text = content[start..end],
+                    EmoteId = emoteId,
+                }
+            );
+            cursor = end;
+        }
+
+        if (cursor < content.Length)
+            fragments.Add(new() { Type = "text", Text = content[cursor..] });
+
+        return fragments;
     }
 
     private static string KickId(long id) => id.ToString(CultureInfo.InvariantCulture);

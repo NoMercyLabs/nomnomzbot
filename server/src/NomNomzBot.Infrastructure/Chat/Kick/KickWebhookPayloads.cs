@@ -62,8 +62,38 @@ internal sealed class KickChatMessagePayload
     [JsonPropertyName("content")]
     public string? Content { get; set; }
 
+    /// <summary>Emotes rendered inline in <see cref="Content"/> as <c>[emote:ID:NAME]</c> placeholder text —
+    /// each entry's <see cref="KickEmoteEntry.Positions"/> gives the character span(s) of that placeholder
+    /// within <see cref="Content"/>, letting the ingest split the flat string into text/emote fragments the
+    /// same shape Twitch's fragments array carries.</summary>
+    [JsonPropertyName("emotes")]
+    public List<KickEmoteEntry>? Emotes { get; set; }
+
     [JsonPropertyName("created_at")]
     public DateTimeOffset? CreatedAt { get; set; }
+}
+
+/// <summary>One emote referenced inline in a Kick chat message's <c>content</c>.</summary>
+internal sealed class KickEmoteEntry
+{
+    [JsonPropertyName("emote_id")]
+    public string? EmoteId { get; set; }
+
+    [JsonPropertyName("positions")]
+    public List<KickEmotePosition>? Positions { get; set; }
+}
+
+/// <summary>The character span of one inline emote placeholder within a chat message's <c>content</c>:
+/// both <c>s</c> (start) and <c>e</c> (end) are INCLUSIVE indices — verified against the docs.kick.com
+/// <c>chat.message.sent</c> payload sample, where the placeholder <c>[emote:37226:EZ]</c> spans
+/// <c>s=11, e=26</c> for its full 16-character text.</summary>
+internal sealed class KickEmotePosition
+{
+    [JsonPropertyName("s")]
+    public int? Start { get; set; }
+
+    [JsonPropertyName("e")]
+    public int? End { get; set; }
 }
 
 /// <summary><c>livestream.status.updated</c>.</summary>
