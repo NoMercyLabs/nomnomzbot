@@ -825,6 +825,14 @@ private fun openProjectEditor(
                         tsNs.typescriptDefaults.addExtraLib(sdkTypes, libPath);
                     }
                 }
+                // Create every file's model UP FRONT, not lazily on first tab visit -- Monaco's TS/JS language
+                // service only sees files it has a registered model for, so a helper module the user has not yet
+                // clicked into would otherwise be invisible to cross-file go-to-definition/completion from the
+                // file that imports it. Registering the whole project's models at open time makes cross-file
+                // resolution work between every pair of files, not just the ones that happen to have been opened.
+                var allPaths = Object.keys(slot.files);
+                for (var mi = 0; mi < allPaths.length; mi++) { modelFor(allPaths[mi]); }
+
                 var editor = monaco.editor.create(host, {
                     model: modelFor(slot.active),
                     theme: 'vs-dark',
