@@ -84,6 +84,8 @@ data class TimerSummary(
     val isEnabled: Boolean = false,
     val fireOnce: Boolean = false,
     val messageCount: Int = 0,
+    // ISO-8601 UTC instant (matches TimerListItem.LastFiredAt), null when the timer has never fired.
+    val lastFiredAt: String? = null,
 )
 
 /**
@@ -142,4 +144,10 @@ data class TimerDetail(
     val isEnabled: Boolean = false,
     val fireOnce: Boolean = false,
     val pipelineId: String? = null,
+    // ISO-8601 UTC instant (matches TimerDto.LastFiredAt), null when the timer has never fired. Read-only —
+    // the edit dialog surfaces it, it is never sent back on a write.
+    val lastFiredAt: String? = null,
+    // Round-robin index into [messages] (matches TimerDto.NextMessageIndex) — the dialog shows it as
+    // "message N of M" so the operator can see where the rotation currently stands.
+    val nextMessageIndex: Int = 0,
 )
