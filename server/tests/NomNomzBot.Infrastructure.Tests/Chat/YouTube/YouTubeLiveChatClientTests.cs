@@ -792,6 +792,74 @@ public sealed class YouTubeLiveChatClientTests
     }
 
     [Fact]
+    public async Task UpdateActiveBroadcastTitle_retitles_every_active_broadcast_not_just_the_first()
+    {
+        // A channel can run more than one concurrent broadcast (simultaneous multi-encoder streams) —
+        // the retitle must reach every one of them, proven by two distinct PUT calls carrying each
+        // broadcast's own id.
+        StubHttpMessageHandler handler = new(
+            (
+                HttpStatusCode.OK,
+                """
+                {"items":[
+                  {"id":"bcast-1","snippet":{"liveChatId":"chat1","title":"old1","scheduledStartTime":"2026-07-11T18:00:00Z"}},
+                  {"id":"bcast-2","snippet":{"liveChatId":"chat2","title":"old2","scheduledStartTime":"2026-07-11T19:00:00Z"}}
+                ]}
+                """
+            ),
+            (HttpStatusCode.OK, """{"id":"bcast-1"}"""),
+            (HttpStatusCode.OK, """{"id":"bcast-2"}""")
+        );
+        YouTubeLiveChatClient sut = Build(handler);
+
+        Result<string> result = await sut.UpdateActiveBroadcastTitleAsync(Token, "new title");
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be("new title");
+        // 1 GET + 2 PUTs — one per active broadcast.
+        handler.Requests.Should().HaveCount(3);
+        List<HttpRequestMessage> puts = handler
+            .Requests.Where(r => r.Method == HttpMethod.Put)
+            .ToList();
+        puts.Should().HaveCount(2);
+        string firstBody = await puts[0].Content!.ReadAsStringAsync();
+        string secondBody = await puts[1].Content!.ReadAsStringAsync();
+        firstBody.Should().Contain("bcast-1").And.Contain("new title");
+        secondBody.Should().Contain("bcast-2").And.Contain("new title");
+    }
+
+    [Fact]
+    public async Task UpdateActiveBroadcastTitle_surfaces_a_partial_failure_instead_of_reporting_success()
+    {
+        // One of two active broadcasts fails its PUT — the caller must learn that, not be told every
+        // broadcast was retitled when only one actually was.
+        StubHttpMessageHandler handler = new(
+            (
+                HttpStatusCode.OK,
+                """
+                {"items":[
+                  {"id":"bcast-1","snippet":{"liveChatId":"chat1","title":"old1","scheduledStartTime":"2026-07-11T18:00:00Z"}},
+                  {"id":"bcast-2","snippet":{"liveChatId":"chat2","title":"old2","scheduledStartTime":"2026-07-11T19:00:00Z"}}
+                ]}
+                """
+            ),
+            (HttpStatusCode.OK, """{"id":"bcast-1"}"""),
+            (HttpStatusCode.InternalServerError, "{}")
+        );
+        YouTubeLiveChatClient sut = Build(handler);
+
+        Result<string> result = await sut.UpdateActiveBroadcastTitleAsync(Token, "new title");
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("PARTIAL_FAILURE");
+        List<HttpRequestMessage> puts = handler
+            .Requests.Where(r => r.Method == HttpMethod.Put)
+            .ToList();
+        puts.Should()
+            .HaveCount(2, "both broadcasts must still be attempted despite the first failing");
+    }
+
+    [Fact]
     public async Task DeleteMessage_deletes_by_the_message_id_with_the_bearer()
     {
         StubHttpMessageHandler handler = new((HttpStatusCode.NoContent, "{}"));
@@ -813,6 +881,10 @@ public sealed class YouTubeLiveChatClientTests
 
         public HttpRequestMessage? LastRequest { get; private set; }
 
+        // Every request sent through this handler, in order — needed to prove a multi-broadcast title
+        // update PUTs each broadcast rather than just the first.
+        public List<HttpRequestMessage> Requests { get; } = [];
+
         protected override async Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken
@@ -822,6 +894,7 @@ public sealed class YouTubeLiveChatClientTests
             if (request.Content is not null)
                 await request.Content.LoadIntoBufferAsync();
             LastRequest = request;
+            Requests.Add(request);
 
             (HttpStatusCode status, string json) = responses[
                 Math.Min(_index, responses.Length - 1)
