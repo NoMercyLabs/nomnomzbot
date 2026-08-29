@@ -10,6 +10,7 @@
 
 using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -21,12 +22,13 @@ using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Domain.Stream.Events;
 
 namespace NomNomzBot.Infrastructure.Chat.YouTube;
 
 /// <summary>
 /// The YouTube chat READ ingest (combined-chat item 6) — polls each YouTube-connected streamer's live
-/// chat and publishes every message as the canonical <see cref="ChatMessageReceivedEvent"/>
+/// chat(s) and publishes every message as the canonical <see cref="ChatMessageReceivedEvent"/>
 /// (<c>Provider = youtube</c>), so persistence, the dashboard hub push, and the analytics projections all
 /// fire through the ONE substrate Twitch chat already uses.
 ///
@@ -34,13 +36,29 @@ namespace NomNomzBot.Infrastructure.Chat.YouTube;
 /// liveness probe runs every 2 minutes; while live, message pages follow the API-directed
 /// <c>pollingIntervalMillis</c> with a 5-second floor. On going live the streamer's YouTube presence is
 /// provisioned as its own tenant <c>Channel</c> row (<see cref="IPlatformChannelProvisioner"/>) keyed by
-/// their YouTube channel id, and the FIRST page (which returns recent history, not new messages) only
-/// bootstraps the paging cursor — everything after it flows live. A worker restart mid-stream re-reads
-/// that history page the same way, so the feed never floods with duplicates.
+/// their YouTube channel id, and the FIRST page of EACH broadcast (which returns recent history, not new
+/// messages) only bootstraps that broadcast's paging cursor — everything after it flows live. A worker
+/// restart mid-stream re-reads that history page the same way, so the feed never floods with duplicates.
+///
+/// A channel CAN run more than one concurrent active broadcast (e.g. simultaneous multi-encoder streams);
+/// every active broadcast returned by <see cref="IYouTubeLiveChatClient.GetActiveLiveChatsAsync"/> is
+/// tracked and paged independently under the SAME tenant, never just the first. The send path
+/// (<see cref="IYouTubeLiveChatSessionRegistry"/>) still designates one PRIMARY chat for outbound writes —
+/// YouTube has no concept of "the" chat to reply into across broadcasts, so the first resolved broadcast
+/// is used, matching the single-broadcast behavior for the overwhelming common case.
+///
+/// The streamer's own channel identity (<see cref="IYouTubeLiveChatClient.GetOwnChannelAsync"/>) does not
+/// change during a connection's lifetime, so it is resolved once and cached (12h) rather than re-fetched on
+/// every liveness transition — a channel that goes live/offline/live several times in a session must not
+/// re-burn quota on an identity read that can never have changed.
 ///
 /// The worker is also YouTube's live tracker: every live/offline transition stamps the tenant
 /// <c>Channel.IsLive</c> row the dashboard's <c>platformsLive</c> aggregates, and the first
-/// confirmed-offline probe after a (re)start sweeps a stale flag a mid-stream crash left behind.
+/// confirmed-offline probe after a (re)start sweeps a stale flag a mid-stream crash left behind. It is
+/// also the concurrent-viewer sampler for YouTube: while live, every ~2 minutes it re-reads
+/// <c>liveStreamingDetails.concurrentViewers</c> for each tracked broadcast and journals a
+/// <see cref="StreamViewerCountSampledEvent"/> — the same per-stream viewer time series Twitch/Kick already
+/// produce, so YouTube's peak-viewers analytics and any future dashboard viewer-count display are fed too.
 /// </summary>
 public sealed class YouTubeLiveChatPollWorker : BackgroundService
 {
@@ -50,9 +68,14 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
     private static readonly TimeSpan TransientFailureBackoff = TimeSpan.FromMinutes(1);
     private static readonly TimeSpan LivePollFloor = TimeSpan.FromSeconds(5);
 
+    // The own-channel identity cannot change mid-connection; 12h comfortably outlives any single stream
+    // session while still eventually refreshing across long-running processes.
+    private static readonly TimeSpan OwnChannelCacheDuration = TimeSpan.FromHours(12);
+
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IYouTubeLiveChatClient _client;
     private readonly IYouTubeLiveChatSessionRegistry _sessions;
+    private readonly IMemoryCache _cache;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<YouTubeLiveChatPollWorker> _logger;
 
@@ -63,6 +86,7 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
         IServiceScopeFactory scopeFactory,
         IYouTubeLiveChatClient client,
         IYouTubeLiveChatSessionRegistry sessions,
+        IMemoryCache cache,
         TimeProvider timeProvider,
         ILogger<YouTubeLiveChatPollWorker> logger
     )
@@ -70,6 +94,7 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
         _scopeFactory = scopeFactory;
         _client = client;
         _sessions = sessions;
+        _cache = cache;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -124,7 +149,7 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
 
         foreach (Guid gone in _states.Keys.Where(id => !connected.Contains(id)).ToList())
         {
-            if (_states.Remove(gone, out PollState? removed) && removed.LiveChatId is not null)
+            if (_states.Remove(gone, out PollState? removed) && removed.IsLive)
             {
                 _sessions.SetOffline(removed.TenantId);
                 // A disconnect ends our tracking — a tenant we can no longer observe must not keep
@@ -180,13 +205,13 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
             return;
         }
 
-        if (state.LiveChatId is null)
+        if (!state.IsLive)
         {
             await ProbeLivenessAsync(services, broadcasterId, state, accessToken, now, ct);
             return;
         }
 
-        await ReadPageAsync(services, state, accessToken, now, ct);
+        await ReadPagesAsync(services, state, accessToken, now, ct);
     }
 
     private async Task ProbeLivenessAsync(
@@ -198,7 +223,10 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
         CancellationToken ct
     )
     {
-        Result<YouTubeActiveChat?> active = await _client.GetActiveLiveChatAsync(accessToken, ct);
+        Result<IReadOnlyList<YouTubeActiveChat>> active = await _client.GetActiveLiveChatsAsync(
+            accessToken,
+            ct
+        );
         if (active.IsFailure)
         {
             state.NextDueUtc =
@@ -216,13 +244,14 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
             return;
         }
 
-        if (active.Value is null)
+        if (active.Value.Count == 0)
         {
             // First confirmed-offline probe after a (re)start: a tenant row left IsLive=true by a crash
             // mid-stream would otherwise claim live forever — resolve the own-channel id ONCE and clear it.
             if (!state.StaleLiveChecked)
             {
-                Result<YouTubeOwnChannel> identity = await _client.GetOwnChannelAsync(
+                Result<YouTubeOwnChannel> identity = await ResolveOwnChannelCachedAsync(
+                    broadcasterId,
                     accessToken,
                     ct
                 );
@@ -247,9 +276,14 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
             return;
         }
 
-        // Going live: pin the streamer's own YouTube channel identity and provision its tenant row —
-        // the stable Guid every persisted message and hub push for this platform presence rides under.
-        Result<YouTubeOwnChannel> own = await _client.GetOwnChannelAsync(accessToken, ct);
+        // Going live: pin the streamer's own YouTube channel identity (cached — it cannot change mid
+        // connection) and provision its tenant row — the stable Guid every persisted message and hub push
+        // for this platform presence rides under.
+        Result<YouTubeOwnChannel> own = await ResolveOwnChannelCachedAsync(
+            broadcasterId,
+            accessToken,
+            ct
+        );
         if (own.IsFailure)
         {
             state.NextDueUtc = now + TransientFailureBackoff;
@@ -274,23 +308,53 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
             ct
         );
 
-        state.GoLive(active.Value.LiveChatId, tenantId, own.Value.ChannelId);
+        // Every active broadcast is tracked and paged independently — a channel running two concurrent
+        // encoders must never have the second one silently dropped.
+        foreach (YouTubeActiveChat chat in active.Value)
+            state.Broadcasts[chat.BroadcastId] = new() { LiveChatId = chat.LiveChatId };
+
+        state.SetTenant(tenantId, own.Value.ChannelId);
         state.StaleLiveChecked = true; // live now — the crash-recovery sweep is moot for this state.
-        state.NextDueUtc = now; // read the bootstrap page on the next due pass, immediately.
-        // The send path (YouTubeChatPlatform) can now write into this chat on the primary channel's token.
-        _sessions.SetLive(tenantId, broadcasterId, active.Value.LiveChatId);
+        state.NextDueUtc = now; // read the bootstrap page(s) on the next due pass, immediately.
+        // The send path (YouTubeChatPlatform) designates the FIRST resolved broadcast as the primary chat
+        // to write into — YouTube has no notion of "the" chat across concurrent broadcasts.
+        _sessions.SetLive(tenantId, broadcasterId, active.Value[0].LiveChatId);
         // The dashboard's platformsLive reads the tenant row — stamp it live alongside the session.
         await SetTenantLiveAsync(db, tenantId, live: true, ct);
 
+        // Publish an initial viewer-count sample per broadcast that already carries one, from the SAME
+        // read that just resolved liveness — no extra API call needed for this first sample.
+        await PublishViewerSamplesAsync(services, state, active.Value, ct);
+        state.NextViewerSampleUtc = now + LivenessInterval;
+
         _logger.LogInformation(
-            "YouTube live chat opened for {BroadcasterId} (tenant {TenantId}, chat {LiveChatId})",
+            "YouTube live chat opened for {BroadcasterId} (tenant {TenantId}, {Count} broadcast(s))",
             broadcasterId,
             tenantId,
-            active.Value.LiveChatId
+            active.Value.Count
         );
     }
 
-    private async Task ReadPageAsync(
+    /// <summary>Resolves the caller's own YouTube channel identity, cached for
+    /// <see cref="OwnChannelCacheDuration"/> per broadcaster — the identity cannot change mid-connection,
+    /// so repeated liveness transitions within the window must not re-burn quota re-fetching it.</summary>
+    private async Task<Result<YouTubeOwnChannel>> ResolveOwnChannelCachedAsync(
+        Guid broadcasterId,
+        string accessToken,
+        CancellationToken ct
+    )
+    {
+        string key = $"youtube-own-channel:{broadcasterId}";
+        if (_cache.TryGetValue(key, out YouTubeOwnChannel? cached) && cached is not null)
+            return Result.Success(cached);
+
+        Result<YouTubeOwnChannel> result = await _client.GetOwnChannelAsync(accessToken, ct);
+        if (result.IsSuccess)
+            _cache.Set(key, result.Value, OwnChannelCacheDuration);
+        return result;
+    }
+
+    private async Task ReadPagesAsync(
         IServiceProvider services,
         PollState state,
         string accessToken,
@@ -298,54 +362,133 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
         CancellationToken ct
     )
     {
-        Result<YouTubeLiveChatPage> page = await _client.ListMessagesAsync(
-            accessToken,
-            state.LiveChatId!,
-            state.PageToken,
-            ct
-        );
+        List<string> ended = [];
+        TimeSpan? offlineBackoff = null;
+        TimeSpan? minPollDelay = null;
 
-        if (page.IsFailure)
+        foreach ((string broadcastId, BroadcastState bstate) in state.Broadcasts.ToList())
         {
-            if (page.ErrorCode == "NOT_FOUND")
+            Result<YouTubeLiveChatPage> page = await _client.ListMessagesAsync(
+                accessToken,
+                bstate.LiveChatId,
+                bstate.PageToken,
+                ct
+            );
+
+            if (page.IsFailure)
             {
-                // The broadcast ended (or the chat id went stale) — back to cheap liveness probing.
-                _logger.LogInformation(
-                    "YouTube live chat closed for tenant {TenantId}",
-                    state.TenantId
-                );
-                await GoOfflineAsync(services, state, now + LivenessInterval, ct);
-                return;
+                ended.Add(broadcastId);
+                TimeSpan thisBackoff = page.ErrorCode switch
+                {
+                    // The broadcast ended (or the chat id went stale) — a normal end, cheapest backoff.
+                    "NOT_FOUND" => LivenessInterval,
+                    "MISSING_SCOPE" => MissingScopeBackoff,
+                    _ => TransientFailureBackoff,
+                };
+                offlineBackoff =
+                    offlineBackoff is { } existing && existing > thisBackoff
+                        ? existing
+                        : thisBackoff;
+                if (page.ErrorCode == "NOT_FOUND")
+                    _logger.LogInformation(
+                        "YouTube live chat closed for tenant {TenantId} (broadcast {BroadcastId})",
+                        state.TenantId,
+                        broadcastId
+                    );
+                continue;
             }
 
+            string? previousToken = bstate.PageToken;
+            bstate.PageToken = page.Value.NextPageToken;
+            TimeSpan pollDelay = TimeSpan.FromMilliseconds(page.Value.PollingIntervalMs);
+            minPollDelay =
+                minPollDelay is { } existingDelay && existingDelay < pollDelay
+                    ? existingDelay
+                    : pollDelay;
+
+            // The FIRST page of a chat session returns recent history, not new messages — consume only
+            // the paging cursor so a (re)start never floods the live feed or the journal with old lines.
+            if (previousToken is null)
+                continue;
+            if (page.Value.Messages.Count == 0)
+                continue;
+
+            await PublishNewMessagesAsync(services, state, page.Value.Messages, ct);
+        }
+
+        foreach (string endedId in ended)
+            state.Broadcasts.Remove(endedId);
+
+        if (state.Broadcasts.Count == 0)
+        {
+            // Every tracked broadcast just ended in this pass — the transition-to-offline cleanup must
+            // still run even though IsLive already reads false (the ended entries were just removed).
             await GoOfflineAsync(
                 services,
                 state,
-                now
-                    + (
-                        page.ErrorCode == "MISSING_SCOPE"
-                            ? MissingScopeBackoff
-                            : TransientFailureBackoff
-                    ),
-                ct
+                now + (offlineBackoff ?? LivenessInterval),
+                ct,
+                wasLive: true
             );
             return;
         }
 
-        string? previousToken = state.PageToken;
-        state.PageToken = page.Value.NextPageToken;
-        state.NextDueUtc =
-            now + Max(TimeSpan.FromMilliseconds(page.Value.PollingIntervalMs), LivePollFloor);
+        if (now >= state.NextViewerSampleUtc)
+            await SampleViewerCountsAsync(services, state, accessToken, now, ct);
 
-        // The FIRST page of a chat session returns recent history, not new messages — consume only the
-        // paging cursor so a (re)start never floods the live feed or the journal with old lines.
-        if (previousToken is null)
+        state.NextDueUtc = now + Max(minPollDelay ?? LivePollFloor, LivePollFloor);
+    }
+
+    /// <summary>The concurrent-viewer sampler: re-reads every tracked broadcast's
+    /// <c>liveStreamingDetails.concurrentViewers</c> and journals one <see cref="StreamViewerCountSampledEvent"/>
+    /// per broadcast that reports a count. Runs on the same ~2-minute cadence as the Twitch/Kick viewer
+    /// pollers, independent of the (much faster) chat-page cadence.</summary>
+    private async Task SampleViewerCountsAsync(
+        IServiceProvider services,
+        PollState state,
+        string accessToken,
+        DateTime now,
+        CancellationToken ct
+    )
+    {
+        state.NextViewerSampleUtc = now + LivenessInterval;
+
+        Result<IReadOnlyList<YouTubeActiveChat>> active = await _client.GetActiveLiveChatsAsync(
+            accessToken,
+            ct
+        );
+        if (active.IsFailure)
             return;
 
-        if (page.Value.Messages.Count == 0)
-            return;
+        await PublishViewerSamplesAsync(services, state, active.Value, ct);
+    }
 
-        await PublishNewMessagesAsync(services, state, page.Value.Messages, ct);
+    private static async Task PublishViewerSamplesAsync(
+        IServiceProvider services,
+        PollState state,
+        IReadOnlyList<YouTubeActiveChat> chats,
+        CancellationToken ct
+    )
+    {
+        IEventBus? bus = null;
+        foreach (YouTubeActiveChat chat in chats)
+        {
+            if (!state.Broadcasts.ContainsKey(chat.BroadcastId))
+                continue;
+            if (chat.ConcurrentViewers is not { } count)
+                continue;
+
+            bus ??= services.GetRequiredService<IEventBus>();
+            await bus.PublishAsync(
+                new StreamViewerCountSampledEvent
+                {
+                    BroadcasterId = state.TenantId,
+                    ViewerCount = (int)Math.Min(count, int.MaxValue),
+                    StreamId = chat.BroadcastId,
+                },
+                ct
+            );
+        }
     }
 
     private static async Task PublishNewMessagesAsync(
@@ -439,10 +582,11 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
         IServiceProvider services,
         PollState state,
         DateTime nextDueUtc,
-        CancellationToken ct
+        CancellationToken ct,
+        bool? wasLive = null
     )
     {
-        if (state.LiveChatId is not null)
+        if (wasLive ?? state.IsLive)
         {
             _sessions.SetOffline(state.TenantId);
             IApplicationDbContext db = services.GetRequiredService<IApplicationDbContext>();
@@ -468,32 +612,39 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
 
     private static TimeSpan Max(TimeSpan a, TimeSpan b) => a >= b ? a : b;
 
-    /// <summary>Mutable per-broadcaster cursor: offline (liveness probing) or live (page polling).</summary>
+    /// <summary>Mutable per-broadcaster cursor: offline (liveness probing) or live (one entry per tracked
+    /// active broadcast, each with its own paging cursor).</summary>
     private sealed class PollState
     {
         public DateTime NextDueUtc { get; set; } = DateTime.MinValue;
-        public string? LiveChatId { get; private set; }
+        public DateTime NextViewerSampleUtc { get; set; } = DateTime.MinValue;
         public Guid TenantId { get; private set; }
         public string? ExternalChannelId { get; private set; }
-        public string? PageToken { get; set; }
+        public Dictionary<string, BroadcastState> Broadcasts { get; } = [];
 
         /// <summary>Crash-recovery guard: true once a stale IsLive tenant row has been swept (or the
         /// channel went live, which supersedes the sweep).</summary>
         public bool StaleLiveChecked { get; set; }
 
-        public void GoLive(string liveChatId, Guid tenantId, string externalChannelId)
+        public bool IsLive => Broadcasts.Count > 0;
+
+        public void SetTenant(Guid tenantId, string externalChannelId)
         {
-            LiveChatId = liveChatId;
             TenantId = tenantId;
             ExternalChannelId = externalChannelId;
-            PageToken = null;
         }
 
         public void GoOffline(DateTime nextDueUtc)
         {
-            LiveChatId = null;
-            PageToken = null;
+            Broadcasts.Clear();
             NextDueUtc = nextDueUtc;
         }
+    }
+
+    /// <summary>One tracked active broadcast's live-chat id and paging cursor.</summary>
+    private sealed class BroadcastState
+    {
+        public required string LiveChatId { get; init; }
+        public string? PageToken { get; set; }
     }
 }

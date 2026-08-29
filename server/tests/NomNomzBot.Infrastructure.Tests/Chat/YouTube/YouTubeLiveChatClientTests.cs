@@ -33,7 +33,7 @@ public sealed class YouTubeLiveChatClientTests
         new(new SingleClientFactory(handler), NullLogger<YouTubeLiveChatClient>.Instance);
 
     [Fact]
-    public async Task GetActiveLiveChat_maps_the_active_broadcast_and_sends_the_bearer()
+    public async Task GetActiveLiveChats_maps_the_active_broadcast_and_sends_the_bearer()
     {
         StubHttpMessageHandler handler = new(
             (
@@ -43,47 +43,87 @@ public sealed class YouTubeLiveChatClientTests
         );
         YouTubeLiveChatClient sut = Build(handler);
 
-        Result<YouTubeActiveChat?> result = await sut.GetActiveLiveChatAsync(Token);
+        Result<IReadOnlyList<YouTubeActiveChat>> result = await sut.GetActiveLiveChatsAsync(Token);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Should().NotBeNull();
-        result.Value!.BroadcastId.Should().Be("bcast1");
-        result.Value.LiveChatId.Should().Be("chat123");
-        result.Value.Title.Should().Be("My Stream");
+        YouTubeActiveChat chat = result.Value.Should().ContainSingle().Subject;
+        chat.BroadcastId.Should().Be("bcast1");
+        chat.LiveChatId.Should().Be("chat123");
+        chat.Title.Should().Be("My Stream");
         handler.LastRequest!.RequestUri!.ToString().Should().Contain("broadcastStatus=active");
         handler.LastRequest.Headers.Authorization!.Scheme.Should().Be("Bearer");
         handler.LastRequest.Headers.Authorization.Parameter.Should().Be(Token);
     }
 
     [Fact]
-    public async Task GetActiveLiveChat_returns_null_when_not_live()
+    public async Task GetActiveLiveChats_maps_every_concurrent_active_broadcast_and_its_viewer_count()
     {
-        // No active broadcast (or one with chat disabled) is a normal state — success with a null value.
-        StubHttpMessageHandler handler = new((HttpStatusCode.OK, """{"items":[]}"""));
+        // A channel CAN run more than one concurrent live broadcast — every active item must be tracked,
+        // never just the first, and each carries its own liveStreamingDetails.concurrentViewers sample.
+        StubHttpMessageHandler handler = new(
+            (
+                HttpStatusCode.OK,
+                """
+                {
+                  "items": [
+                    {
+                      "id": "bcast1",
+                      "snippet": { "liveChatId": "chat1", "title": "Main encoder" },
+                      "liveStreamingDetails": { "concurrentViewers": "1234" }
+                    },
+                    {
+                      "id": "bcast2",
+                      "snippet": { "liveChatId": "chat2", "title": "Backup encoder" },
+                      "liveStreamingDetails": { "concurrentViewers": "17" }
+                    }
+                  ]
+                }
+                """
+            )
+        );
         YouTubeLiveChatClient sut = Build(handler);
 
-        Result<YouTubeActiveChat?> result = await sut.GetActiveLiveChatAsync(Token);
+        Result<IReadOnlyList<YouTubeActiveChat>> result = await sut.GetActiveLiveChatsAsync(Token);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Should().BeNull();
+        result.Value.Should().HaveCount(2);
+        result
+            .Value.Should()
+            .ContainSingle(c => c.BroadcastId == "bcast1" && c.ConcurrentViewers == 1234L);
+        result
+            .Value.Should()
+            .ContainSingle(c => c.BroadcastId == "bcast2" && c.ConcurrentViewers == 17L);
     }
 
     [Fact]
-    public async Task GetActiveLiveChat_maps_a_403_with_no_reason_to_missing_scope()
+    public async Task GetActiveLiveChats_returns_an_empty_list_when_not_live()
+    {
+        // No active broadcast (or one with chat disabled) is a normal state — success with an empty list.
+        StubHttpMessageHandler handler = new((HttpStatusCode.OK, """{"items":[]}"""));
+        YouTubeLiveChatClient sut = Build(handler);
+
+        Result<IReadOnlyList<YouTubeActiveChat>> result = await sut.GetActiveLiveChatsAsync(Token);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetActiveLiveChats_maps_a_403_with_no_reason_to_missing_scope()
     {
         StubHttpMessageHandler handler = new(
             (HttpStatusCode.Forbidden, """{"error":{"code":403}}""")
         );
         YouTubeLiveChatClient sut = Build(handler);
 
-        Result<YouTubeActiveChat?> result = await sut.GetActiveLiveChatAsync(Token);
+        Result<IReadOnlyList<YouTubeActiveChat>> result = await sut.GetActiveLiveChatsAsync(Token);
 
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("MISSING_SCOPE");
     }
 
     [Fact]
-    public async Task GetActiveLiveChat_maps_a_403_with_insufficientPermissions_to_missing_scope()
+    public async Task GetActiveLiveChats_maps_a_403_with_insufficientPermissions_to_missing_scope()
     {
         // Regression-proofing: a genuine permission-shaped 403 must still trigger the scope re-auth path.
         StubHttpMessageHandler handler = new(
@@ -94,14 +134,14 @@ public sealed class YouTubeLiveChatClientTests
         );
         YouTubeLiveChatClient sut = Build(handler);
 
-        Result<YouTubeActiveChat?> result = await sut.GetActiveLiveChatAsync(Token);
+        Result<IReadOnlyList<YouTubeActiveChat>> result = await sut.GetActiveLiveChatsAsync(Token);
 
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("MISSING_SCOPE");
     }
 
     [Fact]
-    public async Task GetActiveLiveChat_maps_a_403_with_quotaExceeded_to_quota_exceeded_not_missing_scope()
+    public async Task GetActiveLiveChats_maps_a_403_with_quotaExceeded_to_quota_exceeded_not_missing_scope()
     {
         // A real quota exhaustion must NOT ride the 15-minute scope-backoff path.
         StubHttpMessageHandler handler = new(
@@ -112,14 +152,14 @@ public sealed class YouTubeLiveChatClientTests
         );
         YouTubeLiveChatClient sut = Build(handler);
 
-        Result<YouTubeActiveChat?> result = await sut.GetActiveLiveChatAsync(Token);
+        Result<IReadOnlyList<YouTubeActiveChat>> result = await sut.GetActiveLiveChatsAsync(Token);
 
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("QUOTA_EXCEEDED");
     }
 
     [Fact]
-    public async Task GetActiveLiveChat_maps_a_401_to_missing_scope_regardless_of_body()
+    public async Task GetActiveLiveChats_maps_a_401_to_missing_scope_regardless_of_body()
     {
         // A 401 is an invalid/expired bearer, never a quota concern — always MISSING_SCOPE.
         StubHttpMessageHandler handler = new(
@@ -130,7 +170,7 @@ public sealed class YouTubeLiveChatClientTests
         );
         YouTubeLiveChatClient sut = Build(handler);
 
-        Result<YouTubeActiveChat?> result = await sut.GetActiveLiveChatAsync(Token);
+        Result<IReadOnlyList<YouTubeActiveChat>> result = await sut.GetActiveLiveChatsAsync(Token);
 
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("MISSING_SCOPE");

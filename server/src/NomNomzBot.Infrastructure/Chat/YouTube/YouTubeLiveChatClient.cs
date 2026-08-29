@@ -42,40 +42,54 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
         _logger = logger;
     }
 
-    public async Task<Result<YouTubeActiveChat?>> GetActiveLiveChatAsync(
+    public async Task<Result<IReadOnlyList<YouTubeActiveChat>>> GetActiveLiveChatsAsync(
         string accessToken,
         CancellationToken cancellationToken = default
     )
     {
-        // broadcastStatus/mine/id are mutually exclusive; broadcastStatus=active on the caller's token returns
-        // only their live broadcasts, so one item (if any) is the active one whose snippet carries liveChatId.
+        // broadcastStatus/mine/id are mutually exclusive; broadcastStatus=active on the caller's token
+        // returns EVERY one of their live broadcasts (a channel can run more than one concurrently — e.g.
+        // simultaneous multi-encoder streams), so every item whose snippet carries liveChatId is tracked,
+        // never just the first. liveStreamingDetails supplies the concurrent-viewer sample.
         string url =
-            $"{YouTubeApiBase}/liveBroadcasts?part=snippet&broadcastStatus=active&maxResults=1";
+            $"{YouTubeApiBase}/liveBroadcasts?part=snippet,liveStreamingDetails&broadcastStatus=active";
 
         (HttpStatusCode? status, LiveBroadcastListResponse? body, string? errorCode) =
             await GetAsync<LiveBroadcastListResponse>(url, accessToken, cancellationToken);
 
         if (status is null)
-            return Result.Failure<YouTubeActiveChat?>(
+            return Result.Failure<IReadOnlyList<YouTubeActiveChat>>(
                 "YouTube is temporarily unavailable.",
                 "SERVICE_UNAVAILABLE"
             );
         if (errorCode is not null)
-            return Result.Failure<YouTubeActiveChat?>(DescribeErrorCode(errorCode), errorCode);
+            return Result.Failure<IReadOnlyList<YouTubeActiveChat>>(
+                DescribeErrorCode(errorCode),
+                errorCode
+            );
 
-        LiveBroadcastItem? broadcast = body?.Items?.FirstOrDefault(b =>
-            !string.IsNullOrEmpty(b.Snippet?.LiveChatId)
-        );
+        // Not live (no active broadcast, or every active broadcast has chat disabled) — a normal state,
+        // not a failure. The poller treats an empty list as "nothing to read right now".
+        List<YouTubeActiveChat> active =
+        [
+            .. (body?.Items ?? [])
+                .Where(b => !string.IsNullOrEmpty(b.Snippet?.LiveChatId))
+                .Select(b => new YouTubeActiveChat(
+                    b.Id ?? string.Empty,
+                    b.Snippet!.LiveChatId!,
+                    b.Snippet.Title,
+                    ParseConcurrentViewers(b.LiveStreamingDetails?.ConcurrentViewers)
+                )),
+        ];
 
-        // Not live (no active broadcast, or an active broadcast with chat disabled) — a normal state, not a
-        // failure. The poller treats a null value as "nothing to read right now".
-        if (broadcast?.Snippet?.LiveChatId is not { } liveChatId)
-            return Result.Success<YouTubeActiveChat?>(null);
-
-        return Result.Success<YouTubeActiveChat?>(
-            new(broadcast.Id ?? string.Empty, liveChatId, broadcast.Snippet.Title)
-        );
+        return Result.Success<IReadOnlyList<YouTubeActiveChat>>(active);
     }
+
+    /// <summary><c>liveStreamingDetails.concurrentViewers</c> comes back as a decimal STRING on the wire
+    /// (Google's uint64-as-string convention) — an unparsable or absent value degrades to null rather than
+    /// failing the whole read.</summary>
+    private static long? ParseConcurrentViewers(string? raw) =>
+        !string.IsNullOrEmpty(raw) && long.TryParse(raw, out long value) ? value : null;
 
     public async Task<Result<YouTubeLiveChatPage>> ListMessagesAsync(
         string accessToken,
@@ -592,6 +606,17 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
 
         [JsonPropertyName("snippet")]
         public LiveBroadcastSnippet? Snippet { get; set; }
+
+        [JsonPropertyName("liveStreamingDetails")]
+        public LiveStreamingDetails? LiveStreamingDetails { get; set; }
+    }
+
+    // Google reports concurrentViewers as a decimal string (uint64-as-string convention) — parsed by
+    // ParseConcurrentViewers, degrading to null when absent/unparsable rather than failing the read.
+    private sealed class LiveStreamingDetails
+    {
+        [JsonPropertyName("concurrentViewers")]
+        public string? ConcurrentViewers { get; set; }
     }
 
     private sealed class LiveBroadcastSnippet

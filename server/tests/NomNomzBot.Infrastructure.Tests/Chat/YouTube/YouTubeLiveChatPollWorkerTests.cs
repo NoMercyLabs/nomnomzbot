@@ -10,6 +10,7 @@
 
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
@@ -22,6 +23,7 @@ using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Domain.Stream.Events;
 using NomNomzBot.Infrastructure.Chat.YouTube;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -55,7 +57,7 @@ public sealed class YouTubeLiveChatPollWorkerTests
         ) = await BuildConnectedAsync();
 
         client.LivenessResults.Enqueue(
-            Result.Success<YouTubeActiveChat?>(new("b1", "chat-1", "Live!"))
+            Result.Success<IReadOnlyList<YouTubeActiveChat>>([new("b1", "chat-1", "Live!")])
         );
         // Page 1 = history bootstrap: its items must NOT reach the feed; only the cursor is kept.
         client.PageResults.Enqueue(
@@ -123,6 +125,141 @@ public sealed class YouTubeLiveChatPollWorkerTests
     }
 
     [Fact]
+    public async Task Two_concurrent_active_broadcasts_are_both_tracked_not_just_the_first()
+    {
+        // A channel CAN run more than one concurrent live broadcast (simultaneous multi-encoder streams) —
+        // both must be tracked and paged, never just the first one YouTube happens to list.
+        (
+            YouTubeLiveChatPollWorker worker,
+            ScriptedLiveChatClient client,
+            RecordingEventBus bus,
+            _,
+            FakeTimeProvider time,
+            _
+        ) = await BuildConnectedAsync();
+
+        client.LivenessResults.Enqueue(
+            Result.Success<IReadOnlyList<YouTubeActiveChat>>([
+                new("b1", "chat-1", "Main"),
+                new("b2", "chat-2", "Backup"),
+            ])
+        );
+        // Bootstrap pages for both tracked broadcasts (order matches Dictionary enumeration = insertion).
+        client.PageResults.Enqueue(Result.Success(new YouTubeLiveChatPage([], "tok-1a", 1000)));
+        client.PageResults.Enqueue(Result.Success(new YouTubeLiveChatPage([], "tok-2a", 1000)));
+
+        await worker.TickAsync(CancellationToken.None); // liveness → live, both broadcasts registered
+        await worker.TickAsync(CancellationToken.None); // bootstrap both chats' cursors
+
+        client
+            .PageCalls.Should()
+            .Be(2, "both concurrent active broadcasts must be tracked and paged independently");
+
+        // Live traffic on the SECOND broadcast only — proves it is genuinely polled, not just registered.
+        time.Advance(TimeSpan.FromSeconds(6));
+        client.PageResults.Enqueue(
+            Result.Success(
+                new YouTubeLiveChatPage([Message("m-1", "hi from main")], "tok-1b", 1000)
+            )
+        );
+        client.PageResults.Enqueue(
+            Result.Success(
+                new YouTubeLiveChatPage([Message("m-2", "hi from backup")], "tok-2b", 1000)
+            )
+        );
+        await worker.TickAsync(CancellationToken.None);
+
+        bus.Published.OfType<ChatMessageReceivedEvent>()
+            .Select(e => e.MessageId)
+            .Should()
+            .BeEquivalentTo(
+                ["m-1", "m-2"],
+                "both tracked broadcasts must publish their own live traffic"
+            );
+    }
+
+    [Fact]
+    public async Task GetOwnChannel_is_resolved_at_most_once_across_repeated_liveness_transitions()
+    {
+        // The streamer's own channel identity cannot change mid-connection — re-fetching it on every
+        // liveness transition would burn quota for nothing. Go live → offline → live again within the
+        // cache window and prove only ONE GetOwnChannelAsync call happened.
+        (
+            YouTubeLiveChatPollWorker worker,
+            ScriptedLiveChatClient client,
+            _,
+            _,
+            FakeTimeProvider time,
+            _
+        ) = await BuildConnectedAsync();
+
+        // First live cycle.
+        client.LivenessResults.Enqueue(
+            Result.Success<IReadOnlyList<YouTubeActiveChat>>([new("b1", "chat-1", "Live!")])
+        );
+        await worker.TickAsync(CancellationToken.None); // → live (1st own-channel resolution)
+
+        // Chat ends → back to liveness probing.
+        client.PageResults.Enqueue(Result.Failure<YouTubeLiveChatPage>("gone", "NOT_FOUND"));
+        await worker.TickAsync(CancellationToken.None); // → offline
+
+        time.Advance(TimeSpan.FromMinutes(3));
+        // Second live cycle, well within the 12h own-channel cache window.
+        client.LivenessResults.Enqueue(
+            Result.Success<IReadOnlyList<YouTubeActiveChat>>([new("b3", "chat-3", "Live again!")])
+        );
+        await worker.TickAsync(CancellationToken.None); // → live again (should reuse the cached identity)
+
+        client
+            .OwnChannelCalls.Should()
+            .Be(
+                1,
+                "the own-channel identity is stable for the connection's lifetime and must be cached"
+            );
+    }
+
+    [Fact]
+    public async Task The_concurrent_viewer_sampler_publishes_a_sample_per_tracked_broadcast_once_due()
+    {
+        (
+            YouTubeLiveChatPollWorker worker,
+            ScriptedLiveChatClient client,
+            RecordingEventBus bus,
+            _,
+            FakeTimeProvider time,
+            _
+        ) = await BuildConnectedAsync();
+
+        client.LivenessResults.Enqueue(
+            Result.Success<IReadOnlyList<YouTubeActiveChat>>([
+                new("b1", "chat-1", "Live!", ConcurrentViewers: 42),
+            ])
+        );
+        await worker.TickAsync(CancellationToken.None); // → live; initial sample published from this read
+
+        bus.Published.OfType<StreamViewerCountSampledEvent>()
+            .Should()
+            .ContainSingle(e => e.ViewerCount == 42 && e.StreamId == "b1");
+
+        // Bootstrap page, then advance past the sampler's 2-minute cadence and re-sample with a fresh count.
+        client.PageResults.Enqueue(Result.Success(new YouTubeLiveChatPage([], "tok-1", 1000)));
+        await worker.TickAsync(CancellationToken.None);
+
+        time.Advance(TimeSpan.FromMinutes(2).Add(TimeSpan.FromSeconds(1)));
+        client.PageResults.Enqueue(Result.Success(new YouTubeLiveChatPage([], "tok-2", 1000)));
+        client.LivenessResults.Enqueue(
+            Result.Success<IReadOnlyList<YouTubeActiveChat>>([
+                new("b1", "chat-1", "Live!", ConcurrentViewers: 99),
+            ])
+        );
+        await worker.TickAsync(CancellationToken.None);
+
+        bus.Published.OfType<StreamViewerCountSampledEvent>()
+            .Should()
+            .ContainSingle(e => e.ViewerCount == 99 && e.StreamId == "b1");
+    }
+
+    [Fact]
     public async Task A_message_already_persisted_is_not_republished()
     {
         (
@@ -150,7 +287,7 @@ public sealed class YouTubeLiveChatPollWorkerTests
         await db.SaveChangesAsync();
 
         client.LivenessResults.Enqueue(
-            Result.Success<YouTubeActiveChat?>(new("b1", "chat-1", "Live!"))
+            Result.Success<IReadOnlyList<YouTubeActiveChat>>([new("b1", "chat-1", "Live!")])
         );
         client.PageResults.Enqueue(Result.Success(new YouTubeLiveChatPage([], "tok-1", 1000)));
         client.PageResults.Enqueue(
@@ -187,7 +324,7 @@ public sealed class YouTubeLiveChatPollWorkerTests
         ) = await BuildConnectedAsync();
 
         client.LivenessResults.Enqueue(
-            Result.Success<YouTubeActiveChat?>(new("b1", "chat-1", "Live!"))
+            Result.Success<IReadOnlyList<YouTubeActiveChat>>([new("b1", "chat-1", "Live!")])
         );
         client.PageResults.Enqueue(
             Result.Failure<YouTubeLiveChatPage>(
@@ -195,7 +332,7 @@ public sealed class YouTubeLiveChatPollWorkerTests
                 "NOT_FOUND"
             )
         );
-        client.LivenessResults.Enqueue(Result.Success<YouTubeActiveChat?>(null));
+        client.LivenessResults.Enqueue(Result.Success<IReadOnlyList<YouTubeActiveChat>>([]));
 
         await worker.TickAsync(CancellationToken.None); // → live
         await worker.TickAsync(CancellationToken.None); // page read → NOT_FOUND → offline
@@ -245,7 +382,7 @@ public sealed class YouTubeLiveChatPollWorkerTests
         );
         await db.SaveChangesAsync();
 
-        client.LivenessResults.Enqueue(Result.Success<YouTubeActiveChat?>(null));
+        client.LivenessResults.Enqueue(Result.Success<IReadOnlyList<YouTubeActiveChat>>([]));
 
         await worker.TickAsync(CancellationToken.None); // confirmed offline → sweep
 
@@ -268,7 +405,7 @@ public sealed class YouTubeLiveChatPollWorkerTests
         ) = await BuildConnectedAsync();
 
         client.LivenessResults.Enqueue(
-            Result.Success<YouTubeActiveChat?>(new("b1", "chat-1", "Live!"))
+            Result.Success<IReadOnlyList<YouTubeActiveChat>>([new("b1", "chat-1", "Live!")])
         );
         await worker.TickAsync(CancellationToken.None); // → live, IsLive stamped
 
@@ -295,8 +432,8 @@ public sealed class YouTubeLiveChatPollWorkerTests
             _
         ) = await BuildConnectedAsync();
 
-        client.LivenessResults.Enqueue(Result.Success<YouTubeActiveChat?>(null));
-        client.LivenessResults.Enqueue(Result.Success<YouTubeActiveChat?>(null));
+        client.LivenessResults.Enqueue(Result.Success<IReadOnlyList<YouTubeActiveChat>>([]));
+        client.LivenessResults.Enqueue(Result.Success<IReadOnlyList<YouTubeActiveChat>>([]));
 
         await worker.TickAsync(CancellationToken.None); // first probe: offline
         time.Advance(TimeSpan.FromSeconds(30));
@@ -347,7 +484,7 @@ public sealed class YouTubeLiveChatPollWorkerTests
         );
 
         client.LivenessResults.Enqueue(
-            Result.Success<YouTubeActiveChat?>(new("b1", "chat-1", "Live!"))
+            Result.Success<IReadOnlyList<YouTubeActiveChat>>([new("b1", "chat-1", "Live!")])
         );
         client.PageResults.Enqueue(
             Result.Success(new YouTubeLiveChatPage([Message("hist-1", "old line")], "tok-1", 1000))
@@ -389,7 +526,7 @@ public sealed class YouTubeLiveChatPollWorkerTests
         );
 
         client.LivenessResults.Enqueue(
-            Result.Success<YouTubeActiveChat?>(new("b1", "chat-1", "Live!"))
+            Result.Success<IReadOnlyList<YouTubeActiveChat>>([new("b1", "chat-1", "Live!")])
         );
         client.PageResults.Enqueue(
             Result.Success(new YouTubeLiveChatPage([Message("hist-1", "old line")], "tok-1", 1000))
@@ -426,7 +563,7 @@ public sealed class YouTubeLiveChatPollWorkerTests
         ) = await BuildConnectedAsync();
 
         client.LivenessResults.Enqueue(
-            Result.Success<YouTubeActiveChat?>(new("b1", "chat-1", "Live!"))
+            Result.Success<IReadOnlyList<YouTubeActiveChat>>([new("b1", "chat-1", "Live!")])
         );
         client.PageResults.Enqueue(
             Result.Success(new YouTubeLiveChatPage([Message("hist-1", "old line")], "tok-1", 1000))
@@ -477,7 +614,7 @@ public sealed class YouTubeLiveChatPollWorkerTests
         ) = await BuildConnectedAsync();
 
         client.LivenessResults.Enqueue(
-            Result.Success<YouTubeActiveChat?>(new("b1", "chat-1", "Live!"))
+            Result.Success<IReadOnlyList<YouTubeActiveChat>>([new("b1", "chat-1", "Live!")])
         );
         client.PageResults.Enqueue(
             Result.Success(new YouTubeLiveChatPage([Message("hist-1", "old line")], "tok-1", 1000))
@@ -657,6 +794,7 @@ public sealed class YouTubeLiveChatPollWorkerTests
             provider.GetRequiredService<IServiceScopeFactory>(),
             client,
             sessionRegistry,
+            new MemoryCache(new MemoryCacheOptions()),
             time,
             NullLogger<YouTubeLiveChatPollWorker>.Instance
         );
@@ -685,7 +823,7 @@ public sealed class YouTubeLiveChatPollWorkerTests
     /// test proves exactly which API surface was hit and with which paging token.</summary>
     private sealed class ScriptedLiveChatClient : IYouTubeLiveChatClient
     {
-        public Queue<Result<YouTubeActiveChat?>> LivenessResults { get; } = new();
+        public Queue<Result<IReadOnlyList<YouTubeActiveChat>>> LivenessResults { get; } = new();
         public Queue<Result<YouTubeLiveChatPage>> PageResults { get; } = new();
         public int LivenessCalls { get; private set; }
         public int PageCalls { get; private set; }
@@ -695,7 +833,7 @@ public sealed class YouTubeLiveChatPollWorkerTests
         // timeout for exactly one channel in a multi-channel tick); null = never throw.
         public int? ThrowTaskCanceledOnLivenessCallNumber { get; set; }
 
-        public Task<Result<YouTubeActiveChat?>> GetActiveLiveChatAsync(
+        public Task<Result<IReadOnlyList<YouTubeActiveChat>>> GetActiveLiveChatsAsync(
             string accessToken,
             CancellationToken cancellationToken = default
         )
@@ -708,7 +846,7 @@ public sealed class YouTubeLiveChatPollWorkerTests
             return Task.FromResult(
                 LivenessResults.Count > 0
                     ? LivenessResults.Dequeue()
-                    : Result.Success<YouTubeActiveChat?>(null)
+                    : Result.Success<IReadOnlyList<YouTubeActiveChat>>([])
             );
         }
 
@@ -724,10 +862,18 @@ public sealed class YouTubeLiveChatPollWorkerTests
             return Task.FromResult(PageResults.Dequeue());
         }
 
+        public int OwnChannelCalls { get; private set; }
+
         public Task<Result<YouTubeOwnChannel>> GetOwnChannelAsync(
             string accessToken,
             CancellationToken cancellationToken = default
-        ) => Task.FromResult(Result.Success(new YouTubeOwnChannel("UCstreamer", "Streamer YT")));
+        )
+        {
+            OwnChannelCalls++;
+            return Task.FromResult(
+                Result.Success(new YouTubeOwnChannel("UCstreamer", "Streamer YT"))
+            );
+        }
 
         public List<string> SentMessages { get; } = [];
 
@@ -824,6 +970,7 @@ public sealed class YouTubeLiveChatPollWorkerTests
             scopeFactory,
             NSubstitute.Substitute.For<IYouTubeLiveChatClient>(),
             NSubstitute.Substitute.For<IYouTubeLiveChatSessionRegistry>(),
+            new MemoryCache(new MemoryCacheOptions()),
             clock,
             NullLogger<YouTubeLiveChatPollWorker>.Instance
         );
