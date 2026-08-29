@@ -14,6 +14,7 @@ using Microsoft.Extensions.Options;
 using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Chat;
 using NomNomzBot.Infrastructure.Platform;
@@ -726,6 +727,72 @@ public sealed class HelixChatProviderTests
             )
             .Which.Message.Should()
             .Be("!cmd");
+    }
+
+    /// <summary>The unban outcome is threaded through truthfully: Helix confirming the lift reports
+    /// <see cref="ChatUnbanOutcome.Success"/>, not a bare discarded <c>Task</c>.</summary>
+    [Fact]
+    public async Task UnbanUser_WhenHelixConfirmsTheLift_ReturnsSuccess()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
+        moderation
+            .UnbanUserAsync(Owner, "target-1", Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        HelixChatProvider provider = new(
+            new CapturingHelixTransport(),
+            moderation,
+            new StubIdentityResolver(Owner, OwnerTwitchChannelId),
+            db,
+            new HelixBadgeSendGate(TimeProvider.System),
+            Options.Create(
+                new TwitchOptions
+                {
+                    ClientId = "c",
+                    ClientSecret = "s",
+                    BotUsername = "b",
+                }
+            ),
+            NullLogger<HelixChatProvider>.Instance
+        );
+
+        ChatUnbanOutcome outcome = await provider.UnbanUserAsync(Owner, "target-1");
+
+        outcome.Should().Be(ChatUnbanOutcome.Success);
+    }
+
+    /// <summary>
+    /// A Twitch <c>not_found</c> — the user was never banned or was already unbanned — reports the
+    /// DISTINCT <see cref="ChatUnbanOutcome.NotFound"/> outcome, never conflated with a generic failure.
+    /// </summary>
+    [Fact]
+    public async Task UnbanUser_WhenTwitchReportsNotFound_ReturnsNotFound()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
+        moderation
+            .UnbanUserAsync(Owner, "target-2", Arg.Any<CancellationToken>())
+            .Returns(Result.Failure("Twitch returned no data.", TwitchErrorCodes.NotFound));
+        HelixChatProvider provider = new(
+            new CapturingHelixTransport(),
+            moderation,
+            new StubIdentityResolver(Owner, OwnerTwitchChannelId),
+            db,
+            new HelixBadgeSendGate(TimeProvider.System),
+            Options.Create(
+                new TwitchOptions
+                {
+                    ClientId = "c",
+                    ClientSecret = "s",
+                    BotUsername = "b",
+                }
+            ),
+            NullLogger<HelixChatProvider>.Instance
+        );
+
+        ChatUnbanOutcome outcome = await provider.UnbanUserAsync(Owner, "target-2");
+
+        outcome.Should().Be(ChatUnbanOutcome.NotFound);
     }
 
     /// <summary>Reads the anonymous chat-send body (PascalCase) the provider hands the transport.</summary>

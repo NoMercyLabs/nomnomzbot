@@ -12,6 +12,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.YouTube;
+using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Infrastructure.Chat.YouTube;
 using NSubstitute;
 
@@ -241,8 +242,9 @@ public sealed class YouTubeChatPlatformTests
             .UnbanUserAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success());
 
-        await platform.UnbanUserAsync(Tenant, "UCbad");
+        ChatUnbanOutcome outcome = await platform.UnbanUserAsync(Tenant, "UCbad");
 
+        outcome.Should().Be(ChatUnbanOutcome.Success, "YouTube confirmed the lift");
         await client.Received(1).UnbanUserAsync("bearer-1", "ban-9", Arg.Any<CancellationToken>());
     }
 
@@ -259,11 +261,63 @@ public sealed class YouTubeChatPlatformTests
         bans.ConsumeLatestAsync(Tenant, "UCnever", Arg.Any<CancellationToken>())
             .Returns((YouTubeConsumedBan?)null);
 
-        await platform.UnbanUserAsync(Tenant, "UCnever");
+        ChatUnbanOutcome outcome = await platform.UnbanUserAsync(Tenant, "UCnever");
 
+        outcome
+            .Should()
+            .Be(
+                ChatUnbanOutcome.NotFound,
+                "no ledgered ban means there was nothing to lift — a distinct outcome, not a swallowed no-op"
+            );
         await client
             .DidNotReceiveWithAnyArgs()
             .UnbanUserAsync(default!, default!, Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>
+    /// YouTube's own <c>NOT_FOUND</c> on the delete call — the ledgered ban already expired/was lifted at
+    /// YouTube's end — is treated as an ACHIEVED unban (the end state the caller wanted already holds), so
+    /// this reports <see cref="ChatUnbanOutcome.Success"/>, never a failure.
+    /// </summary>
+    [Fact]
+    public async Task An_unban_when_youtube_reports_the_ban_already_gone_is_treated_as_success()
+    {
+        (
+            YouTubeChatPlatform platform,
+            _,
+            IYouTubeLiveChatBanLedger bans,
+            IYouTubeLiveChatClient client
+        ) = Build();
+        bans.ConsumeLatestAsync(Tenant, "UCgone", Arg.Any<CancellationToken>())
+            .Returns(new YouTubeConsumedBan("ban-stale", Primary));
+        client
+            .UnbanUserAsync("bearer-1", "ban-stale", Arg.Any<CancellationToken>())
+            .Returns(Result.Failure("YouTube no longer has this ban.", "NOT_FOUND"));
+
+        ChatUnbanOutcome outcome = await platform.UnbanUserAsync(Tenant, "UCgone");
+
+        outcome.Should().Be(ChatUnbanOutcome.Success);
+    }
+
+    /// <summary>A real YouTube API rejection (not NOT_FOUND) is an honest <see cref="ChatUnbanOutcome.Failed"/>.</summary>
+    [Fact]
+    public async Task An_unban_when_youtube_rejects_the_call_fails_honestly()
+    {
+        (
+            YouTubeChatPlatform platform,
+            _,
+            IYouTubeLiveChatBanLedger bans,
+            IYouTubeLiveChatClient client
+        ) = Build();
+        bans.ConsumeLatestAsync(Tenant, "UCdead", Arg.Any<CancellationToken>())
+            .Returns(new YouTubeConsumedBan("ban-1", Primary));
+        client
+            .UnbanUserAsync("bearer-1", "ban-1", Arg.Any<CancellationToken>())
+            .Returns(Result.Failure("quota exceeded", "QUOTA_EXCEEDED"));
+
+        ChatUnbanOutcome outcome = await platform.UnbanUserAsync(Tenant, "UCdead");
+
+        outcome.Should().Be(ChatUnbanOutcome.Failed);
     }
 
     [Fact]

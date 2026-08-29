@@ -11,6 +11,26 @@
 namespace NomNomzBot.Domain.Chat.Interfaces;
 
 /// <summary>
+/// Domain-safe outcome of <see cref="IChatProvider.UnbanUserAsync"/> — no dependency on Application's
+/// typed <c>Result</c> (Domain carries no external-facing result type, mirroring
+/// <see cref="NomNomzBot.Domain.Music.Interfaces.MusicProviderFailureReason"/>), so a platform's honest
+/// "there was nothing to lift" is never collapsed into the same bucket as a real transport/API failure.
+/// </summary>
+public enum ChatUnbanOutcome
+{
+    /// <summary>The platform confirmed the ban/timeout was lifted.</summary>
+    Success,
+
+    /// <summary>No ban was found to lift — the user was never banned (by us, or at all), or the ban was
+    /// already lifted. Not an error: the end state the caller wanted already holds.</summary>
+    NotFound,
+
+    /// <summary>The unban did not go through for a reason other than "nothing to lift" — no usable
+    /// token/connection, an unregistered provider, or the platform's API rejected the call.</summary>
+    Failed,
+}
+
+/// <summary>
 /// Abstraction for sending chat messages and performing moderation actions.
 /// <c>broadcasterId</c> is the tenant (channel) <see cref="Guid"/>; the implementation resolves it to the
 /// Twitch channel string id before any Helix call (the invariant: Twitch never receives a Guid).
@@ -61,7 +81,12 @@ public interface IChatProvider
         CancellationToken cancellationToken = default
     );
 
-    Task UnbanUserAsync(
+    /// <summary>
+    /// Lifts a ban/timeout. Returns <see cref="ChatUnbanOutcome.NotFound"/> — not an error — when there
+    /// was nothing to lift (the platform's honest answer, not swallowed into a bare <c>Task</c>); callers
+    /// that report an outcome to the operator MUST honour it instead of assuming success.
+    /// </summary>
+    Task<ChatUnbanOutcome> UnbanUserAsync(
         Guid broadcasterId,
         string userId,
         CancellationToken cancellationToken = default

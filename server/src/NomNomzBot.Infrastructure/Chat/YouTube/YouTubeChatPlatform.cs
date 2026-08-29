@@ -108,15 +108,15 @@ public sealed class YouTubeChatPlatform : IChatPlatform
         CancellationToken cancellationToken = default
     ) => BanCoreAsync(broadcasterId, userId, durationSeconds: null, "ban", cancellationToken);
 
-    public async Task UnbanUserAsync(
+    public async Task<ChatUnbanOutcome> UnbanUserAsync(
         Guid broadcasterId,
         string userId,
         CancellationToken cancellationToken = default
     )
     {
         // The ledger holds the insert-returned ban id (the only key liveChatBans.delete accepts). No record
-        // = the bot never banned this viewer (or already unbanned them) — an honest logged no-op. Consuming
-        // before the delete is safe either way: a NOT_FOUND means YouTube no longer has the ban.
+        // = the bot never banned this viewer (or already unbanned them) — an honest NotFound, not a swallowed
+        // no-op. Consuming before the delete is safe either way: a NOT_FOUND means YouTube no longer has the ban.
         YouTubeConsumedBan? ban = await _bans.ConsumeLatestAsync(
             broadcasterId,
             userId,
@@ -129,7 +129,7 @@ public sealed class YouTubeChatPlatform : IChatPlatform
                 userId,
                 broadcasterId
             );
-            return;
+            return ChatUnbanOutcome.NotFound;
         }
 
         // An unban must work while OFFLINE too (a permanent ban outlives the session), so it does not go
@@ -147,18 +147,24 @@ public sealed class YouTubeChatPlatform : IChatPlatform
                 broadcasterId,
                 ban.PrimaryBroadcasterId
             );
-            return;
+            return ChatUnbanOutcome.Failed;
         }
 
         Result unbanned = await _client.UnbanUserAsync(accessToken, ban.BanId, cancellationToken);
-        if (unbanned.IsFailure && unbanned.ErrorCode != "NOT_FOUND")
-            _logger.LogWarning(
-                "YouTube unban failed for {UserId} on {BroadcasterId}: {Error} ({Code})",
-                userId,
-                broadcasterId,
-                unbanned.ErrorMessage,
-                unbanned.ErrorCode
-            );
+        if (unbanned.IsSuccess)
+            return ChatUnbanOutcome.Success;
+
+        if (unbanned.ErrorCode == "NOT_FOUND")
+            return ChatUnbanOutcome.Success;
+
+        _logger.LogWarning(
+            "YouTube unban failed for {UserId} on {BroadcasterId}: {Error} ({Code})",
+            userId,
+            broadcasterId,
+            unbanned.ErrorMessage,
+            unbanned.ErrorCode
+        );
+        return ChatUnbanOutcome.Failed;
     }
 
     public async Task DeleteMessageAsync(

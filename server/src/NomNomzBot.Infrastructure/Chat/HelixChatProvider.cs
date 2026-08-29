@@ -106,11 +106,23 @@ public sealed class HelixChatProvider : IChatPlatform
         CancellationToken cancellationToken = default
     ) => _moderation.BanUserAsync(broadcasterId, userId, reason, cancellationToken);
 
-    public Task UnbanUserAsync(
+    public async Task<ChatUnbanOutcome> UnbanUserAsync(
         Guid broadcasterId,
         string userId,
         CancellationToken cancellationToken = default
-    ) => _moderation.UnbanUserAsync(broadcasterId, userId, cancellationToken);
+    )
+    {
+        Result unbanned = await _moderation.UnbanUserAsync(
+            broadcasterId,
+            userId,
+            cancellationToken
+        );
+        if (unbanned.IsSuccess)
+            return ChatUnbanOutcome.Success;
+        return unbanned.ErrorCode == TwitchErrorCodes.NotFound
+            ? ChatUnbanOutcome.NotFound
+            : ChatUnbanOutcome.Failed;
+    }
 
     public Task DeleteMessageAsync(
         Guid broadcasterId,

@@ -179,11 +179,11 @@ public sealed class LiveGameEngineTests
             CancellationToken cancellationToken = default
         ) => Task.CompletedTask;
 
-        public Task UnbanUserAsync(
+        public Task<ChatUnbanOutcome> UnbanUserAsync(
             Guid broadcasterId,
             string userId,
             CancellationToken cancellationToken = default
-        ) => Task.CompletedTask;
+        ) => Task.FromResult(ChatUnbanOutcome.Success);
 
         public Task DeleteMessageAsync(
             Guid broadcasterId,

@@ -312,7 +312,7 @@ public sealed class ChatPlatformRouter : IChatProvider, IInboundOriginChatSender
             await platform.BanUserAsync(broadcasterId, userId, reason, cancellationToken);
     }
 
-    public async Task UnbanUserAsync(
+    public async Task<ChatUnbanOutcome> UnbanUserAsync(
         Guid broadcasterId,
         string userId,
         CancellationToken cancellationToken = default
@@ -323,8 +323,9 @@ public sealed class ChatPlatformRouter : IChatProvider, IInboundOriginChatSender
             "unban",
             cancellationToken
         );
-        if (platform is not null)
-            await platform.UnbanUserAsync(broadcasterId, userId, cancellationToken);
+        return platform is null
+            ? ChatUnbanOutcome.Failed
+            : await platform.UnbanUserAsync(broadcasterId, userId, cancellationToken);
     }
 
     public async Task DeleteMessageAsync(
