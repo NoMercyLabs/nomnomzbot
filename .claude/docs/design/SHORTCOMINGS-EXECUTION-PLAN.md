@@ -201,12 +201,7 @@ than each consumer needing their own clone-and-customize pass.
 
 ## Phase 2 — existing platforms made to work (Kick / YouTube are shipped features that are broken) — only the spine pieces these fixes REQUIRE
 
-- **S-COMMUNITYCONTROLLER-BAN-RESULT** found by S-CHATPROVIDER-UNBAN-RESULT (64f44737): a separate,
-  legacy Twitch-only Ban/Unban `Result` discard at `CommunityController.cs:849,909` — distinct from the
-  now-fixed shared `IChatProvider`/`IChatPlatform` interface gap. The controller calls into a
-  Twitch-specific ban/unban path and drops the returned outcome instead of surfacing it to the caller.
-  Done-when: both call sites propagate the real `Result<T>` to the API response (success/failure with
-  reason), proven by a test per action asserting on a real failure case reaching the caller.
+(empty — S-COMMUNITYCONTROLLER-BAN-RESULT closed 2c938bd9)
 
 ## Phase 3 — form infrastructure (stabilizes existing authoring; every 'raw text box' finding rides on it)
 
