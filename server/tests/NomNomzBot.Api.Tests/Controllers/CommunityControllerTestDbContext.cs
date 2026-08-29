@@ -89,6 +89,8 @@ internal sealed class CommunityControllerTestDbContext : DbContext, IApplication
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<User> Users => Set<User>();
     public DbSet<ViewerProfile> ViewerProfiles => Set<ViewerProfile>();
+    public DbSet<NomNomzBot.Domain.Platform.Entities.Configuration> Configurations =>
+        Set<NomNomzBot.Domain.Platform.Entities.Configuration>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -115,6 +117,12 @@ internal sealed class CommunityControllerTestDbContext : DbContext, IApplication
 
         b.Entity<ViewerProfile>().HasKey(p => p.Id);
 
+        b.Entity<NomNomzBot.Domain.Platform.Entities.Configuration>(e =>
+        {
+            e.HasKey(c => c.Id);
+            e.Ignore(c => c.Channel);
+        });
+
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
@@ -128,6 +136,7 @@ internal sealed class CommunityControllerTestDbContext : DbContext, IApplication
         typeof(ChatMessage),
         typeof(User),
         typeof(ViewerProfile),
+        typeof(NomNomzBot.Domain.Platform.Entities.Configuration),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -199,8 +208,6 @@ internal sealed class CommunityControllerTestDbContext : DbContext, IApplication
         throw new NotSupportedException();
     public DbSet<ChannelEvent> ChannelEvents => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Platform.Entities.Configuration> Configurations =>
         throw new NotSupportedException();
     public DbSet<Channel> Channels => throw new NotSupportedException();
     public DbSet<Storage> Storages => throw new NotSupportedException();

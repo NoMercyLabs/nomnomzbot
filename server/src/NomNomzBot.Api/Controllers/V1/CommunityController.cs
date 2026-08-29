@@ -845,8 +845,16 @@ public class CommunityController : BaseController
         string bannedByName = moderator?.DisplayName ?? moderator?.Username ?? moderatorId;
 
         // userId is the Twitch user string id (as exposed by the list DTOs). The sub-client resolves the
-        // tenant Guid internally; the local ban record below is written regardless (best-effort enforcement).
-        await _moderation.BanUserAsync(broadcasterId, userId, request.Reason, ct);
+        // tenant Guid internally.
+        Result<TwitchBanResult> banResult = await _moderation.BanUserAsync(
+            broadcasterId,
+            userId,
+            request.Reason,
+            ct
+        );
+
+        if (banResult.IsFailure)
+            return ResultResponse(banResult);
 
         User? user = await _db.Users.FirstOrDefaultAsync(u => u.TwitchUserId == userId, ct);
 
@@ -906,7 +914,10 @@ public class CommunityController : BaseController
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
 
-        await _moderation.UnbanUserAsync(broadcasterId, userId, ct);
+        Result unbanResult = await _moderation.UnbanUserAsync(broadcasterId, userId, ct);
+
+        if (unbanResult.IsFailure)
+            return ResultResponse(unbanResult);
 
         ConfigEntity? config = await _db.Configurations.FirstOrDefaultAsync(
             c => c.BroadcasterId == broadcasterId && c.Key == $"ban:{userId}",
