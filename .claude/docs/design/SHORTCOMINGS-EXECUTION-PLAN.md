@@ -209,26 +209,14 @@ than each consumer needing their own clone-and-customize pass.
   pipelines (`TemplateHelpersLink`/`TemplateHelpersDialog`, chip scroller removed). Remaining: rewards
   and giveaways have no free-text template field to wire it into yet — wire it in when S063 adds the
   rewards `Response` field and when giveaways grows an announcement-text field (U·A7, W·§8 i7).
-- **S046-remaining** Authoring ergonomics, remaining 1 of 6 (regex compile check, command rename,
-  create-and-bind pipeline everywhere, timer picker + interval presets + `LastFiredAt`/next index, and
-  `code` tier → Code Scripts editor wiring all shipped and verified — f899b076/0b27859b/9bb4c0c5/
-  e6892957/3c4d89d6/cdabd605): branching (`ParentStepId`/`Branch`) in the step dialog. **Blocked on a
-  deeper prereq than originally scoped (found by S046-branching-if attempt, 2026-08-30): the wire
-  format itself is flat, not just the editor UI.** `PipelineGraphBuilder.BuildGraph`
-  (`server/src/NomNomzBot.Infrastructure/Commands/PipelineGraphBuilder.cs:26`) never emits
-  `ParentStepId`/`Branch`/`BlockKind`/`BlockConfigJson` — only `steps[].action`/`condition`, flat. The
-  engine executes the real tree straight from the normalized `PipelineStep` rows (bypassing this DTO
-  entirely), but the EDITOR's GET/PUT contract (`PipelineDto.GraphJsonCache`, consumed by the client's
-  `PipelineGraph`/`PipelineStep` model in `app/composeApp/.../core/network/PipelinesApi.kt:280-325`,
-  also flat: `{action, condition, stopOnMatch}`) has no tree fields anywhere. Split into:
-  - **S046-branching-prereq** — DONE, verified (c401253e): wire graph shape now carries
-    `parentStepId`/`branch`/`blockKind`/`blockConfig`/`order` per step both directions
-    (`PipelineGraphBuilder.BuildGraph` emit + `PipelineService` reverse-parse), client
-    `PipelineGraph`/`PipelineStep` model updated to match; flat pipelines round-trip unchanged,
-    nested if/then/else round-trips losslessly (backend + client tests, both green).
-  - **S046-branching-if** (retry now unblocked): `if`/then-else block support in
-    the step dialog tree editor, as originally scoped.
-  - Further block kinds (switch/loop/random_branch/try) each their own follow-up slice after `if` lands.
+- **S046-remaining** Authoring ergonomics — branching in the step dialog. Wire-format prereq
+  (`parentStepId`/`branch`/`blockKind`/`blockConfig`/`order` both directions, c401253e) and `if`/
+  then-else block editing (ba140ecb, condition-field bug found and fixed same session — 293b9ec7:
+  the condition must live in the step's `condition` field like any leaf step, never `blockConfig`,
+  since `PipelineEngine.cs` only ever evaluates `step.Conditions` for an `if` block) both DONE and
+  verified. Remaining: switch/loop/random_branch/try block kinds each need their own follow-up slice,
+  same pattern as `if` — mind the same condition-vs-blockConfig split when wiring `switch`/`loop`
+  (those DO use `blockConfig` correctly per `PipelineGraphBuilder.cs`, only `if` was the exception)
   (U·B1, W·§6/§8 i6). Out-of-scope note: chat-triggers and automation screens also bind pipelines via a
   plain picker and would benefit from `PipelineBindPicker` too — not yet done.
 - **S050** Shell truth — DONE. Hub-state dot now reads `DashboardHubClient.connectionState`
