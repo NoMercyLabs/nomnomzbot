@@ -214,9 +214,13 @@ than each consumer needing their own clone-and-customize pass.
   pipelines (`TemplateHelpersLink`/`TemplateHelpersDialog`, chip scroller removed). Remaining: rewards
   and giveaways have no free-text template field to wire it into yet — wire it in when S063 adds the
   rewards `Response` field and when giveaways grows an announcement-text field (U·A7, W·§8 i7).
-- **S046** Authoring ergonomics — regex compile check in chat-trigger dialog; create-and-bind pipeline
-  everywhere; timer picker + interval presets + `LastFiredAt`/next index; command rename; `code` tier
-  links to Code Scripts; branching (`ParentStepId`/`Branch`) in the step dialog (U·B1, W·§6/§8 i6).
+- **S046-remaining** Authoring ergonomics, remaining 4 of 6 (regex compile check and command rename
+  shipped in f899b076/0b27859b, verified): create-and-bind pipeline everywhere (needs a create-inline
+  affordance wired into commands/event-responses/timers/rewards pickers); timer picker + interval
+  presets + `LastFiredAt`/next index; `code` tier links to Code Scripts (no wiring found from a
+  `run_code` step to its script editor); branching (`ParentStepId`/`Branch`) in the step dialog (domain
+  model already ships the full tree — `PipelineStep.ParentStepId`/`Branch`/`BlockKind` — the editor UI
+  doesn't surface it yet) (U·B1, W·§6/§8 i6).
 - **S047** Dry-run — `POST pipelines/{id}/test-run` as a Test button on pipelines/commands/event
   responses/timers (W·§6/§8 i2). Done-when: captured side effects shown without sending.
 - **S048** Save feedback baseline — `Feedback` in timers/chat-triggers/event-responses; event-response
