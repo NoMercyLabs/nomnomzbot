@@ -2374,6 +2374,17 @@
     <string name="pipelines_condition_label">Condition: %1$s</string>
     <string name="pipelines_condition_label_short">Condition</string>
     <string name="pipelines_condition_none">No condition</string>
+    <string name="pipelines_block_add_if">If / Else</string>
+    <string name="pipelines_block_if_title">Add If / Else block</string>
+    <string name="pipelines_block_if_summary">If: %1$s</string>
+    <string name="pipelines_block_lane_then">Then</string>
+    <string name="pipelines_block_lane_else">Else</string>
+    <string name="pipelines_block_lane_empty">No steps yet.</string>
+    <string name="pipelines_block_lane_add">Add step to %1$s</string>
+    <string name="pipelines_block_lane_step_edit">Edit %1$s step %2$d</string>
+    <string name="pipelines_block_lane_step_delete">Delete %1$s step %2$d</string>
+    <string name="pipelines_block_lane_step_move_up">Move %1$s step %2$d up</string>
+    <string name="pipelines_block_lane_step_move_down">Move %1$s step %2$d down</string>
     <string name="pipelines_block_send_message">Send message</string>
     <string name="pipelines_block_send_reply">Send reply</string>
     <string name="pipelines_block_timeout">Time out</string>
