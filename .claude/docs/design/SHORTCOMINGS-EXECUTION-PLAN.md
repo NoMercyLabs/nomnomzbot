@@ -210,9 +210,10 @@ than each consumer needing their own clone-and-customize pass.
 
 ## Phase 3 — form infrastructure (stabilizes existing authoring; every 'raw text box' finding rides on it)
 
-- **S043** "All helpers" dialog — shared `TemplateHelpersLink` + `Dialog` (search, namespace groups,
-  insert) in every template field (commands, event responses, timers, rewards, pipelines, chat
-  triggers, giveaways, Discord); en + nl descriptions; remove chip scroller (U·A7, W·§8 i7).
+- **S043** "All helpers" dialog — DONE for commands, event responses, timers, chat triggers, Discord,
+  pipelines (`TemplateHelpersLink`/`TemplateHelpersDialog`, chip scroller removed). Remaining: rewards
+  and giveaways have no free-text template field to wire it into yet — wire it in when S063 adds the
+  rewards `Response` field and when giveaways grows an announcement-text field (U·A7, W·§8 i7).
 - **S046** Authoring ergonomics — regex compile check in chat-trigger dialog; create-and-bind pipeline
   everywhere; timer picker + interval presets + `LastFiredAt`/next index; command rename; `code` tier
   links to Code Scripts; branching (`ParentStepId`/`Branch`) in the step dialog (U·B1, W·§6/§8 i6).
