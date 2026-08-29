@@ -435,9 +435,12 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
                     // provider's player-403 detection) — absent until observed, never guessed.
                     Capabilities: _capabilities.GetObserved(broadcasterId, provider),
                     NeedsReauth: c?.Status == AuthEnums.IntegrationStatus.NeedsReauth,
-                    LoginOnly:
-                        !connected
-                        && string.Equals(provider, AuthEnums.IntegrationProvider.Kick, StringComparison.OrdinalIgnoreCase)
+                    LoginOnly: !connected
+                        && string.Equals(
+                            provider,
+                            AuthEnums.IntegrationProvider.Kick,
+                            StringComparison.OrdinalIgnoreCase
+                        )
                         && hasKickLogin
                 )
             );
