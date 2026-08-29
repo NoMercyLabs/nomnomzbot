@@ -109,24 +109,28 @@ only Stoney can make. Do not burn agent time trying to work around them.
 
 ## Phase 2 — existing platforms made to work (Kick / YouTube are shipped features that are broken) — only the spine pieces these fixes REQUIRE
 
-- **S022-youtube** No YouTube ingest exists at all, so `supporter-events.md` §4.1's YouTube
-  sponsor/gift/super-chat mapping has nothing to map from. Kick has `KickWebhookIngest`; YouTube has no
-  equivalent. (The Kick half and `{{provider}}` are done.) Belongs with S030.
-
-- **S027** Kick go-live + reads — `livestream.status.updated` publishes canonical online/offline;
-  Kick channel read (viewer count, title/category), `KickPlatformApi` + `channel:read/write`; operator
-  send on Kick; platform-correct error text (U·C2). Done-when: Kick-only streamer sees live state,
-  viewer count, can change title, and reply from the dashboard.
 - **S028** Kick hygiene — unsubscribe on disconnect; raid event; backoff/verifier/dedupe/unknown-type/
   follow-time/fragments; moderation ops return `Result`; Kick card health + login-only detection;
   `type:"bot"` identity (U·C2). Done-when: Kick ban result is truthful in the UI; disconnect stops deliveries.
 - **S029** YouTube writes — `youtube.force-ssl` + re-grant; 403 reason parsing (quota vs scope) +
   quota backoff; refresh-failure signal (U·C3). Done-when: a reply/ban on YouTube succeeds; quota burn
   shows as quota.
-- **S030** YouTube events + liveness — `IsLive` from the poll; translators for super chat/sticker/
-  member/milestone/gift; `snippet.type` routing; multi-broadcast; own-channel cache; exponential
-  backoff; leased poller; channel-id keys; unban outcome; `concurrentViewers` sampler (U·C3).
-  Done-when: a YouTube member alert fires; viewer count shows; timers post on YouTube.
+- **S030-remaining** `IsLive` from the poll and `snippet.type`-routed translators for super chat/
+  sticker/new sponsor/milestone/gift are DONE and verified (76adf380 — `YouTubeLiveChatEventTranslator`
+  maps each to the same canonical cross-platform events Kick/Twitch publish, `IYouTubeLiveChatClient`
+  carries the real Google-documented field shapes). REMAINING (U·C3): multi-broadcast support (today
+  hardcoded to the first `active` broadcast only, confirmed at `YouTubeLiveChatClient.cs:51,67`); an
+  own-channel cache (currently re-fetched via `GetOwnChannelAsync` on every liveness transition); a
+  "leased poller" abstraction (current design is a single in-process `Dictionary<Guid, PollState>` —
+  fine for one instance, not distributed); unban outcome reporting; a `concurrentViewers` sampler (no
+  read of `liveStreamingDetails.concurrentViewers` anywhere yet). Also a known bug surfaced during
+  S030-a: `YouTubeLiveChatClient.cs` unconditionally maps every 403 to `MISSING_SCOPE`, so a real quota
+  exhaustion (`quotaExceeded`/`rateLimitExceeded`) incorrectly triggers the 15-minute scope-backoff path
+  instead of quota-specific handling — fold this fix in alongside the exponential-backoff item, they're
+  the same error-handling surface. Also `OAuthProviderRegistry.cs:194` never requests
+  `youtube.force-ssl`, so every live-chat reply/ban/delete write already 403s today — needs the scope
+  added. Done-when: a YouTube member alert fires; viewer count shows; timers post on YouTube; a
+  multi-broadcast channel is handled correctly; quota vs scope errors are distinguished.
 
 ## Phase 3 — form infrastructure (stabilizes existing authoring; every 'raw text box' finding rides on it)
 
