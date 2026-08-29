@@ -19,6 +19,7 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.CodeScriptSummary
 import bot.nomnomz.dashboard.core.network.CodeScriptsApi
+import bot.nomnomz.dashboard.core.network.CreateScriptBody
 import bot.nomnomz.dashboard.core.network.EconomyApi
 import bot.nomnomz.dashboard.core.network.Giveaway
 import bot.nomnomz.dashboard.core.network.GiveawaysApi
@@ -182,6 +183,22 @@ class PipelinesController(
     suspend fun deletePipeline(id: String) {
         val channel: String = channelId ?: return failList(NoChannelError)
         afterListWrite(pipelinesApi.delete(channel, id), success = Res.string.feedback_pipeline_deleted)
+    }
+
+    /**
+     * Create a brand-new code script named [name] with an empty starter body, for the `run_code` step's
+     * create-and-bind flow (S046-code-tier-link): the operator never has to leave the pipeline editor to first
+     * make a script on the Code Scripts page before binding it. Returns the new script as a [PickerOption]
+     * (id + label) so the caller can both select it in the field AND immediately open its real editor — a null
+     * [codeScriptsApi] (feature not wired for this deployment) or a failed create surfaces as `null`, leaving the
+     * field's create-mode open so the operator can retry.
+     */
+    suspend fun createCodeScript(name: String): PickerOption? {
+        val api: CodeScriptsApi = codeScriptsApi ?: return null
+        return when (val result: ApiResult<CodeScriptSummary> = api.create(CreateScriptBody(name = name, sourceCode = ""))) {
+            is ApiResult.Ok -> labeledOption(result.value.id, result.value.name, "Code script")
+            is ApiResult.Failure -> null
+        }
     }
 
     /**
