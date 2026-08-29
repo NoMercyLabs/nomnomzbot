@@ -446,6 +446,63 @@ public sealed class KickWebhookIngestTests
     }
 
     [Fact]
+    public async Task A_livestream_going_live_publishes_the_SAME_canonical_online_event_twitch_publishes()
+    {
+        // S027: without this, no live alert fires, no Discord go-live, no stream session starts, and
+        // ChannelRegistry never marks the channel live for a Kick-only streamer — the exact gap this
+        // slice closes, proven on the emitted event, not merely on Channel.IsLive.
+        (KickWebhookIngest ingest, _, RecordingEventBus bus) = Build();
+
+        await ingest.HandleAsync("livestream.status.updated", LiveBody);
+
+        ChannelOnlineEvent online = bus
+            .Published.OfType<ChannelOnlineEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject;
+        online.BroadcasterId.Should().Be(Tenant);
+        online.BroadcasterDisplayName.Should().Be("StreamerGal");
+        online.StreamTitle.Should().Be("Bird up!");
+    }
+
+    [Fact]
+    public async Task A_livestream_ending_publishes_the_canonical_offline_event()
+    {
+        (KickWebhookIngest ingest, AuthDbContext db, RecordingEventBus bus) = Build();
+        db.Channels.Single(c => c.Id == Tenant).IsLive = true;
+        db.SaveChanges();
+        string body = LiveBody
+            .Replace("\"is_live\": true", "\"is_live\": false")
+            .Replace("\"ended_at\": null", "\"ended_at\": \"2026-07-16T11:00:00Z\"");
+
+        await ingest.HandleAsync("livestream.status.updated", body);
+
+        ChannelOfflineEvent offline = bus
+            .Published.OfType<ChannelOfflineEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject;
+        offline.BroadcasterId.Should().Be(Tenant);
+        bus.Published.OfType<ChannelOnlineEvent>().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_repeated_still_live_delivery_never_refires_the_canonical_online_event()
+    {
+        // Kick retries undelivered webhooks — a redelivery of the SAME state must never double-fire a
+        // go-live alert / Discord notification / a second stream session.
+        (KickWebhookIngest ingest, AuthDbContext db, RecordingEventBus bus) = Build();
+        db.Channels.Single(c => c.Id == Tenant).IsLive = true;
+        db.SaveChanges();
+
+        await ingest.HandleAsync("livestream.status.updated", LiveBody);
+
+        bus.Published.OfType<ChannelOnlineEvent>()
+            .Should()
+            .BeEmpty("the tenant was already live — this is a redelivery, not a transition");
+    }
+
+    [Fact]
     public async Task A_livestream_status_for_an_unknown_broadcaster_is_skipped()
     {
         (KickWebhookIngest ingest, AuthDbContext db, _) = Build();

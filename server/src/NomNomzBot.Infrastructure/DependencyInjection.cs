@@ -1455,6 +1455,7 @@ public static class DependencyInjection
         // writes route by Channel.Provider exactly like chat. Same scoping rationale as above.
         services.AddScoped<IPlatformApi, TwitchPlatformApi>();
         services.AddScoped<IPlatformApi, YouTubePlatformApi>();
+        services.AddScoped<IPlatformApi, KickPlatformApi>();
         services.AddScoped<IPlatformChannelApi, PlatformApiRouter>();
 
         // The live YouTube chat session per YouTube tenant — written by the poll worker on go-live/

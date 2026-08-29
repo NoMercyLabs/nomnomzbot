@@ -15,6 +15,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Stream.Events;
 
@@ -131,6 +132,16 @@ public sealed class StreamStatusPollingService : BackgroundService
                     if (dbChannel is null)
                         continue;
 
+                    // Kick's live/offline transition is already the webhook's job (livestream.status.updated
+                    // now publishes the canonical ChannelOnlineEvent/ChannelOfflineEvent — S027); this poll's
+                    // Helix Get Streams call means nothing for a Kick tenant. It still owns the one thing Kick's
+                    // webhook payload never carries: a fresh concurrent viewer count.
+                    if (dbChannel.Provider == AuthEnums.Platform.Kick)
+                    {
+                        await PollKickViewerCountAsync(scope.ServiceProvider, ctx, ct);
+                        continue;
+                    }
+
                     bool wasLive = ctx.IsLive;
                     string? openStreamId = ctx.CurrentStreamId;
 
@@ -203,6 +214,41 @@ public sealed class StreamStatusPollingService : BackgroundService
                 "Stream status poll iteration failed; retrying at the next interval."
             );
         }
+    }
+
+    /// <summary>
+    /// Kick's viewer-count backstop: reads the current channel (<c>GET /public/v1/channels</c>) on the
+    /// streamer's own vaulted token and refreshes only <see cref="ChannelContext.ViewerCount"/> — live/
+    /// offline state and title/category stay the webhook's job (<c>KickWebhookIngest</c>), so a stale or
+    /// failed read here can never fight the canonical online/offline event the webhook already published.
+    /// A missing token or a failed read is a silent no-op (0 once offline, unchanged otherwise) — the same
+    /// honest-degradation posture <see cref="KickChatPlatform"/> uses for a tenant with no usable token.
+    /// </summary>
+    private static async Task PollKickViewerCountAsync(
+        IServiceProvider services,
+        ChannelContext ctx,
+        CancellationToken ct
+    )
+    {
+        Application.Contracts.Kick.IKickAccessTokenProvider tokens =
+            services.GetRequiredService<Application.Contracts.Kick.IKickAccessTokenProvider>();
+        Application.Contracts.Kick.IKickApiClient client =
+            services.GetRequiredService<Application.Contracts.Kick.IKickApiClient>();
+
+        Application.Contracts.Kick.KickAccess? access = await tokens.GetAsync(
+            ctx.BroadcasterId,
+            ct
+        );
+        if (access is null)
+            return;
+
+        Result<Application.Contracts.Kick.KickChannel> read = await client.GetChannelAsync(
+            access.AccessToken,
+            access.BroadcasterUserId,
+            ct
+        );
+        if (read.IsSuccess)
+            ctx.ViewerCount = read.Value.IsLive ? read.Value.ViewerCount : 0;
     }
 
     /// <summary>

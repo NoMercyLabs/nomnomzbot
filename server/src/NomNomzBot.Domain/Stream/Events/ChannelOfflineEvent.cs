@@ -16,8 +16,9 @@ namespace NomNomzBot.Domain.Stream.Events;
 /// Published when a channel's stream goes offline (EventSub stream.offline).
 /// </summary>
 [Event("stream.offline", EventVisibility.Public)]
-public sealed class ChannelOfflineEvent : DomainEventBase
+public sealed class ChannelOfflineEvent : DomainEventBase, IProviderScopedEvent
 {
+    public required string Provider { get; init; }
     public required string BroadcasterDisplayName { get; init; }
     public required TimeSpan StreamDuration { get; init; }
 }

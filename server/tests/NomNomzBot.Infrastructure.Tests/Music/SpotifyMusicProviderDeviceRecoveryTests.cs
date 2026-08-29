@@ -59,6 +59,7 @@ public sealed class LastActiveSpotifyDeviceTrackerTests
         await handler.HandleAsync(
             new()
             {
+                Provider = NomNomzBot.Domain.Identity.Enums.AuthEnums.Platform.Twitch,
                 BroadcasterId = endingChannel,
                 BroadcasterDisplayName = "Stoney_Eagle",
                 StreamDuration = TimeSpan.FromHours(2),

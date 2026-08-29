@@ -48,6 +48,7 @@ public sealed class DiscordGoLiveNotificationHandlerTests
         await handler.HandleAsync(
             new()
             {
+                Provider = NomNomzBot.Domain.Identity.Enums.AuthEnums.Platform.Twitch,
                 BroadcasterId = channel,
                 BroadcasterDisplayName = "Stoney",
                 StreamTitle = "blame the lag",
@@ -95,6 +96,7 @@ public sealed class DiscordGoLiveNotificationHandlerTests
             handler.HandleAsync(
                 new()
                 {
+                    Provider = NomNomzBot.Domain.Identity.Enums.AuthEnums.Platform.Twitch,
                     BroadcasterId = Guid.CreateVersion7(),
                     BroadcasterDisplayName = "Stoney",
                     StreamTitle = "t",
@@ -119,6 +121,7 @@ public sealed class DiscordGoLiveNotificationHandlerTests
         await handler.HandleAsync(
             new()
             {
+                Provider = NomNomzBot.Domain.Identity.Enums.AuthEnums.Platform.Twitch,
                 BroadcasterId = Guid.Empty, // platform sentinel — not a real tenant
                 BroadcasterDisplayName = "x",
                 StreamTitle = "t",

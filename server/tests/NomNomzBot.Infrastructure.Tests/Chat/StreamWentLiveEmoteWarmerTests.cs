@@ -101,6 +101,7 @@ public sealed class StreamWentLiveEmoteWarmerTests
     private static ChannelOnlineEvent LiveEvent() =>
         new()
         {
+            Provider = NomNomzBot.Domain.Identity.Enums.AuthEnums.Platform.Twitch,
             BroadcasterId = Broadcaster,
             BroadcasterDisplayName = "Stoney_Eagle",
             StreamTitle = "live",
