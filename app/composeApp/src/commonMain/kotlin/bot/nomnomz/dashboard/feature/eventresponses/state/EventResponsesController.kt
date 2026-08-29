@@ -134,17 +134,7 @@ class EventResponsesController(
      */
     suspend fun createPipelineAndBind(eventType: String, pipelineName: String) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
-        val created: PipelineDetail =
-            when (
-                val result: ApiResult<PipelineDetail> =
-                    pipelinesApi.createReturning(
-                        channel,
-                        CreatePipelineBody(name = pipelineName, graph = PipelineGraph().toJson()),
-                    )
-            ) {
-                is ApiResult.Ok -> result.value
-                is ApiResult.Failure -> return failWrite(result.error.message)
-            }
+        val created: PipelineSummary = createPipelineReturning(pipelineName) ?: return
         afterWrite(
             eventResponsesApi.upsert(
                 channel,
@@ -152,6 +142,31 @@ class EventResponsesController(
                 UpdateEventResponseBody(responseType = "pipeline", pipelineId = created.id),
             )
         )
+    }
+
+    /**
+     * Create a new (empty) pipeline named [pipelineName] — the create-and-bind flow the pipeline-response picker
+     * offers, so binding a pipeline never requires leaving this dialog to make one first on the Pipelines page.
+     * Returns the created [PipelineSummary] (with its server-assigned id) so the caller can select it
+     * immediately, or null on failure (the failure is also surfaced on the frame here, matching every other
+     * write). Also the building block [createPipelineAndBind] uses to create THEN persist the binding in one
+     * call from the event row's own create-and-bind affordance.
+     */
+    suspend fun createPipelineReturning(pipelineName: String): PipelineSummary? {
+        val channel: String = channelId ?: run { failWrite(NoChannelError); return null }
+        return when (
+            val result: ApiResult<PipelineDetail> =
+                pipelinesApi.createReturning(
+                    channel,
+                    CreatePipelineBody(name = pipelineName, graph = PipelineGraph().toJson()),
+                )
+        ) {
+            is ApiResult.Ok -> PipelineSummary(id = result.value.id, name = result.value.name)
+            is ApiResult.Failure -> {
+                failWrite(result.error.message)
+                null
+            }
+        }
     }
 
     /** Toggle [isEnabled] on an event response (partial PUT — only the flag changes). */

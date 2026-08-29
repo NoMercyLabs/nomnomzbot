@@ -13,8 +13,11 @@ package bot.nomnomz.dashboard.feature.rewards.state
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.CreatePipelineBody
 import bot.nomnomz.dashboard.core.network.CreateRewardBody
 import bot.nomnomz.dashboard.core.network.EMPTY_PIPELINE_ID
+import bot.nomnomz.dashboard.core.network.PipelineDetail
+import bot.nomnomz.dashboard.core.network.PipelineGraph
 import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.PipelinesApi
 import bot.nomnomz.dashboard.core.network.RedemptionSummary
@@ -196,6 +199,29 @@ class RewardsController(
                 ),
             )
         )
+    }
+
+    /**
+     * Create a new (empty) pipeline named [pipelineName] — the create-and-bind flow the reward form's pipeline
+     * picker offers, so binding a pipeline to a reward never requires leaving this dialog to make one first on
+     * the Pipelines page. Returns the created [PipelineSummary] (with its server-assigned id) so the caller can
+     * select it immediately, or null on failure (surfaced as the usual action error).
+     */
+    suspend fun createPipelineReturning(pipelineName: String): PipelineSummary? {
+        val channel: String = channelId ?: run { failWrite(NoChannelError); return null }
+        return when (
+            val result: ApiResult<PipelineDetail> =
+                pipelinesApi.createReturning(
+                    channel,
+                    CreatePipelineBody(name = pipelineName, graph = PipelineGraph().toJson()),
+                )
+        ) {
+            is ApiResult.Ok -> PipelineSummary(id = result.value.id, name = result.value.name)
+            is ApiResult.Failure -> {
+                failWrite(result.error.message)
+                null
+            }
+        }
     }
 
     /** Pause a running redemption timer, then refresh the timer list. Surfaces the error on failure. */

@@ -47,12 +47,11 @@ import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.PipelineBindPicker
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.component.TemplateHelpersLink
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
-import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
-import bot.nomnomz.dashboard.core.designsystem.icon.AppIcon
 import bot.nomnomz.dashboard.core.designsystem.icon.ChevronDownGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
@@ -78,6 +77,7 @@ import nomnomzbot.composeapp.generated.resources.event_responses_action_error
 import nomnomzbot.composeapp.generated.resources.event_responses_dialog_cancel
 import nomnomzbot.composeapp.generated.resources.event_responses_dialog_message_label
 import nomnomzbot.composeapp.generated.resources.event_responses_dialog_pipeline_choose
+import nomnomzbot.composeapp.generated.resources.event_responses_dialog_pipeline_create_confirm
 import nomnomzbot.composeapp.generated.resources.event_responses_dialog_pipeline_create_new
 import nomnomzbot.composeapp.generated.resources.event_responses_dialog_pipeline_help
 import nomnomzbot.composeapp.generated.resources.event_responses_dialog_pipeline_new_name
@@ -174,10 +174,7 @@ fun EventResponsesScreen(
                     controller.save(response.eventType, responseType, message, pipelineId, widgetId)
                 }
             },
-            onCreateAndBind = { pipelineName ->
-                editing = null
-                scope.launch { controller.createPipelineAndBind(response.eventType, pipelineName) }
-            },
+            onCreatePipeline = { name -> controller.createPipelineReturning(name) },
             onResetToDefault = {
                 editing = null
                 scope.launch { controller.resetToDefault(response.eventType) }
@@ -299,12 +296,10 @@ private fun EventResponseRow(
 
 private val ResponseTypes: List<String> = listOf("none", "chat_message", "overlay", "pipeline")
 
-// The special "create a new pipeline and bind it" sentinel in the pipeline picker (vs an existing pipeline id).
-private const val CreateNewPipeline: String = "__create_new__"
-
 // Edit dialog — response type picker, a pre-filled message template with insert chips (chat/overlay), and a
 // first-class pipeline BINDING for pipeline responses: pick an existing pipeline OR create-and-bind a new one
-// (no pasting ids). The stored config + preset catalog are loaded so the fields open pre-filled, never blank.
+// (no pasting ids), via the shared [PipelineBindPicker] (S046). The stored config + preset catalog are loaded so
+// the fields open pre-filled, never blank.
 @Composable
 private fun EditDialog(
     response: EventResponseSummary,
@@ -316,7 +311,7 @@ private fun EditDialog(
     loadDetail: suspend () -> EventResponse?,
     onDismiss: () -> Unit,
     onSave: (responseType: String, message: String?, pipelineId: String?, widgetId: String?) -> Unit,
-    onCreateAndBind: (pipelineName: String) -> Unit,
+    onCreatePipeline: suspend (name: String) -> PipelineSummary?,
     onResetToDefault: () -> Unit,
     manage: ManageDecision,
 ) {
@@ -326,8 +321,7 @@ private fun EditDialog(
 
     var selectedType: String by remember { mutableStateOf(response.responseType) }
     var message: String by remember { mutableStateOf("") }
-    var pipelineChoice: String by remember { mutableStateOf("") }
-    var newPipelineName: String by remember { mutableStateOf("") }
+    var pipelineChoice: String? by remember { mutableStateOf(null) }
     var widgetChoice: String by remember { mutableStateOf("") }
     var typeMenuOpen: Boolean by remember { mutableStateOf(false) }
     // The reset is destructive (it discards the current config), so it confirms first and names exactly what
@@ -346,15 +340,14 @@ private fun EditDialog(
         selectedType = detail?.responseType?.takeIf { it.isNotBlank() } ?: response.responseType
         val storedMessage: String = detail?.message.orEmpty()
         message = storedMessage.ifBlank { presetTemplate }
-        pipelineChoice = detail?.pipelineId.orEmpty()
+        pipelineChoice = detail?.pipelineId?.ifBlank { null }
         widgetChoice = detail?.metadata?.get(EventResponsesController.WidgetIdMetadataKey).orEmpty()
     }
 
-    val createMode: Boolean = pipelineChoice == CreateNewPipeline
     val canSubmit: Boolean =
         manage.isAllowed &&
             when (selectedType) {
-                "pipeline" -> if (createMode) newPipelineName.isNotBlank() else pipelineChoice.isNotBlank()
+                "pipeline" -> pipelineChoice != null
                 // An overlay response must target a widget — but only gate on it when the channel actually has
                 // widgets to pick (an empty channel can still save the type and add a widget later).
                 "overlay" -> widgets.isEmpty() || widgetChoice.isNotBlank()
@@ -448,21 +441,22 @@ private fun EditDialog(
                     )
                 }
 
-                // Pipeline binding — pick an existing pipeline OR create-and-bind a new one (no pasted ids).
+                // Pipeline binding — pick an existing pipeline OR create-and-bind a new one (no pasted ids), via
+                // the shared bind picker (S046): its own name field resolves to a real id before this dialog is
+                // ever submitted, so Save always sends a genuine pipeline id.
                 if (selectedType == "pipeline") {
                     PipelineBindPicker(
                         pipelines = pipelines,
-                        selected = pipelineChoice,
+                        selectedId = pipelineChoice,
                         onSelect = { pipelineChoice = it },
+                        onCreate = { name -> onCreatePipeline(name) },
+                        pickLabel = stringResource(Res.string.event_responses_dialog_pipeline_pick),
+                        choosePlaceholder = stringResource(Res.string.event_responses_dialog_pipeline_choose),
+                        createNewLabel = stringResource(Res.string.event_responses_dialog_pipeline_create_new),
+                        newNameLabel = stringResource(Res.string.event_responses_dialog_pipeline_new_name),
+                        createLabel = stringResource(Res.string.event_responses_dialog_pipeline_create_confirm),
+                        cancelLabel = stringResource(Res.string.event_responses_dialog_cancel),
                     )
-                    if (createMode) {
-                        AppTextField(
-                            value = newPipelineName,
-                            onValueChange = { newPipelineName = it },
-                            label = stringResource(Res.string.event_responses_dialog_pipeline_new_name),
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
                     Text(
                         text = stringResource(Res.string.event_responses_dialog_pipeline_help),
                         style = typography.xs,
@@ -474,16 +468,12 @@ private fun EditDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    if (selectedType == "pipeline" && createMode) {
-                        onCreateAndBind(newPipelineName.trim())
-                    } else {
-                        onSave(
-                            selectedType,
-                            message.takeIf { it.isNotBlank() },
-                            pipelineChoice.takeIf { it.isNotBlank() && it != CreateNewPipeline },
-                            widgetChoice.takeIf { selectedType == "overlay" && it.isNotBlank() },
-                        )
-                    }
+                    onSave(
+                        selectedType,
+                        message.takeIf { it.isNotBlank() },
+                        pipelineChoice,
+                        widgetChoice.takeIf { selectedType == "overlay" && it.isNotBlank() },
+                    )
                 },
                 enabled = canSubmit,
             ) {
@@ -529,53 +519,6 @@ private fun EditDialog(
             onDismiss = { confirmingReset = false },
             destructive = true,
         )
-    }
-}
-
-// The pipeline-binding picker: the channel's pipelines plus a "Create a new pipeline" entry. The selected value
-// is a pipeline id, the [CreateNewPipeline] sentinel, or blank (nothing chosen yet).
-@Composable
-private fun PipelineBindPicker(pipelines: List<PipelineSummary>, selected: String, onSelect: (String) -> Unit) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    Column(verticalArrangement = Arrangement.spacedBy(spacing.s0_5)) {
-        Text(text = stringResource(Res.string.event_responses_dialog_pipeline_pick), style = typography.sm, color = tokens.foreground)
-        if (selected == CreateNewPipeline) {
-            // Create-new mode: the reference isn't an existing pipeline, so the search picker doesn't apply — show
-            // the mode is active with a way back to picking an existing pipeline.
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-            ) {
-                Text(
-                    text = stringResource(Res.string.event_responses_dialog_pipeline_create_new),
-                    style = typography.sm,
-                    color = tokens.primary,
-                    modifier = Modifier.weight(1f),
-                )
-                TextButton(onClick = { onSelect("") }) {
-                    Text(text = stringResource(Res.string.event_responses_dialog_pipeline_choose), color = tokens.primary)
-                }
-            }
-        } else {
-            // Pick an EXISTING pipeline through the shared search dropdown (a reference to another table)…
-            EntityPickerField(
-                items = pipelines,
-                selectedId = selected.ifBlank { null },
-                onSelect = { onSelect(it.orEmpty()) },
-                idOf = { it.id },
-                labelOf = { it.name },
-                placeholder = stringResource(Res.string.event_responses_dialog_pipeline_choose),
-            )
-            // …or switch to authoring a brand-new pipeline (the CreateNewPipeline sentinel drives the name field).
-            TextButton(onClick = { onSelect(CreateNewPipeline) }) {
-                AppIcon(AddGlyph, contentDescription = null, tint = tokens.primary, size = spacing.s4)
-                Text(text = stringResource(Res.string.event_responses_dialog_pipeline_create_new), color = tokens.primary)
-            }
-        }
     }
 }
 
