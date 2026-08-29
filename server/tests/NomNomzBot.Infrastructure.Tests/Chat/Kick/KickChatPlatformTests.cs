@@ -28,12 +28,15 @@ public sealed class KickChatPlatformTests
     private static readonly Guid Tenant = Guid.Parse("0192c000-0000-7000-8000-0000000000a1");
     private const long KickId = 12345;
 
-    private static (KickChatPlatform Platform, IKickApiClient Client) Build(bool withToken = true)
+    private static (KickChatPlatform Platform, IKickApiClient Client) Build(
+        bool withToken = true,
+        bool isBotAccount = false
+    )
     {
         IKickAccessTokenProvider tokens = Substitute.For<IKickAccessTokenProvider>();
         tokens
             .GetAsync(Tenant, Arg.Any<CancellationToken>())
-            .Returns(withToken ? new KickAccess("kick-bearer-1", KickId) : null);
+            .Returns(withToken ? new KickAccess("kick-bearer-1", KickId, isBotAccount) : null);
         IKickApiClient client = Substitute.For<IKickApiClient>();
         client
             .SendMessageAsync(
@@ -41,6 +44,7 @@ public sealed class KickChatPlatformTests
                 Arg.Any<long>(),
                 Arg.Any<string>(),
                 Arg.Any<string?>(),
+                Arg.Any<bool>(),
                 Arg.Any<CancellationToken>()
             )
             .Returns(Result.Success("m-1"));
@@ -82,6 +86,27 @@ public sealed class KickChatPlatformTests
                 KickId,
                 "hello kick",
                 null,
+                false,
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task A_send_on_a_dedicated_bot_account_connection_forwards_the_bot_flag()
+    {
+        (KickChatPlatform platform, IKickApiClient client) = Build(isBotAccount: true);
+
+        bool sent = await platform.SendMessageAsync(Tenant, "hello kick");
+
+        sent.Should().BeTrue();
+        await client
+            .Received(1)
+            .SendMessageAsync(
+                "kick-bearer-1",
+                KickId,
+                "hello kick",
+                null,
+                true,
                 Arg.Any<CancellationToken>()
             );
     }
@@ -100,6 +125,7 @@ public sealed class KickChatPlatformTests
                 KickId,
                 "threaded reply",
                 "parent-9",
+                false,
                 Arg.Any<CancellationToken>()
             );
     }
@@ -114,7 +140,14 @@ public sealed class KickChatPlatformTests
         sent.Should().BeFalse();
         await client
             .DidNotReceiveWithAnyArgs()
-            .SendMessageAsync(default!, default, default!, default, Arg.Any<CancellationToken>());
+            .SendMessageAsync(
+                default!,
+                default,
+                default!,
+                default,
+                default,
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]

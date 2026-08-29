@@ -1324,6 +1324,7 @@ public sealed class IntegrationOAuthServiceTests
             long broadcasterUserId,
             string content,
             string? replyToMessageId = null,
+            bool isBotAccount = false,
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();
 

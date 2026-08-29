@@ -164,6 +164,7 @@ public sealed class KickChatPlatform : IChatPlatform
             access.BroadcasterUserId,
             message,
             replyToMessageId,
+            access.IsBotAccount,
             ct
         );
         if (sent.IsFailure)
