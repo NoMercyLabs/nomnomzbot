@@ -204,7 +204,10 @@ public sealed class KickWebhookIngest : IKickWebhookIngest
         if (tenant is null)
             return;
 
-        // Idempotent under Kick's redeliveries: stamping the same state twice is a no-op write.
+        // Idempotent under Kick's redeliveries: only a genuine transition re-publishes the canonical
+        // event — a repeated "still live"/"still offline" delivery must never re-fire go-live alerts,
+        // Discord notifications, or a second stream session.
+        bool wasLive = tenant.IsLive;
         tenant.IsLive = isLive;
         if (!string.IsNullOrWhiteSpace(payload.Title))
             tenant.Title = payload.Title;
@@ -215,6 +218,45 @@ public sealed class KickWebhookIngest : IKickWebhookIngest
             tenant.Id,
             isLive ? "LIVE" : "OFFLINE"
         );
+
+        if (isLive == wasLive)
+            return;
+
+        // The SAME canonical stream-lifecycle events Twitch's StreamLifecycleTranslators publish, so
+        // alerts, Discord go-live, and stream-session creation fire identically for a Kick-only tenant —
+        // no Kick-specific consumer needed anywhere downstream.
+        if (isLive)
+        {
+            await _bus.PublishAsync(
+                new ChannelOnlineEvent
+                {
+                    Provider = AuthEnums.Platform.Kick,
+                    BroadcasterId = tenant.Id,
+                    OccurredAt = _clock.GetUtcNow(),
+                    BroadcasterDisplayName = payload.Broadcaster.Username ?? string.Empty,
+                    StreamTitle = tenant.Title ?? string.Empty,
+                    GameName = tenant.GameName ?? string.Empty,
+                    StartedAt = _clock.GetUtcNow(),
+                },
+                ct
+            );
+        }
+        else
+        {
+            await _bus.PublishAsync(
+                new ChannelOfflineEvent
+                {
+                    Provider = AuthEnums.Platform.Kick,
+                    BroadcasterId = tenant.Id,
+                    OccurredAt = _clock.GetUtcNow(),
+                    BroadcasterDisplayName = payload.Broadcaster.Username ?? string.Empty,
+                    // Kick's livestream.status.updated carries no duration — degrades to zero exactly
+                    // like Twitch's stream.offline translator; elapsed uptime is computed downstream.
+                    StreamDuration = TimeSpan.Zero,
+                },
+                ct
+            );
+        }
     }
 
     // ─── livestream.metadata.updated → canonical ChannelUpdatedEvent ─────────

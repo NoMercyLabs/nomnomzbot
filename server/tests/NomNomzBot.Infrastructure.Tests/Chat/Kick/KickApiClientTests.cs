@@ -229,6 +229,54 @@ public sealed class KickApiClientTests
     }
 
     [Fact]
+    public async Task Get_channel_parses_title_category_and_live_viewer_count()
+    {
+        StubHttpMessageHandler handler = new(
+            (
+                HttpStatusCode.OK,
+                """{"data":[{"broadcaster_user_id":12345,"stream_title":"Bird up!","category":{"id":5,"name":"Just Chatting"},"stream":{"is_live":true,"viewer_count":42}}]}"""
+            )
+        );
+        KickApiClient sut = Build(handler);
+
+        Result<KickChannel> result = await sut.GetChannelAsync(Token, 12345);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be(new KickChannel(12345, "Bird up!", "Just Chatting", 5, true, 42));
+        handler
+            .LastRequest!.RequestUri!.ToString()
+            .Should()
+            .EndWith("/public/v1/channels?broadcaster_user_id=12345");
+    }
+
+    [Fact]
+    public async Task Get_channel_reports_not_found_when_kick_returns_no_channel()
+    {
+        StubHttpMessageHandler handler = new((HttpStatusCode.OK, """{"data":[]}"""));
+        KickApiClient sut = Build(handler);
+
+        Result<KickChannel> result = await sut.GetChannelAsync(Token, 12345);
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    [Fact]
+    public async Task Update_channel_patches_title_and_category_id_on_the_own_channel()
+    {
+        StubHttpMessageHandler handler = new((HttpStatusCode.OK, "{}"));
+        KickApiClient sut = Build(handler);
+
+        Result result = await sut.UpdateChannelAsync(Token, "New title!", 5);
+
+        result.IsSuccess.Should().BeTrue();
+        handler.LastRequest!.Method.Should().Be(HttpMethod.Patch);
+        handler.LastRequest.RequestUri!.ToString().Should().EndWith("/public/v1/channels");
+        string body = await handler.LastRequest.Content!.ReadAsStringAsync();
+        body.Should().Contain("New title!").And.Contain("\"category_id\":5");
+    }
+
+    [Fact]
     public async Task A_403_maps_to_missing_scope()
     {
         StubHttpMessageHandler handler = new((HttpStatusCode.Forbidden, "{}"));

@@ -22,26 +22,33 @@ namespace NomNomzBot.Infrastructure.Tests.Platform.ChannelOps;
 
 /// <summary>
 /// Proves the channel-ops seam's routing (the <c>ChatPlatformRouter</c> twin): a stream-info update on a
-/// YouTube tenant reaches the YouTube platform API, a Twitch tenant's the Twitch one, and an
-/// unknown/unregistered provider falls back to Twitch (the pre-seam behavior) instead of throwing.
+/// YouTube tenant reaches the YouTube platform API, a Twitch tenant's the Twitch one, a Kick tenant's the
+/// Kick one (S027 — Kick is now a registered platform, closing the "unsupported_provider" gap a
+/// Kick-only tenant used to hit), and a genuinely unregistered provider fails honestly instead of
+/// silently routing to another platform.
 /// </summary>
 public sealed class PlatformApiRouterTests
 {
     private static readonly Guid TwitchTenant = Guid.Parse("0192b000-0000-7000-8000-0000000000d1");
     private static readonly Guid YouTubeTenant = Guid.Parse("0192b000-0000-7000-8000-0000000000d2");
     private static readonly Guid KickTenant = Guid.Parse("0192b000-0000-7000-8000-0000000000d3");
+    private static readonly Guid UnregisteredTenant = Guid.Parse(
+        "0192b000-0000-7000-8000-0000000000d4"
+    );
     private static readonly Guid Owner = Guid.Parse("0192b000-0000-7000-8000-0000000000d9");
 
     private static async Task<(
         PlatformApiRouter Router,
         IPlatformApi Twitch,
-        IPlatformApi YouTube
+        IPlatformApi YouTube,
+        IPlatformApi Kick
     )> BuildAsync()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Channels.Add(Channel(TwitchTenant, AuthEnums.Platform.Twitch, "tw1"));
         db.Channels.Add(Channel(YouTubeTenant, AuthEnums.Platform.YouTube, "UCyt"));
         db.Channels.Add(Channel(KickTenant, AuthEnums.Platform.Kick, "kick1"));
+        db.Channels.Add(Channel(UnregisteredTenant, "twitter", "tw-user"));
         await db.SaveChangesAsync();
 
         IPlatformApi twitch = Substitute.For<IPlatformApi>();
@@ -62,19 +69,28 @@ public sealed class PlatformApiRouterTests
                 Arg.Any<CancellationToken>()
             )
             .Returns(Result.Success(new PlatformStreamInfoApplied("t", null, null)));
+        IPlatformApi kick = Substitute.For<IPlatformApi>();
+        kick.Provider.Returns(AuthEnums.Platform.Kick);
+        kick.UpdateStreamInfoAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<PlatformStreamInfoUpdate>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(new PlatformStreamInfoApplied("t", null, null)));
 
         PlatformApiRouter router = new(
-            [twitch, youtube],
+            [twitch, youtube, kick],
             db,
             NullLogger<PlatformApiRouter>.Instance
         );
-        return (router, twitch, youtube);
+        return (router, twitch, youtube, kick);
     }
 
     [Fact]
     public async Task A_youtube_tenants_update_routes_to_the_youtube_platform()
     {
-        (PlatformApiRouter router, IPlatformApi twitch, IPlatformApi youtube) = await BuildAsync();
+        (PlatformApiRouter router, IPlatformApi twitch, IPlatformApi youtube, IPlatformApi kick) =
+            await BuildAsync();
         PlatformStreamInfoUpdate update = new(Title: "new title");
 
         Result<PlatformStreamInfoApplied> result = await router.UpdateStreamInfoAsync(
@@ -94,7 +110,8 @@ public sealed class PlatformApiRouterTests
     [Fact]
     public async Task A_twitch_tenants_update_routes_to_the_twitch_platform()
     {
-        (PlatformApiRouter router, IPlatformApi twitch, IPlatformApi youtube) = await BuildAsync();
+        (PlatformApiRouter router, IPlatformApi twitch, IPlatformApi youtube, IPlatformApi kick) =
+            await BuildAsync();
 
         await router.UpdateStreamInfoAsync(TwitchTenant, new("t"));
 
@@ -111,13 +128,38 @@ public sealed class PlatformApiRouterTests
     }
 
     [Fact]
-    public async Task An_unregistered_provider_fails_honestly_and_calls_no_platform()
+    public async Task A_kick_tenants_update_routes_to_the_kick_platform()
     {
-        // Kick has a Channel row but no registered platform API yet.
-        (PlatformApiRouter router, IPlatformApi twitch, IPlatformApi youtube) = await BuildAsync();
+        // S027: a Kick-only tenant's title/category change used to fail unsupported_provider — Kick is
+        // now a registered IPlatformApi, so this reaches it exactly like Twitch/YouTube do.
+        (PlatformApiRouter router, IPlatformApi twitch, IPlatformApi youtube, IPlatformApi kick) =
+            await BuildAsync();
+        PlatformStreamInfoUpdate update = new(Title: "new kick title");
 
         Result<PlatformStreamInfoApplied> result = await router.UpdateStreamInfoAsync(
             KickTenant,
+            update
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        await kick.Received(1)
+            .UpdateStreamInfoAsync(KickTenant, update, Arg.Any<CancellationToken>());
+        await twitch
+            .DidNotReceiveWithAnyArgs()
+            .UpdateStreamInfoAsync(default, default!, Arg.Any<CancellationToken>());
+        await youtube
+            .DidNotReceiveWithAnyArgs()
+            .UpdateStreamInfoAsync(default, default!, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task An_unregistered_provider_fails_honestly_and_calls_no_platform()
+    {
+        (PlatformApiRouter router, IPlatformApi twitch, IPlatformApi youtube, IPlatformApi kick) =
+            await BuildAsync();
+
+        Result<PlatformStreamInfoApplied> result = await router.UpdateStreamInfoAsync(
+            UnregisteredTenant,
             new("t")
         );
 
@@ -129,13 +171,16 @@ public sealed class PlatformApiRouterTests
         await youtube
             .DidNotReceiveWithAnyArgs()
             .UpdateStreamInfoAsync(default, default!, Arg.Any<CancellationToken>());
+        await kick.DidNotReceiveWithAnyArgs()
+            .UpdateStreamInfoAsync(default, default!, Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Consecutive_calls_for_different_tenants_each_route_to_their_own_platform()
     {
         // No provider is cached/defaulted from a previous call.
-        (PlatformApiRouter router, IPlatformApi twitch, IPlatformApi youtube) = await BuildAsync();
+        (PlatformApiRouter router, IPlatformApi twitch, IPlatformApi youtube, IPlatformApi kick) =
+            await BuildAsync();
 
         await router.UpdateStreamInfoAsync(YouTubeTenant, new("first"));
         await router.UpdateStreamInfoAsync(TwitchTenant, new("second"));

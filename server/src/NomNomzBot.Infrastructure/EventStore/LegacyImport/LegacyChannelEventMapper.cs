@@ -572,6 +572,7 @@ public sealed class LegacyChannelEventMapper
     private static ChannelOnlineEvent MapStreamOnline(JObject data, EventEnvelope env) =>
         new()
         {
+            Provider = NomNomzBot.Domain.Identity.Enums.AuthEnums.Platform.Twitch,
             EventId = env.EventId,
             BroadcasterId = env.Tenant,
             OccurredAt = env.OccurredAt,
@@ -587,6 +588,7 @@ public sealed class LegacyChannelEventMapper
     private static ChannelOfflineEvent MapStreamOffline(JObject data, EventEnvelope env) =>
         new()
         {
+            Provider = NomNomzBot.Domain.Identity.Enums.AuthEnums.Platform.Twitch,
             EventId = env.EventId,
             BroadcasterId = env.Tenant,
             OccurredAt = env.OccurredAt,

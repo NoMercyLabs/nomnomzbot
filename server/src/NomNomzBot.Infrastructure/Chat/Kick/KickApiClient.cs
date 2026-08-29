@@ -224,6 +224,61 @@ public sealed class KickApiClient : IKickApiClient
             : Result.Failure($"Kick rejected the subscription: {itemError}", "SERVICE_UNAVAILABLE");
     }
 
+    public async Task<Result<KickChannel>> GetChannelAsync(
+        string accessToken,
+        long broadcasterUserId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        HttpRequestMessage request = new(
+            HttpMethod.Get,
+            $"{KickApiBase}/channels?broadcaster_user_id={broadcasterUserId}"
+        );
+        request.Headers.Authorization = new("Bearer", accessToken);
+
+        Result<ChannelListResponse> listed = await SendForBodyAsync<ChannelListResponse>(
+            request,
+            $"read channel {broadcasterUserId}",
+            cancellationToken
+        );
+        if (listed.IsFailure)
+            return Result.Failure<KickChannel>(
+                listed.ErrorMessage!,
+                listed.ErrorCode,
+                listed.ErrorDetail
+            );
+
+        ChannelItem? item = listed.Value.Data?.FirstOrDefault();
+        if (item is null)
+            return Result.Failure<KickChannel>("The Kick channel was not found.", "NOT_FOUND");
+
+        return Result.Success(
+            new KickChannel(
+                item.BroadcasterUserId,
+                item.StreamTitle,
+                item.Category?.Name,
+                item.Category?.Id,
+                item.Stream?.IsLive ?? false,
+                item.Stream?.ViewerCount ?? 0
+            )
+        );
+    }
+
+    public async Task<Result> UpdateChannelAsync(
+        string accessToken,
+        string? streamTitle,
+        int? categoryId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        HttpRequestMessage request = new(HttpMethod.Patch, $"{KickApiBase}/channels");
+        request.Headers.Authorization = new("Bearer", accessToken);
+        request.Content = JsonContent.Create(
+            new { stream_title = streamTitle, category_id = categoryId }
+        );
+        return await SendAsync(request, "update channel", cancellationToken);
+    }
+
     private async Task<Result> PostBanAsync(
         string accessToken,
         object body,
@@ -362,5 +417,44 @@ public sealed class KickApiClient : IKickApiClient
 
         [JsonPropertyName("error")]
         public string? Error { get; set; }
+    }
+
+    private sealed class ChannelListResponse
+    {
+        [JsonPropertyName("data")]
+        public List<ChannelItem>? Data { get; set; }
+    }
+
+    private sealed class ChannelItem
+    {
+        [JsonPropertyName("broadcaster_user_id")]
+        public long BroadcasterUserId { get; set; }
+
+        [JsonPropertyName("stream_title")]
+        public string? StreamTitle { get; set; }
+
+        [JsonPropertyName("category")]
+        public ChannelCategory? Category { get; set; }
+
+        [JsonPropertyName("stream")]
+        public ChannelStream? Stream { get; set; }
+    }
+
+    private sealed class ChannelCategory
+    {
+        [JsonPropertyName("id")]
+        public int Id { get; set; }
+
+        [JsonPropertyName("name")]
+        public string? Name { get; set; }
+    }
+
+    private sealed class ChannelStream
+    {
+        [JsonPropertyName("is_live")]
+        public bool IsLive { get; set; }
+
+        [JsonPropertyName("viewer_count")]
+        public int ViewerCount { get; set; }
     }
 }

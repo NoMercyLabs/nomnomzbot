@@ -102,6 +102,7 @@ public sealed class ChannelOnlineHandlerTests
         await sut.HandleAsync(
             new ChannelOnlineEvent
             {
+                Provider = NomNomzBot.Domain.Identity.Enums.AuthEnums.Platform.Twitch,
                 BroadcasterId = Broadcaster,
                 BroadcasterDisplayName = "Streamer9",
                 StreamTitle = "New session",

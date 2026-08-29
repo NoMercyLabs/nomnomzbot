@@ -92,6 +92,7 @@ public sealed class StreamOnlineTranslator(IEventBus bus, TimeProvider clock)
         JsonElement payload = notification.Event;
         ChannelOnlineEvent online = new()
         {
+            Provider = NomNomzBot.Domain.Identity.Enums.AuthEnums.Platform.Twitch,
             BroadcasterId = notification.BroadcasterId,
             OccurredAt = Clock.GetUtcNow(),
             BroadcasterDisplayName = payload.GetRequiredString("broadcaster_user_name"),
@@ -123,6 +124,7 @@ public sealed class StreamOfflineTranslator(IEventBus bus, TimeProvider clock)
         JsonElement payload = notification.Event;
         ChannelOfflineEvent offline = new()
         {
+            Provider = NomNomzBot.Domain.Identity.Enums.AuthEnums.Platform.Twitch,
             BroadcasterId = notification.BroadcasterId,
             OccurredAt = Clock.GetUtcNow(),
             BroadcasterDisplayName = payload.GetRequiredString("broadcaster_user_name"),

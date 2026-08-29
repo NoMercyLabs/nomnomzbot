@@ -16,8 +16,9 @@ namespace NomNomzBot.Domain.Stream.Events;
 /// Published when a channel's stream goes online (EventSub stream.online).
 /// </summary>
 [Event("stream.online", EventVisibility.Public)]
-public sealed class ChannelOnlineEvent : DomainEventBase
+public sealed class ChannelOnlineEvent : DomainEventBase, IProviderScopedEvent
 {
+    public required string Provider { get; init; }
     public required string BroadcasterDisplayName { get; init; }
     public required string StreamTitle { get; init; }
     public required string GameName { get; init; }

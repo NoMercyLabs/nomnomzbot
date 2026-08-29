@@ -99,7 +99,42 @@ public interface IKickApiClient
         IReadOnlyList<KickEventRequest> events,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// Reads the broadcaster's channel (<c>GET /public/v1/channels?broadcaster_user_id=</c>, scope
+    /// <c>channel:read</c>) — title, category, and the live viewer count when the channel is currently
+    /// streaming. Used for the dashboard's title/category display and the viewer-count poll; Kick has no
+    /// stream-tags concept.
+    /// </summary>
+    Task<Result<KickChannel>> GetChannelAsync(
+        string accessToken,
+        long broadcasterUserId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Applies a title/category change on the token owner's OWN channel (<c>PATCH /public/v1/channels</c>,
+    /// scope <c>channel:write</c>). The token holder's channel is implicit — Kick's PATCH takes no
+    /// <c>broadcaster_user_id</c>. A category NAME must already be resolved to Kick's numeric category id
+    /// by the caller (Kick's channel PATCH takes an id, not a name).
+    /// </summary>
+    Task<Result> UpdateChannelAsync(
+        string accessToken,
+        string? streamTitle,
+        int? categoryId,
+        CancellationToken cancellationToken = default
+    );
 }
+
+/// <summary>One channel's current title/category/live state (the GET read shape).</summary>
+public sealed record KickChannel(
+    long BroadcasterUserId,
+    string? StreamTitle,
+    string? CategoryName,
+    int? CategoryId,
+    bool IsLive,
+    int ViewerCount
+);
 
 /// <summary>One registered Kick event subscription (the GET list item shape).</summary>
 public sealed record KickEventSubscription(
