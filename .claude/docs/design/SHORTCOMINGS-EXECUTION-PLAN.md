@@ -201,15 +201,26 @@ than each consumer needing their own clone-and-customize pass.
 
 ## Phase 2 — existing platforms made to work (Kick / YouTube are shipped features that are broken) — only the spine pieces these fixes REQUIRE
 
-- **S030-remaining** `IsLive` from the poll, `snippet.type`-routed translators (76adf380), and the 403
-  quota-vs-scope disambiguation + `youtube.force-ssl` scope (da1f8086, S029) are all DONE and verified.
-  REMAINING (U·C3): multi-broadcast support (today hardcoded to the first `active` broadcast only,
-  confirmed at `YouTubeLiveChatClient.cs:51,67`); an own-channel cache (currently re-fetched via
-  `GetOwnChannelAsync` on every liveness transition); a "leased poller" abstraction (current design is a
-  single in-process `Dictionary<Guid, PollState>` — fine for one instance, not distributed); unban
-  outcome reporting; a `concurrentViewers` sampler (no read of `liveStreamingDetails.concurrentViewers`
-  anywhere yet). Done-when: viewer count shows via the sampler; a multi-broadcast channel is handled
-  correctly; unban reports a truthful outcome.
+- **S030-titling-multibroadcast** verified DONE this session: chat-ingest multi-broadcast tracking, an
+  own-channel cache, and a `concurrentViewers` sampler (4a351c78 — `Two_concurrent_active_broadcasts_are_
+  both_tracked_not_just_the_first`, `GetOwnChannel_is_resolved_at_most_once_across_repeated_liveness_
+  transitions`, the sampler tests). REMAINING (small, narrow): `YouTubeLiveChatClient.UpdateActiveBroadcast
+  TitleAsync` still only retitles the FIRST active broadcast (`FirstOrDefault`) — same class of gap as
+  chat ingest had, just for the channel-ops/title-update path, not yet fixed there. The "leased poller"
+  distributed-lease abstraction is explicitly OUT OF SCOPE — single in-process polling is correct for the
+  current self-host/single-instance deployment model, do not build it unless the deployment model changes.
+  Done-when: a multi-broadcast channel's title update targets every active broadcast, not just one.
+- **S-CHATPROVIDER-UNBAN-RESULT** found by S030-remaining: `IChatProvider`/`IChatPlatform.UnbanUserAsync`
+  (the shared cross-platform interface used by Twitch/Kick/YouTube) returns bare `Task`, not `Result<T>`
+  — so even though `YouTubeLiveChatClient.UnbanUserAsync`'s own transport-level call IS truthful
+  (correctly distinguishes NOT_FOUND from success), that outcome gets silently discarded one layer up at
+  `YouTubeChatPlatform.cs:111` because the shared interface has nowhere to put it. The dashboard/API
+  always reports "succeeded" for an unban regardless of what actually happened, on ALL THREE platforms,
+  not just YouTube — this is a cross-platform truthfulness gap, matching the same "ban/unban result must
+  be truthful" bar Kick's own client already meets internally (S028). Done-when: `IChatProvider`/
+  `IChatPlatform.UnbanUserAsync` returns a real `Result<T>` reflecting the actual outcome, threaded
+  through for Twitch, Kick, AND YouTube, proven by a test per platform asserting on the returned outcome
+  for both a real success and a real not-found/already-unbanned case.
 
 ## Phase 3 — form infrastructure (stabilizes existing authoring; every 'raw text box' finding rides on it)
 
