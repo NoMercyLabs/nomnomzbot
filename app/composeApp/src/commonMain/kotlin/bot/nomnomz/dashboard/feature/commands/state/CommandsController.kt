@@ -13,6 +13,7 @@ package bot.nomnomz.dashboard.feature.commands.state
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.BuiltinCommand
 import bot.nomnomz.dashboard.core.network.BuiltinsApi
@@ -27,8 +28,10 @@ import bot.nomnomz.dashboard.core.network.PickListsApi
 import bot.nomnomz.dashboard.core.network.PipelineDetail
 import bot.nomnomz.dashboard.core.network.PipelineGraph
 import bot.nomnomz.dashboard.core.network.PipelineSummary
+import bot.nomnomz.dashboard.core.network.PipelineTestRunBody
 import bot.nomnomz.dashboard.core.network.PipelinesApi
 import bot.nomnomz.dashboard.core.network.ResourceUsage
+import bot.nomnomz.dashboard.core.network.TestRunResult
 import bot.nomnomz.dashboard.core.network.UpdateCommandBody
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -174,6 +177,18 @@ class CommandsController(
                 null
             }
         }
+    }
+
+    /**
+     * Dry-run [pipelineId] with sample [variables] (S047-remaining) — the same backend `POST
+     * .../pipelines/{id}/test-run` the Pipelines editor's own Test button calls, addressed here by the pipeline
+     * bound to this command rather than "whichever pipeline is open". Feeds
+     * [bot.nomnomz.dashboard.feature.pipelines.state.PipelineTestRunController].
+     */
+    suspend fun testRunPipeline(pipelineId: String, variables: Map<String, String>): ApiResult<TestRunResult> {
+        val channel: String =
+            channelId ?: return ApiResult.Failure(ApiError(status = 0, code = null, message = NoChannelError))
+        return pipelinesApi.testRun(channel, pipelineId, PipelineTestRunBody(variables))
     }
 
     /**

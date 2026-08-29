@@ -14,6 +14,7 @@ import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.core.realtime.onConfigChange
 import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -25,8 +26,10 @@ import bot.nomnomz.dashboard.core.network.PickListsApi
 import bot.nomnomz.dashboard.core.network.PipelineDetail
 import bot.nomnomz.dashboard.core.network.PipelineGraph
 import bot.nomnomz.dashboard.core.network.PipelineSummary
+import bot.nomnomz.dashboard.core.network.PipelineTestRunBody
 import bot.nomnomz.dashboard.core.network.PipelinesApi
 import bot.nomnomz.dashboard.core.network.ResourceUsage
+import bot.nomnomz.dashboard.core.network.TestRunResult
 import bot.nomnomz.dashboard.core.network.TimerDetail
 import bot.nomnomz.dashboard.core.network.TimerSummary
 import bot.nomnomz.dashboard.core.network.TimersApi
@@ -170,6 +173,19 @@ class TimersController(
                 null
             }
         }
+    }
+
+    /**
+     * Dry-run [pipelineId] with sample [variables] (S047-remaining) — the same backend `POST
+     * .../pipelines/{id}/test-run` the Pipelines editor's own Test button calls, addressed here by the pipeline
+     * bound to this timer rather than "whichever pipeline is open". Feeds
+     * [bot.nomnomz.dashboard.feature.pipelines.state.PipelineTestRunController].
+     */
+    suspend fun testRunPipeline(pipelineId: String, variables: Map<String, String>): ApiResult<TestRunResult> {
+        val channelId: String =
+            resolveChannelId()
+                ?: return ApiResult.Failure(ApiError(status = 0, code = null, message = "No active channel — reconnect and try again."))
+        return pipelinesApi.testRun(channelId, pipelineId, PipelineTestRunBody(variables))
     }
 
     /** Fetch a timer's full detail (pipeline + full message list) to pre-fill the edit dialog. Null on failure. */

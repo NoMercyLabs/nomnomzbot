@@ -372,6 +372,51 @@ class CommandsControllerTest {
         assertNull(created)
         assertEquals(FeedbackKind.Error, feedback.only.kind)
     }
+
+    // S047-remaining — the Test action next to a command's bound pipeline must call the REAL backend dry-run
+    // endpoint for the EXACT bound pipeline id, with the sample variables the dialog collected — not a stub, not
+    // a different id.
+    @Test
+    fun test_run_pipeline_calls_the_dry_run_endpoint_for_the_exact_bound_pipeline_id() = runTest {
+        val pipelinesApi = RecordingPipelinesApi()
+        val controller =
+            CommandsController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                commandsApi = RecordingCommandsApi(ApiResult.Ok(emptyList())),
+                builtinsApi = FakeBuiltinsApi(),
+                pipelinesApi = pipelinesApi,
+                pickListsApi = FakePickListsApi(),
+            )
+        controller.load()
+
+        val result: ApiResult<bot.nomnomz.dashboard.core.network.TestRunResult> =
+            controller.testRunPipeline("pipe-42", mapOf("user" to "viewer1"))
+
+        assertEquals("pipe-42", pipelinesApi.lastTestRunPipelineId)
+        assertEquals("ch1", pipelinesApi.lastTestRunChannelId)
+        assertEquals(mapOf("user" to "viewer1"), pipelinesApi.lastTestRunVariables)
+        assertTrue((result as ApiResult.Ok).value.success)
+    }
+
+    @Test
+    fun test_run_pipeline_surfaces_the_backend_failure() = runTest {
+        val pipelinesApi =
+            RecordingPipelinesApi(testRunResult = ApiResult.Failure(ApiError(500, "ERR", "engine exploded")))
+        val controller =
+            CommandsController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                commandsApi = RecordingCommandsApi(ApiResult.Ok(emptyList())),
+                builtinsApi = FakeBuiltinsApi(),
+                pipelinesApi = pipelinesApi,
+                pickListsApi = FakePickListsApi(),
+            )
+        controller.load()
+
+        val result: ApiResult<bot.nomnomz.dashboard.core.network.TestRunResult> =
+            controller.testRunPipeline("pipe-42", emptyMap())
+
+        assertEquals("engine exploded", (result as ApiResult.Failure).error.message)
+    }
 }
 
 // ── Fakes ────────────────────────────────────────────────────────────────────────────────────────
@@ -492,9 +537,13 @@ private class FakePipelinesApi : PipelinesApi {
 // real write happened with the right args, and [createResult] lets a test force the failure path.
 private class RecordingPipelinesApi(
     private val createResult: ApiResult<PipelineDetail>? = null,
+    private val testRunResult: ApiResult<bot.nomnomz.dashboard.core.network.TestRunResult>? = null,
 ) : PipelinesApi {
     var lastCreatedName: String? = null
     var lastCreatedChannelId: String? = null
+    var lastTestRunPipelineId: String? = null
+    var lastTestRunChannelId: String? = null
+    var lastTestRunVariables: Map<String, String>? = null
 
     override suspend fun list(channelId: String): ApiResult<List<PipelineSummary>> = ApiResult.Ok(emptyList())
 
@@ -527,8 +576,12 @@ private class RecordingPipelinesApi(
         channelId: String,
         id: String,
         body: bot.nomnomz.dashboard.core.network.PipelineTestRunBody,
-    ): ApiResult<bot.nomnomz.dashboard.core.network.TestRunResult> =
-        ApiResult.Ok(bot.nomnomz.dashboard.core.network.TestRunResult())
+    ): ApiResult<bot.nomnomz.dashboard.core.network.TestRunResult> {
+        lastTestRunPipelineId = id
+        lastTestRunChannelId = channelId
+        lastTestRunVariables = body.variables
+        return testRunResult ?: ApiResult.Ok(bot.nomnomz.dashboard.core.network.TestRunResult(success = true))
+    }
 }
 
 // A recording fake that behaves like the backend store: list() returns the live store, and each successful

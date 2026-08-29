@@ -35,6 +35,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_event_response_reset
@@ -353,6 +354,51 @@ class EventResponsesControllerTest {
         assertEquals("pipeline", api.lastUpsertedBody?.responseType)
         assertEquals("new-pipe", api.lastUpsertedBody?.pipelineId)
     }
+
+    // S047-remaining — the Test action next to an event response's bound pipeline must call the REAL backend
+    // dry-run endpoint for the EXACT bound pipeline id.
+    @Test
+    fun test_run_pipeline_calls_the_dry_run_endpoint_for_the_exact_bound_pipeline_id() = runTest {
+        StubPipelinesApi.lastTestRunPipelineId = null
+        StubPipelinesApi.testRunResult = null
+        val controller =
+            EventResponsesController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                eventResponsesApi = RecordingEventResponsesApi(listResult = ApiResult.Ok(emptyList())),
+                pipelinesApi = StubPipelinesApi,
+                pickListsApi = StubPickListsApi,
+                widgetsApi = StubWidgetsApi,
+            )
+        controller.load()
+
+        val result: ApiResult<bot.nomnomz.dashboard.core.network.TestRunResult> =
+            controller.testRunPipeline("pipe-9", mapOf("user" to "viewer1"))
+
+        assertEquals("pipe-9", StubPipelinesApi.lastTestRunPipelineId)
+        assertEquals("ch1", StubPipelinesApi.lastTestRunChannelId)
+        assertEquals(mapOf("user" to "viewer1"), StubPipelinesApi.lastTestRunVariables)
+        assertTrue((result as ApiResult.Ok).value.success)
+    }
+
+    @Test
+    fun test_run_pipeline_surfaces_the_backend_failure() = runTest {
+        StubPipelinesApi.testRunResult = ApiResult.Failure(ApiError(500, "ERR", "engine exploded"))
+        val controller =
+            EventResponsesController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                eventResponsesApi = RecordingEventResponsesApi(listResult = ApiResult.Ok(emptyList())),
+                pipelinesApi = StubPipelinesApi,
+                pickListsApi = StubPickListsApi,
+                widgetsApi = StubWidgetsApi,
+            )
+        controller.load()
+
+        val result: ApiResult<bot.nomnomz.dashboard.core.network.TestRunResult> =
+            controller.testRunPipeline("pipe-9", emptyMap())
+
+        assertEquals("engine exploded", (result as ApiResult.Failure).error.message)
+        StubPipelinesApi.testRunResult = null
+    }
 }
 
 // ── Test doubles ─────────────────────────────────────────────────────────────
@@ -361,6 +407,10 @@ class EventResponsesControllerTest {
 // assert the response was bound to it; list()/catalogue() return empty so load() succeeds.
 private object StubPipelinesApi : PipelinesApi {
     var lastCreatedName: String? = null
+    var lastTestRunPipelineId: String? = null
+    var lastTestRunChannelId: String? = null
+    var lastTestRunVariables: Map<String, String>? = null
+    var testRunResult: ApiResult<bot.nomnomz.dashboard.core.network.TestRunResult>? = null
 
     override suspend fun list(channelId: String): ApiResult<List<PipelineSummary>> = ApiResult.Ok(emptyList())
     override suspend fun catalogue(channelId: String): ApiResult<PipelineCatalogueRemote> =
@@ -382,8 +432,12 @@ private object StubPipelinesApi : PipelinesApi {
         channelId: String,
         id: String,
         body: bot.nomnomz.dashboard.core.network.PipelineTestRunBody,
-    ): ApiResult<bot.nomnomz.dashboard.core.network.TestRunResult> =
-        ApiResult.Ok(bot.nomnomz.dashboard.core.network.TestRunResult())
+    ): ApiResult<bot.nomnomz.dashboard.core.network.TestRunResult> {
+        lastTestRunPipelineId = id
+        lastTestRunChannelId = channelId
+        lastTestRunVariables = body.variables
+        return testRunResult ?: ApiResult.Ok(bot.nomnomz.dashboard.core.network.TestRunResult(success = true))
+    }
 }
 
 // A widgets fake for the event-responses tests: list() returns empty (the overlay picker just needs to load),

@@ -332,6 +332,46 @@ class TimersControllerTest {
         assertEquals(null, controller.timersUsage.value)
         assertTrue(controller.state.value is TimersState.Empty)
     }
+
+    // S047-remaining — the Test action next to a timer's bound pipeline must call the REAL backend dry-run
+    // endpoint for the EXACT bound pipeline id.
+    @Test
+    fun test_run_pipeline_calls_the_dry_run_endpoint_for_the_exact_bound_pipeline_id() = runTest {
+        val pipelinesApi = FakePipelinesApi()
+        val controller =
+            timersController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                timersApi = FakeTimersApi(emptyList()),
+                pipelinesApi = pipelinesApi,
+            )
+        controller.load()
+
+        val result: ApiResult<bot.nomnomz.dashboard.core.network.TestRunResult> =
+            controller.testRunPipeline("pipe-7", mapOf("user" to "viewer1"))
+
+        assertEquals("pipe-7", pipelinesApi.lastTestRunPipelineId)
+        assertEquals("ch1", pipelinesApi.lastTestRunChannelId)
+        assertEquals(mapOf("user" to "viewer1"), pipelinesApi.lastTestRunVariables)
+        assertTrue((result as ApiResult.Ok).value.success)
+    }
+
+    @Test
+    fun test_run_pipeline_surfaces_the_backend_failure() = runTest {
+        val pipelinesApi =
+            FakePipelinesApi(testRunResult = ApiResult.Failure(ApiError(500, "ERR", "engine exploded")))
+        val controller =
+            timersController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                timersApi = FakeTimersApi(emptyList()),
+                pipelinesApi = pipelinesApi,
+            )
+        controller.load()
+
+        val result: ApiResult<bot.nomnomz.dashboard.core.network.TestRunResult> =
+            controller.testRunPipeline("pipe-7", emptyMap())
+
+        assertEquals("engine exploded", (result as ApiResult.Failure).error.message)
+    }
 }
 
 // Builds a controller with an empty-pipeline fake so the tests that don't exercise the picker stay unchanged.
@@ -365,7 +405,14 @@ private class FakePickListsApi : bot.nomnomz.dashboard.core.network.PickListsApi
         error("stub")
 }
 
-private class FakePipelinesApi(private val pipelines: List<PipelineSummary> = emptyList()) : PipelinesApi {
+private class FakePipelinesApi(
+    private val pipelines: List<PipelineSummary> = emptyList(),
+    private val testRunResult: ApiResult<bot.nomnomz.dashboard.core.network.TestRunResult>? = null,
+) : PipelinesApi {
+    var lastTestRunPipelineId: String? = null
+    var lastTestRunChannelId: String? = null
+    var lastTestRunVariables: Map<String, String>? = null
+
     override suspend fun list(channelId: String): ApiResult<List<PipelineSummary>> = ApiResult.Ok(pipelines)
 
     override suspend fun catalogue(channelId: String): ApiResult<PipelineCatalogueRemote> =
@@ -390,7 +437,12 @@ private class FakePipelinesApi(private val pipelines: List<PipelineSummary> = em
         channelId: String,
         id: String,
         body: bot.nomnomz.dashboard.core.network.PipelineTestRunBody,
-    ): ApiResult<bot.nomnomz.dashboard.core.network.TestRunResult> = error("stub")
+    ): ApiResult<bot.nomnomz.dashboard.core.network.TestRunResult> {
+        lastTestRunPipelineId = id
+        lastTestRunChannelId = channelId
+        lastTestRunVariables = body.variables
+        return testRunResult ?: ApiResult.Ok(bot.nomnomz.dashboard.core.network.TestRunResult(success = true))
+    }
 }
 
 private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
