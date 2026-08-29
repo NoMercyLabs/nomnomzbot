@@ -46,6 +46,7 @@ public sealed class AdminBroadcastHandlersTests
         await new AdminChannelOnlineBroadcastHandler(hub).HandleAsync(
             new()
             {
+                Provider = NomNomzBot.Domain.Identity.Enums.AuthEnums.Platform.Twitch,
                 BroadcasterId = Channel,
                 BroadcasterDisplayName = "Stoney",
                 StreamTitle = "blame the lag",
@@ -72,6 +73,7 @@ public sealed class AdminBroadcastHandlersTests
         await new AdminChannelOfflineBroadcastHandler(hub).HandleAsync(
             new()
             {
+                Provider = NomNomzBot.Domain.Identity.Enums.AuthEnums.Platform.Twitch,
                 BroadcasterId = Channel,
                 BroadcasterDisplayName = "Stoney",
                 StreamDuration = TimeSpan.FromHours(3),
