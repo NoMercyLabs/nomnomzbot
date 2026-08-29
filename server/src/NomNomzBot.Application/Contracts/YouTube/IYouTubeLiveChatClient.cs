@@ -25,13 +25,17 @@ namespace NomNomzBot.Application.Contracts.YouTube;
 public interface IYouTubeLiveChatClient
 {
     /// <summary>
-    /// Resolves the caller's currently active live broadcast to its live-chat id
-    /// (<c>GET liveBroadcasts?part=snippet&amp;broadcastStatus=active</c>). A successful result with a
-    /// <c>null</c> value means the caller is not live (no active broadcast) — a normal state, not an error;
-    /// a failure is a transport/auth problem. <paramref name="accessToken"/> is the broadcaster's decrypted
-    /// YouTube OAuth bearer.
+    /// Resolves ALL of the caller's currently active live broadcasts to their live-chat ids
+    /// (<c>GET liveBroadcasts?part=snippet,liveStreamingDetails&amp;broadcastStatus=active</c>) — a channel
+    /// CAN run multiple concurrent broadcasts (e.g. simultaneous multi-encoder streams), and every one of
+    /// them has its own chat to ingest, so the caller must never assume there is only one. A successful
+    /// result with an EMPTY list means the caller is not live (no active broadcast) — a normal state, not
+    /// an error; a failure is a transport/auth problem. Each entry also carries the broadcast's current
+    /// <see cref="YouTubeActiveChat.ConcurrentViewers"/> sample (<c>liveStreamingDetails.concurrentViewers</c>),
+    /// null when YouTube omits it. <paramref name="accessToken"/> is the broadcaster's decrypted YouTube
+    /// OAuth bearer.
     /// </summary>
-    Task<Result<YouTubeActiveChat?>> GetActiveLiveChatAsync(
+    Task<Result<IReadOnlyList<YouTubeActiveChat>>> GetActiveLiveChatsAsync(
         string accessToken,
         CancellationToken cancellationToken = default
     );
@@ -128,8 +132,15 @@ public interface IYouTubeLiveChatClient
 /// <summary>The authenticated user's own YouTube channel identity.</summary>
 public sealed record YouTubeOwnChannel(string ChannelId, string Title);
 
-/// <summary>The caller's active broadcast and its live-chat id.</summary>
-public sealed record YouTubeActiveChat(string BroadcastId, string LiveChatId, string? Title);
+/// <summary>The caller's active broadcast and its live-chat id, plus the concurrent-viewer count YouTube
+/// reported for it at resolution time (null when YouTube omits <c>liveStreamingDetails.concurrentViewers</c>,
+/// e.g. very early in a broadcast).</summary>
+public sealed record YouTubeActiveChat(
+    string BroadcastId,
+    string LiveChatId,
+    string? Title,
+    long? ConcurrentViewers = null
+);
 
 /// <summary>One page of live-chat messages plus the paging cursor and the API-directed poll delay.</summary>
 public sealed record YouTubeLiveChatPage(
