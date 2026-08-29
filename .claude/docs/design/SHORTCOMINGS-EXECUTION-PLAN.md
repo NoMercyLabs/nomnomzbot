@@ -201,12 +201,17 @@ than each consumer needing their own clone-and-customize pass.
 
 ## Phase 2 — existing platforms made to work (Kick / YouTube are shipped features that are broken) — only the spine pieces these fixes REQUIRE
 
-- **S-KICK-BOT-ACCOUNT** found by S028-bot-identity: Kick has no dedicated bot-account connection type
-  at all (unlike Twitch's `twitch_bot`) — `KickAccessTokenProvider.IsBotAccount` always resolves false,
-  so the just-shipped `type:"bot"` send path can never actually trigger; every Kick send today is
-  type:"user" via the streamer's own account (the D5 fallback), permanently, not just until a bot
-  account is registered. Done-when: a Kick streamer can register a separate bot account (mirroring the
-  Twitch bot-account OAuth flow) and the bot then sends as `type:"bot"`.
+- **S-KICK-BOT-ACCOUNT-registration** resolution/send-path half is DONE and verified (f9dd37ee):
+  `kick_bot` connection type exists, `KickAccessTokenProvider.IsBotAccount` resolves correctly, and
+  `type:"bot"` sends use the bot account's own token when one is registered, falling back to
+  `type:"user"` via the streamer's own account otherwise (regression-proofed). REMAINING: there is
+  still NO WAY for a streamer to actually REGISTER a Kick bot account — no `ChannelBotController`
+  equivalent for Kick exists (Twitch's white-label bot controller is the template), so the OAuth
+  authorize/callback/status/disconnect endpoints for a Kick bot connection (auth-code + PKCE, per
+  Kick's existing OAuth pattern — no device-code flow like Twitch) plus a "connect a Kick bot account"
+  affordance on the dashboard's Integrations screen (optional per D5, mirroring the Twitch bot-account
+  connect option) still need building. Done-when: a streamer can actually click through and register a
+  separate Kick bot account from the dashboard, not just have the backend resolve one if it existed.
 - **S029** YouTube writes — `youtube.force-ssl` + re-grant; 403 reason parsing (quota vs scope) +
   quota backoff; refresh-failure signal (U·C3). Done-when: a reply/ban on YouTube succeeds; quota burn
   shows as quota.
