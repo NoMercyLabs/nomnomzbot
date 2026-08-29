@@ -449,15 +449,17 @@ class PipelinesControllerTest {
 
         val blockId: String = controller.addIfBlock(PipelineNode("user_role", mapOf("role" to "mod")))
 
-        // The block itself: no runnable action of its own, its condition is the block config, top-level order 0.
+        // The block itself: no runnable action of its own, its condition is carried by the SAME `condition`
+        // field an ordinary leaf step uses (not `blockConfig` — the engine's EvaluateConditionTreeAsync only
+        // ever reads a step's Conditions, never BlockConfigJson, for an "if" block), top-level order 0.
         val afterBlock: List<PipelineStep> = (controller.state.value as PipelinesState.Editing).steps
         val block: PipelineStep = afterBlock.single { it.id == blockId }
         assertEquals("if", block.blockKind)
         assertNull(block.parentStepId)
         assertEquals(0, block.order)
-        assertEquals("user_role", (block.blockConfig as? kotlinx.serialization.json.JsonObject)?.get("type")?.let {
-            (it as kotlinx.serialization.json.JsonPrimitive).content
-        })
+        assertEquals("user_role", block.condition?.type)
+        assertEquals("mod", block.condition?.params?.get("role"))
+        assertNull(block.blockConfig)
 
         controller.addBranchStep(blockId, "then", PipelineStep(action = PipelineNode("send_message", mapOf("message" to "then-1"))))
         controller.addBranchStep(blockId, "then", PipelineStep(action = PipelineNode("send_message", mapOf("message" to "then-2"))))
@@ -496,7 +498,7 @@ class PipelinesControllerTest {
                     PipelineStep(
                         action = PipelineNode(type = "block"),
                         blockKind = "if",
-                        blockConfig = PipelineNode("user_role", mapOf("role" to "mod")).toJson(),
+                        condition = PipelineNode("user_role", mapOf("role" to "mod")),
                         id = "blk-1",
                         order = 0,
                     ),
