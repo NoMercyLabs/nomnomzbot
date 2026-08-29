@@ -13,9 +13,11 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Caching;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
@@ -48,6 +50,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
     private readonly IChannelCredentialsResolver _channelCredentials;
     private readonly IMusicProviderTokenMirror _musicTokenMirror;
     private readonly ICacheService _cache;
+    private readonly IApplicationDbContext _db;
     private readonly HttpClient _http;
     private readonly TimeProvider _timeProvider;
     private readonly string _baseUrl;
@@ -62,6 +65,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
         IChannelCredentialsResolver channelCredentials,
         IMusicProviderTokenMirror musicTokenMirror,
         ICacheService cache,
+        IApplicationDbContext db,
         IHttpClientFactory httpClientFactory,
         IConfiguration configuration,
         TimeProvider timeProvider,
@@ -76,6 +80,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
         _channelCredentials = channelCredentials;
         _musicTokenMirror = musicTokenMirror;
         _cache = cache;
+        _db = db;
         _http = httpClientFactory.CreateClient("integration-oauth");
         _timeProvider = timeProvider;
         _baseUrl = configuration["App:BaseUrl"] ?? "http://localhost:5080";
@@ -391,6 +396,21 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
         if (connections.IsFailure)
             return connections.WithValue<IReadOnlyList<IntegrationStatusDto>>(null!);
 
+        // Kick can be used for two unrelated things: signing INTO the dashboard (an identity-plane login —
+        // UserIdentity row, no scopes the bot needs) and CONNECTING it as a platform (this tenant's
+        // IntegrationConnection, the kick.chat scope-set KickEventSubscriptionWorker relies on). A login alone
+        // must never render as "Connected" — resolve the owner's login once, up front, for the Kick row below.
+        Guid? ownerUserId = await _db
+            .Channels.Where(ch => ch.Id == broadcasterId)
+            .Select(ch => (Guid?)ch.OwnerUserId)
+            .FirstOrDefaultAsync(cancellationToken);
+        bool hasKickLogin =
+            ownerUserId is not null
+            && await _db.UserIdentities.AnyAsync(
+                i => i.UserId == ownerUserId.Value && i.Provider == AuthEnums.Platform.Kick,
+                cancellationToken
+            );
+
         List<IntegrationStatusDto> statuses = [];
         foreach (string provider in _registry.KnownProviders)
         {
@@ -404,16 +424,21 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
                     ? GrantedScopeSets(descriptor.Value, c.Scopes)
                     : [];
 
+            bool connected = c is not null && c.Status == AuthEnums.IntegrationStatus.Connected;
             statuses.Add(
                 new(
                     provider,
-                    Connected: c is not null && c.Status == AuthEnums.IntegrationStatus.Connected,
+                    Connected: connected,
                     AccountName: c?.ProviderAccountName,
                     GrantedScopeSets: grantedSets,
                     // Runtime-observed capabilities (e.g. spotify.premium flipped by the music
                     // provider's player-403 detection) — absent until observed, never guessed.
                     Capabilities: _capabilities.GetObserved(broadcasterId, provider),
-                    NeedsReauth: c?.Status == AuthEnums.IntegrationStatus.NeedsReauth
+                    NeedsReauth: c?.Status == AuthEnums.IntegrationStatus.NeedsReauth,
+                    LoginOnly:
+                        !connected
+                        && string.Equals(provider, AuthEnums.IntegrationProvider.Kick, StringComparison.OrdinalIgnoreCase)
+                        && hasKickLogin
                 )
             );
         }

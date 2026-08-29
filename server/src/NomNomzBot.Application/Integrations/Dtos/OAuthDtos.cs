@@ -40,12 +40,16 @@ public sealed record OAuthCallbackResultDto(
     string RedirectTarget
 );
 
-/// <summary>Per-provider status for the integrations screen (integrations-oauth §4). No secrets.</summary>
+/// <summary>Per-provider status for the integrations screen (integrations-oauth §4). No secrets.
+/// <see cref="LoginOnly"/> distinguishes a provider the channel owner merely SIGNED IN with (an identity-plane
+/// login, e.g. Kick) from a genuine tenant-scoped platform connection — a login alone grants none of the
+/// scopes the bot needs and must never be shown as "Connected".</summary>
 public sealed record IntegrationStatusDto(
     string Provider,
     bool Connected,
     string? AccountName,
     IReadOnlyList<string> GrantedScopeSets,
     IReadOnlyDictionary<string, bool> Capabilities,
-    bool NeedsReauth
+    bool NeedsReauth,
+    bool LoginOnly = false
 );

@@ -81363,9 +81363,12 @@
           },
           "needsReauth": {
             "type": "boolean"
+          },
+          "loginOnly": {
+            "type": "boolean"
           }
         },
-        "description": "Per-provider status for the integrations screen (integrations-oauth §4). No secrets."
+        "description": "Per-provider status for the integrations screen (integrations-oauth §4). No secrets.\r\nLoginOnly distinguishes a provider the channel owner merely SIGNED IN with (an identity-plane\r\nlogin, e.g. Kick) from a genuine tenant-scoped platform connection — a login alone grants none of the\r\nscopes the bot needs and must never be shown as \"Connected\"."
       },
       "InviteChannelRequest": {
         "required": [

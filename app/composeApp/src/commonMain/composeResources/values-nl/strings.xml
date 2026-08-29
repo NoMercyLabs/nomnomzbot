@@ -998,6 +998,8 @@
     <string name="integrations_kick_subtitle">Lees, verstuur en modereer je Kick-chat naast Twitch.</string>
     <string name="integrations_status_connected">Verbonden</string>
     <string name="integrations_status_not_connected">Niet verbonden</string>
+    <string name="integrations_status_login_only">Alleen ingelogd — chat niet verbonden</string>
+    <string name="integrations_status_needs_reconnect">Opnieuw verbinden nodig — Kick-chat staat stil</string>
     <string name="integrations_provider_connected_as">Verbonden als %1$s</string>
     <string name="integrations_action_connect">Verbinden</string>
     <string name="integrations_action_disconnect">Verbinding verbreken</string>
