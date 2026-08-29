@@ -785,6 +785,14 @@
     <string name="timers_dialog_pipeline_new_name">New pipeline name</string>
     <string name="timers_dialog_pipeline_create_confirm">Create</string>
     <string name="timers_dialog_interval">Interval (minutes)</string>
+    <string name="timers_dialog_interval_presets_label">Quick pick</string>
+    <string name="timers_dialog_interval_preset_minutes">%1$dm</string>
+    <string name="timers_dialog_interval_preset_hours">%1$dh</string>
+    <string name="timers_dialog_schedule_never_fired">Never fired yet</string>
+    <string name="timers_dialog_schedule_last_fired">Last fired %1$dm ago</string>
+    <string name="timers_dialog_schedule_next_fire_due">Due now</string>
+    <string name="timers_dialog_schedule_next_fire_in">Next fire in %1$dm</string>
+    <string name="timers_dialog_schedule_rotation">Message %1$d of %2$d in rotation</string>
     <string name="timers_dialog_min_chat_activity">Min chat messages between fires</string>
     <string name="timers_dialog_min_chat_activity_hint">Only fire once this many chat messages have arrived since the last fire. Blank = fire regardless.</string>
     <string name="timers_dialog_enabled">Enabled</string>

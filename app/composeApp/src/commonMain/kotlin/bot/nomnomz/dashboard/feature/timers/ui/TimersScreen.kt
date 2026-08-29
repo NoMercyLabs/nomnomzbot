@@ -46,6 +46,8 @@ import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
+import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.PipelineBindPicker
@@ -75,9 +77,11 @@ import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import bot.nomnomz.dashboard.feature.picklists.ui.PickListInsertMenu
+import bot.nomnomz.dashboard.feature.timers.state.TimerSchedule
 import bot.nomnomz.dashboard.feature.timers.state.TimersController
 import bot.nomnomz.dashboard.feature.timers.state.TimersState
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.shell_nav_timers
 import nomnomzbot.composeapp.generated.resources.timers_badge_once
@@ -94,6 +98,14 @@ import nomnomzbot.composeapp.generated.resources.timers_dialog_enabled
 import nomnomzbot.composeapp.generated.resources.timers_dialog_fire_once
 import nomnomzbot.composeapp.generated.resources.timers_dialog_fire_once_hint
 import nomnomzbot.composeapp.generated.resources.timers_dialog_interval
+import nomnomzbot.composeapp.generated.resources.timers_dialog_interval_presets_label
+import nomnomzbot.composeapp.generated.resources.timers_dialog_interval_preset_minutes
+import nomnomzbot.composeapp.generated.resources.timers_dialog_interval_preset_hours
+import nomnomzbot.composeapp.generated.resources.timers_dialog_schedule_never_fired
+import nomnomzbot.composeapp.generated.resources.timers_dialog_schedule_last_fired
+import nomnomzbot.composeapp.generated.resources.timers_dialog_schedule_next_fire_due
+import nomnomzbot.composeapp.generated.resources.timers_dialog_schedule_next_fire_in
+import nomnomzbot.composeapp.generated.resources.timers_dialog_schedule_rotation
 import nomnomzbot.composeapp.generated.resources.timers_dialog_add_message
 import nomnomzbot.composeapp.generated.resources.timers_dialog_message
 import nomnomzbot.composeapp.generated.resources.timers_dialog_message_remove
@@ -599,6 +611,18 @@ private fun TimerEditDialog(
                     modifier = Modifier.fillMaxWidth(),
                     label = stringResource(Res.string.timers_dialog_interval),
                 )
+                // Quick-pick presets for the common cadences — the backend's IntervalMinutes floor is whole
+                // minutes (CreateTimerDto/UpdateTimerDto: Range(1, 1440)), so every preset is minute-granular;
+                // there is no sub-minute interval to offer. Clicking one just fills the field above — the raw
+                // value stays freely editable for anything in between.
+                IntervalPresetRow(
+                    currentValue = interval,
+                    onSelect = { minutes -> interval = TimerSchedule.presetFieldValue(minutes) },
+                )
+                // Schedule facts for an existing timer — a new timer has no fire history yet to show.
+                if (target is TimerEditTarget.Edit) {
+                    TimerScheduleInfo(intervalMinutes = intervalMinutes, detail = detail)
+                }
                 // Anti-spam guard — the timer only fires once at least this many chat messages have arrived
                 // since the last fire. Blank/0 = fire regardless of chat activity. Digits only.
                 AppTextField(
@@ -676,6 +700,76 @@ private fun TimerEditDialog(
             }
         },
     )
+}
+
+@Composable
+private fun IntervalPresetRow(currentValue: String, onSelect: (Int) -> Unit) {
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    val tokens = LocalTokens.current
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+        Text(
+            text = stringResource(Res.string.timers_dialog_interval_presets_label),
+            style = typography.xs,
+            color = tokens.mutedForeground,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+            TimerSchedule.IntervalPresetsMinutes.forEach { minutes ->
+                val label: String =
+                    if (minutes % 60 == 0) {
+                        stringResource(Res.string.timers_dialog_interval_preset_hours, minutes / 60)
+                    } else {
+                        stringResource(Res.string.timers_dialog_interval_preset_minutes, minutes)
+                    }
+                val selected: Boolean = TimerSchedule.isSelectedPreset(currentValue, minutes)
+                Button(
+                    onClick = { onSelect(minutes) },
+                    variant = if (selected) ButtonVariant.Default else ButtonVariant.Outline,
+                    size = ButtonSize.Sm,
+                ) {
+                    Text(text = label)
+                }
+            }
+        }
+    }
+}
+
+// Fire history + rotation position for an already-created timer, computed client-side from the loaded detail
+// (TimerDto's LastFiredAt/NextMessageIndex — the same fields TimerService.ProcessTimerAsync persists on every
+// fire). Renders nothing while the detail is still loading (null) so the dialog doesn't flash stale zeros.
+@Composable
+private fun TimerScheduleInfo(intervalMinutes: Int?, detail: TimerDetail?) {
+    if (detail == null || intervalMinutes == null) return
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    val tokens = LocalTokens.current
+    val now = remember { Clock.System.now() }
+
+    val lastFiredText: String =
+        TimerSchedule.minutesSinceLastFire(detail.lastFiredAt, now)?.let { minutesAgo ->
+            stringResource(Res.string.timers_dialog_schedule_last_fired, minutesAgo.coerceAtLeast(0).toInt())
+        } ?: stringResource(Res.string.timers_dialog_schedule_never_fired)
+
+    val nextFireText: String? =
+        TimerSchedule.minutesUntilNextFire(detail.lastFiredAt, intervalMinutes, now)?.let { minutesLeft ->
+            if (minutesLeft <= 0) {
+                stringResource(Res.string.timers_dialog_schedule_next_fire_due)
+            } else {
+                stringResource(Res.string.timers_dialog_schedule_next_fire_in, minutesLeft.toInt())
+            }
+        }
+
+    val rotationText: String? =
+        TimerSchedule.rotationPosition(detail.nextMessageIndex, detail.messages.size)?.let { (position, total) ->
+            stringResource(Res.string.timers_dialog_schedule_rotation, position, total)
+        }
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s0_5)) {
+        Text(text = lastFiredText, style = typography.xs, color = tokens.mutedForeground)
+        nextFireText?.let { Text(text = it, style = typography.xs, color = tokens.mutedForeground) }
+        rotationText?.let { Text(text = it, style = typography.xs, color = tokens.mutedForeground) }
+    }
 }
 
 // Dismissible inline error banner — shown above the list so the rows the user was looking at stay put.
