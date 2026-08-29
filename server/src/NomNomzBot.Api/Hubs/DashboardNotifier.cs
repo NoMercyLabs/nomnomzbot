@@ -51,6 +51,11 @@ public interface IDashboardNotifier
         RewardRedeemedDto dto,
         CancellationToken ct = default
     );
+    Task SendRedemptionStatusChangedAsync(
+        string broadcasterId,
+        RedemptionStatusChangedDto dto,
+        CancellationToken ct = default
+    );
     Task SendPermissionChangedAsync(
         string broadcasterId,
         PermissionChangedDto dto,
@@ -148,6 +153,12 @@ public class DashboardNotifier : IDashboardNotifier
         RewardRedeemedDto dto,
         CancellationToken ct = default
     ) => ClassGroup(broadcasterId, DashboardEventClasses.Activity).RewardRedeemed(dto);
+
+    public Task SendRedemptionStatusChangedAsync(
+        string broadcasterId,
+        RedemptionStatusChangedDto dto,
+        CancellationToken ct = default
+    ) => BaseGroup(broadcasterId).RedemptionStatusChanged(dto);
 
     public Task SendMusicStateAsync(
         string broadcasterId,

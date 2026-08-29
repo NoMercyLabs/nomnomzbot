@@ -227,9 +227,6 @@ than each consumer needing their own clone-and-customize pass.
   bound pipeline's existing test dialog (or a lighter duplicate entry point) — needs that small design
   call, then wiring (W·§6/§8 i2). Done-when: captured side effects shown without sending, from all four
   surfaces.
-- **S049** Hub events baseline — `HubEvent` cases for reward lifecycle, redemption status,
-  `ConfigChanged`, `RewardChanged`; pending queue removes on fulfil/refund; live chat render re-check
-  (U·B2 b1, folded handoff). Done-when: second session live-updates; fulfilled redemption leaves queue.
 - **S050** Shell truth — hub-state indicator; reconnect banner reason; `effectiveMe` transient failure
   = retry state; remembered-session vs unreachable distinction (U·B6). Done-when: dead socket visible in 5 s.
 

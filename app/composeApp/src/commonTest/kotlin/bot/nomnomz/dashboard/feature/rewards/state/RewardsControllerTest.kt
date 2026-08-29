@@ -20,10 +20,16 @@ import bot.nomnomz.dashboard.core.network.RedemptionSummary
 import bot.nomnomz.dashboard.core.network.RewardSummary
 import bot.nomnomz.dashboard.core.network.RewardsApi
 import bot.nomnomz.dashboard.core.network.UpdateRewardBody
+import bot.nomnomz.dashboard.core.realtime.HubEvent
+import bot.nomnomz.dashboard.core.realtime.HubRedemptionStatusChanged
+import bot.nomnomz.dashboard.core.realtime.HubRewardChanged
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
@@ -403,6 +409,62 @@ class RewardsControllerTest {
         assertTrue(reward.isManageable)
         assertNull(state.actionError)
     }
+
+    @Test
+    fun redemption_status_changed_hub_event_removes_it_from_the_pending_queue() = runTest {
+        // Proves the S049 gap this closes: a redemption fulfilled from ANOTHER open session (or from Twitch
+        // directly) must still drop out of THIS session's pending queue on the hub push — not only on a reload
+        // triggered by this session's own fulfil/refund button.
+        val rewardsApi =
+            RecordingRewardsApi(
+                initial = ApiResult.Ok(listOf(RewardSummary(id = "r1", title = "Hydrate!"))),
+                redemptionQueue =
+                    listOf(
+                        RedemptionSummary(redemptionId = "x1", rewardTitle = "Hydrate!", status = "unfulfilled"),
+                        RedemptionSummary(redemptionId = "x2", rewardTitle = "Hydrate!", status = "unfulfilled"),
+                    ),
+            )
+        val controller =
+            makeRewardsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), rewardsApi)
+        controller.load()
+        assertEquals(2, (controller.state.value as RewardsState.Ready).redemptions.size)
+
+        val hubEvents = MutableSharedFlow<HubEvent>()
+        val subscription = launch { controller.subscribeToHub(hubEvents) }
+        runCurrent() // let the launched collector subscribe before the shared flow emits
+        hubEvents.emit(
+            HubEvent.RedemptionStatusChanged(
+                HubRedemptionStatusChanged(redemptionId = "x1", rewardId = "r1", status = "fulfilled")
+            )
+        )
+        runCurrent() // let the collector's state update run
+
+        val remaining: List<RedemptionSummary> = (controller.state.value as RewardsState.Ready).redemptions
+        assertEquals(listOf("x2"), remaining.map { it.redemptionId })
+        subscription.cancel()
+    }
+
+    @Test
+    fun reward_changed_hub_event_reloads_so_another_sessions_edit_appears() = runTest {
+        // Proves the S049 "second session live-updates" bar for reward lifecycle: a reward created/edited from
+        // ANOTHER dashboard session must appear here without a manual refresh.
+        val rewardsApi = RecordingRewardsApi(ApiResult.Ok(listOf(RewardSummary(id = "r1", title = "Hydrate!"))))
+        val controller =
+            makeRewardsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), rewardsApi)
+        controller.load()
+
+        // Simulate the OTHER session's create landing in the backing store, then the hub push telling us to reload.
+        rewardsApi.seedExternalReward(RewardSummary(id = "r2", title = "Skip Song"))
+        val hubEvents = MutableSharedFlow<HubEvent>()
+        val subscription = launch { controller.subscribeToHub(hubEvents) }
+        runCurrent() // let the launched collector subscribe before the shared flow emits
+        hubEvents.emit(HubEvent.RewardChanged(HubRewardChanged(action = "created", rewardId = "r2")))
+        runCurrent() // let the collector's reload run
+
+        val rewards: List<RewardSummary> = (controller.state.value as RewardsState.Ready).rewards
+        assertEquals(setOf("r1", "r2"), rewards.map { it.id }.toSet())
+        subscription.cancel()
+    }
 }
 
 private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
@@ -502,6 +564,11 @@ private class RecordingRewardsApi(
         channelId: String,
         status: String?,
     ): ApiResult<List<RedemptionSummary>> = ApiResult.Ok(redemptionQueue)
+
+    /** Models another session's write landing in the shared backend store, ahead of this session's hub push. */
+    fun seedExternalReward(reward: RewardSummary) {
+        store += reward
+    }
 
     val fulfilled: MutableList<String> = mutableListOf()
     val refunded: MutableList<String> = mutableListOf()
