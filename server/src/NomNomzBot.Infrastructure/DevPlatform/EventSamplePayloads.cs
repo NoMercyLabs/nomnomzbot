@@ -18,16 +18,16 @@ namespace NomNomzBot.Infrastructure.DevPlatform;
 /// catalogs as <c>community.follow</c>, not <c>channel.follow</c>. Each value below is copied verbatim from the
 /// raw-string fixture used in the corresponding translator's own behaviour test — the verified-real Twitch wire
 /// shape, not a hand-written approximation. Only events with a fixture proven against a real translator test
-/// appear here; every other handleable event has no verified sample yet and is intentionally omitted (
-/// <see cref="SdkTypeEmitter.EmitEventCatalog"/> leaves <c>SamplePayloadJson</c> null for those, pending a real
-/// fixture — see the TODO list below).
+/// appear here (external EventSub-derived events). Every other event is an internal domain event with no wire
+/// format to translate from — its C# type IS the ground truth, so <see cref="SdkTypeEmitter.EmitEventCatalog"/>
+/// falls back to <see cref="ReflectionSampleGenerator"/> for those, reflecting the same type the JSON Schema is
+/// built from rather than a hand-guessed payload.
 /// </summary>
 /// <remarks>
-/// TODO: attach verified real fixtures for the remaining handleable events as translator tests are written or
-/// located for them (e.g. channel.channel_points_custom_reward_redemption.add's v2 automatic sibling already
-/// covered, but the automation/billing/identity/economy/etc. modules below "chat"/"moderation"/"rewards"/
-/// "community"/"stream" have no translator tests at all yet — see <see cref="Application.DevPlatform.EventCatalog"/>
-/// for the full list). Never fabricate a payload here — leave the event out until a real fixture is confirmed.
+/// TODO: attach a verified real fixture here for any external EventSub event as its translator test is written or
+/// located, moving it out of the reflection-generated fallback. Never fabricate an external wire payload by hand —
+/// either copy it from a real translator fixture (this dictionary) or let the reflection fallback generate it from
+/// the type itself when there is no external wire format to copy from.
 /// </remarks>
 public static class EventSamplePayloads
 {
