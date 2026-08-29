@@ -289,6 +289,17 @@ import nomnomzbot.composeapp.generated.resources.pipelines_step_move_down_short
 import nomnomzbot.composeapp.generated.resources.pipelines_step_move_up
 import nomnomzbot.composeapp.generated.resources.pipelines_step_move_up_short
 import nomnomzbot.composeapp.generated.resources.pipelines_step_stop_label
+import nomnomzbot.composeapp.generated.resources.pipelines_block_add_if
+import nomnomzbot.composeapp.generated.resources.pipelines_block_if_title
+import nomnomzbot.composeapp.generated.resources.pipelines_block_if_summary
+import nomnomzbot.composeapp.generated.resources.pipelines_block_lane_then
+import nomnomzbot.composeapp.generated.resources.pipelines_block_lane_else
+import nomnomzbot.composeapp.generated.resources.pipelines_block_lane_empty
+import nomnomzbot.composeapp.generated.resources.pipelines_block_lane_add
+import nomnomzbot.composeapp.generated.resources.pipelines_block_lane_step_edit
+import nomnomzbot.composeapp.generated.resources.pipelines_block_lane_step_delete
+import nomnomzbot.composeapp.generated.resources.pipelines_block_lane_step_move_up
+import nomnomzbot.composeapp.generated.resources.pipelines_block_lane_step_move_down
 
 import nomnomzbot.composeapp.generated.resources.shell_nav_pipelines
 import nomnomzbot.composeapp.generated.resources.pipelines_toggle_action
@@ -632,10 +643,18 @@ private fun ChainEditor(
     // Whether the S047 dry-run dialog is open — its own transient state (variables text) lives inside the dialog.
     var showTestRun: Boolean by remember { mutableStateOf(false) }
 
+    // null = no if-block dialog; a value = the add/edit-condition dialog for one "if" block.
+    var ifBlockDialog: IfBlockDialogTarget? by remember { mutableStateOf(null) }
+
     val backLabel: String = stringResource(Res.string.pipelines_editor_back)
     val saveLabel: String = stringResource(Res.string.pipelines_editor_save)
     val testLabel: String = stringResource(Res.string.pipelines_testrun_action)
     val addLabel: String = stringResource(Res.string.pipelines_step_add)
+    val addIfLabel: String = stringResource(Res.string.pipelines_block_add_if)
+
+    // The root chain, tree-ordered: only the steps with no parent block, in their lane's `order`. Each "if"
+    // block's "then"/"else" children are rendered nested inside its own card, never here at the top level.
+    val rootSteps: List<PipelineStep> = editing.steps.filter { it.parentStepId == null }.sortedBy { it.order ?: 0 }
 
     Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(spacing.s4)) {
         Row(
@@ -685,13 +704,24 @@ private fun ChainEditor(
             color = tokens.mutedForeground,
         )
 
-        ManageGate(decision = manage) { enabled ->
-            Button(
-                onClick = { stepDialog = StepDialogTarget(index = null, step = null) },
-                enabled = enabled,
-                modifier = Modifier.fillMaxWidth().semantics { contentDescription = addLabel },
-            ) {
-                Text(text = addLabel)
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+            ManageGate(decision = manage) { enabled ->
+                Button(
+                    onClick = { stepDialog = StepDialogTarget(parentStepId = null, branch = null, step = null) },
+                    enabled = enabled,
+                    modifier = Modifier.weight(1f).semantics { contentDescription = addLabel },
+                ) {
+                    Text(text = addLabel)
+                }
+            }
+            ManageGate(decision = manage) { enabled ->
+                Button(
+                    onClick = { ifBlockDialog = IfBlockDialogTarget(blockId = null, condition = null) },
+                    enabled = enabled,
+                    modifier = Modifier.weight(1f).semantics { contentDescription = addIfLabel },
+                ) {
+                    Text(text = addIfLabel)
+                }
             }
         }
 
@@ -702,21 +732,39 @@ private fun ChainEditor(
         } else {
             Card(modifier = Modifier.fillMaxWidth().weight(1f)) {
                 LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                    itemsIndexed(items = editing.steps) { index, step ->
+                    itemsIndexed(items = rootSteps) { index, step ->
                         if (index > 0) {
                             Separator()
                         }
-                        StepCard(
-                            index = index,
-                            total = editing.steps.size,
-                            step = step,
-                            palette = editing.palette,
-                            manage = manage,
-                            onEdit = { stepDialog = StepDialogTarget(index = index, step = step) },
-                            onRemove = { controller.removeStep(index) },
-                            onMoveUp = { controller.moveStepUp(index) },
-                            onMoveDown = { controller.moveStepDown(index) },
-                        )
+                        if (step.blockKind == "if") {
+                            IfBlockCard(
+                                block = step,
+                                allSteps = editing.steps,
+                                index = index,
+                                total = rootSteps.size,
+                                palette = editing.palette,
+                                manage = manage,
+                                controller = controller,
+                                onEditCondition = { ifBlockDialog = IfBlockDialogTarget(blockId = step.id, condition = decodeConditionNode(step.blockConfig)) },
+                                onMoveUp = { step.id?.let { controller.moveBranchStepUp(it) } },
+                                onMoveDown = { step.id?.let { controller.moveBranchStepDown(it) } },
+                                onRemove = { step.id?.let { controller.removeBranchStep(it) } },
+                                onAddToLane = { branch -> stepDialog = StepDialogTarget(parentStepId = step.id, branch = branch, step = null) },
+                                onEditLaneStep = { child -> stepDialog = StepDialogTarget(parentStepId = child.parentStepId, branch = child.branch, step = child) },
+                            )
+                        } else {
+                            StepCard(
+                                index = index,
+                                total = rootSteps.size,
+                                step = step,
+                                palette = editing.palette,
+                                manage = manage,
+                                onEdit = { stepDialog = StepDialogTarget(parentStepId = null, branch = null, step = step) },
+                                onRemove = { step.id?.let { controller.removeBranchStep(it) } },
+                                onMoveUp = { step.id?.let { controller.moveBranchStepUp(it) } },
+                                onMoveDown = { step.id?.let { controller.moveBranchStepDown(it) } },
+                            )
+                        }
                     }
                 }
             }
@@ -733,9 +781,38 @@ private fun ChainEditor(
             createCodeScript = controller::createCodeScript,
             onDismiss = { stepDialog = null },
             onSubmit = { step ->
-                val editIndex: Int? = target.index
+                val existingId: String? = target.step?.id
                 stepDialog = null
-                if (editIndex == null) controller.addStep(step) else controller.updateStep(editIndex, step)
+                when {
+                    existingId != null -> controller.updateStepById(existingId, step)
+                    target.parentStepId != null && target.branch != null ->
+                        controller.addBranchStep(target.parentStepId, target.branch, step)
+                    else -> controller.addRootStep(step)
+                }
+            },
+        )
+    }
+
+    ifBlockDialog?.let { target ->
+        IfBlockFormDialog(
+            initial = target.condition,
+            palette = editing.palette,
+            options = editing.options,
+            templateHelpersApi = templateHelpersApi,
+            onOpenCodeScript = onOpenCodeScript,
+            createCodeScript = controller::createCodeScript,
+            onDismiss = { ifBlockDialog = null },
+            onSubmit = { condition ->
+                val existingBlockId: String? = target.blockId
+                ifBlockDialog = null
+                if (existingBlockId != null) {
+                    controller.updateStepById(
+                        existingBlockId,
+                        PipelineStep(action = PipelineNode(type = "block"), blockKind = "if", blockConfig = condition.toJson()),
+                    )
+                } else {
+                    controller.addIfBlock(condition)
+                }
             },
         )
     }
@@ -836,6 +913,263 @@ private fun StepCard(
             }
         }
     }
+}
+
+// A nested "if" block: no action of its own to run — just its gating condition — plus its "then"/"else" lanes,
+// each rendered by [LaneSection] with its own independent add/reorder/remove controls.
+@Composable
+private fun IfBlockCard(
+    block: PipelineStep,
+    allSteps: List<PipelineStep>,
+    index: Int,
+    total: Int,
+    palette: RuntimePalette,
+    manage: ManageDecision,
+    controller: PipelinesController,
+    onEditCondition: () -> Unit,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit,
+    onRemove: () -> Unit,
+    onAddToLane: (branch: String) -> Unit,
+    onEditLaneStep: (PipelineStep) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val conditionNode: PipelineNode? = decodeConditionNode(block.blockConfig)
+    val conditionSummary: String =
+        conditionNode?.let { blockDisplayName(palette.condition(it.type), it.type) }.orEmpty()
+
+    val blockId: String = block.id ?: return
+
+    val editLabel: String = stringResource(Res.string.pipelines_step_edit, index + 1)
+    val removeLabel: String = stringResource(Res.string.pipelines_step_delete, index + 1)
+    val upLabel: String = stringResource(Res.string.pipelines_step_move_up, index + 1)
+    val downLabel: String = stringResource(Res.string.pipelines_step_move_down, index + 1)
+
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
+        verticalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s3)) {
+            Text(text = "${index + 1}", style = typography.sm, color = tokens.mutedForeground)
+            Text(
+                text = stringResource(Res.string.pipelines_block_if_summary, conditionSummary),
+                style = typography.lg,
+                color = tokens.cardForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+        }
+
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spacing.s1)) {
+            ManageGate(decision = manage) { allowed ->
+                GlyphButton(icon = ArrowUpGlyph, label = upLabel, onClick = onMoveUp, enabled = allowed && index > 0, tint = tokens.primary)
+            }
+            ManageGate(decision = manage) { allowed ->
+                GlyphButton(icon = ArrowDownGlyph, label = downLabel, onClick = onMoveDown, enabled = allowed && index < total - 1, tint = tokens.primary)
+            }
+            Box(modifier = Modifier.weight(1f))
+            ManageGate(decision = manage) { enabled -> GlyphButton(icon = EditGlyph, label = editLabel, onClick = onEditCondition, enabled = enabled) }
+            ManageGate(decision = manage) { enabled ->
+                GlyphButton(icon = TrashGlyph, label = removeLabel, onClick = onRemove, enabled = enabled, tint = tokens.destructive)
+            }
+        }
+
+        LaneSection(
+            label = stringResource(Res.string.pipelines_block_lane_then),
+            branch = "then",
+            steps = allSteps.filter { it.parentStepId == blockId && it.branch == "then" }.sortedBy { it.order ?: 0 },
+            palette = palette,
+            manage = manage,
+            controller = controller,
+            onAdd = { onAddToLane("then") },
+            onEditStep = onEditLaneStep,
+        )
+        LaneSection(
+            label = stringResource(Res.string.pipelines_block_lane_else),
+            branch = "else",
+            steps = allSteps.filter { it.parentStepId == blockId && it.branch == "else" }.sortedBy { it.order ?: 0 },
+            palette = palette,
+            manage = manage,
+            controller = controller,
+            onAdd = { onAddToLane("else") },
+            onEditStep = onEditLaneStep,
+        )
+    }
+}
+
+// One "then"/"else" lane inside an "if" block: an indented, independently-ordered list of [steps], each with
+// its own add/reorder/remove — every write here targets ONLY this lane's steps (by id), never the sibling
+// lane or the block that owns them.
+@Composable
+private fun LaneSection(
+    label: String,
+    branch: String,
+    steps: List<PipelineStep>,
+    palette: RuntimePalette,
+    manage: ManageDecision,
+    controller: PipelinesController,
+    onAdd: () -> Unit,
+    onEditStep: (PipelineStep) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    val addLaneLabel: String = stringResource(Res.string.pipelines_block_lane_add, label)
+
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(start = spacing.s4),
+        verticalArrangement = Arrangement.spacedBy(spacing.s1),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+            Text(text = label, style = typography.sm, color = tokens.mutedForeground)
+            Box(modifier = Modifier.weight(1f))
+            ManageGate(decision = manage) { enabled ->
+                GlyphButton(icon = AddGlyph, label = addLaneLabel, onClick = onAdd, enabled = enabled, tint = tokens.primary)
+            }
+        }
+
+        if (steps.isEmpty()) {
+            Text(
+                text = stringResource(Res.string.pipelines_block_lane_empty),
+                style = typography.xs,
+                color = tokens.mutedForeground,
+            )
+        } else {
+            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+                for ((laneIndex, laneStep) in steps.withIndex()) {
+                    val stepId: String = laneStep.id ?: continue
+                    val editLabel: String = stringResource(Res.string.pipelines_block_lane_step_edit, label, laneIndex + 1)
+                    val removeLabel: String = stringResource(Res.string.pipelines_block_lane_step_delete, label, laneIndex + 1)
+                    val upLabel: String = stringResource(Res.string.pipelines_block_lane_step_move_up, label, laneIndex + 1)
+                    val downLabel: String = stringResource(Res.string.pipelines_block_lane_step_move_down, label, laneIndex + 1)
+                    val actionName: String = blockDisplayName(palette.action(laneStep.action.type), laneStep.action.type)
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                    ) {
+                        Text(
+                            text = actionName,
+                            style = typography.sm,
+                            color = tokens.cardForeground,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                        ManageGate(decision = manage) { allowed ->
+                            GlyphButton(
+                                icon = ArrowUpGlyph,
+                                label = upLabel,
+                                onClick = { controller.moveBranchStepUp(stepId) },
+                                enabled = allowed && laneIndex > 0,
+                                tint = tokens.primary,
+                            )
+                        }
+                        ManageGate(decision = manage) { allowed ->
+                            GlyphButton(
+                                icon = ArrowDownGlyph,
+                                label = downLabel,
+                                onClick = { controller.moveBranchStepDown(stepId) },
+                                enabled = allowed && laneIndex < steps.size - 1,
+                                tint = tokens.primary,
+                            )
+                        }
+                        ManageGate(decision = manage) { enabled ->
+                            GlyphButton(icon = EditGlyph, label = editLabel, onClick = { onEditStep(laneStep) }, enabled = enabled)
+                        }
+                        ManageGate(decision = manage) { enabled ->
+                            GlyphButton(
+                                icon = TrashGlyph,
+                                label = removeLabel,
+                                onClick = { controller.removeBranchStep(stepId) },
+                                enabled = enabled,
+                                tint = tokens.destructive,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// The "if" block's condition editor — add a brand-new block, or re-pick an existing one's condition. Reuses
+// the same condition picker + param editor the per-step condition uses (S046-branching-if): an "if" block is
+// gated the same way a step's optional condition is, just promoted to its own addressable tree node so it can
+// own "then"/"else" child lanes.
+@Composable
+private fun IfBlockFormDialog(
+    initial: PipelineNode?,
+    palette: RuntimePalette,
+    options: EditorOptions,
+    templateHelpersApi: TemplateHelpersApi,
+    onOpenCodeScript: (scriptId: String) -> Unit,
+    createCodeScript: suspend (name: String) -> PickerOption?,
+    onDismiss: () -> Unit,
+    onSubmit: (PipelineNode) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+
+    val firstConditionType: String? = initial?.type ?: palette.conditions.firstOrNull()?.type
+    var conditionType: String? by remember { mutableStateOf(firstConditionType) }
+    val conditionBlock: PaletteBlock? = conditionType?.let { palette.condition(it) }
+    val conditionParams: SnapshotStateMap<String, String> = remember { mutableStateMapFrom(initial?.params) }
+    val conditionGeneric: SnapshotStateList<GenericEntry> =
+        remember { genericEntriesFrom(initial?.params.takeIf { conditionBlock?.hasHints == false }) }
+
+    val canSubmit: Boolean = conditionType != null && blockComplete(conditionBlock, conditionParams)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = stringResource(Res.string.pipelines_block_if_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                LabeledText(stringResource(Res.string.pipelines_condition_label_short))
+                ConditionPicker(
+                    conditions = palette.conditions,
+                    selected = conditionBlock,
+                    onSelect = { type ->
+                        conditionType = type
+                        conditionParams.clear()
+                        conditionGeneric.clear()
+                    },
+                )
+                conditionBlock?.let { block ->
+                    BlockParamEditor(
+                        block = block,
+                        typed = conditionParams,
+                        generic = conditionGeneric,
+                        options = options,
+                        templateHelpersApi = templateHelpersApi,
+                        onOpenCodeScript = onOpenCodeScript,
+                        createCodeScript = createCodeScript,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val type: String = conditionType ?: return@TextButton
+                    onSubmit(PipelineNode(type = type, params = paramsFor(conditionBlock, conditionParams, conditionGeneric)))
+                },
+                enabled = canSubmit,
+            ) {
+                Text(text = stringResource(Res.string.pipelines_dialog_save), color = if (canSubmit) tokens.primary else tokens.mutedForeground)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = stringResource(Res.string.pipelines_dialog_cancel), color = tokens.mutedForeground)
+            }
+        },
+    )
 }
 
 @Composable
@@ -1979,4 +2313,17 @@ private data class PipelineEditor(val id: String?, val name: String, val descrip
 }
 
 // The step add/edit dialog target: a null [index] is an add, an index edits that step. [step] seeds an edit.
-private data class StepDialogTarget(val index: Int?, val step: PipelineStep?)
+// A null [step] is an add; a non-null one is an edit of that exact step (its id decides the target). A null
+// [parentStepId]/[branch] targets the root chain; a non-null pair targets that block's lane — [addLabel]-less
+// callers (the "add step" toolbar button, an "if" block's per-lane add button, a StepCard's edit button)
+// all resolve through this one shape.
+private data class StepDialogTarget(val parentStepId: String?, val branch: String?, val step: PipelineStep?)
+
+// A null [blockId] is adding a brand-new "if" block; a non-null one is re-editing an existing block's
+// condition (its [condition] pre-fills the dialog).
+private data class IfBlockDialogTarget(val blockId: String?, val condition: PipelineNode?)
+
+// Decodes an "if" block's stored condition back into a [PipelineNode] for the condition-editor dialog. A
+// missing/malformed blockConfig degrades to null (dialog opens with no condition pre-selected) rather than
+// crashing the editor open.
+private fun decodeConditionNode(blockConfig: JsonElement?): PipelineNode? = PipelineNode.fromJson(blockConfig)

@@ -434,6 +434,111 @@ class PipelinesControllerTest {
         assertEquals(listOf("Chat", "Media"), palette.actionsByCategory.map { it.first })
     }
 
+    // ── Branching ("if" block) edits (S046-branching-if) ────────────────────────
+
+    @Test
+    fun if_block_lanes_add_reorder_and_remove_independently_of_each_other() = runTest {
+        val api =
+            RecordingPipelinesApi(
+                listOf(PipelineSummary(id = "00000005-0000-0000-0000-000000000005", name = "Greeter", isEnabled = true)),
+                graphs = mutableMapOf("00000005-0000-0000-0000-000000000005" to PipelineGraph().toJson()),
+            )
+        val controller = pipelinesController(okChannel(), api)
+        controller.load()
+        controller.openEditor(PipelineSummary(id = "00000005-0000-0000-0000-000000000005", name = "Greeter"))
+
+        val blockId: String = controller.addIfBlock(PipelineNode("user_role", mapOf("role" to "mod")))
+
+        // The block itself: no runnable action of its own, its condition is the block config, top-level order 0.
+        val afterBlock: List<PipelineStep> = (controller.state.value as PipelinesState.Editing).steps
+        val block: PipelineStep = afterBlock.single { it.id == blockId }
+        assertEquals("if", block.blockKind)
+        assertNull(block.parentStepId)
+        assertEquals(0, block.order)
+        assertEquals("user_role", (block.blockConfig as? kotlinx.serialization.json.JsonObject)?.get("type")?.let {
+            (it as kotlinx.serialization.json.JsonPrimitive).content
+        })
+
+        controller.addBranchStep(blockId, "then", PipelineStep(action = PipelineNode("send_message", mapOf("message" to "then-1"))))
+        controller.addBranchStep(blockId, "then", PipelineStep(action = PipelineNode("send_message", mapOf("message" to "then-2"))))
+        controller.addBranchStep(blockId, "else", PipelineStep(action = PipelineNode("send_message", mapOf("message" to "else-1"))))
+
+        fun steps(): List<PipelineStep> = (controller.state.value as PipelinesState.Editing).steps
+        fun lane(branch: String): List<PipelineStep> =
+            steps().filter { it.parentStepId == blockId && it.branch == branch }.sortedBy { it.order }
+
+        // Each lane got its own ids/parentStepId/branch/order — "then" and "else" never share an order sequence.
+        assertEquals(listOf("then-1", "then-2"), lane("then").map { it.action.params["message"] })
+        assertEquals(listOf(0, 1), lane("then").map { it.order })
+        assertEquals(listOf("else-1"), lane("else").map { it.action.params["message"] })
+        assertEquals(listOf(0), lane("else").map { it.order })
+
+        // Reorder within "then" only — the "else" lane and the block's own order must not move.
+        val thenSecondId: String = lane("then")[1].id!!
+        controller.moveBranchStepUp(thenSecondId)
+        assertEquals(listOf("then-2", "then-1"), lane("then").map { it.action.params["message"] })
+        assertEquals(listOf("else-1"), lane("else").map { it.action.params["message"] })
+        assertEquals(0, steps().single { it.id == blockId }.order)
+
+        // Remove the "else" child — "then" (and the block) are untouched.
+        val elseChildId: String = lane("else").single().id!!
+        controller.removeBranchStep(elseChildId)
+        assertEquals(emptyList(), lane("else"))
+        assertEquals(listOf("then-2", "then-1"), lane("then").map { it.action.params["message"] })
+        assertEquals(3, steps().size) // block + 2 "then" children
+    }
+
+    @Test
+    fun opening_a_pipeline_with_a_stored_nested_if_block_decodes_the_full_tree_shape() = runTest {
+        val seeded =
+            PipelineGraph(
+                listOf(
+                    PipelineStep(
+                        action = PipelineNode(type = "block"),
+                        blockKind = "if",
+                        blockConfig = PipelineNode("user_role", mapOf("role" to "mod")).toJson(),
+                        id = "blk-1",
+                        order = 0,
+                    ),
+                    PipelineStep(
+                        action = PipelineNode("send_message", mapOf("message" to "hi mod")),
+                        id = "then-1",
+                        parentStepId = "blk-1",
+                        branch = "then",
+                        order = 0,
+                    ),
+                    PipelineStep(
+                        action = PipelineNode("send_message", mapOf("message" to "hi viewer")),
+                        id = "else-1",
+                        parentStepId = "blk-1",
+                        branch = "else",
+                        order = 0,
+                    ),
+                )
+            )
+        val api =
+            RecordingPipelinesApi(
+                listOf(PipelineSummary(id = "00000006-0000-0000-0000-000000000006", name = "Branching", isEnabled = true)),
+                graphs = mutableMapOf("00000006-0000-0000-0000-000000000006" to seeded.toJson()),
+            )
+        val controller = pipelinesController(okChannel(), api)
+        controller.load()
+
+        controller.openEditor(PipelineSummary(id = "00000006-0000-0000-0000-000000000006", name = "Branching"))
+
+        val steps: List<PipelineStep> = (controller.state.value as PipelinesState.Editing).steps
+        assertEquals(3, steps.size)
+        val block: PipelineStep = steps.single { it.id == "blk-1" }
+        assertEquals("if", block.blockKind)
+        assertNull(block.parentStepId)
+        val thenChild: PipelineStep = steps.single { it.parentStepId == "blk-1" && it.branch == "then" }
+        assertEquals("hi mod", thenChild.action.params["message"])
+        assertEquals(0, thenChild.order)
+        val elseChild: PipelineStep = steps.single { it.parentStepId == "blk-1" && it.branch == "else" }
+        assertEquals("hi viewer", elseChild.action.params["message"])
+        assertEquals(0, elseChild.order)
+    }
+
     // ── S047 dry-run (Test button) ──────────────────────────────────────────────
 
     @Test

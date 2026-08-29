@@ -227,7 +227,7 @@ class PipelinesController(
                     PipelinesState.Editing(
                         pipelineId = result.value.id,
                         name = result.value.name,
-                        steps = result.value.chain.steps,
+                        steps = backfillIds(result.value.chain.steps),
                         palette = palette,
                         options = options,
                     )
@@ -360,6 +360,172 @@ class PipelinesController(
             else current.toMutableList().also { it.add(index + 1, it.removeAt(index)) }
         }
 
+    // ── Branching ("if" block) edits (S046-branching-if) ───────────────────────
+    //
+    // The wire model's tree-nesting fields (id/parentStepId/branch/blockKind/blockConfig/order) shipped inert
+    // in S046-branching-prereq. This is the first thing that actually writes them: an "if" block is a step with
+    // no runnable action of its own (blockKind = "if", blockConfig = its condition), and its "then"/"else"
+    // lanes are ordinary steps that point back at it via parentStepId/branch. The flat add/remove/reorder
+    // methods above stay untouched — they still operate on the un-nested root chain exactly as before; these
+    // new methods are lane-aware and only ever touch the (parentStepId, branch) group they're asked about.
+
+    private var nextLocalStepId: Int = 1
+
+    // A client-only id for a step that doesn't have a backend-assigned one yet (a brand-new block or lane
+    // child). Not a UUID — only needs to be unique within this edit session so parentStepId can address it
+    // before the next save round-trips the backend's real id back.
+    private fun newLocalStepId(): String = "local-${nextLocalStepId++}"
+
+    /**
+     * Add a new "if" block at the end of the root chain: a block-kind step gated by [condition], with no
+     * action of its own to run. The wire model's `action` field is non-nullable, so a block step encodes a
+     * sentinel `PipelineNode(type = "block")` — the backend does not yet execute BlockKind steps (that engine
+     * work is out of scope for this slice), so this sentinel is this slice's own assumption, not a shape read
+     * from the engine; see the slice report. Returns the new step's id so the caller can immediately target
+     * its "then"/"else" lanes with [addBranchStep].
+     */
+    fun addIfBlock(condition: PipelineNode): String {
+        val editing: PipelinesState.Editing = _state.value as? PipelinesState.Editing ?: return ""
+        val id: String = newLocalStepId()
+        val order: Int = editing.steps.count { it.parentStepId == null }
+        val step =
+            PipelineStep(
+                action = PipelineNode(type = "block"),
+                blockKind = "if",
+                blockConfig = condition.toJson(),
+                id = id,
+                order = order,
+            )
+        mutateChain { it + step }
+        return id
+    }
+
+    /**
+     * Append [step] to the [branch] ("then"/"else") lane of the block [parentStepId]. Assigns [step] a local
+     * id if it doesn't already carry one, and an `order` scoped to just that lane — every other lane (the
+     * block's other branch, a sibling block's lanes, the root chain) keeps its own order values untouched.
+     */
+    fun addBranchStep(parentStepId: String, branch: String, step: PipelineStep) =
+        mutateChain { current ->
+            val order: Int = current.count { it.parentStepId == parentStepId && it.branch == branch }
+            current +
+                step.copy(
+                    id = step.id ?: newLocalStepId(),
+                    parentStepId = parentStepId,
+                    branch = branch,
+                    order = order,
+                )
+        }
+
+    /**
+     * Remove the lane step [stepId] — and, if it is itself a nested block, everything under it — then compact
+     * the `order` values of just the lane it lived in back to a dense 0..n-1 run. Every step outside that one
+     * lane (its parent, the other branch, sibling blocks) is left exactly as it was.
+     */
+    fun removeBranchStep(stepId: String) =
+        mutateChain { current ->
+            val target: PipelineStep = current.firstOrNull { it.id == stepId } ?: return@mutateChain current
+            val descendants: Set<String> = descendantIds(current, stepId)
+            val remaining: List<PipelineStep> = current.filterNot { it.id == stepId || it.id in descendants }
+            reindexLane(remaining, target.parentStepId, target.branch)
+        }
+
+    /** Move [stepId] one position earlier within its own lane (no-op already at the top of that lane). */
+    fun moveBranchStepUp(stepId: String) = swapWithLaneSibling(stepId, offset = -1)
+
+    /** Move [stepId] one position later within its own lane (no-op already at the bottom of that lane). */
+    fun moveBranchStepDown(stepId: String) = swapWithLaneSibling(stepId, offset = 1)
+
+    /**
+     * Append [step] to the root chain (no parent block) the same way [addBranchStep] appends to a lane — an
+     * id-carrying, order-scoped root entry. Once a chain contains at least one "if" block, the tree UI adds
+     * every step (root or lane) through the id-based methods on this page, so root order stays governed by
+     * the same rules as every other lane; the legacy index-based [addStep] above is kept only for the
+     * never-nested chains it always served.
+     */
+    fun addRootStep(step: PipelineStep) =
+        mutateChain { current ->
+            val order: Int = current.count { it.parentStepId == null }
+            current + step.copy(id = step.id ?: newLocalStepId(), parentStepId = null, branch = null, order = order)
+        }
+
+    /**
+     * Replace the step [stepId] (root or lane, leaf or block) with [step]'s action/condition/stop-flag/
+     * block-kind/block-config — its id/parentStepId/branch/order are always kept from the step already there,
+     * so editing a step's configuration never re-parents, re-branches, or reorders it.
+     */
+    fun updateStepById(stepId: String, step: PipelineStep) =
+        mutateChain { current ->
+            val index: Int = current.indexOfFirst { it.id == stepId }
+            if (index < 0) current
+            else
+                current.toMutableList().also {
+                    val existing: PipelineStep = it[index]
+                    it[index] =
+                        step.copy(
+                            id = existing.id,
+                            parentStepId = existing.parentStepId,
+                            branch = existing.branch,
+                            order = existing.order,
+                        )
+                }
+        }
+
+    // A pipeline decoded from a graph saved before this slice has no ids/order on any of its steps (today's
+    // shape everywhere except a freshly nested chain) — the tree UI needs every step addressable by id, so a
+    // step missing one gets a local id, and a step missing `order` gets one scoped to its own (parentStepId,
+    // branch) lane, assigned in the list's existing relative order. A chain that already has ids passes through
+    // unchanged.
+    private fun backfillIds(steps: List<PipelineStep>): List<PipelineStep> {
+        if (steps.all { it.id != null }) return steps
+        val nextOrderInLane: MutableMap<Pair<String?, String?>, Int> = mutableMapOf()
+        return steps.map { step ->
+            val lane: Pair<String?, String?> = step.parentStepId to step.branch
+            val order: Int = step.order ?: (nextOrderInLane.getOrDefault(lane, 0))
+            nextOrderInLane[lane] = order + 1
+            step.copy(id = step.id ?: newLocalStepId(), order = order)
+        }
+    }
+
+    // Swaps [stepId]'s `order` with the sibling [offset] positions away IN THE SAME LANE (same parentStepId +
+    // branch) — every other step, including ones in a different lane, keeps its order untouched.
+    private fun swapWithLaneSibling(stepId: String, offset: Int) =
+        mutateChain { current ->
+            val target: PipelineStep = current.firstOrNull { it.id == stepId } ?: return@mutateChain current
+            val lane: List<PipelineStep> =
+                current
+                    .filter { it.parentStepId == target.parentStepId && it.branch == target.branch }
+                    .sortedBy { it.order ?: 0 }
+            val index: Int = lane.indexOfFirst { it.id == stepId }
+            val swapIndex: Int = index + offset
+            if (index < 0 || swapIndex !in lane.indices) return@mutateChain current
+            val a: PipelineStep = lane[index]
+            val b: PipelineStep = lane[swapIndex]
+            current.map { step ->
+                when (step.id) {
+                    a.id -> step.copy(order = b.order)
+                    b.id -> step.copy(order = a.order)
+                    else -> step
+                }
+            }
+        }
+
+    // Every id transitively parented under [rootId] — walks both lanes of every nested block so removing a
+    // block removes its whole subtree, not just its own row.
+    private fun descendantIds(steps: List<PipelineStep>, rootId: String): Set<String> {
+        val direct: List<String> = steps.filter { it.parentStepId == rootId }.mapNotNull { it.id }
+        return direct.toSet() + direct.flatMap { descendantIds(steps, it) }
+    }
+
+    // Renumbers just the (parentStepId, branch) lane's `order` values to a dense 0..n-1 run, preserving the
+    // lane's existing relative order. Every step outside that lane passes through unchanged.
+    private fun reindexLane(steps: List<PipelineStep>, parentStepId: String?, branch: String?): List<PipelineStep> {
+        val lane: List<PipelineStep> =
+            steps.filter { it.parentStepId == parentStepId && it.branch == branch }.sortedBy { it.order ?: 0 }
+        val reindexed: Map<String, Int> = lane.mapIndexedNotNull { index, step -> step.id?.let { it to index } }.toMap()
+        return steps.map { step -> reindexed[step.id]?.let { step.copy(order = it) } ?: step }
+    }
+
     /** Persist the edited chain to the backend, then re-fetch the pipeline so the editor shows the saved truth. */
     suspend fun saveChain() {
         val channel: String = channelId ?: return failEdit(NoChannelError)
@@ -421,7 +587,7 @@ class PipelinesController(
                     PipelinesState.Editing(
                         pipelineId = result.value.id,
                         name = result.value.name,
-                        steps = result.value.chain.steps,
+                        steps = backfillIds(result.value.chain.steps),
                         palette = palette,
                         options = options,
                     )

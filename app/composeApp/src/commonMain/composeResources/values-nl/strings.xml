@@ -2370,6 +2370,17 @@
     <string name="pipelines_condition_label">Voorwaarde: %1$s</string>
     <string name="pipelines_condition_label_short">Voorwaarde</string>
     <string name="pipelines_condition_none">Geen voorwaarde</string>
+    <string name="pipelines_block_add_if">Als / Anders</string>
+    <string name="pipelines_block_if_title">Als/Anders-blok toevoegen</string>
+    <string name="pipelines_block_if_summary">Als: %1$s</string>
+    <string name="pipelines_block_lane_then">Dan</string>
+    <string name="pipelines_block_lane_else">Anders</string>
+    <string name="pipelines_block_lane_empty">Nog geen stappen.</string>
+    <string name="pipelines_block_lane_add">Stap toevoegen aan %1$s</string>
+    <string name="pipelines_block_lane_step_edit">%1$s-stap %2$d bewerken</string>
+    <string name="pipelines_block_lane_step_delete">%1$s-stap %2$d verwijderen</string>
+    <string name="pipelines_block_lane_step_move_up">%1$s-stap %2$d omhoog verplaatsen</string>
+    <string name="pipelines_block_lane_step_move_down">%1$s-stap %2$d omlaag verplaatsen</string>
     <string name="pipelines_block_send_message">Bericht versturen</string>
     <string name="pipelines_block_send_reply">Antwoord versturen</string>
     <string name="pipelines_block_timeout">Time-out geven</string>
