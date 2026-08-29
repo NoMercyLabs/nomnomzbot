@@ -154,6 +154,51 @@ survive independently as the queue is worked top to bottom.
 
 ---
 
+## FUTURE INITIATIVE — global "system widget" architecture (NOT NOW, needs a dedicated co-working session)
+
+Owner, 2026-08-29, explicit: "this is not now, this is when the time is right and the system is stable
+to start working on this." Do not dispatch any slice against this until the owner opens that session.
+Recorded here so it isn't lost, and so a future session picks the shape up as design context, not a
+cold start.
+
+**The shape of the ask:** some widgets are not per-consumer clone-and-customize instances (the current
+model — code editor + clone feature per widget) — they are **system widgets**: one global thing the
+admin (NoMercy Labs) authors and maintains centrally, and every consumer just picks CONFIGURATION for
+it (a/b/c/d-style choices — e.g. corner position: top-left/top-right/bottom-left/bottom-right; a theme
+choice) rather than getting their own editable copy. Two named examples:
+- **TTS audio widget** — currently presumably has its own widget-clone flow; should instead be a fixed
+  system widget whose URL + "open in popup" button live directly on the TTS settings page (no separate
+  widget-gallery entry to browse/clone).
+- **YouTube widget** — same pattern, same reasoning.
+- **Chat overlay widget** — instead of many separate system-provided chat-overlay widget variants
+  (one clone per look), this should be ONE system widget with a proper config system (position, theme,
+  and whatever else) so a consumer picks from options rather than the admin needing to publish N
+  near-duplicate widgets for each visual variant.
+
+**Where this plugs in:** the owner frames this as belonging with the admin side of the code-scripts/
+widget-editor system (S-CODE-EDITOR family, closed this session) — an "admin manages/edits the GLOBAL
+widgets every consumer uses; the consumer only gets exposed config options" split, as opposed to today's
+model where every widget is a per-consumer editable clone. This is a genuine two-tier authoring model
+(admin-authored system widgets vs consumer-authored custom widgets) that doesn't exist yet.
+
+**Design continuity:** there's prior Claude Design work on this — a "Chat Widget" design file at
+`https://claude.ai/design/p/12517363-1a76-423c-8b05-9ed80f3e353c?file=Chat+Widget.dc.html` — pick that
+up as the starting point rather than designing from zero; the owner said it "needs to be improved
+first," i.e. it's a draft, not a finished spec.
+
+**How the owner wants this session to run, verbatim intent:** "I want to do a proper co-working session
+with you at that point where you ask me the ears off my head like a kid so we can make this awesome."
+This means: when this is picked up, load `superpowers:brainstorming` first and interview the owner
+thoroughly (scope, the exact config taxonomy per widget type, how admin-authored vs consumer-authored
+widgets coexist in the data model, migration path for existing per-consumer widget clones) BEFORE
+writing any spec or code — do not jump straight to a design doc or implementation plan.
+
+**Business context**: this would give the owner's designer (aaoa-dev, who makes free stream-overlay
+widgets) a real place to contribute polished system widgets that every consumer benefits from, rather
+than each consumer needing their own clone-and-customize pass.
+
+---
+
 ## Phase 2 — existing platforms made to work (Kick / YouTube are shipped features that are broken) — only the spine pieces these fixes REQUIRE
 
 - **S028-remaining-frontend** Kick hygiene backend is fully DONE and verified: unsubscribe-on-disconnect
