@@ -463,6 +463,12 @@ than each consumer needing their own clone-and-customize pass.
 - **S083** Render-manifest + per-page hub event-class subscriptions (folded handoff, optional).
 - **S084** Remaining per-widget nits (W·§8 i10), `{user.messageCount}` alias/drop, the 15 code scripts
   test-run on the live channel, S LOW/informational list.
+- **S-GLYPHBUTTON-A11Y** found by S047-remaining (39314dd5): `GlyphButton.kt`'s `clearAndSetSemantics`
+  wipes ancestor-contributed Disabled/stateDescription from its own semantics node, so a disabled
+  `GlyphButton` only exposes its disabled state via a wrapping node (e.g. `ManageGate`'s `Box`) — affects
+  every disabled icon-button app-wide, not just the pipelines Test action. Done-when: a disabled
+  `GlyphButton` reports Disabled/stateDescription on its OWN semantics node (assistive tech reads it
+  without depending on a specific wrapper), proven by a jvmTest on the component directly.
 
 ## 🔒 Owner calls still open
 - SignalR/Redis backplane for multi-replica (S035) — single-instance acceptable for now?
