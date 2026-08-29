@@ -58,6 +58,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_pipeline_deleted
 import nomnomzbot.composeapp.generated.resources.feedback_pipeline_save_failed
@@ -401,11 +402,39 @@ class PipelinesController(
     }
 
     /**
+     * Add a new "switch" block at the end of the root chain: a block-kind step with no action of its own,
+     * whose switch [value] is carried in `blockConfig` — never `condition` — because the engine's
+     * `ExecuteSwitchAsync` reads a switch step's `BlockConfigJson` as `SwitchBlockConfig { value }` and never
+     * looks at its `Conditions` (unlike an "if" block, which is the other way around). Returns the new step's
+     * id so the caller can attach `switch_case` children to it with [addBranchStep] (branch = null — a
+     * switch's cases are its only lane, so no branch label is needed to keep them apart from anything else).
+     */
+    fun addSwitchBlock(value: String): String {
+        val editing: PipelinesState.Editing = _state.value as? PipelinesState.Editing ?: return ""
+        val id: String = newLocalStepId()
+        val order: Int = editing.steps.count { it.parentStepId == null }
+        val step =
+            PipelineStep(
+                action = PipelineNode(type = "block"),
+                blockKind = "switch",
+                blockConfig = JsonObject(mapOf("value" to JsonPrimitive(value))),
+                id = id,
+                order = order,
+            )
+        mutateChain { it + step }
+        return id
+    }
+
+    /**
      * Append [step] to the [branch] ("then"/"else") lane of the block [parentStepId]. Assigns [step] a local
      * id if it doesn't already carry one, and an `order` scoped to just that lane — every other lane (the
      * block's other branch, a sibling block's lanes, the root chain) keeps its own order values untouched.
+     *
+     * [branch] is null for a block kind that only ever has one lane of children under a given parent (a
+     * "switch" block's `switch_case` children, or a `switch_case`'s own body steps) — [parentStepId] alone
+     * already disambiguates that lane from every sibling, so no branch label is needed to keep it apart.
      */
-    fun addBranchStep(parentStepId: String, branch: String, step: PipelineStep) =
+    fun addBranchStep(parentStepId: String, branch: String?, step: PipelineStep) =
         mutateChain { current ->
             val order: Int = current.count { it.parentStepId == parentStepId && it.branch == branch }
             current +
