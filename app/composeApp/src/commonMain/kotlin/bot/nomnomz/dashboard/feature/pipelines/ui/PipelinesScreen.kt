@@ -89,6 +89,8 @@ import bot.nomnomz.dashboard.core.network.PickerKind
 import bot.nomnomz.dashboard.core.network.PipelineNode
 import bot.nomnomz.dashboard.core.network.PipelineStep
 import bot.nomnomz.dashboard.core.network.PipelineSummary
+import bot.nomnomz.dashboard.core.network.TestRunResult
+import bot.nomnomz.dashboard.core.designsystem.component.Textarea
 import bot.nomnomz.dashboard.core.network.TemplateHelperContext
 import bot.nomnomz.dashboard.core.network.TemplateHelpersApi
 import bot.nomnomz.dashboard.core.network.RuntimePalette
@@ -287,6 +289,22 @@ import nomnomzbot.composeapp.generated.resources.pipelines_step_stop_label
 
 import nomnomzbot.composeapp.generated.resources.shell_nav_pipelines
 import nomnomzbot.composeapp.generated.resources.pipelines_toggle_action
+import nomnomzbot.composeapp.generated.resources.pipelines_testrun_action
+import nomnomzbot.composeapp.generated.resources.pipelines_testrun_title
+import nomnomzbot.composeapp.generated.resources.pipelines_testrun_subtitle
+import nomnomzbot.composeapp.generated.resources.pipelines_testrun_vars_label
+import nomnomzbot.composeapp.generated.resources.pipelines_testrun_run
+import nomnomzbot.composeapp.generated.resources.pipelines_testrun_running
+import nomnomzbot.composeapp.generated.resources.pipelines_testrun_close
+import nomnomzbot.composeapp.generated.resources.pipelines_testrun_ok
+import nomnomzbot.composeapp.generated.resources.pipelines_testrun_failed
+import nomnomzbot.composeapp.generated.resources.pipelines_testrun_meta
+import nomnomzbot.composeapp.generated.resources.pipelines_testrun_error
+import nomnomzbot.composeapp.generated.resources.pipelines_testrun_chat_heading
+import nomnomzbot.composeapp.generated.resources.pipelines_testrun_chat_empty
+import nomnomzbot.composeapp.generated.resources.pipelines_testrun_effects_heading
+import nomnomzbot.composeapp.generated.resources.pipelines_testrun_effects_empty
+import nomnomzbot.composeapp.generated.resources.pipelines_effect_row_type
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -599,9 +617,12 @@ private fun ChainEditor(
 
     // null = no step dialog; a value = the add/edit step dialog. A null index is an add, an index an edit.
     var stepDialog: StepDialogTarget? by remember { mutableStateOf(null) }
+    // Whether the S047 dry-run dialog is open — its own transient state (variables text) lives inside the dialog.
+    var showTestRun: Boolean by remember { mutableStateOf(false) }
 
     val backLabel: String = stringResource(Res.string.pipelines_editor_back)
     val saveLabel: String = stringResource(Res.string.pipelines_editor_save)
+    val testLabel: String = stringResource(Res.string.pipelines_testrun_action)
     val addLabel: String = stringResource(Res.string.pipelines_step_add)
 
     Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(spacing.s4)) {
@@ -625,6 +646,14 @@ private fun ChainEditor(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
+            // Opening the dry-run dialog is read-only (nothing the backend runs is persisted or dispatched), so
+            // it stays enabled below the manage floor — same rationale as the "edit chain" open action.
+            TextButton(
+                onClick = { showTestRun = true },
+                modifier = Modifier.semantics { contentDescription = testLabel },
+            ) {
+                Text(text = testLabel, color = tokens.primary, maxLines = 1)
+            }
             ManageGate(decision = manage) { enabled ->
                 Button(
                     onClick = { scope.launch { controller.saveChain() } },
@@ -696,7 +725,145 @@ private fun ChainEditor(
             },
         )
     }
+
+    if (showTestRun) {
+        TestRunDialog(
+            running = editing.testRunning,
+            result = editing.testResult,
+            error = editing.testError,
+            onRun = { variables -> scope.launch { controller.testRun(variables) } },
+            onDismiss = { showTestRun = false },
+        )
+    }
 }
+
+// The S047 dry-run dialog: sample variables (key=value lines) + a Run button that calls the backend test-run
+// in CAPTURE mode, then shows the captured chat output + captured effects (or the failure reason). Nothing the
+// pipeline does here reaches a real surface — reads/conditions/variable math run for real, side effects don't.
+@Composable
+private fun TestRunDialog(
+    running: Boolean,
+    result: TestRunResult?,
+    error: String?,
+    onRun: (variables: Map<String, String>) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    val tokens = LocalTokens.current
+
+    var varsText: String by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = stringResource(Res.string.pipelines_testrun_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                Text(
+                    text = stringResource(Res.string.pipelines_testrun_subtitle),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                )
+                Textarea(
+                    value = varsText,
+                    onValueChange = { varsText = it },
+                    label = stringResource(Res.string.pipelines_testrun_vars_label),
+                    modifier = Modifier.fillMaxWidth(),
+                    monospace = true,
+                    minLines = 3,
+                )
+                error?.let { ActionErrorBanner(message = stringResource(Res.string.pipelines_testrun_error, it)) }
+                result?.let { TestRunResultView(it) }
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onRun(parsePipelineTestVariables(varsText)) }, enabled = !running) {
+                Text(
+                    if (running) stringResource(Res.string.pipelines_testrun_running)
+                    else stringResource(Res.string.pipelines_testrun_run)
+                )
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(text = stringResource(Res.string.pipelines_testrun_close)) } },
+    )
+}
+
+@Composable
+private fun TestRunResultView(result: TestRunResult) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text =
+                    if (result.success) stringResource(Res.string.pipelines_testrun_ok)
+                    else stringResource(Res.string.pipelines_testrun_failed),
+                style = typography.sm,
+                color = if (result.success) tokens.primary else tokens.destructive,
+            )
+            Text(
+                text = stringResource(Res.string.pipelines_testrun_meta, result.durationMs, result.hostCallCount),
+                style = typography.xs,
+                color = tokens.mutedForeground,
+            )
+        }
+        result.error?.takeIf { it.isNotBlank() }?.let {
+            Text(text = it, style = typography.xs, color = tokens.destructive)
+        }
+
+        Separator()
+
+        Text(text = stringResource(Res.string.pipelines_testrun_chat_heading), style = typography.sm, color = tokens.cardForeground)
+        if (result.chatOutput.isEmpty()) {
+            Text(text = stringResource(Res.string.pipelines_testrun_chat_empty), style = typography.xs, color = tokens.mutedForeground)
+        } else {
+            result.chatOutput.forEach { line -> Text(text = line, style = typography.sm, color = tokens.foreground) }
+        }
+
+        Separator()
+
+        Text(text = stringResource(Res.string.pipelines_testrun_effects_heading), style = typography.sm, color = tokens.cardForeground)
+        if (result.capturedEffects.isEmpty()) {
+            Text(text = stringResource(Res.string.pipelines_testrun_effects_empty), style = typography.xs, color = tokens.mutedForeground)
+        } else {
+            result.capturedEffects.forEach { effect ->
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+                    val effectDisplayName: String =
+                        resolveRowLabel(
+                            primary = effect.name,
+                            typeLabel = stringResource(Res.string.pipelines_effect_row_type),
+                            discriminatorSource = effect.argsPreview,
+                        )
+                    Text(text = effectDisplayName, style = typography.sm, color = tokens.foreground)
+                    if (effect.argsPreview.isNotBlank()) {
+                        Text(
+                            text = effect.argsPreview,
+                            style = typography.xs,
+                            color = tokens.mutedForeground,
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Parse the dry-run dialog's "key=value" lines into a variable map for the test-run request; blank lines and
+// lines without an `=` are ignored, and a blank key is dropped.
+private fun parsePipelineTestVariables(text: String): Map<String, String> =
+    text.lineSequence()
+        .mapNotNull { line ->
+            val trimmed: String = line.trim()
+            if (trimmed.isEmpty() || !trimmed.contains('=')) return@mapNotNull null
+            val key: String = trimmed.substringBefore('=').trim()
+            val value: String = trimmed.substringAfter('=').trim()
+            if (key.isEmpty()) null else key to value
+        }
+        .toMap()
 
 @Composable
 private fun StepCard(

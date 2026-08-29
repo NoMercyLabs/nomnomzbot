@@ -385,6 +385,12 @@ private class FakePipelinesApi(private val pipelines: List<PipelineSummary> = em
 
     override suspend fun blastRadius(channelId: String, id: String): ApiResult<bot.nomnomz.dashboard.core.network.PipelineBlastRadiusSummary> =
         error("stub")
+
+    override suspend fun testRun(
+        channelId: String,
+        id: String,
+        body: bot.nomnomz.dashboard.core.network.PipelineTestRunBody,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.TestRunResult> = error("stub")
 }
 
 private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {

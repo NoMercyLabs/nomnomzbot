@@ -79,6 +79,14 @@ interface PipelinesApi {
      * destructive delete can proceed (S-CONSEQ-b); no count is ever computed client-side.
      */
     suspend fun blastRadius(channelId: String, id: String): ApiResult<PipelineBlastRadiusSummary>
+
+    /**
+     * Dry-run the saved pipeline [id] with sample [body] variables (backend `POST .../pipelines/{id}/test-run`,
+     * S047). The real engine runs the real steps — conditions, variable math, pick-list draws and balance reads
+     * execute live — but every side-effecting action (chat, TTS, widgets, moderation, economy writes, rewards,
+     * schedules, run_code) is CAPTURED and returned rather than performed. Nothing is dispatched or persisted.
+     */
+    suspend fun testRun(channelId: String, id: String, body: PipelineTestRunBody): ApiResult<TestRunResult>
 }
 
 class RestPipelinesApi(private val client: ApiClient) : PipelinesApi {
@@ -110,7 +118,14 @@ class RestPipelinesApi(private val client: ApiClient) : PipelinesApi {
 
     override suspend fun blastRadius(channelId: String, id: String): ApiResult<PipelineBlastRadiusSummary> =
         client.getEnvelope("api/v1/channels/$channelId/pipelines/$id/blast-radius")
+
+    override suspend fun testRun(channelId: String, id: String, body: PipelineTestRunBody): ApiResult<TestRunResult> =
+        client.postEnvelope("api/v1/channels/$channelId/pipelines/$id/test-run", body)
 }
+
+/** Test-run body — sample variables for a pipeline dry-run (backend `PipelineTestRunRequest`). */
+@Serializable
+data class PipelineTestRunBody(val variables: Map<String, String> = emptyMap())
 
 // ── Action-catalogue DTOs (the backend-sourced palette — mirror the backend) ──
 
