@@ -106,12 +106,72 @@ only Stoney can make. Do not burn agent time trying to work around them.
 
 ---
 
+## OWNER OBSERVATIONS 2026-08-29 — fold in at the right stage, do not jump on them
+
+Twelve live observations from using the bot, given as a batch with the instruction to slot each into
+its natural phase rather than working them immediately. Each gets its own slice id (`S-OBS-*`) so they
+survive independently as the queue is worked top to bottom.
+
+- **S-OBS-01** stale-then-fresh flash — a page loads cached data first, then the real server response
+  replaces it a moment later, showing wrong data briefly before the correct data appears. Done-when:
+  either the cache is never shown when a fresher fetch is already in flight, or the UI clearly marks
+  cached data as loading/stale until the real response lands — no silent wrong-then-right flash.
+- **S-OBS-02** multi-chat channel badges don't show the broadcaster's own Twitch chat-color per channel
+  (the dashboard's dynamic accent already derives from chat color elsewhere — reuse that mechanism).
+  Done-when: each channel's badge in the combined multi-chat view is tinted with that broadcaster's
+  real chat color.
+- **S-OBS-03** no single place for server errors — errors need to surface both (a) in one consistent
+  place (top-of-page banner or snackbar) AND (b) inline at the exact control/location that caused them.
+  Done-when: every server error the dashboard receives does both, consistently, everywhere.
+- **S-OBS-04** music vs song-request pages have mixed concerns — the Music page shows song-request UI,
+  and the dedicated Song-Request page is nearly empty and serves no purpose as currently split. Decide
+  the model (likely: Song-Request page owns the SR UI, Music page stays playback/queue-management only)
+  and move UI to match. Done-when: each page has one clear, non-overlapping purpose.
+- **S-OBS-05** moderation page is not channel-scoped — it shows bans across ALL channels instead of the
+  currently-selected channel, making per-channel ban management impractical for a mod-of-many. Done-when:
+  the moderation page respects the active channel-switch context like every other tenant-scoped page.
+- **S-OBS-06** soundclips have no single-playback enforcement or stop control — multiple clips can play
+  concurrently and none can be stopped once started. Done-when: starting a new clip stops any clip
+  already playing, and a stop control exists.
+- **S-OBS-07** media page's `!media <url>` command works but the resulting media has no click-to-open
+  popup, no on-page player, and no overlay-widget playback — it's captured but never actually watchable
+  from the dashboard. Done-when: a `!media` result can be opened/played from the dashboard or an overlay.
+- **S-OBS-08** bare Twitch clip links (no `!media` prefix) in chat should auto-enqueue into the same
+  moderator approval queue `!media` uses, and be playable directly in that queue for review. Done-when:
+  a plain clip link posted in chat appears in the approval queue, playable inline, without needing the
+  command prefix.
+- **S-OBS-09** played clips linger in the approval/media queue instead of being removed once played.
+  Done-when: a clip leaves the queue after it has been played.
+- **S-OBS-10** the code-scripts intermediate landing page is pointless — it should navigate straight to
+  the script editor instead of an in-between page. Done-when: opening code scripts goes directly to the
+  editor (this dovetails with the just-shipped Monaco-class editor work, S-CODE-EDITOR).
+- **S-OBS-11** replying to a chat message with `!quote` should create a credited quote from the message
+  being replied to (quote text + author credited), not just log the invoking user's own line. Done-when:
+  `!quote` as a reply captures the replied-to message and credits its author.
+- **S-OBS-12** `!quote N` is broken — it should quote the Nth message in that channel's chat history, but
+  currently does not work at all. Done-when: `!quote N` returns and stores the actual Nth prior chat
+  message.
+
+---
 
 ## Phase 2 — existing platforms made to work (Kick / YouTube are shipped features that are broken) — only the spine pieces these fixes REQUIRE
 
-- **S028** Kick hygiene — unsubscribe on disconnect; raid event; backoff/verifier/dedupe/unknown-type/
-  follow-time/fragments; moderation ops return `Result`; Kick card health + login-only detection;
-  `type:"bot"` identity (U·C2). Done-when: Kick ban result is truthful in the UI; disconnect stops deliveries.
+- **S028-remaining-frontend** Kick hygiene backend is fully DONE and verified: unsubscribe-on-disconnect
+  (d7ee3232), HTTP retry/backoff on the Kick client + non-chat redelivery dedupe + chat fragments from
+  real emote metadata (893d3d36), `type:"bot"` sends with `broadcaster_user_id` correctly omitted
+  (5ee8eaa7). Raid and moderation-Result-typing were confirmed already correct — no Kick raid-equivalent
+  webhook topic exists, and Ban/Unban/Timeout/DeleteMessage already return truthful `Result`. REMAINING:
+  the dashboard's Kick connection card is generic Connected/Not-connected with no login-only distinction
+  (a Kick account linked for login but not authorized as a live platform connection) and no visibility
+  into `KickEventSubscriptionWorker`'s MISSING_SCOPE backoff state. Done-when: the Kick card in
+  Integrations distinguishes login-only from a full platform connection, and surfaces a real (not
+  decorative) health/backoff state.
+- **S-KICK-BOT-ACCOUNT** found by S028-bot-identity: Kick has no dedicated bot-account connection type
+  at all (unlike Twitch's `twitch_bot`) — `KickAccessTokenProvider.IsBotAccount` always resolves false,
+  so the just-shipped `type:"bot"` send path can never actually trigger; every Kick send today is
+  type:"user" via the streamer's own account (the D5 fallback), permanently, not just until a bot
+  account is registered. Done-when: a Kick streamer can register a separate bot account (mirroring the
+  Twitch bot-account OAuth flow) and the bot then sends as `type:"bot"`.
 - **S029** YouTube writes — `youtube.force-ssl` + re-grant; 403 reason parsing (quota vs scope) +
   quota backoff; refresh-failure signal (U·C3). Done-when: a reply/ban on YouTube succeeds; quota burn
   shows as quota.
