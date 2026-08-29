@@ -221,14 +221,12 @@ than each consumer needing their own clone-and-customize pass.
   entirely), but the EDITOR's GET/PUT contract (`PipelineDto.GraphJsonCache`, consumed by the client's
   `PipelineGraph`/`PipelineStep` model in `app/composeApp/.../core/network/PipelinesApi.kt:280-325`,
   also flat: `{action, condition, stopOnMatch}`) has no tree fields anywhere. Split into:
-  - **S046-branching-prereq**: extend the wire graph shape (both directions — `BuildGraph` emit +
-    whatever parses a saved graph back into `PipelineStep` rows) to carry
-    `parentStepId`/`branch`/`blockKind`/`blockConfig`/`order` per step, then update the client's
-    `PipelineGraph`/`PipelineStep` model + every existing step render/save path to round-trip the new
-    fields losslessly for today's flat (never-nested) pipelines. Done-when: a flat pipeline saved
-    through the editor round-trips byte-for-byte equivalent execution, AND a manually-inserted nested
-    row (parent + then/else children) survives a GET→PUT→GET cycle unchanged.
-  - **S046-branching-if** (this slice, retry after the prereq lands): `if`/then-else block support in
+  - **S046-branching-prereq** — DONE, verified (c401253e): wire graph shape now carries
+    `parentStepId`/`branch`/`blockKind`/`blockConfig`/`order` per step both directions
+    (`PipelineGraphBuilder.BuildGraph` emit + `PipelineService` reverse-parse), client
+    `PipelineGraph`/`PipelineStep` model updated to match; flat pipelines round-trip unchanged,
+    nested if/then/else round-trips losslessly (backend + client tests, both green).
+  - **S046-branching-if** (retry now unblocked): `if`/then-else block support in
     the step dialog tree editor, as originally scoped.
   - Further block kinds (switch/loop/random_branch/try) each their own follow-up slice after `if` lands.
   (U·B1, W·§6/§8 i6). Out-of-scope note: chat-triggers and automation screens also bind pipelines via a
