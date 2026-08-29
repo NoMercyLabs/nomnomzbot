@@ -98,7 +98,10 @@ import bot.nomnomz.dashboard.core.network.TemplateHelpersApi
 import bot.nomnomz.dashboard.core.network.RuntimePalette
 import bot.nomnomz.dashboard.core.network.UserRoleOptions
 import bot.nomnomz.dashboard.feature.pipelines.state.EditorOptions
+import bot.nomnomz.dashboard.feature.pipelines.state.LoopConfigFields
 import bot.nomnomz.dashboard.feature.pipelines.state.PickerOption
+import bot.nomnomz.dashboard.feature.pipelines.state.decodeLoopConfig
+import bot.nomnomz.dashboard.feature.pipelines.state.encodeLoopConfig
 import bot.nomnomz.dashboard.feature.pipelines.state.PipelinesController
 import bot.nomnomz.dashboard.feature.pipelines.state.PipelinesState
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
@@ -321,6 +324,22 @@ import nomnomzbot.composeapp.generated.resources.pipelines_block_case_edit
 import nomnomzbot.composeapp.generated.resources.pipelines_block_case_delete
 import nomnomzbot.composeapp.generated.resources.pipelines_block_case_move_up
 import nomnomzbot.composeapp.generated.resources.pipelines_block_case_move_down
+import nomnomzbot.composeapp.generated.resources.pipelines_block_add_loop
+import nomnomzbot.composeapp.generated.resources.pipelines_block_loop_title
+import nomnomzbot.composeapp.generated.resources.pipelines_block_loop_edit_title
+import nomnomzbot.composeapp.generated.resources.pipelines_block_loop_summary_repeat
+import nomnomzbot.composeapp.generated.resources.pipelines_block_loop_summary_foreach
+import nomnomzbot.composeapp.generated.resources.pipelines_block_loop_summary_while
+import nomnomzbot.composeapp.generated.resources.pipelines_block_loop_mode_label
+import nomnomzbot.composeapp.generated.resources.pipelines_block_loop_mode_repeat
+import nomnomzbot.composeapp.generated.resources.pipelines_block_loop_mode_foreach
+import nomnomzbot.composeapp.generated.resources.pipelines_block_loop_mode_while
+import nomnomzbot.composeapp.generated.resources.pipelines_block_loop_count_label
+import nomnomzbot.composeapp.generated.resources.pipelines_block_loop_list_var_label
+import nomnomzbot.composeapp.generated.resources.pipelines_block_loop_max_iterations_label
+import nomnomzbot.composeapp.generated.resources.pipelines_block_loop_max_runtime_label
+import nomnomzbot.composeapp.generated.resources.pipelines_block_loop_condition_label
+import nomnomzbot.composeapp.generated.resources.pipelines_block_loop_lane_label
 import nomnomzbot.composeapp.generated.resources.pipelines_block_operator_eq
 import nomnomzbot.composeapp.generated.resources.pipelines_block_operator_ne
 import nomnomzbot.composeapp.generated.resources.pipelines_block_operator_gt
@@ -677,6 +696,8 @@ private fun ChainEditor(
     var switchBlockDialog: SwitchBlockDialogTarget? by remember { mutableStateOf(null) }
     // null = no case dialog; a value = the add/edit dialog for one "switch_case" child.
     var switchCaseDialog: SwitchCaseDialogTarget? by remember { mutableStateOf(null) }
+    // null = no loop-config dialog; a value = the add/edit dialog for one "loop" block.
+    var loopBlockDialog: LoopBlockDialogTarget? by remember { mutableStateOf(null) }
 
     val backLabel: String = stringResource(Res.string.pipelines_editor_back)
     val saveLabel: String = stringResource(Res.string.pipelines_editor_save)
@@ -684,6 +705,7 @@ private fun ChainEditor(
     val addLabel: String = stringResource(Res.string.pipelines_step_add)
     val addIfLabel: String = stringResource(Res.string.pipelines_block_add_if)
     val addSwitchLabel: String = stringResource(Res.string.pipelines_block_add_switch)
+    val addLoopLabel: String = stringResource(Res.string.pipelines_block_add_loop)
 
     // The root chain, tree-ordered: only the steps with no parent block, in their lane's `order`. Each "if"
     // block's "then"/"else" children are rendered nested inside its own card, never here at the top level.
@@ -765,6 +787,15 @@ private fun ChainEditor(
                     Text(text = addSwitchLabel)
                 }
             }
+            ManageGate(decision = manage) { enabled ->
+                Button(
+                    onClick = { loopBlockDialog = LoopBlockDialogTarget(blockId = null, config = null, condition = null) },
+                    enabled = enabled,
+                    modifier = Modifier.weight(1f).semantics { contentDescription = addLoopLabel },
+                ) {
+                    Text(text = addLoopLabel)
+                }
+            }
         }
 
         if (editing.steps.isEmpty()) {
@@ -811,6 +842,24 @@ private fun ChainEditor(
                                 onEditCase = { caseStep -> switchCaseDialog = SwitchCaseDialogTarget(switchId = caseStep.parentStepId, caseId = caseStep.id, config = caseStep.blockConfig) },
                                 onAddCaseStep = { caseId -> stepDialog = StepDialogTarget(parentStepId = caseId, branch = null, step = null) },
                                 onEditCaseStep = { child -> stepDialog = StepDialogTarget(parentStepId = child.parentStepId, branch = child.branch, step = child) },
+                            )
+                        } else if (step.blockKind == "loop") {
+                            LoopBlockCard(
+                                block = step,
+                                allSteps = editing.steps,
+                                index = index,
+                                total = rootSteps.size,
+                                palette = editing.palette,
+                                manage = manage,
+                                controller = controller,
+                                onEditConfig = {
+                                    loopBlockDialog = LoopBlockDialogTarget(blockId = step.id, config = step.blockConfig, condition = step.condition)
+                                },
+                                onMoveUp = { step.id?.let { controller.moveBranchStepUp(it) } },
+                                onMoveDown = { step.id?.let { controller.moveBranchStepDown(it) } },
+                                onRemove = { step.id?.let { controller.removeBranchStep(it) } },
+                                onAddToLane = { step.id?.let { stepDialog = StepDialogTarget(parentStepId = it, branch = null, step = null) } },
+                                onEditLaneStep = { child -> stepDialog = StepDialogTarget(parentStepId = child.parentStepId, branch = child.branch, step = child) },
                             )
                         } else {
                             StepCard(
@@ -922,6 +971,40 @@ private fun ChainEditor(
                 when {
                     existingCaseId != null -> controller.updateStepById(existingCaseId, caseStep)
                     switchId != null -> controller.addBranchStep(switchId, null, caseStep)
+                }
+            },
+        )
+    }
+
+    loopBlockDialog?.let { target ->
+        val decoded: LoopConfigFields = decodeLoopConfig(target.config)
+        LoopBlockFormDialog(
+            initialMode = decoded.mode,
+            initialCount = decoded.count,
+            initialListVar = decoded.listVar,
+            initialMaxIterations = decoded.maxIterations,
+            initialMaxLoopRuntimeSeconds = decoded.maxLoopRuntimeSeconds,
+            initialCondition = target.condition,
+            palette = editing.palette,
+            options = editing.options,
+            templateHelpersApi = templateHelpersApi,
+            onOpenCodeScript = onOpenCodeScript,
+            createCodeScript = controller::createCodeScript,
+            onDismiss = { loopBlockDialog = null },
+            onSubmit = { mode, count, listVar, maxIterations, maxLoopRuntimeSeconds, whileCondition ->
+                val existingBlockId: String? = target.blockId
+                loopBlockDialog = null
+                val loopStep =
+                    PipelineStep(
+                        action = PipelineNode(type = "block"),
+                        blockKind = "loop",
+                        condition = whileCondition,
+                        blockConfig = encodeLoopConfig(mode, count, listVar, maxIterations, maxLoopRuntimeSeconds),
+                    )
+                if (existingBlockId != null) {
+                    controller.updateStepById(existingBlockId, loopStep)
+                } else {
+                    controller.addLoopBlock(mode, count, listVar, maxIterations, maxLoopRuntimeSeconds, whileCondition)
                 }
             },
         )
@@ -1424,6 +1507,247 @@ private fun SwitchBlockCard(
             }
         }
     }
+}
+
+// A nested "loop" block: no action of its own to run — just its iteration config (mode/count/list_var, or a
+// while-condition) — plus its ordered body lane. `ExecuteLoopAsync` walks the block's children with no branch
+// filter (PipelineEngine.cs:1821), so the body is rendered via [LaneSection] with `branch = null` addressing it
+// by `parentStepId` alone, same as a "switch_case"'s own body.
+@Composable
+private fun LoopBlockCard(
+    block: PipelineStep,
+    allSteps: List<PipelineStep>,
+    index: Int,
+    total: Int,
+    palette: RuntimePalette,
+    manage: ManageDecision,
+    controller: PipelinesController,
+    onEditConfig: () -> Unit,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit,
+    onRemove: () -> Unit,
+    onAddToLane: () -> Unit,
+    onEditLaneStep: (PipelineStep) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val blockId: String = block.id ?: return
+    val config: LoopConfigFields = decodeLoopConfig(block.blockConfig)
+    val summary: String =
+        when (config.mode) {
+            "foreach" -> stringResource(Res.string.pipelines_block_loop_summary_foreach, config.listVar.orEmpty())
+            "while" ->
+                stringResource(
+                    Res.string.pipelines_block_loop_summary_while,
+                    block.condition?.let { blockDisplayName(palette.condition(it.type), it.type) }.orEmpty(),
+                )
+            else -> stringResource(Res.string.pipelines_block_loop_summary_repeat, config.count ?: 0)
+        }
+
+    val editLabel: String = stringResource(Res.string.pipelines_step_edit, index + 1)
+    val removeLabel: String = stringResource(Res.string.pipelines_step_delete, index + 1)
+    val upLabel: String = stringResource(Res.string.pipelines_step_move_up, index + 1)
+    val downLabel: String = stringResource(Res.string.pipelines_step_move_down, index + 1)
+
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
+        verticalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s3)) {
+            Text(text = "${index + 1}", style = typography.sm, color = tokens.mutedForeground)
+            Text(
+                text = summary,
+                style = typography.lg,
+                color = tokens.cardForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+        }
+
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spacing.s1)) {
+            ManageGate(decision = manage) { allowed ->
+                GlyphButton(icon = ArrowUpGlyph, label = upLabel, onClick = onMoveUp, enabled = allowed && index > 0, tint = tokens.primary)
+            }
+            ManageGate(decision = manage) { allowed ->
+                GlyphButton(icon = ArrowDownGlyph, label = downLabel, onClick = onMoveDown, enabled = allowed && index < total - 1, tint = tokens.primary)
+            }
+            Box(modifier = Modifier.weight(1f))
+            ManageGate(decision = manage) { enabled -> GlyphButton(icon = EditGlyph, label = editLabel, onClick = onEditConfig, enabled = enabled) }
+            ManageGate(decision = manage) { enabled ->
+                GlyphButton(icon = TrashGlyph, label = removeLabel, onClick = onRemove, enabled = enabled, tint = tokens.destructive)
+            }
+        }
+
+        LaneSection(
+            label = stringResource(Res.string.pipelines_block_loop_lane_label),
+            branch = "body",
+            steps = allSteps.filter { it.parentStepId == blockId }.sortedBy { it.order ?: 0 },
+            palette = palette,
+            manage = manage,
+            controller = controller,
+            onAdd = onAddToLane,
+            onEditStep = onEditLaneStep,
+        )
+    }
+}
+
+// The "loop" block's config editor: a mode picker (repeat/foreach/while) plus the fields that mode actually
+// needs — read/written exactly as [encodeLoopConfig]/[decodeLoopConfig] shape it. "while" reuses the same
+// [ConditionPicker]/[BlockParamEditor] pair the "if" block's condition editor uses, since its condition lands
+// on the SAME `condition` field (never `blockConfig`) — see [PipelinesController.addLoopBlock].
+@Composable
+private fun LoopBlockFormDialog(
+    initialMode: String,
+    initialCount: Int?,
+    initialListVar: String?,
+    initialMaxIterations: Int?,
+    initialMaxLoopRuntimeSeconds: Int?,
+    initialCondition: PipelineNode?,
+    palette: RuntimePalette,
+    options: EditorOptions,
+    templateHelpersApi: TemplateHelpersApi,
+    onOpenCodeScript: (scriptId: String) -> Unit,
+    createCodeScript: suspend (name: String) -> PickerOption?,
+    onDismiss: () -> Unit,
+    onSubmit: (
+        mode: String,
+        count: Int?,
+        listVar: String?,
+        maxIterations: Int?,
+        maxLoopRuntimeSeconds: Int?,
+        whileCondition: PipelineNode?,
+    ) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+
+    var mode: String by remember { mutableStateOf(initialMode) }
+    var countText: String by remember { mutableStateOf(initialCount?.toString().orEmpty()) }
+    var listVar: String by remember { mutableStateOf(initialListVar.orEmpty()) }
+    var maxIterationsText: String by remember { mutableStateOf(initialMaxIterations?.toString().orEmpty()) }
+    var maxRuntimeText: String by remember { mutableStateOf(initialMaxLoopRuntimeSeconds?.toString().orEmpty()) }
+
+    var conditionType: String? by remember { mutableStateOf(initialCondition?.type ?: palette.conditions.firstOrNull()?.type) }
+    val conditionBlock: PaletteBlock? = conditionType?.let { palette.condition(it) }
+    val conditionParams: SnapshotStateMap<String, String> = remember { mutableStateMapFrom(initialCondition?.params) }
+    val conditionGeneric: SnapshotStateList<GenericEntry> =
+        remember { genericEntriesFrom(initialCondition?.params.takeIf { conditionBlock?.hasHints == false }) }
+
+    val canSubmit: Boolean =
+        when (mode) {
+            "repeat" -> countText.toIntOrNull() != null
+            "foreach" -> listVar.isNotBlank()
+            "while" -> conditionType != null && blockComplete(conditionBlock, conditionParams)
+            else -> false
+        }
+
+    val title: String =
+        stringResource(if (initialCount == null && initialListVar == null && initialCondition == null) Res.string.pipelines_block_loop_title else Res.string.pipelines_block_loop_edit_title)
+    val modeLabel: String = stringResource(Res.string.pipelines_block_loop_mode_label)
+    val repeatModeLabel: String = stringResource(Res.string.pipelines_block_loop_mode_repeat)
+    val foreachModeLabel: String = stringResource(Res.string.pipelines_block_loop_mode_foreach)
+    val whileModeLabel: String = stringResource(Res.string.pipelines_block_loop_mode_while)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = title) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                LabeledText(modeLabel)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                    for ((modeValue, modeText) in listOf("repeat" to repeatModeLabel, "foreach" to foreachModeLabel, "while" to whileModeLabel)) {
+                        TextButton(
+                            onClick = { mode = modeValue },
+                            modifier = Modifier.weight(1f).semantics { contentDescription = modeText },
+                        ) {
+                            Text(text = modeText, color = if (mode == modeValue) tokens.primary else tokens.mutedForeground)
+                        }
+                    }
+                }
+
+                when (mode) {
+                    "repeat" ->
+                        AppTextField(
+                            value = countText,
+                            onValueChange = { countText = it },
+                            label = stringResource(Res.string.pipelines_block_loop_count_label),
+                        )
+                    "foreach" ->
+                        AppTextField(
+                            value = listVar,
+                            onValueChange = { listVar = it },
+                            label = stringResource(Res.string.pipelines_block_loop_list_var_label),
+                        )
+                    "while" -> {
+                        LabeledText(stringResource(Res.string.pipelines_block_loop_condition_label))
+                        ConditionPicker(
+                            conditions = palette.conditions,
+                            selected = conditionBlock,
+                            onSelect = { type ->
+                                conditionType = type
+                                conditionParams.clear()
+                                conditionGeneric.clear()
+                            },
+                        )
+                        conditionBlock?.let { block ->
+                            BlockParamEditor(
+                                block = block,
+                                typed = conditionParams,
+                                generic = conditionGeneric,
+                                options = options,
+                                templateHelpersApi = templateHelpersApi,
+                                onOpenCodeScript = onOpenCodeScript,
+                                createCodeScript = createCodeScript,
+                            )
+                        }
+                    }
+                }
+
+                AppTextField(
+                    value = maxIterationsText,
+                    onValueChange = { maxIterationsText = it },
+                    label = stringResource(Res.string.pipelines_block_loop_max_iterations_label),
+                )
+                AppTextField(
+                    value = maxRuntimeText,
+                    onValueChange = { maxRuntimeText = it },
+                    label = stringResource(Res.string.pipelines_block_loop_max_runtime_label),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val whileCondition: PipelineNode? =
+                        if (mode == "while") {
+                            val type: String = conditionType ?: return@TextButton
+                            PipelineNode(type = type, params = paramsFor(conditionBlock, conditionParams, conditionGeneric))
+                        } else {
+                            null
+                        }
+                    onSubmit(
+                        mode,
+                        countText.toIntOrNull(),
+                        listVar.ifBlank { null },
+                        maxIterationsText.toIntOrNull(),
+                        maxRuntimeText.toIntOrNull(),
+                        whileCondition,
+                    )
+                },
+                enabled = canSubmit,
+            ) {
+                Text(text = stringResource(Res.string.pipelines_dialog_save), color = if (canSubmit) tokens.primary else tokens.mutedForeground)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = stringResource(Res.string.pipelines_dialog_cancel), color = tokens.mutedForeground)
+            }
+        },
+    )
 }
 
 // The "switch" block's value editor — a single free-text/template field (e.g. `{{args.1}}`), read/written to
@@ -2701,6 +3025,10 @@ private data class SwitchBlockDialogTarget(val blockId: String?, val value: Json
 // that existing case's match/operator/is_default (its raw `blockConfig` [config] pre-fills the dialog,
 // decoded by [decodeSwitchCase]).
 private data class SwitchCaseDialogTarget(val switchId: String?, val caseId: String?, val config: JsonElement?)
+
+// A null [blockId] is adding a brand-new "loop" block; a non-null one is re-editing an existing block's
+// [config]/[condition] (its raw `blockConfig`/`condition` pre-fill the dialog via [decodeLoopConfig]).
+private data class LoopBlockDialogTarget(val blockId: String?, val config: JsonElement?, val condition: PipelineNode?)
 
 // The switch operators MatchesCase (PipelineEngine.cs) actually understands — exactly this set, no more, no
 // less, so the operator picker can never offer one the engine would silently treat as "no match".
