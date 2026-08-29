@@ -42,8 +42,29 @@ class CodeScriptsController(
     /** The page render state. */
     val state: StateFlow<CodeScriptsState> = _state.asStateFlow()
 
-    /** Load (or reload) the full script list. */
+    // Set by [requestOpen] when another page (e.g. the pipeline builder's code-tier step field) deep-links here
+    // with a specific script id to open — consumed (and cleared) by the very next [load], so it fires exactly
+    // once, the next time this page is shown, and never re-opens on a later reload.
+    private var pendingOpenId: String? = null
+
+    /**
+     * Ask this controller to open [scriptId]'s editor the next time it is [load]ed — the deep-link seam used when
+     * the pipeline builder's code-tier step field navigates here for a specific script (mirrors the pattern of a
+     * shell-level "pending selection" carried across a screen navigation). Safe to call before this controller's
+     * screen is even composed.
+     */
+    fun requestOpen(scriptId: String) {
+        pendingOpenId = scriptId
+    }
+
+    /** Load (or reload) the full script list — or, if [requestOpen] left a pending script id, open it instead. */
     suspend fun load() {
+        val pending: String? = pendingOpenId
+        if (pending != null) {
+            pendingOpenId = null
+            open(pending)
+            return
+        }
         // Only show the full-page loading state on first load; a refetch after a mutation keeps
         // the current content on screen (no flash) and swaps it when the new data arrives.
         if (_state.value !is CodeScriptsState.Ready) _state.value = CodeScriptsState.Loading
