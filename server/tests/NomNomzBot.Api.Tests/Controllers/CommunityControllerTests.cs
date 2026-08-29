@@ -8,8 +8,10 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Security.Claims;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
@@ -33,18 +35,36 @@ public sealed class CommunityControllerTests
 
     private static CommunityController Build(
         CommunityControllerTestDbContext db,
-        ITwitchChannelsApi channels
-    ) =>
-        new(
+        ITwitchChannelsApi channels,
+        ITwitchModerationApi? moderation = null
+    )
+    {
+        CommunityController controller = new(
             db,
             channels,
             Substitute.For<ITwitchModeratorsApi>(),
             Substitute.For<ITwitchSubscriptionsApi>(),
-            Substitute.For<ITwitchModerationApi>(),
+            moderation ?? Substitute.For<ITwitchModerationApi>(),
             TimeProvider.System,
             Substitute.For<ICommunityStandingService>(),
             Substitute.For<ICurrentUserService>()
-        );
+        )
+        {
+            ControllerContext = new()
+            {
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new(
+                        new ClaimsIdentity(
+                            [new(ClaimTypes.NameIdentifier, Guid.CreateVersion7().ToString())],
+                            "test"
+                        )
+                    ),
+                },
+            },
+        };
+        return controller;
+    }
 
     [Fact]
     public async Task ListMembers_fills_watch_hours_and_commands_used_from_the_viewer_profile_aggregate()
@@ -340,5 +360,108 @@ public sealed class CommunityControllerTests
         StatusResponseDto<List<CommunityController.ViewerOptionDto>> body =
             (StatusResponseDto<List<CommunityController.ViewerOptionDto>>)ok.Value!;
         return body.Data!;
+    }
+
+    /// <summary>
+    /// Proves the fix for S-COMMUNITYCONTROLLER-BAN-RESULT: when the underlying Twitch ban call fails,
+    /// <see cref="CommunityController.BanUser"/> must surface that failure to the caller instead of
+    /// discarding the <c>Result</c> and returning 204 regardless.
+    /// </summary>
+    [Fact]
+    public async Task BanUser_surfaces_a_twitch_moderation_failure_instead_of_a_blanket_success()
+    {
+        CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
+        await db.SaveChangesAsync();
+
+        ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
+        moderation
+            .BanUserAsync(
+                Broadcaster,
+                "twitch-777",
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result<TwitchBanResult>.Failure(
+                    "target user is already banned",
+                    "VALIDATION_FAILED"
+                )
+            );
+
+        CommunityController controller = Build(
+            db,
+            Substitute.For<ITwitchChannelsApi>(),
+            moderation
+        );
+
+        IActionResult result = await controller.BanUser(
+            Broadcaster.ToString(),
+            "twitch-777",
+            new CommunityController.BanRequest("spamming"),
+            CancellationToken.None
+        );
+
+        // The consequence of the fix: the caller sees the real failure, not 204 No Content.
+        ObjectResult failure = result.Should().BeAssignableTo<ObjectResult>().Which;
+        failure.StatusCode.Should().Be(400);
+
+        // No local ban record is written when the upstream ban never happened.
+        (
+            await db.Configurations.AnyAsync(c =>
+                c.BroadcasterId == Broadcaster && c.Key == "ban:twitch-777"
+            )
+        )
+            .Should()
+            .BeFalse();
+    }
+
+    /// <summary>
+    /// Proves the fix for S-COMMUNITYCONTROLLER-BAN-RESULT: when the underlying Twitch unban call fails,
+    /// <see cref="CommunityController.UnbanUser"/> must surface that failure instead of returning 204
+    /// and silently clearing the local ban record anyway.
+    /// </summary>
+    [Fact]
+    public async Task UnbanUser_surfaces_a_twitch_moderation_failure_instead_of_a_blanket_success()
+    {
+        CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
+        db.Configurations.Add(
+            new()
+            {
+                BroadcasterId = Broadcaster,
+                Key = "ban:twitch-777",
+                Value = "{}",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        ITwitchModerationApi moderation = Substitute.For<ITwitchModerationApi>();
+        moderation
+            .UnbanUserAsync(Broadcaster, "twitch-777", Arg.Any<CancellationToken>())
+            .Returns(Result.Failure("target user is not banned", "NOT_FOUND"));
+
+        CommunityController controller = Build(
+            db,
+            Substitute.For<ITwitchChannelsApi>(),
+            moderation
+        );
+
+        IActionResult result = await controller.UnbanUser(
+            Broadcaster.ToString(),
+            "twitch-777",
+            CancellationToken.None
+        );
+
+        // The consequence of the fix: the caller sees the real failure, not 204 No Content.
+        ObjectResult failure = result.Should().BeAssignableTo<ObjectResult>().Which;
+        failure.StatusCode.Should().Be(404);
+
+        // The local ban record survives the failed unban — it was never cleared.
+        (
+            await db.Configurations.AnyAsync(c =>
+                c.BroadcasterId == Broadcaster && c.Key == "ban:twitch-777"
+            )
+        )
+            .Should()
+            .BeTrue();
     }
 }
