@@ -1763,6 +1763,7 @@
     <string name="chattriggers_dialog_create_title">Nieuwe chattrigger</string>
     <string name="chattriggers_dialog_edit_title">Chattrigger bewerken</string>
     <string name="chattriggers_dialog_pattern_label">Patroon (de tekst om op te letten)</string>
+    <string name="chattriggers_dialog_pattern_regex_invalid">Deze regex compileert niet: %1$s</string>
     <string name="chattriggers_dialog_match_type_label">Overeenkomsttype</string>
     <string name="chattriggers_match_contains">Bevat</string>
     <string name="chattriggers_match_exact">Exacte overeenkomst</string>
