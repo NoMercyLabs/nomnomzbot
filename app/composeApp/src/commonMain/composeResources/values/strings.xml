@@ -714,6 +714,10 @@
     <string name="commands_dialog_cancel">Cancel</string>
     <string name="commands_dialog_pipeline_label">Pipeline (optional)</string>
     <string name="commands_dialog_pipeline_none">None — text response only</string>
+    <string name="commands_dialog_pipeline_choose">Choose a pipeline</string>
+    <string name="commands_dialog_pipeline_create_new">Create a new pipeline</string>
+    <string name="commands_dialog_pipeline_new_name">New pipeline name</string>
+    <string name="commands_dialog_pipeline_create_confirm">Create</string>
     <!-- Shared editor helper — insert a {list.pick.<name>} random-response token (command/response/timer editors). -->
     <string name="editor_insert_random_response">Random response</string>
     <string name="commands_dialog_response_optional">Response (optional when pipeline attached)</string>
@@ -776,6 +780,10 @@
     <string name="timers_dialog_message_remove">Remove message</string>
     <string name="timers_dialog_pipeline">Run pipeline (optional)</string>
     <string name="timers_dialog_pipeline_none">None</string>
+    <string name="timers_dialog_pipeline_choose">Choose a pipeline</string>
+    <string name="timers_dialog_pipeline_create_new">Create a new pipeline</string>
+    <string name="timers_dialog_pipeline_new_name">New pipeline name</string>
+    <string name="timers_dialog_pipeline_create_confirm">Create</string>
     <string name="timers_dialog_interval">Interval (minutes)</string>
     <string name="timers_dialog_min_chat_activity">Min chat messages between fires</string>
     <string name="timers_dialog_min_chat_activity_hint">Only fire once this many chat messages have arrived since the last fire. Blank = fire regardless.</string>
@@ -888,6 +896,10 @@
     <string name="rewards_dialog_timer_label">Countdown on redeem (seconds, blank = none)</string>
     <string name="rewards_dialog_pipeline_label">Run pipeline on redeem</string>
     <string name="rewards_dialog_pipeline_none">None</string>
+    <string name="rewards_dialog_pipeline_choose">Choose a pipeline</string>
+    <string name="rewards_dialog_pipeline_create_new">Create a new pipeline</string>
+    <string name="rewards_dialog_pipeline_new_name">New pipeline name</string>
+    <string name="rewards_dialog_pipeline_create_confirm">Create</string>
     <string name="rewards_timers_title">Redemption timers</string>
     <string name="rewards_timer_remaining">%1$s left</string>
     <string name="rewards_timer_status_running">Running</string>
@@ -2826,6 +2838,7 @@
     <string name="event_responses_dialog_widget_choose">Choose a widget</string>
     <string name="event_responses_dialog_widget_empty">No widgets yet — add one on the Widgets page.</string>
     <string name="event_responses_dialog_pipeline_create_new">Create a new pipeline</string>
+    <string name="event_responses_dialog_pipeline_create_confirm">Create</string>
     <string name="event_responses_dialog_pipeline_new_name">New pipeline name</string>
     <string name="event_responses_dialog_pipeline_help">Bind a pipeline to chain sound, overlay and chat on this event.</string>
     <string name="event_responses_variables_label">Insert a variable</string>

@@ -53,7 +53,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
-import bot.nomnomz.dashboard.core.designsystem.component.EntityPickerField
+import bot.nomnomz.dashboard.core.designsystem.component.PipelineBindPicker
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.LimitedCreateAction
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
@@ -104,7 +104,11 @@ import nomnomzbot.composeapp.generated.resources.commands_dialog_create_title
 import nomnomzbot.composeapp.generated.resources.commands_dialog_edit_title
 import nomnomzbot.composeapp.generated.resources.commands_dialog_enabled_label
 import nomnomzbot.composeapp.generated.resources.commands_dialog_name_label
+import nomnomzbot.composeapp.generated.resources.commands_dialog_pipeline_choose
+import nomnomzbot.composeapp.generated.resources.commands_dialog_pipeline_create_confirm
+import nomnomzbot.composeapp.generated.resources.commands_dialog_pipeline_create_new
 import nomnomzbot.composeapp.generated.resources.commands_dialog_pipeline_label
+import nomnomzbot.composeapp.generated.resources.commands_dialog_pipeline_new_name
 import nomnomzbot.composeapp.generated.resources.commands_dialog_pipeline_none
 import nomnomzbot.composeapp.generated.resources.commands_dialog_alias_add
 import nomnomzbot.composeapp.generated.resources.commands_dialog_alias_placeholder
@@ -248,6 +252,7 @@ fun CommandsScreen(
                     else controller.createCommand(input)
                 }
             },
+            onCreatePipeline = { name -> controller.createPipelineReturning(name) },
         )
     }
 
@@ -566,6 +571,7 @@ private fun CommandFormDialog(
     templateHelpersApi: TemplateHelpersApi,
     onDismiss: () -> Unit,
     onSubmit: (CommandInput) -> Unit,
+    onCreatePipeline: suspend (name: String) -> PipelineSummary?,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -676,15 +682,19 @@ private fun CommandFormDialog(
                 // Reaction editor per tier.
                 when (tier) {
                     "pipeline" ->
-                        // A reference to another table (the channel's pipelines) → the shared search dropdown,
-                        // filtering as you type; clearing the selection is the old "None" option.
-                        EntityPickerField(
-                            items = pipelines,
+                        // A reference to another table (the channel's pipelines) → the shared bind picker: pick an
+                        // existing pipeline OR create-and-bind a new one without leaving this dialog (S046).
+                        PipelineBindPicker(
+                            pipelines = pipelines,
                             selectedId = selectedPipelineId,
                             onSelect = { selectedPipelineId = it },
-                            idOf = { it.id },
-                            labelOf = { it.name },
-                            label = stringResource(Res.string.commands_dialog_pipeline_label),
+                            onCreate = { name -> onCreatePipeline(name) },
+                            pickLabel = stringResource(Res.string.commands_dialog_pipeline_label),
+                            choosePlaceholder = stringResource(Res.string.commands_dialog_pipeline_choose),
+                            createNewLabel = stringResource(Res.string.commands_dialog_pipeline_create_new),
+                            newNameLabel = stringResource(Res.string.commands_dialog_pipeline_new_name),
+                            createLabel = stringResource(Res.string.commands_dialog_pipeline_create_confirm),
+                            cancelLabel = stringResource(Res.string.commands_dialog_cancel),
                         )
                     "code" ->
                         Text(

@@ -17,10 +17,13 @@ import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.CreatePipelineBody
 import bot.nomnomz.dashboard.core.network.CreateTimerRequest
 import bot.nomnomz.dashboard.core.network.EMPTY_PIPELINE_ID
 import bot.nomnomz.dashboard.core.network.PickList
 import bot.nomnomz.dashboard.core.network.PickListsApi
+import bot.nomnomz.dashboard.core.network.PipelineDetail
+import bot.nomnomz.dashboard.core.network.PipelineGraph
 import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.PipelinesApi
 import bot.nomnomz.dashboard.core.network.ResourceUsage
@@ -142,6 +145,30 @@ class TimersController(
                 _state.value =
                     if (result.value.isEmpty()) TimersState.Empty
                     else TimersState.Ready(result.value)
+        }
+    }
+
+    /**
+     * Create a new (empty) pipeline named [pipelineName] — the create-and-bind flow the timer dialog's pipeline
+     * picker offers, so binding a pipeline to a timer never requires leaving this dialog to make one first on
+     * the Pipelines page. Returns the created [PipelineSummary] (with its server-assigned id) so the caller can
+     * select it immediately, or null on failure (surfaced as the usual write error).
+     */
+    suspend fun createPipelineReturning(pipelineName: String): PipelineSummary? {
+        val channelId: String = resolveChannelId() ?: return null
+        return when (
+            val result: ApiResult<PipelineDetail> =
+                pipelinesApi.createReturning(
+                    channelId,
+                    CreatePipelineBody(name = pipelineName, graph = PipelineGraph().toJson()),
+                )
+        ) {
+            is ApiResult.Ok -> PipelineSummary(id = result.value.id, name = result.value.name)
+            is ApiResult.Failure -> {
+                _writeError.value = result.error.message
+                feedback.error(Res.string.feedback_timer_save_failed, result.error.message)
+                null
+            }
         }
     }
 

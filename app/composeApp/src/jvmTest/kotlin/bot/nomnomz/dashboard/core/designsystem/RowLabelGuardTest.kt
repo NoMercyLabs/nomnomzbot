@@ -62,17 +62,21 @@ class RowLabelGuardTest {
     private val rawFormSeedAssignmentBaseline: Map<String, Int> =
         mapOf(
             "analytics/ui/AnalyticsScreen.kt" to 1,
+            "commands/state/CommandsController.kt" to 1,
             "commands/ui/CommandsScreen.kt" to 1,
             "community/state/CommunityController.kt" to 1,
             "connect/ui/ConnectScreen.kt" to 1,
+            "eventresponses/state/EventResponsesController.kt" to 1,
             "giveaways/ui/GiveawaysScreen.kt" to 1,
             "home/state/HomeController.kt" to 2,
             "moderation/state/ModerationController.kt" to 1,
             "picklists/ui/PickListsScreen.kt" to 1,
             "pipelines/state/PipelinesController.kt" to 2,
             "pipelines/ui/PipelinesScreen.kt" to 1,
+            "rewards/state/RewardsController.kt" to 1,
             "rewards/ui/RewardsScreen.kt" to 1,
             "shell/ui/ShellScreen.kt" to 2,
+            "timers/state/TimersController.kt" to 1,
             "tts/state/TtsController.kt" to 1,
             "widgets/ui/WidgetSettingsForms.kt" to 5,
         )

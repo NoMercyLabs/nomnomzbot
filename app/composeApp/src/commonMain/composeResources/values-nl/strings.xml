@@ -711,6 +711,10 @@
     <string name="commands_dialog_cancel">Annuleren</string>
     <string name="commands_dialog_pipeline_label">Pipeline (optioneel)</string>
     <string name="commands_dialog_pipeline_none">Geen — alleen tekstantwoord</string>
+    <string name="commands_dialog_pipeline_choose">Kies een pipeline</string>
+    <string name="commands_dialog_pipeline_create_new">Nieuwe pipeline maken</string>
+    <string name="commands_dialog_pipeline_new_name">Naam nieuwe pipeline</string>
+    <string name="commands_dialog_pipeline_create_confirm">Maken</string>
     <!-- Gedeelde editor-helper — voeg een {list.pick.<naam>} willekeurig-antwoordtoken in (commando/reactie/timer). -->
     <string name="editor_insert_random_response">Willekeurig antwoord</string>
     <string name="commands_dialog_response_optional">Antwoord (optioneel als pipeline gekoppeld)</string>
@@ -773,6 +777,10 @@
     <string name="timers_dialog_message_remove">Bericht verwijderen</string>
     <string name="timers_dialog_pipeline">Pijplijn uitvoeren (optioneel)</string>
     <string name="timers_dialog_pipeline_none">Geen</string>
+    <string name="timers_dialog_pipeline_choose">Kies een pipeline</string>
+    <string name="timers_dialog_pipeline_create_new">Nieuwe pipeline maken</string>
+    <string name="timers_dialog_pipeline_new_name">Naam nieuwe pipeline</string>
+    <string name="timers_dialog_pipeline_create_confirm">Maken</string>
     <string name="timers_dialog_interval">Interval (minuten)</string>
     <string name="timers_dialog_min_chat_activity">Min. chatberichten tussen keren</string>
     <string name="timers_dialog_min_chat_activity_hint">Alleen afvuren als er sinds de vorige keer zoveel chatberichten zijn geweest. Leeg = altijd afvuren.</string>
@@ -885,6 +893,10 @@
     <string name="rewards_dialog_timer_label">Afteltijd bij inwisselen (seconden, leeg = geen)</string>
     <string name="rewards_dialog_pipeline_label">Pipeline draaien bij inwisselen</string>
     <string name="rewards_dialog_pipeline_none">Geen</string>
+    <string name="rewards_dialog_pipeline_choose">Kies een pipeline</string>
+    <string name="rewards_dialog_pipeline_create_new">Nieuwe pipeline maken</string>
+    <string name="rewards_dialog_pipeline_new_name">Naam nieuwe pipeline</string>
+    <string name="rewards_dialog_pipeline_create_confirm">Maken</string>
     <string name="rewards_timers_title">Inwisseltimers</string>
     <string name="rewards_timer_remaining">%1$s over</string>
     <string name="rewards_timer_status_running">Loopt</string>
@@ -2812,6 +2824,7 @@
     <string name="event_responses_dialog_widget_choose">Kies een widget</string>
     <string name="event_responses_dialog_widget_empty">Nog geen widgets — voeg er een toe op de Widgets-pagina.</string>
     <string name="event_responses_dialog_pipeline_create_new">Nieuwe pipeline maken</string>
+    <string name="event_responses_dialog_pipeline_create_confirm">Maken</string>
     <string name="event_responses_dialog_pipeline_new_name">Naam nieuwe pipeline</string>
     <string name="event_responses_dialog_pipeline_help">Koppel een pipeline om geluid, overlay en chat op dit event te ketenen.</string>
     <string name="event_responses_variables_label">Variabele invoegen</string>

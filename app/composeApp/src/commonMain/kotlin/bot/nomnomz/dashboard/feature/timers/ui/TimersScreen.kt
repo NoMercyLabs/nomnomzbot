@@ -48,7 +48,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
-import bot.nomnomz.dashboard.core.designsystem.component.EntityPickerField
+import bot.nomnomz.dashboard.core.designsystem.component.PipelineBindPicker
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.LimitedCreateAction
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
@@ -101,6 +101,10 @@ import nomnomzbot.composeapp.generated.resources.timers_dialog_min_chat_activity
 import nomnomzbot.composeapp.generated.resources.timers_dialog_min_chat_activity_hint
 import nomnomzbot.composeapp.generated.resources.timers_dialog_messages
 import nomnomzbot.composeapp.generated.resources.timers_dialog_pipeline
+import nomnomzbot.composeapp.generated.resources.timers_dialog_pipeline_choose
+import nomnomzbot.composeapp.generated.resources.timers_dialog_pipeline_create_confirm
+import nomnomzbot.composeapp.generated.resources.timers_dialog_pipeline_create_new
+import nomnomzbot.composeapp.generated.resources.timers_dialog_pipeline_new_name
 import nomnomzbot.composeapp.generated.resources.timers_dialog_name
 import nomnomzbot.composeapp.generated.resources.timers_dialog_save
 import nomnomzbot.composeapp.generated.resources.timers_disabled
@@ -225,6 +229,7 @@ fun TimersScreen(
                     }
                 }
             },
+            onCreatePipeline = { name -> controller.createPipelineReturning(name) },
         )
     }
 
@@ -455,6 +460,7 @@ private fun TimerEditDialog(
         fireOnce: Boolean,
         pipelineId: String?,
     ) -> Unit,
+    onCreatePipeline: suspend (name: String) -> PipelineSummary?,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -569,16 +575,20 @@ private fun TimerEditDialog(
 
                 // Optional pipeline to run every interval (e.g. a shoutout using {timer.message}). Reuses the
                 // Commands dialog's picker shape. Only shown when the channel has pipelines to bind.
-                if (pipelines.isNotEmpty()) {
-                    // A reference to another table (the channel's pipelines) → the shared search dropdown,
-                    // filtering as you type; clearing the selection is the old "None" option.
-                    EntityPickerField(
-                        items = pipelines,
+                if (pipelines.isNotEmpty() || pipelineId != null) {
+                    // A reference to another table (the channel's pipelines) → the shared bind picker: pick an
+                    // existing pipeline OR create-and-bind a new one without leaving this dialog (S046).
+                    PipelineBindPicker(
+                        pipelines = pipelines,
                         selectedId = pipelineId,
                         onSelect = { pipelineId = it },
-                        idOf = { it.id },
-                        labelOf = { it.name },
-                        label = stringResource(Res.string.timers_dialog_pipeline),
+                        onCreate = { name -> onCreatePipeline(name) },
+                        pickLabel = stringResource(Res.string.timers_dialog_pipeline),
+                        choosePlaceholder = stringResource(Res.string.timers_dialog_pipeline_choose),
+                        createNewLabel = stringResource(Res.string.timers_dialog_pipeline_create_new),
+                        newNameLabel = stringResource(Res.string.timers_dialog_pipeline_new_name),
+                        createLabel = stringResource(Res.string.timers_dialog_pipeline_create_confirm),
+                        cancelLabel = stringResource(Res.string.timers_dialog_cancel),
                     )
                 }
 

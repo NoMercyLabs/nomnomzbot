@@ -21,8 +21,11 @@ import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CommandSummary
 import bot.nomnomz.dashboard.core.network.CommandsApi
 import bot.nomnomz.dashboard.core.network.CreateCommandBody
+import bot.nomnomz.dashboard.core.network.CreatePipelineBody
 import bot.nomnomz.dashboard.core.network.PickList
 import bot.nomnomz.dashboard.core.network.PickListsApi
+import bot.nomnomz.dashboard.core.network.PipelineDetail
+import bot.nomnomz.dashboard.core.network.PipelineGraph
 import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.PipelinesApi
 import bot.nomnomz.dashboard.core.network.ResourceUsage
@@ -147,6 +150,30 @@ class CommandsController(
     suspend fun createCommand(input: CommandInput) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
         afterWrite(commandsApi.create(channel, input.toCreateBody()))
+    }
+
+    /**
+     * Create a new (empty) pipeline named [pipelineName] — the create-and-bind flow the pipeline-tier picker
+     * offers, so binding a pipeline to a command never requires leaving this dialog to make one first on the
+     * Pipelines page. Returns the created [PipelineSummary] (with its server-assigned id) so the caller can
+     * select it immediately, or null on failure (the failure is also surfaced on the frame, like every other
+     * write here).
+     */
+    suspend fun createPipelineReturning(pipelineName: String): PipelineSummary? {
+        val channel: String = channelId ?: run { failWrite(NoChannelError); return null }
+        return when (
+            val result: ApiResult<PipelineDetail> =
+                pipelinesApi.createReturning(
+                    channel,
+                    CreatePipelineBody(name = pipelineName, graph = PipelineGraph().toJson()),
+                )
+        ) {
+            is ApiResult.Ok -> PipelineSummary(id = result.value.id, name = result.value.name)
+            is ApiResult.Failure -> {
+                failWrite(result.error.message)
+                null
+            }
+        }
     }
 
     /**

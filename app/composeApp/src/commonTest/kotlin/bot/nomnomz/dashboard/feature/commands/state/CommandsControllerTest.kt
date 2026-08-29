@@ -325,6 +325,53 @@ class CommandsControllerTest {
         assertNull(controller.customCommandsUsage.value)
         assertTrue(controller.state.value is CommandsState.Empty)
     }
+
+    // S046 — the pipeline-tier picker's create-and-bind flow: creating a pipeline from inside the command dialog
+    // must actually call the pipelines API AND resolve to the new pipeline's server-assigned id, so the caller
+    // can bind it immediately without navigating to the Pipelines page first.
+    @Test
+    fun create_pipeline_returning_creates_a_pipeline_and_resolves_its_new_id() = runTest {
+        val pipelinesApi = RecordingPipelinesApi()
+        val controller =
+            CommandsController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                commandsApi = RecordingCommandsApi(ApiResult.Ok(emptyList())),
+                builtinsApi = FakeBuiltinsApi(),
+                pipelinesApi = pipelinesApi,
+                pickListsApi = FakePickListsApi(),
+            )
+        controller.load()
+
+        val created: PipelineSummary? = controller.createPipelineReturning("Shoutout chain")
+
+        // The real write happened (the exact name reached the api) AND the caller got back the new id — not a
+        // sentinel, not the input name, the server-assigned id from the createReturning response.
+        assertEquals("Shoutout chain", pipelinesApi.lastCreatedName)
+        assertEquals("ch1", pipelinesApi.lastCreatedChannelId)
+        assertEquals("new-pipe-1", created?.id)
+        assertEquals("Shoutout chain", created?.name)
+    }
+
+    @Test
+    fun create_pipeline_returning_surfaces_the_error_and_returns_null_on_failure() = runTest {
+        val feedback = RecordingFeedback()
+        val pipelinesApi = RecordingPipelinesApi(createResult = ApiResult.Failure(ApiError(500, "ERR", "boom")))
+        val controller =
+            CommandsController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                commandsApi = RecordingCommandsApi(ApiResult.Ok(emptyList())),
+                builtinsApi = FakeBuiltinsApi(),
+                pipelinesApi = pipelinesApi,
+                pickListsApi = FakePickListsApi(),
+                feedback = feedback,
+            )
+        controller.load()
+
+        val created: PipelineSummary? = controller.createPipelineReturning("Shoutout chain")
+
+        assertNull(created)
+        assertEquals(FeedbackKind.Error, feedback.only.kind)
+    }
 }
 
 // ── Fakes ────────────────────────────────────────────────────────────────────────────────────────
@@ -431,6 +478,49 @@ private class FakePipelinesApi : PipelinesApi {
         ApiResult.Ok(Unit)
 
     override suspend fun blastRadius(channelId: String, id: String): ApiResult<bot.nomnomz.dashboard.core.network.PipelineBlastRadiusSummary> =
+        ApiResult.Ok(bot.nomnomz.dashboard.core.network.PipelineBlastRadiusSummary())
+
+    override suspend fun testRun(
+        channelId: String,
+        id: String,
+        body: bot.nomnomz.dashboard.core.network.PipelineTestRunBody,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.TestRunResult> =
+        ApiResult.Ok(bot.nomnomz.dashboard.core.network.TestRunResult())
+}
+
+// A pipelines fake that records the create-and-bind call: [lastCreatedName]/[lastCreatedChannelId] prove the
+// real write happened with the right args, and [createResult] lets a test force the failure path.
+private class RecordingPipelinesApi(
+    private val createResult: ApiResult<PipelineDetail>? = null,
+) : PipelinesApi {
+    var lastCreatedName: String? = null
+    var lastCreatedChannelId: String? = null
+
+    override suspend fun list(channelId: String): ApiResult<List<PipelineSummary>> = ApiResult.Ok(emptyList())
+
+    override suspend fun catalogue(channelId: String): ApiResult<PipelineCatalogueRemote> =
+        ApiResult.Ok(PipelineCatalogueRemote())
+
+    override suspend fun get(channelId: String, id: String): ApiResult<PipelineDetail> =
+        ApiResult.Failure(ApiError(404, "NOT_FOUND", "not found"))
+
+    override suspend fun create(channelId: String, body: CreatePipelineBody): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun createReturning(channelId: String, body: CreatePipelineBody): ApiResult<PipelineDetail> {
+        lastCreatedName = body.name
+        lastCreatedChannelId = channelId
+        return createResult ?: ApiResult.Ok(PipelineDetail(id = "new-pipe-1", name = body.name))
+    }
+
+    override suspend fun update(channelId: String, id: String, body: UpdatePipelineBody): ApiResult<Unit> =
+        ApiResult.Ok(Unit)
+
+    override suspend fun delete(channelId: String, id: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun blastRadius(
+        channelId: String,
+        id: String,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.PipelineBlastRadiusSummary> =
         ApiResult.Ok(bot.nomnomz.dashboard.core.network.PipelineBlastRadiusSummary())
 
     override suspend fun testRun(

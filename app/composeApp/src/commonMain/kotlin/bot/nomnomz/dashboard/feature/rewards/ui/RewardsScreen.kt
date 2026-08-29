@@ -53,7 +53,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.Card
-import bot.nomnomz.dashboard.core.designsystem.component.EntityPickerField
+import bot.nomnomz.dashboard.core.designsystem.component.PipelineBindPicker
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
@@ -131,7 +131,11 @@ import nomnomzbot.composeapp.generated.resources.rewards_toggle_action
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharedFlow
+import nomnomzbot.composeapp.generated.resources.rewards_dialog_pipeline_choose
+import nomnomzbot.composeapp.generated.resources.rewards_dialog_pipeline_create_confirm
+import nomnomzbot.composeapp.generated.resources.rewards_dialog_pipeline_create_new
 import nomnomzbot.composeapp.generated.resources.rewards_dialog_pipeline_label
+import nomnomzbot.composeapp.generated.resources.rewards_dialog_pipeline_new_name
 import nomnomzbot.composeapp.generated.resources.rewards_dialog_timer_label
 import nomnomzbot.composeapp.generated.resources.rewards_timer_cancel
 import nomnomzbot.composeapp.generated.resources.rewards_timer_complete
@@ -301,6 +305,7 @@ fun RewardsScreen(
                         )
                 }
             },
+            onCreatePipeline = { name -> controller.createPipelineReturning(name) },
         )
     }
 
@@ -887,6 +892,7 @@ private fun RewardFormDialog(
     pipelines: List<PipelineSummary>,
     onDismiss: () -> Unit,
     onSubmit: (RewardFormResult) -> Unit,
+    onCreatePipeline: suspend (name: String) -> PipelineSummary?,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -997,19 +1003,22 @@ private fun RewardFormDialog(
                     modifier = Modifier.fillMaxWidth(),
                     label = stringResource(Res.string.rewards_dialog_timer_label),
                 )
-                // Optional pipeline to run on redemption. Only shown when the channel has pipelines to bind.
-                if (pipelines.isNotEmpty()) {
-                    // A reference to another table (the channel's pipelines) → the shared search dropdown,
-                    // filtering as you type; clearing the selection is the old "None" option.
-                    EntityPickerField(
-                        items = pipelines,
-                        selectedId = selectedPipelineId,
-                        onSelect = { selectedPipelineId = it },
-                        idOf = { it.id },
-                        labelOf = { it.name },
-                        label = stringResource(Res.string.rewards_dialog_pipeline_label),
-                    )
-                }
+                // Optional pipeline to run on redemption. A reference to another table (the channel's pipelines) →
+                // the shared bind picker: pick an existing pipeline OR create-and-bind a new one without leaving
+                // this dialog (S046). Shown even with zero pipelines yet, since create-and-bind is how a channel
+                // makes its first one.
+                PipelineBindPicker(
+                    pipelines = pipelines,
+                    selectedId = selectedPipelineId,
+                    onSelect = { selectedPipelineId = it },
+                    onCreate = { name -> onCreatePipeline(name) },
+                    pickLabel = stringResource(Res.string.rewards_dialog_pipeline_label),
+                    choosePlaceholder = stringResource(Res.string.rewards_dialog_pipeline_choose),
+                    createNewLabel = stringResource(Res.string.rewards_dialog_pipeline_create_new),
+                    newNameLabel = stringResource(Res.string.rewards_dialog_pipeline_new_name),
+                    createLabel = stringResource(Res.string.rewards_dialog_pipeline_create_confirm),
+                    cancelLabel = stringResource(Res.string.rewards_dialog_cancel),
+                )
                 ToggleRow(
                     label = requireInputLabel,
                     checked = requireInput,
