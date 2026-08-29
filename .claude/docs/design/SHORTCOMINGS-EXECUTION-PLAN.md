@@ -227,8 +227,15 @@ than each consumer needing their own clone-and-customize pass.
   bound pipeline's existing test dialog (or a lighter duplicate entry point) — needs that small design
   call, then wiring (W·§6/§8 i2). Done-when: captured side effects shown without sending, from all four
   surfaces.
-- **S050** Shell truth — hub-state indicator; reconnect banner reason; `effectiveMe` transient failure
-  = retry state; remembered-session vs unreachable distinction (U·B6). Done-when: dead socket visible in 5 s.
+- **S050** Shell truth — DONE. Hub-state dot now reads `DashboardHubClient.connectionState`
+  (Connected/Reconnecting/Disconnected) instead of a hardcoded fill, rendered in both the compact top bar and
+  the persistent desktop sidebar; proved with a real-socket jvmTest (drop → Reconnecting within the liveness
+  window → resume → Connected). `ReconnectBanner` surfaces the actual `ConnectError` reason instead of one
+  generic message. `ShellAccessController` now distinguishes a transient `effectiveMe`/`primaryChannel` failure
+  (`status == 0 || status >= 500`) from a definitive one: `ShellAccess.Retrying` auto-re-probes instead of
+  flashing the fail-closed viewer UI. `ConnectController.restoreUnreachable` + `Destination.Unreachable` +
+  `UnreachableScreen` distinguish "remembered session, backend unreachable" (auto-retries, keeps custody) from
+  a genuine logged-out state.
 
 ## Phase 4 — existing features: truth, reach, completeness
 

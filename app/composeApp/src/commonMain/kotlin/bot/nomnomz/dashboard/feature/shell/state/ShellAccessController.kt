@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.feature.shell.state
 
+import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -52,37 +53,54 @@ class ShellAccessController(
     suspend fun load() {
         val channel: ChannelSummary =
             when (val result: ApiResult<ChannelSummary> = channelsApi.primaryChannel()) {
-                // No channel resolves (none onboarded / transient blip): fail closed to a role-less participant at
-                // the lowest standing with no channel context — the shell renders the participant rung, whose
-                // screens surface the "no channel" error rather than ever flashing a management surface.
-                is ApiResult.Failure -> {
-                    _state.value =
+                // A TRANSIENT blip (network drop, a momentary 5xx) is not proof the caller has no channel — only a
+                // DEFINITIVE failure (401/403/404/…) is. Distinguishing them is S050's "effectiveMe transient
+                // failure = retry state": a blip must show as RETRYING, never flash the same fail-closed viewer
+                // UI a real "you have no channel" answer would. [ShellAccess.Retrying] keeps whatever the shell
+                // was already showing on screen — the caller (App.kt) re-invokes [load] shortly after.
+                is ApiResult.Failure ->
+                    if (result.error.isTransient()) {
+                        _state.value = ShellAccess.Retrying
+                        return
+                    } else {
+                        // A definitive answer (no channel onboarded / caller genuinely unauthorized): fail closed
+                        // to a role-less participant at the lowest standing with no channel context — the shell
+                        // renders the participant rung, whose screens surface the "no channel" error rather than
+                        // ever flashing a management surface.
+                        _state.value =
+                            ShellAccess.Resolved(
+                                channelId = "",
+                                userId = null,
+                                role = null,
+                                standing = ParticipantStanding.Everyone,
+                                capabilities = emptyList(),
+                                heldActionKeys = emptySet(),
+                            )
+                        return
+                    }
+                is ApiResult.Ok -> result.value
+            }
+
+        _state.value =
+            when (val result: ApiResult<ResolvedAccess> = rolesApi.effectiveMe(channel.id)) {
+                is ApiResult.Failure ->
+                    if (result.error.isTransient()) {
+                        // Same distinction as above, once the channel itself is known: a blip fetching the
+                        // caller's OWN effective role must not masquerade as "you are just a viewer here".
+                        ShellAccess.Retrying
+                    } else {
+                        // A definitive failed resolve fails closed to a participant at the LOWEST standing
+                        // (Everyone): the base participation surface, never an over-granted management or
+                        // sub-only view.
                         ShellAccess.Resolved(
-                            channelId = "",
+                            channelId = channel.id,
                             userId = null,
                             role = null,
                             standing = ParticipantStanding.Everyone,
                             capabilities = emptyList(),
                             heldActionKeys = emptySet(),
                         )
-                    return
-                }
-                is ApiResult.Ok -> result.value
-            }
-
-        _state.value =
-            when (val result: ApiResult<ResolvedAccess> = rolesApi.effectiveMe(channel.id)) {
-                // A failed resolve fails closed to a participant at the LOWEST standing (Everyone): the base
-                // participation surface, never an over-granted management or sub-only view.
-                is ApiResult.Failure ->
-                    ShellAccess.Resolved(
-                        channelId = channel.id,
-                        userId = null,
-                        role = null,
-                        standing = ParticipantStanding.Everyone,
-                        capabilities = emptyList(),
-                        heldActionKeys = emptySet(),
-                    )
+                    }
                 is ApiResult.Ok ->
                     ShellAccess.Resolved(
                         channelId = channel.id,
@@ -96,9 +114,25 @@ class ShellAccessController(
     }
 }
 
+/**
+ * A network/backend blip (no response at all, or the backend's own 5xx) versus a definitive answer
+ * (401/403/404/…) the backend actually computed. Only the latter may be treated as "the caller really has no
+ * access" — a blip must retry, never masquerade as a real answer (S050).
+ */
+private fun ApiError.isTransient(): Boolean = status == 0 || status >= 500
+
 /** The shell's resolved-access state — Loading under the boot probe, then the caller's effective access. */
 sealed interface ShellAccess {
     data object Loading : ShellAccess
+
+    /**
+     * A transient failure resolving the channel or the caller's effective access (a network blip or a momentary
+     * backend 5xx) — distinct from both [Loading] (first boot, nothing resolved yet) and a definitive
+     * [Resolved] fail-closed viewer (a real "you have no access" answer). The caller re-probes shortly after
+     * landing here; the shell renders a neutral retry surface rather than ever showing the fail-closed viewer
+     * UI for what might just be a blip.
+     */
+    data object Retrying : ShellAccess
 
     /**
      * The caller's resolved access on [channelId]. The shell gates the MANAGEMENT rung on [role] (null = a

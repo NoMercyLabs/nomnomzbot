@@ -177,11 +177,13 @@ class ShellAccessControllerTest {
     }
 
     @Test
-    fun a_failed_effective_me_call_fails_closed_to_a_viewer() = runTest {
+    fun a_definitive_failed_effective_me_call_fails_closed_to_a_viewer() = runTest {
+        // 403 is a DEFINITIVE answer the backend actually computed (the caller is genuinely unauthorized) —
+        // this must still fail closed, never leak the broadcaster surface.
         val controller =
             ShellAccessController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
-                FakeRolesApi(access = ApiResult.Failure(ApiError(500, "ERR", "boom"))),
+                FakeRolesApi(access = ApiResult.Failure(ApiError(403, "ERR", "forbidden"))),
             )
 
         controller.load()
@@ -190,6 +192,50 @@ class ShellAccessControllerTest {
         assertEquals(null, resolved.role)
         // Fail closed carries NO held keys — the shell must never surface a management page off a failed resolve.
         assertTrue(resolved.heldActionKeys.isEmpty())
+    }
+
+    @Test
+    fun a_transient_effective_me_failure_reports_retrying_not_a_fail_closed_viewer() = runTest {
+        // S050 — a 5xx (the backend's own transient error, e.g. still warming up) is NOT proof the caller has no
+        // access. It must surface as Retrying, never masquerade as a real "you are just a viewer" answer.
+        val controller =
+            ShellAccessController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeRolesApi(access = ApiResult.Failure(ApiError(503, "ERR", "warming up"))),
+            )
+
+        controller.load()
+
+        assertEquals(ShellAccess.Retrying, controller.state.value)
+    }
+
+    @Test
+    fun a_network_level_effective_me_failure_reports_retrying_not_a_fail_closed_viewer() = runTest {
+        // status == 0 means no response reached the client at all (offline/DNS/refused) — the same "blip, not an
+        // answer" case as a 5xx.
+        val controller =
+            ShellAccessController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeRolesApi(access = ApiResult.Failure(ApiError(0, null, "network error"))),
+            )
+
+        controller.load()
+
+        assertEquals(ShellAccess.Retrying, controller.state.value)
+    }
+
+    @Test
+    fun a_transient_channel_resolve_failure_reports_retrying_not_a_fail_closed_viewer() = runTest {
+        // Same distinction, one step earlier: primaryChannel() itself can blip before effectiveMe is ever called.
+        val controller =
+            ShellAccessController(
+                FakeChannelsApi(ApiResult.Failure(ApiError(502, "ERR", "bad gateway"))),
+                FakeRolesApi(access = ApiResult.Ok(resolvedAccess(role = WireRole.Broadcaster, level = 40))),
+            )
+
+        controller.load()
+
+        assertEquals(ShellAccess.Retrying, controller.state.value)
     }
 
     @Test

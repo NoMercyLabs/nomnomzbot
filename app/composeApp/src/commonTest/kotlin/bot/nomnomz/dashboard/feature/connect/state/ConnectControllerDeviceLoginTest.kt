@@ -722,6 +722,75 @@ class ConnectControllerDeviceLoginTest {
         assertEquals(false, restored)
         assertEquals(1, authApi.refreshCallCount)
         assertEquals(SessionPhase.NotConnected, sessionOf(controller).phase.value)
+        // A DEFINITIVE rejection means the session really is dead — this is a genuine "sign in again", never the
+        // "we have a session, just can't reach the backend" case (S050).
+        assertEquals(false, controller.restoreUnreachable.value)
+    }
+
+    // ── S050 — "remembered-session vs unreachable distinction" ────────────────
+
+    @Test
+    fun restore_session_reports_unreachable_when_a_remembered_session_cannot_be_confirmed() = runTest {
+        // Every refresh attempt (the initial call plus every retry) 5xx's — the backend never gave a REAL
+        // answer at all, transient or otherwise. A remembered profile + token existed, so this must surface as
+        // "unreachable", never the same "you are not signed in" state a first-time visitor sees.
+        val vault = InMemoryVault()
+        val profiles = InMemoryProfileStore()
+        vault.write("p1", SessionTokens(accessToken = "stale-acc", refreshToken = "good-ref"))
+        profiles.write(rememberedProfile)
+        val authApi =
+            FakeAuthApi(
+                meResults = listOf(ApiResult.Failure(ApiError(401, "EXPIRED", "token expired"))),
+                refreshResults =
+                    listOf(
+                        ApiResult.Failure(ApiError(503, "DOWN", "still starting up")),
+                        ApiResult.Failure(ApiError(503, "DOWN", "still starting up")),
+                        ApiResult.Failure(ApiError(503, "DOWN", "still starting up")),
+                    ),
+            )
+        val controller =
+            controller(FakeSystemApi(ready = true), authApi, vault = vault, profiles = profiles)
+        assertEquals(false, controller.restoreUnreachable.value)
+
+        val restored: Boolean = controller.restoreSession()
+
+        assertEquals(false, restored)
+        assertEquals(true, controller.restoreUnreachable.value)
+        // The remembered backend + token are KEPT — this is not a logout, just an unconfirmed session.
+        assertEquals(
+            SessionTokens(accessToken = "stale-acc", refreshToken = "good-ref"),
+            vault.stored["p1"],
+        )
+    }
+
+    @Test
+    fun restore_session_clears_unreachable_once_the_backend_answers_again() = runTest {
+        // The flag must self-heal: a LATER restoreSession() call that actually succeeds must not leave a stale
+        // "unreachable" reading behind. First call: every refresh attempt is transient (0/no route) and the
+        // retries exhaust, leaving restoreUnreachable set. Second call: the stored token itself is now accepted
+        // outright (the backend is back) — attachSession succeeds before refresh is ever needed again.
+        val vault = InMemoryVault()
+        val profiles = InMemoryProfileStore()
+        vault.write("p1", SessionTokens(accessToken = "stale-acc", refreshToken = "good-ref"))
+        profiles.write(rememberedProfile)
+        val authApi =
+            FakeAuthApi(
+                meResults =
+                    listOf(
+                        ApiResult.Failure(ApiError(401, "EXPIRED", "token expired")),
+                        ApiResult.Ok(CurrentUser("u1", "eagle", "Eagle")),
+                    ),
+                refreshResults = listOf(ApiResult.Failure(ApiError(0, null, "no route to host"))),
+            )
+        val controller =
+            controller(FakeSystemApi(ready = true), authApi, vault = vault, profiles = profiles)
+        controller.restoreSession()
+        assertEquals(true, controller.restoreUnreachable.value)
+
+        val restored: Boolean = controller.restoreSession()
+
+        assertEquals(true, restored)
+        assertEquals(false, controller.restoreUnreachable.value)
     }
 
     @Test
@@ -732,6 +801,8 @@ class ConnectControllerDeviceLoginTest {
 
         assertEquals(false, restored)
         assertEquals(SessionPhase.NotConnected, sessionOf(controller).phase.value)
+        // Nothing was ever remembered — this is a first-time visitor, not an unreachable-but-known session.
+        assertEquals(false, controller.restoreUnreachable.value)
     }
 
     // ── Logout (revoke the server session + clear the cookie, not just local state) ──

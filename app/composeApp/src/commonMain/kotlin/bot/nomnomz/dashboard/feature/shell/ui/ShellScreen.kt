@@ -75,6 +75,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.realtime.HubConnectionState
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.flow.filterNotNull
 import bot.nomnomz.dashboard.core.connection.SessionUser
@@ -159,6 +160,9 @@ import nomnomzbot.composeapp.generated.resources.shell_group_moderation
 import nomnomzbot.composeapp.generated.resources.shell_group_music
 import nomnomzbot.composeapp.generated.resources.shell_group_setup
 import nomnomzbot.composeapp.generated.resources.shell_group_stream
+import nomnomzbot.composeapp.generated.resources.shell_hub_state_connected
+import nomnomzbot.composeapp.generated.resources.shell_hub_state_disconnected
+import nomnomzbot.composeapp.generated.resources.shell_hub_state_reconnecting
 import nomnomzbot.composeapp.generated.resources.shell_nav_alerts
 import nomnomzbot.composeapp.generated.resources.shell_nav_analytics
 import nomnomzbot.composeapp.generated.resources.shell_nav_chat
@@ -392,6 +396,12 @@ fun ShellScreen(
         exitImpersonationJob = reconnectScope.launch { graph.adminController.exitImpersonation() }
     }
 
+    // S050 — shell truth: the persistent, truthful hub-health signal every layout renders (see [HubDot]).
+    // Read from the SHELL'S OWN connection (not the multi-watch page's dedicated socket) since it is kept
+    // alive for the whole session (see the LaunchedEffect above) regardless of which page is selected.
+    val hubConnectionState: HubConnectionState by
+        graph.dashboardHubClient.connectionState.collectAsStateWithLifecycle()
+
     BoxWithConstraints(modifier = Modifier.fillMaxSize().background(tokens.background)) {
         val compact: Boolean = maxWidth < CompactBreakpoint
 
@@ -405,6 +415,7 @@ fun ShellScreen(
                 TopBar(
                     channelName = user?.displayName,
                     onMenu = { drawerOpen = true },
+                    hubState = hubConnectionState,
                 )
                 ShellContent(
                     selected = selected,
@@ -439,6 +450,7 @@ fun ShellScreen(
                     onLogout = onLogout,
                     onReconnect = triggerReconnect,
                     onPreviewAsViewer = { previewAsViewer = true },
+                    hubState = hubConnectionState,
                 )
             }
         } else {
@@ -459,6 +471,7 @@ fun ShellScreen(
                     onLogout = onLogout,
                     onReconnect = triggerReconnect,
                     onPreviewAsViewer = { previewAsViewer = true },
+                    hubState = hubConnectionState,
                 )
                 Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
                     // No top bar on desktop: each screen renders its own PageHeader, so a shell-level
@@ -708,6 +721,7 @@ private fun Sidebar(
     onLogout: () -> Unit,
     onReconnect: () -> Unit,
     onPreviewAsViewer: () -> Unit,
+    hubState: HubConnectionState,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -724,8 +738,13 @@ private fun Sidebar(
             .background(tokens.sidebar)
             .padding(horizontal = spacing.s3, vertical = spacing.s3),
     ) {
-        // Channel avatar header — click to switch channels when multiple are available.
-        SidebarHeader(switcher = channelSwitcher)
+        // Channel avatar header — click to switch channels when multiple are available. The hub-state dot
+        // sits beside it so it renders on EVERY layout (desktop has no top bar of its own — see ShellContent
+        // below — so this persistent sidebar is the only frame-level chrome desktop always shows).
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+            Box(modifier = Modifier.weight(1f)) { SidebarHeader(switcher = channelSwitcher) }
+            HubDot(state = hubState)
+        }
 
         Spacer(modifier = Modifier.height(spacing.s2))
 
@@ -1278,7 +1297,7 @@ private fun channelRoleLabel(role: String): String? =
     }
 
 @Composable
-private fun TopBar(channelName: String?, onMenu: (() -> Unit)?) {
+private fun TopBar(channelName: String?, onMenu: (() -> Unit)?, hubState: HubConnectionState) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
 
@@ -1298,7 +1317,7 @@ private fun TopBar(channelName: String?, onMenu: (() -> Unit)?) {
                 horizontalArrangement = Arrangement.spacedBy(spacing.s3),
             ) {
                 if (!channelName.isNullOrBlank()) ChannelChip(name = channelName)
-                HubDot()
+                HubDot(state = hubState)
             }
         }
         Separator()
@@ -1358,18 +1377,36 @@ private fun ChannelChip(name: String) {
     }
 }
 
+// The shell-truth hub-state dot (S050): color AND content description come straight off
+// [DashboardHubClient.connectionState] — never a static "always connected" fill — so a dead socket that never
+// even surfaces as a close frame (a replaced container, a proxy that silently drops an idle connection) is
+// still visible here within one liveness window of the drop, not hidden behind a permanently-green dot.
 @Composable
-private fun HubDot() {
+private fun HubDot(state: HubConnectionState) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
 
-    val description: String = stringResource(Res.string.shell_topbar_hub_label)
+    val description: String =
+        when (state) {
+            HubConnectionState.Connected -> stringResource(Res.string.shell_hub_state_connected)
+            HubConnectionState.Reconnecting -> stringResource(Res.string.shell_hub_state_reconnecting)
+            HubConnectionState.Disconnected -> stringResource(Res.string.shell_hub_state_disconnected)
+        }
+    val color: Color =
+        when (state) {
+            HubConnectionState.Connected -> tokens.success
+            // No amber/warning token exists in the closed catalogue (Tokens.kt) — mutedForeground reads as
+            // "in progress, not settled", distinct from both the affirmative success green and the destructive
+            // red reserved for the genuinely dead state.
+            HubConnectionState.Reconnecting -> tokens.mutedForeground
+            HubConnectionState.Disconnected -> tokens.destructive
+        }
 
     Box(
         modifier = Modifier
             .size(spacing.s2)
             .clip(CircleShape)
-            .background(tokens.primary)
+            .background(color)
             .semantics { contentDescription = description },
     )
 }
