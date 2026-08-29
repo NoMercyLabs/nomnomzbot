@@ -103,6 +103,7 @@ data class CreateCommandBody(
  */
 @Serializable
 data class UpdateCommandBody(
+    val name: String? = null,
     val tier: String? = null,
     val minPermissionLevel: Int? = null,
     val prefixMode: String? = null,

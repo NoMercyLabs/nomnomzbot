@@ -283,6 +283,7 @@ private fun CommandInput.toCreateBody(): CreateCommandBody =
 // semantics); an empty list clears the random-response list and the aliases.
 private fun CommandInput.toUpdateBody(): UpdateCommandBody =
     UpdateCommandBody(
+        name = name.trim(),
         tier = tier,
         minPermissionLevel = minPermissionLevel,
         prefixMode = prefixMode,

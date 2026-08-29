@@ -208,6 +208,38 @@ public class CommandService : ICommandService
         if (helperOk.IsFailure)
             return helperOk.ToTyped<CommandDto>();
 
+        if (request.Name is not null)
+        {
+            Result<string> normalizedRename = await NormalizeAndValidateNameAsync(
+                broadcaster,
+                request.Name,
+                request.PrefixMode ?? command.PrefixMode,
+                request.CustomPrefix ?? command.CustomPrefix,
+                cancellationToken
+            );
+            if (normalizedRename.IsFailure)
+                return normalizedRename.ToTyped<CommandDto>();
+
+            string renamedNormalized = normalizedRename.Value.ToLowerInvariant();
+            if (renamedNormalized != command.NameNormalized)
+            {
+                bool renameCollides = await _db.Commands.AnyAsync(
+                    c =>
+                        c.BroadcasterId == broadcaster
+                        && c.Id != command.Id
+                        && c.NameNormalized == renamedNormalized,
+                    cancellationToken
+                );
+                if (renameCollides)
+                    return Errors
+                        .AlreadyExists("command", normalizedRename.Value)
+                        .ToTyped<CommandDto>();
+
+                command.Name = normalizedRename.Value;
+                command.NameNormalized = renamedNormalized;
+            }
+        }
+
         if (request.Tier is not null)
             command.Tier = request.Tier;
         if (request.MinPermissionLevel.HasValue)

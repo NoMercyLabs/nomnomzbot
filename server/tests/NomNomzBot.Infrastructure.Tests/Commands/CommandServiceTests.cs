@@ -361,4 +361,55 @@ public sealed class CommandServiceTests
         CommandDto unchanged = (await sut.GetAsync(Channel.ToString(), "varfix")).Value;
         unchanged.TemplateResponse.Should().Be("hi there");
     }
+
+    [Fact]
+    public async Task Update_WithAName_RenamesTheCommandAndItIsFindableUnderTheNewName()
+    {
+        (CommandService sut, RecordingEventBus bus) = Build();
+        CommandDto created = (await sut.CreateAsync(Channel.ToString(), Req("oldname"))).Value;
+        bus.Published.Clear();
+
+        Result<CommandDto> result = await sut.UpdateAsync(
+            Channel.ToString(),
+            "oldname",
+            new() { Name = "newname" }
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Name.Should().Be("newname");
+
+        // The old trigger no longer resolves the command...
+        Result<CommandDto> oldLookup = await sut.GetAsync(Channel.ToString(), "oldname");
+        oldLookup.IsSuccess.Should().BeFalse();
+
+        // ...and the new trigger does, with the same identity and its other fields untouched.
+        CommandDto renamed = (await sut.GetAsync(Channel.ToString(), "newname")).Value;
+        renamed.Id.Should().Be(created.Id);
+        renamed.TemplateResponse.Should().Be("hi there");
+
+        bus.Published.OfType<ChannelConfigChangedEvent>()
+            .Should()
+            .ContainSingle(e => e.EntityId == created.Id.ToString() && e.Action == "updated");
+    }
+
+    [Fact]
+    public async Task Update_RenamingToAnExistingCommandsName_FailsAndLeavesBothCommandsUnchanged()
+    {
+        (CommandService sut, RecordingEventBus bus) = Build();
+        await sut.CreateAsync(Channel.ToString(), Req("first"));
+        await sut.CreateAsync(Channel.ToString(), Req("second"));
+        bus.Published.Clear();
+
+        Result<CommandDto> result = await sut.UpdateAsync(
+            Channel.ToString(),
+            "first",
+            new() { Name = "second" }
+        );
+
+        result.IsFailure.Should().BeTrue();
+        bus.Published.Should().BeEmpty();
+
+        (await sut.GetAsync(Channel.ToString(), "first")).IsSuccess.Should().BeTrue();
+        (await sut.GetAsync(Channel.ToString(), "second")).IsSuccess.Should().BeTrue();
+    }
 }
