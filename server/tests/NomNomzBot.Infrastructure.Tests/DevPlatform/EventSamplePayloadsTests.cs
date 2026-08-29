@@ -37,6 +37,35 @@ public sealed class EventSamplePayloadsTests
     private static ISet<string> TopLevelKeys(string json) =>
         ((JsonObject)JsonNode.Parse(json)!).Select(kv => kv.Key).ToHashSet(StringComparer.Ordinal);
 
+    // No wired event's sample currently carries a non-integer double value, so the "number"-scalar branch of
+    // AssertScalarMatchesType had never been exercised (a mutation to it did not go red). This pins it directly.
+    [Fact]
+    public void AssertSampleConformsToSchema_accepts_a_double_value_against_a_number_typed_property()
+    {
+        JsonNode schema = JsonNode.Parse(
+            """{ "properties": { "score": { "type": "number" } } }"""
+        )!;
+        string sample = """{ "score": 3.14 }""";
+
+        Action act = () => AssertSampleConformsToSchema(sample, schema);
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void AssertSampleConformsToSchema_rejects_a_double_value_against_a_boolean_typed_property()
+    {
+        JsonNode schema = JsonNode.Parse(
+            """{ "properties": { "score": { "type": "boolean" } } }"""
+        )!;
+        string sample = """{ "score": 3.14 }""";
+
+        Action act = () => AssertSampleConformsToSchema(sample, schema);
+
+        act.Should()
+            .Throw<Exception>("a double value must not satisfy a boolean-typed schema property");
+    }
+
     [Theory]
     // wire name in the SDK catalog -> the exact fixture literal from the translator's own behaviour test.
     [InlineData(
