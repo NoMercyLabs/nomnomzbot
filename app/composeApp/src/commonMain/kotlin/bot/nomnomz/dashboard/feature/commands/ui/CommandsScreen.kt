@@ -644,9 +644,9 @@ private fun CommandFormDialog(
                 AppTextField(
                     value = name,
                     onValueChange = { name = it },
-                    enabled = !editor.isEdit,
                     modifier = Modifier.fillMaxWidth(),
                     label = stringResource(Res.string.commands_dialog_name_label),
+                    isError = name.isBlank(),
                 )
                 AppTextField(
                     value = description,

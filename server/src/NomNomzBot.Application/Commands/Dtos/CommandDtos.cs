@@ -116,6 +116,11 @@ public sealed record CreateCommandDto
 /// <summary>Request to update an existing command.</summary>
 public sealed record UpdateCommandDto
 {
+    /// <summary>New trigger name; null leaves the existing name unchanged. Subject to the same
+    /// prefix-stripping/uniqueness validation as creation.</summary>
+    [MaxLength(100)]
+    public string? Name { get; init; }
+
     public string? Tier { get; init; }
     public int? MinPermissionLevel { get; init; }
 
