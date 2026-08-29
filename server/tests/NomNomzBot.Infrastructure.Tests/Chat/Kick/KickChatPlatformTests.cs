@@ -12,6 +12,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Kick;
+using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Infrastructure.Chat.Kick;
 using NSubstitute;
 
@@ -186,11 +187,47 @@ public sealed class KickChatPlatformTests
     {
         (KickChatPlatform platform, IKickApiClient client) = Build();
 
-        await platform.UnbanUserAsync(Tenant, "678");
+        ChatUnbanOutcome outcome = await platform.UnbanUserAsync(Tenant, "678");
 
+        outcome.Should().Be(ChatUnbanOutcome.Success, "Kick confirmed the lift");
         await client
             .Received(1)
             .UnbanUserAsync("kick-bearer-1", KickId, 678, Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>Kick's <c>NOT_FOUND</c> (nothing to lift) reports the DISTINCT
+    /// <see cref="ChatUnbanOutcome.NotFound"/> outcome — never conflated with a generic failure.</summary>
+    [Fact]
+    public async Task An_unban_kick_reports_not_found_ReturnsNotFound()
+    {
+        (KickChatPlatform platform, IKickApiClient client) = Build();
+        client
+            .UnbanUserAsync(
+                Arg.Any<string>(),
+                Arg.Any<long>(),
+                Arg.Any<long>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure("The Kick resource was not found.", "NOT_FOUND"));
+
+        ChatUnbanOutcome outcome = await platform.UnbanUserAsync(Tenant, "678");
+
+        outcome.Should().Be(ChatUnbanOutcome.NotFound);
+    }
+
+    /// <summary>A non-numeric Kick user id is an honest <see cref="ChatUnbanOutcome.Failed"/>, never
+    /// success, and never reaches the API.</summary>
+    [Fact]
+    public async Task An_unban_with_a_non_numeric_target_fails_honestly()
+    {
+        (KickChatPlatform platform, IKickApiClient client) = Build();
+
+        ChatUnbanOutcome outcome = await platform.UnbanUserAsync(Tenant, "not-a-number");
+
+        outcome.Should().Be(ChatUnbanOutcome.Failed);
+        await client
+            .DidNotReceiveWithAnyArgs()
+            .UnbanUserAsync(default!, default, default, Arg.Any<CancellationToken>());
     }
 
     [Fact]

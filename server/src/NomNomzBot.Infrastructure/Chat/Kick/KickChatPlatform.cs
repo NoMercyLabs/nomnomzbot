@@ -105,19 +105,57 @@ public sealed class KickChatPlatform : IChatPlatform
             cancellationToken
         );
 
-    public Task UnbanUserAsync(
+    public async Task<ChatUnbanOutcome> UnbanUserAsync(
         Guid broadcasterId,
         string userId,
         CancellationToken cancellationToken = default
-    ) =>
-        ModerateAsync(
-            broadcasterId,
-            userId,
-            "unban",
-            (access, target, ct) =>
-                _client.UnbanUserAsync(access.AccessToken, access.BroadcasterUserId, target, ct),
+    )
+    {
+        if (
+            !long.TryParse(
+                userId,
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out long target
+            )
+        )
+        {
+            _logger.LogWarning(
+                "Kick unban skipped for {BroadcasterId}: '{UserId}' is not a numeric Kick user id",
+                broadcasterId,
+                userId
+            );
+            return ChatUnbanOutcome.Failed;
+        }
+
+        KickAccess? access = await _tokens.GetAsync(broadcasterId, cancellationToken);
+        if (access is null)
+        {
+            LogNoToken("unban", broadcasterId);
+            return ChatUnbanOutcome.Failed;
+        }
+
+        Result result = await _client.UnbanUserAsync(
+            access.AccessToken,
+            access.BroadcasterUserId,
+            target,
             cancellationToken
         );
+        if (result.IsSuccess)
+            return ChatUnbanOutcome.Success;
+
+        if (result.ErrorCode == "NOT_FOUND")
+            return ChatUnbanOutcome.NotFound;
+
+        _logger.LogWarning(
+            "Kick unban failed for {UserId} on {BroadcasterId}: {Error} ({Code})",
+            userId,
+            broadcasterId,
+            result.ErrorMessage,
+            result.ErrorCode
+        );
+        return ChatUnbanOutcome.Failed;
+    }
 
     public async Task DeleteMessageAsync(
         Guid broadcasterId,
