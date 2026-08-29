@@ -43,6 +43,9 @@ import bot.nomnomz.dashboard.core.network.PipelineNode
 import bot.nomnomz.dashboard.core.network.PipelineStep
 import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.PipelinesApi
+import bot.nomnomz.dashboard.core.network.PipelineTestRunBody
+import bot.nomnomz.dashboard.core.network.CapturedEffect
+import bot.nomnomz.dashboard.core.network.TestRunResult
 import bot.nomnomz.dashboard.core.network.UpdatePickListBody
 import bot.nomnomz.dashboard.core.network.UpdatePipelineBody
 import bot.nomnomz.dashboard.core.network.WebhookTestResult
@@ -431,6 +434,119 @@ class PipelinesControllerTest {
         assertEquals(listOf("Chat", "Media"), palette.actionsByCategory.map { it.first })
     }
 
+    // ── S047 dry-run (Test button) ──────────────────────────────────────────────
+
+    @Test
+    fun test_run_sends_the_typed_in_variables_and_surfaces_the_captured_result() = runTest {
+        val pipelineId = "00000009-0000-0000-0000-000000000009"
+        val api =
+            RecordingPipelinesApi(
+                listOf(PipelineSummary(id = pipelineId, name = "Scenes", isEnabled = true)),
+                graphs = mutableMapOf(pipelineId to PipelineGraph().toJson()),
+                testRunResult =
+                    ApiResult.Ok(
+                        TestRunResult(
+                            success = true,
+                            durationMs = 42,
+                            hostCallCount = 3,
+                            chatOutput = listOf("hello viewer"),
+                            capturedEffects =
+                                listOf(
+                                    CapturedEffect(name = "send_message", argsPreview = "hello viewer"),
+                                    CapturedEffect(name = "timeout", argsPreview = "user=viewer1 seconds=60"),
+                                ),
+                        )
+                    ),
+            )
+        val controller = pipelinesController(okChannel(), api)
+        controller.load()
+        controller.openEditor(PipelineSummary(id = pipelineId, name = "Scenes"))
+
+        controller.testRun(mapOf("target" to "viewer1"))
+
+        // The exact request the API received — proves the variables the operator typed reached the backend.
+        assertEquals(1, api.testRunRequests.size)
+        val (sentId, sentBody) = api.testRunRequests.single()
+        assertEquals(pipelineId, sentId)
+        assertEquals(mapOf("target" to "viewer1"), sentBody.variables)
+
+        // The captured result is surfaced in full — not merely "it ran": duration, host calls, chat output, and
+        // BOTH captured effects with their exact shape (name + args), never performed for real.
+        val state: PipelinesState = controller.state.value
+        assertTrue(state is PipelinesState.Editing)
+        val editing = state as PipelinesState.Editing
+        assertFalse(editing.testRunning)
+        assertNull(editing.testError)
+        val result: TestRunResult = editing.testResult!!
+        assertTrue(result.success)
+        assertEquals(42, result.durationMs)
+        assertEquals(3, result.hostCallCount)
+        assertEquals(listOf("hello viewer"), result.chatOutput)
+        assertEquals(2, result.capturedEffects.size)
+        assertEquals("send_message", result.capturedEffects[0].name)
+        assertEquals("hello viewer", result.capturedEffects[0].argsPreview)
+        assertEquals("timeout", result.capturedEffects[1].name)
+        assertEquals("user=viewer1 seconds=60", result.capturedEffects[1].argsPreview)
+    }
+
+    @Test
+    fun test_run_surfaces_a_backend_failure_without_losing_the_open_chain() = runTest {
+        val pipelineId = "0000000a-0000-0000-0000-00000000000a"
+        val api =
+            RecordingPipelinesApi(
+                listOf(PipelineSummary(id = pipelineId, name = "Raid response", isEnabled = true)),
+                graphs = mutableMapOf(pipelineId to PipelineGraph(listOf(PipelineStep(PipelineNode("send_message")))).toJson()),
+                testRunResult = ApiResult.Failure(ApiError(500, "SANDBOX_ERROR", "the sandbox crashed")),
+            )
+        val controller = pipelinesController(okChannel(), api)
+        controller.load()
+        controller.openEditor(PipelineSummary(id = pipelineId, name = "Raid response"))
+
+        controller.testRun(emptyMap())
+
+        val state: PipelinesState = controller.state.value
+        assertTrue(state is PipelinesState.Editing)
+        val editing = state as PipelinesState.Editing
+        assertFalse(editing.testRunning)
+        assertEquals("the sandbox crashed", editing.testError)
+        assertNull(editing.testResult)
+        // The chain the operator was editing is untouched by the failed dry-run.
+        assertEquals(1, editing.steps.size)
+        assertEquals("send_message", editing.steps.single().action.type)
+    }
+
+    @Test
+    fun test_run_never_performs_a_real_side_effect_only_records_the_captured_intent() = runTest {
+        // The whole point of S047: a dry-run must never reach a real chat/moderation/music surface. This proves
+        // the CONTRACT the controller relies on — the captured effect for a moderation action carries the intent
+        // (who/what/how long) as DATA, not as a real Twitch API call the fake could observe firing.
+        val pipelineId = "0000000b-0000-0000-0000-00000000000b"
+        val api =
+            RecordingPipelinesApi(
+                listOf(PipelineSummary(id = pipelineId, name = "Mod chain", isEnabled = true)),
+                graphs = mutableMapOf(pipelineId to PipelineGraph().toJson()),
+                testRunResult =
+                    ApiResult.Ok(
+                        TestRunResult(
+                            success = true,
+                            capturedEffects = listOf(CapturedEffect(name = "play_music", argsPreview = "trackId=abc123")),
+                        )
+                    ),
+            )
+        val controller = pipelinesController(okChannel(), api)
+        controller.load()
+        controller.openEditor(PipelineSummary(id = pipelineId, name = "Mod chain"))
+
+        controller.testRun(emptyMap())
+
+        val editing = controller.state.value as PipelinesState.Editing
+        val effect: CapturedEffect = editing.testResult!!.capturedEffects.single()
+        assertEquals("play_music", effect.name)
+        assertEquals("trackId=abc123", effect.argsPreview)
+        // No update() call was made by the test-run path — a dry-run never persists the chain either.
+        assertTrue(api.updated.none { it.first == pipelineId })
+    }
+
     private fun okChannel(): ChannelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1")))
 }
 
@@ -530,6 +646,7 @@ private class RecordingPipelinesApi(
     private val graphs: MutableMap<String, kotlinx.serialization.json.JsonObject> = mutableMapOf(),
     private val writeResult: ApiResult<Unit> = ApiResult.Ok(Unit),
     private val blastRadiusResult: ApiResult<PipelineBlastRadiusSummary> = ApiResult.Ok(PipelineBlastRadiusSummary()),
+    private val testRunResult: ApiResult<TestRunResult> = ApiResult.Ok(TestRunResult(success = true)),
     private val catalogue: PipelineCatalogueRemote =
         PipelineCatalogueRemote(
             actions = listOf(PipelineActionDescriptor("send_message", LocalizedTextDto("Chat"), LocalizedTextDto("Send a chat message"))),
@@ -613,4 +730,12 @@ private class RecordingPipelinesApi(
 
     override suspend fun blastRadius(channelId: String, id: String): ApiResult<PipelineBlastRadiusSummary> =
         blastRadiusResult
+
+    /** Every test-run request the controller sent — proves the exact variables reached the API, once per call. */
+    val testRunRequests: MutableList<Pair<String, PipelineTestRunBody>> = mutableListOf()
+
+    override suspend fun testRun(channelId: String, id: String, body: PipelineTestRunBody): ApiResult<TestRunResult> {
+        testRunRequests += id to body
+        return testRunResult
+    }
 }

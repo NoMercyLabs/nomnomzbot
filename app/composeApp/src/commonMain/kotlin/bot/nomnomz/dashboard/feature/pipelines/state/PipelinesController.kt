@@ -44,8 +44,10 @@ import bot.nomnomz.dashboard.core.network.PipelineGraph
 import bot.nomnomz.dashboard.core.network.PipelineNode
 import bot.nomnomz.dashboard.core.network.PipelineStep
 import bot.nomnomz.dashboard.core.network.PipelineSummary
+import bot.nomnomz.dashboard.core.network.PipelineTestRunBody
 import bot.nomnomz.dashboard.core.network.PipelinesApi
 import bot.nomnomz.dashboard.core.network.RuntimePalette
+import bot.nomnomz.dashboard.core.network.TestRunResult
 import bot.nomnomz.dashboard.core.network.UpdatePipelineBody
 import bot.nomnomz.dashboard.core.network.WebhooksApi
 import bot.nomnomz.dashboard.core.network.WidgetSummary
@@ -360,6 +362,35 @@ class PipelinesController(
         }
     }
 
+    /**
+     * Dry-run the open pipeline with sample [variables] (S047). Effects are captured, never performed (backend
+     * enforces this). Surfaces the captured result — chat output + effects — inline over the editor, or the
+     * failure reason. Only applies while the editor is open.
+     */
+    suspend fun testRun(variables: Map<String, String>) {
+        val channel: String = channelId ?: return failEdit(NoChannelError)
+        val editing: PipelinesState.Editing = _state.value as? PipelinesState.Editing ?: return
+        val pipelineId: String = editing.pipelineId
+        _state.value = editing.copy(testRunning = true, testError = null)
+
+        when (
+            val result: ApiResult<TestRunResult> =
+                pipelinesApi.testRun(channel, pipelineId, PipelineTestRunBody(variables))
+        ) {
+            is ApiResult.Ok -> updateEditing(pipelineId) { it.copy(testRunning = false, testResult = result.value, testError = null) }
+            is ApiResult.Failure -> updateEditing(pipelineId) { it.copy(testRunning = false, testError = result.error.message) }
+        }
+    }
+
+    // Apply [transform] to the open editor state only if it is still the same pipeline (guards against the
+    // user closing/switching pipelines mid-run).
+    private fun updateEditing(pipelineId: String, transform: (PipelinesState.Editing) -> PipelinesState.Editing) {
+        val current: PipelinesState = _state.value
+        if (current is PipelinesState.Editing && current.pipelineId == pipelineId) {
+            _state.value = transform(current)
+        }
+    }
+
     // ── internals ────────────────────────────────────────────────────────────
 
     private suspend fun refetchEditing(channel: String, id: String) {
@@ -438,6 +469,8 @@ sealed interface PipelinesState {
      * the editor header), the ordered [steps] being edited in memory, the backend-sourced block [palette] the
      * step dialog offers, the cross-feature picker [options] (outbound endpoints / pick-lists), and an
      * [actionError] when the last save failed (kept over the edited chain so unsaved work is not lost).
+     * [testRunning]/[testResult]/[testError] track the S047 dry-run (Test button): the backend runs the saved
+     * chain for real but CAPTURES every side-effecting action instead of performing it.
      */
     data class Editing(
         val pipelineId: String,
@@ -446,6 +479,9 @@ sealed interface PipelinesState {
         val palette: RuntimePalette,
         val options: EditorOptions = EditorOptions(),
         val actionError: String? = null,
+        val testRunning: Boolean = false,
+        val testResult: TestRunResult? = null,
+        val testError: String? = null,
     ) : PipelinesState
 
     data class Error(val detail: String) : PipelinesState

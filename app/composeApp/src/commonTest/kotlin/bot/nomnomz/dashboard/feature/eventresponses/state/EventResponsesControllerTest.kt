@@ -377,6 +377,13 @@ private object StubPipelinesApi : PipelinesApi {
     override suspend fun delete(channelId: String, id: String): ApiResult<Unit> = ApiResult.Ok(Unit)
     override suspend fun blastRadius(channelId: String, id: String): ApiResult<bot.nomnomz.dashboard.core.network.PipelineBlastRadiusSummary> =
         ApiResult.Ok(bot.nomnomz.dashboard.core.network.PipelineBlastRadiusSummary())
+
+    override suspend fun testRun(
+        channelId: String,
+        id: String,
+        body: bot.nomnomz.dashboard.core.network.PipelineTestRunBody,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.TestRunResult> =
+        ApiResult.Ok(bot.nomnomz.dashboard.core.network.TestRunResult())
 }
 
 // A widgets fake for the event-responses tests: list() returns empty (the overlay picker just needs to load),

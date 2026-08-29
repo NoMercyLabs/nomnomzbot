@@ -2486,6 +2486,24 @@
     <string name="pipelines_generic_remove">Parameter verwijderen</string>
     <string name="pipelines_picker_choose">Kiezen…</string>
 
+    <!-- Testknop (S047 dry-run): de keten draait echt, effecten worden vastgelegd, nooit uitgevoerd. -->
+    <string name="pipelines_testrun_action">Test</string>
+    <string name="pipelines_testrun_title">Testrun</string>
+    <string name="pipelines_testrun_subtitle">Voer deze pipeline uit met voorbeeldvariabelen. Effecten worden vastgelegd, nooit uitgevoerd.</string>
+    <string name="pipelines_testrun_vars_label">Variabelen (één sleutel=waarde per regel)</string>
+    <string name="pipelines_testrun_run">Test uitvoeren</string>
+    <string name="pipelines_testrun_running">Bezig…</string>
+    <string name="pipelines_testrun_close">Sluiten</string>
+    <string name="pipelines_testrun_ok">Geslaagd</string>
+    <string name="pipelines_testrun_failed">Mislukt</string>
+    <string name="pipelines_testrun_meta">%1$d ms · %2$d hostaanroep(en)</string>
+    <string name="pipelines_testrun_error">Testrun mislukt: %1$s</string>
+    <string name="pipelines_testrun_chat_heading">Vastgelegde chatuitvoer</string>
+    <string name="pipelines_testrun_chat_empty">Geen chatuitvoer.</string>
+    <string name="pipelines_testrun_effects_heading">Vastgelegde effecten</string>
+    <string name="pipelines_testrun_effects_empty">Geen effecten vastgelegd.</string>
+    <string name="pipelines_effect_row_type">Effect</string>
+
     <!-- Schrijfvergrendeling (frontend-ia.md §7): de reden dat een knop is uitgeschakeld voor een gebruiker
          onder de beheerdrempel. %1$s is de minimale rol, uit de shell_role_*-labels hierboven. -->
     <string name="manage_gate_requires">Vereist %1$s</string>

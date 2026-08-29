@@ -2490,6 +2490,24 @@
     <string name="pipelines_generic_remove">Remove parameter</string>
     <string name="pipelines_picker_choose">Choose…</string>
 
+    <!-- Test button (S047 dry-run): the chain runs for real, side effects are captured, never performed. -->
+    <string name="pipelines_testrun_action">Test</string>
+    <string name="pipelines_testrun_title">Test run</string>
+    <string name="pipelines_testrun_subtitle">Run this pipeline with sample variables. Effects are captured, never performed.</string>
+    <string name="pipelines_testrun_vars_label">Variables (one key=value per line)</string>
+    <string name="pipelines_testrun_run">Run test</string>
+    <string name="pipelines_testrun_running">Running…</string>
+    <string name="pipelines_testrun_close">Close</string>
+    <string name="pipelines_testrun_ok">Success</string>
+    <string name="pipelines_testrun_failed">Failed</string>
+    <string name="pipelines_testrun_meta">%1$d ms · %2$d host call(s)</string>
+    <string name="pipelines_testrun_error">Test run failed: %1$s</string>
+    <string name="pipelines_testrun_chat_heading">Captured chat output</string>
+    <string name="pipelines_testrun_chat_empty">No chat output.</string>
+    <string name="pipelines_testrun_effects_heading">Captured effects</string>
+    <string name="pipelines_testrun_effects_empty">No effects captured.</string>
+    <string name="pipelines_effect_row_type">Effect</string>
+
     <!-- Write-gate (frontend-ia.md §7): the reason a control is disabled for a caller below its manage floor.
          %1$s is the minimum role, filled from the shell_role_* labels above. -->
     <string name="manage_gate_requires">Requires %1$s</string>
