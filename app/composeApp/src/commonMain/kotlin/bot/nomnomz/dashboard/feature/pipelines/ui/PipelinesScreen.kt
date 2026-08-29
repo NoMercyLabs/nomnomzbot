@@ -42,6 +42,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import androidx.compose.material3.Text
+import bot.nomnomz.dashboard.core.designsystem.component.TemplateHelpersLink
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -88,6 +89,8 @@ import bot.nomnomz.dashboard.core.network.PickerKind
 import bot.nomnomz.dashboard.core.network.PipelineNode
 import bot.nomnomz.dashboard.core.network.PipelineStep
 import bot.nomnomz.dashboard.core.network.PipelineSummary
+import bot.nomnomz.dashboard.core.network.TemplateHelperContext
+import bot.nomnomz.dashboard.core.network.TemplateHelpersApi
 import bot.nomnomz.dashboard.core.network.RuntimePalette
 import bot.nomnomz.dashboard.core.network.UserRoleOptions
 import bot.nomnomz.dashboard.feature.pipelines.state.EditorOptions
@@ -295,6 +298,7 @@ import org.jetbrains.compose.resources.stringResource
 fun PipelinesScreen(
     controller: PipelinesController,
     role: ManagementRole?,
+    templateHelpersApi: TemplateHelpersApi,
     hubEvents: SharedFlow<HubEvent>? = null,
     historyController: bot.nomnomz.dashboard.feature.pipelines.state.PipelineExecutionHistoryController? = null,
     heldActionKeys: Set<String> = emptySet(),
@@ -360,7 +364,13 @@ fun PipelinesScreen(
                     onOpenHistory = { showHistory = true },
                 )
             is PipelinesState.Editing ->
-                ChainEditor(editing = current, manage = manage, controller = controller, scope = scope)
+                ChainEditor(
+                    editing = current,
+                    manage = manage,
+                    controller = controller,
+                    scope = scope,
+                    templateHelpersApi = templateHelpersApi,
+                )
         }
     }
 }
@@ -581,6 +591,7 @@ private fun ChainEditor(
     manage: ManageDecision,
     controller: PipelinesController,
     scope: kotlinx.coroutines.CoroutineScope,
+    templateHelpersApi: TemplateHelpersApi,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -676,6 +687,7 @@ private fun ChainEditor(
             initial = target.step,
             palette = editing.palette,
             options = editing.options,
+            templateHelpersApi = templateHelpersApi,
             onDismiss = { stepDialog = null },
             onSubmit = { step ->
                 val editIndex: Int? = target.index
@@ -814,6 +826,7 @@ private fun StepFormDialog(
     initial: PipelineStep?,
     palette: RuntimePalette,
     options: EditorOptions,
+    templateHelpersApi: TemplateHelpersApi,
     onDismiss: () -> Unit,
     onSubmit: (PipelineStep) -> Unit,
 ) {
@@ -870,6 +883,7 @@ private fun StepFormDialog(
                         typed = actionParams,
                         generic = actionGeneric,
                         options = options,
+                        templateHelpersApi = templateHelpersApi,
                     )
                 }
 
@@ -890,6 +904,7 @@ private fun StepFormDialog(
                         typed = conditionParams,
                         generic = conditionGeneric,
                         options = options,
+                        templateHelpersApi = templateHelpersApi,
                     )
                 }
 
@@ -941,6 +956,7 @@ private fun BlockParamEditor(
     typed: MutableMap<String, String>,
     generic: SnapshotStateList<GenericEntry>,
     options: EditorOptions,
+    templateHelpersApi: TemplateHelpersApi,
 ) {
     if (block.description.isNotBlank()) {
         val tokens = LocalTokens.current
@@ -948,14 +964,19 @@ private fun BlockParamEditor(
         Text(text = resolveSchemaString(block.description), style = typography.xs, color = tokens.mutedForeground)
     }
     if (block.hasHints) {
-        TypedParamFields(block = block, params = typed, options = options)
+        TypedParamFields(block = block, params = typed, options = options, templateHelpersApi = templateHelpersApi)
     } else {
-        GenericParamFields(entries = generic)
+        GenericParamFields(entries = generic, templateHelpersApi = templateHelpersApi)
     }
 }
 
 @Composable
-private fun TypedParamFields(block: PaletteBlock, params: MutableMap<String, String>, options: EditorOptions) {
+private fun TypedParamFields(
+    block: PaletteBlock,
+    params: MutableMap<String, String>,
+    options: EditorOptions,
+    templateHelpersApi: TemplateHelpersApi,
+) {
     val spacing = LocalSpacing.current
 
     Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
@@ -1069,14 +1090,28 @@ private fun TypedParamFields(block: PaletteBlock, params: MutableMap<String, Str
                         onArgsJsonChange = { params["args"] = it },
                     )
                 block.type == "run_pipeline" && field.key == "args" -> Unit
+                // Every other free-text field is a candidate template body (send_message/send_reply's
+                // "message", TTS/Discord text, …) — a pipeline can be bound to a chat command, an EventSub
+                // trigger, or a timer, so it gets the broadest helper set (TemplateHelperContext.Pipeline,
+                // S042/S043) rather than guessing which trigger this step will end up wired to.
                 else ->
-                    AppTextField(
-                        value = params[field.key].orEmpty(),
-                        onValueChange = { params[field.key] = it },
-                        label = fieldLabelWithRequired(field),
-                        supportingText = fieldHelpText(field),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+                        AppTextField(
+                            value = params[field.key].orEmpty(),
+                            onValueChange = { params[field.key] = it },
+                            label = fieldLabelWithRequired(field),
+                            supportingText = fieldHelpText(field),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        TemplateHelpersLink(
+                            context = TemplateHelperContext.Pipeline,
+                            api = templateHelpersApi,
+                            onInsert = { token ->
+                                val current: String = params[field.key].orEmpty()
+                                params[field.key] = if (current.isBlank()) token else "$current $token"
+                            },
+                        )
+                    }
             }
         }
     }
@@ -1103,7 +1138,7 @@ private fun BoolField(label: String, checked: Boolean, onCheckedChange: (Boolean
 // The generic key/value editor for a backend block we don't model — every param is a free-form key + value row,
 // so any discovered action stays configurable. Keys map to the action's backend param names.
 @Composable
-private fun GenericParamFields(entries: SnapshotStateList<GenericEntry>) {
+private fun GenericParamFields(entries: SnapshotStateList<GenericEntry>, templateHelpersApi: TemplateHelpersApi) {
     val spacing = LocalSpacing.current
     val addLabel: String = stringResource(Res.string.pipelines_generic_add)
 
@@ -1141,6 +1176,19 @@ private fun GenericParamFields(entries: SnapshotStateList<GenericEntry>) {
             onClick = { entries.add(GenericEntry("", "")) },
             tint = LocalTokens.current.primary,
         )
+        if (entries.isNotEmpty()) {
+            // Inserts into the last row's value — a discovered action's param values can be templated the same
+            // as a modeled block's, we just don't know which row is the text one, so we default to the most
+            // recently added row.
+            TemplateHelpersLink(
+                context = TemplateHelperContext.Pipeline,
+                api = templateHelpersApi,
+                onInsert = { token ->
+                    val last: GenericEntry = entries.last()
+                    last.value = if (last.value.isBlank()) token else "${last.value} $token"
+                },
+            )
+        }
     }
 }
 
