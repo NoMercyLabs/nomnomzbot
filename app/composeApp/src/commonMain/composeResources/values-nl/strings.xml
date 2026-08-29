@@ -4283,4 +4283,10 @@
     <string name="integrations_disconnect_message">Het verbreken van %1$s verwijdert je automatisering niet - het stopt ermee. Alles hieronder behoudt zijn instellingen en werkt gewoon niet meer tot je opnieuw koppelt.</string>
     <string name="integrations_disconnect_confirm">Verbreken</string>
     <string name="integrations_disconnect_cancel">Gekoppeld houden</string>
+    <string name="template_helpers_link_label">Alle helpers…</string>
+    <string name="template_helpers_dialog_title">Alle sjabloonhelpers</string>
+    <string name="template_helpers_dialog_description">Doorzoek elke placeholder die hier geldig is, gegroepeerd per naamruimte. Klik op een helper om die in te voegen.</string>
+    <string name="template_helpers_dialog_search_placeholder">Helpers zoeken</string>
+    <string name="template_helpers_dialog_empty">Geen helpers komen overeen met je zoekopdracht.</string>
+    <string name="template_helpers_dialog_error">De helperlijst kon niet worden geladen. Probeer het opnieuw.</string>
 </resources>

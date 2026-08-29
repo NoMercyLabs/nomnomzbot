@@ -4298,4 +4298,10 @@
     <string name="integrations_disconnect_message">Disconnecting %1$s does not delete your automation - it stops it working. Everything below keeps its settings and simply stops running until you reconnect.</string>
     <string name="integrations_disconnect_confirm">Disconnect</string>
     <string name="integrations_disconnect_cancel">Keep connected</string>
+    <string name="template_helpers_link_label">All helpers…</string>
+    <string name="template_helpers_dialog_title">All template helpers</string>
+    <string name="template_helpers_dialog_description">Search every placeholder valid here, grouped by namespace. Click one to insert it.</string>
+    <string name="template_helpers_dialog_search_placeholder">Search helpers</string>
+    <string name="template_helpers_dialog_empty">No helpers match your search.</string>
+    <string name="template_helpers_dialog_error">Could not load the helper list. Try again.</string>
 </resources>

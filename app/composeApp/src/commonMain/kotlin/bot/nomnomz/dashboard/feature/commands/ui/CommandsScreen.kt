@@ -61,6 +61,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
+import bot.nomnomz.dashboard.core.designsystem.component.TemplateHelpersLink
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.AppIcon
@@ -73,6 +74,8 @@ import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.network.BuiltinCommand
 import bot.nomnomz.dashboard.core.network.CommandSummary
 import bot.nomnomz.dashboard.core.network.PipelineSummary
+import bot.nomnomz.dashboard.core.network.TemplateHelperContext
+import bot.nomnomz.dashboard.core.network.TemplateHelpersApi
 import bot.nomnomz.dashboard.core.network.ResourceUsage
 import bot.nomnomz.dashboard.feature.picklists.ui.PickListInsertMenu
 import bot.nomnomz.dashboard.feature.commands.state.CommandInput
@@ -159,6 +162,7 @@ import org.jetbrains.compose.resources.stringResource
 fun CommandsScreen(
     controller: CommandsController,
     role: ManagementRole?,
+    templateHelpersApi: TemplateHelpersApi,
     hubEvents: SharedFlow<HubEvent>? = null,
 ) {
     val state: CommandsState by controller.state.collectAsStateWithLifecycle()
@@ -235,6 +239,7 @@ fun CommandsScreen(
             editor = open,
             pipelines = pipelines,
             pickListNames = pickListNames,
+            templateHelpersApi = templateHelpersApi,
             onDismiss = { editor = null },
             onSubmit = { input ->
                 editor = null
@@ -558,6 +563,7 @@ private fun CommandFormDialog(
     editor: CommandEditor,
     pipelines: List<PipelineSummary>,
     pickListNames: List<String>,
+    templateHelpersApi: TemplateHelpersApi,
     onDismiss: () -> Unit,
     onSubmit: (CommandInput) -> Unit,
 ) {
@@ -707,6 +713,11 @@ private fun CommandFormDialog(
                                 onValueChange = { response = it },
                                 modifier = Modifier.fillMaxWidth(),
                                 label = stringResource(Res.string.commands_dialog_response_label),
+                            )
+                            TemplateHelpersLink(
+                                context = TemplateHelperContext.Command,
+                                api = templateHelpersApi,
+                                onInsert = { token -> response += token },
                             )
                             // Insert a `{list.pick.<name>}` token — renders only when the channel has such lists.
                             PickListInsertMenu(names = pickListNames, onInsert = { response += it })

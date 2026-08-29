@@ -11,7 +11,6 @@
 package bot.nomnomz.dashboard.feature.eventresponses.ui
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,7 +18,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Text
@@ -51,6 +49,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
+import bot.nomnomz.dashboard.core.designsystem.component.TemplateHelpersLink
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.AppIcon
@@ -64,6 +63,8 @@ import bot.nomnomz.dashboard.core.i18n.resolveSchemaString
 import bot.nomnomz.dashboard.core.network.EventResponsePreset
 import bot.nomnomz.dashboard.core.network.EventResponseSummary
 import bot.nomnomz.dashboard.core.network.PipelineSummary
+import bot.nomnomz.dashboard.core.network.TemplateHelperContext
+import bot.nomnomz.dashboard.core.network.TemplateHelpersApi
 import bot.nomnomz.dashboard.core.network.WidgetSummary
 import bot.nomnomz.dashboard.feature.eventresponses.state.EventResponsesController
 import bot.nomnomz.dashboard.feature.eventresponses.state.EventResponsesState
@@ -100,7 +101,6 @@ import nomnomzbot.composeapp.generated.resources.event_responses_type_chat_messa
 import nomnomzbot.composeapp.generated.resources.event_responses_type_none
 import nomnomzbot.composeapp.generated.resources.event_responses_type_overlay
 import nomnomzbot.composeapp.generated.resources.event_responses_type_pipeline
-import nomnomzbot.composeapp.generated.resources.event_responses_variables_label
 import nomnomzbot.composeapp.generated.resources.event_type_channel_cheer
 import nomnomzbot.composeapp.generated.resources.event_type_channel_follow
 import nomnomzbot.composeapp.generated.resources.event_type_channel_points_redemption
@@ -124,6 +124,7 @@ import org.jetbrains.compose.resources.stringResource
 fun EventResponsesScreen(
     controller: EventResponsesController,
     role: ManagementRole?,
+    templateHelpersApi: TemplateHelpersApi,
 ) {
     val state: EventResponsesState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
@@ -164,6 +165,7 @@ fun EventResponsesScreen(
             pipelines = ready?.pipelines ?: emptyList(),
             pickListNames = ready?.pickListNames ?: emptyList(),
             widgets = ready?.widgets ?: emptyList(),
+            templateHelpersApi = templateHelpersApi,
             loadDetail = { controller.detail(response.eventType) },
             onDismiss = { editing = null },
             onSave = { responseType, message, pipelineId, widgetId ->
@@ -310,6 +312,7 @@ private fun EditDialog(
     pipelines: List<PipelineSummary>,
     pickListNames: List<String>,
     widgets: List<WidgetSummary>,
+    templateHelpersApi: TemplateHelpersApi,
     loadDetail: suspend () -> EventResponse?,
     onDismiss: () -> Unit,
     onSave: (responseType: String, message: String?, pipelineId: String?, widgetId: String?) -> Unit,
@@ -416,8 +419,9 @@ private fun EditDialog(
                         label = stringResource(Res.string.event_responses_dialog_message_label),
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    VariableChips(
-                        variables = preset?.variables.orEmpty(),
+                    TemplateHelpersLink(
+                        context = TemplateHelperContext.EventResponse,
+                        api = templateHelpersApi,
                         onInsert = { token -> message = appendToken(message, token) },
                     )
                     // Insert a random-response token (`{list.pick.<name>}`) — renders only when lists exist.
@@ -525,31 +529,6 @@ private fun EditDialog(
             onDismiss = { confirmingReset = false },
             destructive = true,
         )
-    }
-}
-
-// Insert chips for the event's seeded template variables — clicking one appends `{var}` to the message so a
-// streamer discovers what they can reference without hand-typing.
-@Composable
-private fun VariableChips(variables: List<String>, onInsert: (String) -> Unit) {
-    if (variables.isEmpty()) return
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-        Text(text = stringResource(Res.string.event_responses_variables_label), style = typography.xs, color = tokens.mutedForeground)
-        Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(spacing.s1),
-        ) {
-            variables.forEach { variable ->
-                val token = "{$variable}"
-                TextButton(onClick = { onInsert(token) }) {
-                    Text(text = token, style = typography.xs, color = tokens.primary, maxLines = 1)
-                }
-            }
-        }
     }
 }
 

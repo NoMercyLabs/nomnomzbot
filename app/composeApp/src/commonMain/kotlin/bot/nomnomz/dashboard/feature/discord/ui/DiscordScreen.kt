@@ -57,6 +57,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
+import bot.nomnomz.dashboard.core.designsystem.component.TemplateHelpersLink
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.icon.CheckCircleGlyph
@@ -74,6 +75,8 @@ import bot.nomnomz.dashboard.core.network.DiscordGuildConnection
 import bot.nomnomz.dashboard.core.network.DiscordGuildRole
 import bot.nomnomz.dashboard.core.network.DiscordNotificationConfig
 import bot.nomnomz.dashboard.core.network.DiscordNotificationRole
+import bot.nomnomz.dashboard.core.network.TemplateHelperContext
+import bot.nomnomz.dashboard.core.network.TemplateHelpersApi
 import bot.nomnomz.dashboard.feature.discord.state.DiscordController
 import bot.nomnomz.dashboard.feature.discord.state.DiscordState
 import bot.nomnomz.dashboard.feature.discord.state.FieldUpdate
@@ -99,7 +102,6 @@ import nomnomzbot.composeapp.generated.resources.discord_dialog_channel_hint
 import nomnomzbot.composeapp.generated.resources.discord_dialog_channel_picker
 import nomnomzbot.composeapp.generated.resources.discord_dialog_embed_description_label
 import nomnomzbot.composeapp.generated.resources.discord_dialog_embed_title_label
-import nomnomzbot.composeapp.generated.resources.discord_dialog_helper_hint
 import nomnomzbot.composeapp.generated.resources.discord_dialog_ping_role_label
 import nomnomzbot.composeapp.generated.resources.discord_dialog_ping_role_none
 import nomnomzbot.composeapp.generated.resources.discord_dialog_trigger_hint
@@ -249,7 +251,7 @@ private fun categoryNameFor(channel: DiscordGuildChannel, allChannels: List<Disc
 // after every successful write so the page reflects the backend. When no guild is linked, it shows a clear
 // empty state pointing the operator at the Integrations page to connect Discord.
 @Composable
-fun DiscordScreen(controller: DiscordController, role: ManagementRole?) {
+fun DiscordScreen(controller: DiscordController, role: ManagementRole?, templateHelpersApi: TemplateHelpersApi) {
     val state: DiscordState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
@@ -357,6 +359,7 @@ fun DiscordScreen(controller: DiscordController, role: ManagementRole?) {
             editor = open,
             channels = channelsByConnection[open.connectionId] ?: PickerState.Loading,
             roles = guildRolesByConnection[open.connectionId] ?: PickerState.Loading,
+            templateHelpersApi = templateHelpersApi,
             onRetryChannels = {
                 scope.launch {
                     channelsByConnection =
@@ -949,6 +952,7 @@ private fun RuleFormDialog(
     editor: RuleEditor,
     channels: PickerState<List<DiscordGuildChannel>>,
     roles: PickerState<List<DiscordGuildRole>>,
+    templateHelpersApi: TemplateHelpersApi,
     onRetryChannels: () -> Unit,
     onRetryRoles: () -> Unit,
     onDismiss: () -> Unit,
@@ -1031,10 +1035,10 @@ private fun RuleFormDialog(
                     modifier = Modifier.fillMaxWidth(),
                     label = stringResource(Res.string.discord_dialog_message_label),
                 )
-                Text(
-                    text = stringResource(Res.string.discord_dialog_helper_hint),
-                    style = typography.xs,
-                    color = tokens.mutedForeground,
+                TemplateHelpersLink(
+                    context = TemplateHelperContext.Discord,
+                    api = templateHelpersApi,
+                    onInsert = { token -> message = if (message.isBlank()) token else "$message $token" },
                 )
 
                 RolePickerField(
@@ -1056,6 +1060,13 @@ private fun RuleFormDialog(
                     onValueChange = { embedDescription = it },
                     modifier = Modifier.fillMaxWidth(),
                     label = stringResource(Res.string.discord_dialog_embed_description_label),
+                )
+                TemplateHelpersLink(
+                    context = TemplateHelperContext.Discord,
+                    api = templateHelpersApi,
+                    onInsert = { token ->
+                        embedDescription = if (embedDescription.isBlank()) token else "$embedDescription $token"
+                    },
                 )
 
                 Row(

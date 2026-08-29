@@ -71,6 +71,7 @@ import bot.nomnomz.dashboard.core.network.WebhooksApi
 import bot.nomnomz.dashboard.core.network.CustomEventsApi
 import bot.nomnomz.dashboard.core.network.RestCustomEventsApi
 import bot.nomnomz.dashboard.core.network.PickListsApi
+import bot.nomnomz.dashboard.core.network.TemplateHelpersApi
 import bot.nomnomz.dashboard.core.network.QuotesApi
 import bot.nomnomz.dashboard.core.network.AssetsApi
 import bot.nomnomz.dashboard.core.network.RestAssetsApi
@@ -118,6 +119,7 @@ import bot.nomnomz.dashboard.core.network.RestBillingApi
 import bot.nomnomz.dashboard.core.network.RestCodeScriptsApi
 import bot.nomnomz.dashboard.core.network.RestWebhooksApi
 import bot.nomnomz.dashboard.core.network.RestPickListsApi
+import bot.nomnomz.dashboard.core.network.RestTemplateHelpersApi
 import bot.nomnomz.dashboard.core.network.RestQuotesApi
 import bot.nomnomz.dashboard.core.network.RestRewardsApi
 import bot.nomnomz.dashboard.core.network.RestRolesApi
@@ -333,6 +335,7 @@ class AppGraph {
     val chatApi: ChatApi = RestChatApi(apiClient)
     val quotesApi: QuotesApi = RestQuotesApi(apiClient)
     val pickListsApi: PickListsApi = RestPickListsApi(apiClient)
+    val templateHelpersApi: TemplateHelpersApi = RestTemplateHelpersApi(apiClient)
     val giveawaysApi: GiveawaysApi = RestGiveawaysApi(apiClient)
     val supportersApi: SupportersApi = RestSupportersApi(apiClient)
     val soundApi: SoundApi = RestSoundApi(apiClient)

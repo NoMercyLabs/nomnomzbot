@@ -55,6 +55,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
+import bot.nomnomz.dashboard.core.designsystem.component.TemplateHelpersLink
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
@@ -63,6 +64,8 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.ChatTrigger
 import bot.nomnomz.dashboard.core.network.PipelineSummary
+import bot.nomnomz.dashboard.core.network.TemplateHelperContext
+import bot.nomnomz.dashboard.core.network.TemplateHelpersApi
 import bot.nomnomz.dashboard.feature.chattriggers.state.ChatTriggersController
 import bot.nomnomz.dashboard.feature.chattriggers.state.ChatTriggersState
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
@@ -124,7 +127,11 @@ import org.jetbrains.compose.resources.stringResource
 // write. Server-side validation (a regex must compile; a trigger needs a response or a pipeline) surfaces inline
 // as the action-error banner.
 @Composable
-fun ChatTriggersScreen(controller: ChatTriggersController, role: ManagementRole?) {
+fun ChatTriggersScreen(
+    controller: ChatTriggersController,
+    role: ManagementRole?,
+    templateHelpersApi: TemplateHelpersApi,
+) {
     val state: ChatTriggersState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
@@ -182,6 +189,7 @@ fun ChatTriggersScreen(controller: ChatTriggersController, role: ManagementRole?
         TriggerFormDialog(
             editor = open,
             pipelines = pipelines,
+            templateHelpersApi = templateHelpersApi,
             onDismiss = { editor = null },
             onSubmit = { form ->
                 editor = null
@@ -392,6 +400,7 @@ private fun TriggerRow(
 private fun TriggerFormDialog(
     editor: TriggerEditor,
     pipelines: List<PipelineSummary>,
+    templateHelpersApi: TemplateHelpersApi,
     onDismiss: () -> Unit,
     onSubmit: (TriggerForm) -> Unit,
 ) {
@@ -526,6 +535,11 @@ private fun TriggerFormDialog(
                         onValueChange = { response = it },
                         modifier = Modifier.fillMaxWidth(),
                         label = stringResource(Res.string.chattriggers_dialog_response_label),
+                    )
+                    TemplateHelpersLink(
+                        context = TemplateHelperContext.EventResponse,
+                        api = templateHelpersApi,
+                        onInsert = { token -> response = if (response.isBlank()) token else "$response $token" },
                     )
                 }
 

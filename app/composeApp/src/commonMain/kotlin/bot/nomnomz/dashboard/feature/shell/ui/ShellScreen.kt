@@ -555,10 +555,11 @@ private fun ShellContent(
                     controller = graph.commandsController,
                     role = role,
                     hubEvents = graph.dashboardHubClient.events,
+                    templateHelpersApi = graph.templateHelpersApi,
                 )
             ShellRoute.ChatTriggers ->
-                ChatTriggersScreen(controller = graph.chatTriggersController, role = role)
-            ShellRoute.EventResponses -> EventResponsesScreen(controller = graph.eventResponsesController, role = role)
+                ChatTriggersScreen(controller = graph.chatTriggersController, role = role, templateHelpersApi = graph.templateHelpersApi)
+            ShellRoute.EventResponses -> EventResponsesScreen(controller = graph.eventResponsesController, role = role, templateHelpersApi = graph.templateHelpersApi)
             ShellRoute.Quotes -> QuotesScreen(
                     controller = graph.quotesController,
                     heldActionKeys = heldActionKeys,
@@ -574,6 +575,7 @@ private fun ShellContent(
                     controller = graph.timersController,
                     role = role,
                     hubEvents = graph.dashboardHubClient.events,
+                    templateHelpersApi = graph.templateHelpersApi,
                 )
             ShellRoute.Moderation ->
                 ModerationScreen(
@@ -614,13 +616,14 @@ private fun ShellContent(
             ShellRoute.Games -> GamesScreen(controller = graph.gamesController, role = role)
             ShellRoute.Giveaways ->
                 GiveawaysScreen(controller = graph.giveawaysController, heldActionKeys = heldActionKeys)
-            ShellRoute.Discord -> DiscordScreen(controller = graph.discordController, role = role)
+            ShellRoute.Discord -> DiscordScreen(controller = graph.discordController, role = role, templateHelpersApi = graph.templateHelpersApi)
             ShellRoute.Pipelines -> PipelinesScreen(
                     controller = graph.pipelinesController,
                     role = role,
                     hubEvents = graph.dashboardHubClient.events,
                     historyController = graph.pipelineExecutionHistoryController,
                     heldActionKeys = heldActionKeys,
+                    templateHelpersApi = graph.templateHelpersApi,
                 )
             ShellRoute.Schedule -> ScheduleScreen(controller = graph.scheduleController, role = role)
             ShellRoute.Roles -> RolesScreen(controller = graph.rolesController, role = role)

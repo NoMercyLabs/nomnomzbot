@@ -56,6 +56,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
+import bot.nomnomz.dashboard.core.designsystem.component.TemplateHelpersLink
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.AppIcon
@@ -65,6 +66,8 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.PipelineSummary
+import bot.nomnomz.dashboard.core.network.TemplateHelperContext
+import bot.nomnomz.dashboard.core.network.TemplateHelpersApi
 import bot.nomnomz.dashboard.core.network.ResourceUsage
 import bot.nomnomz.dashboard.core.network.TimerDetail
 import bot.nomnomz.dashboard.core.network.TimerSummary
@@ -117,7 +120,12 @@ import nomnomzbot.composeapp.generated.resources.timers_write_error
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
-fun TimersScreen(controller: TimersController, role: ManagementRole?, hubEvents: SharedFlow<HubEvent>? = null) {
+fun TimersScreen(
+    controller: TimersController,
+    role: ManagementRole?,
+    templateHelpersApi: TemplateHelpersApi,
+    hubEvents: SharedFlow<HubEvent>? = null,
+) {
     val state: TimersState by controller.state.collectAsStateWithLifecycle()
     val writeError: String? by controller.writeError.collectAsStateWithLifecycle()
     val timersUsage: ResourceUsage? by controller.timersUsage.collectAsStateWithLifecycle()
@@ -187,6 +195,7 @@ fun TimersScreen(controller: TimersController, role: ManagementRole?, hubEvents:
             detail = editDetail,
             pipelines = pipelines,
             pickListNames = pickListNames,
+            templateHelpersApi = templateHelpersApi,
             onDismiss = { editTarget = null },
             onConfirm = { name, messages, interval, minChatActivity, enabled, fireOnce, pipelineId ->
                 editTarget = null
@@ -435,6 +444,7 @@ private fun TimerEditDialog(
     detail: TimerDetail?,
     pipelines: List<PipelineSummary>,
     pickListNames: List<String>,
+    templateHelpersApi: TemplateHelpersApi,
     onDismiss: () -> Unit,
     onConfirm: (
         name: String,
@@ -531,6 +541,18 @@ private fun TimerEditDialog(
                         color = tokens.primary,
                     )
                 }
+                TemplateHelpersLink(
+                    context = TemplateHelperContext.Timer,
+                    api = templateHelpersApi,
+                    onInsert = { token ->
+                        messages =
+                            messages.toMutableList().also { list ->
+                                val last: Int = list.lastIndex
+                                val current: String = list[last]
+                                list[last] = if (current.isBlank()) token else "$current $token"
+                            }
+                    },
+                )
                 // Insert a random-response token (`{list.pick.<name>}`) into the last message row — renders only
                 // when the channel has random-response lists.
                 PickListInsertMenu(
