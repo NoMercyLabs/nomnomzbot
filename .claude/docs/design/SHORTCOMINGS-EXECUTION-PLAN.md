@@ -212,11 +212,27 @@ than each consumer needing their own clone-and-customize pass.
 - **S046-remaining** Authoring ergonomics, remaining 1 of 6 (regex compile check, command rename,
   create-and-bind pipeline everywhere, timer picker + interval presets + `LastFiredAt`/next index, and
   `code` tier → Code Scripts editor wiring all shipped and verified — f899b076/0b27859b/9bb4c0c5/
-  e6892957/3c4d89d6/cdabd605): branching (`ParentStepId`/`Branch`) in
-  the step dialog (domain model already ships the full tree — `PipelineStep.ParentStepId`/`Branch`/
-  `BlockKind` — the editor UI doesn't surface it yet) (U·B1, W·§6/§8 i6). Out-of-scope note:
-  chat-triggers and automation screens also bind pipelines via a plain picker and would benefit from
-  `PipelineBindPicker` too — not yet done.
+  e6892957/3c4d89d6/cdabd605): branching (`ParentStepId`/`Branch`) in the step dialog. **Blocked on a
+  deeper prereq than originally scoped (found by S046-branching-if attempt, 2026-08-30): the wire
+  format itself is flat, not just the editor UI.** `PipelineGraphBuilder.BuildGraph`
+  (`server/src/NomNomzBot.Infrastructure/Commands/PipelineGraphBuilder.cs:26`) never emits
+  `ParentStepId`/`Branch`/`BlockKind`/`BlockConfigJson` — only `steps[].action`/`condition`, flat. The
+  engine executes the real tree straight from the normalized `PipelineStep` rows (bypassing this DTO
+  entirely), but the EDITOR's GET/PUT contract (`PipelineDto.GraphJsonCache`, consumed by the client's
+  `PipelineGraph`/`PipelineStep` model in `app/composeApp/.../core/network/PipelinesApi.kt:280-325`,
+  also flat: `{action, condition, stopOnMatch}`) has no tree fields anywhere. Split into:
+  - **S046-branching-prereq**: extend the wire graph shape (both directions — `BuildGraph` emit +
+    whatever parses a saved graph back into `PipelineStep` rows) to carry
+    `parentStepId`/`branch`/`blockKind`/`blockConfig`/`order` per step, then update the client's
+    `PipelineGraph`/`PipelineStep` model + every existing step render/save path to round-trip the new
+    fields losslessly for today's flat (never-nested) pipelines. Done-when: a flat pipeline saved
+    through the editor round-trips byte-for-byte equivalent execution, AND a manually-inserted nested
+    row (parent + then/else children) survives a GET→PUT→GET cycle unchanged.
+  - **S046-branching-if** (this slice, retry after the prereq lands): `if`/then-else block support in
+    the step dialog tree editor, as originally scoped.
+  - Further block kinds (switch/loop/random_branch/try) each their own follow-up slice after `if` lands.
+  (U·B1, W·§6/§8 i6). Out-of-scope note: chat-triggers and automation screens also bind pipelines via a
+  plain picker and would benefit from `PipelineBindPicker` too — not yet done.
 - **S050** Shell truth — DONE. Hub-state dot now reads `DashboardHubClient.connectionState`
   (Connected/Reconnecting/Disconnected) instead of a hardcoded fill, rendered in both the compact top bar and
   the persistent desktop sidebar; proved with a real-socket jvmTest (drop → Reconnecting within the liveness
