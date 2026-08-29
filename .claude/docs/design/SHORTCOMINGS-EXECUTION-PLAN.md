@@ -201,17 +201,12 @@ than each consumer needing their own clone-and-customize pass.
 
 ## Phase 2 — existing platforms made to work (Kick / YouTube are shipped features that are broken) — only the spine pieces these fixes REQUIRE
 
-- **S-CHATPROVIDER-UNBAN-RESULT** found by S030-remaining: `IChatProvider`/`IChatPlatform.UnbanUserAsync`
-  (the shared cross-platform interface used by Twitch/Kick/YouTube) returns bare `Task`, not `Result<T>`
-  — so even though `YouTubeLiveChatClient.UnbanUserAsync`'s own transport-level call IS truthful
-  (correctly distinguishes NOT_FOUND from success), that outcome gets silently discarded one layer up at
-  `YouTubeChatPlatform.cs:111` because the shared interface has nowhere to put it. The dashboard/API
-  always reports "succeeded" for an unban regardless of what actually happened, on ALL THREE platforms,
-  not just YouTube — this is a cross-platform truthfulness gap, matching the same "ban/unban result must
-  be truthful" bar Kick's own client already meets internally (S028). Done-when: `IChatProvider`/
-  `IChatPlatform.UnbanUserAsync` returns a real `Result<T>` reflecting the actual outcome, threaded
-  through for Twitch, Kick, AND YouTube, proven by a test per platform asserting on the returned outcome
-  for both a real success and a real not-found/already-unbanned case.
+- **S-COMMUNITYCONTROLLER-BAN-RESULT** found by S-CHATPROVIDER-UNBAN-RESULT (64f44737): a separate,
+  legacy Twitch-only Ban/Unban `Result` discard at `CommunityController.cs:849,909` — distinct from the
+  now-fixed shared `IChatProvider`/`IChatPlatform` interface gap. The controller calls into a
+  Twitch-specific ban/unban path and drops the returned outcome instead of surfacing it to the caller.
+  Done-when: both call sites propagate the real `Result<T>` to the API response (success/failure with
+  reason), proven by a test per action asserting on a real failure case reaching the caller.
 
 ## Phase 3 — form infrastructure (stabilizes existing authoring; every 'raw text box' finding rides on it)
 
