@@ -222,7 +222,17 @@ public sealed class OAuthProviderRegistry : IOAuthProviderRegistry
             UsesPkce: true,
             ScopeSets: new Dictionary<string, IReadOnlyList<string>>
             {
-                ["youtube.manage"] = ["https://www.googleapis.com/auth/youtube"],
+                // youtube.force-ssl is required by the Live Chat moderation endpoints (messages.insert,
+                // bans.insert/delete, messages.delete) alongside the broad "youtube" scope — bundled into
+                // the manage set so every write (reply/ban/delete) actually authorizes. A connection granted
+                // under the old (force-ssl-less) list no longer counts as having "youtube.manage" granted
+                // (GrantedScopeSets requires ALL scopes present), which surfaces the existing additive
+                // re-grant prompt rather than forcing a logout (progressive scopes).
+                ["youtube.manage"] =
+                [
+                    "https://www.googleapis.com/auth/youtube",
+                    "https://www.googleapis.com/auth/youtube.force-ssl",
+                ],
                 ["youtube.readonly"] = ["https://www.googleapis.com/auth/youtube.readonly"],
             },
             IsByok: ResolveIsByok("YouTube")

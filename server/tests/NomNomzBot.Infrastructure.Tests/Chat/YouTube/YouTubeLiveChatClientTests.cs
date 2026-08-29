@@ -69,10 +69,64 @@ public sealed class YouTubeLiveChatClientTests
     }
 
     [Fact]
-    public async Task GetActiveLiveChat_maps_a_403_to_missing_scope()
+    public async Task GetActiveLiveChat_maps_a_403_with_no_reason_to_missing_scope()
     {
         StubHttpMessageHandler handler = new(
             (HttpStatusCode.Forbidden, """{"error":{"code":403}}""")
+        );
+        YouTubeLiveChatClient sut = Build(handler);
+
+        Result<YouTubeActiveChat?> result = await sut.GetActiveLiveChatAsync(Token);
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("MISSING_SCOPE");
+    }
+
+    [Fact]
+    public async Task GetActiveLiveChat_maps_a_403_with_insufficientPermissions_to_missing_scope()
+    {
+        // Regression-proofing: a genuine permission-shaped 403 must still trigger the scope re-auth path.
+        StubHttpMessageHandler handler = new(
+            (
+                HttpStatusCode.Forbidden,
+                """{"error":{"code":403,"errors":[{"reason":"insufficientPermissions"}]}}"""
+            )
+        );
+        YouTubeLiveChatClient sut = Build(handler);
+
+        Result<YouTubeActiveChat?> result = await sut.GetActiveLiveChatAsync(Token);
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("MISSING_SCOPE");
+    }
+
+    [Fact]
+    public async Task GetActiveLiveChat_maps_a_403_with_quotaExceeded_to_quota_exceeded_not_missing_scope()
+    {
+        // A real quota exhaustion must NOT ride the 15-minute scope-backoff path.
+        StubHttpMessageHandler handler = new(
+            (
+                HttpStatusCode.Forbidden,
+                """{"error":{"code":403,"errors":[{"reason":"quotaExceeded"}]}}"""
+            )
+        );
+        YouTubeLiveChatClient sut = Build(handler);
+
+        Result<YouTubeActiveChat?> result = await sut.GetActiveLiveChatAsync(Token);
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("QUOTA_EXCEEDED");
+    }
+
+    [Fact]
+    public async Task GetActiveLiveChat_maps_a_401_to_missing_scope_regardless_of_body()
+    {
+        // A 401 is an invalid/expired bearer, never a quota concern — always MISSING_SCOPE.
+        StubHttpMessageHandler handler = new(
+            (
+                HttpStatusCode.Unauthorized,
+                """{"error":{"code":401,"errors":[{"reason":"quotaExceeded"}]}}"""
+            )
         );
         YouTubeLiveChatClient sut = Build(handler);
 
@@ -509,6 +563,61 @@ public sealed class YouTubeLiveChatClientTests
         YouTubeLiveChatClient sut = Build(handler);
 
         Result result = await sut.SendMessageAsync(Token, "chat123", "hi");
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("MISSING_SCOPE");
+    }
+
+    [Fact]
+    public async Task SendMessage_maps_a_403_with_rateLimitExceeded_to_quota_exceeded()
+    {
+        // A reply write hitting Google's rate limit must surface as quota burn, not a scope problem —
+        // done-when: quota burn shows as quota.
+        StubHttpMessageHandler handler = new(
+            (
+                HttpStatusCode.Forbidden,
+                """{"error":{"code":403,"errors":[{"reason":"rateLimitExceeded"}]}}"""
+            )
+        );
+        YouTubeLiveChatClient sut = Build(handler);
+
+        Result result = await sut.SendMessageAsync(Token, "chat123", "hi");
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("QUOTA_EXCEEDED");
+    }
+
+    [Fact]
+    public async Task BanUser_maps_a_403_with_dailyLimitExceeded_to_quota_exceeded()
+    {
+        // A ban write hitting Google's daily quota must surface as quota burn, not MISSING_SCOPE.
+        StubHttpMessageHandler handler = new(
+            (
+                HttpStatusCode.Forbidden,
+                """{"error":{"code":403,"errors":[{"reason":"dailyLimitExceeded"}]}}"""
+            )
+        );
+        YouTubeLiveChatClient sut = Build(handler);
+
+        Result<string> result = await sut.BanUserAsync(Token, "chat123", "UCbad", null);
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("QUOTA_EXCEEDED");
+    }
+
+    [Fact]
+    public async Task BanUser_maps_a_403_with_forbidden_reason_to_missing_scope()
+    {
+        // A generic "forbidden" reason (no quota keyword) still defaults to the scope re-auth path.
+        StubHttpMessageHandler handler = new(
+            (
+                HttpStatusCode.Forbidden,
+                """{"error":{"code":403,"errors":[{"reason":"forbidden"}]}}"""
+            )
+        );
+        YouTubeLiveChatClient sut = Build(handler);
+
+        Result<string> result = await sut.BanUserAsync(Token, "chat123", "UCbad", null);
 
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("MISSING_SCOPE");
