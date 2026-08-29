@@ -89,6 +89,7 @@ import nomnomzbot.composeapp.generated.resources.chattriggers_dialog_edit_title
 import nomnomzbot.composeapp.generated.resources.chattriggers_dialog_enabled_label
 import nomnomzbot.composeapp.generated.resources.chattriggers_dialog_match_type_label
 import nomnomzbot.composeapp.generated.resources.chattriggers_dialog_pattern_label
+import nomnomzbot.composeapp.generated.resources.chattriggers_dialog_pattern_regex_invalid
 import nomnomzbot.composeapp.generated.resources.chattriggers_dialog_permission_label
 import nomnomzbot.composeapp.generated.resources.chattriggers_dialog_pipeline_label
 import nomnomzbot.composeapp.generated.resources.chattriggers_dialog_response_label
@@ -424,7 +425,20 @@ private fun TriggerFormDialog(
     val cooldownValid: Boolean = cooldownValue != null && cooldownValue >= 0
     val hasReaction: Boolean =
         if (usePipeline) selectedPipelineId != null else response.isNotBlank()
-    val canSubmit: Boolean = pattern.isNotBlank() && hasReaction && cooldownValid
+    // Regex-mode patterns get a client-side compile check so a mod never saves a pattern that will
+    // silently never match (or throw) at runtime; other match types skip the check entirely.
+    val regexError: String? =
+        if (matchType == "regex" && pattern.isNotBlank()) {
+            try {
+                Regex(pattern)
+                null
+            } catch (e: Exception) {
+                e.message ?: "invalid pattern"
+            }
+        } else {
+            null
+        }
+    val canSubmit: Boolean = pattern.isNotBlank() && hasReaction && cooldownValid && regexError == null
 
     val title: String =
         stringResource(
@@ -452,6 +466,9 @@ private fun TriggerFormDialog(
                     onValueChange = { pattern = it },
                     modifier = Modifier.fillMaxWidth(),
                     label = stringResource(Res.string.chattriggers_dialog_pattern_label),
+                    isError = regexError != null,
+                    errorText =
+                        regexError?.let { stringResource(Res.string.chattriggers_dialog_pattern_regex_invalid, it) },
                 )
 
                 // Match-type picker: contains / exact / starts_with / regex — role/label-named, never the raw key.

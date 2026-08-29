@@ -1767,6 +1767,7 @@
     <string name="chattriggers_dialog_create_title">New chat trigger</string>
     <string name="chattriggers_dialog_edit_title">Edit chat trigger</string>
     <string name="chattriggers_dialog_pattern_label">Pattern (the text to look for)</string>
+    <string name="chattriggers_dialog_pattern_regex_invalid">This regex does not compile: %1$s</string>
     <string name="chattriggers_dialog_match_type_label">Match type</string>
     <string name="chattriggers_match_contains">Contains</string>
     <string name="chattriggers_match_exact">Exact match</string>
