@@ -18,9 +18,10 @@ using NomNomzBot.Domain.Identity.Enums;
 namespace NomNomzBot.Infrastructure.Chat.Kick;
 
 /// <summary>
-/// The Kick half of the chat seam (BUILD slice 3b-2c): sends and moderation ride the STREAMER's own
-/// vaulted Kick token (the self-host bot-identity pattern — the bot chats as the streamer until a
-/// dedicated identity exists). Kick has NATIVE replies (<c>reply_to_message_id</c>) — a reply threads
+/// The Kick half of the chat seam (BUILD slice 3b-2c, bot-account resolution S-KICK-BOT-ACCOUNT): sends
+/// and moderation ride a registered <c>kick_bot</c> connection's own token when one exists, falling back
+/// to the STREAMER's own vaulted Kick token otherwise (the self-host bot-identity pattern — the bot chats
+/// as the streamer until a dedicated identity is registered). Kick has NATIVE replies (<c>reply_to_message_id</c>) — a reply threads
 /// for real, unlike YouTube's degrade-to-send. Timeouts convert the seam's seconds to Kick's MINUTES
 /// (ceiling, clamped 1–10080); unban is direct by (broadcaster, user) — no ban-id ledger needed. A
 /// tenant without a usable token fails honestly (logged, no API call), surfacing the connect/reauth

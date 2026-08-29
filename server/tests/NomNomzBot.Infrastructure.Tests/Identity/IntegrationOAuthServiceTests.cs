@@ -957,6 +957,7 @@ public sealed class IntegrationOAuthServiceTests
                 NullLogger<MusicProviderTokenMirror>.Instance
             ),
             cache,
+            db,
             new SingleClientFactory(handler),
             config,
             TimeProvider.System,
@@ -1130,6 +1131,7 @@ public sealed class IntegrationOAuthServiceTests
                 NullLogger<MusicProviderTokenMirror>.Instance
             ),
             cache,
+            db,
             new SingleClientFactory(handler),
             config,
             TimeProvider.System,

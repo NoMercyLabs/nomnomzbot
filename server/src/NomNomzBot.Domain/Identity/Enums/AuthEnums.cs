@@ -85,6 +85,14 @@ public static class AuthEnums
         public const string Discord = "discord";
         public const string YouTube = "youtube";
         public const string Kick = Platform.Kick;
+
+        /// <summary>
+        /// A channel's dedicated Kick bot account (mirrors <c>twitch_bot</c>): a separate Kick account the
+        /// streamer registers so bot messages send as <c>type:"bot"</c> under its own token instead of the
+        /// streamer's own account. <c>BroadcasterId</c> scopes it to the tenant; until one is registered
+        /// <see cref="Kick"/> IS the bot identity (the same self-host fallback as Twitch).
+        /// </summary>
+        public const string KickBot = Platform.Kick + "_bot";
         public const string Patreon = "patreon";
         public const string Shopify = "shopify";
         public const string Treatstream = "treatstream";
