@@ -302,10 +302,12 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
                 "VALIDATION_FAILED"
             );
 
-        // The update REPLACES the snippet, so the current broadcast is fetched first: its id keys the PUT
-        // and its scheduledStartTime must be carried over (required by the API on a snippet update).
-        string getUrl =
-            $"{YouTubeApiBase}/liveBroadcasts?part=snippet&broadcastStatus=active&maxResults=1";
+        // The update REPLACES the snippet, so the current broadcasts are fetched first: each id keys its
+        // own PUT and its scheduledStartTime must be carried over (required by the API on a snippet
+        // update). No maxResults=1 here — a channel can run more than one concurrent broadcast (e.g.
+        // simultaneous multi-encoder streams), and every one of them needs the new title, not just the
+        // first (mirrors the multi-broadcast enumeration in GetActiveLiveChatsAsync above).
+        string getUrl = $"{YouTubeApiBase}/liveBroadcasts?part=snippet&broadcastStatus=active";
         (HttpStatusCode? status, LiveBroadcastListResponse? body, string? errorCode) =
             await GetAsync<LiveBroadcastListResponse>(getUrl, accessToken, cancellationToken);
 
@@ -317,34 +319,53 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
         if (errorCode is not null)
             return Result.Failure<string>(DescribeErrorCode(errorCode), errorCode);
 
-        LiveBroadcastItem? broadcast = body?.Items?.FirstOrDefault(b =>
-            !string.IsNullOrEmpty(b.Id)
-        );
-        if (broadcast?.Id is not { } broadcastId)
+        List<LiveBroadcastItem> broadcasts =
+        [
+            .. (body?.Items ?? []).Where(b => !string.IsNullOrEmpty(b.Id)),
+        ];
+        if (broadcasts.Count == 0)
             return Result.Failure<string>(
                 "The channel has no active YouTube broadcast to retitle.",
                 "NOT_FOUND"
             );
 
-        string putUrl = $"{YouTubeApiBase}/liveBroadcasts?part=snippet";
-        HttpRequestMessage request = new(HttpMethod.Put, putUrl);
-        request.Headers.Authorization = new("Bearer", accessToken);
-        request.Content = JsonContent.Create(
-            new
-            {
-                id = broadcastId,
-                snippet = new { title, scheduledStartTime = broadcast.Snippet?.ScheduledStartTime },
-            }
-        );
+        // Every active broadcast is retitled; a partial failure is surfaced truthfully rather than
+        // reported as a blanket success — the caller must know not everything got renamed.
+        int failureCount = 0;
+        foreach (LiveBroadcastItem broadcast in broadcasts)
+        {
+            string putUrl = $"{YouTubeApiBase}/liveBroadcasts?part=snippet";
+            HttpRequestMessage request = new(HttpMethod.Put, putUrl);
+            request.Headers.Authorization = new("Bearer", accessToken);
+            request.Content = JsonContent.Create(
+                new
+                {
+                    id = broadcast.Id,
+                    snippet = new
+                    {
+                        title,
+                        scheduledStartTime = broadcast.Snippet?.ScheduledStartTime,
+                    },
+                }
+            );
 
-        Result updated = await SendWriteAsync(
-            request,
-            $"retitle broadcast {broadcastId}",
-            cancellationToken
-        );
-        return updated.IsFailure
-            ? Result.Failure<string>(updated.ErrorMessage!, updated.ErrorCode, updated.ErrorDetail)
-            : Result.Success(title);
+            Result updated = await SendWriteAsync(
+                request,
+                $"retitle broadcast {broadcast.Id}",
+                cancellationToken
+            );
+            if (updated.IsFailure)
+                failureCount++;
+        }
+
+        return failureCount == 0
+            ? Result.Success(title)
+            : Result.Failure<string>(
+                failureCount == broadcasts.Count
+                    ? "The title update failed on every active YouTube broadcast."
+                    : $"The title update failed on {failureCount} of {broadcasts.Count} active YouTube broadcasts.",
+                "PARTIAL_FAILURE"
+            );
     }
 
     /// <summary>Shared write-call outcome mapping: 401 → MISSING_SCOPE; 403 → MISSING_SCOPE, or the
