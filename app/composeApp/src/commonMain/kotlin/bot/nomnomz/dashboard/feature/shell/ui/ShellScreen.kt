@@ -637,6 +637,13 @@ private fun ShellContent(
                     historyController = graph.pipelineExecutionHistoryController,
                     heldActionKeys = heldActionKeys,
                     templateHelpersApi = graph.templateHelpersApi,
+                    // Deep-link into Code Scripts on a specific script: stash the id on the controller (it opens
+                    // that script the next time its screen is shown — see CodeScriptsController.requestOpen) then
+                    // navigate the shell there, mirroring onNavigateToIntegrations above.
+                    onOpenCodeScript = { scriptId ->
+                        graph.codeScriptsController.requestOpen(scriptId)
+                        onNavigate(ShellRoute.CodeScripts)
+                    },
                 )
             ShellRoute.Schedule -> ScheduleScreen(controller = graph.scheduleController, role = role)
             ShellRoute.Roles -> RolesScreen(controller = graph.rolesController, role = role)
