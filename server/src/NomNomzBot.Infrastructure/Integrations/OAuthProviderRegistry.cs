@@ -33,6 +33,7 @@ public sealed class OAuthProviderRegistry : IOAuthProviderRegistry
         AuthEnums.IntegrationProvider.Spotify,
         AuthEnums.IntegrationProvider.YouTube,
         AuthEnums.IntegrationProvider.Kick,
+        AuthEnums.IntegrationProvider.KickBot,
         AuthEnums.IntegrationProvider.Patreon,
         AuthEnums.IntegrationProvider.Shopify,
         AuthEnums.IntegrationProvider.Treatstream,
@@ -46,6 +47,7 @@ public sealed class OAuthProviderRegistry : IOAuthProviderRegistry
             AuthEnums.IntegrationProvider.Spotify => Result.Success(Spotify()),
             AuthEnums.IntegrationProvider.YouTube => Result.Success(YouTube()),
             AuthEnums.IntegrationProvider.Kick => Result.Success(Kick()),
+            AuthEnums.IntegrationProvider.KickBot => Result.Success(KickBot()),
             AuthEnums.IntegrationProvider.Patreon => Result.Success(Patreon()),
             AuthEnums.IntegrationProvider.Shopify => Result.Success(Shopify()),
             AuthEnums.IntegrationProvider.Treatstream => Result.Success(Treatstream()),
@@ -111,6 +113,35 @@ public sealed class OAuthProviderRegistry : IOAuthProviderRegistry
                 ],
             },
             IsByok: ResolveIsByok("Kick")
+        );
+
+    // A channel's dedicated Kick bot account (mirrors twitch_bot's ChannelBotController): the SAME Kick OAuth
+    // app + endpoints as the streamer's own connect (CredentialsProvider="kick" — there is no separate
+    // KICK_BOT_CLIENT_ID/SECRET, only a distinct authorizing Kick account and a distinct persisted provider
+    // key, kick_bot, so KickAccessTokenProvider.IsBotAccount resolves it before falling back to the
+    // streamer's own kick connection). The chat scopes match kick.chat exactly — the bot needs the identical
+    // send + moderation + event-subscription grant, just under its own account.
+    private OAuthProviderDescriptor KickBot() =>
+        new(
+            Provider: AuthEnums.IntegrationProvider.KickBot,
+            AuthorizeEndpoint: "https://id.kick.com/oauth/authorize",
+            TokenEndpoint: "https://id.kick.com/oauth/token",
+            RevokeEndpoint: "https://id.kick.com/oauth/revoke",
+            AccountIdentityEndpoint: "https://api.kick.com/public/v1/users",
+            UsesPkce: true,
+            ScopeSets: new Dictionary<string, IReadOnlyList<string>>
+            {
+                ["kick_bot.chat"] =
+                [
+                    "user:read",
+                    "chat:write",
+                    "moderation:ban",
+                    "moderation:chat_message:manage",
+                    "events:subscribe",
+                ],
+            },
+            IsByok: ResolveIsByok("Kick"),
+            CredentialsProvider: AuthEnums.IntegrationProvider.Kick
         );
 
     private OAuthProviderDescriptor Patreon() =>

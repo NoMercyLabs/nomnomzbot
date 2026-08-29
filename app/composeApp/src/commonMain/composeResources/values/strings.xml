@@ -999,6 +999,8 @@
     <string name="integrations_discord_subtitle">Cross-post alerts and notifications to your server.</string>
     <string name="integrations_kick_title">Kick</string>
     <string name="integrations_kick_subtitle">Read, send and moderate your Kick chat alongside Twitch.</string>
+    <string name="integrations_kick_bot_title">Kick bot account</string>
+    <string name="integrations_kick_bot_subtitle">Optional — connect a separate Kick account so bot messages appear from its own identity instead of yours.</string>
     <string name="integrations_status_connected">Connected</string>
     <string name="integrations_status_not_connected">Not connected</string>
     <string name="integrations_status_login_only">Signed in only — chat not connected</string>
