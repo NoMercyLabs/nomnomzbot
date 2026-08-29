@@ -201,15 +201,6 @@ than each consumer needing their own clone-and-customize pass.
 
 ## Phase 2 — existing platforms made to work (Kick / YouTube are shipped features that are broken) — only the spine pieces these fixes REQUIRE
 
-- **S030-titling-multibroadcast** verified DONE this session: chat-ingest multi-broadcast tracking, an
-  own-channel cache, and a `concurrentViewers` sampler (4a351c78 — `Two_concurrent_active_broadcasts_are_
-  both_tracked_not_just_the_first`, `GetOwnChannel_is_resolved_at_most_once_across_repeated_liveness_
-  transitions`, the sampler tests). REMAINING (small, narrow): `YouTubeLiveChatClient.UpdateActiveBroadcast
-  TitleAsync` still only retitles the FIRST active broadcast (`FirstOrDefault`) — same class of gap as
-  chat ingest had, just for the channel-ops/title-update path, not yet fixed there. The "leased poller"
-  distributed-lease abstraction is explicitly OUT OF SCOPE — single in-process polling is correct for the
-  current self-host/single-instance deployment model, do not build it unless the deployment model changes.
-  Done-when: a multi-broadcast channel's title update targets every active broadcast, not just one.
 - **S-CHATPROVIDER-UNBAN-RESULT** found by S030-remaining: `IChatProvider`/`IChatPlatform.UnbanUserAsync`
   (the shared cross-platform interface used by Twitch/Kick/YouTube) returns bare `Task`, not `Result<T>`
   — so even though `YouTubeLiveChatClient.UnbanUserAsync`'s own transport-level call IS truthful
