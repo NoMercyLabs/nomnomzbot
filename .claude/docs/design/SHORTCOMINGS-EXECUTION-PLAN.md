@@ -227,8 +227,6 @@ than each consumer needing their own clone-and-customize pass.
   bound pipeline's existing test dialog (or a lighter duplicate entry point) — needs that small design
   call, then wiring (W·§6/§8 i2). Done-when: captured side effects shown without sending, from all four
   surfaces.
-- **S048** Save feedback baseline — `Feedback` in timers/chat-triggers/event-responses; event-response
-  Delete = reset or no re-seed; seed out of the GET (U·B1). Done-when: every save surfaces saved/live.
 - **S049** Hub events baseline — `HubEvent` cases for reward lifecycle, redemption status,
   `ConfigChanged`, `RewardChanged`; pending queue removes on fulfil/refund; live chat render re-check
   (U·B2 b1, folded handoff). Done-when: second session live-updates; fulfilled redemption leaves queue.
