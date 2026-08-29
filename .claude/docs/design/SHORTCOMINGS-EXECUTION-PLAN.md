@@ -29,7 +29,7 @@ Read this block first. It is the only summary; everything below is detail.
 |---|---|---|
 | pipeline page needs love, nested if/and/or, add-remove-reorder | S-PIPE-TREE | engine + named params shipped; nested block-list EDITOR remains |
 | make effects and repercussions visible | S-CONSEQ | law recorded, applies to every slice |
-| VS Code-web editor, real npm SDK, real event payloads | S-CODE-EDITOR | queued |
+| VS Code-web editor, real npm SDK, real event payloads | S-CODE-EDITOR-coverage | Monaco shell + real types + multi-file DONE; sample-payload coverage 6/~119 events, rest tracked open |
 | item pickers show a rich list, not opaque ids | S-RICH-PICKERS | backend building - dashboard half after |
 | budget system for payment tiers by resource usage | S-BUDGETS | queued - intent recorded: recover real cost, not upsell |
 | old-bot behaviour only from generic blocks | (standing rule) | verified against the spec |
@@ -106,14 +106,19 @@ only Stoney can make. Do not burn agent time trying to work around them.
 
 ---
 
-- **S-CODE-EDITOR** The code-scripts surface gets a **VS Code-for-web grade editor that functions like
-  one** — Monaco-class: completion, hover types, go-to-definition, diagnostics, multi-file — loading a
-  **REAL fully-typed SDK from npm** (the actual published types, not hand-written `.d.ts`
-  approximations that drift), and **REAL example events**: every handleable event ships a sample
-  payload matching what the official platform event actually delivers. **No fake stubs that do not
-  represent real behaviour.** This re-opens the earlier CodeMirror-over-Monaco decision — the owner
-  has asked for VS Code behaviour. Done-when: completion and type errors are driven by the real SDK
-  types, and every event sample is verifiably the official payload shape.
+- **S-CODE-EDITOR-coverage** the Monaco-class editor swap is DONE and verified (d0bc01bc CodeMirror→
+  Monaco shell, ae3ffd7b real server-generated SDK types wired via `addExtraLib` — ground truth is
+  `SdkTypeEmitter.cs` reflecting `SdkRuntimeSurface`/`EventCatalog`, no npm package needed since that
+  generator already satisfies "not hand-written approximations that drift" — and 04b7b7dd multi-file
+  tab support with per-file Monaco models, all proven by green tests). REMAINING GAP: real sample
+  payloads (caeb18ca, `EventSamplePayloads.cs`) are only wired for **6 of ~119+ handleable events**
+  (`community.follow`, subscribe, channel-points redemption, poll/prediction begin, raid via
+  StreamLifecycleTranslatorsTests — NOT ShoutoutTranslatorsTests, correcting an earlier misattribution)
+  — every other event correctly carries NO fabricated sample (left null) because no translator test
+  fixture exists yet to source a verified real payload from. Done-when: for each of the remaining
+  ~113 events, either a real translator test fixture is added/found and wired as its sample, or the
+  event is confirmed to have no real fixture available and stays explicitly null — tracked to zero
+  "no one has checked yet" rather than a permanent gap.
 
 ## Phase 2 — existing platforms made to work (Kick / YouTube are shipped features that are broken) — only the spine pieces these fixes REQUIRE
 
