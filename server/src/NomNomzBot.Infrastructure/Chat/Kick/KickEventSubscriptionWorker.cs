@@ -185,7 +185,15 @@ public sealed class KickEventSubscriptionWorker : BackgroundService
             await _client.ListEventSubscriptionsAsync(access.AccessToken, ct);
         if (listed.IsFailure)
         {
-            await HandleFailureAsync(db, primaryChannelId, kickTenantId, listed.ErrorCode, listed.ErrorMessage, now, ct);
+            await HandleFailureAsync(
+                db,
+                primaryChannelId,
+                kickTenantId,
+                listed.ErrorCode,
+                listed.ErrorMessage,
+                now,
+                ct
+            );
             return;
         }
 
@@ -204,7 +212,15 @@ public sealed class KickEventSubscriptionWorker : BackgroundService
         Result created = await _client.SubscribeAsync(access.AccessToken, missing, ct);
         if (created.IsFailure)
         {
-            await HandleFailureAsync(db, primaryChannelId, kickTenantId, created.ErrorCode, created.ErrorMessage, now, ct);
+            await HandleFailureAsync(
+                db,
+                primaryChannelId,
+                kickTenantId,
+                created.ErrorCode,
+                created.ErrorMessage,
+                now,
+                ct
+            );
             return;
         }
 
@@ -238,7 +254,8 @@ public sealed class KickEventSubscriptionWorker : BackgroundService
             _backoffUntilUtc[kickTenantId] = now + MissingScopeBackoff;
             IntegrationConnection? connection = await db
                 .IntegrationConnections.Where(c =>
-                    c.Provider == AuthEnums.IntegrationProvider.Kick && c.BroadcasterId == primaryChannelId
+                    c.Provider == AuthEnums.IntegrationProvider.Kick
+                    && c.BroadcasterId == primaryChannelId
                 )
                 .FirstOrDefaultAsync(ct);
             if (connection is not null)
@@ -265,7 +282,11 @@ public sealed class KickEventSubscriptionWorker : BackgroundService
 
     // Reverses a prior MISSING_SCOPE flag once the worker confirms the subscription actually succeeded —
     // never leaves a stale "reconnect needed" badge up after the streamer has re-granted the scope.
-    private static async Task ClearReauthFlagAsync(IApplicationDbContext db, Guid primaryChannelId, CancellationToken ct)
+    private static async Task ClearReauthFlagAsync(
+        IApplicationDbContext db,
+        Guid primaryChannelId,
+        CancellationToken ct
+    )
     {
         IntegrationConnection? connection = await db
             .IntegrationConnections.Where(c =>
