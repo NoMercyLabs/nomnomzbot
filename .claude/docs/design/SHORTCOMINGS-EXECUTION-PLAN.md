@@ -221,8 +221,12 @@ than each consumer needing their own clone-and-customize pass.
   `run_code` step to its script editor); branching (`ParentStepId`/`Branch`) in the step dialog (domain
   model already ships the full tree — `PipelineStep.ParentStepId`/`Branch`/`BlockKind` — the editor UI
   doesn't surface it yet) (U·B1, W·§6/§8 i6).
-- **S047** Dry-run — `POST pipelines/{id}/test-run` as a Test button on pipelines/commands/event
-  responses/timers (W·§6/§8 i2). Done-when: captured side effects shown without sending.
+- **S047-remaining** Dry-run — backend `POST pipelines/{id}/test-run` + pipelines-screen Test button
+  shipped and verified (966a06a6). Remaining: commands/event-responses/timers screens each bind to a
+  pipeline rather than owning a chain editor, so their Test affordance should be a shortcut into the
+  bound pipeline's existing test dialog (or a lighter duplicate entry point) — needs that small design
+  call, then wiring (W·§6/§8 i2). Done-when: captured side effects shown without sending, from all four
+  surfaces.
 - **S048** Save feedback baseline — `Feedback` in timers/chat-triggers/event-responses; event-response
   Delete = reset or no re-seed; seed out of the GET (U·B1). Done-when: every save surfaces saved/live.
 - **S049** Hub events baseline — `HubEvent` cases for reward lifecycle, redemption status,
