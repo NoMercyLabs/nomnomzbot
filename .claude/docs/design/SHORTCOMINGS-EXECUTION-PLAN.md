@@ -201,9 +201,6 @@ than each consumer needing their own clone-and-customize pass.
 
 ## Phase 2 — existing platforms made to work (Kick / YouTube are shipped features that are broken) — only the spine pieces these fixes REQUIRE
 
-- **S029** YouTube writes — `youtube.force-ssl` + re-grant; 403 reason parsing (quota vs scope) +
-  quota backoff; refresh-failure signal (U·C3). Done-when: a reply/ban on YouTube succeeds; quota burn
-  shows as quota.
 - **S030-remaining** `IsLive` from the poll and `snippet.type`-routed translators for super chat/
   sticker/new sponsor/milestone/gift are DONE and verified (76adf380 — `YouTubeLiveChatEventTranslator`
   maps each to the same canonical cross-platform events Kick/Twitch publish, `IYouTubeLiveChatClient`
