@@ -362,4 +362,255 @@ public sealed class PipelineServiceWriteSymmetryTests
         result.StepsExecuted.Should().Be(2);
         result.Total.Should().Be(2);
     }
+
+    // ── S046-branching-prereq — the wire graph carries tree-nesting fields ─────────────────────
+
+    [Fact]
+    public async Task Flat_pipeline_round_trips_through_BuildGraph_with_unchanged_execution_semantics()
+    {
+        (PipelineService service, PipelineTestRunDbContext db) = Build();
+
+        Result<PipelineDto> created = await service.CreateAsync(
+            Broadcaster.ToString(),
+            new()
+            {
+                Name = "flat-regression-guard",
+                TriggerKind = "command",
+                IsEnabled = true,
+                GraphJsonCache = JsonSerializer.SerializeToElement(
+                    new
+                    {
+                        steps = new object[]
+                        {
+                            new { action = new { type = "send_message", message = "hi" } },
+                            new
+                            {
+                                action = new { type = "timeout_user", seconds = 30 },
+                                condition = new
+                                {
+                                    type = "user_role",
+                                    @operator = "eq",
+                                    left = "role",
+                                    right = "moderator",
+                                    negate = false,
+                                },
+                            },
+                        },
+                    }
+                ),
+            }
+        );
+        created.IsSuccess.Should().BeTrue(created.ErrorMessage);
+
+        List<PipelineStep> steps = await db
+            .PipelineSteps.Where(s => s.PipelineId == created.Value.Id)
+            .Include(s => s.Conditions)
+            .OrderBy(s => s.Order)
+            .ToListAsync();
+
+        // Rebuild the wire graph from the persisted rows a second time (the same reconstruction
+        // GetAsync uses) — a flat, never-nested pipeline must show no ParentStepId/Branch/BlockKind
+        // and the same action/condition/order as before this slice added those fields.
+        JsonElement graph = PipelineGraphBuilder.BuildGraph(steps);
+        JsonElement rebuiltSteps = graph.GetProperty("steps");
+
+        rebuiltSteps.GetArrayLength().Should().Be(2);
+        rebuiltSteps[0].GetProperty("parent_step_id").ValueKind.Should().Be(JsonValueKind.Null);
+        rebuiltSteps[0].GetProperty("branch").ValueKind.Should().Be(JsonValueKind.Null);
+        rebuiltSteps[0].GetProperty("block_kind").ValueKind.Should().Be(JsonValueKind.Null);
+        rebuiltSteps[0].GetProperty("order").GetInt32().Should().Be(0);
+        rebuiltSteps[0]
+            .GetProperty("action")
+            .GetProperty("type")
+            .GetString()
+            .Should()
+            .Be("send_message");
+
+        rebuiltSteps[1].GetProperty("order").GetInt32().Should().Be(1);
+        rebuiltSteps[1]
+            .GetProperty("action")
+            .GetProperty("type")
+            .GetString()
+            .Should()
+            .Be("timeout_user");
+        rebuiltSteps[1]
+            .GetProperty("condition")
+            .GetProperty("left")
+            .GetString()
+            .Should()
+            .Be("role");
+
+        // Re-save the rebuilt graph — this is the regression guard: a flat pipeline saved from a
+        // graph that now carries the new (always-null-here) fields must still produce the exact
+        // same two rows in the exact same order, proving the reverse-parse path is additive only.
+        Result<PipelineDto> resaved = await service.UpdateAsync(
+            Broadcaster.ToString(),
+            created.Value.Id,
+            new() { GraphJsonCache = graph }
+        );
+        resaved.IsSuccess.Should().BeTrue(resaved.ErrorMessage);
+
+        List<PipelineStep> stepsAfterResave = await db
+            .PipelineSteps.Where(s => s.PipelineId == created.Value.Id)
+            .Include(s => s.Conditions)
+            .OrderBy(s => s.Order)
+            .ToListAsync();
+
+        stepsAfterResave.Should().HaveCount(2);
+        stepsAfterResave[0].ActionType.Should().Be("send_message");
+        stepsAfterResave[0].Order.Should().Be(0);
+        stepsAfterResave[0].ParentStepId.Should().BeNull();
+        stepsAfterResave[1].ActionType.Should().Be("timeout_user");
+        stepsAfterResave[1].Order.Should().Be(1);
+        stepsAfterResave[1].Conditions.Single().LeftOperand.Should().Be("role");
+    }
+
+    [Fact]
+    public async Task Nested_if_pipeline_round_trips_through_BuildGraph_and_the_reverse_parse_path()
+    {
+        (PipelineService _, PipelineTestRunDbContext db) = Build();
+
+        Guid pipelineId = Guid.NewGuid();
+        db.Pipelines.Add(
+            new PipelineEntity
+            {
+                Id = pipelineId,
+                BroadcasterId = Broadcaster,
+                Name = "nested-if",
+                TriggerKind = "command",
+                IsEnabled = true,
+            }
+        );
+
+        Guid ifStepId = Guid.NewGuid();
+        Guid thenChildId = Guid.NewGuid();
+        Guid elseChildId = Guid.NewGuid();
+
+        db.PipelineSteps.AddRange(
+            new PipelineStep
+            {
+                Id = ifStepId,
+                PipelineId = pipelineId,
+                BroadcasterId = Broadcaster,
+                ParentStepId = null,
+                Branch = null,
+                BlockKind = "if",
+                BlockConfigJson = "{\"ConditionRootId\":\"00000000-0000-0000-0000-000000000000\"}",
+                Order = 0,
+                ActionType = "block",
+                ConfigJson = "{}",
+            },
+            new PipelineStep
+            {
+                Id = thenChildId,
+                PipelineId = pipelineId,
+                BroadcasterId = Broadcaster,
+                ParentStepId = ifStepId,
+                Branch = "then",
+                BlockKind = null,
+                Order = 0,
+                ActionType = "send_message",
+                ConfigJson = "{\"message\":\"then-branch\"}",
+            },
+            new PipelineStep
+            {
+                Id = elseChildId,
+                PipelineId = pipelineId,
+                BroadcasterId = Broadcaster,
+                ParentStepId = ifStepId,
+                Branch = "else",
+                BlockKind = null,
+                Order = 0,
+                ActionType = "shoutout",
+                ConfigJson = "{}",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        List<PipelineStep> steps = await db
+            .PipelineSteps.Where(s => s.PipelineId == pipelineId)
+            .Include(s => s.Conditions)
+            .ToListAsync();
+
+        // ── Forward direction: BuildGraph must expose id/parent_step_id/branch/block_kind/
+        // block_config/order for every step, resolvable back to the tree shape above.
+        JsonElement graph = PipelineGraphBuilder.BuildGraph(steps);
+        JsonElement wireSteps = graph.GetProperty("steps");
+        wireSteps.GetArrayLength().Should().Be(3);
+
+        JsonElement wireIf = wireSteps
+            .EnumerateArray()
+            .Single(s => s.GetProperty("id").GetString() == ifStepId.ToString());
+        wireIf.GetProperty("parent_step_id").ValueKind.Should().Be(JsonValueKind.Null);
+        wireIf.GetProperty("block_kind").GetString().Should().Be("if");
+        wireIf
+            .GetProperty("block_config")
+            .GetProperty("ConditionRootId")
+            .GetString()
+            .Should()
+            .Be("00000000-0000-0000-0000-000000000000");
+
+        JsonElement wireThen = wireSteps
+            .EnumerateArray()
+            .Single(s => s.GetProperty("id").GetString() == thenChildId.ToString());
+        wireThen.GetProperty("parent_step_id").GetString().Should().Be(ifStepId.ToString());
+        wireThen.GetProperty("branch").GetString().Should().Be("then");
+        wireThen.GetProperty("action").GetProperty("type").GetString().Should().Be("send_message");
+
+        JsonElement wireElse = wireSteps
+            .EnumerateArray()
+            .Single(s => s.GetProperty("id").GetString() == elseChildId.ToString());
+        wireElse.GetProperty("branch").GetString().Should().Be("else");
+        wireElse.GetProperty("action").GetProperty("type").GetString().Should().Be("shoutout");
+
+        // ── Reverse direction: feed the built graph back through the same save path a real
+        // PUT would use (PipelineService is only usable here via a fresh Create so the sync
+        // logic runs against a service instance bound to this db context).
+        (PipelineService service2, PipelineTestRunDbContext _) = (
+            new PipelineService(
+                db,
+                new PassThroughUnitOfWork(),
+                Substitute.For<IEventBus>(),
+                new CommandConfigValidator(
+                    [
+                        new FakeAction { ActionType = "send_message" },
+                        new FakeAction { ActionType = "shoutout" },
+                        new FakeAction { ActionType = "block" },
+                    ],
+                    new TemplateHelperValidator()
+                ),
+                Substitute.For<IChannelRegistry>()
+            ),
+            db
+        );
+
+        Result<PipelineDto> reparsed = await service2.UpdateAsync(
+            Broadcaster.ToString(),
+            pipelineId,
+            new() { GraphJsonCache = graph }
+        );
+        reparsed.IsSuccess.Should().BeTrue(reparsed.ErrorMessage);
+
+        List<PipelineStep> reloaded = await db
+            .PipelineSteps.Where(s => s.PipelineId == pipelineId)
+            .ToListAsync();
+        reloaded.Should().HaveCount(3);
+
+        PipelineStep reloadedIf = reloaded.Single(s => s.BlockKind == "if");
+        reloadedIf.ParentStepId.Should().BeNull();
+        reloadedIf.BlockConfigJson.Should().Contain("ConditionRootId");
+
+        PipelineStep reloadedThen = reloaded.Single(s => s.Branch == "then");
+        reloadedThen
+            .ParentStepId.Should()
+            .Be(
+                reloadedIf.Id,
+                "the then-child must still point at the SAME if-block after the round trip, even though every row got a fresh id"
+            );
+        reloadedThen.ActionType.Should().Be("send_message");
+
+        PipelineStep reloadedElse = reloaded.Single(s => s.Branch == "else");
+        reloadedElse.ParentStepId.Should().Be(reloadedIf.Id);
+        reloadedElse.ActionType.Should().Be("shoutout");
+    }
 }
