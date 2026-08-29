@@ -217,12 +217,6 @@ than each consumer needing their own clone-and-customize pass.
   `BlockKind` — the editor UI doesn't surface it yet) (U·B1, W·§6/§8 i6). Out-of-scope note:
   chat-triggers and automation screens also bind pipelines via a plain picker and would benefit from
   `PipelineBindPicker` too — not yet done.
-- **S047-remaining** Dry-run — backend `POST pipelines/{id}/test-run` + pipelines-screen Test button
-  shipped and verified (966a06a6). Remaining: commands/event-responses/timers screens each bind to a
-  pipeline rather than owning a chain editor, so their Test affordance should be a shortcut into the
-  bound pipeline's existing test dialog (or a lighter duplicate entry point) — needs that small design
-  call, then wiring (W·§6/§8 i2). Done-when: captured side effects shown without sending, from all four
-  surfaces.
 - **S050** Shell truth — DONE. Hub-state dot now reads `DashboardHubClient.connectionState`
   (Connected/Reconnecting/Disconnected) instead of a hardcoded fill, rendered in both the compact top bar and
   the persistent desktop sidebar; proved with a real-socket jvmTest (drop → Reconnecting within the liveness
