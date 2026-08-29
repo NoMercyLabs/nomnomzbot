@@ -214,13 +214,14 @@ than each consumer needing their own clone-and-customize pass.
   pipelines (`TemplateHelpersLink`/`TemplateHelpersDialog`, chip scroller removed). Remaining: rewards
   and giveaways have no free-text template field to wire it into yet — wire it in when S063 adds the
   rewards `Response` field and when giveaways grows an announcement-text field (U·A7, W·§8 i7).
-- **S046-remaining** Authoring ergonomics, remaining 4 of 6 (regex compile check and command rename
-  shipped in f899b076/0b27859b, verified): create-and-bind pipeline everywhere (needs a create-inline
-  affordance wired into commands/event-responses/timers/rewards pickers); timer picker + interval
-  presets + `LastFiredAt`/next index; `code` tier links to Code Scripts (no wiring found from a
+- **S046-remaining** Authoring ergonomics, remaining 3 of 6 (regex compile check, command rename, and
+  create-and-bind pipeline everywhere shipped and verified — f899b076/0b27859b/9bb4c0c5, the last one
+  via shared `PipelineBindPicker` across commands/event-responses/timers/rewards): timer picker +
+  interval presets + `LastFiredAt`/next index; `code` tier links to Code Scripts (no wiring found from a
   `run_code` step to its script editor); branching (`ParentStepId`/`Branch`) in the step dialog (domain
   model already ships the full tree — `PipelineStep.ParentStepId`/`Branch`/`BlockKind` — the editor UI
-  doesn't surface it yet) (U·B1, W·§6/§8 i6).
+  doesn't surface it yet) (U·B1, W·§6/§8 i6). Out-of-scope note: chat-triggers and automation screens
+  also bind pipelines via a plain picker and would benefit from `PipelineBindPicker` too — not yet done.
 - **S047-remaining** Dry-run — backend `POST pipelines/{id}/test-run` + pipelines-screen Test button
   shipped and verified (966a06a6). Remaining: commands/event-responses/timers screens each bind to a
   pipeline rather than owning a chain editor, so their Test affordance should be a shortcut into the
