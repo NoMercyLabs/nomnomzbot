@@ -209,10 +209,10 @@ than each consumer needing their own clone-and-customize pass.
   pipelines (`TemplateHelpersLink`/`TemplateHelpersDialog`, chip scroller removed). Remaining: rewards
   and giveaways have no free-text template field to wire it into yet — wire it in when S063 adds the
   rewards `Response` field and when giveaways grows an announcement-text field (U·A7, W·§8 i7).
-- **S046-remaining** Authoring ergonomics, remaining 2 of 6 (regex compile check, command rename,
-  create-and-bind pipeline everywhere, and timer picker + interval presets + `LastFiredAt`/next index
-  all shipped and verified — f899b076/0b27859b/9bb4c0c5/e6892957): `code` tier links to Code Scripts
-  (no wiring found from a `run_code` step to its script editor); branching (`ParentStepId`/`Branch`) in
+- **S046-remaining** Authoring ergonomics, remaining 1 of 6 (regex compile check, command rename,
+  create-and-bind pipeline everywhere, timer picker + interval presets + `LastFiredAt`/next index, and
+  `code` tier → Code Scripts editor wiring all shipped and verified — f899b076/0b27859b/9bb4c0c5/
+  e6892957/3c4d89d6/cdabd605): branching (`ParentStepId`/`Branch`) in
   the step dialog (domain model already ships the full tree — `PipelineStep.ParentStepId`/`Branch`/
   `BlockKind` — the editor UI doesn't surface it yet) (U·B1, W·§6/§8 i6). Out-of-scope note:
   chat-triggers and automation screens also bind pipelines via a plain picker and would benefit from
