@@ -19,6 +19,9 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.booleanOrNull
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -300,6 +303,31 @@ import nomnomzbot.composeapp.generated.resources.pipelines_block_lane_step_edit
 import nomnomzbot.composeapp.generated.resources.pipelines_block_lane_step_delete
 import nomnomzbot.composeapp.generated.resources.pipelines_block_lane_step_move_up
 import nomnomzbot.composeapp.generated.resources.pipelines_block_lane_step_move_down
+import nomnomzbot.composeapp.generated.resources.pipelines_block_add_switch
+import nomnomzbot.composeapp.generated.resources.pipelines_block_switch_title
+import nomnomzbot.composeapp.generated.resources.pipelines_block_switch_edit_title
+import nomnomzbot.composeapp.generated.resources.pipelines_block_switch_summary
+import nomnomzbot.composeapp.generated.resources.pipelines_block_switch_value_label
+import nomnomzbot.composeapp.generated.resources.pipelines_block_case_add
+import nomnomzbot.composeapp.generated.resources.pipelines_block_case_add_title
+import nomnomzbot.composeapp.generated.resources.pipelines_block_case_edit_title
+import nomnomzbot.composeapp.generated.resources.pipelines_block_case_match_label
+import nomnomzbot.composeapp.generated.resources.pipelines_block_case_operator_label
+import nomnomzbot.composeapp.generated.resources.pipelines_block_case_default_label
+import nomnomzbot.composeapp.generated.resources.pipelines_block_case_summary
+import nomnomzbot.composeapp.generated.resources.pipelines_block_case_summary_default
+import nomnomzbot.composeapp.generated.resources.pipelines_block_case_lane_label
+import nomnomzbot.composeapp.generated.resources.pipelines_block_case_edit
+import nomnomzbot.composeapp.generated.resources.pipelines_block_case_delete
+import nomnomzbot.composeapp.generated.resources.pipelines_block_case_move_up
+import nomnomzbot.composeapp.generated.resources.pipelines_block_case_move_down
+import nomnomzbot.composeapp.generated.resources.pipelines_block_operator_eq
+import nomnomzbot.composeapp.generated.resources.pipelines_block_operator_ne
+import nomnomzbot.composeapp.generated.resources.pipelines_block_operator_gt
+import nomnomzbot.composeapp.generated.resources.pipelines_block_operator_lt
+import nomnomzbot.composeapp.generated.resources.pipelines_block_operator_gte
+import nomnomzbot.composeapp.generated.resources.pipelines_block_operator_lte
+import nomnomzbot.composeapp.generated.resources.pipelines_block_operator_contains
 
 import nomnomzbot.composeapp.generated.resources.shell_nav_pipelines
 import nomnomzbot.composeapp.generated.resources.pipelines_toggle_action
@@ -645,12 +673,17 @@ private fun ChainEditor(
 
     // null = no if-block dialog; a value = the add/edit-condition dialog for one "if" block.
     var ifBlockDialog: IfBlockDialogTarget? by remember { mutableStateOf(null) }
+    // null = no switch-value dialog; a value = the add/edit-value dialog for one "switch" block.
+    var switchBlockDialog: SwitchBlockDialogTarget? by remember { mutableStateOf(null) }
+    // null = no case dialog; a value = the add/edit dialog for one "switch_case" child.
+    var switchCaseDialog: SwitchCaseDialogTarget? by remember { mutableStateOf(null) }
 
     val backLabel: String = stringResource(Res.string.pipelines_editor_back)
     val saveLabel: String = stringResource(Res.string.pipelines_editor_save)
     val testLabel: String = stringResource(Res.string.pipelines_testrun_action)
     val addLabel: String = stringResource(Res.string.pipelines_step_add)
     val addIfLabel: String = stringResource(Res.string.pipelines_block_add_if)
+    val addSwitchLabel: String = stringResource(Res.string.pipelines_block_add_switch)
 
     // The root chain, tree-ordered: only the steps with no parent block, in their lane's `order`. Each "if"
     // block's "then"/"else" children are rendered nested inside its own card, never here at the top level.
@@ -723,6 +756,15 @@ private fun ChainEditor(
                     Text(text = addIfLabel)
                 }
             }
+            ManageGate(decision = manage) { enabled ->
+                Button(
+                    onClick = { switchBlockDialog = SwitchBlockDialogTarget(blockId = null, value = null) },
+                    enabled = enabled,
+                    modifier = Modifier.weight(1f).semantics { contentDescription = addSwitchLabel },
+                ) {
+                    Text(text = addSwitchLabel)
+                }
+            }
         }
 
         if (editing.steps.isEmpty()) {
@@ -751,6 +793,24 @@ private fun ChainEditor(
                                 onRemove = { step.id?.let { controller.removeBranchStep(it) } },
                                 onAddToLane = { branch -> stepDialog = StepDialogTarget(parentStepId = step.id, branch = branch, step = null) },
                                 onEditLaneStep = { child -> stepDialog = StepDialogTarget(parentStepId = child.parentStepId, branch = child.branch, step = child) },
+                            )
+                        } else if (step.blockKind == "switch") {
+                            SwitchBlockCard(
+                                block = step,
+                                allSteps = editing.steps,
+                                index = index,
+                                total = rootSteps.size,
+                                palette = editing.palette,
+                                manage = manage,
+                                controller = controller,
+                                onEditValue = { switchBlockDialog = SwitchBlockDialogTarget(blockId = step.id, value = step.blockConfig) },
+                                onMoveUp = { step.id?.let { controller.moveBranchStepUp(it) } },
+                                onMoveDown = { step.id?.let { controller.moveBranchStepDown(it) } },
+                                onRemove = { step.id?.let { controller.removeBranchStep(it) } },
+                                onAddCase = { switchId -> switchCaseDialog = SwitchCaseDialogTarget(switchId = switchId, caseId = null, config = null) },
+                                onEditCase = { caseStep -> switchCaseDialog = SwitchCaseDialogTarget(switchId = caseStep.parentStepId, caseId = caseStep.id, config = caseStep.blockConfig) },
+                                onAddCaseStep = { caseId -> stepDialog = StepDialogTarget(parentStepId = caseId, branch = null, step = null) },
+                                onEditCaseStep = { child -> stepDialog = StepDialogTarget(parentStepId = child.parentStepId, branch = child.branch, step = child) },
                             )
                         } else {
                             StepCard(
@@ -785,8 +845,10 @@ private fun ChainEditor(
                 stepDialog = null
                 when {
                     existingId != null -> controller.updateStepById(existingId, step)
-                    target.parentStepId != null && target.branch != null ->
-                        controller.addBranchStep(target.parentStepId, target.branch, step)
+                    // `branch` is null for a lane that is the only lane under its parent (a switch's own
+                    // "switch_case" children, or a case's own body steps) — `parentStepId` alone still
+                    // addresses it, so only that needs to be non-null to route into addBranchStep.
+                    target.parentStepId != null -> controller.addBranchStep(target.parentStepId, target.branch, step)
                     else -> controller.addRootStep(step)
                 }
             },
@@ -812,6 +874,54 @@ private fun ChainEditor(
                     )
                 } else {
                     controller.addIfBlock(condition)
+                }
+            },
+        )
+    }
+
+    switchBlockDialog?.let { target ->
+        SwitchBlockFormDialog(
+            initial = decodeSwitchValue(target.value),
+            onDismiss = { switchBlockDialog = null },
+            onSubmit = { value ->
+                val existingBlockId: String? = target.blockId
+                switchBlockDialog = null
+                if (existingBlockId != null) {
+                    controller.updateStepById(
+                        existingBlockId,
+                        PipelineStep(
+                            action = PipelineNode(type = "block"),
+                            blockKind = "switch",
+                            blockConfig = encodeSwitchValue(value),
+                        ),
+                    )
+                } else {
+                    controller.addSwitchBlock(value)
+                }
+            },
+        )
+    }
+
+    switchCaseDialog?.let { target ->
+        val (initialMatch: String, initialOperator: String, initialIsDefault: Boolean) = decodeSwitchCase(target.config)
+        SwitchCaseFormDialog(
+            initialMatch = initialMatch,
+            initialOperator = initialOperator,
+            initialIsDefault = initialIsDefault,
+            onDismiss = { switchCaseDialog = null },
+            onSubmit = { match, operatorKey, isDefault ->
+                val switchId: String? = target.switchId
+                val existingCaseId: String? = target.caseId
+                switchCaseDialog = null
+                val caseStep =
+                    PipelineStep(
+                        action = PipelineNode(type = "block"),
+                        blockKind = "switch_case",
+                        blockConfig = encodeSwitchCase(match, operatorKey, isDefault),
+                    )
+                when {
+                    existingCaseId != null -> controller.updateStepById(existingCaseId, caseStep)
+                    switchId != null -> controller.addBranchStep(switchId, null, caseStep)
                 }
             },
         )
@@ -1161,6 +1271,266 @@ private fun IfBlockFormDialog(
                 },
                 enabled = canSubmit,
             ) {
+                Text(text = stringResource(Res.string.pipelines_dialog_save), color = if (canSubmit) tokens.primary else tokens.mutedForeground)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = stringResource(Res.string.pipelines_dialog_cancel), color = tokens.mutedForeground)
+            }
+        },
+    )
+}
+
+// A nested "switch" block: no action of its own to run — just its switch value — plus its ordered
+// "switch_case" children, each rendered as its own case header (match/operator/is_default) followed by a
+// [LaneSection] holding that ONE case's own body steps (what runs when it is the matched case).
+@Composable
+private fun SwitchBlockCard(
+    block: PipelineStep,
+    allSteps: List<PipelineStep>,
+    index: Int,
+    total: Int,
+    palette: RuntimePalette,
+    manage: ManageDecision,
+    controller: PipelinesController,
+    onEditValue: () -> Unit,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit,
+    onRemove: () -> Unit,
+    onAddCase: (switchId: String) -> Unit,
+    onEditCase: (PipelineStep) -> Unit,
+    onAddCaseStep: (caseId: String) -> Unit,
+    onEditCaseStep: (PipelineStep) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val blockId: String = block.id ?: return
+    val switchValue: String = decodeSwitchValue(block.blockConfig)
+
+    val editLabel: String = stringResource(Res.string.pipelines_step_edit, index + 1)
+    val removeLabel: String = stringResource(Res.string.pipelines_step_delete, index + 1)
+    val upLabel: String = stringResource(Res.string.pipelines_step_move_up, index + 1)
+    val downLabel: String = stringResource(Res.string.pipelines_step_move_down, index + 1)
+    val addCaseLabel: String = stringResource(Res.string.pipelines_block_case_add)
+
+    val cases: List<PipelineStep> =
+        allSteps.filter { it.parentStepId == blockId && it.blockKind == "switch_case" }.sortedBy { it.order ?: 0 }
+
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
+        verticalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s3)) {
+            Text(text = "${index + 1}", style = typography.sm, color = tokens.mutedForeground)
+            Text(
+                text = stringResource(Res.string.pipelines_block_switch_summary, switchValue),
+                style = typography.lg,
+                color = tokens.cardForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+        }
+
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spacing.s1)) {
+            ManageGate(decision = manage) { allowed ->
+                GlyphButton(icon = ArrowUpGlyph, label = upLabel, onClick = onMoveUp, enabled = allowed && index > 0, tint = tokens.primary)
+            }
+            ManageGate(decision = manage) { allowed ->
+                GlyphButton(icon = ArrowDownGlyph, label = downLabel, onClick = onMoveDown, enabled = allowed && index < total - 1, tint = tokens.primary)
+            }
+            Box(modifier = Modifier.weight(1f))
+            ManageGate(decision = manage) { enabled -> GlyphButton(icon = EditGlyph, label = editLabel, onClick = onEditValue, enabled = enabled) }
+            ManageGate(decision = manage) { enabled ->
+                GlyphButton(icon = TrashGlyph, label = removeLabel, onClick = onRemove, enabled = enabled, tint = tokens.destructive)
+            }
+        }
+
+        for ((caseIndex, case) in cases.withIndex()) {
+            val caseId: String = case.id ?: continue
+            val (match: String, operatorKey: String, isDefault: Boolean) = decodeSwitchCase(case.blockConfig)
+            val caseSummary: String =
+                if (isDefault) stringResource(Res.string.pipelines_block_case_summary_default, caseIndex + 1)
+                else stringResource(Res.string.pipelines_block_case_summary, caseIndex + 1, operatorDisplayName(operatorKey), match)
+            val caseEditLabel: String = stringResource(Res.string.pipelines_block_case_edit, caseIndex + 1)
+            val caseRemoveLabel: String = stringResource(Res.string.pipelines_block_case_delete, caseIndex + 1)
+            val caseUpLabel: String = stringResource(Res.string.pipelines_block_case_move_up, caseIndex + 1)
+            val caseDownLabel: String = stringResource(Res.string.pipelines_block_case_move_down, caseIndex + 1)
+
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(start = spacing.s4),
+                verticalArrangement = Arrangement.spacedBy(spacing.s1),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                    Text(
+                        text = caseSummary,
+                        style = typography.sm,
+                        color = tokens.cardForeground,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                    ManageGate(decision = manage) { allowed ->
+                        GlyphButton(
+                            icon = ArrowUpGlyph,
+                            label = caseUpLabel,
+                            onClick = { controller.moveBranchStepUp(caseId) },
+                            enabled = allowed && caseIndex > 0,
+                            tint = tokens.primary,
+                        )
+                    }
+                    ManageGate(decision = manage) { allowed ->
+                        GlyphButton(
+                            icon = ArrowDownGlyph,
+                            label = caseDownLabel,
+                            onClick = { controller.moveBranchStepDown(caseId) },
+                            enabled = allowed && caseIndex < cases.size - 1,
+                            tint = tokens.primary,
+                        )
+                    }
+                    ManageGate(decision = manage) { enabled ->
+                        GlyphButton(icon = EditGlyph, label = caseEditLabel, onClick = { onEditCase(case) }, enabled = enabled)
+                    }
+                    ManageGate(decision = manage) { enabled ->
+                        GlyphButton(
+                            icon = TrashGlyph,
+                            label = caseRemoveLabel,
+                            onClick = { controller.removeBranchStep(caseId) },
+                            enabled = enabled,
+                            tint = tokens.destructive,
+                        )
+                    }
+                }
+
+                LaneSection(
+                    label = stringResource(Res.string.pipelines_block_case_lane_label, caseIndex + 1),
+                    branch = "case",
+                    steps = allSteps.filter { it.parentStepId == caseId }.sortedBy { it.order ?: 0 },
+                    palette = palette,
+                    manage = manage,
+                    controller = controller,
+                    onAdd = { onAddCaseStep(caseId) },
+                    onEditStep = onEditCaseStep,
+                )
+            }
+        }
+
+        Row(modifier = Modifier.fillMaxWidth().padding(start = spacing.s4)) {
+            ManageGate(decision = manage) { enabled ->
+                GlyphButton(icon = AddGlyph, label = addCaseLabel, onClick = { onAddCase(blockId) }, enabled = enabled, tint = tokens.primary)
+            }
+        }
+    }
+}
+
+// The "switch" block's value editor — a single free-text/template field (e.g. `{{args.1}}`), read/written to
+// `blockConfig` (never `condition`) via [decodeSwitchValue]/[encodeSwitchValue].
+@Composable
+private fun SwitchBlockFormDialog(
+    initial: String,
+    onDismiss: () -> Unit,
+    onSubmit: (value: String) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    var value: String by remember { mutableStateOf(initial) }
+    val label: String = stringResource(Res.string.pipelines_block_switch_value_label)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(text = stringResource(if (initial.isBlank()) Res.string.pipelines_block_switch_title else Res.string.pipelines_block_switch_edit_title))
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                AppTextField(value = value, onValueChange = { value = it }, label = label)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSubmit(value) }, enabled = value.isNotBlank()) {
+                Text(
+                    text = stringResource(Res.string.pipelines_dialog_save),
+                    color = if (value.isNotBlank()) tokens.primary else tokens.mutedForeground,
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = stringResource(Res.string.pipelines_dialog_cancel), color = tokens.mutedForeground)
+            }
+        },
+    )
+}
+
+// A "switch_case" child's own editor: its match value, its comparison operator (a closed dropdown of exactly
+// the operators the engine's MatchesCase understands), and its is-default/catch-all toggle. A default case
+// ignores its own match/operator at match time (PipelineEngine.cs), but this dialog still lets both be typed
+// so flipping the toggle back off doesn't lose them.
+@Composable
+private fun SwitchCaseFormDialog(
+    initialMatch: String,
+    initialOperator: String,
+    initialIsDefault: Boolean,
+    onDismiss: () -> Unit,
+    onSubmit: (match: String, operator: String, isDefault: Boolean) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    var match: String by remember { mutableStateOf(initialMatch) }
+    var operatorKey: String by remember { mutableStateOf(initialOperator) }
+    var isDefault: Boolean by remember { mutableStateOf(initialIsDefault) }
+    var operatorMenuExpanded: Boolean by remember { mutableStateOf(false) }
+    val matchLabel: String = stringResource(Res.string.pipelines_block_case_match_label)
+    val operatorLabel: String = stringResource(Res.string.pipelines_block_case_operator_label)
+    val defaultLabel: String = stringResource(Res.string.pipelines_block_case_default_label)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(text = stringResource(if (initialMatch.isBlank() && !initialIsDefault) Res.string.pipelines_block_case_add_title else Res.string.pipelines_block_case_edit_title))
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                AppTextField(value = match, onValueChange = { match = it }, label = matchLabel, enabled = !isDefault)
+
+                LabeledText(operatorLabel)
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    TextButton(onClick = { operatorMenuExpanded = true }, modifier = Modifier.fillMaxWidth().semantics { contentDescription = operatorLabel }) {
+                        Text(text = operatorDisplayName(operatorKey), color = tokens.foreground, modifier = Modifier.weight(1f))
+                    }
+                    DropdownMenu(expanded = operatorMenuExpanded, onDismissRequest = { operatorMenuExpanded = false }) {
+                        for (option in SwitchCaseOperators) {
+                            DropdownMenuItem(
+                                text = { Text(operatorDisplayName(option)) },
+                                onClick = {
+                                    operatorKey = option
+                                    operatorMenuExpanded = false
+                                },
+                            )
+                        }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(text = defaultLabel, color = tokens.cardForeground)
+                    Switch(
+                        checked = isDefault,
+                        onCheckedChange = { isDefault = it },
+                        modifier = Modifier.semantics { contentDescription = defaultLabel },
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            val canSubmit: Boolean = isDefault || match.isNotBlank()
+            TextButton(onClick = { onSubmit(match, operatorKey, isDefault) }, enabled = canSubmit) {
                 Text(text = stringResource(Res.string.pipelines_dialog_save), color = if (canSubmit) tokens.primary else tokens.mutedForeground)
             }
         },
@@ -2322,3 +2692,56 @@ private data class StepDialogTarget(val parentStepId: String?, val branch: Strin
 // A null [blockId] is adding a brand-new "if" block; a non-null one is re-editing an existing block's
 // condition (its [condition] pre-fills the dialog).
 private data class IfBlockDialogTarget(val blockId: String?, val condition: PipelineNode?)
+
+// A null [blockId] is adding a brand-new "switch" block; a non-null one is re-editing an existing block's
+// value (its raw `blockConfig` [value] pre-fills the dialog, decoded by [decodeSwitchValue]).
+private data class SwitchBlockDialogTarget(val blockId: String?, val value: JsonElement?)
+
+// A null [caseId] is adding a brand-new "switch_case" under [switchId]; a non-null [caseId] is re-editing
+// that existing case's match/operator/is_default (its raw `blockConfig` [config] pre-fills the dialog,
+// decoded by [decodeSwitchCase]).
+private data class SwitchCaseDialogTarget(val switchId: String?, val caseId: String?, val config: JsonElement?)
+
+// The switch operators MatchesCase (PipelineEngine.cs) actually understands — exactly this set, no more, no
+// less, so the operator picker can never offer one the engine would silently treat as "no match".
+private val SwitchCaseOperators: List<String> = listOf("eq", "ne", "gt", "lt", "gte", "lte", "contains")
+
+@Composable
+private fun operatorDisplayName(operator: String): String =
+    when (operator) {
+        "eq" -> stringResource(Res.string.pipelines_block_operator_eq)
+        "ne" -> stringResource(Res.string.pipelines_block_operator_ne)
+        "gt" -> stringResource(Res.string.pipelines_block_operator_gt)
+        "lt" -> stringResource(Res.string.pipelines_block_operator_lt)
+        "gte" -> stringResource(Res.string.pipelines_block_operator_gte)
+        "lte" -> stringResource(Res.string.pipelines_block_operator_lte)
+        "contains" -> stringResource(Res.string.pipelines_block_operator_contains)
+        else -> operator
+    }
+
+// Reads a "switch" block's own value back out of its `blockConfig` (`SwitchBlockConfig { value }` on the
+// backend) — never `condition`, which this block kind never populates.
+private fun decodeSwitchValue(blockConfig: JsonElement?): String =
+    (blockConfig as? JsonObject)?.get("value")?.jsonPrimitive?.contentOrNull.orEmpty()
+
+private fun encodeSwitchValue(value: String): JsonElement = JsonObject(mapOf("value" to JsonPrimitive(value)))
+
+// Reads a "switch_case" child's match/operator/is_default back out of its `blockConfig`
+// (`SwitchCaseBlockConfig { match, operator, is_default }` on the backend), defaulting the operator to "eq"
+// and is_default to false exactly the way the engine's own ParseBlockConfig defaults them.
+private fun decodeSwitchCase(blockConfig: JsonElement?): Triple<String, String, Boolean> {
+    val obj: JsonObject? = blockConfig as? JsonObject
+    val match: String = obj?.get("match")?.jsonPrimitive?.contentOrNull.orEmpty()
+    val operator: String = obj?.get("operator")?.jsonPrimitive?.contentOrNull ?: "eq"
+    val isDefault: Boolean = obj?.get("is_default")?.jsonPrimitive?.booleanOrNull ?: false
+    return Triple(match, operator, isDefault)
+}
+
+private fun encodeSwitchCase(match: String, operator: String, isDefault: Boolean): JsonElement =
+    JsonObject(
+        mapOf(
+            "match" to JsonPrimitive(match),
+            "operator" to JsonPrimitive(operator),
+            "is_default" to JsonPrimitive(isDefault),
+        )
+    )

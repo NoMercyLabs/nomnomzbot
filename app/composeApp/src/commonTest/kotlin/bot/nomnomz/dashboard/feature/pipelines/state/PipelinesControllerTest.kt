@@ -56,6 +56,11 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.boolean
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_pipeline_deleted
 import nomnomzbot.composeapp.generated.resources.feedback_pipeline_saved
@@ -488,6 +493,150 @@ class PipelinesControllerTest {
         assertEquals(emptyList(), lane("else"))
         assertEquals(listOf("then-2", "then-1"), lane("then").map { it.action.params["message"] })
         assertEquals(3, steps().size) // block + 2 "then" children
+    }
+
+    // ── Branching ("switch" block) edits (S046-branching-switch) ───────────────
+
+    @Test
+    fun switch_block_with_three_cases_including_a_default_produces_the_correct_tree_shape() = runTest {
+        val api =
+            RecordingPipelinesApi(
+                listOf(PipelineSummary(id = "00000006-0000-0000-0000-000000000006", name = "Router", isEnabled = true)),
+                graphs = mutableMapOf("00000006-0000-0000-0000-000000000006" to PipelineGraph().toJson()),
+            )
+        val controller = pipelinesController(okChannel(), api)
+        controller.load()
+        controller.openEditor(PipelineSummary(id = "00000006-0000-0000-0000-000000000006", name = "Router"))
+
+        val switchId: String = controller.addSwitchBlock("{{args.1}}")
+
+        fun steps(): List<PipelineStep> = (controller.state.value as PipelinesState.Editing).steps
+
+        // The switch itself: no runnable action of its own, its value carried by `blockConfig` (never
+        // `condition` — the engine's ExecuteSwitchAsync only ever reads a switch step's BlockConfigJson),
+        // top-level order 0.
+        val switchStep: PipelineStep = steps().single { it.id == switchId }
+        assertEquals("switch", switchStep.blockKind)
+        assertNull(switchStep.parentStepId)
+        assertEquals(0, switchStep.order)
+        assertNull(switchStep.condition)
+        assertEquals("{{args.1}}", (switchStep.blockConfig as? JsonObject)?.get("value")?.jsonPrimitive?.contentOrNull)
+
+        fun caseStep(match: String, operator: String, isDefault: Boolean): PipelineStep =
+            PipelineStep(
+                action = PipelineNode(type = "block"),
+                blockKind = "switch_case",
+                blockConfig =
+                    JsonObject(
+                        mapOf(
+                            "match" to JsonPrimitive(match),
+                            "operator" to JsonPrimitive(operator),
+                            "is_default" to JsonPrimitive(isDefault),
+                        )
+                    ),
+            )
+
+        controller.addBranchStep(switchId, null, caseStep("1", "eq", false))
+        controller.addBranchStep(switchId, null, caseStep("2", "gt", false))
+        controller.addBranchStep(switchId, null, caseStep("", "eq", true))
+
+        fun cases(): List<PipelineStep> =
+            steps().filter { it.parentStepId == switchId && it.blockKind == "switch_case" }.sortedBy { it.order }
+
+        assertEquals(3, cases().size)
+        assertEquals(listOf(0, 1, 2), cases().map { it.order })
+        assertTrue(cases().all { it.parentStepId == switchId })
+
+        val matches: List<String?> = cases().map { (it.blockConfig as? JsonObject)?.get("match")?.jsonPrimitive?.contentOrNull }
+        assertEquals(listOf("1", "2", ""), matches)
+        val operators: List<String?> = cases().map { (it.blockConfig as? JsonObject)?.get("operator")?.jsonPrimitive?.contentOrNull }
+        assertEquals(listOf("eq", "gt", "eq"), operators)
+        val defaults: List<Boolean?> = cases().map { (it.blockConfig as? JsonObject)?.get("is_default")?.jsonPrimitive?.boolean }
+        assertEquals(listOf(false, false, true), defaults)
+
+        // The value/match/operator/is_default fields land ONLY in blockConfig — never on `condition`.
+        assertTrue(cases().all { it.condition == null })
+        assertEquals(4, steps().size) // switch + 3 cases
+    }
+
+    @Test
+    fun switch_case_reorder_updates_order_within_the_switchs_own_lane_only() = runTest {
+        val api =
+            RecordingPipelinesApi(
+                listOf(PipelineSummary(id = "00000007-0000-0000-0000-000000000007", name = "Router", isEnabled = true)),
+                graphs = mutableMapOf("00000007-0000-0000-0000-000000000007" to PipelineGraph().toJson()),
+            )
+        val controller = pipelinesController(okChannel(), api)
+        controller.load()
+        controller.openEditor(PipelineSummary(id = "00000007-0000-0000-0000-000000000007", name = "Router"))
+
+        val switchId: String = controller.addSwitchBlock("{{args.1}}")
+        fun caseStep(match: String): PipelineStep =
+            PipelineStep(
+                action = PipelineNode(type = "block"),
+                blockKind = "switch_case",
+                blockConfig = JsonObject(mapOf("match" to JsonPrimitive(match), "operator" to JsonPrimitive("eq"), "is_default" to JsonPrimitive(false))),
+            )
+        controller.addBranchStep(switchId, null, caseStep("a"))
+        controller.addBranchStep(switchId, null, caseStep("b"))
+        controller.addBranchStep(switchId, null, caseStep("c"))
+
+        fun cases(): List<PipelineStep> =
+            (controller.state.value as PipelinesState.Editing)
+                .steps
+                .filter { it.parentStepId == switchId && it.blockKind == "switch_case" }
+                .sortedBy { it.order }
+
+        val matchOf: (PipelineStep) -> String? = { (it.blockConfig as? JsonObject)?.get("match")?.jsonPrimitive?.contentOrNull }
+        assertEquals(listOf("a", "b", "c"), cases().map(matchOf))
+
+        // Move the middle case ("b") up one slot — its own order swaps with "a"'s, "c" is untouched.
+        val middleId: String = cases()[1].id!!
+        controller.moveBranchStepUp(middleId)
+        assertEquals(listOf("b", "a", "c"), cases().map(matchOf))
+        assertEquals(listOf(0, 1, 2), cases().map { it.order })
+
+        // Move the (now-last) case down — no-op, it is already at the bottom of its lane.
+        val lastId: String = cases().last().id!!
+        controller.moveBranchStepDown(lastId)
+        assertEquals(listOf("b", "a", "c"), cases().map(matchOf))
+    }
+
+    @Test
+    fun removing_a_switch_case_reindexes_the_remaining_siblings_order() = runTest {
+        val api =
+            RecordingPipelinesApi(
+                listOf(PipelineSummary(id = "00000008-0000-0000-0000-000000000008", name = "Router", isEnabled = true)),
+                graphs = mutableMapOf("00000008-0000-0000-0000-000000000008" to PipelineGraph().toJson()),
+            )
+        val controller = pipelinesController(okChannel(), api)
+        controller.load()
+        controller.openEditor(PipelineSummary(id = "00000008-0000-0000-0000-000000000008", name = "Router"))
+
+        val switchId: String = controller.addSwitchBlock("{{args.1}}")
+        fun caseStep(match: String): PipelineStep =
+            PipelineStep(
+                action = PipelineNode(type = "block"),
+                blockKind = "switch_case",
+                blockConfig = JsonObject(mapOf("match" to JsonPrimitive(match), "operator" to JsonPrimitive("eq"), "is_default" to JsonPrimitive(false))),
+            )
+        controller.addBranchStep(switchId, null, caseStep("a"))
+        controller.addBranchStep(switchId, null, caseStep("b"))
+        controller.addBranchStep(switchId, null, caseStep("c"))
+
+        fun cases(): List<PipelineStep> =
+            (controller.state.value as PipelinesState.Editing)
+                .steps
+                .filter { it.parentStepId == switchId && it.blockKind == "switch_case" }
+                .sortedBy { it.order }
+        val matchOf: (PipelineStep) -> String? = { (it.blockConfig as? JsonObject)?.get("match")?.jsonPrimitive?.contentOrNull }
+
+        val middleId: String = cases()[1].id!!
+        controller.removeBranchStep(middleId)
+
+        assertEquals(listOf("a", "c"), cases().map(matchOf))
+        assertEquals(listOf(0, 1), cases().map { it.order }) // "c" compacted from order 2 down to 1
+        assertEquals(3, (controller.state.value as PipelinesState.Editing).steps.size) // switch + 2 remaining cases
     }
 
     @Test
