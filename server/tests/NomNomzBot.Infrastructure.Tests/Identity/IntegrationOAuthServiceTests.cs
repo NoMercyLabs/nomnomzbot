@@ -1218,6 +1218,81 @@ public sealed class IntegrationOAuthServiceTests
             ]);
     }
 
+    // ─── YouTube force-ssl re-grant (S029) ──────────────────────────────────────
+
+    [Fact]
+    public async Task GetStatus_YouTubeConnectedWithoutForceSsl_NoLongerShowsManageGranted_ButStaysConnected()
+    {
+        // A connection granted BEFORE youtube.force-ssl joined the "youtube.manage" scope set (the
+        // pre-fix state every existing YouTube-write user is in) must stop counting as having that scope
+        // set granted — GrantedScopeSets requires ALL scopes present — which is what surfaces the
+        // additive re-grant prompt. It must NOT flip the connection to NeedsReauth/disconnected: that
+        // would force a logout, which progressive scopes explicitly forbid.
+        (IntegrationOAuthService service, AuthDbContext db, _, _) = Build(new());
+        db.IntegrationConnections.Add(
+            new IntegrationConnection
+            {
+                BroadcasterId = Tenant,
+                Provider = AuthEnums.IntegrationProvider.YouTube,
+                ProviderAccountId = "UCexisting",
+                ProviderAccountName = "Existing Streamer",
+                Status = AuthEnums.IntegrationStatus.Connected,
+                // The old grant: "youtube" only, no "youtube.force-ssl".
+                Scopes = ["https://www.googleapis.com/auth/youtube"],
+                ConnectedAt = DateTime.UtcNow,
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<IReadOnlyList<IntegrationStatusDto>> status = await service.GetStatusAsync(Tenant);
+
+        status.IsSuccess.Should().BeTrue();
+        IntegrationStatusDto youTube = status.Value.Single(r =>
+            r.Provider == AuthEnums.IntegrationProvider.YouTube
+        );
+        youTube.Connected.Should().BeTrue("the existing grant must not force a logout");
+        youTube
+            .NeedsReauth.Should()
+            .BeFalse("a missing scope is an additive re-grant, not a reauth");
+        youTube
+            .GrantedScopeSets.Should()
+            .NotContain(
+                "youtube.manage",
+                "force-ssl is now part of the manage set, so the old grant no longer satisfies it"
+            );
+    }
+
+    [Fact]
+    public async Task GetStatus_YouTubeConnectedWithForceSsl_ShowsManageGranted()
+    {
+        (IntegrationOAuthService service, AuthDbContext db, _, _) = Build(new());
+        db.IntegrationConnections.Add(
+            new IntegrationConnection
+            {
+                BroadcasterId = Tenant,
+                Provider = AuthEnums.IntegrationProvider.YouTube,
+                ProviderAccountId = "UCregranted",
+                ProviderAccountName = "Regranted Streamer",
+                Status = AuthEnums.IntegrationStatus.Connected,
+                Scopes =
+                [
+                    "https://www.googleapis.com/auth/youtube",
+                    "https://www.googleapis.com/auth/youtube.force-ssl",
+                ],
+                ConnectedAt = DateTime.UtcNow,
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<IReadOnlyList<IntegrationStatusDto>> status = await service.GetStatusAsync(Tenant);
+
+        status.IsSuccess.Should().BeTrue();
+        IntegrationStatusDto youTube = status.Value.Single(r =>
+            r.Provider == AuthEnums.IntegrationProvider.YouTube
+        );
+        youTube.GrantedScopeSets.Should().Contain("youtube.manage");
+    }
+
     // ─── scaffolding ───────────────────────────────────────────────────────────
 
     private static (

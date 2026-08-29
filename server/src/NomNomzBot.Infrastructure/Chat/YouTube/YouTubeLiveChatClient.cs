@@ -21,8 +21,10 @@ namespace NomNomzBot.Infrastructure.Chat.YouTube;
 /// <see cref="IYouTubeLiveChatClient"/> over the YouTube Live Streaming API (Data API v3). Reads ride the
 /// broadcaster's own <c>youtube.readonly</c> OAuth bearer (the app key cannot read a live chat), mirroring the
 /// manage-plane pattern in <c>YouTubeMusicProvider</c>. Every transport/HTTP failure degrades to a typed
-/// <see cref="Result"/> failure (never throws), and a missing/expired scope maps to <c>MISSING_SCOPE</c> so the
-/// poller can trigger re-auth rather than crash a background loop.
+/// <see cref="Result"/> failure (never throws). A 401, or a 403 whose Google error body carries no quota-shaped
+/// <c>reason</c>, maps to <c>MISSING_SCOPE</c> so the poller can trigger re-auth; a 403 whose body carries
+/// <c>quotaExceeded</c>/<c>rateLimitExceeded</c>/<c>dailyLimitExceeded</c> maps instead to the distinct
+/// <c>QUOTA_EXCEEDED</c> code so quota burn is never mistaken for — and doesn't trigger — a scope re-grant.
 /// </summary>
 public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
 {
@@ -50,7 +52,7 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
         string url =
             $"{YouTubeApiBase}/liveBroadcasts?part=snippet&broadcastStatus=active&maxResults=1";
 
-        (HttpStatusCode? status, LiveBroadcastListResponse? body) =
+        (HttpStatusCode? status, LiveBroadcastListResponse? body, string? errorCode) =
             await GetAsync<LiveBroadcastListResponse>(url, accessToken, cancellationToken);
 
         if (status is null)
@@ -58,11 +60,8 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
                 "YouTube is temporarily unavailable.",
                 "SERVICE_UNAVAILABLE"
             );
-        if (status is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
-            return Result.Failure<YouTubeActiveChat?>(
-                "The YouTube connection is missing the required scope.",
-                "MISSING_SCOPE"
-            );
+        if (errorCode is not null)
+            return Result.Failure<YouTubeActiveChat?>(DescribeErrorCode(errorCode), errorCode);
 
         LiveBroadcastItem? broadcast = body?.Items?.FirstOrDefault(b =>
             !string.IsNullOrEmpty(b.Snippet?.LiveChatId)
@@ -91,7 +90,7 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
         if (!string.IsNullOrEmpty(pageToken))
             url += $"&pageToken={Uri.EscapeDataString(pageToken)}";
 
-        (HttpStatusCode? status, LiveChatMessageListResponse? body) =
+        (HttpStatusCode? status, LiveChatMessageListResponse? body, string? errorCode) =
             await GetAsync<LiveChatMessageListResponse>(url, accessToken, cancellationToken);
 
         if (status is null)
@@ -99,11 +98,8 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
                 "YouTube is temporarily unavailable.",
                 "SERVICE_UNAVAILABLE"
             );
-        if (status is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
-            return Result.Failure<YouTubeLiveChatPage>(
-                "The YouTube connection is missing the required scope.",
-                "MISSING_SCOPE"
-            );
+        if (errorCode is not null)
+            return Result.Failure<YouTubeLiveChatPage>(DescribeErrorCode(errorCode), errorCode);
         // The chat ended or the id is stale — surface it so the poller re-resolves the active broadcast.
         if (status is HttpStatusCode.NotFound)
             return Result.Failure<YouTubeLiveChatPage>(
@@ -135,22 +131,16 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
     {
         string url = $"{YouTubeApiBase}/channels?part=snippet&mine=true&maxResults=1";
 
-        (HttpStatusCode? status, ChannelListResponse? body) = await GetAsync<ChannelListResponse>(
-            url,
-            accessToken,
-            cancellationToken
-        );
+        (HttpStatusCode? status, ChannelListResponse? body, string? errorCode) =
+            await GetAsync<ChannelListResponse>(url, accessToken, cancellationToken);
 
         if (status is null)
             return Result.Failure<YouTubeOwnChannel>(
                 "YouTube is temporarily unavailable.",
                 "SERVICE_UNAVAILABLE"
             );
-        if (status is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
-            return Result.Failure<YouTubeOwnChannel>(
-                "The YouTube connection is missing the required scope.",
-                "MISSING_SCOPE"
-            );
+        if (errorCode is not null)
+            return Result.Failure<YouTubeOwnChannel>(DescribeErrorCode(errorCode), errorCode);
 
         ChannelItem? channel = body?.Items?.FirstOrDefault(c => !string.IsNullOrEmpty(c.Id));
         if (channel is null)
@@ -302,7 +292,7 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
         // and its scheduledStartTime must be carried over (required by the API on a snippet update).
         string getUrl =
             $"{YouTubeApiBase}/liveBroadcasts?part=snippet&broadcastStatus=active&maxResults=1";
-        (HttpStatusCode? status, LiveBroadcastListResponse? body) =
+        (HttpStatusCode? status, LiveBroadcastListResponse? body, string? errorCode) =
             await GetAsync<LiveBroadcastListResponse>(getUrl, accessToken, cancellationToken);
 
         if (status is null)
@@ -310,11 +300,8 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
                 "YouTube is temporarily unavailable.",
                 "SERVICE_UNAVAILABLE"
             );
-        if (status is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
-            return Result.Failure<string>(
-                "The YouTube connection is missing the required scope.",
-                "MISSING_SCOPE"
-            );
+        if (errorCode is not null)
+            return Result.Failure<string>(DescribeErrorCode(errorCode), errorCode);
 
         LiveBroadcastItem? broadcast = body?.Items?.FirstOrDefault(b =>
             !string.IsNullOrEmpty(b.Id)
@@ -346,7 +333,8 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
             : Result.Success(title);
     }
 
-    /// <summary>Shared write-call outcome mapping: 401/403 → MISSING_SCOPE, 404 → NOT_FOUND, other
+    /// <summary>Shared write-call outcome mapping: 401 → MISSING_SCOPE; 403 → MISSING_SCOPE, or the
+    /// distinct QUOTA_EXCEEDED when Google's error body names a quota/rate reason; 404 → NOT_FOUND; other
     /// non-success → SERVICE_UNAVAILABLE; transport exceptions degrade the same way (never throw).</summary>
     private async Task<Result> SendWriteAsync(
         HttpRequestMessage request,
@@ -357,11 +345,9 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
         try
         {
             HttpResponseMessage response = await _http.SendAsync(request, cancellationToken);
-            if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
-                return Result.Failure(
-                    "The YouTube connection is missing the required scope.",
-                    "MISSING_SCOPE"
-                );
+            string? errorCode = await ClassifyErrorAsync(response, cancellationToken);
+            if (errorCode is not null)
+                return Result.Failure(DescribeErrorCode(errorCode), errorCode);
             if (response.StatusCode == HttpStatusCode.NotFound)
                 return Result.Failure("The YouTube live chat is no longer available.", "NOT_FOUND");
             if (!response.IsSuccessStatusCode)
@@ -389,11 +375,9 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
         try
         {
             HttpResponseMessage response = await _http.SendAsync(request, cancellationToken);
-            if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
-                return Result.Failure<TBody>(
-                    "The YouTube connection is missing the required scope.",
-                    "MISSING_SCOPE"
-                );
+            string? errorCode = await ClassifyErrorAsync(response, cancellationToken);
+            if (errorCode is not null)
+                return Result.Failure<TBody>(DescribeErrorCode(errorCode), errorCode);
             if (response.StatusCode == HttpStatusCode.NotFound)
                 return Result.Failure<TBody>(
                     "The YouTube live chat is no longer available.",
@@ -424,6 +408,64 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
             );
         }
     }
+
+    /// <summary>Quota/rate reason codes Google's error body reports for chat writes — distinguished from a
+    /// genuine scope/permission 403 so an exhausted quota never fires the 15-minute scope re-auth path.</summary>
+    private static readonly HashSet<string> QuotaReasons = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "quotaExceeded",
+        "rateLimitExceeded",
+        "dailyLimitExceeded",
+        "userRateLimitExceeded",
+    };
+
+    /// <summary>Classifies a non-success response into the closed <c>MISSING_SCOPE</c>/<c>QUOTA_EXCEEDED</c>
+    /// pair, or <c>null</c> when the status is neither 401 nor 403 (the caller maps 404/other itself). A 401
+    /// is always MISSING_SCOPE (an invalid/expired bearer, never a quota concern). A 403's Google error body
+    /// is parsed for <c>error.errors[].reason</c>: a quota/rate reason maps to QUOTA_EXCEEDED, any other
+    /// reason (or none — an unparsable/empty body) defaults to MISSING_SCOPE, the safe assumption for a
+    /// permission-shaped 403.</summary>
+    private static async Task<string?> ClassifyErrorAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken
+    )
+    {
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+            return "MISSING_SCOPE";
+        if (response.StatusCode != HttpStatusCode.Forbidden)
+            return null;
+
+        string? reason = await TryReadFirstReasonAsync(response, cancellationToken);
+        return reason is not null && QuotaReasons.Contains(reason)
+            ? "QUOTA_EXCEEDED"
+            : "MISSING_SCOPE";
+    }
+
+    private static async Task<string?> TryReadFirstReasonAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            GoogleErrorEnvelope? envelope =
+                await response.Content.ReadFromJsonAsync<GoogleErrorEnvelope>(
+                    cancellationToken: cancellationToken
+                );
+            return envelope?.Error?.Errors?.FirstOrDefault()?.Reason;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // An unparsable/empty error body is not itself a failure — it just means no reason is
+            // available, so the caller falls back to the safe MISSING_SCOPE default.
+            return null;
+        }
+    }
+
+    private static string DescribeErrorCode(string errorCode) =>
+        errorCode == "QUOTA_EXCEEDED"
+            ? "The YouTube API quota has been exhausted for this connection."
+            : "The YouTube connection is missing the required scope.";
 
     private static YouTubeLiveChatMessage MapMessage(LiveChatMessageItem item) =>
         new(
@@ -492,7 +534,10 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
                 d.AssociatedMembershipGiftingMessageId ?? string.Empty
             );
 
-    private async Task<(HttpStatusCode? Status, T? Body)> GetAsync<T>(
+    /// <summary>Reads and deserializes a GET; on a non-success status the returned <c>ErrorCode</c> is
+    /// <c>MISSING_SCOPE</c>/<c>QUOTA_EXCEEDED</c> for a 401/403 (see <see cref="ClassifyErrorAsync"/>) or
+    /// <c>null</c> for any other status, leaving 404/other mapping to the caller.</summary>
+    private async Task<(HttpStatusCode? Status, T? Body, string? ErrorCode)> GetAsync<T>(
         string url,
         string accessToken,
         CancellationToken cancellationToken
@@ -512,13 +557,14 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
                     response.StatusCode,
                     new Uri(url).AbsolutePath
                 );
-                return (response.StatusCode, null);
+                string? errorCode = await ClassifyErrorAsync(response, cancellationToken);
+                return (response.StatusCode, null, errorCode);
             }
 
             T? body = await response.Content.ReadFromJsonAsync<T>(
                 cancellationToken: cancellationToken
             );
-            return (response.StatusCode, body);
+            return (response.StatusCode, body, null);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -527,7 +573,7 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
                 "YouTube live-chat read threw for {Path}",
                 new Uri(url).AbsolutePath
             );
-            return (null, null);
+            return (null, null, null);
         }
     }
 
@@ -752,5 +798,25 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
     {
         [JsonPropertyName("title")]
         public string? Title { get; set; }
+    }
+
+    // Google's standard API error envelope — only the reason code needed to distinguish a quota/rate 403
+    // from a genuine scope/permission 403 (see ClassifyErrorAsync).
+    private sealed class GoogleErrorEnvelope
+    {
+        [JsonPropertyName("error")]
+        public GoogleErrorBody? Error { get; set; }
+    }
+
+    private sealed class GoogleErrorBody
+    {
+        [JsonPropertyName("errors")]
+        public List<GoogleErrorItem>? Errors { get; set; }
+    }
+
+    private sealed class GoogleErrorItem
+    {
+        [JsonPropertyName("reason")]
+        public string? Reason { get; set; }
     }
 }
