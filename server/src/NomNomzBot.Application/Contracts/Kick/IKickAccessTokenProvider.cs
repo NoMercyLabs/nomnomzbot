@@ -26,8 +26,9 @@ public interface IKickAccessTokenProvider
 
 /// <summary>
 /// A usable Kick bearer + the numeric account id the public API keys on. <c>IsBotAccount</c> is true only
-/// when the token belongs to a dedicated Kick bot-account connection (distinct from the streamer's own
-/// account) — no such connection type exists yet, so this is always false until one is registered.
+/// when the token belongs to a dedicated Kick bot-account connection (<c>Provider=kick_bot</c>, registered
+/// via the channel-bot OAuth flow) — distinct from the streamer's own account; false when the tenant has
+/// no such connection and the bot chats as the streamer's own account (the self-host fallback).
 /// </summary>
 public sealed record KickAccess(
     string AccessToken,

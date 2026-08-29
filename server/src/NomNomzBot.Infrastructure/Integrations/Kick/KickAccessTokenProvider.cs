@@ -24,9 +24,12 @@ using NomNomzBot.Domain.Identity.Enums;
 namespace NomNomzBot.Infrastructure.Integrations.Kick;
 
 /// <summary>
-/// <see cref="IKickAccessTokenProvider"/> over the vaulted Kick connection: the tenant channel's
-/// <c>ExternalChannelId</c> IS the streamer's numeric Kick account id (the platform channel is
-/// provisioned from the same identity the login vaulted), so the connection is found by
+/// <see cref="IKickAccessTokenProvider"/> over the vaulted Kick connection. Prefers a dedicated,
+/// tenant-scoped bot account (<c>Provider=kick_bot</c>, <c>BroadcasterId=broadcasterId</c>) when one is
+/// registered — <see cref="KickAccess.IsBotAccount"/> is then <c>true</c> and the caller sends
+/// <c>type:"bot"</c> under the bot's own token. Otherwise falls back to the streamer's own account: the
+/// tenant channel's <c>ExternalChannelId</c> IS the streamer's numeric Kick account id (the platform
+/// channel is provisioned from the same identity the login vaulted), so that connection is found by
 /// <c>(Provider=kick, ProviderAccountId=externalId)</c>. An expiring token refreshes against
 /// id.kick.com with the shared app credentials — Kick is OAuth 2.1 and ROTATES the refresh token on
 /// every grant, so the NEW pair is re-vaulted (losing it would strand the connection); a failed refresh
@@ -90,29 +93,50 @@ public sealed class KickAccessTokenProvider : IKickAccessTokenProvider
             return null;
         }
 
-        // Two possible custody rows for the same Kick account, both keyed by the numeric account id:
-        // the streamer-plane integration connect (tenant-scoped, carries the chat/moderation/events
-        // scopes) and the identity-plane login connection (BroadcasterId null, user:read only). Prefer
-        // the scoped one — it is the grant the chat surface actually needs.
-        var connectionRow = await _db
+        // Resolution order for the Kick chat identity (mirrors TwitchTokenResolver.GetBotTokenAsync):
+        //   1. A registered dedicated bot account — the tenant-scoped `kick_bot` connection.
+        //   2. Self-host fallback: until a bot account is registered, the bot speaks as the streamer's
+        //      OWN account. Two possible custody rows for that same Kick account, both keyed by the
+        //      numeric account id: the streamer-plane integration connect (tenant-scoped, carries the
+        //      chat/moderation/events scopes) and the identity-plane login connection (BroadcasterId
+        //      null, user:read only) — prefer the scoped one, it is the grant the chat surface needs.
+        var botConnectionRow = await _db
             .IntegrationConnections.Where(c =>
-                c.Provider == AuthEnums.IntegrationProvider.Kick
-                && c.ProviderAccountId == externalId
+                c.Provider == AuthEnums.IntegrationProvider.KickBot
+                && c.BroadcasterId == broadcasterId
                 && c.Status != "revoked"
             )
-            .OrderByDescending(c => c.BroadcasterId != null)
             .Select(c => new { c.Id })
             .FirstOrDefaultAsync(cancellationToken);
-        if (connectionRow is null)
+
+        bool isBotAccount = botConnectionRow is not null;
+        Guid connectionId;
+        if (botConnectionRow is not null)
         {
-            _logger.LogDebug(
-                "No Kick connection vaulted for account {KickUserId} (broadcaster {BroadcasterId})",
-                kickUserId,
-                broadcasterId
-            );
-            return null;
+            connectionId = botConnectionRow.Id;
         }
-        Guid connectionId = connectionRow.Id;
+        else
+        {
+            var connectionRow = await _db
+                .IntegrationConnections.Where(c =>
+                    c.Provider == AuthEnums.IntegrationProvider.Kick
+                    && c.ProviderAccountId == externalId
+                    && c.Status != "revoked"
+                )
+                .OrderByDescending(c => c.BroadcasterId != null)
+                .Select(c => new { c.Id })
+                .FirstOrDefaultAsync(cancellationToken);
+            if (connectionRow is null)
+            {
+                _logger.LogDebug(
+                    "No Kick connection vaulted for account {KickUserId} (broadcaster {BroadcasterId})",
+                    kickUserId,
+                    broadcasterId
+                );
+                return null;
+            }
+            connectionId = connectionRow.Id;
+        }
 
         Result<DecryptedTokenDto> access = await _vault.GetAccessTokenAsync(
             connectionId,
@@ -128,7 +152,7 @@ public sealed class KickAccessTokenProvider : IKickAccessTokenProvider
                 && expiresAt <= _clock.GetUtcNow().UtcDateTime.Add(RefreshMargin)
             );
         if (!expiring)
-            return new(access.Value.Value, kickUserId);
+            return new(access.Value.Value, kickUserId, isBotAccount);
 
         if (!await ShouldAttemptRefreshAsync(connectionId, cancellationToken))
         {
@@ -140,7 +164,7 @@ public sealed class KickAccessTokenProvider : IKickAccessTokenProvider
         }
 
         string? refreshed = await RefreshAsync(connectionId, cancellationToken);
-        return refreshed is null ? null : new KickAccess(refreshed, kickUserId);
+        return refreshed is null ? null : new KickAccess(refreshed, kickUserId, isBotAccount);
     }
 
     /// <summary>
