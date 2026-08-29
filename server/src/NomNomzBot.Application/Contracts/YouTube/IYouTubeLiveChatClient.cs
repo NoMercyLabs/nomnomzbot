@@ -142,6 +142,10 @@ public sealed record YouTubeLiveChatPage(
 /// A single YouTube live-chat message, flattened to what the ingest needs: the author's YouTube channel id
 /// and display name, the rendered text, when it was published, and the author's chat standing (owner /
 /// moderator / member) so the domain event can carry the same role signal Twitch chat does.
+/// <see cref="SnippetType"/> is the raw <c>snippet.type</c> discriminator (default <c>"textMessageEvent"</c>
+/// for a plain chat line); when it names one of the six supporter events the matching detail record is
+/// populated so <c>YouTubeLiveChatEventTranslator</c> can map it to the platform's canonical domain event
+/// (S030-a) — a plain text message carries none of them.
 /// </summary>
 public sealed record YouTubeLiveChatMessage(
     string Id,
@@ -151,5 +155,54 @@ public sealed record YouTubeLiveChatMessage(
     DateTimeOffset PublishedAt,
     bool IsModerator,
     bool IsOwner,
-    bool IsMember
+    bool IsMember,
+    string SnippetType = "textMessageEvent",
+    YouTubeSuperChatDetails? SuperChatDetails = null,
+    YouTubeSuperStickerDetails? SuperStickerDetails = null,
+    YouTubeNewSponsorDetails? NewSponsorDetails = null,
+    YouTubeMemberMilestoneChatDetails? MemberMilestoneChatDetails = null,
+    YouTubeMembershipGiftingDetails? MembershipGiftingDetails = null,
+    YouTubeGiftMembershipReceivedDetails? GiftMembershipReceivedDetails = null
+);
+
+/// <summary><c>snippet.superChatDetails</c> — a paid Super Chat.</summary>
+public sealed record YouTubeSuperChatDetails(
+    ulong AmountMicros,
+    string Currency,
+    string AmountDisplayString,
+    string UserComment,
+    uint Tier
+);
+
+/// <summary><c>snippet.superStickerDetails</c> — a paid Super Sticker.</summary>
+public sealed record YouTubeSuperStickerDetails(
+    string StickerId,
+    string AltText,
+    ulong AmountMicros,
+    string Currency,
+    string AmountDisplayString,
+    uint Tier
+);
+
+/// <summary><c>snippet.newSponsorDetails</c> — a new (or upgraded) channel membership.</summary>
+public sealed record YouTubeNewSponsorDetails(string MemberLevelName, bool IsUpgrade);
+
+/// <summary><c>snippet.memberMilestoneChatDetails</c> — a membership-anniversary chat message.</summary>
+public sealed record YouTubeMemberMilestoneChatDetails(
+    string UserComment,
+    uint MemberMonth,
+    string MemberLevelName
+);
+
+/// <summary><c>snippet.membershipGiftingDetails</c> — a batch of gifted memberships (the gifter's message).</summary>
+public sealed record YouTubeMembershipGiftingDetails(
+    int GiftMembershipsCount,
+    string GiftMembershipsLevelName
+);
+
+/// <summary><c>snippet.giftMembershipReceivedDetails</c> — one recipient's "you received a gift" message.</summary>
+public sealed record YouTubeGiftMembershipReceivedDetails(
+    string MemberLevelName,
+    string GifterChannelId,
+    string AssociatedMembershipGiftingMessageId
 );

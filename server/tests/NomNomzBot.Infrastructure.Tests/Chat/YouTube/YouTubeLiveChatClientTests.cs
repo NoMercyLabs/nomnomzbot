@@ -157,6 +157,285 @@ public sealed class YouTubeLiveChatClientTests
         result.ErrorCode.Should().Be("NOT_FOUND");
     }
 
+    // ── S030-a — snippet.type supporter events map into the message's typed detail records ──────
+
+    [Fact]
+    public async Task ListMessages_maps_a_super_chat_event_to_its_detail_record()
+    {
+        StubHttpMessageHandler handler = new(
+            (
+                HttpStatusCode.OK,
+                """
+                {
+                  "pollingIntervalMillis": 3000,
+                  "items": [
+                    {
+                      "id": "sc-1",
+                      "snippet": {
+                        "type": "superChatEvent",
+                        "publishedAt": "2026-07-10T12:00:00Z",
+                        "superChatDetails": {
+                          "amountMicros": 5000000,
+                          "currency": "USD",
+                          "amountDisplayString": "$5.00",
+                          "userComment": "great stream!",
+                          "tier": 2
+                        }
+                      },
+                      "authorDetails": {
+                        "channelId": "UCsuperchatter",
+                        "displayName": "Super Chatter",
+                        "isChatModerator": false,
+                        "isChatOwner": false,
+                        "isChatSponsor": false
+                      }
+                    }
+                  ]
+                }
+                """
+            )
+        );
+        YouTubeLiveChatClient sut = Build(handler);
+
+        Result<YouTubeLiveChatPage> result = await sut.ListMessagesAsync(Token, "chat123", null);
+
+        YouTubeLiveChatMessage message = result.Value.Messages.Should().ContainSingle().Subject;
+        message.SnippetType.Should().Be("superChatEvent");
+        message.SuperChatDetails.Should().NotBeNull();
+        message.SuperChatDetails!.AmountMicros.Should().Be(5_000_000UL);
+        message.SuperChatDetails.Currency.Should().Be("USD");
+        message.SuperChatDetails.AmountDisplayString.Should().Be("$5.00");
+        message.SuperChatDetails.UserComment.Should().Be("great stream!");
+        message.SuperChatDetails.Tier.Should().Be(2u);
+    }
+
+    [Fact]
+    public async Task ListMessages_maps_a_super_sticker_event_to_its_detail_record()
+    {
+        StubHttpMessageHandler handler = new(
+            (
+                HttpStatusCode.OK,
+                """
+                {
+                  "pollingIntervalMillis": 3000,
+                  "items": [
+                    {
+                      "id": "ss-1",
+                      "snippet": {
+                        "type": "superStickerEvent",
+                        "publishedAt": "2026-07-10T12:00:00Z",
+                        "superStickerDetails": {
+                          "superStickerMetadata": { "stickerId": "sticker-42", "altText": ":heart:", "language": "en" },
+                          "amountMicros": 2000000,
+                          "currency": "USD",
+                          "amountDisplayString": "$2.00",
+                          "tier": 1
+                        }
+                      },
+                      "authorDetails": {
+                        "channelId": "UCsticker",
+                        "displayName": "Sticker Fan",
+                        "isChatModerator": false,
+                        "isChatOwner": false,
+                        "isChatSponsor": false
+                      }
+                    }
+                  ]
+                }
+                """
+            )
+        );
+        YouTubeLiveChatClient sut = Build(handler);
+
+        Result<YouTubeLiveChatPage> result = await sut.ListMessagesAsync(Token, "chat123", null);
+
+        YouTubeLiveChatMessage message = result.Value.Messages.Should().ContainSingle().Subject;
+        message.SnippetType.Should().Be("superStickerEvent");
+        message.SuperStickerDetails.Should().NotBeNull();
+        message.SuperStickerDetails!.StickerId.Should().Be("sticker-42");
+        message.SuperStickerDetails.AltText.Should().Be(":heart:");
+        message.SuperStickerDetails.AmountMicros.Should().Be(2_000_000UL);
+        message.SuperStickerDetails.Currency.Should().Be("USD");
+        message.SuperStickerDetails.AmountDisplayString.Should().Be("$2.00");
+        message.SuperStickerDetails.Tier.Should().Be(1u);
+    }
+
+    [Fact]
+    public async Task ListMessages_maps_a_new_sponsor_event_to_its_detail_record()
+    {
+        StubHttpMessageHandler handler = new(
+            (
+                HttpStatusCode.OK,
+                """
+                {
+                  "pollingIntervalMillis": 3000,
+                  "items": [
+                    {
+                      "id": "ns-1",
+                      "snippet": {
+                        "type": "newSponsorEvent",
+                        "publishedAt": "2026-07-10T12:00:00Z",
+                        "newSponsorDetails": { "memberLevelName": "Bronze Member", "isUpgrade": false }
+                      },
+                      "authorDetails": {
+                        "channelId": "UCnewmember",
+                        "displayName": "New Member",
+                        "isChatModerator": false,
+                        "isChatOwner": false,
+                        "isChatSponsor": true
+                      }
+                    }
+                  ]
+                }
+                """
+            )
+        );
+        YouTubeLiveChatClient sut = Build(handler);
+
+        Result<YouTubeLiveChatPage> result = await sut.ListMessagesAsync(Token, "chat123", null);
+
+        YouTubeLiveChatMessage message = result.Value.Messages.Should().ContainSingle().Subject;
+        message.SnippetType.Should().Be("newSponsorEvent");
+        message.NewSponsorDetails.Should().NotBeNull();
+        message.NewSponsorDetails!.MemberLevelName.Should().Be("Bronze Member");
+        message.NewSponsorDetails.IsUpgrade.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ListMessages_maps_a_member_milestone_chat_event_to_its_detail_record()
+    {
+        StubHttpMessageHandler handler = new(
+            (
+                HttpStatusCode.OK,
+                """
+                {
+                  "pollingIntervalMillis": 3000,
+                  "items": [
+                    {
+                      "id": "mm-1",
+                      "snippet": {
+                        "type": "memberMilestoneChatEvent",
+                        "publishedAt": "2026-07-10T12:00:00Z",
+                        "memberMilestoneChatDetails": {
+                          "userComment": "6 months strong!",
+                          "memberMonth": 6,
+                          "memberLevelName": "Silver Member"
+                        }
+                      },
+                      "authorDetails": {
+                        "channelId": "UCmilestone",
+                        "displayName": "Loyal Member",
+                        "isChatModerator": false,
+                        "isChatOwner": false,
+                        "isChatSponsor": true
+                      }
+                    }
+                  ]
+                }
+                """
+            )
+        );
+        YouTubeLiveChatClient sut = Build(handler);
+
+        Result<YouTubeLiveChatPage> result = await sut.ListMessagesAsync(Token, "chat123", null);
+
+        YouTubeLiveChatMessage message = result.Value.Messages.Should().ContainSingle().Subject;
+        message.SnippetType.Should().Be("memberMilestoneChatEvent");
+        message.MemberMilestoneChatDetails.Should().NotBeNull();
+        message.MemberMilestoneChatDetails!.UserComment.Should().Be("6 months strong!");
+        message.MemberMilestoneChatDetails.MemberMonth.Should().Be(6u);
+        message.MemberMilestoneChatDetails.MemberLevelName.Should().Be("Silver Member");
+    }
+
+    [Fact]
+    public async Task ListMessages_maps_a_membership_gifting_event_to_its_detail_record()
+    {
+        StubHttpMessageHandler handler = new(
+            (
+                HttpStatusCode.OK,
+                """
+                {
+                  "pollingIntervalMillis": 3000,
+                  "items": [
+                    {
+                      "id": "mg-1",
+                      "snippet": {
+                        "type": "membershipGiftingEvent",
+                        "publishedAt": "2026-07-10T12:00:00Z",
+                        "membershipGiftingDetails": { "giftMembershipsCount": 5, "giftMembershipsLevelName": "Gold Member" }
+                      },
+                      "authorDetails": {
+                        "channelId": "UCgifter",
+                        "displayName": "Generous Gifter",
+                        "isChatModerator": false,
+                        "isChatOwner": false,
+                        "isChatSponsor": false
+                      }
+                    }
+                  ]
+                }
+                """
+            )
+        );
+        YouTubeLiveChatClient sut = Build(handler);
+
+        Result<YouTubeLiveChatPage> result = await sut.ListMessagesAsync(Token, "chat123", null);
+
+        YouTubeLiveChatMessage message = result.Value.Messages.Should().ContainSingle().Subject;
+        message.SnippetType.Should().Be("membershipGiftingEvent");
+        message.MembershipGiftingDetails.Should().NotBeNull();
+        message.MembershipGiftingDetails!.GiftMembershipsCount.Should().Be(5);
+        message.MembershipGiftingDetails.GiftMembershipsLevelName.Should().Be("Gold Member");
+    }
+
+    [Fact]
+    public async Task ListMessages_maps_a_gift_membership_received_event_to_its_detail_record()
+    {
+        StubHttpMessageHandler handler = new(
+            (
+                HttpStatusCode.OK,
+                """
+                {
+                  "pollingIntervalMillis": 3000,
+                  "items": [
+                    {
+                      "id": "gr-1",
+                      "snippet": {
+                        "type": "giftMembershipReceivedEvent",
+                        "publishedAt": "2026-07-10T12:00:00Z",
+                        "giftMembershipReceivedDetails": {
+                          "memberLevelName": "Gold Member",
+                          "gifterChannelId": "UCgifter",
+                          "associatedMembershipGiftingMessageId": "mg-1"
+                        }
+                      },
+                      "authorDetails": {
+                        "channelId": "UCrecipient",
+                        "displayName": "Lucky Recipient",
+                        "isChatModerator": false,
+                        "isChatOwner": false,
+                        "isChatSponsor": true
+                      }
+                    }
+                  ]
+                }
+                """
+            )
+        );
+        YouTubeLiveChatClient sut = Build(handler);
+
+        Result<YouTubeLiveChatPage> result = await sut.ListMessagesAsync(Token, "chat123", null);
+
+        YouTubeLiveChatMessage message = result.Value.Messages.Should().ContainSingle().Subject;
+        message.SnippetType.Should().Be("giftMembershipReceivedEvent");
+        message.GiftMembershipReceivedDetails.Should().NotBeNull();
+        message.GiftMembershipReceivedDetails!.MemberLevelName.Should().Be("Gold Member");
+        message.GiftMembershipReceivedDetails.GifterChannelId.Should().Be("UCgifter");
+        message
+            .GiftMembershipReceivedDetails.AssociatedMembershipGiftingMessageId.Should()
+            .Be("mg-1");
+    }
+
     [Fact]
     public async Task GetOwnChannel_maps_the_channel_id_and_title_and_sends_the_bearer()
     {

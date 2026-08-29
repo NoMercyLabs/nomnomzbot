@@ -418,6 +418,15 @@ public sealed class YouTubeLiveChatPollWorker : BackgroundService
                 },
                 ct
             );
+
+            // S030-a — a super chat / super sticker / new sponsor / milestone / gift message is ALSO a
+            // supporter event: translate it to the same canonical event Twitch/Kick publish for the
+            // equivalent concept, alongside (never instead of) the plain chat-message publish above.
+            if (
+                YouTubeLiveChatEventTranslator.Translate(message, state.TenantId) is
+                { } supporterEvent
+            )
+                await bus.PublishAsync(supporterEvent, ct);
         }
     }
 

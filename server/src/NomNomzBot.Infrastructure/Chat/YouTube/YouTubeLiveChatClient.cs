@@ -434,8 +434,63 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
             item.Snippet.PublishedAt ?? DateTimeOffset.MinValue,
             item.AuthorDetails.IsChatModerator,
             item.AuthorDetails.IsChatOwner,
-            item.AuthorDetails.IsChatSponsor
+            item.AuthorDetails.IsChatSponsor,
+            item.Snippet.Type ?? "textMessageEvent",
+            MapSuperChat(item.Snippet.SuperChatDetails),
+            MapSuperSticker(item.Snippet.SuperStickerDetails),
+            MapNewSponsor(item.Snippet.NewSponsorDetails),
+            MapMemberMilestone(item.Snippet.MemberMilestoneChatDetails),
+            MapMembershipGifting(item.Snippet.MembershipGiftingDetails),
+            MapGiftMembershipReceived(item.Snippet.GiftMembershipReceivedDetails)
         );
+
+    private static YouTubeSuperChatDetails? MapSuperChat(LiveChatSuperChatDetails? d) =>
+        d is null
+            ? null
+            : new(
+                d.AmountMicros,
+                d.Currency ?? string.Empty,
+                d.AmountDisplayString ?? string.Empty,
+                d.UserComment ?? string.Empty,
+                d.Tier
+            );
+
+    private static YouTubeSuperStickerDetails? MapSuperSticker(LiveChatSuperStickerDetails? d) =>
+        d is null
+            ? null
+            : new(
+                d.SuperStickerMetadata?.StickerId ?? string.Empty,
+                d.SuperStickerMetadata?.AltText ?? string.Empty,
+                d.AmountMicros,
+                d.Currency ?? string.Empty,
+                d.AmountDisplayString ?? string.Empty,
+                d.Tier
+            );
+
+    private static YouTubeNewSponsorDetails? MapNewSponsor(LiveChatNewSponsorDetails? d) =>
+        d is null ? null : new(d.MemberLevelName ?? string.Empty, d.IsUpgrade);
+
+    private static YouTubeMemberMilestoneChatDetails? MapMemberMilestone(
+        LiveChatMemberMilestoneChatDetails? d
+    ) =>
+        d is null
+            ? null
+            : new(d.UserComment ?? string.Empty, d.MemberMonth, d.MemberLevelName ?? string.Empty);
+
+    private static YouTubeMembershipGiftingDetails? MapMembershipGifting(
+        LiveChatMembershipGiftingDetails? d
+    ) => d is null ? null : new(d.GiftMembershipsCount, d.GiftMembershipsLevelName ?? string.Empty);
+
+    private static YouTubeGiftMembershipReceivedDetails? MapGiftMembershipReceived(
+        LiveChatGiftMembershipReceivedDetails? d
+    ) =>
+        d is null
+            ? null
+            : new(
+                d.MemberLevelName ?? string.Empty,
+                d.GifterChannelId ?? string.Empty,
+                d.AssociatedMembershipGiftingMessageId ?? string.Empty
+            );
 
     private async Task<(HttpStatusCode? Status, T? Body)> GetAsync<T>(
         string url,
@@ -532,11 +587,125 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
 
     private sealed class LiveChatMessageSnippet
     {
+        [JsonPropertyName("type")]
+        public string? Type { get; set; }
+
         [JsonPropertyName("displayMessage")]
         public string? DisplayMessage { get; set; }
 
         [JsonPropertyName("publishedAt")]
         public DateTimeOffset? PublishedAt { get; set; }
+
+        [JsonPropertyName("superChatDetails")]
+        public LiveChatSuperChatDetails? SuperChatDetails { get; set; }
+
+        [JsonPropertyName("superStickerDetails")]
+        public LiveChatSuperStickerDetails? SuperStickerDetails { get; set; }
+
+        [JsonPropertyName("newSponsorDetails")]
+        public LiveChatNewSponsorDetails? NewSponsorDetails { get; set; }
+
+        [JsonPropertyName("memberMilestoneChatDetails")]
+        public LiveChatMemberMilestoneChatDetails? MemberMilestoneChatDetails { get; set; }
+
+        [JsonPropertyName("membershipGiftingDetails")]
+        public LiveChatMembershipGiftingDetails? MembershipGiftingDetails { get; set; }
+
+        [JsonPropertyName("giftMembershipReceivedDetails")]
+        public LiveChatGiftMembershipReceivedDetails? GiftMembershipReceivedDetails { get; set; }
+    }
+
+    // snippet.type == "superChatEvent"
+    private sealed class LiveChatSuperChatDetails
+    {
+        [JsonPropertyName("amountMicros")]
+        public ulong AmountMicros { get; set; }
+
+        [JsonPropertyName("currency")]
+        public string? Currency { get; set; }
+
+        [JsonPropertyName("amountDisplayString")]
+        public string? AmountDisplayString { get; set; }
+
+        [JsonPropertyName("userComment")]
+        public string? UserComment { get; set; }
+
+        [JsonPropertyName("tier")]
+        public uint Tier { get; set; }
+    }
+
+    // snippet.type == "superStickerEvent"
+    private sealed class LiveChatSuperStickerDetails
+    {
+        [JsonPropertyName("superStickerMetadata")]
+        public LiveChatSuperStickerMetadata? SuperStickerMetadata { get; set; }
+
+        [JsonPropertyName("amountMicros")]
+        public ulong AmountMicros { get; set; }
+
+        [JsonPropertyName("currency")]
+        public string? Currency { get; set; }
+
+        [JsonPropertyName("amountDisplayString")]
+        public string? AmountDisplayString { get; set; }
+
+        [JsonPropertyName("tier")]
+        public uint Tier { get; set; }
+    }
+
+    private sealed class LiveChatSuperStickerMetadata
+    {
+        [JsonPropertyName("stickerId")]
+        public string? StickerId { get; set; }
+
+        [JsonPropertyName("altText")]
+        public string? AltText { get; set; }
+    }
+
+    // snippet.type == "newSponsorEvent"
+    private sealed class LiveChatNewSponsorDetails
+    {
+        [JsonPropertyName("memberLevelName")]
+        public string? MemberLevelName { get; set; }
+
+        [JsonPropertyName("isUpgrade")]
+        public bool IsUpgrade { get; set; }
+    }
+
+    // snippet.type == "memberMilestoneChatEvent"
+    private sealed class LiveChatMemberMilestoneChatDetails
+    {
+        [JsonPropertyName("userComment")]
+        public string? UserComment { get; set; }
+
+        [JsonPropertyName("memberMonth")]
+        public uint MemberMonth { get; set; }
+
+        [JsonPropertyName("memberLevelName")]
+        public string? MemberLevelName { get; set; }
+    }
+
+    // snippet.type == "membershipGiftingEvent"
+    private sealed class LiveChatMembershipGiftingDetails
+    {
+        [JsonPropertyName("giftMembershipsCount")]
+        public int GiftMembershipsCount { get; set; }
+
+        [JsonPropertyName("giftMembershipsLevelName")]
+        public string? GiftMembershipsLevelName { get; set; }
+    }
+
+    // snippet.type == "giftMembershipReceivedEvent"
+    private sealed class LiveChatGiftMembershipReceivedDetails
+    {
+        [JsonPropertyName("memberLevelName")]
+        public string? MemberLevelName { get; set; }
+
+        [JsonPropertyName("gifterChannelId")]
+        public string? GifterChannelId { get; set; }
+
+        [JsonPropertyName("associatedMembershipGiftingMessageId")]
+        public string? AssociatedMembershipGiftingMessageId { get; set; }
     }
 
     private sealed class LiveChatAuthorDetails
