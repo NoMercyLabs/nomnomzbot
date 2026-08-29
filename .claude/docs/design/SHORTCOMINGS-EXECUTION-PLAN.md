@@ -201,16 +201,6 @@ than each consumer needing their own clone-and-customize pass.
 
 ## Phase 2 — existing platforms made to work (Kick / YouTube are shipped features that are broken) — only the spine pieces these fixes REQUIRE
 
-- **S028-remaining-frontend** Kick hygiene backend is fully DONE and verified: unsubscribe-on-disconnect
-  (d7ee3232), HTTP retry/backoff on the Kick client + non-chat redelivery dedupe + chat fragments from
-  real emote metadata (893d3d36), `type:"bot"` sends with `broadcaster_user_id` correctly omitted
-  (5ee8eaa7). Raid and moderation-Result-typing were confirmed already correct — no Kick raid-equivalent
-  webhook topic exists, and Ban/Unban/Timeout/DeleteMessage already return truthful `Result`. REMAINING:
-  the dashboard's Kick connection card is generic Connected/Not-connected with no login-only distinction
-  (a Kick account linked for login but not authorized as a live platform connection) and no visibility
-  into `KickEventSubscriptionWorker`'s MISSING_SCOPE backoff state. Done-when: the Kick card in
-  Integrations distinguishes login-only from a full platform connection, and surfaces a real (not
-  decorative) health/backoff state.
 - **S-KICK-BOT-ACCOUNT** found by S028-bot-identity: Kick has no dedicated bot-account connection type
   at all (unlike Twitch's `twitch_bot`) — `KickAccessTokenProvider.IsBotAccount` always resolves false,
   so the just-shipped `type:"bot"` send path can never actually trigger; every Kick send today is
