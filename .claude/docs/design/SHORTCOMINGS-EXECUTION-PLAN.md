@@ -201,22 +201,15 @@ than each consumer needing their own clone-and-customize pass.
 
 ## Phase 2 — existing platforms made to work (Kick / YouTube are shipped features that are broken) — only the spine pieces these fixes REQUIRE
 
-- **S030-remaining** `IsLive` from the poll and `snippet.type`-routed translators for super chat/
-  sticker/new sponsor/milestone/gift are DONE and verified (76adf380 — `YouTubeLiveChatEventTranslator`
-  maps each to the same canonical cross-platform events Kick/Twitch publish, `IYouTubeLiveChatClient`
-  carries the real Google-documented field shapes). REMAINING (U·C3): multi-broadcast support (today
-  hardcoded to the first `active` broadcast only, confirmed at `YouTubeLiveChatClient.cs:51,67`); an
-  own-channel cache (currently re-fetched via `GetOwnChannelAsync` on every liveness transition); a
-  "leased poller" abstraction (current design is a single in-process `Dictionary<Guid, PollState>` —
-  fine for one instance, not distributed); unban outcome reporting; a `concurrentViewers` sampler (no
-  read of `liveStreamingDetails.concurrentViewers` anywhere yet). Also a known bug surfaced during
-  S030-a: `YouTubeLiveChatClient.cs` unconditionally maps every 403 to `MISSING_SCOPE`, so a real quota
-  exhaustion (`quotaExceeded`/`rateLimitExceeded`) incorrectly triggers the 15-minute scope-backoff path
-  instead of quota-specific handling — fold this fix in alongside the exponential-backoff item, they're
-  the same error-handling surface. Also `OAuthProviderRegistry.cs:194` never requests
-  `youtube.force-ssl`, so every live-chat reply/ban/delete write already 403s today — needs the scope
-  added. Done-when: a YouTube member alert fires; viewer count shows; timers post on YouTube; a
-  multi-broadcast channel is handled correctly; quota vs scope errors are distinguished.
+- **S030-remaining** `IsLive` from the poll, `snippet.type`-routed translators (76adf380), and the 403
+  quota-vs-scope disambiguation + `youtube.force-ssl` scope (da1f8086, S029) are all DONE and verified.
+  REMAINING (U·C3): multi-broadcast support (today hardcoded to the first `active` broadcast only,
+  confirmed at `YouTubeLiveChatClient.cs:51,67`); an own-channel cache (currently re-fetched via
+  `GetOwnChannelAsync` on every liveness transition); a "leased poller" abstraction (current design is a
+  single in-process `Dictionary<Guid, PollState>` — fine for one instance, not distributed); unban
+  outcome reporting; a `concurrentViewers` sampler (no read of `liveStreamingDetails.concurrentViewers`
+  anywhere yet). Done-when: viewer count shows via the sampler; a multi-broadcast channel is handled
+  correctly; unban reports a truthful outcome.
 
 ## Phase 3 — form infrastructure (stabilizes existing authoring; every 'raw text box' finding rides on it)
 
