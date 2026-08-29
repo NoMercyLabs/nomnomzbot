@@ -21,6 +21,7 @@ using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
+using NomNomzBot.Application.Contracts.Kick;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Integrations.Dtos;
@@ -442,6 +443,110 @@ public sealed class IntegrationOAuthServiceTests
             );
     }
 
+    // ─── Disconnect: Kick tells the platform to stop delivering webhooks ───────
+
+    /// <summary>
+    /// S028 (Kick hygiene): disconnecting a Kick connection must stop Kick's webhook deliveries, not
+    /// just revoke the local connection row. Before revoking, DisconnectAsync lists the connection's
+    /// live subscriptions and removes them by id — proven here by asserting the FAKE client actually
+    /// received the two subscription ids Kick reported, not merely that some unsubscribe happened.
+    /// </summary>
+    [Fact]
+    public async Task Disconnect_ForKick_UnsubscribesFromKicksWebhooks_BeforeRevoking()
+    {
+        FakeKickApiClient kick = new([
+            new KickEventSubscription("sub-1", "chat.message.sent", 1, "webhook", 42),
+            new KickEventSubscription("sub-2", "channel.followed", 1, "webhook", 42),
+        ]);
+        StubHandler handler = new()
+        {
+            TokenJson =
+                """{"access_token":"kick-access","refresh_token":"kick-refresh","expires_in":3600,"scope":"user:read chat:write moderation:ban moderation:chat_message:manage events:subscribe"}""",
+            IdentityJson = """{"data":[{"user_id":42,"name":"KickStreamer"}]}""",
+        };
+        (IntegrationOAuthService service, AuthDbContext db, IIntegrationTokenVault vault, _) =
+            Build(handler, new FakeDiscordGuildService(), kick);
+
+        Result<OAuthStartDto> start = await service.StartConnectAsync(
+            Tenant,
+            AuthEnums.IntegrationProvider.Kick,
+            "kick.chat",
+            null,
+            Actor,
+            publicOrigin: "https://bot-dev.nomercy.tv"
+        );
+        start.IsSuccess.Should().BeTrue(start.ErrorMessage);
+
+        Result<OAuthCallbackResultDto> callback = await service.HandleCallbackAsync(
+            AuthEnums.IntegrationProvider.Kick,
+            new("the-auth-code", start.Value.State, null, null)
+        );
+        callback.IsSuccess.Should().BeTrue(callback.ErrorMessage);
+
+        IntegrationConnection connection = await db
+            .IntegrationConnections.AsNoTracking()
+            .SingleAsync(c => c.Provider == AuthEnums.IntegrationProvider.Kick);
+        connection.Status.Should().Be(AuthEnums.IntegrationStatus.Connected);
+
+        Result disconnect = await service.DisconnectAsync(
+            Tenant,
+            AuthEnums.IntegrationProvider.Kick,
+            Actor
+        );
+        disconnect.IsSuccess.Should().BeTrue(disconnect.ErrorMessage);
+
+        // The exact ids Kick reported were sent to unsubscribe — not a placeholder, not "all", the
+        // real subscription set for THIS connection's token.
+        kick.UnsubscribeCalls.Should().ContainSingle();
+        kick.UnsubscribeCalls[0].Should().BeEquivalentTo(["sub-1", "sub-2"]);
+
+        // The connection itself is revoked, exactly like every other provider's disconnect.
+        IntegrationConnection revoked = await db
+            .IntegrationConnections.AsNoTracking()
+            .SingleAsync(c => c.Id == connection.Id);
+        revoked.Status.Should().Be(AuthEnums.IntegrationStatus.Revoked);
+    }
+
+    /// <summary>Disconnecting a provider that isn't Kick never touches the Kick client — no cross-talk.</summary>
+    [Fact]
+    public async Task Disconnect_ForNonKickProvider_NeverCallsKickApi()
+    {
+        FakeKickApiClient kick = new([]);
+        StubHandler handler = new()
+        {
+            TokenJson =
+                """{"access_token":"spotify-access","refresh_token":"spotify-refresh","expires_in":3600,"scope":"user-read-playback-state"}""",
+            IdentityJson = """{"id":"spotify-user-1","display_name":"DJ Test"}""",
+        };
+        (IntegrationOAuthService service, _, _, _) = Build(
+            handler,
+            new FakeDiscordGuildService(),
+            kick
+        );
+
+        Result<OAuthStartDto> start = await service.StartConnectAsync(
+            Tenant,
+            AuthEnums.IntegrationProvider.Spotify,
+            "spotify.playback",
+            null,
+            Actor,
+            publicOrigin: "https://bot-dev.nomercy.tv"
+        );
+        await service.HandleCallbackAsync(
+            AuthEnums.IntegrationProvider.Spotify,
+            new("the-auth-code", start.Value.State, null, null)
+        );
+
+        Result disconnect = await service.DisconnectAsync(
+            Tenant,
+            AuthEnums.IntegrationProvider.Spotify,
+            Actor
+        );
+
+        disconnect.IsSuccess.Should().BeTrue(disconnect.ErrorMessage);
+        kick.UnsubscribeCalls.Should().BeEmpty();
+    }
+
     // ─── HandleCallback: music provider also mirrored into the legacy Service store ────
 
     [Fact]
@@ -798,7 +903,8 @@ public sealed class IntegrationOAuthServiceTests
         AuthDbContext db,
         ITokenProtector protector,
         StubHandler handler,
-        IConfiguration? config = null
+        IConfiguration? config = null,
+        IKickApiClient? kick = null
     )
     {
         // A fresh protector/key-service pair over the SAME db is functionally interchangeable with the
@@ -842,6 +948,7 @@ public sealed class IntegrationOAuthServiceTests
             registry,
             vault,
             new FakeDiscordGuildService(),
+            kick ?? new FakeKickApiClient([]),
             new InMemoryIntegrationCapabilityStore(),
             channelCredentials,
             new MusicProviderTokenMirror(
@@ -960,7 +1067,7 @@ public sealed class IntegrationOAuthServiceTests
         AuthDbContext Db,
         IIntegrationTokenVault Vault,
         FakeCache Cache
-    ) Build(StubHandler handler, IDiscordGuildService discord)
+    ) Build(StubHandler handler, IDiscordGuildService discord, IKickApiClient? kick = null)
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         ITokenProtector protector = AuthTestBuilder.RealTokenProtector(
@@ -992,6 +1099,8 @@ public sealed class IntegrationOAuthServiceTests
                     ["Shopify:ClientSecret"] = "shopify-secret",
                     ["Treatstream:ClientId"] = "ts-client",
                     ["Treatstream:ClientSecret"] = "ts-secret",
+                    ["Kick:ClientId"] = "kick-client",
+                    ["Kick:ClientSecret"] = "kick-secret",
                 }
             )
             .Build();
@@ -1012,6 +1121,7 @@ public sealed class IntegrationOAuthServiceTests
             registry,
             vault,
             discord,
+            kick ?? new FakeKickApiClient([]),
             new InMemoryIntegrationCapabilityStore(),
             channelCredentials,
             new MusicProviderTokenMirror(
@@ -1196,6 +1306,89 @@ public sealed class IntegrationOAuthServiceTests
             Guid broadcasterId,
             Guid connectionId,
             CancellationToken ct = default
+        ) => throw new NotSupportedException();
+    }
+
+    /// <summary>
+    /// A Kick API double: seeded with the subscriptions Kick would currently report, and records every
+    /// unsubscribe call so a disconnect test can prove the real subscription ids were sent, not just that
+    /// SOME call happened.
+    /// </summary>
+    private sealed class FakeKickApiClient(IReadOnlyList<KickEventSubscription> subscriptions)
+        : IKickApiClient
+    {
+        public List<IReadOnlyList<string>> UnsubscribeCalls { get; } = [];
+
+        public Task<Result<string>> SendMessageAsync(
+            string accessToken,
+            long broadcasterUserId,
+            string content,
+            string? replyToMessageId = null,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
+        public Task<Result> DeleteMessageAsync(
+            string accessToken,
+            string messageId,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
+        public Task<Result> TimeoutUserAsync(
+            string accessToken,
+            long broadcasterUserId,
+            long userId,
+            int durationMinutes,
+            string? reason = null,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
+        public Task<Result> BanUserAsync(
+            string accessToken,
+            long broadcasterUserId,
+            long userId,
+            string? reason = null,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
+        public Task<Result> UnbanUserAsync(
+            string accessToken,
+            long broadcasterUserId,
+            long userId,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
+        public Task<Result<IReadOnlyList<KickEventSubscription>>> ListEventSubscriptionsAsync(
+            string accessToken,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult(Result.Success(subscriptions));
+
+        public Task<Result> SubscribeAsync(
+            string accessToken,
+            IReadOnlyList<KickEventRequest> events,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
+        public Task<Result> UnsubscribeAsync(
+            string accessToken,
+            IReadOnlyList<string> subscriptionIds,
+            CancellationToken cancellationToken = default
+        )
+        {
+            UnsubscribeCalls.Add(subscriptionIds);
+            return Task.FromResult(Result.Success());
+        }
+
+        public Task<Result<KickChannel>> GetChannelAsync(
+            string accessToken,
+            long broadcasterUserId,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
+        public Task<Result> UpdateChannelAsync(
+            string accessToken,
+            string? streamTitle,
+            int? categoryId,
+            CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();
     }
 }

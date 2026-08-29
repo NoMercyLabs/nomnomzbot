@@ -101,6 +101,17 @@ public interface IKickApiClient
     );
 
     /// <summary>
+    /// Removes event subscriptions (<c>DELETE /public/v1/events/subscriptions</c>, scope
+    /// <c>events:subscribe</c>) by id — called on disconnect so Kick stops delivering webhooks for a
+    /// channel the streamer no longer has connected. A no-op (success) for an empty id list.
+    /// </summary>
+    Task<Result> UnsubscribeAsync(
+        string accessToken,
+        IReadOnlyList<string> subscriptionIds,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
     /// Reads the broadcaster's channel (<c>GET /public/v1/channels?broadcaster_user_id=</c>, scope
     /// <c>channel:read</c>) — title, category, and the live viewer count when the channel is currently
     /// streaming. Used for the dashboard's title/category display and the viewer-count poll; Kick has no

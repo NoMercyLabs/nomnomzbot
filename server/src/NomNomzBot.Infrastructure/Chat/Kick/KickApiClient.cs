@@ -224,6 +224,32 @@ public sealed class KickApiClient : IKickApiClient
             : Result.Failure($"Kick rejected the subscription: {itemError}", "SERVICE_UNAVAILABLE");
     }
 
+    public async Task<Result> UnsubscribeAsync(
+        string accessToken,
+        IReadOnlyList<string> subscriptionIds,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (subscriptionIds.Count == 0)
+            return Result.Success();
+
+        string query = string.Join(
+            "&",
+            subscriptionIds.Select(id => $"id={Uri.EscapeDataString(id)}")
+        );
+        HttpRequestMessage request = new(
+            HttpMethod.Delete,
+            $"{KickApiBase}/events/subscriptions?{query}"
+        );
+        request.Headers.Authorization = new("Bearer", accessToken);
+
+        return await SendAsync(
+            request,
+            $"unsubscribe {string.Join(", ", subscriptionIds)}",
+            cancellationToken
+        );
+    }
+
     public async Task<Result<KickChannel>> GetChannelAsync(
         string accessToken,
         long broadcasterUserId,
