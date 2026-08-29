@@ -392,7 +392,7 @@ class PipelinesController(
             PipelineStep(
                 action = PipelineNode(type = "block"),
                 blockKind = "if",
-                blockConfig = condition.toJson(),
+                condition = condition,
                 id = id,
                 order = order,
             )

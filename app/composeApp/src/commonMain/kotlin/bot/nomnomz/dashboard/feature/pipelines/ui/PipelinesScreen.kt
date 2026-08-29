@@ -745,7 +745,7 @@ private fun ChainEditor(
                                 palette = editing.palette,
                                 manage = manage,
                                 controller = controller,
-                                onEditCondition = { ifBlockDialog = IfBlockDialogTarget(blockId = step.id, condition = decodeConditionNode(step.blockConfig)) },
+                                onEditCondition = { ifBlockDialog = IfBlockDialogTarget(blockId = step.id, condition = step.condition) },
                                 onMoveUp = { step.id?.let { controller.moveBranchStepUp(it) } },
                                 onMoveDown = { step.id?.let { controller.moveBranchStepDown(it) } },
                                 onRemove = { step.id?.let { controller.removeBranchStep(it) } },
@@ -808,7 +808,7 @@ private fun ChainEditor(
                 if (existingBlockId != null) {
                     controller.updateStepById(
                         existingBlockId,
-                        PipelineStep(action = PipelineNode(type = "block"), blockKind = "if", blockConfig = condition.toJson()),
+                        PipelineStep(action = PipelineNode(type = "block"), blockKind = "if", condition = condition),
                     )
                 } else {
                     controller.addIfBlock(condition)
@@ -937,7 +937,7 @@ private fun IfBlockCard(
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    val conditionNode: PipelineNode? = decodeConditionNode(block.blockConfig)
+    val conditionNode: PipelineNode? = block.condition
     val conditionSummary: String =
         conditionNode?.let { blockDisplayName(palette.condition(it.type), it.type) }.orEmpty()
 
@@ -2322,8 +2322,3 @@ private data class StepDialogTarget(val parentStepId: String?, val branch: Strin
 // A null [blockId] is adding a brand-new "if" block; a non-null one is re-editing an existing block's
 // condition (its [condition] pre-fills the dialog).
 private data class IfBlockDialogTarget(val blockId: String?, val condition: PipelineNode?)
-
-// Decodes an "if" block's stored condition back into a [PipelineNode] for the condition-editor dialog. A
-// missing/malformed blockConfig degrades to null (dialog opens with no condition pre-selected) rather than
-// crashing the editor open.
-private fun decodeConditionNode(blockConfig: JsonElement?): PipelineNode? = PipelineNode.fromJson(blockConfig)
