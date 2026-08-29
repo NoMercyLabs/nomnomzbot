@@ -96,54 +96,45 @@ private class ProjectEditorDialog(
     private val area: JTextArea,
     private val saveButton: JButton,
     private val resultLabel: JLabel,
-    private val files: MutableMap<String, String>,
-    private val entryPath: String,
+    initialFiles: Map<String, String>,
+    entryPath: String,
 ) {
-    private var active: String = entryPath
+    // The file map + active-path bookkeeping is the shared, unit-tested core (ProjectFilesEditorState) — this
+    // dialog only owns the Swing widgets and flushes the text area into it before every switch.
+    private val state: ProjectFilesEditorState = ProjectFilesEditorState(initialFiles, entryPath)
 
     init {
         refreshList()
         fileList.selectedValue?.let { select(it) } ?: select(entryPath)
         fileList.addListSelectionListener { event ->
             if (!event.valueIsAdjusting) {
-                fileList.selectedValue?.let { if (it != active) select(it) }
+                fileList.selectedValue?.let { if (it != state.active) select(it) }
             }
         }
     }
 
-    fun snapshot(): Map<String, String> {
-        flush()
-        return files.toMap()
-    }
+    fun snapshot(): Map<String, String> = state.snapshot(area.text)
 
     fun addFile() {
         val name: String? = JOptionPane.showInputDialog(dialog, "New file path (e.g. components/Bar.vue)")
-        val trimmed: String = name?.trim()?.trim('/') ?: return
-        if (trimmed.isEmpty() || files.containsKey(trimmed)) return
-        flush()
-        files[trimmed] = ""
+        val trimmed: String = name?.trim() ?: return
+        if (!state.addFile(trimmed, area.text)) return
         refreshList()
-        select(trimmed)
+        load(state.active)
     }
 
     fun renameActive() {
-        if (active == entryPath) return
-        val next: String? = JOptionPane.showInputDialog(dialog, "Rename file", active)
-        val trimmed: String = next?.trim()?.trim('/') ?: return
-        if (trimmed.isEmpty() || trimmed == active || files.containsKey(trimmed)) return
-        flush()
-        files[trimmed] = files.remove(active) ?: ""
-        active = trimmed
+        val next: String? = JOptionPane.showInputDialog(dialog, "Rename file", state.active)
+        val trimmed: String = next?.trim() ?: return
+        if (!state.renameActive(trimmed, area.text)) return
         refreshList()
-        select(trimmed)
+        load(state.active)
     }
 
     fun deleteActive() {
-        if (active == entryPath) return
-        files.remove(active)
-        active = entryPath
+        if (!state.deleteActive()) return
         refreshList()
-        select(entryPath)
+        load(state.active)
     }
 
     fun markCompiling() {
@@ -163,23 +154,22 @@ private class ProjectEditorDialog(
         if (dialog.isDisplayable) dialog.dispose()
     }
 
-    // Stash the text area's current content back into the map under the active path.
-    private fun flush() {
-        files[active] = area.text
+    // Flush the text area into the OLD active file, switch, and load the new active file's content.
+    private fun select(path: String) {
+        state.select(path, area.text)
+        load(state.active)
     }
 
-    private fun select(path: String) {
-        if (path != active) flush()
-        active = path
-        area.text = files[path] ?: ""
+    // Paint [path]'s content into the text area WITHOUT touching the map (the switch already happened).
+    private fun load(path: String) {
+        area.text = state.content(path)
         area.caretPosition = 0
         if (fileList.selectedValue != path) fileList.setSelectedValue(path, true)
     }
 
     private fun refreshList() {
-        val sorted: List<String> = files.keys.sorted()
         listModel.clear()
-        sorted.forEach { listModel.addElement(it) }
+        state.paths.forEach { listModel.addElement(it) }
     }
 
     companion object {
@@ -204,9 +194,6 @@ private fun buildProjectEditorDialog(
     val dialog = JDialog(null as Frame?, heading, false)
     dialog.defaultCloseOperation = WindowConstants.DISPOSE_ON_CLOSE
 
-    val files: MutableMap<String, String> = LinkedHashMap(initialFiles)
-    if (!files.containsKey(entryPath)) files[entryPath] = ""
-
     val listModel = DefaultListModel<String>()
     val fileList =
         JList(listModel).apply {
@@ -228,7 +215,7 @@ private fun buildProjectEditorDialog(
     val deleteButton = JButton("Delete")
 
     val handle =
-        ProjectEditorDialog(dialog, fileList, listModel, area, saveButton, resultLabel, files, entryPath)
+        ProjectEditorDialog(dialog, fileList, listModel, area, saveButton, resultLabel, initialFiles, entryPath)
 
     val requestCompile: () -> Unit = {
         handle.markCompiling()
