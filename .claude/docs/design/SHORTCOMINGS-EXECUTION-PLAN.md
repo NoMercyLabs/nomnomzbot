@@ -214,9 +214,11 @@ than each consumer needing their own clone-and-customize pass.
   then-else block editing (ba140ecb, condition-field bug found and fixed same session — 293b9ec7:
   the condition must live in the step's `condition` field like any leaf step, never `blockConfig`,
   since `PipelineEngine.cs` only ever evaluates `step.Conditions` for an `if` block) both DONE and
-  verified. Remaining: switch/loop/random_branch/try block kinds each need their own follow-up slice,
-  same pattern as `if` — mind the same condition-vs-blockConfig split when wiring `switch`/`loop`
-  (those DO use `blockConfig` correctly per `PipelineGraphBuilder.cs`, only `if` was the exception)
+  verified. `switch`/`switch_case` block editing also DONE and verified (c3f5a6f9 — reads
+  `BlockConfigJson`→`{value}`/`{match,operator,is_default}` per `PipelineTreeTypes.cs:119-135`,
+  `PipelineEngine.cs` `ExecuteSwitchAsync`). Remaining: loop/random_branch/try block kinds each need
+  their own follow-up slice, same pattern — confirm the engine's exact field(s) for each BEFORE coding,
+  the same way `if` (condition field) and `switch` (blockConfig field) turned out to differ
   (U·B1, W·§6/§8 i6). Out-of-scope note: chat-triggers and automation screens also bind pipelines via a
   plain picker and would benefit from `PipelineBindPicker` too — not yet done.
 - **S050** Shell truth — DONE. Hub-state dot now reads `DashboardHubClient.connectionState`
