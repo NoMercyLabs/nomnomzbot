@@ -39,7 +39,8 @@ public sealed class SdkTypeEmitter : ISdkTypeEmitter
                 .Select(d => new EventCatalogItemDto(
                     d.WireName,
                     d.Visibility.ToString(),
-                    schema.BuildPayloadSchema(d.ClrType)
+                    schema.BuildPayloadSchema(d.ClrType),
+                    EventSamplePayloads.ByWireName.GetValueOrDefault(d.WireName)
                 )),
         ];
     }
