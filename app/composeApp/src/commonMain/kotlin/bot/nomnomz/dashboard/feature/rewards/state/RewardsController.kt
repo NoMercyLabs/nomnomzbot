@@ -23,6 +23,8 @@ import bot.nomnomz.dashboard.core.network.RewardSummary
 import bot.nomnomz.dashboard.core.network.RewardsApi
 import bot.nomnomz.dashboard.core.network.UpdateRewardBody
 import bot.nomnomz.dashboard.core.realtime.HubEvent
+import bot.nomnomz.dashboard.core.realtime.HubRedemptionStatusChanged
+import bot.nomnomz.dashboard.core.realtime.HubRewardRedeemed
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -294,27 +296,48 @@ class RewardsController(
     }
 
     /**
-     * Subscribe to [hubEvents] so new redemptions appear instantly without a poll:
+     * Subscribe to [hubEvents] so the page live-updates without a poll, on ANY open session — not only the one
+     * that made the change:
      * - [HubEvent.RewardRedeemed]: prepends a new [RedemptionSummary] to the pending queue (cap 50).
+     * - [HubEvent.RedemptionStatusChanged]: a queued redemption moved to fulfilled/canceled (whether fulfilled
+     *   from THIS session, another session, or Twitch's own dashboard) — drops it from the pending queue.
+     * - [HubEvent.RewardChanged]: a reward was created/updated/removed (from any source) — reloads so the
+     *   rewards list reflects it without the operator having to refresh.
      */
     suspend fun subscribeToHub(hubEvents: SharedFlow<HubEvent>) {
         hubEvents.collect { evt ->
-            if (evt !is HubEvent.RewardRedeemed) return@collect
-            val current: RewardsState = _state.value
-            if (current !is RewardsState.Ready) return@collect
-            val newItem: RedemptionSummary = RedemptionSummary(
-                redemptionId = evt.event.redemptionId,
-                rewardId = evt.event.rewardId,
-                rewardTitle = evt.event.rewardTitle,
-                userId = evt.event.userId,
-                userDisplayName = evt.event.userDisplayName,
-                cost = evt.event.cost,
-                userInput = evt.event.userInput,
-                status = "unfulfilled",
-                redeemedAt = evt.event.timestamp,
-            )
-            _state.value = current.copy(redemptions = (listOf(newItem) + current.redemptions).take(50))
+            when (evt) {
+                is HubEvent.RewardRedeemed -> onRewardRedeemed(evt.event)
+                is HubEvent.RedemptionStatusChanged -> onRedemptionStatusChanged(evt.event)
+                is HubEvent.RewardChanged -> load()
+                else -> Unit
+            }
         }
+    }
+
+    private fun onRewardRedeemed(event: HubRewardRedeemed) {
+        val current: RewardsState = _state.value
+        if (current !is RewardsState.Ready) return
+        val newItem: RedemptionSummary = RedemptionSummary(
+            redemptionId = event.redemptionId,
+            rewardId = event.rewardId,
+            rewardTitle = event.rewardTitle,
+            userId = event.userId,
+            userDisplayName = event.userDisplayName,
+            cost = event.cost,
+            userInput = event.userInput,
+            status = "unfulfilled",
+            redeemedAt = event.timestamp,
+        )
+        _state.value = current.copy(redemptions = (listOf(newItem) + current.redemptions).take(50))
+    }
+
+    private fun onRedemptionStatusChanged(event: HubRedemptionStatusChanged) {
+        val current: RewardsState = _state.value
+        if (current !is RewardsState.Ready) return
+        _state.value = current.copy(
+            redemptions = current.redemptions.filterNot { it.redemptionId == event.redemptionId }
+        )
     }
 
     // A write either reloads the list (success) or surfaces its error over the current Ready list without

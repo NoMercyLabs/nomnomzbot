@@ -92,6 +92,20 @@ public record RewardRedeemedDto(
     string? CommunityStanding = null
 );
 
+/// <summary>
+/// Broadcast when a queued redemption's status changes — fulfilled or canceled — whether the change came from
+/// the dashboard's own fulfil/refund button or from Twitch directly (<c>channel_points_custom_reward_redemption.
+/// update</c>). Distinct from <see cref="RewardRedeemedDto"/>, which announces the NEW redemption; this is what
+/// lets a second open dashboard session drop the row from its pending queue without a poll.
+/// </summary>
+public record RedemptionStatusChangedDto(
+    string BroadcasterId,
+    string RedemptionId,
+    string RewardId,
+    string Status,
+    string Timestamp
+);
+
 public record PermissionChangedDto(
     string SubjectType,
     string SubjectId,

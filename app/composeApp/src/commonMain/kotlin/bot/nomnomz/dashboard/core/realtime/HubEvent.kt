@@ -36,6 +36,9 @@ sealed interface HubEvent {
 
     data class RewardRedeemed(val event: HubRewardRedeemed) : HubEvent
 
+    /** A queued redemption's status moved to fulfilled/canceled — drop it from any pending-queue view. */
+    data class RedemptionStatusChanged(val event: HubRedemptionStatusChanged) : HubEvent
+
     data class MusicStateChanged(val state: HubMusicState) : HubEvent
 
     data class ChannelEvent(val event: HubChannelEvent) : HubEvent
@@ -73,6 +76,7 @@ sealed interface HubEvent {
                     "ModAction" -> ModAction(json.decodeFromString(first))
                     "CommandExecuted" -> CommandExecuted(json.decodeFromString(first))
                     "RewardRedeemed" -> RewardRedeemed(json.decodeFromString(first))
+                    "RedemptionStatusChanged" -> RedemptionStatusChanged(json.decodeFromString(first))
                     "MusicStateChanged" -> MusicStateChanged(json.decodeFromString(first))
                     "ChannelEvent" -> ChannelEvent(json.decodeFromString(first))
                     "PermissionChanged" -> PermissionChanged(json.decodeFromString(first))
@@ -225,6 +229,16 @@ data class HubRewardRedeemed(
     val userDisplayName: String = "",
     val cost: Int = 0,
     val userInput: String? = null,
+    val timestamp: String = "",
+)
+
+/** Mirror of the backend `RedemptionStatusChangedDto`. */
+@Serializable
+data class HubRedemptionStatusChanged(
+    val broadcasterId: String = "",
+    val redemptionId: String = "",
+    val rewardId: String = "",
+    val status: String = "",
     val timestamp: String = "",
 )
 
