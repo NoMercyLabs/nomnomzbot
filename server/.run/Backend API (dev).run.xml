@@ -1,5 +1,10 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Backend API (dev)" type="DotNetProject" factoryName=".NET Project">
+  <configuration
+    default="false"
+    name="Backend API (dev)"
+    type="DotNetProject"
+    factoryName=".NET Project"
+  >
     <option name="EXE_PATH" />
     <option name="PROGRAM_PARAMETERS" />
     <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/src/NomNomzBot.Api" />
