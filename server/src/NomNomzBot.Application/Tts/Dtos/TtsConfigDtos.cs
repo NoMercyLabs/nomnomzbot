@@ -34,6 +34,13 @@ public sealed record TtsConfigDto(
     string? AzureRegion = null
 );
 
+/// <summary>
+/// The channel's auto-provisioned TTS overlay (widgets-overlays.md §1.2 system surface): the OBS browser-source
+/// URL to add once, and when it last reported running (audit B5) — so the dashboard can show a real "is this
+/// actually in OBS" signal instead of assuming.
+/// </summary>
+public sealed record TtsOverlayDto(string OverlayUrl, DateTime? LastRanAt);
+
 /// <summary>Request to store a BYOK provider API key; the key is vault-encrypted at rest and never echoed.</summary>
 public sealed record SetTtsByokKeyDto
 {
