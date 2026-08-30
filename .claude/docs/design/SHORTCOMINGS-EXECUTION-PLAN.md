@@ -303,6 +303,15 @@ later.)
     the auto-provisioned overlay (mirror the pattern used elsewhere in this session, e.g. the pipeline
     dry-run Test action).
   - **S052-queue-controls**: skip/clear/pause controls for the TTS queue on the dashboard page.
+  - **S052-gallery-cleanup**: `tts_caption` is still listed in `FirstPartyWidgetCatalogue.cs`'s
+    browsable gallery (21 items) alongside the new auto-provision path — spec calls for it trimmed out
+    of the installable gallery entirely (it's provisioned automatically now, never browsed/installed by
+    a streamer) — dual-path today until removed. Also wire `EnsureSystemWidgetAsync` into real
+    channel-creation call sites (not just first-use-on-page-load) so it's genuinely provisioned at
+    creation per spec, not only lazily on first TTS-page visit.
+  - **S052-alert-sound-provisioning**: the same "never gallery-installed, get-or-create" gap almost
+    certainly applies to the Alert and Sound system surfaces too (widgets-overlays.md §1.2 groups
+    Alert/TTS/Sound together) — not touched this session, TTS-only.
   Done-when (whole item): a TTS redeem is audible in OBS from a fresh channel with no manual widget
   install — auto-provisioning is proven server-side; end-to-end audibility still needs the
   audio-queue + frontend pieces above before it's true.
