@@ -56,7 +56,15 @@ internal static class WidgetAlertDispatch
             .ToListAsync(cancellationToken);
 
         List<Widget> subscribers = WidgetAlertRouting.Subscribers(widgets, eventType).ToList();
-        if (subscribers.Count > 0)
+        // Same exclusion DashboardController.GetActivity applies to the feed itself (chat never shows there) —
+        // applied here too, one step earlier: a shared per-broadcaster ring buffer that also captured
+        // "ChatMessage" filled its 40 slots with ordinary chat traffic within seconds on any active channel,
+        // evicting the rare, valuable alert capture (a follow/sub/raid) a streamer actually wanted to replay
+        // before they ever got the chance to click Replay. Every other event type keeps capturing exactly as
+        // before (including a null channelEventId — e.g. a free chat-command TTS utterance is still logged,
+        // just never reachable by ReplayActivity's exact-id lookup); chat alone is excluded, since it is the
+        // one type that both fires at chat volume AND carries a real (never matchable) correlating id.
+        if (subscribers.Count > 0 && eventType != "ChatMessage")
             await CaptureAsync(
                 db,
                 broadcasterId,
