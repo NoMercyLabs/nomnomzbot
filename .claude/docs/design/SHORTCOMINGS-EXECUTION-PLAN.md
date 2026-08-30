@@ -91,15 +91,10 @@ re-running a persistent side effect.
     `TtsSpeakRequest`/`TtsUtteranceDispatchedEvent` — 1-field addition through 6 existing hops, no
     engine refactor needed (`RewardRedeemedEvent.EventId` was already the same id the activity feed
     uses). A standalone chat-command TTS still correctly captures `ChannelEventId = null`.
-- **S-REPLAY-ENDPOINT**: `POST /api/v1/channels/{channelId}/activity/{eventId}/replay` (Gate-2 action
-  key alongside `dashboard:read`/write floor — moderator-or-above, matches other on-stream action
-  endpoints) that looks up the capture row(s) for that `ChannelEvent.Id` and re-broadcasts each recorded
-  widget-event payload verbatim via the notifier, unchanged. Returns a real failure (not a blanket
-  200) when the event has no capture (e.g. it predates this feature, or nothing was actually pushed the
-  first time — no widget was subscribed) — the dashboard must show that truthfully, never a fake
-  success. Done-when: replaying a real captured event re-renders the exact same alert/TTS in a
-  connected OBS browser-source, proven by a real WidgetNotifier-received-call assertion (not a 200
-  check).
+- **S-REPLAY-ENDPOINT** — DONE, verified (9c8d4f2f): `POST api/v1/dashboard/{channelId}/activity/
+  {eventId}/replay` (matches `DashboardController`'s real route base), action key `dashboard:replay`
+  (Mod floor). Re-pushes the exact captured payload to every currently-subscribed widget verbatim; a
+  real 404 (zero notifier calls) when the event has no capture — never a fake success.
 - **S-REPLAY-UI**: Replay icon-button next to each `ActivityRow` in `HomeScreen.kt`'s activity feed,
   calling the new endpoint; shows a brief success/failure toast (truthful — "nothing to replay" is a
   real, distinct outcome from "replayed"), disabled-with-reason (not hidden) while a replay for that row
