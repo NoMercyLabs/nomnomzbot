@@ -89,7 +89,11 @@ public record RewardRedeemedDto(
     string Timestamp,
     string? AvatarUrl = null,
     string? Pronouns = null,
-    string? CommunityStanding = null
+    string? CommunityStanding = null,
+    // The domain EventId (== the ChannelEvent.Id the activity feed and DashboardController.ReplayActivity
+    // both key by) — distinct from RedemptionId (Twitch's own redemption GUID). The live-pushed dashboard
+    // row must use THIS as its Replay-button id; RedemptionId never matches a RenderedAlertCapture row.
+    string? EventId = null
 );
 
 /// <summary>

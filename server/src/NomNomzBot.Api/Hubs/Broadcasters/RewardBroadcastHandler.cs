@@ -68,7 +68,8 @@ public sealed class RewardRedeemedBroadcastHandler : IEventHandler<RewardRedeeme
             Timestamp: @event.OccurredAt.ToString("O"),
             AvatarUrl: enrichment?.AvatarUrl,
             Pronouns: enrichment?.Pronouns,
-            CommunityStanding: enrichment?.CommunityStanding
+            CommunityStanding: enrichment?.CommunityStanding,
+            EventId: @event.EventId.ToString()
         );
 
         await _notifier.SendRewardRedeemedAsync(@event.BroadcasterId.ToString(), dto, ct);
