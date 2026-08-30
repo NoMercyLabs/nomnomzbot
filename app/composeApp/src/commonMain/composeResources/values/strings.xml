@@ -599,6 +599,10 @@
     <string name="tts_overlay_url_label">Browser-source URL</string>
     <string name="tts_overlay_never_ran">Never ran yet</string>
     <string name="tts_overlay_last_ran">Last ran %1$dm ago</string>
+    <string name="tts_overlay_test_button">Test overlay</string>
+    <string name="tts_overlay_test_sending">Sending…</string>
+    <string name="tts_overlay_test_sent">Test sent to the overlay</string>
+    <string name="tts_overlay_test_error">Test failed: %1$s</string>
     <string name="tts_label_voice">Default voice</string>
     <string name="tts_voices_title">Available voices</string>
     <string name="tts_voices_count">%1$d voices to choose from</string>

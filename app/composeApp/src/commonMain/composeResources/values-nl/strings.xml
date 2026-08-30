@@ -596,6 +596,10 @@
     <string name="tts_overlay_url_label">Browserbron-URL</string>
     <string name="tts_overlay_never_ran">Nog niet gedraaid</string>
     <string name="tts_overlay_last_ran">%1$dm geleden gedraaid</string>
+    <string name="tts_overlay_test_button">Overlay testen</string>
+    <string name="tts_overlay_test_sending">Bezig met verzenden…</string>
+    <string name="tts_overlay_test_sent">Test verzonden naar de overlay</string>
+    <string name="tts_overlay_test_error">Test mislukt: %1$s</string>
     <string name="tts_label_voice">Standaardstem</string>
     <string name="tts_voices_title">Beschikbare stemmen</string>
     <string name="tts_voices_count">%1$d stemmen om uit te kiezen</string>

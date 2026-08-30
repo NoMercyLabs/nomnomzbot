@@ -14,6 +14,7 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
+using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Application.Tts.Dtos;
 using NomNomzBot.Application.Tts.Services;
@@ -60,7 +61,8 @@ public sealed class TtsConfigControllerOwnVoiceTests
             Substitute.For<ITtsLexiconService>(),
             db,
             currentUser,
-            Substitute.For<NomNomzBot.Application.Widgets.Services.IWidgetService>()
+            Substitute.For<NomNomzBot.Application.Widgets.Services.IWidgetService>(),
+            Substitute.For<ITtsDispatchService>()
         );
     }
 

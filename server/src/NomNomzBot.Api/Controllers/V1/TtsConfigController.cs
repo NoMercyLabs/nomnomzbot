@@ -20,6 +20,7 @@ using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Tts.Dtos;
 using NomNomzBot.Application.Tts.Services;
 using NomNomzBot.Application.Widgets.Dtos;
@@ -39,13 +40,15 @@ public class TtsConfigController : BaseController
     private readonly IApplicationDbContext _db;
     private readonly ICurrentUserService _currentUser;
     private readonly IWidgetService _widgetService;
+    private readonly ITtsDispatchService _ttsDispatchService;
 
     public TtsConfigController(
         ITtsConfigService ttsConfigService,
         ITtsLexiconService ttsLexiconService,
         IApplicationDbContext db,
         ICurrentUserService currentUser,
-        IWidgetService widgetService
+        IWidgetService widgetService,
+        ITtsDispatchService ttsDispatchService
     )
     {
         _ttsConfigService = ttsConfigService;
@@ -53,6 +56,7 @@ public class TtsConfigController : BaseController
         _db = db;
         _currentUser = currentUser;
         _widgetService = widgetService;
+        _ttsDispatchService = ttsDispatchService;
     }
 
     /// <summary>
@@ -79,6 +83,47 @@ public class TtsConfigController : BaseController
                 Data = new(result.Value.OverlayUrl ?? string.Empty, result.Value.LastRanAt),
             }
         );
+    }
+
+    /// <summary>
+    /// Fires a real test utterance through the LIVE dispatch pipeline (gate → censor → dispatch →
+    /// <c>TtsUtteranceDispatchedEvent</c> → overlay push), so the streamer can prove the OBS browser source
+    /// actually plays audio. This is NOT <see cref="TestVoice"/> — that endpoint only synthesizes bytes and
+    /// hands them back to the caller and never touches the overlay. Speaks in the channel's default voice (no
+    /// triggering viewer) and passes <c>ChannelEventId: null</c>, the same value a standalone chat-triggered
+    /// utterance uses — no <c>ChannelEvent</c> is created, so there is genuinely nothing for Replay to
+    /// correlate.
+    /// </summary>
+    [HttpPost("overlay/test")]
+    [EnableRateLimiting(RateLimitPolicyNames.WriteExpensive)]
+    [RequireAction("tts:voice:test")]
+    [ProducesResponseType<StatusResponseDto<TtsDispatchOutcome>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> TestOverlay(string channelId, CancellationToken ct)
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        TtsSpeakRequest request = new(
+            BroadcasterId: broadcasterId,
+            RequestedByUserId: Guid.Empty,
+            RequestedByTwitchUserId: string.Empty,
+            RequestedByDisplayName: string.Empty,
+            Text: "This is a test of the text to speech overlay.",
+            VoiceIdOverride: null,
+            BitsAmount: 0,
+            CommunityStanding: "broadcaster",
+            SourceMessageId: null,
+            StreamId: null,
+            ChannelEventId: null
+        );
+
+        Result<TtsDispatchOutcome> result = await _ttsDispatchService.RequestSpeakAsync(
+            request,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<TtsDispatchOutcome> { Data = result.Value });
     }
 
     /// <summary>Get the channel's TTS configuration.</summary>

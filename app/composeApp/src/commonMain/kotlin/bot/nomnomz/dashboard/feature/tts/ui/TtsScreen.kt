@@ -172,6 +172,10 @@ import nomnomzbot.composeapp.generated.resources.tts_saved
 import nomnomzbot.composeapp.generated.resources.tts_saving
 import nomnomzbot.composeapp.generated.resources.tts_overlay_last_ran
 import nomnomzbot.composeapp.generated.resources.tts_overlay_never_ran
+import nomnomzbot.composeapp.generated.resources.tts_overlay_test_button
+import nomnomzbot.composeapp.generated.resources.tts_overlay_test_error
+import nomnomzbot.composeapp.generated.resources.tts_overlay_test_sending
+import nomnomzbot.composeapp.generated.resources.tts_overlay_test_sent
 import nomnomzbot.composeapp.generated.resources.tts_overlay_title
 import nomnomzbot.composeapp.generated.resources.tts_overlay_url_label
 import nomnomzbot.composeapp.generated.resources.tts_status_disabled
@@ -249,6 +253,7 @@ fun TtsScreen(
                     queueManage = queueManage,
                     onSave = { edited -> scope.launch { controller.save(edited) } },
                     onTestSpeak = { voiceId, text -> scope.launch { controller.testSpeak(voiceId, text) } },
+                    onTestOverlay = { scope.launch { controller.testOverlay() } },
                     searchViewers = { query -> controller.searchViewers(query) },
                     onLookupViewerVoice = { userId -> scope.launch { controller.loadUserVoice(userId) } },
                     onAssignViewerVoice = { userId, voiceId ->
@@ -310,6 +315,7 @@ private fun ReadyContent(
     queueManage: ManageDecision,
     onSave: (TtsConfig) -> Unit,
     onTestSpeak: (voiceId: String, text: String) -> Unit,
+    onTestOverlay: () -> Unit,
     searchViewers: suspend (query: String) -> List<PickerOption>,
     onLookupViewerVoice: (userId: String) -> Unit,
     onAssignViewerVoice: (userId: String, voiceId: String) -> Unit,
@@ -379,7 +385,14 @@ private fun ReadyContent(
     ) {
         PageHeader(title = stringResource(Res.string.shell_nav_tts))
         StatusBanner(isEnabled = isEnabled)
-        OverlayCard(overlay = state.overlay)
+        OverlayCard(
+            overlay = state.overlay,
+            manage = manage,
+            sending = state.overlayTestSending,
+            sent = state.overlayTestSent,
+            error = state.overlayTestError,
+            onTest = onTestOverlay,
+        )
 
         EditCard(
             isEnabled = isEnabled,
@@ -1528,7 +1541,14 @@ private fun StatusBanner(isEnabled: Boolean) {
 // nothing while the overlay hasn't loaded yet ([overlay] null on first composition or a resilient failure
 // per [bot.nomnomz.dashboard.feature.tts.state.TtsController.load]); the rest of the page still shows.
 @Composable
-private fun OverlayCard(overlay: TtsOverlay?) {
+private fun OverlayCard(
+    overlay: TtsOverlay?,
+    manage: ManageDecision,
+    sending: Boolean,
+    sent: Boolean,
+    error: String?,
+    onTest: () -> Unit,
+) {
     if (overlay == null) return
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -1553,6 +1573,33 @@ private fun OverlayCard(overlay: TtsOverlay?) {
                 copiedLabel = stringResource(Res.string.widgets_url_copied),
             )
             Text(text = lastRanText, style = typography.xs, color = tokens.mutedForeground)
+
+            Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalAlignment = Alignment.CenterVertically) {
+                ManageGate(decision = manage) { enabled ->
+                    Button(onClick = onTest, enabled = enabled && !sending) {
+                        Text(
+                            text =
+                                stringResource(
+                                    if (sending) Res.string.tts_overlay_test_sending else Res.string.tts_overlay_test_button
+                                )
+                        )
+                    }
+                }
+                if (sent) {
+                    Text(
+                        text = stringResource(Res.string.tts_overlay_test_sent),
+                        style = typography.xs,
+                        color = tokens.mutedForeground,
+                    )
+                }
+                if (error != null) {
+                    Text(
+                        text = stringResource(Res.string.tts_overlay_test_error, error),
+                        style = typography.xs,
+                        color = tokens.destructive,
+                    )
+                }
+            }
         }
     }
 }
