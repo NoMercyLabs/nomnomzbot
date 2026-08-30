@@ -35,6 +35,7 @@ import bot.nomnomz.dashboard.core.network.TransferBody
 import bot.nomnomz.dashboard.core.network.ActivityEvent
 import bot.nomnomz.dashboard.core.network.DashboardApi
 import bot.nomnomz.dashboard.core.network.DashboardStats
+import bot.nomnomz.dashboard.core.network.ReplayResult
 import bot.nomnomz.dashboard.core.network.EconomyApi
 import bot.nomnomz.dashboard.core.network.GamePlay
 import bot.nomnomz.dashboard.core.network.GamePlayResult
@@ -572,6 +573,8 @@ private class FakeDashboardApi(private val result: ApiResult<DashboardStats>) : 
 
     override suspend fun activity(channelId: String): ApiResult<List<ActivityEvent>> =
         ApiResult.Ok(emptyList())
+
+    override suspend fun replay(channelId: String, eventId: String): ApiResult<ReplayResult> = error("stub")
 }
 
 private class FakeEconomyApi(

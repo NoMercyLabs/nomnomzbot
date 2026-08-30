@@ -22,6 +22,7 @@ import bot.nomnomz.dashboard.core.network.CommandsApi
 import bot.nomnomz.dashboard.core.network.CommunityApi
 import bot.nomnomz.dashboard.core.network.DashboardApi
 import bot.nomnomz.dashboard.core.network.DashboardStats
+import bot.nomnomz.dashboard.core.network.ReplayResult
 import bot.nomnomz.dashboard.core.network.StreamApi
 import bot.nomnomz.dashboard.core.network.StreamInfo
 import bot.nomnomz.dashboard.core.network.StreamInfoUpdate
@@ -201,6 +202,36 @@ class HomeController(
     }
 
     /**
+     * Replay the captured alert/TTS payload for [eventId] to currently-subscribed widgets — for when a
+     * WebSocket drop meant OBS/overlay/TTS missed it live (backend `dashboard:replay`, Mod floor). Tracks the
+     * outcome per-event in [HomeState.Ready.replayStatus] so only THIS row shows in-flight/disabled and its own
+     * distinct result — other rows are unaffected. A 404 means nothing was captured for this event: that is
+     * surfaced as [ReplayStatus.NothingToReplay], never disguised as [ReplayStatus.Replayed].
+     */
+    suspend fun replay(eventId: String) {
+        val channel: String = channelId ?: return
+        val before: HomeState = _state.value
+        if (before !is HomeState.Ready) return
+        _state.value = before.copy(replayStatus = before.replayStatus + (eventId to ReplayStatus.InFlight))
+
+        val outcome: ReplayStatus =
+            when (val result: ApiResult<ReplayResult> = dashboardApi.replay(channel, eventId)) {
+                is ApiResult.Ok -> ReplayStatus.Replayed(result.value.widgetsNotified)
+                is ApiResult.Failure ->
+                    if (result.error.status == 404) {
+                        ReplayStatus.NothingToReplay
+                    } else {
+                        ReplayStatus.Failed(result.error.message)
+                    }
+            }
+
+        val after: HomeState = _state.value
+        if (after is HomeState.Ready) {
+            _state.value = after.copy(replayStatus = after.replayStatus + (eventId to outcome))
+        }
+    }
+
+    /**
      * Subscribe to hub events — updates the home state in real-time:
      * - [HubEvent.StreamStatusChanged]: toggles live/offline and updates viewer count.
      * - [HubEvent.StreamInfoChanged]: applies a title/category change (channel.update) to the live banner —
@@ -279,7 +310,24 @@ sealed interface HomeState {
         val topCommands: List<CommandSummary> = emptyList(),
         /** Non-null when the last [HomeController.updateStreamInfo] call failed. */
         val streamError: String? = null,
+        /** Per-[ActivityEvent.id] outcome of the last Replay click on that row — absent = never replayed this session. */
+        val replayStatus: Map<String, ReplayStatus> = emptyMap(),
     ) : HomeState
 
     data class Error(val detail: String) : HomeState
+}
+
+/** The Replay-button outcome for one activity row (see [HomeController.replay]). */
+sealed interface ReplayStatus {
+    /** The replay request for this row is in flight — its button is disabled while this state holds. */
+    data object InFlight : ReplayStatus
+
+    /** The backend re-broadcast the captured payload to [widgetsNotified] currently-subscribed widgets. */
+    data class Replayed(val widgetsNotified: Int) : ReplayStatus
+
+    /** A real 404: nothing was captured for this event — distinct from any other failure, never a fake success. */
+    data object NothingToReplay : ReplayStatus
+
+    /** Any other failure — [message] is the backend's error text. */
+    data class Failed(val message: String) : ReplayStatus
 }

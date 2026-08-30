@@ -17,14 +17,26 @@ import kotlinx.serialization.Serializable
 // interface and fake it in tests without HTTP.
 //
 // Backend routes (DashboardController):
-//   GET /api/v1/dashboard/{channelId}/stats     → StatusResponseDto<DashboardStatsDto>
-//   GET /api/v1/dashboard/{channelId}/activity  → StatusResponseDto<List<ActivityEventDto>>
+//   GET  /api/v1/dashboard/{channelId}/stats                    → StatusResponseDto<DashboardStatsDto>
+//   GET  /api/v1/dashboard/{channelId}/activity                 → StatusResponseDto<List<ActivityEventDto>>
+//   POST /api/v1/dashboard/{channelId}/activity/{eventId}/replay → StatusResponseDto<ReplayActivityResultDto>
+//        (action key `dashboard:replay`, Mod floor) — re-broadcasts the event's captured alert/TTS payload to
+//        currently-subscribed widgets. Returns a real 404 (ApiResult.Failure with status 404) when nothing was
+//        captured for that event — never a disguised success.
 interface DashboardApi {
     /** The channel's current snapshot — live state, stream info, and the headline counters. */
     suspend fun stats(channelId: String): ApiResult<DashboardStats>
 
     /** The 20 most recent channel events (follows, subs, cheers, raids, redemptions, etc.) newest-first. */
     suspend fun activity(channelId: String): ApiResult<List<ActivityEvent>>
+
+    /**
+     * Re-broadcast the exact captured alert/TTS payload for [eventId] to currently-subscribed widgets — for
+     * when a WebSocket drop meant OBS/overlay/TTS missed it live. A [ApiResult.Failure] with status 404 means
+     * nothing was captured for this event (predates the feature, or the alert type isn't correlated yet) —
+     * that is a real "nothing to replay" outcome, distinct from any other failure.
+     */
+    suspend fun replay(channelId: String, eventId: String): ApiResult<ReplayResult>
 }
 
 class RestDashboardApi(private val client: ApiClient) : DashboardApi {
@@ -33,6 +45,9 @@ class RestDashboardApi(private val client: ApiClient) : DashboardApi {
 
     override suspend fun activity(channelId: String): ApiResult<List<ActivityEvent>> =
         client.getEnvelope("api/v1/dashboard/$channelId/activity")
+
+    override suspend fun replay(channelId: String, eventId: String): ApiResult<ReplayResult> =
+        client.postEnvelope("api/v1/dashboard/$channelId/activity/$eventId/replay")
 }
 
 /**
@@ -47,6 +62,12 @@ data class ActivityEvent(
     val username: String? = null,
     val data: String? = null,
     val timestamp: String = "",
+)
+
+/** Backend `ReplayActivityResultDto` — how many currently-subscribed widgets the re-broadcast reached. */
+@Serializable
+data class ReplayResult(
+    val widgetsNotified: Int = 0,
 )
 
 /** The channel snapshot (backend `DashboardStatsDto`): live state, current stream info, and headline counts. */
