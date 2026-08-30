@@ -34,13 +34,18 @@ public static class FirstPartyWidgetCatalogue
 {
     /// <summary>
     /// Natural keys of catalogue entries that are actually channel-owned system surfaces (widgets-overlays.md
-    /// §1.2), not browsable/installable gallery items — <c>tts_caption</c> is provisioned automatically by
-    /// <c>IWidgetService.EnsureSystemWidgetAsync</c> the moment its owner page (TTS) needs it, never chosen from
-    /// the gallery. The <c>WidgetGalleryItem</c> row still exists (the seeder still upserts it here, and
-    /// <c>EnsureSystemWidgetAsync</c> looks it up by natural key) — this set only excludes it from the
-    /// user-facing browse/search listing.
+    /// §1.2), not browsable/installable gallery items — <c>tts_caption</c> and <c>alerts</c> are each provisioned
+    /// automatically by <c>IWidgetService.EnsureSystemWidgetAsync</c> the moment their owner page (TTS / Alerts
+    /// &amp; Events) needs them, never chosen from the gallery. The third system surface in §1.2 (Sound) has no
+    /// distinct catalogue entry yet, so it is not listed here. The <c>WidgetGalleryItem</c> rows still exist (the
+    /// seeder still upserts them, and <c>EnsureSystemWidgetAsync</c> looks each up by natural key) — this set only
+    /// excludes them from the user-facing browse/search listing.
     /// </summary>
-    public static readonly IReadOnlyCollection<string> SystemSurfaceNaturalKeys = ["tts_caption"];
+    public static readonly IReadOnlyCollection<string> SystemSurfaceNaturalKeys =
+    [
+        "tts_caption",
+        "alerts",
+    ];
 
     /// <summary>Every Twitch + supporter alert type the alerts widget and ticker default to listening for.</summary>
     public static readonly string[] SupporterAndTwitchEvents =

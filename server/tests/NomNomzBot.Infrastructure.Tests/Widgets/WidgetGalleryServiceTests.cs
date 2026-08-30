@@ -65,7 +65,7 @@ public sealed class WidgetGalleryServiceTests
     public async Task List_returns_only_verified_items_most_installed_first_with_their_summary_shape()
     {
         using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
-        await SeedItemAsync(database, "Alerts", framework: "vanilla", installCount: 5);
+        await SeedItemAsync(database, "Ticker", framework: "vanilla", installCount: 5);
         await SeedItemAsync(database, "Goals", framework: "vue", installCount: 12);
         // A non-verified submission must never leak through the public read.
         await SeedItemAsync(database, "Sketchy", reviewStatus: "submitted", installCount: 99);
@@ -80,7 +80,7 @@ public sealed class WidgetGalleryServiceTests
         }
 
         page.TotalCount.Should().Be(2); // the submitted item is excluded from the count too
-        page.Items.Select(i => i.Name).Should().ContainInOrder("Goals", "Alerts"); // most-installed first
+        page.Items.Select(i => i.Name).Should().ContainInOrder("Goals", "Ticker"); // most-installed first
         page.Items.Should().NotContain(i => i.Name == "Sketchy");
 
         GalleryItemSummary top = page.Items[0];
@@ -93,21 +93,23 @@ public sealed class WidgetGalleryServiceTests
     }
 
     [Fact]
-    public async Task List_excludes_the_tts_caption_system_surface_from_the_browsable_catalogue()
+    public async Task List_excludes_the_tts_caption_and_alerts_system_surfaces_from_the_browsable_catalogue()
     {
-        // S052 (widgets-overlays.md §1.2): tts_caption is now a channel-owned system surface, auto-provisioned
-        // by EnsureSystemWidgetAsync — it must never appear as something a streamer can find and manually
-        // install from the gallery, even though its WidgetGalleryItem row still exists (EnsureSystemWidgetAsync
-        // looks it up by natural key) and is still verified/first_party like any other row.
+        // S052 (widgets-overlays.md §1.2): tts_caption and alerts are channel-owned system surfaces, auto-
+        // provisioned by EnsureSystemWidgetAsync — neither must ever appear as something a streamer can find
+        // and manually install from the gallery, even though their WidgetGalleryItem rows still exist
+        // (EnsureSystemWidgetAsync looks each up by natural key) and are still verified/first_party like any
+        // other row.
         using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
-        await SeedItemAsync(database, "Alerts", framework: "vanilla", installCount: 5);
-        Guid id = Guid.CreateVersion7();
+        await SeedItemAsync(database, "Ticker", framework: "vanilla", installCount: 5);
+        Guid ttsId = Guid.CreateVersion7();
+        Guid alertsId = Guid.CreateVersion7();
         await using (WidgetTestDbContext seedDb = database.NewContext())
         {
             seedDb.WidgetGalleryItems.Add(
                 new()
                 {
-                    Id = id,
+                    Id = ttsId,
                     Name = "TTS Caption",
                     Description = "System TTS surface",
                     Framework = "vue",
@@ -122,6 +124,24 @@ public sealed class WidgetGalleryServiceTests
                     DefaultSettings = new() { ["showText"] = true },
                 }
             );
+            seedDb.WidgetGalleryItems.Add(
+                new()
+                {
+                    Id = alertsId,
+                    Name = "Alerts",
+                    Description = "System alert surface",
+                    Framework = "vue",
+                    TrustTier = "first_party",
+                    SourceKind = "in_repo",
+                    NaturalKey = "alerts",
+                    SourceCode = "ALERTS_SOURCE",
+                    ReviewStatus = "verified",
+                    AvailableInSaaS = true,
+                    InstallCount = 999,
+                    DefaultEventSubscriptions = ["follow"],
+                    DefaultSettings = new() { ["durationMs"] = 6000 },
+                }
+            );
             await seedDb.SaveChangesAsync();
         }
 
@@ -132,6 +152,7 @@ public sealed class WidgetGalleryServiceTests
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
         result.Value.TotalCount.Should().Be(1);
         result.Value.Items.Should().NotContain(i => i.Name == "TTS Caption");
+        result.Value.Items.Should().NotContain(i => i.Name == "Alerts");
     }
 
     [Fact]
