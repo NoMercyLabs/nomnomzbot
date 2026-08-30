@@ -15,6 +15,7 @@ using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Enums.Deployment;
 using NomNomzBot.Infrastructure.Identity;
@@ -147,9 +148,71 @@ public sealed class AuthServiceStreamerScopesTests
         withHint.Value.Should().NotContain(Uri.EscapeDataString("channel:manage:polls"));
     }
 
+    /// <summary>
+    /// The regression this guards: SelfHostLite's "Log in" device-code button (no broadcaster hint yet — the
+    /// operator hasn't authenticated) used to always request the bare <see cref="ExpectedMinimalScopes"/>, so a
+    /// returning streamer re-logging in silently narrowed their connection back to the login minimum, dropping
+    /// every scope a progressive re-grant had added and re-firing their missing-scope chat notices as if freshly
+    /// detected. SelfHostLite has at most one channel, so the existing connection's scopes are already knowable
+    /// before the device code is requested — the fix unions them in, so a repeat login is a superset, never a
+    /// downgrade.
+    /// </summary>
+    [Fact]
+    public async Task StartTwitchDeviceLoginAsync_ForSelfHostLiteWithAnExistingConnection_UnionsItsScopes()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.IntegrationConnections.Add(
+            new()
+            {
+                BroadcasterId = Guid.Parse("0192a000-0000-7000-8000-0000000000e2"),
+                Provider = "twitch",
+                Status = "connected",
+                // Neither is in the minimal base set — a prior additive re-grant added them.
+                Scopes = ["user:read:email", "channel:manage:raids", "moderator:read:followers"],
+            }
+        );
+        await db.SaveChangesAsync();
+
+        ITwitchDeviceCodeService deviceCode = Substitute.For<ITwitchDeviceCodeService>();
+        deviceCode
+            .RequestDeviceCodeAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(
+                new DeviceCodeResult(
+                    "device-code",
+                    "USER-CODE",
+                    "https://twitch.tv/activate",
+                    5,
+                    DateTime.UtcNow.AddMinutes(5)
+                )
+            );
+        AuthService service = Build(
+            ConfigWith(clientId: "public-id", secret: "shh"),
+            db,
+            deviceCode
+        );
+
+        Result<DeviceCodeStartDto> result = await service.StartTwitchDeviceLoginAsync();
+
+        result.IsSuccess.Should().BeTrue();
+        await deviceCode
+            .Received(1)
+            .RequestDeviceCodeAsync(
+                Arg.Is<IReadOnlyList<string>>(scopes =>
+                    scopes.Contains("channel:manage:raids")
+                    && scopes.Contains("moderator:read:followers")
+                    && scopes.Contains("user:read:chat") // minimal base still rides
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
     // ─── scaffolding (mirrors AuthServiceBotDeviceTests.Build/ConfigWith) ──────────────────────────────
 
-    private static AuthService Build(IConfiguration config, AuthDbContext? existingDb = null)
+    private static AuthService Build(
+        IConfiguration config,
+        AuthDbContext? existingDb = null,
+        ITwitchDeviceCodeService? deviceCode = null
+    )
     {
         AuthDbContext db = existingDb ?? AuthTestBuilder.NewContext();
         ITokenProtector protector = AuthTestBuilder.RealTokenProtector(db, out _);
@@ -162,7 +225,7 @@ public sealed class AuthServiceStreamerScopesTests
         return new(
             db,
             Substitute.For<ITwitchAuthService>(),
-            Substitute.For<ITwitchDeviceCodeService>(),
+            deviceCode ?? Substitute.For<ITwitchDeviceCodeService>(),
             Substitute.For<IIntegrationTokenVault>(),
             Substitute.For<ISessionService>(),
             Substitute.For<ISessionRevocationService>(),

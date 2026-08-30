@@ -212,18 +212,18 @@ public sealed class ScopeNotificationService : IScopeNotificationService
             return Result.Success(0);
         }
 
+        // One chat line covers the whole batch, never one per scope — several proactive jobs (community roster
+        // sync, subscriber/VIP standing, banned-user import) can each hit a DIFFERENT missing scope in the same
+        // reconnect/onboarding pass, and firing pending.Count separate "I need the 'X' permission" messages back
+        // to back reads as spam even though each individual notice is a one-time, idempotent send.
         IChatProvider chat = _serviceProvider.GetRequiredService<IChatProvider>();
-        int announced = 0;
         DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
+        await chat.SendMessageAsync(broadcasterId, BuildNotice(pending), ct);
         foreach (ChannelMissingScope gap in pending)
-        {
-            await chat.SendMessageAsync(broadcasterId, BuildNotice(gap), ct);
             gap.ChatNotifiedAt = now;
-            announced++;
-        }
 
         await _db.SaveChangesAsync(ct);
-        return Result.Success(announced);
+        return Result.Success(pending.Count);
     }
 
     public async Task<Result<IReadOnlyList<string>>> ClearResolvedAsync(
@@ -304,13 +304,30 @@ public sealed class ScopeNotificationService : IScopeNotificationService
                 ct
             );
 
-    /// <summary>The single, friendly chat line that tells the streamer which permission the bot needs and why.</summary>
-    private static string BuildNotice(ChannelMissingScope gap)
+    /// <summary>
+    /// One chat line covering every gap in the batch — a lone scope keeps the original sentence; several fold
+    /// into a single "N permissions" line so a batch never reads as one message per scope.
+    /// </summary>
+    private static string BuildNotice(IReadOnlyList<ChannelMissingScope> gaps)
+    {
+        if (gaps.Count == 1)
+            return SingleScopeSentence(gaps[0]);
+
+        string purposes = string.Join(
+            ", ",
+            gaps.Select(g => $"'{g.Scope}' ({DescribePurpose(g)})")
+        );
+        return $"I need {gaps.Count} more Twitch permissions — {purposes} — grant them from your NomNomzBot dashboard and I'll pick them up automatically.";
+    }
+
+    private static string SingleScopeSentence(ChannelMissingScope gap) =>
+        $"I need the '{gap.Scope}' Twitch permission to {DescribePurpose(gap)} — grant it from your NomNomzBot dashboard and I'll pick it up automatically.";
+
+    private static string DescribePurpose(ChannelMissingScope gap)
     {
         string? feature = gap.Feature ?? FeatureScopeMap.FeatureForScope(gap.Scope);
-        string purpose = feature is null
+        return feature is null
             ? "use a feature you have on"
             : FeatureScopeMap.DescribeFeature(feature);
-        return $"I need the '{gap.Scope}' Twitch permission to {purpose} — grant it from your NomNomzBot dashboard and I'll pick it up automatically.";
     }
 }
