@@ -45,6 +45,56 @@ Read this block first. It is the only summary; everything below is detail.
 
 ---
 
+## OWNER REQUEST 2026-08-30 — replay button on the home activity feed (jump the queue, dispatched immediately)
+
+Owner ask, verbatim intent: a Replay action next to each item in the home screen's activity feed
+(subs, bits, redemptions, etc.) so that if OBS/overlay/TTS missed an event to a short WebSocket
+interruption, the streamer can re-show it to the viewer who paid for it — "a just-in-case feature that
+could prevent a lot of tickets." Decided with the owner (AskUserQuestion, 2026-08-30):
+- **Presentation-only.** Replay re-fires the overlay alert + TTS exactly as they'd have looked/sounded
+  live. It NEVER re-runs currency grants, loyalty points, reward fulfillment, or any other
+  persistent-side-effect logic — those already ran once when the event first landed; re-running them
+  would double-credit the viewer.
+- **Source list = the existing home-screen activity feed** (`DashboardController.GetActivity`,
+  backed by `ChannelEvents` rows, surfaced to the client as `ActivityEventDto`/`ActivityEvent`) — no
+  broader EventJournal browsing needed.
+
+**Design decision (to avoid re-deriving TTS/overlay output and risking drift or accidental
+re-processing):** do NOT reconstruct the alert from the raw `ChannelEvent.Data` and re-run
+alert/TTS-eligibility logic. Instead, **capture exactly what was pushed to widgets the first time**
+(every `WidgetAlertDispatch.RouteAsync` call — including `tts_speak` — already carries the SAME
+decorated dto both the dashboard and the widgets receive, per `WidgetAlertHandlers.cs`'s own doc
+comment) and **record it against its originating `ChannelEvent.Id`**. Replay then re-broadcasts that
+recorded payload byte-for-byte — no new computation, no chance of drift, no chance of accidentally
+re-running a persistent side effect.
+
+- **S-REPLAY-CAPTURE**: add a persisted record (new table or a JSON column keyed by
+  `ChannelEvent.Id`) of every widget-event push (`eventType` + `data`, including any `tts_speak` push)
+  that resulted from a given `ChannelEvent` at the time it was first processed. Wire this at the single
+  shared choke point (`WidgetAlertDispatch.RouteAsync`, `server/src/NomNomzBot.Api/Hubs/Broadcasters/
+  WidgetAlertHandlers.cs`) so every existing alert type (follow/sub/cheer/raid/gift/resub/reward/role/
+  shoutout/ban/hype-train/tts_speak) is captured for free, not one integration per event type. Bound
+  retention sensibly (e.g. only the same window `GetActivity` already surfaces, ~40 rows per channel)
+  so this never becomes unbounded growth. Done-when: triggering any one real alert type end-to-end
+  produces a queryable capture row carrying the exact widget payload(s) that were pushed for it.
+- **S-REPLAY-ENDPOINT**: `POST /api/v1/channels/{channelId}/activity/{eventId}/replay` (Gate-2 action
+  key alongside `dashboard:read`/write floor — moderator-or-above, matches other on-stream action
+  endpoints) that looks up the capture row(s) for that `ChannelEvent.Id` and re-broadcasts each recorded
+  widget-event payload verbatim via the notifier, unchanged. Returns a real failure (not a blanket
+  200) when the event has no capture (e.g. it predates this feature, or nothing was actually pushed the
+  first time — no widget was subscribed) — the dashboard must show that truthfully, never a fake
+  success. Done-when: replaying a real captured event re-renders the exact same alert/TTS in a
+  connected OBS browser-source, proven by a real WidgetNotifier-received-call assertion (not a 200
+  check).
+- **S-REPLAY-UI**: Replay icon-button next to each `ActivityRow` in `HomeScreen.kt`'s activity feed,
+  calling the new endpoint; shows a brief success/failure toast (truthful — "nothing to replay" is a
+  real, distinct outcome from "replayed"), disabled-with-reason (not hidden) while a replay for that row
+  is in flight. i18n en+nl. Done-when: clicking Replay on a live dashboard actually re-triggers the
+  overlay/TTS in a connected OBS source, validated live per house rule (never claimed from a
+  screenshot).
+
+---
+
 ## MILESTONE 2026-08-25c — candidate for the first milestone push
 
 Owner's cadence is milestone pushes. This batch qualifies: the live box currently replays the current
