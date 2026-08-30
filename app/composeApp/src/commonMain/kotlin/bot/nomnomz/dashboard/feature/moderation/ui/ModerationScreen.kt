@@ -164,6 +164,10 @@ import nomnomzbot.composeapp.generated.resources.moderation_terms_remove
 import nomnomzbot.composeapp.generated.resources.moderation_terms_remove_action
 import nomnomzbot.composeapp.generated.resources.moderation_terms_title
 import nomnomzbot.composeapp.generated.resources.moderation_terms_unavailable
+import nomnomzbot.composeapp.generated.resources.moderation_shoutout_title
+import nomnomzbot.composeapp.generated.resources.moderation_shoutout_help
+import nomnomzbot.composeapp.generated.resources.moderation_shoutout_label
+import nomnomzbot.composeapp.generated.resources.moderation_shoutout_save
 import nomnomzbot.composeapp.generated.resources.moderation_banned_by
 import nomnomzbot.composeapp.generated.resources.moderation_banned_on
 import nomnomzbot.composeapp.generated.resources.moderation_context_action_short
@@ -394,6 +398,7 @@ fun ModerationScreen(
                     escalationPolicy = current.escalationPolicy,
                     sharedBanSettings = current.sharedBanSettings,
                     nukeBatches = current.nukeBatches,
+                    shoutoutTemplate = current.shoutoutTemplate,
                     manage = manage,
                     suspiciousManage = suspiciousManage,
                     onSaveEscalation = { policy -> scope.launch { controller.saveEscalationPolicy(policy) } },
@@ -438,6 +443,7 @@ fun ModerationScreen(
                     onSendAnnouncement = { msg, color ->
                         scope.launch { controller.sendAnnouncement(msg, color) }
                     },
+                    onSaveShoutoutTemplate = { t -> scope.launch { controller.setShoutoutTemplate(t) } },
                 )
         }
     }
@@ -503,6 +509,7 @@ private fun BansList(
     escalationPolicy: EscalationPolicy?,
     sharedBanSettings: SharedBanSettings?,
     nukeBatches: List<NetworkNukeBatch>,
+    shoutoutTemplate: String?,
     manage: ManageDecision,
     suspiciousManage: ManageDecision,
     onSaveEscalation: (UpsertEscalationPolicyBody) -> Unit,
@@ -533,6 +540,7 @@ private fun BansList(
     onDeleteRule: (Int) -> Unit,
     onCreateRule: (name: String, type: String, action: String, durationSeconds: Int?, reason: String?) -> Unit,
     onSendAnnouncement: (message: String, color: String?) -> Unit,
+    onSaveShoutoutTemplate: (String) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -754,6 +762,23 @@ private fun BansList(
                         }
                     }
                 }
+            }
+        }
+        item(key = "shoutout-header") {
+            Text(
+                text = stringResource(Res.string.moderation_shoutout_title),
+                style = typography.lg,
+                color = tokens.cardForeground,
+                maxLines = 1,
+            )
+        }
+        item(key = "shoutout-card") {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                ShoutoutTemplateEditor(
+                    template = shoutoutTemplate,
+                    manage = manage,
+                    onSave = onSaveShoutoutTemplate,
+                )
             }
         }
         item(key = "automod-header") {
@@ -2199,8 +2224,48 @@ private fun AutomodRow(
     }
 }
 
-// The add-blocked-term input: the shared AppTextField + an Add button, both gated at the Editor manage floor.
-// Add is enabled only for a non-blank term; on submit it fires onAdd with the trimmed term and clears the field.
+// This channel's own custom shoutout announcement — old-bot parity (S-SHOUTOUT-TARGET-TEMPLATE): what
+// OTHER streamers on this platform see when THEY shout this channel out with !so, not a template for the
+// shoutouts THIS channel gives. Re-syncs its local draft when the loaded value changes (e.g. after Save).
+@Composable
+private fun ShoutoutTemplateEditor(template: String?, manage: ManageDecision, onSave: (String) -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    var draft: String by remember(template) { mutableStateOf(template.orEmpty()) }
+    val dirty: Boolean = draft != template.orEmpty()
+
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(spacing.s4),
+        verticalArrangement = Arrangement.spacedBy(spacing.s2),
+    ) {
+        Text(
+            text = stringResource(Res.string.moderation_shoutout_help),
+            style = typography.sm,
+            color = tokens.mutedForeground,
+        )
+        ManageGate(decision = manage) { enabled ->
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                AppTextField(
+                    value = draft,
+                    onValueChange = { draft = it },
+                    label = stringResource(Res.string.moderation_shoutout_label),
+                    enabled = enabled,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                val canSave: Boolean = enabled && dirty
+                TextButton(onClick = { onSave(draft) }, enabled = canSave) {
+                    Text(
+                        text = stringResource(Res.string.moderation_shoutout_save),
+                        color = if (canSave) tokens.primary else tokens.mutedForeground,
+                        maxLines = 1,
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun AddTermRow(manage: ManageDecision, onAdd: (String) -> Unit) {
     val tokens = LocalTokens.current

@@ -365,7 +365,14 @@ public sealed class SpotifyMusicProvider
     {
         string? trackId = ExtractId(uriOrId, "track", requireIdShapeForBareInput: true);
         if (trackId is null)
+        {
+            // A pasted playlist/album/episode/show/artist link is a REAL Spotify link that will never
+            // resolve as a track and would otherwise fall through to a doomed text search on the raw URL
+            // (guaranteed zero hits) — reported honestly instead of as "no tracks found for <url>".
+            if (IsNonTrackSpotifyLink(uriOrId))
+                return (null, MusicProviderFailureReason.UnsupportedContentType);
             return (null, MusicProviderFailureReason.None); // not a link — legitimately nothing to resolve.
+        }
 
         string? token = await GetTokenAsync(broadcasterId, cancellationToken);
         if (token is null)
@@ -1877,6 +1884,43 @@ public sealed class SpotifyMusicProvider
     // pre-2026-08-24 behaviour) meant a plain one-word search term like "fabienk" was mistaken for a
     // bare id, sent straight to GET /tracks/{id}, 400'd, and never fell through to search.
     private const int SpotifyIdLength = 22;
+
+    // Every non-track content type a Spotify link can point at — a track link is handled by ExtractId
+    // itself; this is only consulted once that has already failed, to tell "a real link to something we
+    // don't queue" apart from "not a Spotify link at all".
+    private static readonly string[] NonTrackSpotifyContentTypes =
+    [
+        "playlist",
+        "album",
+        "episode",
+        "show",
+        "artist",
+    ];
+
+    /// <summary>True when <paramref name="uriOrId"/> is a recognized <c>spotify:{type}:…</c> URI or
+    /// <c>open.spotify.com/{type}/…</c> URL for a content type other than <c>track</c> — a playlist, album,
+    /// episode, show, or artist link a viewer pasted expecting a single song to queue.</summary>
+    private static bool IsNonTrackSpotifyLink(string uriOrId)
+    {
+        if (string.IsNullOrWhiteSpace(uriOrId))
+            return false;
+        string value = uriOrId.Trim();
+
+        foreach (string type in NonTrackSpotifyContentTypes)
+            if (value.StartsWith($"spotify:{type}:", StringComparison.OrdinalIgnoreCase))
+                return true;
+
+        if (
+            !Uri.TryCreate(value, UriKind.Absolute, out Uri? url)
+            || !url.Host.EndsWith("open.spotify.com", StringComparison.OrdinalIgnoreCase)
+        )
+            return false;
+
+        string[] segments = url.AbsolutePath.Trim('/').Split('/');
+        return segments.Any(s =>
+            NonTrackSpotifyContentTypes.Contains(s, StringComparer.OrdinalIgnoreCase)
+        );
+    }
 
     private static string? ExtractId(
         string uriOrId,

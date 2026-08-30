@@ -85,6 +85,16 @@ interface ModerationApi {
     suspend fun stats(channelId: String): ApiResult<ModerationStats>
 
     /**
+     * This channel's own custom shoutout announcement template — null/blank means the built-in default.
+     * Doubles as what OTHER streamers see when THEY shout this channel out (old-bot parity: the announcement
+     * is the target's own template, not the shouting streamer's).
+     */
+    suspend fun shoutoutTemplate(channelId: String): ApiResult<String?>
+
+    /** Set (or clear, with null/blank) this channel's custom shoutout announcement template. */
+    suspend fun setShoutoutTemplate(channelId: String, template: String?): ApiResult<Unit>
+
+    /**
      * The bot's OWN recorded moderation history for [userId] (a Twitch id): ban / timeout / warn / unban counts,
      * the last action, and the most recent actions. NOTE: only actions this bot recorded (dashboard / command /
      * EventSub) — not the viewer's complete Twitch record; the panel labels it as such.
@@ -330,6 +340,16 @@ class RestModerationApi(private val client: ApiClient) : ModerationApi {
     override suspend fun stats(channelId: String): ApiResult<ModerationStats> =
         client.getEnvelope("api/v1/channels/$channelId/moderation/stats")
 
+    // Single-value StatusResponseDto envelope ({ data: { template } }) — getEnvelope reads the wrapper.
+    override suspend fun shoutoutTemplate(channelId: String): ApiResult<String?> =
+        when (val result = client.getEnvelope<ShoutoutTemplateDto>("api/v1/channels/$channelId/moderation/shoutout-template")) {
+            is ApiResult.Ok -> ApiResult.Ok(result.value.template)
+            is ApiResult.Failure -> result
+        }
+
+    override suspend fun setShoutoutTemplate(channelId: String, template: String?): ApiResult<Unit> =
+        client.putUnit("api/v1/channels/$channelId/moderation/shoutout-template", ShoutoutTemplateDto(template))
+
     // Single-value StatusResponseDto envelope ({ data: { … } }) — getEnvelope reads the context object.
     override suspend fun userContext(channelId: String, userId: String): ApiResult<UserModerationContext> =
         client.getEnvelope("api/v1/channels/$channelId/moderation/users/$userId/context")
@@ -556,6 +576,10 @@ data class ModerationStats(
     val deletedMessages: Int = 0,
     val automodActions: Int = 0,
 )
+
+/** Mirrors the backend `ShoutoutTemplateDto` (null/blank template = the built-in default). */
+@Serializable
+data class ShoutoutTemplateDto(val template: String? = null)
 
 /**
  * One banned viewer (backend `BannedUserDto`). Fields mirror the backend record's camelCase JSON exactly

@@ -158,6 +158,38 @@ public sealed class SpotifyMusicProviderResolveTrackTests
             .BeEmpty("a plain search word must never be sent to GET /tracks/{id}");
     }
 
+    /// <summary>
+    /// The regression this guards: a pasted playlist/album/episode/show/artist link previously fell
+    /// through as "not a link" and was handed straight to the provider's text SEARCH on the raw URL
+    /// (guaranteed zero hits) — the bot then told the requester "Zero results for
+    /// 'https://open.spotify.com/playlist/…'" as if their song didn't exist, when the link was perfectly
+    /// real. UnsupportedContentType lets the caller give an honest answer instead.
+    /// </summary>
+    [Theory]
+    [InlineData("https://open.spotify.com/playlist/2uMzapo5sEhRnytZcbyxgV")]
+    [InlineData("https://open.spotify.com/intl-nl/playlist/2uMzapo5sEhRnytZcbyxgV?si=abc")]
+    [InlineData("https://open.spotify.com/episode/512ojhOuo1ktJprKbVcKyQ")]
+    [InlineData("https://open.spotify.com/album/4LH4d3cOWNNsVw41Gqt2kv")]
+    [InlineData("https://open.spotify.com/artist/06HL4z0CvFAxyc27GXpf02")]
+    [InlineData("spotify:playlist:2uMzapo5sEhRnytZcbyxgV")]
+    public async Task A_non_track_spotify_link_fails_as_unsupported_content_type_not_a_provider_search(
+        string input
+    )
+    {
+        (SpotifyMusicProvider provider, RecordingHttpHandler handler) = Build(connectSpotify: true);
+
+        (TrackInfo? track, MusicProviderFailureReason failure) = await provider.ResolveTrackAsync(
+            ChannelId,
+            input
+        );
+
+        track.Should().BeNull();
+        failure.Should().Be(MusicProviderFailureReason.UnsupportedContentType);
+        handler
+            .RequestUrls.Should()
+            .BeEmpty("a non-track link must never be sent to GET /tracks/{id}");
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("   ")]

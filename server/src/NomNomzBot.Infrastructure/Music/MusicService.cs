@@ -431,6 +431,11 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                 "The music connection needs to be reconnected.",
                 "MISSING_SCOPE"
             ),
+            MusicProviderFailureReason.UnsupportedContentType => Result.Failure<T>(
+                "Song requests only take individual tracks — that link is a playlist, album, episode, "
+                    + "show, or artist page. Paste a single track link, or just search by name instead.",
+                "UNSUPPORTED_CONTENT_TYPE"
+            ),
             _ => Result.Failure<T>(
                 "The music provider is temporarily unavailable.",
                 "PROVIDER_UNAVAILABLE"

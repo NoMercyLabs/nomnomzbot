@@ -95,6 +95,30 @@ public sealed class SongRequestBuiltinTests
         result.Value.Should().Be("\"Song Q\" is blocked in this channel.");
     }
 
+    /// <summary>
+    /// The regression this guards: a playlist/album/episode/show/artist link is never a search miss (the
+    /// link genuinely exists), so it must never render as "No tracks found for '<url>'" — the honest
+    /// UNSUPPORTED_CONTENT_TYPE message is carried through verbatim instead.
+    /// </summary>
+    [Fact]
+    public async Task A_non_track_link_carries_its_own_reason_never_a_generic_not_found()
+    {
+        SongRequestBuiltin sut = Build(
+            requestResult: Result.Failure<MusicTrack>(
+                "Song requests only take individual tracks — that link is a playlist, album, episode, "
+                    + "show, or artist page. Paste a single track link, or just search by name instead.",
+                "UNSUPPORTED_CONTENT_TYPE"
+            )
+        );
+
+        Result<string> result = await sut.ExecuteAsync(
+            Context("https://open.spotify.com/playlist/2uMzapo5sEhRnytZcbyxgV", roleLevel: 0)
+        );
+
+        result.Value.Should().Contain("only take individual tracks");
+        result.Value.Should().NotContain("No tracks found");
+    }
+
     [Fact]
     public async Task A_duplicate_request_carries_the_reason_naming_who_already_has_it()
     {

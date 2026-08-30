@@ -28,6 +28,12 @@ public enum MusicProviderFailureReason
     /// <summary>The provider was reached but errored, timed out, or rate-limited — a transient outage,
     /// not an answer about whether the track exists.</summary>
     Unavailable,
+
+    /// <summary>The pasted link is a real, recognized provider link — but to a playlist, album, episode,
+    /// show, or artist, not a single track. Song requests only ever admit one track at a time, so this is
+    /// never "not found" (the content genuinely exists) and never a provider outage — it needs its own
+    /// honest wording telling the requester to paste a track link instead.</summary>
+    UnsupportedContentType,
 }
 
 /// <summary>
