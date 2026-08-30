@@ -241,6 +241,18 @@ class WidgetsController(
         }
     }
 
+    /**
+     * Fire a representative sample event at [widget] — the row's "Test" action. Uses the first of the widget's
+     * declared [WidgetSummary.eventSubscriptions] (a widget with none declared gets the backend's generic
+     * fallback sample). Returns the raw reach description so the screen can surface it as a transient banner
+     * without disturbing the rendered list — a read-like action, not a mutation, so it never reloads.
+     */
+    suspend fun testWidget(widget: WidgetSummary): ApiResult<String> {
+        val channel: String = channelId ?: return ApiResult.Failure(NoChannelApiError)
+        val eventType: String = widget.eventSubscriptions.firstOrNull() ?: "test"
+        return widgetsApi.testEvent(channel, eventType)
+    }
+
     /** Clone an installed widget into a fresh, independently-editable custom copy. Reloads on success. */
     suspend fun cloneWidget(widgetId: String) {
         val channel: String = channelId ?: return failWrite(NoChannelError)

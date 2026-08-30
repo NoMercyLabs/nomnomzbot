@@ -511,6 +511,7 @@ private object StubWidgetsApi : bot.nomnomz.dashboard.core.network.WidgetsApi {
         channelId: String,
         widgetId: String,
     ): ApiResult<bot.nomnomz.dashboard.core.network.WidgetSummary> = error("stub")
+    override suspend fun testEvent(channelId: String, eventType: String): ApiResult<String> = error("stub")
 }
 
 private object StubPickListsApi : bot.nomnomz.dashboard.core.network.PickListsApi {
