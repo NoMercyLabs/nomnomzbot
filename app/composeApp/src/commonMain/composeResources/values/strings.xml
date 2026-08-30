@@ -1382,6 +1382,7 @@
     <string name="widgets_settings_error">Could not load settings: %1$s</string>
     <string name="widgets_settings_close">Close</string>
     <string name="widgets_settings_invalid_json">Not valid JSON.</string>
+    <string name="widgets_settings_unsupported_field">Unsupported field type "%1$s" — the dashboard cannot edit this yet; its current value is left unchanged.</string>
     <string name="widgets_settings_listens_for">Listens for</string>
     <string name="widgets_settings_save">Save</string>
     <string name="widgets_settings_cancel">Cancel</string>

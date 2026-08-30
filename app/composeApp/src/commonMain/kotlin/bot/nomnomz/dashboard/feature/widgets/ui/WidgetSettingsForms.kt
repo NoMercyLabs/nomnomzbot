@@ -77,6 +77,7 @@ import nomnomzbot.composeapp.generated.resources.widgets_settings_listens_for
 import nomnomzbot.composeapp.generated.resources.widgets_settings_loading
 import nomnomzbot.composeapp.generated.resources.widgets_settings_save
 import nomnomzbot.composeapp.generated.resources.widgets_settings_title
+import nomnomzbot.composeapp.generated.resources.widgets_settings_unsupported_field
 import org.jetbrains.compose.resources.stringResource
 
 // The Overlays page's widget settings dialog. A first-party widget's `settings` is a free-form JSON object the
@@ -89,6 +90,14 @@ import org.jetbrains.compose.resources.stringResource
 
 // A tolerant parser for the raw-JSON fields the operator edits (goal colours, socials handles, …).
 private val SettingsJson: Json = Json { isLenient = true }
+
+// Every field type this form actually renders a control for. A schema field whose type falls outside this set
+// (the backend shipped a type — e.g. an asset/sound/font picker — before this form grew a control for it) used to
+// silently fall into the "text" branch, letting the operator overwrite a structured value with a raw string. It
+// now renders as an inline "unsupported" notice instead, and [buildSettings] leaves the field's current value
+// untouched rather than clobbering it.
+private val KNOWN_FIELD_TYPES: Set<String> =
+    setOf("bool", "number", "text", "color", "select", "multiselect", "json")
 
 /**
  * The settings dialog for [widget]. Loads the widget's typed schema via [loadSchema] (loading / error / form), then
@@ -374,7 +383,7 @@ private fun FieldControl(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-        else -> // text
+        "text" ->
             AppTextField(
                 value = rawValue,
                 onValueChange = onRawChange,
@@ -382,6 +391,16 @@ private fun FieldControl(
                 supportingText = help,
                 modifier = Modifier.fillMaxWidth(),
             )
+
+        else ->
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+                Text(text = label, style = typography.sm, color = tokens.foreground)
+                Text(
+                    text = stringResource(Res.string.widgets_settings_unsupported_field, field.type),
+                    style = typography.xs,
+                    color = tokens.destructive,
+                )
+            }
     }
 }
 
@@ -532,6 +551,10 @@ private fun buildSettings(
     existing?.forEach { (key, value) -> merged[key] = value }
 
     for (field in schema.fields) {
+        // A field type this form has no control for (KNOWN_FIELD_TYPES) renders no editable value, so it must
+        // not overwrite whatever the widget already carries for that key — `merged` already seeded it from
+        // [existing] above; just leave it there.
+        if (field.type !in KNOWN_FIELD_TYPES) continue
         merged[field.key] =
             when (field.type) {
                 "bool" -> JsonPrimitive(state.bools[field.key] ?: false)
