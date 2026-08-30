@@ -77,14 +77,11 @@ re-running a persistent side effect.
   `RouteAsync` caller (follow/cheer/raid/sub/ban/role/shoutout/reward/hype-train/poll/prediction/
   dashboard/custom-data/sr-queue/tts_speak + the widget-test-event caller). Two honest gaps found, not
   invented around:
-  - `RoleBroadcastHandlers.cs` (Vip/Shoutout) never logs a `ChannelEvent` row at all today — its id is
-    threaded through for consistency but will always resolve to nothing until logging is added.
-    **Vip DONE, verified (acb97be6)**: VIP grant/revoke now logs a real `ChannelEvent` + correlates its
-    `RenderedAlertCapture`. **Still open — Shoutout lives in a SEPARATE file
-    (`ShoutoutBroadcastHandlers.cs`), not `RoleBroadcastHandlers.cs`, so it was NOT covered by the Vip
-    fix** — same gap, same fix pattern, own slice: **S-REPLAY-SHOUTOUT-CHANNELEVENT**. Also found:
-    `RoleBroadcastHandlers.cs:65,127` — `ModeratorAddedEvent`/`ModeratorRemovedEvent` have the identical
-    gap, not yet queued as its own slice — **S-REPLAY-MODERATOR-CHANNELEVENT**.
+  - The "no `ChannelEvent` row logged" gap is now closed for all three affected alert types: Vip
+    (acb97be6), Moderator add/remove (af15b466, same `RoleBroadcastHandlers.cs`), and Shoutout
+    (fe9baa6a, separate `ShoutoutBroadcastHandlers.cs`) — each verified with a real
+    `ChannelEvent`-row + correlated-`RenderedAlertCapture` test. Every alert type now appears on the
+    activity feed and is replayable, except the intentionally-out-of-scope standalone chat-command TTS.
   - `tts_speak` is genuinely uncorrelated: `TtsUtteranceDispatchedEvent` carries no reference to any
     triggering redemption/command, and a viewer `!tts` request never logs a `ChannelEvent` at all —
     `ChannelEventId` is explicitly null for TTS captures, no fake time-window join was invented.
