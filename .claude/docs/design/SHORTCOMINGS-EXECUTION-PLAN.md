@@ -307,7 +307,14 @@ later.)
     shortcut), `ChannelEventId` explicitly null (a manual test, not a paid event — no fake correlation
     invented). UI copy says "test sent", never claims OBS actually played it (honest about what the
     backend can and can't confirm).
-  - **S052-queue-controls**: skip/clear/pause controls for the TTS queue on the dashboard page.
+  - **S052-queue-controls** — DONE, verified (83883d9a): skip/clear/pause/resume for the LIVE overlay
+    playback queue (correctly disambiguated from `TtsQueueController`, which is the moderator approval
+    queue — unrelated, already built). Real commands sent through to the connected overlay's
+    `ttsQueue`. **Known honest gap, not fixed**: the server never reads back the overlay's true queue
+    state (item count / what's actually playing) — the dashboard's pause/resume indicator is optimistic
+    local UI state, not a confirmed echo from the overlay. Acceptable for now (skip/clear/pause DO fire
+    real commands), but a future slice should close the loop with a real state confirmation if this
+    becomes user-visible as wrong.
   - **S052-gallery-cleanup**: `tts_caption` is still listed in `FirstPartyWidgetCatalogue.cs`'s
     browsable gallery (21 items) alongside the new auto-provision path — spec calls for it trimmed out
     of the installable gallery entirely (it's provisioned automatically now, never browsed/installed by
