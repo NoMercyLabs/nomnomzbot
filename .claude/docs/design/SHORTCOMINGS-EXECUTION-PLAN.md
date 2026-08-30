@@ -219,8 +219,9 @@ than each consumer needing their own clone-and-customize pass.
   `PipelineEngine.cs` `ExecuteSwitchAsync`). `loop` (repeat/foreach/while) also DONE and verified
   (cde1f5fa — `LoopBlockConfig{mode,count,list_var,max_iterations,max_loop_runtime_seconds}` on
   `blockConfig`; while-mode condition on `condition` like `if`; body lane uses `branch=null`, no label
-  needed). Remaining: random_branch/try block kinds each need their own follow-up slice, same
-  pattern — confirm the engine's exact field(s)/lane-label for each BEFORE coding
+  needed). `random_branch`/`random_case` also DONE and verified (05b7bb85 — cases carry no `Branch`
+  value, `parentStepId` alone disambiguates, weight on `blockConfig`). Remaining: `try` block kind, same
+  pattern — confirm the engine's exact field(s)/lane-label BEFORE coding
   (U·B1, W·§6/§8 i6). Out-of-scope note: chat-triggers and automation screens also bind pipelines via a
   plain picker and would benefit from `PipelineBindPicker` too — not yet done.
 - **S050** Shell truth — DONE. Hub-state dot now reads `DashboardHubClient.connectionState`
