@@ -8,9 +8,13 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Domain.Widgets.Entities;
 using NSubstitute;
 
@@ -298,5 +302,88 @@ public sealed class RoleBroadcastHandlersTests
                 ),
                 Arg.Any<CancellationToken>()
             );
+    }
+
+    /// <summary>
+    /// S-REPLAY-VIPSHOUTOUT-CHANNELEVENT's done-when proof: unlike follow/sub/cheer/raid, VIP grants have no
+    /// sibling <c>TwitchAlertHandlerBase</c> handler logging the activity-feed row — this broadcast handler IS
+    /// the only consumer of <see cref="NomNomzBot.Domain.Moderation.Events.VipAddedEvent"/>, so it must write
+    /// the <see cref="ChannelEvent"/> itself. Proves a VIP action produces BOTH a queryable ChannelEvent row
+    /// (the same way DashboardController.GetActivity queries them) AND a RenderedAlertCapture correlated to
+    /// that same ChannelEvent.Id (not null) — the existing ChannelEventId threading now has something real to
+    /// point at.
+    /// </summary>
+    [Fact]
+    public async Task VipAdded_LogsChannelEvent_AndCorrelatesTheWidgetCapture_ToItsId()
+    {
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid channel = Guid.CreateVersion7();
+        Guid eventId = Guid.CreateVersion7();
+        db.Widgets.Add(
+            new()
+            {
+                Id = Guid.NewGuid(),
+                BroadcasterId = channel,
+                Name = "VIP alert",
+                IsEnabled = true,
+                EventSubscriptions = ["vip_added"],
+            }
+        );
+        await db.SaveChangesAsync();
+
+        VipAddedBroadcastHandler handler = new(notifier, enricher, db, widgets);
+
+        await handler.HandleAsync(
+            new()
+            {
+                EventId = eventId,
+                BroadcasterId = channel,
+                UserId = "u2",
+                UserDisplayName = "UserTwo",
+                UserLogin = "usertwo",
+            }
+        );
+
+        // (a) A real, queryable ChannelEvent row — same table/columns DashboardController.GetActivity reads —
+        // keyed by the domain event's own EventId.
+        ChannelEvent feedRow = await db.ChannelEvents.SingleAsync(e => e.ChannelId == channel);
+        feedRow.Id.Should().Be(eventId.ToString());
+        feedRow.Type.Should().Be("channel.vip.add");
+
+        // (b) The RenderedAlertCapture the widget dispatch wrote is correlated to that SAME ChannelEvent.Id —
+        // not null — proving the existing correlation threading now resolves to something real.
+        RenderedAlertCapture capture = await db.RenderedAlertCaptures.SingleAsync(c =>
+            c.BroadcasterId == channel
+        );
+        capture.ChannelEventId.Should().Be(feedRow.Id);
+        capture.ChannelEventId.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task VipAdded_ReDelivery_DoesNotDoubleLogTheChannelEvent()
+    {
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid channel = Guid.CreateVersion7();
+        Guid eventId = Guid.CreateVersion7();
+        VipAddedBroadcastHandler handler = new(notifier, enricher, db, widgets);
+        VipAddedEvent vipAdded = new()
+        {
+            EventId = eventId,
+            BroadcasterId = channel,
+            UserId = "u2",
+            UserDisplayName = "UserTwo",
+            UserLogin = "usertwo",
+        };
+
+        await handler.HandleAsync(vipAdded);
+        await handler.HandleAsync(vipAdded);
+
+        (await db.ChannelEvents.CountAsync(e => e.ChannelId == channel)).Should().Be(1);
     }
 }
