@@ -7,7 +7,7 @@
 // so when the browser dev server serves the app at http://localhost:5090 the app also sends /api + /hubs
 // there. This forwards those to the live dev backend so a hot-reloading local build runs against REAL data
 // (emotes, chat, channels) with no CORS wall — the browser only ever talks to its own origin, webpack does
-// the cross-origin hop server-side. Only the two backend prefixes are proxied; the app's own JS + compose
+// the cross-origin hop server-side. Only the backend prefixes are proxied; the app's own JS + compose
 // resources keep being served locally, so a Kotlin edit hot-reloads in seconds instead of a 25-min image build.
 //
 // Auth: mint a session and open http://localhost:5090/#access_token=<jwt>&expires_in=3600 (the OAuth-return
@@ -58,7 +58,10 @@ console.log(
 config.devServer = config.devServer || {};
 config.devServer.proxy = [
     {
-        context: ["/api", "/hubs"],
+        // /editor is the code editor's own page (served from the API's Assets folder, not the Wasm bundle)
+        // and /health/version is the cache-buster it is opened with — without both the dev server 404s and
+        // the editor never mounts.
+        context: ["/api", "/hubs", "/editor", "/health"],
         target: target,
         changeOrigin: true,
         secure: true,

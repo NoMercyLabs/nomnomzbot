@@ -107,6 +107,47 @@ public class SecurityHeadersMiddlewareTests
     }
 
     [Fact]
+    public async Task InvokeAsync_EditorPath_AllowsInlineScriptForTheGeneratedPreviewDocument()
+    {
+        // The editor's live preview hands a client-built document to a `srcdoc` iframe, and a srcdoc
+        // document inherits the creator's policy — so the preview's import map, SDK stub and esbuild bundle
+        // are all judged against THIS header. Under the dashboard policy (no 'unsafe-inline') all three are
+        // blocked and the preview pane renders an empty frame. Neither a nonce nor a hash can stand in: the
+        // page is a static file with no per-response nonce, and the bundle changes on every keystroke.
+        SecurityHeadersMiddleware middleware = CreateMiddleware(NoOpNext, isDevelopment: false);
+        DefaultHttpContext context = CreateContext("/editor/index.html");
+
+        await middleware.InvokeAsync(context);
+
+        string scriptSrc = DirectiveOf(context, "script-src");
+        scriptSrc.Should().Contain("'unsafe-inline'");
+        // esbuild-wasm still needs both eval forms, and both CDNs stay reachable.
+        scriptSrc.Should().Contain("'wasm-unsafe-eval'");
+        scriptSrc.Should().Contain("https://esm.sh");
+        scriptSrc.Should().Contain("https://cdn.jsdelivr.net");
+        // The relaxation is contained to the editor: the dashboard shell must stay free of inline script.
+        DirectiveOf(context, "frame-ancestors").Should().Contain("'self'");
+    }
+
+    [Fact]
+    public async Task InvokeAsync_DashboardPath_StillForbidsInlineScript()
+    {
+        SecurityHeadersMiddleware middleware = CreateMiddleware(NoOpNext, isDevelopment: false);
+        DefaultHttpContext context = CreateContext("/");
+
+        await middleware.InvokeAsync(context);
+
+        DirectiveOf(context, "script-src").Should().NotContain("'unsafe-inline'");
+    }
+
+    private static string DirectiveOf(HttpContext context, string name) =>
+        context
+            .Response.Headers["Content-Security-Policy"]
+            .ToString()
+            .Split(';', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Single(directive => directive.StartsWith($"{name} ", StringComparison.Ordinal));
+
+    [Fact]
     public async Task InvokeAsync_ProductionHttps_SetsHsts()
     {
         SecurityHeadersMiddleware middleware = CreateMiddleware(NoOpNext, isDevelopment: false);
