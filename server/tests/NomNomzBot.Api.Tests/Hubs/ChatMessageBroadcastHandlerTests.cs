@@ -15,6 +15,7 @@ using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
 using NSubstitute;
 
@@ -50,7 +51,8 @@ public sealed class ChatMessageBroadcastHandlerTests
             enricher,
             widgets,
             db,
-            TimeProvider.System
+            TimeProvider.System,
+            Substitute.For<IChannelRegistry>()
         );
 
         await handler.HandleAsync(Event(channel));
@@ -89,7 +91,8 @@ public sealed class ChatMessageBroadcastHandlerTests
             enricher,
             widgets,
             db,
-            TimeProvider.System
+            TimeProvider.System,
+            Substitute.For<IChannelRegistry>()
         );
 
         await handler.HandleAsync(Event(channel));
@@ -121,7 +124,8 @@ public sealed class ChatMessageBroadcastHandlerTests
             enricher,
             widgets,
             db,
-            TimeProvider.System
+            TimeProvider.System,
+            Substitute.For<IChannelRegistry>()
         );
 
         ChatMessageReceivedEvent evt = new()
@@ -191,7 +195,8 @@ public sealed class ChatMessageBroadcastHandlerTests
             enricher,
             widgets,
             db,
-            TimeProvider.System
+            TimeProvider.System,
+            Substitute.For<IChannelRegistry>()
         );
 
         await handler.HandleAsync(Event(channel));
@@ -256,7 +261,8 @@ public sealed class ChatMessageBroadcastHandlerTests
             enricher,
             widgets,
             db,
-            TimeProvider.System
+            TimeProvider.System,
+            Substitute.For<IChannelRegistry>()
         );
 
         await handler.HandleAsync(Event(channel));
@@ -287,7 +293,101 @@ public sealed class ChatMessageBroadcastHandlerTests
             );
     }
 
-    private static ChatMessageReceivedEvent Event(Guid channel) =>
+    [Fact]
+    public async Task Message_starting_with_the_default_prefix_is_flagged_IsCommand()
+    {
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        IChatMessageDecorator decorator = Substitute.For<IChatMessageDecorator>();
+        IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid channel = Guid.CreateVersion7();
+
+        decorator
+            .DecorateAsync(Arg.Any<ChatMessageReceivedEvent>(), Arg.Any<CancellationToken>())
+            .Returns(new DecoratedChatMessage { Fragments = [] });
+
+        // No registered ChannelContext (registry.Get returns null) — falls back to the "!" default.
+        ChatMessageBroadcastHandler handler = new(
+            notifier,
+            decorator,
+            enricher,
+            widgets,
+            db,
+            TimeProvider.System,
+            Substitute.For<IChannelRegistry>()
+        );
+
+        await handler.HandleAsync(Event(channel, "!raid"));
+
+        await notifier
+            .Received(1)
+            .SendChatMessageAsync(
+                channel.ToString(),
+                Arg.Is<DashboardChatMessageDto>(dto => dto.IsCommand),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Message_starting_with_the_channels_custom_prefix_is_flagged_IsCommand()
+    {
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        IChatMessageDecorator decorator = Substitute.For<IChatMessageDecorator>();
+        IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid channel = Guid.CreateVersion7();
+
+        decorator
+            .DecorateAsync(Arg.Any<ChatMessageReceivedEvent>(), Arg.Any<CancellationToken>())
+            .Returns(new DecoratedChatMessage { Fragments = [] });
+
+        IChannelRegistry registry = Substitute.For<IChannelRegistry>();
+        registry
+            .Get(channel)
+            .Returns(
+                new ChannelContext
+                {
+                    BroadcasterId = channel,
+                    TwitchChannelId = "123",
+                    ChannelName = "stoney_eagle",
+                    CommandPrefix = "?",
+                }
+            );
+
+        ChatMessageBroadcastHandler handler = new(
+            notifier,
+            decorator,
+            enricher,
+            widgets,
+            db,
+            TimeProvider.System,
+            registry
+        );
+
+        // A leading "!" no longer marks a command once the channel has moved to a custom prefix — the
+        // bug this test guards: IsCommand was hardcoded false, then a channel-blind literal "!" check.
+        await handler.HandleAsync(Event(channel, "!raid"));
+        await handler.HandleAsync(Event(channel, "?raid"));
+
+        await notifier
+            .Received(1)
+            .SendChatMessageAsync(
+                channel.ToString(),
+                Arg.Is<DashboardChatMessageDto>(dto => !dto.IsCommand && dto.Message == "!raid"),
+                Arg.Any<CancellationToken>()
+            );
+        await notifier
+            .Received(1)
+            .SendChatMessageAsync(
+                channel.ToString(),
+                Arg.Is<DashboardChatMessageDto>(dto => dto.IsCommand && dto.Message == "?raid"),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    private static ChatMessageReceivedEvent Event(Guid channel, string message = "hello") =>
         new()
         {
             BroadcasterId = channel,
@@ -296,7 +396,7 @@ public sealed class ChatMessageBroadcastHandlerTests
             UserId = "u1",
             UserDisplayName = "Stoney",
             UserLogin = "stoney_eagle",
-            Message = "hello",
+            Message = message,
             Fragments = [],
             Badges = [],
             IsSubscriber = false,
