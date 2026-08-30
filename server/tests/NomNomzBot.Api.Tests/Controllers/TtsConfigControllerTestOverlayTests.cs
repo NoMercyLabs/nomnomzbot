@@ -31,14 +31,18 @@ public sealed class TtsConfigControllerTestOverlayTests
 {
     private static readonly Guid Broadcaster = Guid.CreateVersion7();
 
-    private static TtsConfigController Build(ITtsDispatchService dispatch) =>
+    private static TtsConfigController Build(
+        ITtsDispatchService dispatch,
+        IWidgetService? widgetService = null
+    ) =>
         new(
             Substitute.For<ITtsConfigService>(),
             Substitute.For<ITtsLexiconService>(),
             Substitute.For<IApplicationDbContext>(),
             Substitute.For<ICurrentUserService>(),
-            Substitute.For<IWidgetService>(),
-            dispatch
+            widgetService ?? Substitute.For<IWidgetService>(),
+            dispatch,
+            Substitute.For<IWidgetEventNotifier>()
         );
 
     [Fact]

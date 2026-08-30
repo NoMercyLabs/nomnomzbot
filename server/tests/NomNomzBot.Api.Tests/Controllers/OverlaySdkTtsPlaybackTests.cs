@@ -84,4 +84,69 @@ public sealed class OverlaySdkTtsPlaybackTests
         // The queue has to advance on failure too, or one blocked utterance stalls TTS for the whole stream.
         sdk.Should().Contain("tts playback blocked");
     }
+
+    [Fact]
+    public void The_dashboard_queue_control_command_is_wired_to_its_own_dispatch_target()
+    {
+        string sdk = Sdk();
+
+        // TtsConfigController's playback/* endpoints push a "tts_queue_control" WidgetEvent — it must reach
+        // a real handler, not silently no-op through the dispatch() default case.
+        sdk.Should().Contain("tts_queue_control: ttsQueueControl");
+        sdk.Should().Contain("function ttsQueueControl(data)");
+    }
+
+    [Fact]
+    public void Pause_stops_advancing_the_queue_and_resume_starts_it_again()
+    {
+        string sdk = Sdk();
+        int playNextStart = sdk.IndexOf("function playNextTts()", StringComparison.Ordinal);
+        int playNextEnd = sdk.IndexOf("function ttsSkip", StringComparison.Ordinal);
+        playNextStart.Should().BeGreaterThan(-1);
+        string playNext = sdk[playNextStart..playNextEnd];
+
+        // playNextTts must refuse to advance while paused — otherwise "pause" only stops the CURRENT
+        // utterance and the queue keeps draining behind it.
+        playNext.Should().Contain("if (ttsPaused) return;");
+
+        sdk.Should().Contain("case \"pause\": ttsPause(); break;");
+        sdk.Should().Contain("case \"resume\": ttsResume(); break;");
+
+        int resumeStart = sdk.IndexOf("function ttsResume()", StringComparison.Ordinal);
+        int resumeEnd = sdk.IndexOf("function ttsQueueControl", StringComparison.Ordinal);
+        string resume = sdk[resumeStart..resumeEnd];
+        // Resume must flip the flag back AND kick playback again — flipping the flag alone leaves a
+        // paused queue stuck forever since nothing else calls playNextTts for it.
+        resume.Should().Contain("ttsPaused = false;");
+        resume.Should().Contain("playNextTts();");
+    }
+
+    [Fact]
+    public void Clear_stops_the_current_utterance_and_drops_every_queued_one_behind_it()
+    {
+        string sdk = Sdk();
+        int clearStart = sdk.IndexOf("function ttsClear()", StringComparison.Ordinal);
+        int clearEnd = sdk.IndexOf("function ttsPause", StringComparison.Ordinal);
+        clearStart.Should().BeGreaterThan(-1);
+        string clear = sdk[clearStart..clearEnd];
+
+        clear.Should().Contain(".pause()");
+        // "= []" (not shift/splice) — clear must drop the ENTIRE queue, not just the current utterance.
+        clear.Should().Contain("ttsQueue = [];");
+    }
+
+    [Fact]
+    public void Skip_advances_past_only_the_current_utterance()
+    {
+        string sdk = Sdk();
+        int skipStart = sdk.IndexOf("function ttsSkip()", StringComparison.Ordinal);
+        int skipEnd = sdk.IndexOf("function ttsClear", StringComparison.Ordinal);
+        skipStart.Should().BeGreaterThan(-1);
+        string skip = sdk[skipStart..skipEnd];
+
+        skip.Should().Contain(".pause()");
+        skip.Should().Contain("ttsQueue.shift();");
+        // Skip must immediately try the next item — unlike pause, it does not leave the queue stalled.
+        skip.Should().Contain("playNextTts();");
+    }
 }

@@ -78,6 +78,7 @@ public sealed class ActionDefinitionClassificationTests
         "tts:voice:test",
         "tts:uservoice:write",
         "tts:queue:review",
+        "tts:playback:control",
         "music:config:read",
         "music:queue:moderate",
         "music:remote:control",

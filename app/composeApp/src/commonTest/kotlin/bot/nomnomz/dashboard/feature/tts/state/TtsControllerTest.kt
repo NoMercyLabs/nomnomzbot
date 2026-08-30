@@ -344,6 +344,69 @@ class TtsControllerTest {
         assertEquals("boom", ready.overlayTestError)
     }
 
+    // ── Live playback queue controls (S052-queue-controls) ──────────────────
+
+    @Test
+    fun skip_calls_the_skip_route_and_never_flips_the_paused_flag() = runTest {
+        val ttsApi = FakeTtsApi(ApiResult.Ok(TtsConfig()))
+        val controller = TtsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), ttsApi)
+        controller.load()
+
+        controller.skipPlayback()
+
+        assertEquals(listOf("skip"), ttsApi.playbackControlCalls)
+        val ready: TtsState.Ready = controller.state.value as TtsState.Ready
+        assertEquals(false, ready.playbackPaused)
+        assertEquals(false, ready.playbackControlBusy)
+        assertNull(ready.playbackControlError)
+    }
+
+    @Test
+    fun clear_calls_the_clear_route_and_never_flips_the_paused_flag() = runTest {
+        val ttsApi = FakeTtsApi(ApiResult.Ok(TtsConfig()))
+        val controller = TtsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), ttsApi)
+        controller.load()
+
+        controller.clearPlayback()
+
+        assertEquals(listOf("clear"), ttsApi.playbackControlCalls)
+        val ready: TtsState.Ready = controller.state.value as TtsState.Ready
+        assertEquals(false, ready.playbackPaused)
+    }
+
+    @Test
+    fun pause_then_resume_round_trips_the_paused_flag() = runTest {
+        val ttsApi = FakeTtsApi(ApiResult.Ok(TtsConfig()))
+        val controller = TtsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), ttsApi)
+        controller.load()
+
+        controller.pausePlayback()
+        assertEquals(true, (controller.state.value as TtsState.Ready).playbackPaused)
+        assertEquals(listOf("pause"), ttsApi.playbackControlCalls)
+
+        controller.resumePlayback()
+        assertEquals(false, (controller.state.value as TtsState.Ready).playbackPaused)
+        assertEquals(listOf("pause", "resume"), ttsApi.playbackControlCalls)
+    }
+
+    @Test
+    fun a_failed_playback_command_surfaces_the_error_and_leaves_paused_state_untouched() = runTest {
+        val ttsApi =
+            FakeTtsApi(
+                ApiResult.Ok(TtsConfig()),
+                playbackControlResult = ApiResult.Failure(ApiError(500, "ERR", "overlay unreachable")),
+            )
+        val controller = TtsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), ttsApi)
+        controller.load()
+
+        controller.pausePlayback()
+
+        val ready: TtsState.Ready = controller.state.value as TtsState.Ready
+        assertEquals(false, ready.playbackPaused, "a failed pause call must not claim the queue is paused")
+        assertEquals(false, ready.playbackControlBusy)
+        assertEquals("overlay unreachable", ready.playbackControlError)
+    }
+
     // ── Pronunciation lexicon ────────────────────────────────────────────────
 
     @Test
@@ -450,6 +513,7 @@ private class FakeTtsApi(
     private val voicesResult: ApiResult<List<TtsVoice>> = ApiResult.Ok(emptyList()),
     private val overlayResult: ApiResult<TtsOverlay> = ApiResult.Ok(TtsOverlay()),
     private val testOverlayResult: ApiResult<Unit> = ApiResult.Ok(Unit),
+    private val playbackControlResult: ApiResult<Unit> = ApiResult.Ok(Unit),
 ) : TtsApi {
     override suspend fun overlay(channelId: String): ApiResult<TtsOverlay> = overlayResult
 
@@ -458,6 +522,29 @@ private class FakeTtsApi(
     override suspend fun testOverlay(channelId: String): ApiResult<Unit> {
         testOverlayCalls.add(channelId)
         return testOverlayResult
+    }
+
+    // Records which playback-control endpoint was hit so tests can assert the button wired to the right call.
+    val playbackControlCalls: MutableList<String> = mutableListOf()
+
+    override suspend fun skipPlayback(channelId: String): ApiResult<Unit> {
+        playbackControlCalls.add("skip")
+        return playbackControlResult
+    }
+
+    override suspend fun clearPlayback(channelId: String): ApiResult<Unit> {
+        playbackControlCalls.add("clear")
+        return playbackControlResult
+    }
+
+    override suspend fun pausePlayback(channelId: String): ApiResult<Unit> {
+        playbackControlCalls.add("pause")
+        return playbackControlResult
+    }
+
+    override suspend fun resumePlayback(channelId: String): ApiResult<Unit> {
+        playbackControlCalls.add("resume")
+        return playbackControlResult
     }
 
     override suspend fun myVoice(channelId: String): ApiResult<UserTtsVoice?> = ApiResult.Ok(null)

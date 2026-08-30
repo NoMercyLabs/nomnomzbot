@@ -208,6 +208,45 @@ class TtsController(
             }
     }
 
+    /** Skip the utterance currently playing on the overlay and advance to the next queued one. */
+    suspend fun skipPlayback() = sendPlaybackControl(pausedAfter = false) { ttsApi.skipPlayback(it) }
+
+    /** Stop the current utterance and drop every queued utterance behind it. */
+    suspend fun clearPlayback() = sendPlaybackControl(pausedAfter = false) { ttsApi.clearPlayback(it) }
+
+    /** Pause the overlay's TTS queue — the current utterance and everything behind it holds. */
+    suspend fun pausePlayback() = sendPlaybackControl(pausedAfter = true) { ttsApi.pausePlayback(it) }
+
+    /** Resume a paused overlay TTS queue. */
+    suspend fun resumePlayback() = sendPlaybackControl(pausedAfter = false) { ttsApi.resumePlayback(it) }
+
+    /**
+     * Shared plumbing for the four playback-control buttons: sets [TtsState.Ready.playbackControlBusy],
+     * calls [call] with the active channel, then on success sets [TtsState.Ready.playbackPaused] to
+     * [pausedAfter] (only pause/resume change it) or surfaces the failure on [TtsState.Ready.playbackControlError].
+     * No-ops when no channel is loaded.
+     */
+    private suspend fun sendPlaybackControl(
+        pausedAfter: Boolean,
+        call: suspend (channelId: String) -> ApiResult<Unit>,
+    ) {
+        val channel: String = channelId ?: return
+        val current: TtsState = _state.value
+        if (current !is TtsState.Ready) return
+        _state.value = current.copy(playbackControlBusy = true, playbackControlError = null)
+        _state.value =
+            when (val result: ApiResult<Unit> = call(channel)) {
+                is ApiResult.Failure ->
+                    (_state.value as? TtsState.Ready)?.copy(
+                        playbackControlBusy = false,
+                        playbackControlError = result.error.message,
+                    ) ?: current.copy(playbackControlBusy = false, playbackControlError = result.error.message)
+                is ApiResult.Ok ->
+                    (_state.value as? TtsState.Ready)?.copy(playbackControlBusy = false, playbackPaused = pausedAfter)
+                        ?: current.copy(playbackControlBusy = false, playbackPaused = pausedAfter)
+            }
+    }
+
     /**
      * Look up the per-viewer voice override for [userId] and open the viewer-voice panel on it. A 404 (no
      * override) is not an error — it resolves to "uses the channel default" (a null voice). Surfaces a real
@@ -423,6 +462,13 @@ sealed interface TtsState {
         val overlayTestSending: Boolean = false,
         val overlayTestSent: Boolean = false,
         val overlayTestError: String? = null,
+        // The live playback queue controls (skip/clear/pause/resume — see [TtsController.sendPlaybackControl]).
+        // [playbackPaused] is optimistic local UI state (the server never reports the overlay's real queue
+        // state back — see the SDK note on TtsConfigController.playback/*), flipped on a successful
+        // pause/resume call and reset to false by skip/clear (both leave/resume playback running).
+        val playbackControlBusy: Boolean = false,
+        val playbackControlError: String? = null,
+        val playbackPaused: Boolean = false,
     ) : TtsState
 
     data class Error(val detail: String) : TtsState

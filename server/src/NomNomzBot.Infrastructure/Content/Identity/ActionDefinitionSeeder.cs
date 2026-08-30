@@ -241,6 +241,7 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("tts:voice:test", Mod);
         M("tts:uservoice:write", Mod);
         M("tts:queue:review", Mod);
+        M("tts:playback:control", Mod);
 
         // EventSub / diagnostics / event store
         M("eventsub:read", Mod);
