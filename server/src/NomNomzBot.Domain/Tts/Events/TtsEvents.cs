@@ -41,6 +41,15 @@ public sealed class TtsUtteranceDispatchedEvent : DomainEventBase
     /// TTS overlay widget queues and plays this so back-to-back utterances speak in order instead of overlapping.
     /// </summary>
     public string? AudioUrl { get; init; }
+
+    /// <summary>
+    /// The activity-feed row id (a <c>DomainEventBase.EventId</c>) of the PAID channel event whose pipeline
+    /// action chain fired this utterance (e.g. a reward redemption whose actions include <c>play_tts</c>) —
+    /// lets <c>TtsSpeakBroadcastHandler</c> write a <c>RenderedAlertCapture</c> row that correlates back to
+    /// that event for Replay. <c>null</c> for a standalone chat-triggered utterance (a
+    /// free <c>!tts</c> command never logs a ChannelEvent, so there is genuinely nothing to correlate).
+    /// </summary>
+    public string? ChannelEventId { get; init; }
 }
 
 /// <summary>

@@ -26,6 +26,13 @@ public sealed class PipelineExecutionContext
     public required string MessageId { get; init; }
     public string? RedemptionId { get; init; }
     public string? RewardId { get; init; }
+
+    /// <summary>The activity-feed row id (a <c>DomainEventBase.EventId</c>) of the channel event that
+    /// triggered this run, when the trigger was one — e.g. a reward redemption. Threaded down to
+    /// <c>play_tts</c> so its dispatched utterance can correlate a Replay capture back to that event.
+    /// <c>null</c> for chat-command/timer triggers, which log no ChannelEvent.</summary>
+    public string? ChannelEventId { get; init; }
+
     public required string RawMessage { get; init; }
     public CancellationToken CancellationToken { get; init; }
 

@@ -100,6 +100,13 @@ public class PipelineRequest
     public string? MessageId { get; init; }
     public string? RedemptionId { get; init; }
     public string? RewardId { get; init; }
+
+    /// <summary>The activity-feed row id (a <c>DomainEventBase.EventId</c>) of the channel event that
+    /// triggered this run, when the trigger was one — e.g. a reward redemption. Flows into
+    /// <see cref="PipelineExecutionContext.ChannelEventId"/> so <c>play_tts</c> can correlate its dispatched
+    /// utterance back to that event for Replay. <c>null</c> for chat-command/timer triggers.</summary>
+    public string? ChannelEventId { get; init; }
+
     public string RawMessage { get; init; } = "";
     public Dictionary<string, string> InitialVariables { get; init; } = new();
 }
