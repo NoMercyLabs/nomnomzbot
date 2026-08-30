@@ -8,12 +8,51 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Stream.Events;
 
 namespace NomNomzBot.Api.Hubs.Broadcasters;
+
+/// <summary>
+/// Shared <c>ChannelEvents</c> logging for the shoutout-broadcast handlers in this file. Like VIP grants/
+/// revocations (<c>RoleBroadcastChannelEventLogger</c>), shoutouts have no sibling handler deriving from
+/// <c>TwitchAlertHandlerBase</c> to log the activity-feed row — these handlers ARE the only consumers of
+/// <see cref="ShoutoutSentEvent"/>/<see cref="ShoutoutReceivedEvent"/>, so they own the write. Keyed by the
+/// SAME domain-event <c>EventId</c> already threaded through the overlay alert-dispatch call as
+/// <c>ChannelEventId</c>, so once this row exists that correlation resolves to something real instead of null.
+/// Idempotent: an EventSub re-delivery skips rather than double-logs.
+/// </summary>
+internal static class ShoutoutBroadcastChannelEventLogger
+{
+    public static async Task LogAsync(
+        IApplicationDbContext db,
+        Guid broadcasterId,
+        Guid eventId,
+        string type,
+        object data,
+        CancellationToken ct
+    )
+    {
+        string id = eventId.ToString();
+        if (await db.ChannelEvents.AnyAsync(e => e.Id == id, ct))
+            return;
+
+        db.ChannelEvents.Add(
+            new()
+            {
+                Id = id,
+                ChannelId = broadcasterId,
+                Type = type,
+                Data = JsonSerializer.Serialize(data),
+            }
+        );
+        await db.SaveChangesAsync(ct);
+    }
+}
 
 /// <summary>
 /// Broadcasts an outgoing shoutout (<c>channel.shoutout.create</c> — this channel shouted another broadcaster
@@ -40,6 +79,15 @@ public sealed class ShoutoutSentBroadcastHandler : IEventHandler<ShoutoutSentEve
     {
         if (@event.BroadcasterId == Guid.Empty)
             return;
+
+        await ShoutoutBroadcastChannelEventLogger.LogAsync(
+            _db,
+            @event.BroadcasterId,
+            @event.EventId,
+            "channel.shoutout.create",
+            new { toUserId = @event.ToUserId, toDisplayName = @event.ToDisplayName },
+            ct
+        );
 
         ShoutoutSentAlertDto dto = new(@event.ToUserId, @event.ToDisplayName);
 
@@ -94,6 +142,20 @@ public sealed class ShoutoutReceivedBroadcastHandler : IEventHandler<ShoutoutRec
     {
         if (@event.BroadcasterId == Guid.Empty)
             return;
+
+        await ShoutoutBroadcastChannelEventLogger.LogAsync(
+            _db,
+            @event.BroadcasterId,
+            @event.EventId,
+            "channel.shoutout.receive",
+            new
+            {
+                fromBroadcasterId = @event.FromBroadcasterId,
+                fromBroadcasterDisplayName = @event.FromBroadcasterDisplayName,
+                viewerCount = @event.ViewerCount,
+            },
+            ct
+        );
 
         HubUserEnrichment? enrichment = await _enricher.EnrichAsync(
             @event.BroadcasterId,

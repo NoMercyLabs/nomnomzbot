@@ -8,9 +8,13 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Stream.Events;
 using NomNomzBot.Domain.Widgets.Entities;
 using NSubstitute;
 
@@ -273,5 +277,126 @@ public sealed class ShoutoutBroadcastHandlersTests
                 Arg.Any<object>(),
                 Arg.Any<CancellationToken>()
             );
+    }
+
+    /// <summary>
+    /// S-REPLAY-SHOUTOUT-CHANNELEVENT's done-when proof: like VIP grants, shoutouts have no sibling
+    /// <c>TwitchAlertHandlerBase</c> handler logging the activity-feed row — this broadcast handler IS the
+    /// only consumer of <see cref="NomNomzBot.Domain.Stream.Events.ShoutoutSentEvent"/>, so it must write the
+    /// <see cref="ChannelEvent"/> itself. Proves a shoutout action produces BOTH a queryable ChannelEvent row
+    /// (the same way DashboardController.GetActivity queries them) AND a RenderedAlertCapture correlated to
+    /// that same ChannelEvent.Id (not null).
+    /// </summary>
+    [Fact]
+    public async Task ShoutoutSent_LogsChannelEvent_AndCorrelatesTheWidgetCapture_ToItsId()
+    {
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid channel = Guid.CreateVersion7();
+        Guid eventId = Guid.CreateVersion7();
+        db.Widgets.Add(
+            new()
+            {
+                Id = Guid.NewGuid(),
+                BroadcasterId = channel,
+                Name = "Shoutout alert",
+                IsEnabled = true,
+                EventSubscriptions = ["shoutout_sent"],
+            }
+        );
+        await db.SaveChangesAsync();
+
+        ShoutoutSentBroadcastHandler handler = new(notifier, db, widgets);
+
+        await handler.HandleAsync(
+            new()
+            {
+                EventId = eventId,
+                BroadcasterId = channel,
+                ToUserId = "target-1",
+                ToDisplayName = "TargetStreamer",
+            }
+        );
+
+        ChannelEvent feedRow = await db.ChannelEvents.SingleAsync(e => e.ChannelId == channel);
+        feedRow.Id.Should().Be(eventId.ToString());
+        feedRow.Type.Should().Be("channel.shoutout.create");
+
+        RenderedAlertCapture capture = await db.RenderedAlertCaptures.SingleAsync(c =>
+            c.BroadcasterId == channel
+        );
+        capture.ChannelEventId.Should().Be(feedRow.Id);
+        capture.ChannelEventId.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task ShoutoutSent_ReDelivery_DoesNotDoubleLogTheChannelEvent()
+    {
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid channel = Guid.CreateVersion7();
+        Guid eventId = Guid.CreateVersion7();
+        ShoutoutSentBroadcastHandler handler = new(notifier, db, widgets);
+        ShoutoutSentEvent shoutoutSent = new()
+        {
+            EventId = eventId,
+            BroadcasterId = channel,
+            ToUserId = "target-1",
+            ToDisplayName = "TargetStreamer",
+        };
+
+        await handler.HandleAsync(shoutoutSent);
+        await handler.HandleAsync(shoutoutSent);
+
+        (await db.ChannelEvents.CountAsync(e => e.ChannelId == channel)).Should().Be(1);
+    }
+
+    /// <summary>Mirrors the sent-side proof above for the incoming-shoutout handler.</summary>
+    [Fact]
+    public async Task ShoutoutReceived_LogsChannelEvent_AndCorrelatesTheWidgetCapture_ToItsId()
+    {
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid channel = Guid.CreateVersion7();
+        Guid eventId = Guid.CreateVersion7();
+        db.Widgets.Add(
+            new()
+            {
+                Id = Guid.NewGuid(),
+                BroadcasterId = channel,
+                Name = "Shoutout alert",
+                IsEnabled = true,
+                EventSubscriptions = ["shoutout_received"],
+            }
+        );
+        await db.SaveChangesAsync();
+
+        ShoutoutReceivedBroadcastHandler handler = new(notifier, enricher, db, widgets);
+
+        await handler.HandleAsync(
+            new()
+            {
+                EventId = eventId,
+                BroadcasterId = channel,
+                FromBroadcasterId = "source-1",
+                FromBroadcasterDisplayName = "SourceStreamer",
+                FromBroadcasterLogin = "sourcestreamer",
+                ViewerCount = 42,
+            }
+        );
+
+        ChannelEvent feedRow = await db.ChannelEvents.SingleAsync(e => e.ChannelId == channel);
+        feedRow.Id.Should().Be(eventId.ToString());
+        feedRow.Type.Should().Be("channel.shoutout.receive");
+
+        RenderedAlertCapture capture = await db.RenderedAlertCaptures.SingleAsync(c =>
+            c.BroadcasterId == channel
+        );
+        capture.ChannelEventId.Should().Be(feedRow.Id);
+        capture.ChannelEventId.Should().NotBeNull();
     }
 }
