@@ -199,6 +199,11 @@ private fun openProjectEditor(
             hint.textContent = 'Esc to close · Ctrl+S to save & compile';
             hint.style.cssText = 'font-size:11px;color:#666;white-space:nowrap;';
 
+            var previewToggleBtn = document.createElement('button');
+            previewToggleBtn.type = 'button';
+            previewToggleBtn.textContent = 'Hide preview';
+            previewToggleBtn.style.cssText = 'padding:5px 12px;font-size:11px;color:#a3a3a3;background:transparent;border:1px solid #333;border-radius:6px;cursor:pointer;';
+
             var closeBtn = document.createElement('button');
             closeBtn.type = 'button';
             closeBtn.textContent = 'Close';
@@ -213,6 +218,7 @@ private fun openProjectEditor(
             header.appendChild(titleEl);
             header.appendChild(langBadge);
             header.appendChild(hint);
+            header.appendChild(previewToggleBtn);
             header.appendChild(closeBtn);
             header.appendChild(saveBtn);
 
@@ -258,12 +264,68 @@ private fun openProjectEditor(
             host.style.cssText = 'flex:1;min-height:0;overflow:hidden;position:relative;';
             slot.host = host;
 
+            // Problems panel -- collapsed until the language service reports a marker, so a clean file costs
+            // no vertical space. Each row jumps the cursor to its position.
+            var problemsPanel = document.createElement('div');
+            problemsPanel.style.cssText = 'display:none;max-height:180px;overflow:auto;border-top:1px solid #262626;background:#0f0f0f;';
+            slot.problemsPanel = problemsPanel;
+
+            var statusBar = document.createElement('div');
+            statusBar.style.cssText = 'display:flex;align-items:center;gap:14px;padding:4px 12px;border-top:1px solid #262626;background:#111;font-size:11px;color:#8a8a8a;white-space:nowrap;';
+
+            var statusPos = document.createElement('span');
+            statusPos.textContent = 'Ln 1, Col 1';
+            var statusLang = document.createElement('span');
+            var statusProblems = document.createElement('button');
+            statusProblems.type = 'button';
+            statusProblems.style.cssText = 'font-size:11px;color:#8a8a8a;background:transparent;border:none;padding:0;cursor:pointer;';
+            statusProblems.textContent = 'No problems';
+            var statusSpacer = document.createElement('span');
+            statusSpacer.style.cssText = 'flex:1;';
+
+            function statusToggle(label) {
+                var b = document.createElement('button');
+                b.type = 'button';
+                b.textContent = label;
+                b.style.cssText = 'font-size:11px;color:#8a8a8a;background:transparent;border:1px solid #2a2a2a;border-radius:5px;padding:1px 7px;cursor:pointer;';
+                return b;
+            }
+            var wrapBtn = statusToggle('Wrap: off');
+            var minimapBtn = statusToggle('Minimap: on');
+            var formatBtn = statusToggle('Format');
+            var paletteHint = document.createElement('span');
+            paletteHint.textContent = 'F1 commands';
+            paletteHint.style.cssText = 'color:#5a5a5a;';
+
+            statusBar.appendChild(statusPos);
+            statusBar.appendChild(statusLang);
+            statusBar.appendChild(statusProblems);
+            statusBar.appendChild(statusSpacer);
+            statusBar.appendChild(paletteHint);
+            statusBar.appendChild(formatBtn);
+            statusBar.appendChild(wrapBtn);
+            statusBar.appendChild(minimapBtn);
+
+            slot.statusPos = statusPos;
+            slot.statusLang = statusLang;
+            slot.statusProblems = statusProblems;
+
             mainCol.appendChild(tabsEl);
             mainCol.appendChild(host);
+            mainCol.appendChild(problemsPanel);
+            mainCol.appendChild(statusBar);
+
+            // Drag handle between the code column and the preview. The preview used to be a hard 42% of the
+            // window even for code-script projects that have nothing to preview, which squeezed the editor and
+            // clipped long lines for no benefit.
+            var splitter = document.createElement('div');
+            splitter.style.cssText = 'width:5px;flex:0 0 5px;cursor:col-resize;background:#262626;';
+            slot.splitter = splitter;
 
             // Preview column.
             var previewCol = document.createElement('div');
-            previewCol.style.cssText = 'width:42%;min-width:300px;display:flex;flex-direction:column;border-left:1px solid #262626;background:#111;';
+            previewCol.style.cssText = 'flex:0 0 42%;min-width:260px;display:flex;flex-direction:column;background:#111;';
+            slot.previewCol = previewCol;
 
             var previewHead = document.createElement('div');
             previewHead.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid #1f1f1f;';
@@ -304,7 +366,38 @@ private fun openProjectEditor(
 
             body.appendChild(sidebar);
             body.appendChild(mainCol);
+            body.appendChild(splitter);
             body.appendChild(previewCol);
+
+            function setPreviewCollapsed(collapsed) {
+                slot.previewCollapsed = collapsed;
+                previewCol.style.display = collapsed ? 'none' : 'flex';
+                splitter.style.display = collapsed ? 'none' : 'block';
+                previewToggleBtn.textContent = collapsed ? 'Show preview' : 'Hide preview';
+                // Re-layout AND clamp the horizontal scroll: widening the editor while it was scrolled right
+                // leaves a stale scrollLeft, which renders every line with its opening characters cut off.
+                if (slot.editor) { slot.editor.layout(); slot.editor.setScrollLeft(0); }
+            }
+            slot.setPreviewCollapsed = setPreviewCollapsed;
+
+            splitter.addEventListener('mousedown', function (down) {
+                down.preventDefault();
+                function onMove(move) {
+                    var rect = body.getBoundingClientRect();
+                    var next = rect.right - move.clientX;
+                    var max = rect.width - 420;
+                    if (next < 260) { next = 260; }
+                    if (max > 260 && next > max) { next = max; }
+                    previewCol.style.flexBasis = next + 'px';
+                    if (slot.editor) { slot.editor.layout(); }
+                }
+                function onUp() {
+                    document.removeEventListener('mousemove', onMove);
+                    document.removeEventListener('mouseup', onUp);
+                }
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onUp);
+            });
 
             overlay.appendChild(header);
             overlay.appendChild(result);
@@ -330,11 +423,17 @@ private fun openProjectEditor(
                 var e = extOf(path);
                 return e === 'js' || e === 'jsx' || e === 'ts' || e === 'tsx' || e === 'mjs' || e === 'cjs';
             }
-            // Monaco's built-in Monarch language ids -- 'javascript' covers .js/.jsx/.mjs/.cjs highlighting well
-            // enough for shell purposes (this slice does not wire the dedicated 'typescript' language service),
-            // everything else falls back to 'html' (the file kinds this editor actually opens: .vue/.html/.htm).
+            // Monaco's built-in language ids. .ts/.tsx must go to the TYPESCRIPT service, not javascript:
+            // the SDK's .d.ts is registered on both, but only the typescript service applies it to a .ts
+            // file, so mapping .ts to javascript silently disabled completion and diagnostics on exactly
+            // the files code scripts are written in.
             function monacoLanguageFor(path) {
-                return isJsFamily(path) ? 'javascript' : 'html';
+                var e = extOf(path);
+                if (e === 'ts' || e === 'tsx') { return 'typescript'; }
+                if (e === 'js' || e === 'jsx' || e === 'mjs' || e === 'cjs') { return 'javascript'; }
+                if (e === 'json') { return 'json'; }
+                if (e === 'css') { return 'css'; }
+                return 'html';
             }
             function disposeModel(path) {
                 var m = slot.models[path];
@@ -343,7 +442,12 @@ private fun openProjectEditor(
             function modelFor(path) {
                 var m = slot.models[path];
                 if (!m && slot.monaco) {
-                    m = slot.monaco.editor.createModel(slot.files[path] || '', monacoLanguageFor(path));
+                    // A real file:/// URI per model is what lets the TS worker resolve `./helper` to its
+                    // sibling model. Models created without one get inmemory://model/N, which no relative
+                    // specifier can ever name -- so cross-file go-to-definition and completion do nothing.
+                    var uri = slot.monaco.Uri.parse('file:///' + path.replace(/^\/+/, ''));
+                    m = slot.monaco.editor.getModel(uri);
+                    if (!m) { m = slot.monaco.editor.createModel(slot.files[path] || '', monacoLanguageFor(path), uri); }
                     m.onDidChangeContent(function () { schedulePreview(); });
                     slot.models[path] = m;
                 }
@@ -479,6 +583,7 @@ private fun openProjectEditor(
             saveBtn.addEventListener('click', doSave);
             closeBtn.addEventListener('click', doClose);
             refreshBtn.addEventListener('click', function () { rebuildPreviewNow(); });
+            previewToggleBtn.addEventListener('click', function () { setPreviewCollapsed(!slot.previewCollapsed); });
             overlay.addEventListener('keydown', function (e) {
                 if (e.key === 'Escape') { e.preventDefault(); doClose(); }
                 else if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) { e.preventDefault(); doSave(); }
@@ -719,6 +824,9 @@ private fun openProjectEditor(
                 if (fw === 'script') {
                     slot.previewMode = 'note';
                     slot.previewNoteText = 'Code scripts run in the bot sandbox -- press Save & Compile to validate.';
+                    // Nothing renders for a script project, so the preview column is pure lost width. Start
+                    // collapsed and give the whole window to the code; the header toggle still opens it.
+                    setPreviewCollapsed(true);
                 } else if (fw === 'vue') {
                     // Vue SFCs compile client-side with @vue/compiler-sfc (same as the server) and bundle through
                     // the same esbuild path as vanilla/react -- a live, hot-reloading preview that mounts the widget
@@ -752,6 +860,98 @@ private fun openProjectEditor(
                 host.appendChild(ta);
                 slot.textarea = ta;
                 ta.focus();
+            }
+
+            // Live status line, a real problems list off the language service's markers, and the view toggles.
+            // Split out of the create() call because it is behaviour, not configuration.
+            function installEditorExtras(monaco, editor) {
+                function severityLabel(sev) {
+                    if (sev === monaco.MarkerSeverity.Error) { return 'error'; }
+                    if (sev === monaco.MarkerSeverity.Warning) { return 'warning'; }
+                    return 'info';
+                }
+                function severityColor(sev) {
+                    if (sev === monaco.MarkerSeverity.Error) { return '#f87171'; }
+                    if (sev === monaco.MarkerSeverity.Warning) { return '#fbbf24'; }
+                    return '#7dd3fc';
+                }
+                function renderProblems() {
+                    var markers = monaco.editor.getModelMarkers({});
+                    var errors = 0, warnings = 0;
+                    slot.problemsPanel.innerHTML = '';
+                    for (var i = 0; i < markers.length; i++) {
+                        var mk = markers[i];
+                        if (mk.severity === monaco.MarkerSeverity.Error) { errors++; }
+                        else if (mk.severity === monaco.MarkerSeverity.Warning) { warnings++; }
+                        (function (marker) {
+                            var row = document.createElement('button');
+                            row.type = 'button';
+                            row.style.cssText = 'display:flex;gap:8px;width:100%;text-align:left;padding:5px 12px;font-size:12px;color:#c9c9c9;background:transparent;border:none;cursor:pointer;';
+                            var dot = document.createElement('span');
+                            dot.textContent = severityLabel(marker.severity);
+                            dot.style.cssText = 'color:' + severityColor(marker.severity) + ';min-width:56px;';
+                            var where = document.createElement('span');
+                            var file = marker.resource ? String(marker.resource.path).replace(/^\/+/, '') : '';
+                            where.textContent = file + ':' + marker.startLineNumber;
+                            where.style.cssText = 'color:#7a7a7a;min-width:150px;';
+                            var msg = document.createElement('span');
+                            msg.textContent = marker.message;
+                            msg.style.cssText = 'flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+                            row.appendChild(dot);
+                            row.appendChild(where);
+                            row.appendChild(msg);
+                            row.addEventListener('click', function () {
+                                if (file && file !== slot.active && (file in slot.files)) { switchTo(file); }
+                                editor.revealLineInCenter(marker.startLineNumber);
+                                editor.setPosition({ lineNumber: marker.startLineNumber, column: marker.startColumn });
+                                editor.focus();
+                            });
+                            slot.problemsPanel.appendChild(row);
+                        })(mk);
+                    }
+                    var total = errors + warnings;
+                    slot.statusProblems.textContent = total === 0
+                        ? 'No problems'
+                        : (errors + ' error' + (errors === 1 ? '' : 's') + ', ' + warnings + ' warning' + (warnings === 1 ? '' : 's'));
+                    slot.statusProblems.style.color = errors > 0 ? '#f87171' : (warnings > 0 ? '#fbbf24' : '#8a8a8a');
+                    if (total === 0) { slot.problemsPanel.style.display = 'none'; }
+                }
+                monaco.editor.onDidChangeMarkers(function () { renderProblems(); });
+                renderProblems();
+
+                slot.statusProblems.addEventListener('click', function () {
+                    var open = slot.problemsPanel.style.display !== 'none';
+                    if (open) { slot.problemsPanel.style.display = 'none'; return; }
+                    if (slot.problemsPanel.childNodes.length > 0) { slot.problemsPanel.style.display = 'block'; }
+                });
+
+                function syncStatus() {
+                    var pos = editor.getPosition();
+                    if (pos) { slot.statusPos.textContent = 'Ln ' + pos.lineNumber + ', Col ' + pos.column; }
+                    var model = editor.getModel();
+                    slot.statusLang.textContent = model ? model.getLanguageId() : '';
+                }
+                editor.onDidChangeCursorPosition(syncStatus);
+                editor.onDidChangeModel(syncStatus);
+                syncStatus();
+
+                var wrapOn = false;
+                wrapBtn.addEventListener('click', function () {
+                    wrapOn = !wrapOn;
+                    editor.updateOptions({ wordWrap: wrapOn ? 'on' : 'off' });
+                    if (wrapOn) { editor.setScrollLeft(0); }
+                    wrapBtn.textContent = 'Wrap: ' + (wrapOn ? 'on' : 'off');
+                });
+                var minimapOn = true;
+                minimapBtn.addEventListener('click', function () {
+                    minimapOn = !minimapOn;
+                    editor.updateOptions({ minimap: { enabled: minimapOn, renderCharacters: false, maxColumn: 80 } });
+                    minimapBtn.textContent = 'Minimap: ' + (minimapOn ? 'on' : 'off');
+                });
+                formatBtn.addEventListener('click', function () {
+                    editor.getAction('editor.action.formatDocument').run();
+                    editor.focus();
+                });
             }
 
             renderFiles();
@@ -862,12 +1062,29 @@ private fun openProjectEditor(
                 // typescript. Full semantic + syntax validation is turned back on now that real types back it.
                 if (monaco.languages && monaco.languages.typescript) {
                     var tsNs = monaco.languages.typescript;
-                    tsNs.javascriptDefaults.setDiagnosticsOptions({ noSemanticValidation: false, noSyntaxValidation: false });
-                    tsNs.typescriptDefaults.setDiagnosticsOptions({ noSemanticValidation: false, noSyntaxValidation: false });
-                    if (typeof sdkTypes === 'string' && sdkTypes.length > 0) {
-                        var libPath = 'file:///nnz-sdk.d.ts';
-                        tsNs.javascriptDefaults.addExtraLib(sdkTypes, libPath);
-                        tsNs.typescriptDefaults.addExtraLib(sdkTypes, libPath);
+                    // Without compiler options the TS worker cannot follow a relative import to a sibling
+                    // model, so cross-file completion / go-to-definition silently does nothing even with
+                    // every model registered. allowNonTsExtensions is required for file:///-URI models.
+                    var compilerOptions = {
+                        target: tsNs.ScriptTarget.ESNext,
+                        module: tsNs.ModuleKind.ESNext,
+                        moduleResolution: tsNs.ModuleResolutionKind.NodeJs,
+                        allowJs: true,
+                        allowNonTsExtensions: true,
+                        noEmit: true,
+                        skipLibCheck: true,
+                        lib: ['esnext', 'dom']
+                    };
+                    // Both language services get identical treatment -- a file is highlighted as javascript or
+                    // typescript depending only on its extension, and the SDK must behave the same in either.
+                    var services = [tsNs.javascriptDefaults, tsNs.typescriptDefaults];
+                    for (var si = 0; si < services.length; si++) {
+                        services[si].setCompilerOptions(compilerOptions);
+                        services[si].setDiagnosticsOptions({ noSemanticValidation: false, noSyntaxValidation: false });
+                        services[si].setEagerModelSync(true);
+                        if (typeof sdkTypes === 'string' && sdkTypes.length > 0) {
+                            services[si].addExtraLib(sdkTypes, 'file:///nnz-sdk.d.ts');
+                        }
                     }
                 }
                 // Create every file's model UP FRONT, not lazily on first tab visit -- Monaco's TS/JS language
@@ -882,13 +1099,42 @@ private fun openProjectEditor(
                     model: modelFor(slot.active),
                     theme: 'vs-dark',
                     automaticLayout: true,
-                    minimap: { enabled: false },
+                    minimap: { enabled: true, renderCharacters: false, maxColumn: 80 },
                     fontFamily: '\"Cascadia Code\",\"Fira Code\",Menlo,Consolas,monospace',
                     fontSize: 13,
+                    fontLigatures: true,
+                    lineHeight: 20,
                     scrollBeyondLastLine: false,
+                    smoothScrolling: true,
+                    cursorBlinking: 'smooth',
+                    cursorSmoothCaretAnimation: 'on',
+                    renderLineHighlight: 'all',
+                    bracketPairColorization: { enabled: true },
+                    guides: { bracketPairs: true, indentation: true },
+                    stickyScroll: { enabled: true },
+                    folding: true,
+                    foldingHighlight: true,
+                    linkedEditing: true,
+                    formatOnPaste: true,
+                    autoClosingBrackets: 'languageDefined',
+                    autoSurround: 'languageDefined',
+                    suggestOnTriggerCharacters: true,
+                    quickSuggestions: { other: true, comments: false, strings: false },
+                    parameterHints: { enabled: true },
+                    inlayHints: { enabled: 'on' },
+                    hover: { enabled: true, above: false },
+                    occurrencesHighlight: 'singleFile',
+                    selectionHighlight: true,
+                    multiCursorModifier: 'ctrlCmd',
+                    tabSize: 2,
+                    insertSpaces: true,
+                    rulers: [100],
+                    padding: { top: 10, bottom: 10 },
+                    scrollbar: { verticalScrollbarSize: 12, horizontalScrollbarSize: 12 },
                 });
                 slot.editor = editor;
                 editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, function () { doSave(); });
+                installEditorExtras(monaco, editor);
                 editor.focus();
             }).catch(function () { mountTextarea(); });
 
