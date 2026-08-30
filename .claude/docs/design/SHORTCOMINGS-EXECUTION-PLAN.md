@@ -292,9 +292,9 @@ later.)
   browse/install) + `GET tts/overlay` on `TtsConfigController` wired to it — a fresh channel gets a
   working `tts_caption` overlay URL on first call, no widget install required (widgets-overlays.md
   §1.2). Remaining (each its own follow-up slice, not yet done):
-  - **S052-frontend-overlay-card**: the TTS dashboard page (`feature/tts/`) doesn't call the new
-    `GET tts/overlay` endpoint yet — wire it in so the page actually SHOWS the auto-provisioned URL +
-    last-seen, instead of requiring a manual gallery add.
+  - **S052-frontend-overlay-card** — DONE, verified (8daba7f6): TTS page calls `GET tts/overlay` on
+    load, shows a copyable browser-source URL and a distinct "never ran" vs "last ran Xm ago" state,
+    degrades cleanly on a failed call.
   - **S052-audio-queue** — DONE, verified: already correctly implemented, no change needed.
     `OverlaySdkController.cs` builds `<audio>` elements from `payload.audioUrl` and queues them
     (`ttsQueue`/`playNextTts()`), strictly sequential, advances past a failed utterance — the prior
