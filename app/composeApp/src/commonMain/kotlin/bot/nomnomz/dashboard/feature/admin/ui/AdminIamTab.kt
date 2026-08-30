@@ -43,6 +43,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.DialogFooter
 import bot.nomnomz.dashboard.core.designsystem.component.DialogTitle
 import bot.nomnomz.dashboard.core.designsystem.component.OutlinedButton
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
+import bot.nomnomz.dashboard.core.designsystem.component.Spinner
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
@@ -113,6 +114,7 @@ internal fun IamTab(state: AdminState, controller: AdminController) {
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
         state.actionError?.let { ActionErrorBanner(message = it) }
+        state.iamError?.let { ActionErrorBanner(message = it) }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -133,7 +135,9 @@ internal fun IamTab(state: AdminState, controller: AdminController) {
             }
         }
 
-        if (state.principals.isEmpty()) {
+        if (state.iamLoading) {
+            Spinner(color = tokens.primary)
+        } else if (state.principals.isEmpty()) {
             EmptyLine(stringResource(Res.string.admin_iam_empty))
         } else {
             Card(modifier = Modifier.fillMaxWidth()) {

@@ -118,6 +118,7 @@ internal fun TenantsTab(state: AdminState, controller: AdminController) {
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
         state.actionError?.let { ActionErrorBanner(message = it) }
+        state.tenantsError?.let { ActionErrorBanner(message = it) }
 
         AppTextField(
             value = searchText,
