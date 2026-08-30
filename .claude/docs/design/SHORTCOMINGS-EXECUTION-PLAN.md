@@ -73,19 +73,23 @@ re-running a persistent side effect.
   own follow-up blocker**: `RouteAsync`'s callers never thread a `ChannelEvent.Id` through, so captures
   have NO correlation to the activity-feed row that produced them yet — S-REPLAY-ENDPOINT cannot map
   "replay this feed row" to its captures until that's fixed.
-- **S-REPLAY-CORRELATION** (new, blocks S-REPLAY-ENDPOINT): thread the originating `ChannelEvent.Id`
-  through to `WidgetAlertDispatch.RouteAsync`'s capture call, for every caller that has one available
-  (`OverlayAlertBroadcast` and friends — these fire from a domain event handler that DOES know which
-  `ChannelEvent` row it's handling; find that link). For `tts_speak` (`TtsSpeakBroadcastHandler.cs`),
-  which has no `ChannelEvent` at all today, DECIDE and implement one of: (a) leave it uncorrelated but
-  captured standalone, replayable only as "the TTS that most recently accompanied this feed row" via a
-  time-window join at replay time, or (b) determine whether TTS dispatch already carries a reference
-  back to the redemption/event that triggered it (check `TtsUtteranceDispatchedEvent`'s fields) and
-  correlate properly if so — do not invent a fake correlation. Done-when: triggering a real alert whose
-  originating row is a `ChannelEvent` produces a capture queryable BY that `ChannelEvent.Id` (not just
-  by type+recency), proven by a test that looks up captures via the event id and gets back exactly the
-  right payload(s).
-- **S-REPLAY-ENDPOINT** (after S-REPLAY-CORRELATION): `POST /api/v1/channels/{channelId}/activity/{eventId}/replay` (Gate-2 action
+- **S-REPLAY-CORRELATION** — DONE, verified (c0abd07d): `ChannelEventId` threaded through every
+  `RouteAsync` caller (follow/cheer/raid/sub/ban/role/shoutout/reward/hype-train/poll/prediction/
+  dashboard/custom-data/sr-queue/tts_speak + the widget-test-event caller). Two honest gaps found, not
+  invented around:
+  - `RoleBroadcastHandlers.cs` (Vip/Shoutout) never logs a `ChannelEvent` row at all today — its id is
+    threaded through for consistency but will always resolve to nothing until a later slice adds that
+    logging. **S-REPLAY-VIPSHOUTOUT-CHANNELEVENT**: add `ChannelEvent` logging for Vip/Shoutout so
+    their alerts become replayable like every other type (U-adjacent completeness gap, not urgent).
+  - `tts_speak` is genuinely uncorrelated: `TtsUtteranceDispatchedEvent` carries no reference to any
+    triggering redemption/command, and a viewer `!tts` request never logs a `ChannelEvent` at all —
+    `ChannelEventId` is explicitly null for TTS captures, no fake time-window join was invented.
+    **S-REPLAY-TTS-CORRELATION** (needs an owner call, mark 🔒): either give TTS dispatch a real
+    triggering-event reference to correlate against, or accept TTS replay as "replay whichever TTS
+    utterance most recently accompanied this feed row" via an explicit time-window join at replay time
+    (a real, disclosed approximation, not a silent one) — pick one before S-REPLAY-ENDPOINT decides how
+    to handle a feed row whose only capture is an uncorrelated TTS push.
+- **S-REPLAY-ENDPOINT**: `POST /api/v1/channels/{channelId}/activity/{eventId}/replay` (Gate-2 action
   key alongside `dashboard:read`/write floor — moderator-or-above, matches other on-stream action
   endpoints) that looks up the capture row(s) for that `ChannelEvent.Id` and re-broadcasts each recorded
   widget-event payload verbatim via the notifier, unchanged. Returns a real failure (not a blanket
