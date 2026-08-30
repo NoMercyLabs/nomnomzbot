@@ -17,6 +17,8 @@
 // The host hands over the project and receives the edited files back over postMessage. Nothing here talks to
 // the API — the dashboard already holds the session, so this page needs no token of its own.
 
+import { initPreview } from './preview.js';
+
 const HOST_MESSAGE = Object.freeze({
     open: 'nnz:editor:open',
     ready: 'nnz:editor:ready',
@@ -26,9 +28,10 @@ const HOST_MESSAGE = Object.freeze({
 });
 
 // Pinned, and single-sourced: the AMD loader, the module root and the stylesheet must never drift apart.
-// Overridable so a deployment can serve Monaco from its own origin instead of a public CDN.
+// Overridable via `data-monaco-base` on <html> so a deployment can serve Monaco from its own origin instead
+// of a public CDN. Read off the root element, not `document.currentScript` — that is always null in a module.
 const MONACO_BASE =
-    document.currentScript?.dataset.monacoBase ??
+    document.documentElement.dataset.monacoBase ??
     'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs';
 
 const LANGUAGE_BY_EXTENSION = Object.freeze({
@@ -66,7 +69,10 @@ const dom = {
     format: document.getElementById('format'),
     wrap: document.getElementById('wrap'),
     minimap: document.getElementById('minimap'),
+    previewFrame: document.getElementById('previewFrame'),
     previewNote: document.getElementById('previewNote'),
+    fireBar: document.getElementById('fireBar'),
+    refresh: document.getElementById('refresh'),
 };
 
 const state = {
@@ -76,6 +82,7 @@ const state = {
     models: new Map(),
     editor: null,
     monaco: null,
+    preview: null,
     wrap: false,
     minimap: true,
 };
@@ -111,6 +118,12 @@ function flushActive() {
     if (model) state.files.set(state.active, model.getValue());
 }
 
+// What the preview bundles: the saved map with the file being typed in folded back in.
+function snapshotFiles() {
+    flushActive();
+    return Object.fromEntries(state.files);
+}
+
 function modelFor(path) {
     const existing = state.models.get(path);
     if (existing) return existing;
@@ -121,6 +134,7 @@ function modelFor(path) {
     const model =
         state.monaco.editor.getModel(uri) ??
         state.monaco.editor.createModel(state.files.get(path) ?? '', languageOf(path), uri);
+    model.onDidChangeContent(() => state.preview?.schedule());
     state.models.set(path, model);
     return model;
 }
@@ -141,6 +155,7 @@ function addFile() {
     flushActive();
     state.files.set(name, '');
     selectFile(name);
+    state.preview?.schedule();
 }
 
 function renameFile(path) {
@@ -153,6 +168,7 @@ function renameFile(path) {
     disposeModel(path);
     if (state.active === path) state.active = next;
     selectFile(state.active);
+    state.preview?.schedule();
 }
 
 function deleteFile(path) {
@@ -162,6 +178,7 @@ function deleteFile(path) {
     disposeModel(path);
     if (state.active === path) state.active = state.entry;
     selectFile(state.active);
+    state.preview?.schedule();
 }
 
 function disposeModel(path) {
@@ -446,6 +463,26 @@ async function open(payload) {
     dom.kind.textContent = payload.language ?? '';
     if (payload.accent) document.documentElement.style.setProperty('--accent', payload.accent);
 
+    installSplitter();
+
+    // Started before Monaco: the two toolchains load in parallel, and a Monaco failure still leaves a
+    // working preview (and vice versa).
+    state.preview = initPreview({
+        frame: dom.previewFrame,
+        note: dom.previewNote,
+        fireBar: dom.fireBar,
+        refresh: dom.refresh,
+        language: payload.language ?? '',
+        entry: state.entry,
+        fireSamples: payload.fireSamples ?? {},
+        noteText: payload.previewNote ?? '',
+        snapshotFiles,
+    });
+
+    // Nothing renders for a code script, so its preview pane would be dead width. The preview owns that
+    // judgement — 'note' is exactly "this project has nothing to show".
+    setPreviewCollapsed(state.preview.mode === 'note');
+
     const monaco = await loadMonaco();
     state.monaco = monaco;
     configureLanguageServices(monaco, payload.sdkTypes ?? '');
@@ -464,14 +501,6 @@ async function open(payload) {
     renderTabs();
     syncStatus();
     renderProblems(monaco);
-    installSplitter();
-
-    // A code script runs in the bot sandbox and renders nothing, so the preview pane would be dead width.
-    setPreviewCollapsed(payload.language === 'script');
-    if (payload.previewNote) {
-        dom.previewNote.hidden = false;
-        dom.previewNote.textContent = payload.previewNote;
-    }
 
     dom.boot.hidden = true;
     dom.shell.hidden = false;

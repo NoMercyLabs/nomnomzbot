@@ -418,6 +418,26 @@ body {
     border-bottom: 1px solid var(--border-subtle);
 }
 
+.fire-label {
+    align-self: center;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.fire-btn {
+    padding: 3px var(--s2);
+    font: 400 11px var(--font-ui);
+    color: var(--text);
+    background: #1e1e22;
+    border: 1px solid #333333;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+}
+
+.fire-btn:hover {
+    border-color: #454545;
+}
+
 .preview-body {
     flex: 1;
     min-height: 0;
