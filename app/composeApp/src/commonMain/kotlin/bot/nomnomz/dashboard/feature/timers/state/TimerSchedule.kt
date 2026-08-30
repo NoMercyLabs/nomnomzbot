@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.feature.timers.state
 
+import bot.nomnomz.dashboard.core.time.RelativeTime
 import kotlin.time.Duration.Companion.minutes
 import kotlinx.datetime.Instant
 
@@ -37,7 +38,7 @@ object TimerSchedule {
 
     /** The instant the timer next becomes eligible to fire, or null when it has never fired yet. */
     fun nextFireAt(lastFiredAt: String?, intervalMinutes: Int): Instant? {
-        val last: Instant = parseOrNull(lastFiredAt) ?: return null
+        val last: Instant = RelativeTime.parseOrNull(lastFiredAt) ?: return null
         return last + intervalMinutes.minutes
     }
 
@@ -51,10 +52,8 @@ object TimerSchedule {
     }
 
     /** Whole minutes since the timer last fired, or null when it has never fired. */
-    fun minutesSinceLastFire(lastFiredAt: String?, now: Instant): Long? {
-        val last: Instant = parseOrNull(lastFiredAt) ?: return null
-        return (now - last).inWholeMinutes
-    }
+    fun minutesSinceLastFire(lastFiredAt: String?, now: Instant): Long? =
+        RelativeTime.minutesSince(lastFiredAt, now)
 
     /**
      * The 1-based rotation position (current message index, message count) — e.g. `2 of 5`. Null
@@ -66,7 +65,4 @@ object TimerSchedule {
         val position: Int = (nextMessageIndex % messageCount) + 1
         return position to messageCount
     }
-
-    private fun parseOrNull(value: String?): Instant? =
-        value?.let { runCatching { Instant.parse(it) }.getOrNull() }
 }

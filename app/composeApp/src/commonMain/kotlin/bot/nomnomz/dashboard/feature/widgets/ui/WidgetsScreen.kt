@@ -35,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.datetime.Clock
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,6 +57,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.io.captureWindowSupported
 import bot.nomnomz.dashboard.core.io.openCaptureWindow
+import bot.nomnomz.dashboard.core.time.RelativeTime
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
@@ -113,6 +115,9 @@ import nomnomzbot.composeapp.generated.resources.widgets_edit_code_action_short
 import nomnomzbot.composeapp.generated.resources.widgets_update_action
 import nomnomzbot.composeapp.generated.resources.widgets_update_action_short
 import nomnomzbot.composeapp.generated.resources.widgets_update_badge
+import nomnomzbot.composeapp.generated.resources.widgets_never_ran
+import nomnomzbot.composeapp.generated.resources.widgets_last_ran
+import nomnomzbot.composeapp.generated.resources.widgets_runtime_error
 import nomnomzbot.composeapp.generated.resources.widgets_settings_action
 import nomnomzbot.composeapp.generated.resources.widgets_settings_action_short
 import nomnomzbot.composeapp.generated.resources.widgets_clone_dismiss
@@ -567,6 +572,13 @@ private fun WidgetRow(
     val settingsLabel: String = stringResource(Res.string.widgets_settings_action, widgetDisplayName)
     val versionsLabel: String = stringResource(Res.string.widgets_versions_action, widgetDisplayName)
     val updateLabel: String = stringResource(Res.string.widgets_update_action, widgetDisplayName)
+    // "Last ran" / runtime-error state was fetched but never rendered — a widget silently failing every time it
+    // ran looked identical to one that had never been asked to run at all.
+    val now = remember { Clock.System.now() }
+    val lastRanText: String =
+        RelativeTime.minutesSince(widget.lastRanAt, now)?.let { minutesAgo ->
+            stringResource(Res.string.widgets_last_ran, minutesAgo.coerceAtLeast(0).toInt())
+        } ?: stringResource(Res.string.widgets_never_ran)
     val urlLabel: String = stringResource(Res.string.widgets_url_label)
 
     Column(
@@ -601,6 +613,17 @@ private fun WidgetRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                if (widget.lastRuntimeError != null) {
+                    Text(
+                        text = stringResource(Res.string.widgets_runtime_error, widget.lastRuntimeError),
+                        style = typography.xs,
+                        color = tokens.destructive,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                } else {
+                    Text(text = lastRanText, style = typography.xs, color = tokens.mutedForeground)
+                }
                 if (widget.galleryUpdateAvailable) {
                     Badge(variant = BadgeVariant.Secondary) {
                         Text(stringResource(Res.string.widgets_update_badge), style = typography.xs)

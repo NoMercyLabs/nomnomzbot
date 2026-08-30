@@ -15,6 +15,7 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CommunityApi
+import bot.nomnomz.dashboard.core.time.RelativeTime
 import bot.nomnomz.dashboard.core.network.TtsApi
 import bot.nomnomz.dashboard.core.network.TtsConfig
 import bot.nomnomz.dashboard.core.network.TtsConfigUpdate
@@ -509,8 +510,6 @@ data class ViewerVoiceState(
  */
 object TtsOverlaySchedule {
     /** Whole minutes since the overlay last ran, or null when it has never reported running. */
-    fun minutesSinceLastRan(lastRanAt: String?, now: Instant): Long? {
-        val last: Instant = lastRanAt?.let { runCatching { Instant.parse(it) }.getOrNull() } ?: return null
-        return (now - last).inWholeMinutes
-    }
+    fun minutesSinceLastRan(lastRanAt: String?, now: Instant): Long? =
+        RelativeTime.minutesSince(lastRanAt, now)
 }
