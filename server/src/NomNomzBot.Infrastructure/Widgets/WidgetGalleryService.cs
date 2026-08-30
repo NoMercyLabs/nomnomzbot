@@ -18,6 +18,7 @@ using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Domain.Widgets.Events;
+using NomNomzBot.Infrastructure.Content.Widgets;
 
 namespace NomNomzBot.Infrastructure.Widgets;
 
@@ -60,7 +61,10 @@ public partial class WidgetGalleryService(
         bool queueRead = privileged && !string.IsNullOrWhiteSpace(request.ReviewStatus);
         IQueryable<WidgetGalleryItem> query = queueRead
             ? db.WidgetGalleryItems.Where(i => i.ReviewStatus == request.ReviewStatus)
-            : db.WidgetGalleryItems.Where(i => i.ReviewStatus == VerifiedStatus);
+            : db.WidgetGalleryItems.Where(i =>
+                i.ReviewStatus == VerifiedStatus
+                && !FirstPartyWidgetCatalogue.SystemSurfaceNaturalKeys.Contains(i.NaturalKey)
+            );
 
         if (!string.IsNullOrWhiteSpace(request.Framework))
             query = query.Where(i => i.Framework == request.Framework);

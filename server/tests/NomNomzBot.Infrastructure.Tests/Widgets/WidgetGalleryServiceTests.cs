@@ -93,6 +93,48 @@ public sealed class WidgetGalleryServiceTests
     }
 
     [Fact]
+    public async Task List_excludes_the_tts_caption_system_surface_from_the_browsable_catalogue()
+    {
+        // S052 (widgets-overlays.md §1.2): tts_caption is now a channel-owned system surface, auto-provisioned
+        // by EnsureSystemWidgetAsync — it must never appear as something a streamer can find and manually
+        // install from the gallery, even though its WidgetGalleryItem row still exists (EnsureSystemWidgetAsync
+        // looks it up by natural key) and is still verified/first_party like any other row.
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        await SeedItemAsync(database, "Alerts", framework: "vanilla", installCount: 5);
+        Guid id = Guid.CreateVersion7();
+        await using (WidgetTestDbContext seedDb = database.NewContext())
+        {
+            seedDb.WidgetGalleryItems.Add(
+                new()
+                {
+                    Id = id,
+                    Name = "TTS Caption",
+                    Description = "System TTS surface",
+                    Framework = "vue",
+                    TrustTier = "first_party",
+                    SourceKind = "in_repo",
+                    NaturalKey = "tts_caption",
+                    SourceCode = "TTS_SOURCE",
+                    ReviewStatus = "verified",
+                    AvailableInSaaS = true,
+                    InstallCount = 999,
+                    DefaultEventSubscriptions = ["tts_speak"],
+                    DefaultSettings = new() { ["showText"] = true },
+                }
+            );
+            await seedDb.SaveChangesAsync();
+        }
+
+        await using WidgetTestDbContext db = database.NewContext();
+        Result<PagedList<GalleryItemSummary>> result = await NewService(db)
+            .ListAsync(new(), FirstPage);
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.TotalCount.Should().Be(1);
+        result.Value.Items.Should().NotContain(i => i.Name == "TTS Caption");
+    }
+
+    [Fact]
     public async Task List_honors_the_framework_filter()
     {
         using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
