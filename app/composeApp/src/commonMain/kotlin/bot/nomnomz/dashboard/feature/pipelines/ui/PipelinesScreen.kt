@@ -22,6 +22,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.doubleOrNull
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -347,6 +348,10 @@ import nomnomzbot.composeapp.generated.resources.pipelines_block_operator_lt
 import nomnomzbot.composeapp.generated.resources.pipelines_block_operator_gte
 import nomnomzbot.composeapp.generated.resources.pipelines_block_operator_lte
 import nomnomzbot.composeapp.generated.resources.pipelines_block_operator_contains
+import nomnomzbot.composeapp.generated.resources.pipelines_block_add_random
+import nomnomzbot.composeapp.generated.resources.pipelines_block_random_summary
+import nomnomzbot.composeapp.generated.resources.pipelines_block_case_weight_label
+import nomnomzbot.composeapp.generated.resources.pipelines_block_case_summary_weighted
 
 import nomnomzbot.composeapp.generated.resources.shell_nav_pipelines
 import nomnomzbot.composeapp.generated.resources.pipelines_toggle_action
@@ -698,6 +703,8 @@ private fun ChainEditor(
     var switchCaseDialog: SwitchCaseDialogTarget? by remember { mutableStateOf(null) }
     // null = no loop-config dialog; a value = the add/edit dialog for one "loop" block.
     var loopBlockDialog: LoopBlockDialogTarget? by remember { mutableStateOf(null) }
+    // null = no weight dialog; a value = the add/edit dialog for one "random_case" child.
+    var randomCaseDialog: RandomCaseDialogTarget? by remember { mutableStateOf(null) }
 
     val backLabel: String = stringResource(Res.string.pipelines_editor_back)
     val saveLabel: String = stringResource(Res.string.pipelines_editor_save)
@@ -706,6 +713,7 @@ private fun ChainEditor(
     val addIfLabel: String = stringResource(Res.string.pipelines_block_add_if)
     val addSwitchLabel: String = stringResource(Res.string.pipelines_block_add_switch)
     val addLoopLabel: String = stringResource(Res.string.pipelines_block_add_loop)
+    val addRandomLabel: String = stringResource(Res.string.pipelines_block_add_random)
 
     // The root chain, tree-ordered: only the steps with no parent block, in their lane's `order`. Each "if"
     // block's "then"/"else" children are rendered nested inside its own card, never here at the top level.
@@ -796,6 +804,15 @@ private fun ChainEditor(
                     Text(text = addLoopLabel)
                 }
             }
+            ManageGate(decision = manage) { enabled ->
+                Button(
+                    onClick = { controller.addRandomBranchBlock() },
+                    enabled = enabled,
+                    modifier = Modifier.weight(1f).semantics { contentDescription = addRandomLabel },
+                ) {
+                    Text(text = addRandomLabel)
+                }
+            }
         }
 
         if (editing.steps.isEmpty()) {
@@ -860,6 +877,23 @@ private fun ChainEditor(
                                 onRemove = { step.id?.let { controller.removeBranchStep(it) } },
                                 onAddToLane = { step.id?.let { stepDialog = StepDialogTarget(parentStepId = it, branch = null, step = null) } },
                                 onEditLaneStep = { child -> stepDialog = StepDialogTarget(parentStepId = child.parentStepId, branch = child.branch, step = child) },
+                            )
+                        } else if (step.blockKind == "random_branch") {
+                            RandomBranchBlockCard(
+                                block = step,
+                                allSteps = editing.steps,
+                                index = index,
+                                total = rootSteps.size,
+                                palette = editing.palette,
+                                manage = manage,
+                                controller = controller,
+                                onMoveUp = { step.id?.let { controller.moveBranchStepUp(it) } },
+                                onMoveDown = { step.id?.let { controller.moveBranchStepDown(it) } },
+                                onRemove = { step.id?.let { controller.removeBranchStep(it) } },
+                                onAddCase = { branchId -> randomCaseDialog = RandomCaseDialogTarget(branchId = branchId, caseId = null, config = null) },
+                                onEditCase = { caseStep -> randomCaseDialog = RandomCaseDialogTarget(branchId = caseStep.parentStepId, caseId = caseStep.id, config = caseStep.blockConfig) },
+                                onAddCaseStep = { caseId -> stepDialog = StepDialogTarget(parentStepId = caseId, branch = null, step = null) },
+                                onEditCaseStep = { child -> stepDialog = StepDialogTarget(parentStepId = child.parentStepId, branch = child.branch, step = child) },
                             )
                         } else {
                             StepCard(
@@ -1005,6 +1039,28 @@ private fun ChainEditor(
                     controller.updateStepById(existingBlockId, loopStep)
                 } else {
                     controller.addLoopBlock(mode, count, listVar, maxIterations, maxLoopRuntimeSeconds, whileCondition)
+                }
+            },
+        )
+    }
+
+    randomCaseDialog?.let { target ->
+        RandomCaseFormDialog(
+            initialWeight = decodeRandomCase(target.config),
+            onDismiss = { randomCaseDialog = null },
+            onSubmit = { weight ->
+                val branchId: String? = target.branchId
+                val existingCaseId: String? = target.caseId
+                randomCaseDialog = null
+                val caseStep =
+                    PipelineStep(
+                        action = PipelineNode(type = "block"),
+                        blockKind = "random_case",
+                        blockConfig = encodeRandomCase(weight),
+                    )
+                when {
+                    existingCaseId != null -> controller.updateStepById(existingCaseId, caseStep)
+                    branchId != null -> controller.addBranchStep(branchId, null, caseStep)
                 }
             },
         )
@@ -1509,6 +1565,147 @@ private fun SwitchBlockCard(
     }
 }
 
+// A nested "random_branch" block: no action or config of its own to run — `ExecuteRandomBranchAsync` reads
+// nothing off the block step itself, only its ordered "random_case" children, each weighted via
+// `RandomCaseBlockConfig { weight }` (PipelineTreeTypes.cs:160) and picked by a weighted roll
+// (PipelineEngine.cs:1902-1928). Each case renders as its own weight header followed by a [LaneSection]
+// holding that ONE case's own body steps (what runs when the roll picks it).
+@Composable
+private fun RandomBranchBlockCard(
+    block: PipelineStep,
+    allSteps: List<PipelineStep>,
+    index: Int,
+    total: Int,
+    palette: RuntimePalette,
+    manage: ManageDecision,
+    controller: PipelinesController,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit,
+    onRemove: () -> Unit,
+    onAddCase: (branchId: String) -> Unit,
+    onEditCase: (PipelineStep) -> Unit,
+    onAddCaseStep: (caseId: String) -> Unit,
+    onEditCaseStep: (PipelineStep) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val blockId: String = block.id ?: return
+
+    val removeLabel: String = stringResource(Res.string.pipelines_step_delete, index + 1)
+    val upLabel: String = stringResource(Res.string.pipelines_step_move_up, index + 1)
+    val downLabel: String = stringResource(Res.string.pipelines_step_move_down, index + 1)
+    val addCaseLabel: String = stringResource(Res.string.pipelines_block_case_add)
+
+    val cases: List<PipelineStep> =
+        allSteps.filter { it.parentStepId == blockId && it.blockKind == "random_case" }.sortedBy { it.order ?: 0 }
+    val summary: String = stringResource(Res.string.pipelines_block_random_summary, cases.size)
+
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
+        verticalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s3)) {
+            Text(text = "${index + 1}", style = typography.sm, color = tokens.mutedForeground)
+            Text(
+                text = summary,
+                style = typography.lg,
+                color = tokens.cardForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+        }
+
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spacing.s1)) {
+            ManageGate(decision = manage) { allowed ->
+                GlyphButton(icon = ArrowUpGlyph, label = upLabel, onClick = onMoveUp, enabled = allowed && index > 0, tint = tokens.primary)
+            }
+            ManageGate(decision = manage) { allowed ->
+                GlyphButton(icon = ArrowDownGlyph, label = downLabel, onClick = onMoveDown, enabled = allowed && index < total - 1, tint = tokens.primary)
+            }
+            Box(modifier = Modifier.weight(1f))
+            ManageGate(decision = manage) { enabled ->
+                GlyphButton(icon = TrashGlyph, label = removeLabel, onClick = onRemove, enabled = enabled, tint = tokens.destructive)
+            }
+        }
+
+        for ((caseIndex, case) in cases.withIndex()) {
+            val caseId: String = case.id ?: continue
+            val weight: Double = decodeRandomCase(case.blockConfig)
+            val caseSummary: String = stringResource(Res.string.pipelines_block_case_summary_weighted, caseIndex + 1, weightDisplay(weight))
+            val caseEditLabel: String = stringResource(Res.string.pipelines_block_case_edit, caseIndex + 1)
+            val caseRemoveLabel: String = stringResource(Res.string.pipelines_block_case_delete, caseIndex + 1)
+            val caseUpLabel: String = stringResource(Res.string.pipelines_block_case_move_up, caseIndex + 1)
+            val caseDownLabel: String = stringResource(Res.string.pipelines_block_case_move_down, caseIndex + 1)
+
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(start = spacing.s4),
+                verticalArrangement = Arrangement.spacedBy(spacing.s1),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                    Text(
+                        text = caseSummary,
+                        style = typography.sm,
+                        color = tokens.cardForeground,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                    ManageGate(decision = manage) { allowed ->
+                        GlyphButton(
+                            icon = ArrowUpGlyph,
+                            label = caseUpLabel,
+                            onClick = { controller.moveBranchStepUp(caseId) },
+                            enabled = allowed && caseIndex > 0,
+                            tint = tokens.primary,
+                        )
+                    }
+                    ManageGate(decision = manage) { allowed ->
+                        GlyphButton(
+                            icon = ArrowDownGlyph,
+                            label = caseDownLabel,
+                            onClick = { controller.moveBranchStepDown(caseId) },
+                            enabled = allowed && caseIndex < cases.size - 1,
+                            tint = tokens.primary,
+                        )
+                    }
+                    ManageGate(decision = manage) { enabled ->
+                        GlyphButton(icon = EditGlyph, label = caseEditLabel, onClick = { onEditCase(case) }, enabled = enabled)
+                    }
+                    ManageGate(decision = manage) { enabled ->
+                        GlyphButton(
+                            icon = TrashGlyph,
+                            label = caseRemoveLabel,
+                            onClick = { controller.removeBranchStep(caseId) },
+                            enabled = enabled,
+                            tint = tokens.destructive,
+                        )
+                    }
+                }
+
+                LaneSection(
+                    label = stringResource(Res.string.pipelines_block_case_lane_label, caseIndex + 1),
+                    branch = "case",
+                    steps = allSteps.filter { it.parentStepId == caseId }.sortedBy { it.order ?: 0 },
+                    palette = palette,
+                    manage = manage,
+                    controller = controller,
+                    onAdd = { onAddCaseStep(caseId) },
+                    onEditStep = onEditCaseStep,
+                )
+            }
+        }
+
+        Row(modifier = Modifier.fillMaxWidth().padding(start = spacing.s4)) {
+            ManageGate(decision = manage) { enabled ->
+                GlyphButton(icon = AddGlyph, label = addCaseLabel, onClick = { onAddCase(blockId) }, enabled = enabled, tint = tokens.primary)
+            }
+        }
+    }
+}
+
 // A nested "loop" block: no action of its own to run — just its iteration config (mode/count/list_var, or a
 // while-condition) — plus its ordered body lane. `ExecuteLoopAsync` walks the block's children with no branch
 // filter (PipelineEngine.cs:1821), so the body is rendered via [LaneSection] with `branch = null` addressing it
@@ -1855,6 +2052,45 @@ private fun SwitchCaseFormDialog(
         confirmButton = {
             val canSubmit: Boolean = isDefault || match.isNotBlank()
             TextButton(onClick = { onSubmit(match, operatorKey, isDefault) }, enabled = canSubmit) {
+                Text(text = stringResource(Res.string.pipelines_dialog_save), color = if (canSubmit) tokens.primary else tokens.mutedForeground)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = stringResource(Res.string.pipelines_dialog_cancel), color = tokens.mutedForeground)
+            }
+        },
+    )
+}
+
+// A "random_case" child's own editor: just its weight (`RandomCaseBlockConfig { weight }`,
+// PipelineTreeTypes.cs:160) — the roll among a "random_branch" block's cases is proportional to each one's
+// weight (`PipelineEngine.cs:1902-1928`), defaulting to 1 when absent, exactly as `ParseBlockConfig` does.
+@Composable
+private fun RandomCaseFormDialog(
+    initialWeight: Double,
+    onDismiss: () -> Unit,
+    onSubmit: (weight: Double) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    var weightText: String by remember { mutableStateOf(weightDisplay(initialWeight)) }
+    val weightLabel: String = stringResource(Res.string.pipelines_block_case_weight_label)
+    val parsedWeight: Double? = weightText.toDoubleOrNull()
+    val canSubmit: Boolean = parsedWeight != null && parsedWeight > 0
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(text = stringResource(if (initialWeight == 1.0) Res.string.pipelines_block_case_add_title else Res.string.pipelines_block_case_edit_title))
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                AppTextField(value = weightText, onValueChange = { weightText = it }, label = weightLabel)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { parsedWeight?.let(onSubmit) }, enabled = canSubmit) {
                 Text(text = stringResource(Res.string.pipelines_dialog_save), color = if (canSubmit) tokens.primary else tokens.mutedForeground)
             }
         },
@@ -3073,3 +3309,21 @@ private fun encodeSwitchCase(match: String, operator: String, isDefault: Boolean
             "is_default" to JsonPrimitive(isDefault),
         )
     )
+
+// A null [branchId] is adding a brand-new "random_case" under a "random_branch" block not yet created (never
+// used — the "Add case" button only ever appears once a "random_branch" block exists); a non-null [branchId]
+// is adding a case under that block. A null [caseId] is adding a brand-new case; a non-null one is re-editing
+// that existing case's weight (its raw `blockConfig` [config] pre-fills the dialog, decoded by
+// [decodeRandomCase]).
+private data class RandomCaseDialogTarget(val branchId: String?, val caseId: String?, val config: JsonElement?)
+
+// Reads a "random_case" child's weight back out of its `blockConfig` (`RandomCaseBlockConfig { weight }` on
+// the backend, PipelineTreeTypes.cs:160), defaulting to 1 exactly as the engine's `ParseBlockConfig<RandomCaseBlockConfig>(...)?.Weight ?? 1m` does (PipelineEngine.cs:1907-1908).
+private fun decodeRandomCase(blockConfig: JsonElement?): Double =
+    (blockConfig as? JsonObject)?.get("weight")?.jsonPrimitive?.doubleOrNull ?: 1.0
+
+private fun encodeRandomCase(weight: Double): JsonElement = JsonObject(mapOf("weight" to JsonPrimitive(weight)))
+
+// Renders a weight without a trailing ".0" for whole numbers (matches how a streamer would type it back in).
+private fun weightDisplay(weight: Double): String =
+    if (weight == weight.toLong().toDouble()) weight.toLong().toString() else weight.toString()

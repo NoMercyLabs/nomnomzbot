@@ -2423,6 +2423,10 @@
     <string name="pipelines_block_operator_gte">groter dan of gelijk aan</string>
     <string name="pipelines_block_operator_lte">kleiner dan of gelijk aan</string>
     <string name="pipelines_block_operator_contains">bevat</string>
+    <string name="pipelines_block_add_random">Willekeurig</string>
+    <string name="pipelines_block_random_summary">Willekeurig: %1$d cases</string>
+    <string name="pipelines_block_case_weight_label">Gewicht</string>
+    <string name="pipelines_block_case_summary_weighted">Case %1$d: gewicht %2$s</string>
     <string name="pipelines_block_send_message">Bericht versturen</string>
     <string name="pipelines_block_send_reply">Antwoord versturen</string>
     <string name="pipelines_block_timeout">Time-out geven</string>

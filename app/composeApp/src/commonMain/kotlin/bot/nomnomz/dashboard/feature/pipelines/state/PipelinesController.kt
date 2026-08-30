@@ -430,6 +430,29 @@ class PipelinesController(
     }
 
     /**
+     * Add a new "random_branch" block at the end of the root chain: a block-kind step with no action or config
+     * of its own — the engine's `ExecuteRandomBranchAsync` reads nothing off the block step itself, only its
+     * `random_case` children (each weighted via `RandomCaseBlockConfig { weight }`, PipelineTreeTypes.cs:160,
+     * `PipelineEngine.cs:1907`), picked by a weighted roll across them (`PipelineEngine.cs:1902-1928`). Returns
+     * the new step's id so the caller can attach `random_case` children with [addBranchStep] (branch = null —
+     * exactly like a "switch" block's cases, `parentStepId` alone already disambiguates the lane).
+     */
+    fun addRandomBranchBlock(): String {
+        val editing: PipelinesState.Editing = _state.value as? PipelinesState.Editing ?: return ""
+        val id: String = newLocalStepId()
+        val order: Int = editing.steps.count { it.parentStepId == null }
+        val step =
+            PipelineStep(
+                action = PipelineNode(type = "block"),
+                blockKind = "random_branch",
+                id = id,
+                order = order,
+            )
+        mutateChain { it + step }
+        return id
+    }
+
+    /**
      * Add a new "loop" block at the end of the root chain: a block-kind step with no action of its own, whose
      * iteration config is carried by [mode]/[count]/[listVar]/[maxIterations]/[maxLoopRuntimeSeconds] — read by
      * the engine's `ExecuteLoopAsync` as `LoopBlockConfig { mode, count, list_var, max_iterations,
