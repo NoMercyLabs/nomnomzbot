@@ -2385,6 +2385,10 @@
     <string name="pipelines_block_lane_step_delete">Delete %1$s step %2$d</string>
     <string name="pipelines_block_lane_step_move_up">Move %1$s step %2$d up</string>
     <string name="pipelines_block_lane_step_move_down">Move %1$s step %2$d down</string>
+    <string name="pipelines_block_add_try">Try / Catch</string>
+    <string name="pipelines_block_try_summary">Try / Catch</string>
+    <string name="pipelines_block_lane_try">Try</string>
+    <string name="pipelines_block_lane_catch">Catch</string>
     <string name="pipelines_block_add_switch">Switch</string>
     <string name="pipelines_block_switch_title">Add Switch block</string>
     <string name="pipelines_block_switch_edit_title">Edit Switch value</string>
