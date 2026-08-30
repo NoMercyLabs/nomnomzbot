@@ -87,12 +87,20 @@ public sealed class FirstPartyWidgetCatalogueSeeder : ISeeder
     // Copies the first-party metadata + source onto the row. Never touches Id or InstallCount; clears any prior
     // soft-delete so a resurrected first-party item is live again. The default settings + subscriptions are copied
     // (a fresh dictionary/list per row) so the shared static catalogue is never captured by an EF-tracked entity.
+    // SourceRevision bumps only when the source itself actually changed — a reseed that touches metadata alone
+    // (name, description) never falsely tells an already-installed widget it has fallen behind.
     private static void Apply(
         WidgetGalleryItem row,
         FirstPartyWidgetDefinition widget,
         string source
     )
     {
+        if (
+            row.SourceCode is not null
+            && !string.Equals(row.SourceCode, source, StringComparison.Ordinal)
+        )
+            row.SourceRevision++;
+
         row.Name = widget.Name;
         row.Description = widget.Description;
         row.Framework = "vue";

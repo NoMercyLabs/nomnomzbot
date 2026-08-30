@@ -42,11 +42,15 @@ public class EditorAssetContractTests
         List<string> missing = [];
         foreach (string script in scripts)
         {
-            foreach (Match match in Regex.Matches(Read(script), @"getElementById\('(?<id>[^']+)'\)"))
+            foreach (
+                Match match in Regex.Matches(Read(script), @"getElementById\('(?<id>[^']+)'\)")
+            )
             {
                 string id = match.Groups["id"].Value;
                 if (!declaredIds.Contains(id))
-                    missing.Add($"{script} looks up '{id}', which no element in index.html declares");
+                    missing.Add(
+                        $"{script} looks up '{id}', which no element in index.html declares"
+                    );
             }
         }
 

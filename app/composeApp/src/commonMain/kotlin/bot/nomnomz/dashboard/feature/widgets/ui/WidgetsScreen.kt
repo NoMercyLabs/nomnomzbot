@@ -110,6 +110,9 @@ import nomnomzbot.composeapp.generated.resources.widgets_clone_action
 import nomnomzbot.composeapp.generated.resources.widgets_clone_action_short
 import nomnomzbot.composeapp.generated.resources.widgets_edit_code_action
 import nomnomzbot.composeapp.generated.resources.widgets_edit_code_action_short
+import nomnomzbot.composeapp.generated.resources.widgets_update_action
+import nomnomzbot.composeapp.generated.resources.widgets_update_action_short
+import nomnomzbot.composeapp.generated.resources.widgets_update_badge
 import nomnomzbot.composeapp.generated.resources.widgets_settings_action
 import nomnomzbot.composeapp.generated.resources.widgets_settings_action_short
 import nomnomzbot.composeapp.generated.resources.widgets_clone_dismiss
@@ -286,6 +289,7 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
                     onEditCode = { widget -> scope.launch { controller.editWidgetCode(widget, editorMessages) } },
                     onVersions = { widget -> pendingVersions = widget },
                     onSettings = { widget -> pendingSettings = widget },
+                    onUpdateFromGallery = { widget -> scope.launch { controller.updateFromGallery(widget.id) } },
                 )
         }
     }
@@ -457,6 +461,7 @@ private fun ReadyContent(
     onEditCode: (WidgetSummary) -> Unit,
     onVersions: (WidgetSummary) -> Unit,
     onSettings: (WidgetSummary) -> Unit,
+    onUpdateFromGallery: (WidgetSummary) -> Unit,
 ) {
     val spacing = LocalSpacing.current
 
@@ -475,6 +480,7 @@ private fun ReadyContent(
             onEditCode = onEditCode,
             onVersions = onVersions,
             onSettings = onSettings,
+            onUpdateFromGallery = onUpdateFromGallery,
         )
     }
 }
@@ -490,6 +496,7 @@ private fun WidgetList(
     onEditCode: (WidgetSummary) -> Unit,
     onVersions: (WidgetSummary) -> Unit,
     onSettings: (WidgetSummary) -> Unit,
+    onUpdateFromGallery: (WidgetSummary) -> Unit,
 ) {
     val spacing = LocalSpacing.current
 
@@ -512,6 +519,7 @@ private fun WidgetList(
                     onEditCode = { onEditCode(widget) },
                     onVersions = { onVersions(widget) },
                     onSettings = { onSettings(widget) },
+                    onUpdateFromGallery = { onUpdateFromGallery(widget) },
                 )
             }
         }
@@ -534,6 +542,7 @@ private fun WidgetRow(
     onEditCode: () -> Unit,
     onVersions: () -> Unit,
     onSettings: () -> Unit,
+    onUpdateFromGallery: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -557,6 +566,7 @@ private fun WidgetRow(
     val editCodeLabel: String = stringResource(Res.string.widgets_edit_code_action, widgetDisplayName)
     val settingsLabel: String = stringResource(Res.string.widgets_settings_action, widgetDisplayName)
     val versionsLabel: String = stringResource(Res.string.widgets_versions_action, widgetDisplayName)
+    val updateLabel: String = stringResource(Res.string.widgets_update_action, widgetDisplayName)
     val urlLabel: String = stringResource(Res.string.widgets_url_label)
 
     Column(
@@ -591,6 +601,11 @@ private fun WidgetRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                if (widget.galleryUpdateAvailable) {
+                    Badge(variant = BadgeVariant.Secondary) {
+                        Text(stringResource(Res.string.widgets_update_badge), style = typography.xs)
+                    }
+                }
             }
 
             // Typed settings (chat_box font/background/timestamps) — a focused form over the widget's config,
@@ -621,6 +636,23 @@ private fun WidgetRow(
                         color = if (enabled) tokens.primary else tokens.mutedForeground,
                         maxLines = 1,
                     )
+                }
+            }
+            // Only ever shown once the gallery item's source has actually moved on (never a proactive prompt);
+            // the platform never rebuilds this widget on its own, so this is the one control that does.
+            if (widget.galleryUpdateAvailable) {
+                ManageGate(decision = manage) { enabled ->
+                    TextButton(
+                        onClick = onUpdateFromGallery,
+                        enabled = enabled,
+                        modifier = Modifier.semantics { contentDescription = updateLabel },
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.widgets_update_action_short),
+                            color = if (enabled) tokens.primary else tokens.mutedForeground,
+                            maxLines = 1,
+                        )
+                    }
                 }
             }
             // Version history + rollback is a read to open, so it stays enabled below the manage floor; the

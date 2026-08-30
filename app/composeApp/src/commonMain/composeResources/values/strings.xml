@@ -1365,6 +1365,9 @@
     <string name="widgets_clone_dismiss">Cancel</string>
     <string name="widgets_edit_code_action">Edit code for overlay %1$s</string>
     <string name="widgets_edit_code_action_short">Edit code</string>
+    <string name="widgets_update_badge">Update available</string>
+    <string name="widgets_update_action">Update overlay %1$s from the gallery</string>
+    <string name="widgets_update_action_short">Update</string>
     <string name="widgets_settings_action">Settings for overlay %1$s</string>
     <string name="widgets_settings_action_short">Settings</string>
     <string name="widgets_settings_title">%1$s settings</string>

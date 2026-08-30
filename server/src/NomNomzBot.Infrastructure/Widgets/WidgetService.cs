@@ -313,6 +313,7 @@ public class WidgetService : IWidgetService
             Framework = item.Framework,
             Source = source,
             GalleryItemId = item.Id,
+            InstalledSourceRevision = item.SourceRevision,
             IsEnabled = true,
             EventSubscriptions = [.. item.DefaultEventSubscriptions],
             Settings = new(item.DefaultSettings),
@@ -347,6 +348,66 @@ public class WidgetService : IWidgetService
             );
 
         return await GetAsync(broadcasterId, widget.Id.ToString(), cancellationToken);
+    }
+
+    public async Task<Result<WidgetDetail>> UpdateFromGalleryAsync(
+        string broadcasterId,
+        string widgetId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (
+            !Guid.TryParse(broadcasterId, out Guid broadcasterGuid)
+            || !Guid.TryParse(widgetId, out Guid widgetGuid)
+        )
+            return Errors.NotFound<WidgetDetail>("Widget", widgetId);
+
+        Widget? widget = await _db.Widgets.FirstOrDefaultAsync(
+            w => w.Id == widgetGuid && w.BroadcasterId == broadcasterGuid,
+            cancellationToken
+        );
+        if (widget is null)
+            return Errors.NotFound<WidgetDetail>("Widget", widgetId);
+        if (widget.GalleryItemId is null)
+            return Result.Failure<WidgetDetail>(
+                "This widget was not installed from the gallery and has nothing to update from.",
+                "WIDGET_NOT_GALLERY_LINKED"
+            );
+
+        WidgetGalleryItem? item = await _db.WidgetGalleryItems.FirstOrDefaultAsync(
+            i => i.Id == widget.GalleryItemId.Value,
+            cancellationToken
+        );
+        if (item is null)
+            return Errors.NotFound<WidgetDetail>(
+                "WidgetGalleryItem",
+                widget.GalleryItemId.Value.ToString()
+            );
+        if (item.SourceCode is null)
+            return Result.Failure<WidgetDetail>(
+                "This gallery item has no source to update from.",
+                "WIDGET_NO_SOURCE"
+            );
+
+        // Compile-on-save with the gallery's current source, exactly like an authored save — a new WidgetVersion,
+        // never an edit to the streamer's history. Settings/subscriptions the streamer has since customized are
+        // left untouched; only the source (and the revision it is pinned to) moves.
+        Result<WidgetVersionDetail> compiled = await CompileAsync(
+            broadcasterId,
+            widgetId,
+            new() { SourceCode = item.SourceCode },
+            cancellationToken
+        );
+        if (compiled.IsFailure)
+            return Result.Failure<WidgetDetail>(
+                compiled.ErrorMessage ?? "The updated widget failed to compile.",
+                compiled.ErrorCode ?? "WIDGET_BUILD_FAILED"
+            );
+
+        widget.InstalledSourceRevision = item.SourceRevision;
+        await _db.SaveChangesAsync(cancellationToken);
+
+        return await GetAsync(broadcasterId, widgetId, cancellationToken);
     }
 
     public async Task<Result<WidgetDetail>> UpdateAsync(
@@ -386,7 +447,13 @@ public class WidgetService : IWidgetService
         await _db.SaveChangesAsync(cancellationToken);
         await PublishConfigChangedAsync(broadcasterGuid, widget.Id, "updated", cancellationToken);
 
-        return Result.Success(ToDetail(widget, widget.Channel.OverlayToken, _overlayBaseUrl));
+        int? galleryRevision = await GetGalleryRevisionAsync(
+            widget.GalleryItemId,
+            cancellationToken
+        );
+        return Result.Success(
+            ToDetail(widget, widget.Channel.OverlayToken, _overlayBaseUrl, galleryRevision)
+        );
     }
 
     public async Task<Result> DeleteAsync(
@@ -500,9 +567,29 @@ public class WidgetService : IWidgetService
             .Take(pagination.PageSize)
             .ToListAsync(cancellationToken);
 
+        List<Guid> linkedGalleryItemIds =
+        [
+            .. widgets
+                .Where(w => w.GalleryItemId is not null)
+                .Select(w => w.GalleryItemId!.Value)
+                .Distinct(),
+        ];
+        Dictionary<Guid, int> galleryRevisions = await _db
+            .WidgetGalleryItems.Where(i => linkedGalleryItemIds.Contains(i.Id))
+            .ToDictionaryAsync(i => i.Id, i => i.SourceRevision, cancellationToken);
+
         List<WidgetDetail> items =
         [
-            .. widgets.Select(w => ToDetail(w, w.Channel.OverlayToken, _overlayBaseUrl)),
+            .. widgets.Select(w =>
+                ToDetail(
+                    w,
+                    w.Channel.OverlayToken,
+                    _overlayBaseUrl,
+                    w.GalleryItemId is { } gid && galleryRevisions.TryGetValue(gid, out int rev)
+                        ? rev
+                        : null
+                )
+            ),
         ];
 
         return Result.Success(
@@ -532,7 +619,13 @@ public class WidgetService : IWidgetService
         if (widget is null)
             return Errors.NotFound<WidgetDetail>("Widget", widgetId);
 
-        return Result.Success(ToDetail(widget, widget.Channel.OverlayToken, _overlayBaseUrl));
+        int? galleryRevision = await GetGalleryRevisionAsync(
+            widget.GalleryItemId,
+            cancellationToken
+        );
+        return Result.Success(
+            ToDetail(widget, widget.Channel.OverlayToken, _overlayBaseUrl, galleryRevision)
+        );
     }
 
     public async Task<Result<WidgetDetail>> GetByTokenAsync(
@@ -945,7 +1038,13 @@ public class WidgetService : IWidgetService
             cancellationToken
         );
 
-        return Result.Success(ToDetail(widget, widget.Channel.OverlayToken, _overlayBaseUrl));
+        int? galleryRevision = await GetGalleryRevisionAsync(
+            widget.GalleryItemId,
+            cancellationToken
+        );
+        return Result.Success(
+            ToDetail(widget, widget.Channel.OverlayToken, _overlayBaseUrl, galleryRevision)
+        );
     }
 
     public async Task<Result> RecordRuntimeErrorAsync(
@@ -1332,7 +1431,12 @@ public class WidgetService : IWidgetService
         };
     }
 
-    private static WidgetDetail ToDetail(Widget w, string overlayToken, string overlayBaseUrl)
+    private static WidgetDetail ToDetail(
+        Widget w,
+        string overlayToken,
+        string overlayBaseUrl,
+        int? currentGalleryRevision = null
+    )
     {
         return new(
             w.Id,
@@ -1349,7 +1453,19 @@ public class WidgetService : IWidgetService
             w.LastRuntimeError,
             w.LastRanAt,
             w.CreatedAt,
-            w.UpdatedAt
+            w.UpdatedAt,
+            w.GalleryItemId is not null
+                && currentGalleryRevision is { } rev
+                && rev > (w.InstalledSourceRevision ?? 0)
         );
     }
+
+    /// <summary>The linked gallery item's current <see cref="WidgetGalleryItem.SourceRevision"/>, or null if unlinked.</summary>
+    private async Task<int?> GetGalleryRevisionAsync(Guid? galleryItemId, CancellationToken ct) =>
+        galleryItemId is null
+            ? null
+            : await _db
+                .WidgetGalleryItems.Where(i => i.Id == galleryItemId.Value)
+                .Select(i => (int?)i.SourceRevision)
+                .FirstOrDefaultAsync(ct);
 }

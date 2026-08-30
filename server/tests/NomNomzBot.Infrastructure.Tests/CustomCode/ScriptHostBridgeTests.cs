@@ -519,7 +519,8 @@ public sealed class ScriptHostBridgeTests
             LastRuntimeError: null,
             LastRanAt: null,
             CreatedAt: DateTime.UtcNow,
-            UpdatedAt: DateTime.UtcNow
+            UpdatedAt: DateTime.UtcNow,
+            GalleryUpdateAvailable: false
         );
 
     [Fact]

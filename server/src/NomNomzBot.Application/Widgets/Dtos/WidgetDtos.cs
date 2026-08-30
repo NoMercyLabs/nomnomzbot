@@ -14,7 +14,10 @@ namespace NomNomzBot.Application.Widgets.Dtos;
 /// A widget's full detail. The authored source and compiled bundle are NOT here — they live on append-only
 /// <c>WidgetVersion</c> rows; <see cref="ActiveVersionId"/> names the version the overlay currently serves.
 /// <c>Framework</c> is the source language (vue|react|svelte|vanilla); <c>Source</c> is the provenance
-/// (first_party|verified_gallery|custom).
+/// (first_party|verified_gallery|custom). <see cref="GalleryUpdateAvailable"/> is true when
+/// <see cref="GalleryItemId"/> is set and the gallery item's source has moved on since this widget was installed
+/// or last updated from it — the streamer's clone is running stale code. Always false for a self-authored
+/// <c>custom</c> widget (no gallery link to compare against).
 /// </summary>
 public sealed record WidgetDetail(
     Guid Id,
@@ -31,7 +34,8 @@ public sealed record WidgetDetail(
     string? LastRuntimeError,
     DateTime? LastRanAt,
     DateTime CreatedAt,
-    DateTime UpdatedAt
+    DateTime UpdatedAt,
+    bool GalleryUpdateAvailable
 );
 
 public sealed record CreateWidgetRequest

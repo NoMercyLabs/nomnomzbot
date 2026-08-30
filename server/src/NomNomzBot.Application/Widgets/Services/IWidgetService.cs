@@ -265,4 +265,16 @@ public interface IWidgetService
         string galleryNaturalKey,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// Pull the linked gallery item's current source into this widget as a new compiled version — the explicit,
+    /// streamer-initiated action behind <see cref="WidgetDetail.GalleryUpdateAvailable"/> (the platform never
+    /// rebuilds an installed widget on its own). Fails <c>NOT_FOUND</c> if the widget has no <c>GalleryItemId</c>,
+    /// and <c>WIDGET_NO_SOURCE</c> if the gallery item currently carries no source.
+    /// </summary>
+    Task<Result<WidgetDetail>> UpdateFromGalleryAsync(
+        string broadcasterId,
+        string widgetId,
+        CancellationToken cancellationToken = default
+    );
 }

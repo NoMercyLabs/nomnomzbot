@@ -142,6 +142,34 @@ public sealed class FirstPartyWidgetCatalogueSeederTests
 
         // The install count set between seeds survived the re-seed (metadata refreshed, counters preserved).
         after.Single(i => i.NaturalKey == "alerts").InstallCount.Should().Be(7);
+
+        // Re-seeding over IDENTICAL in-repo source never bumps the revision — only an actual source change does.
+        after.Should().OnlyContain(i => i.SourceRevision == 1);
+    }
+
+    [Fact]
+    public async Task A_reseed_that_changes_an_items_source_bumps_its_revision_unrelated_items_stay_put()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        await SeedAsync(database);
+
+        // Simulate the in-repo asset for "alerts" having shipped a new revision since this row was last seeded.
+        await using (WidgetTestDbContext db = database.NewContext())
+        {
+            WidgetGalleryItem alerts = await db.WidgetGalleryItems.SingleAsync(i =>
+                i.NaturalKey == "alerts"
+            );
+            alerts.SourceCode = "<!-- stale, pre-change source -->";
+            await db.SaveChangesAsync();
+        }
+
+        await SeedAsync(database);
+
+        await using WidgetTestDbContext read = database.NewContext();
+        List<WidgetGalleryItem> after = await read.WidgetGalleryItems.ToListAsync();
+
+        after.Single(i => i.NaturalKey == "alerts").SourceRevision.Should().Be(2);
+        after.Where(i => i.NaturalKey != "alerts").Should().OnlyContain(i => i.SourceRevision == 1);
     }
 
     [Fact]

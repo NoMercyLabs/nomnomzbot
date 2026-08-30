@@ -51,6 +51,14 @@ public class WidgetGalleryItem : SoftDeletableEntity
     /// <summary>The curated source install/clone copy from (seeded from the in-repo asset for first-party items).</summary>
     public string? SourceCode { get; set; }
 
+    /// <summary>
+    /// Monotonic counter bumped whenever <see cref="SourceCode"/> actually changes (first-party reseed with new
+    /// in-repo source, or a community re-pin). An installed <see cref="Widget"/> records the revision it was built
+    /// from in <see cref="Widget.InstalledSourceRevision"/> — comparing the two is how the dashboard tells a
+    /// streamer their installed clone is running stale code, without the platform ever rebuilding it for them.
+    /// </summary>
+    public int SourceRevision { get; set; } = 1;
+
     /// <summary>Default settings applied on install (the item's declared config keys + defaults).</summary>
     public Dictionary<string, object> DefaultSettings { get; set; } = new();
 

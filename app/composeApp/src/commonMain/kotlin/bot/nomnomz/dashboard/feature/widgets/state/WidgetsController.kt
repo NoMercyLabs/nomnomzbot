@@ -227,6 +227,18 @@ class WidgetsController(
         return widgetsApi.listTemplates(channel)
     }
 
+    /**
+     * Pull the linked gallery item's current source into this widget as a new compiled version — the explicit
+     * action behind [WidgetSummary.galleryUpdateAvailable]. Reloads on success so the row's badge clears.
+     */
+    suspend fun updateFromGallery(widgetId: String) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        when (val result: ApiResult<WidgetSummary> = widgetsApi.updateFromGallery(channel, widgetId)) {
+            is ApiResult.Ok -> load()
+            is ApiResult.Failure -> failWrite(result.error.message)
+        }
+    }
+
     /** Clone an installed widget into a fresh, independently-editable custom copy. Reloads on success. */
     suspend fun cloneWidget(widgetId: String) {
         val channel: String = channelId ?: return failWrite(NoChannelError)

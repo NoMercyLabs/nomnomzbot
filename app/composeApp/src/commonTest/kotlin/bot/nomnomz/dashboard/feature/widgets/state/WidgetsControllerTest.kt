@@ -35,6 +35,7 @@ import bot.nomnomz.dashboard.core.network.WidgetVersionSummary
 import bot.nomnomz.dashboard.core.network.WidgetsApi
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
@@ -488,6 +489,27 @@ class WidgetsControllerTest {
     }
 
     @Test
+    fun update_from_gallery_calls_the_endpoint_then_reloads_with_the_flag_cleared() = runTest {
+        val widgetsApi =
+            RecordingWidgetsApi(
+                ApiResult.Ok(
+                    listOf(WidgetSummary(id = "w-1", name = "Alerts", galleryUpdateAvailable = true))
+                )
+            )
+        val controller =
+            widgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi)
+        controller.load()
+
+        controller.updateFromGallery(widgetId = "w-1")
+
+        assertEquals(listOf("w-1"), widgetsApi.updatedFromGalleryIds)
+        // The reload observes the real consequence — the badge clears — not just that the call happened.
+        val state: WidgetsState = controller.state.value
+        assertTrue(state is WidgetsState.Ready)
+        assertFalse((state as WidgetsState.Ready).widgets.single().galleryUpdateAvailable)
+    }
+
+    @Test
     fun clone_from_gallery_clones_with_the_gallery_item_id_then_opens_the_editor_on_the_copy() = runTest {
         val widgetsApi =
             RecordingWidgetsApi(
@@ -786,6 +808,20 @@ private class RecordingWidgetsApi(
     override suspend fun rotateOverlayToken(channelId: String): ApiResult<String> {
         rotateCalled = true
         return ApiResult.Ok("new-overlay-token")
+    }
+
+    // Records which widget was updated and flips its store row's galleryUpdateAvailable off — the real
+    // consequence the controller's post-write reload must observe, not merely that the call happened.
+    val updatedFromGalleryIds: MutableList<String> = mutableListOf()
+
+    override suspend fun updateFromGallery(channelId: String, widgetId: String): ApiResult<WidgetSummary> {
+        updatedFromGalleryIds += widgetId
+        if (writeResult is ApiResult.Failure) return writeResult
+        val index: Int = store.indexOfFirst { it.id == widgetId }
+        if (index < 0) return ApiResult.Failure(ApiError(status = 404, code = "NOT_FOUND", message = "not found"))
+        val updated: WidgetSummary = store[index].copy(galleryUpdateAvailable = false)
+        store[index] = updated
+        return ApiResult.Ok(updated)
     }
 }
 

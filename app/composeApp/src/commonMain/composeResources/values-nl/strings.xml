@@ -1362,6 +1362,9 @@
     <string name="widgets_clone_dismiss">Annuleren</string>
     <string name="widgets_edit_code_action">Code bewerken voor overlay %1$s</string>
     <string name="widgets_edit_code_action_short">Code bewerken</string>
+    <string name="widgets_update_badge">Update beschikbaar</string>
+    <string name="widgets_update_action">Overlay %1$s bijwerken vanuit de galerij</string>
+    <string name="widgets_update_action_short">Bijwerken</string>
     <string name="widgets_settings_action">Instellingen voor overlay %1$s</string>
     <string name="widgets_settings_action_short">Instellingen</string>
     <string name="widgets_settings_title">Instellingen voor %1$s</string>
