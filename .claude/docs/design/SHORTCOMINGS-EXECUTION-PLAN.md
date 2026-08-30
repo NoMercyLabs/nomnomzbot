@@ -315,18 +315,19 @@ later.)
     local UI state, not a confirmed echo from the overlay. Acceptable for now (skip/clear/pause DO fire
     real commands), but a future slice should close the loop with a real state confirmation if this
     becomes user-visible as wrong.
-  - **S052-gallery-cleanup**: `tts_caption` is still listed in `FirstPartyWidgetCatalogue.cs`'s
-    browsable gallery (21 items) alongside the new auto-provision path — spec calls for it trimmed out
-    of the installable gallery entirely (it's provisioned automatically now, never browsed/installed by
-    a streamer) — dual-path today until removed. Also wire `EnsureSystemWidgetAsync` into real
-    channel-creation call sites (not just first-use-on-page-load) so it's genuinely provisioned at
-    creation per spec, not only lazily on first TTS-page visit.
-  - **S052-alert-sound-provisioning**: the same "never gallery-installed, get-or-create" gap almost
-    certainly applies to the Alert and Sound system surfaces too (widgets-overlays.md §1.2 groups
-    Alert/TTS/Sound together) — not touched this session, TTS-only.
-  Done-when (whole item): a TTS redeem is audible in OBS from a fresh channel with no manual widget
-  install — auto-provisioning is proven server-side; end-to-end audibility still needs the
-  audio-queue + frontend pieces above before it's true.
+  - **S052-gallery-cleanup** — DONE, verified (aaa41092): `tts_caption` excluded from the browsable
+    gallery listing; a new onboarding handler (`TtsSystemWidgetSeedOnOnboardingHandler`) provisions it
+    at real channel creation, not just lazily on first TTS-page visit.
+  - **S052-alert-sound-provisioning**: confirmed by the gallery-cleanup slice — spec
+    (`widgets-overlays.md:40`) explicitly says the `alerts` gallery key has the SAME problem
+    (meant to be a system surface, still gallery-browsable) but no `EnsureSystemWidgetAsync`/onboarding
+    wiring exists for it yet. Mirror the exact `tts_caption` pattern (gallery-exclude + onboarding-seed)
+    for `alerts`, and confirm whether a `sound` system surface exists separately or was folded into
+    `alerts` — check the spec before assuming a third surface exists.
+  Done-when (whole item) — **S052 (TTS) itself is now COMPLETE**: auto-provisioning, ordered audio
+  queue, dashboard overlay card, Test button, live-queue controls, and gallery exclusion are all shipped
+  and verified. Only `S052-alert-sound-provisioning` (the sibling gap for Alert/Sound, not TTS) remains
+  open, as its own item.
 - **S060** Editor fire-bar — real per-event samples (`WidgetTestSamples`), chat variants, events from
   subscriptions not regex, desktop gets the bar (W·§3/§8 i3, U·B5).
 - **S061** `chat_box.vue` layout batch — line break, truncation, avatar, contrast, emote size, arrival
