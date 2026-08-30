@@ -350,8 +350,23 @@ later.)
   cause) — commit 679ad1c7, wasmJs compile verified clean after. **New standing habit**: run
   `compileKotlinWasmJs` after any substantive `app/` Kotlin batch, not just `jvmTest` — see memory
   `jvmtest-cannot-catch-wasmjs-breaks`.
-- **S061** `chat_box.vue` layout batch — line break, truncation, avatar, contrast, emote size, arrival
-  animation, mention highlight (W·§2/§8 i4).
+- **S061** — DONE, esbuild/Vue-compile verified (all 21 first-party widgets still build,
+  `FirstPartyWidgetVueBuildTests` 21/21). `chat_box.vue` layout batch (W·§2/§8 i4): head row
+  is now block-level (was `inline-flex` glued to `.body`) — the originally reported bug;
+  long display names truncate with an ellipsis (`max-width` + `text-overflow`); avatar image
+  added (the decorated chat DTO the widget already receives carries `avatarUrl`, same as the
+  dashboard's own chat view — just never read here); chat-color username text now clamps its
+  HSL lightness against the dark/light theme backgrounds (transparent theme is left as-authored —
+  its existing drop-shadow already helps against an arbitrary OBS scene, and there's no fixed
+  background to reason a contrast target against); emotes/cheermotes sized in `em` so they scale
+  with the configurable font size; new lines fade+slide in via `<TransitionGroup>` (departing/
+  reordering lines get the same treatment) instead of popping in instantly; mentions get a
+  background chip so they stand out with no known chat colour. **Not done, out of scope for this
+  item**: the "stacked transition" animated overlay STYLE (a distinct, larger, from-scratch ask —
+  see the audit's separate note) and the `now_playing.vue`/`chat_box.vue` component-split
+  refactor (a structure improvement, not a behavior fix). **Not independently visually verified**
+  (chrome-devtools/playwright MCP were unavailable this session) — only compile-verified; a
+  live-render check is worth doing before calling this fully closed.
 - **S062** Widget setup — per-widget tokens + staged rotation + post-rotate URL list; Test button on
   the row; inline preview; error/last-ran badge; overlay last-seen; in-overlay banner on rejected
   token; resume without reload; settings form by schema availability; colour picker; asset/sound/font

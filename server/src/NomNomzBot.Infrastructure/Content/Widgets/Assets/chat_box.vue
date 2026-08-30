@@ -51,6 +51,42 @@ function hexToRgba(hex: string, opacity: number): string {
   return `rgba(${r}, ${g}, ${b}, ${a})`
 }
 
+// Clamp a chat color's lightness so it stays readable against a solid theme background — a dark color on the
+// dark theme, or a light color on the light theme, is otherwise illegible (W·§2). The transparent theme keeps
+// the color as-authored: its `.line` already applies a dark drop-shadow that helps any color read against an
+// arbitrary OBS scene, and there is no fixed background to reason a minimum contrast against.
+function contrastColor(hex: string, theme: string): string {
+  if (theme !== 'dark' && theme !== 'light') return hex
+  const h: string = hex.replace('#', '')
+  const full: string = h.length === 3 ? h.split('').map((c) => c + c).join('') : h
+  const r: number = parseInt(full.slice(0, 2), 16) / 255
+  const g: number = parseInt(full.slice(2, 4), 16) / 255
+  const b: number = parseInt(full.slice(4, 6), 16) / 255
+  const max: number = Math.max(r, g, b)
+  const min: number = Math.min(r, g, b)
+  let hDeg = 0
+  const l: number = (max + min) / 2
+  const d: number = max - min
+  const s: number = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1))
+  if (d !== 0) {
+    if (max === r) hDeg = ((g - b) / d) % 6
+    else if (max === g) hDeg = (b - r) / d + 2
+    else hDeg = (r - g) / d + 4
+    hDeg *= 60
+    if (hDeg < 0) hDeg += 360
+  }
+  const targetL: number = theme === 'dark' ? Math.max(l, 0.55) : Math.min(l, 0.4)
+  if (targetL === l) return hex
+  const c: number = (1 - Math.abs(2 * targetL - 1)) * s
+  const x: number = c * (1 - Math.abs(((hDeg / 60) % 2) - 1))
+  const m: number = targetL - c / 2
+  let [r2, g2, b2]: number[] =
+    hDeg < 60 ? [c, x, 0] : hDeg < 120 ? [x, c, 0] : hDeg < 180 ? [0, c, x] :
+    hDeg < 240 ? [0, x, c] : hDeg < 300 ? [x, 0, c] : [c, 0, x]
+  const toHex = (v: number) => Math.round((v + m) * 255).toString(16).padStart(2, '0')
+  return `#${toHex(r2)}${toHex(g2)}${toHex(b2)}`
+}
+
 const rootStyle = computed<Record<string, string>>(() => {
   const style: Record<string, string> = { '--accent': cfg.accentColor, 'font-size': cfg.fontSize + 'px' }
   if (cfg.fontFamily) style['font-family'] = cfg.fontFamily
@@ -77,6 +113,7 @@ interface ChatLine {
   name: string
   color: string
   pronouns: string
+  avatarUrl: string
   badgeUrls: string[]
   fragments: any[]
   message: string
@@ -124,6 +161,7 @@ function onChat(m: any): void {
     name: m.displayName || m.username || 'Someone',
     color: hexColor(m.color),
     pronouns: m.pronouns || '',
+    avatarUrl: typeof m.avatarUrl === 'string' ? m.avatarUrl : '',
     badgeUrls: cfg.showBadges
       ? (m.badges || []).map((b: any) => firstUrl(b.urls, ['2', '1', '4'])).filter((u: string) => !!u)
       : [],
@@ -171,12 +209,13 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="nnz-chatbox" :class="'theme-' + cfg.theme" :style="rootStyle">
+  <TransitionGroup tag="div" name="chat-line" class="nnz-chatbox" :class="'theme-' + cfg.theme" :style="rootStyle">
     <div v-for="l in lines" :key="l.id" class="line" :class="{ faded: l.faded }" :style="lineStyle">
       <span class="head">
         <span v-if="cfg.showTimestamps && l.time" class="time">{{ l.time }}</span>
+        <img v-if="l.avatarUrl" class="avatar" :src="l.avatarUrl" alt="">
         <img v-for="(b, i) in l.badgeUrls" :key="i" class="badge" :src="b" alt="">
-        <span class="name" :style="l.color ? { color: l.color } : {}">{{ l.name }}</span>
+        <span class="name" :style="{ color: l.color ? contrastColor(l.color, cfg.theme) : '' }">{{ l.name }}</span>
         <span v-if="l.pronouns" class="pron">({{ l.pronouns }})</span>
       </span>
       <span class="body">
@@ -192,7 +231,8 @@ onUnmounted(() => {
               <img v-if="cfg.showEmotes && cheermoteUrl(fr)" class="cheermote" :src="cheermoteUrl(fr)" :alt="fr.text">
               <span class="cheer-bits" :style="fragColor(fr.cheermote.colorHex)">{{ fr.cheermote.bits }}</span>
             </template>
-            <!-- @mention, tinted with the mentioned user's chat colour when known -->
+            <!-- @mention: a highlighted chip always, additionally tinted with the mentioned user's chat colour
+                 when known — a mention must stand out even with no known colour. -->
             <span v-else-if="fr.type === 'mention' && fr.mention" class="mention" :style="fragColor(fr.mention.color)">{{ '@' + (fr.mention.displayName || fr.mention.username || '') }}</span>
             <!-- Shared link -->
             <a v-else-if="fr.type === 'link' && fr.linkUrl" class="link" :href="fr.linkUrl" target="_blank" rel="noopener noreferrer">{{ fr.text || fr.linkUrl }}</a>
@@ -203,7 +243,7 @@ onUnmounted(() => {
         <template v-else>{{ l.message }}</template>
       </span>
     </div>
-  </div>
+  </TransitionGroup>
 </template>
 
 <style scoped>
@@ -249,18 +289,35 @@ onUnmounted(() => {
   padding: 2px 0;
 }
 .head {
-  display: inline-flex;
+  /* Block-level (not inline-flex) so the head row and the message body below it are separate lines —
+     the originally reported bug: username and message text were glued onto one run. */
+  display: flex;
   align-items: center;
   gap: 4px;
-  margin-right: 6px;
+  margin-bottom: 2px;
+}
+.avatar {
+  width: 1.25em;
+  height: 1.25em;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: none;
 }
 .badge {
-  width: 18px;
-  height: 18px;
+  width: 1.125em;
+  height: 1.125em;
+  flex: none;
 }
 .name {
   font-weight: 700;
   color: var(--accent, #9146ff);
+  /* Long display names truncate with an ellipsis instead of stretching/overflowing the head row. */
+  display: inline-block;
+  max-width: 12em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
 }
 .pron {
   font-size: 12px;
@@ -273,15 +330,20 @@ onUnmounted(() => {
   font-variant-numeric: tabular-nums;
   margin-right: 2px;
 }
+.body {
+  display: block;
+}
 .emote {
-  height: 24px;
+  /* Relative to the configurable font size, not a fixed pixel value, so raising font size for readability
+     doesn't leave emotes visually undersized. */
+  height: 1.5em;
   width: auto;
   vertical-align: middle;
   margin: 0 1px;
 }
 /* Minimal functional styling for the remaining body fragment types — the visual design is themed elsewhere. */
 .cheermote {
-  height: 24px;
+  height: 1.5em;
   width: auto;
   vertical-align: middle;
   margin: 0 1px;
@@ -290,7 +352,12 @@ onUnmounted(() => {
   font-weight: 700;
 }
 .mention {
+  /* A highlighted chip so a mention stands out even when the mentioned user has no known chat colour
+     (previously plain bold text, easy to miss). */
   font-weight: 700;
+  background: color-mix(in srgb, var(--accent, #9146ff) 22%, transparent);
+  border-radius: 4px;
+  padding: 0 4px;
 }
 .link {
   color: var(--accent, #9146ff);
@@ -307,5 +374,26 @@ onUnmounted(() => {
 }
 .frag-html :deep(*) {
   max-width: 100%;
+}
+/* Arrival animation: new lines fade + slide in instead of popping in instantly; departing lines (overflow past
+   maxMessages) fade + slide out the same way; remaining lines glide to their new position (TransitionGroup's
+   move class). The `fadeAfterMs` fade-OUT-in-place (`.faded`) is a separate, orthogonal effect layered on top. */
+.chat-line-enter-active,
+.chat-line-leave-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.chat-line-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.chat-line-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+.chat-line-leave-active {
+  position: absolute;
+}
+.chat-line-move {
+  transition: transform 0.25s ease;
 }
 </style>
