@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NomNomzBot — Code editor</title>
+    <link rel="stylesheet" href="editor.css">
+</head>
+<body>
+<div class="shell" id="shell" hidden>
+    <header class="titlebar">
+        <h1 class="title" id="title">Editor</h1>
+        <span class="badge" id="kind"></span>
+        <span class="hint">Esc to close · Ctrl+S to save &amp; compile · F1 for commands</span>
+        <button type="button" class="btn" id="togglePreview">Hide preview</button>
+        <button type="button" class="btn" id="close">Close</button>
+        <button type="button" class="btn btn-primary" id="save">Save &amp; Compile</button>
+    </header>
+
+    <p class="result" id="result" hidden></p>
+
+    <div class="body">
+        <nav class="explorer" aria-label="Project files">
+            <div class="explorer-head">
+                <h2 class="section-label">Files</h2>
+                <button type="button" class="btn btn-quiet" id="newFile">New file</button>
+            </div>
+            <ul class="file-list" id="fileList"></ul>
+        </nav>
+
+        <main class="code">
+            <div class="tabs" id="tabs" role="tablist"></div>
+            <div class="editor-host" id="editorHost"></div>
+            <section class="problems" id="problems" hidden aria-label="Problems"></section>
+            <footer class="statusbar">
+                <span id="cursor">Ln 1, Col 1</span>
+                <span id="language"></span>
+                <button type="button" class="status-btn" id="problemCount">No problems</button>
+                <span class="spacer"></span>
+                <button type="button" class="status-toggle" id="format">Format</button>
+                <button type="button" class="status-toggle" id="wrap">Wrap: off</button>
+                <button type="button" class="status-toggle" id="minimap">Minimap: on</button>
+            </footer>
+        </main>
+
+        <div class="splitter" id="splitter" role="separator" aria-orientation="vertical"></div>
+
+        <aside class="preview" id="preview" aria-label="Live preview">
+            <div class="preview-head">
+                <h2 class="section-label">Live preview</h2>
+                <button type="button" class="btn btn-quiet" id="refresh">Refresh</button>
+            </div>
+            <div class="fire-bar" id="fireBar" hidden></div>
+            <div class="preview-body">
+                <iframe id="previewFrame" title="Widget preview" sandbox="allow-scripts"></iframe>
+                <p class="preview-note" id="previewNote" hidden></p>
+            </div>
+        </aside>
+    </div>
+</div>
+
+<div class="boot" id="boot">
+    <p id="bootMessage">Loading editor…</p>
+</div>
+
+<script src="editor.js" type="module"></script>
+</body>
+</html>

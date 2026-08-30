@@ -42,6 +42,13 @@
     <InternalsVisibleTo Include="NomNomzBot.Api.Tests" />
   </ItemGroup>
 
+  <!-- The code-editor page (Assets/editor) is served at /editor from ContentRoot, NOT from the web root:
+       wwwroot is build output (the Wasm bundle) and is gitignored, while these are committed source files.
+       Copying them to the output directory keeps that path valid for publish and the Docker image too. -->
+  <ItemGroup>
+    <Content Include="Assets\editor\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\NomNomzBot.Application\NomNomzBot.Application.csproj" />
     <ProjectReference Include="..\NomNomzBot.Infrastructure\NomNomzBot.Infrastructure.csproj" />
