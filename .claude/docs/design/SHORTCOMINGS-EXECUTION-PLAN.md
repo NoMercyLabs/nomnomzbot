@@ -287,10 +287,25 @@ later.)
 
 ## Phase 4 — existing features: truth, reach, completeness
 
-- **S052** TTS system surface — auto-provisioned, ordered audio queue playing `audioUrl` segments,
-  caption optional; TTS page shows URL / last-seen / test-through-overlay / queue controls;
-  `tts_caption` out of the gallery (U·A3, spec `widgets-overlays.md` §1.2). Done-when: a TTS redeem
-  is audible in OBS from a fresh channel with no widget install.
+- **S052-remaining** TTS system surface. **Auto-provisioning DONE, verified (17cc7a43)**:
+  `IWidgetService.EnsureSystemWidgetAsync` (get-or-create by gallery natural key, never a gallery
+  browse/install) + `GET tts/overlay` on `TtsConfigController` wired to it — a fresh channel gets a
+  working `tts_caption` overlay URL on first call, no widget install required (widgets-overlays.md
+  §1.2). Remaining (each its own follow-up slice, not yet done):
+  - **S052-frontend-overlay-card**: the TTS dashboard page (`feature/tts/`) doesn't call the new
+    `GET tts/overlay` endpoint yet — wire it in so the page actually SHOWS the auto-provisioned URL +
+    last-seen, instead of requiring a manual gallery add.
+  - **S052-audio-queue**: confirm/build the ordered audio-queue behavior (`audioUrl` segments played
+    in order, caption optional) — verify against the current `tts_caption.vue` widget implementation,
+    which per prior audit notes (U-adjacent) renders a caption and may still ignore `audioUrl`/queueing
+    entirely; if so this is the actual audibility gap, not just provisioning.
+  - **S052-test-through-overlay**: a Test button on the TTS page that fires a real utterance through
+    the auto-provisioned overlay (mirror the pattern used elsewhere in this session, e.g. the pipeline
+    dry-run Test action).
+  - **S052-queue-controls**: skip/clear/pause controls for the TTS queue on the dashboard page.
+  Done-when (whole item): a TTS redeem is audible in OBS from a fresh channel with no manual widget
+  install — auto-provisioning is proven server-side; end-to-end audibility still needs the
+  audio-queue + frontend pieces above before it's true.
 - **S060** Editor fire-bar — real per-event samples (`WidgetTestSamples`), chat variants, events from
   subscriptions not regex, desktop gets the bar (W·§3/§8 i3, U·B5).
 - **S061** `chat_box.vue` layout batch — line break, truncation, avatar, contrast, emote size, arrival
