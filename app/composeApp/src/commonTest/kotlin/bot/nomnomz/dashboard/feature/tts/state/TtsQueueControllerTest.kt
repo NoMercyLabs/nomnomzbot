@@ -175,6 +175,14 @@ private class FakeQueueTtsApi(
 
     override suspend fun testOverlay(channelId: String): ApiResult<Unit> = error("stub")
 
+    override suspend fun skipPlayback(channelId: String): ApiResult<Unit> = error("stub")
+
+    override suspend fun clearPlayback(channelId: String): ApiResult<Unit> = error("stub")
+
+    override suspend fun pausePlayback(channelId: String): ApiResult<Unit> = error("stub")
+
+    override suspend fun resumePlayback(channelId: String): ApiResult<Unit> = error("stub")
+
     private val queueFailure: ApiError? = (initial as? ApiResult.Failure)?.error
     private val store: MutableList<TtsQueueEntry> =
         (initial as? ApiResult.Ok)?.value?.toMutableList() ?: mutableListOf()

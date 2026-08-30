@@ -600,6 +600,11 @@
     <string name="tts_overlay_test_sending">Bezig met verzenden…</string>
     <string name="tts_overlay_test_sent">Test verzonden naar de overlay</string>
     <string name="tts_overlay_test_error">Test mislukt: %1$s</string>
+    <string name="tts_playback_skip">Overslaan</string>
+    <string name="tts_playback_clear">Wachtrij wissen</string>
+    <string name="tts_playback_pause">Pauzeren</string>
+    <string name="tts_playback_resume">Hervatten</string>
+    <string name="tts_playback_error">Opdracht mislukt: %1$s</string>
     <string name="tts_label_voice">Standaardstem</string>
     <string name="tts_voices_title">Beschikbare stemmen</string>
     <string name="tts_voices_count">%1$d stemmen om uit te kiezen</string>

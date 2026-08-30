@@ -130,6 +130,22 @@ interface TtsApi {
      * inline playback in the dashboard; this one dispatches to the real overlay and never returns audio.
      */
     suspend fun testOverlay(channelId: String): ApiResult<Unit>
+
+    /**
+     * Skip the utterance currently playing on the overlay and advance to the next queued one (backend
+     * `POST /tts/playback/skip`). The overlay SDK owns the live queue client-side — this is a fire-and-forget
+     * command, not a state read; the dashboard never learns what was actually skipped.
+     */
+    suspend fun skipPlayback(channelId: String): ApiResult<Unit>
+
+    /** Stop the current utterance and drop every queued utterance behind it (backend `POST /tts/playback/clear`). */
+    suspend fun clearPlayback(channelId: String): ApiResult<Unit>
+
+    /** Pause the overlay's TTS queue — current + queued utterances hold (backend `POST /tts/playback/pause`). */
+    suspend fun pausePlayback(channelId: String): ApiResult<Unit>
+
+    /** Resume a paused overlay TTS queue (backend `POST /tts/playback/resume`). */
+    suspend fun resumePlayback(channelId: String): ApiResult<Unit>
 }
 
 class RestTtsApi(private val client: ApiClient) : TtsApi {
@@ -286,6 +302,18 @@ class RestTtsApi(private val client: ApiClient) : TtsApi {
     // postUnit discards the response body and only reports success/failure.
     override suspend fun testOverlay(channelId: String): ApiResult<Unit> =
         client.postUnit("api/v1/channels/$channelId/tts/overlay/test")
+
+    override suspend fun skipPlayback(channelId: String): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/tts/playback/skip")
+
+    override suspend fun clearPlayback(channelId: String): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/tts/playback/clear")
+
+    override suspend fun pausePlayback(channelId: String): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/tts/playback/pause")
+
+    override suspend fun resumePlayback(channelId: String): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/tts/playback/resume")
 }
 
 /** The channel's TTS configuration (backend `TtsConfigDto`). Field names mirror the DTO camelCase exactly. */

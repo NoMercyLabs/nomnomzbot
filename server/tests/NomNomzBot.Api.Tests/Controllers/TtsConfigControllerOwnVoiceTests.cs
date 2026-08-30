@@ -62,7 +62,8 @@ public sealed class TtsConfigControllerOwnVoiceTests
             db,
             currentUser,
             Substitute.For<NomNomzBot.Application.Widgets.Services.IWidgetService>(),
-            Substitute.For<ITtsDispatchService>()
+            Substitute.For<ITtsDispatchService>(),
+            Substitute.For<NomNomzBot.Application.Widgets.Services.IWidgetEventNotifier>()
         );
     }
 

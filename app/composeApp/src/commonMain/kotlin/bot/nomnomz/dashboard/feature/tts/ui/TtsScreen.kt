@@ -27,6 +27,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import bot.nomnomz.dashboard.core.designsystem.component.Button
+import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
+import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
 import bot.nomnomz.dashboard.core.designsystem.component.PickerRef
@@ -174,6 +176,11 @@ import nomnomzbot.composeapp.generated.resources.tts_overlay_last_ran
 import nomnomzbot.composeapp.generated.resources.tts_overlay_never_ran
 import nomnomzbot.composeapp.generated.resources.tts_overlay_test_button
 import nomnomzbot.composeapp.generated.resources.tts_overlay_test_error
+import nomnomzbot.composeapp.generated.resources.tts_playback_clear
+import nomnomzbot.composeapp.generated.resources.tts_playback_error
+import nomnomzbot.composeapp.generated.resources.tts_playback_pause
+import nomnomzbot.composeapp.generated.resources.tts_playback_resume
+import nomnomzbot.composeapp.generated.resources.tts_playback_skip
 import nomnomzbot.composeapp.generated.resources.tts_overlay_test_sending
 import nomnomzbot.composeapp.generated.resources.tts_overlay_test_sent
 import nomnomzbot.composeapp.generated.resources.tts_overlay_title
@@ -254,6 +261,10 @@ fun TtsScreen(
                     onSave = { edited -> scope.launch { controller.save(edited) } },
                     onTestSpeak = { voiceId, text -> scope.launch { controller.testSpeak(voiceId, text) } },
                     onTestOverlay = { scope.launch { controller.testOverlay() } },
+                    onSkipPlayback = { scope.launch { controller.skipPlayback() } },
+                    onClearPlayback = { scope.launch { controller.clearPlayback() } },
+                    onPausePlayback = { scope.launch { controller.pausePlayback() } },
+                    onResumePlayback = { scope.launch { controller.resumePlayback() } },
                     searchViewers = { query -> controller.searchViewers(query) },
                     onLookupViewerVoice = { userId -> scope.launch { controller.loadUserVoice(userId) } },
                     onAssignViewerVoice = { userId, voiceId ->
@@ -316,6 +327,10 @@ private fun ReadyContent(
     onSave: (TtsConfig) -> Unit,
     onTestSpeak: (voiceId: String, text: String) -> Unit,
     onTestOverlay: () -> Unit,
+    onSkipPlayback: () -> Unit,
+    onClearPlayback: () -> Unit,
+    onPausePlayback: () -> Unit,
+    onResumePlayback: () -> Unit,
     searchViewers: suspend (query: String) -> List<PickerOption>,
     onLookupViewerVoice: (userId: String) -> Unit,
     onAssignViewerVoice: (userId: String, voiceId: String) -> Unit,
@@ -392,6 +407,13 @@ private fun ReadyContent(
             sent = state.overlayTestSent,
             error = state.overlayTestError,
             onTest = onTestOverlay,
+            playbackBusy = state.playbackControlBusy,
+            playbackPaused = state.playbackPaused,
+            playbackError = state.playbackControlError,
+            onSkip = onSkipPlayback,
+            onClear = onClearPlayback,
+            onPause = onPausePlayback,
+            onResume = onResumePlayback,
         )
 
         EditCard(
@@ -1548,6 +1570,13 @@ private fun OverlayCard(
     sent: Boolean,
     error: String?,
     onTest: () -> Unit,
+    playbackBusy: Boolean,
+    playbackPaused: Boolean,
+    playbackError: String?,
+    onSkip: () -> Unit,
+    onClear: () -> Unit,
+    onPause: () -> Unit,
+    onResume: () -> Unit,
 ) {
     if (overlay == null) return
     val tokens = LocalTokens.current
@@ -1599,6 +1628,61 @@ private fun OverlayCard(
                         color = tokens.destructive,
                     )
                 }
+            }
+
+            Separator()
+
+            // The live playback queue controls (S052-queue-controls): the overlay SDK owns the queue
+            // client-side, so these are fire-and-forget commands — [playbackPaused] is optimistic local
+            // state, not a server-confirmed read of what the overlay is actually doing right now.
+            Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalAlignment = Alignment.CenterVertically) {
+                ManageGate(decision = manage) { enabled ->
+                    val controlsEnabled = enabled && !playbackBusy
+                    Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                        Button(
+                            onClick = onSkip,
+                            enabled = controlsEnabled,
+                            variant = ButtonVariant.Ghost,
+                            size = ButtonSize.Sm,
+                        ) {
+                            Text(text = stringResource(Res.string.tts_playback_skip))
+                        }
+                        Button(
+                            onClick = onClear,
+                            enabled = controlsEnabled,
+                            variant = ButtonVariant.DestructiveGhost,
+                            size = ButtonSize.Sm,
+                        ) {
+                            Text(text = stringResource(Res.string.tts_playback_clear))
+                        }
+                        if (playbackPaused) {
+                            Button(
+                                onClick = onResume,
+                                enabled = controlsEnabled,
+                                variant = ButtonVariant.Ghost,
+                                size = ButtonSize.Sm,
+                            ) {
+                                Text(text = stringResource(Res.string.tts_playback_resume))
+                            }
+                        } else {
+                            Button(
+                                onClick = onPause,
+                                enabled = controlsEnabled,
+                                variant = ButtonVariant.Ghost,
+                                size = ButtonSize.Sm,
+                            ) {
+                                Text(text = stringResource(Res.string.tts_playback_pause))
+                            }
+                        }
+                    }
+                }
+            }
+            if (playbackError != null) {
+                Text(
+                    text = stringResource(Res.string.tts_playback_error, playbackError),
+                    style = typography.xs,
+                    color = tokens.destructive,
+                )
             }
         }
     }

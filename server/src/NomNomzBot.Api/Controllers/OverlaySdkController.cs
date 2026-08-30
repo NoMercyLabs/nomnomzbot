@@ -164,7 +164,11 @@ public sealed class OverlaySdkController : ControllerBase
           // TTS plays one utterance at a time — overlapping voices are unintelligible, and a busy chat can
           // dispatch several within a second.
           var ttsQueue = [];
+          // Set by a dashboard-pushed "pause" control; playNextTts refuses to advance while true, and a
+          // fresh utterance arriving mid-pause is queued but not auto-started (see speakTts below).
+          var ttsPaused = false;
           function playNextTts() {
+            if (ttsPaused) return;
             var el = ttsQueue[0];
             if (!el) return;
             var advance = function () {
@@ -177,6 +181,38 @@ public sealed class OverlaySdkController : ControllerBase
               report("tts playback blocked: " + ((e && e.message) || e));
               advance();
             });
+          }
+
+          // Dashboard-driven live queue controls (skip/clear/pause/resume) — pushed as a "tts_queue_control"
+          // WidgetEvent from TtsConfigController's playback/* endpoints. The server never sees what is
+          // queued or playing (that state lives only here), so these mutate ttsQueue/ttsPaused directly.
+          function ttsSkip() {
+            var el = ttsQueue[0];
+            if (el) { el.pause(); ttsQueue.shift(); }
+            playNextTts();
+          }
+          function ttsClear() {
+            var el = ttsQueue[0];
+            if (el) el.pause();
+            ttsQueue = [];
+          }
+          function ttsPause() {
+            ttsPaused = true;
+            var el = ttsQueue[0];
+            if (el) el.pause();
+          }
+          function ttsResume() {
+            ttsPaused = false;
+            playNextTts();
+          }
+          function ttsQueueControl(data) {
+            switch ((data || {}).action) {
+              case "skip": ttsSkip(); break;
+              case "clear": ttsClear(); break;
+              case "pause": ttsPause(); break;
+              case "resume": ttsResume(); break;
+              default: break;
+            }
           }
 
           function stopSound(payload) {
@@ -264,7 +300,12 @@ public sealed class OverlaySdkController : ControllerBase
           // type is exactly as scoped as the raw PlaySound/TtsSpeak hub targets below -- it just also covers
           // the delivery path server code actually uses for self-host/BYOK TTS (TtsUtteranceDispatchedEvent
           // routes through WidgetAlertDispatch -> WidgetEvent, never through the raw TtsSpeak target).
-          var AUTOPLAY = { tts_speak: speakTts, play_sound: playSound, stop_sound: stopSound };
+          var AUTOPLAY = {
+            tts_speak: speakTts,
+            play_sound: playSound,
+            stop_sound: stopSound,
+            tts_queue_control: ttsQueueControl,
+          };
 
           function dispatch(target, args) {
             switch (target) {
