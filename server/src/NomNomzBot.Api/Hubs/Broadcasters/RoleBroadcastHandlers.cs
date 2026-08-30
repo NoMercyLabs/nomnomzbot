@@ -83,6 +83,15 @@ public sealed class ModeratorAddedBroadcastHandler : IEventHandler<ModeratorAdde
         if (@event.BroadcasterId == Guid.Empty)
             return;
 
+        await RoleBroadcastChannelEventLogger.LogAsync(
+            _db,
+            @event.BroadcasterId,
+            @event.EventId,
+            @event.UserId,
+            "channel.moderator.add",
+            ct
+        );
+
         HubUserEnrichment? enrichment = await _enricher.EnrichAsync(
             @event.BroadcasterId,
             @event.UserId,
@@ -144,6 +153,15 @@ public sealed class ModeratorRemovedBroadcastHandler : IEventHandler<ModeratorRe
     {
         if (@event.BroadcasterId == Guid.Empty)
             return;
+
+        await RoleBroadcastChannelEventLogger.LogAsync(
+            _db,
+            @event.BroadcasterId,
+            @event.EventId,
+            @event.UserId,
+            "channel.moderator.remove",
+            ct
+        );
 
         HubUserEnrichment? enrichment = await _enricher.EnrichAsync(
             @event.BroadcasterId,

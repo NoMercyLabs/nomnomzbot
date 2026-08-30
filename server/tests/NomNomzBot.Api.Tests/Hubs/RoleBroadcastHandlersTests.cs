@@ -362,6 +362,158 @@ public sealed class RoleBroadcastHandlersTests
         capture.ChannelEventId.Should().NotBeNull();
     }
 
+    /// <summary>
+    /// S-REPLAY-MODERATOR-CHANNELEVENT's done-when proof: unlike follow/sub/cheer/raid, moderator grants have
+    /// no sibling <c>TwitchAlertHandlerBase</c> handler logging the activity-feed row — this broadcast handler
+    /// IS the only consumer of <see cref="ModeratorAddedEvent"/>, so it must write the <see cref="ChannelEvent"/>
+    /// itself. Proves a moderator-add action produces BOTH a queryable ChannelEvent row (the same way
+    /// DashboardController.GetActivity queries them) AND a RenderedAlertCapture correlated to that same
+    /// ChannelEvent.Id (not null).
+    /// </summary>
+    [Fact]
+    public async Task ModeratorAdded_LogsChannelEvent_AndCorrelatesTheWidgetCapture_ToItsId()
+    {
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid channel = Guid.CreateVersion7();
+        Guid eventId = Guid.CreateVersion7();
+        db.Widgets.Add(
+            new()
+            {
+                Id = Guid.NewGuid(),
+                BroadcasterId = channel,
+                Name = "Moderator alert",
+                IsEnabled = true,
+                EventSubscriptions = ["moderator_added"],
+            }
+        );
+        await db.SaveChangesAsync();
+
+        ModeratorAddedBroadcastHandler handler = new(notifier, enricher, db, widgets);
+
+        await handler.HandleAsync(
+            new()
+            {
+                EventId = eventId,
+                BroadcasterId = channel,
+                UserId = "u1",
+                UserDisplayName = "UserOne",
+                UserLogin = "userone",
+            }
+        );
+
+        ChannelEvent feedRow = await db.ChannelEvents.SingleAsync(e => e.ChannelId == channel);
+        feedRow.Id.Should().Be(eventId.ToString());
+        feedRow.Type.Should().Be("channel.moderator.add");
+
+        RenderedAlertCapture capture = await db.RenderedAlertCaptures.SingleAsync(c =>
+            c.BroadcasterId == channel
+        );
+        capture.ChannelEventId.Should().Be(feedRow.Id);
+        capture.ChannelEventId.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task ModeratorAdded_ReDelivery_DoesNotDoubleLogTheChannelEvent()
+    {
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid channel = Guid.CreateVersion7();
+        Guid eventId = Guid.CreateVersion7();
+        ModeratorAddedBroadcastHandler handler = new(notifier, enricher, db, widgets);
+        ModeratorAddedEvent moderatorAdded = new()
+        {
+            EventId = eventId,
+            BroadcasterId = channel,
+            UserId = "u1",
+            UserDisplayName = "UserOne",
+            UserLogin = "userone",
+        };
+
+        await handler.HandleAsync(moderatorAdded);
+        await handler.HandleAsync(moderatorAdded);
+
+        (await db.ChannelEvents.CountAsync(e => e.ChannelId == channel)).Should().Be(1);
+    }
+
+    /// <summary>
+    /// Same S-REPLAY-MODERATOR-CHANNELEVENT proof, for the revoke side: <see cref="ModeratorRemovedEvent"/>
+    /// has the identical gap as the add side, fixed identically.
+    /// </summary>
+    [Fact]
+    public async Task ModeratorRemoved_LogsChannelEvent_AndCorrelatesTheWidgetCapture_ToItsId()
+    {
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid channel = Guid.CreateVersion7();
+        Guid eventId = Guid.CreateVersion7();
+        db.Widgets.Add(
+            new()
+            {
+                Id = Guid.NewGuid(),
+                BroadcasterId = channel,
+                Name = "Moderator alert",
+                IsEnabled = true,
+                EventSubscriptions = ["moderator_removed"],
+            }
+        );
+        await db.SaveChangesAsync();
+
+        ModeratorRemovedBroadcastHandler handler = new(notifier, enricher, db, widgets);
+
+        await handler.HandleAsync(
+            new()
+            {
+                EventId = eventId,
+                BroadcasterId = channel,
+                UserId = "u1",
+                UserDisplayName = "UserOne",
+                UserLogin = "userone",
+            }
+        );
+
+        ChannelEvent feedRow = await db.ChannelEvents.SingleAsync(e => e.ChannelId == channel);
+        feedRow.Id.Should().Be(eventId.ToString());
+        feedRow.Type.Should().Be("channel.moderator.remove");
+
+        RenderedAlertCapture capture = await db.RenderedAlertCaptures.SingleAsync(c =>
+            c.BroadcasterId == channel
+        );
+        capture.ChannelEventId.Should().Be(feedRow.Id);
+        capture.ChannelEventId.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task ModeratorRemoved_ReDelivery_DoesNotDoubleLogTheChannelEvent()
+    {
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid channel = Guid.CreateVersion7();
+        Guid eventId = Guid.CreateVersion7();
+        ModeratorRemovedBroadcastHandler handler = new(notifier, enricher, db, widgets);
+        ModeratorRemovedEvent moderatorRemoved = new()
+        {
+            EventId = eventId,
+            BroadcasterId = channel,
+            UserId = "u1",
+            UserDisplayName = "UserOne",
+            UserLogin = "userone",
+        };
+
+        await handler.HandleAsync(moderatorRemoved);
+        await handler.HandleAsync(moderatorRemoved);
+
+        (await db.ChannelEvents.CountAsync(e => e.ChannelId == channel)).Should().Be(1);
+    }
+
     [Fact]
     public async Task VipAdded_ReDelivery_DoesNotDoubleLogTheChannelEvent()
     {
