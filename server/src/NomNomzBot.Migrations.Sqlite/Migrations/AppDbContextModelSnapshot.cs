@@ -9235,6 +9235,10 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<Guid>("BroadcasterId")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ChannelEventId")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
@@ -9251,6 +9255,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "ChannelEventId")
+                        .HasDatabaseName("IX_RenderedAlertCapture_BroadcasterId_ChannelEventId");
 
                     b.HasIndex("BroadcasterId", "CreatedAt")
                         .HasDatabaseName("IX_RenderedAlertCapture_BroadcasterId_CreatedAt");

@@ -44,6 +44,7 @@ internal static class WidgetAlertDispatch
         Guid broadcasterId,
         string eventType,
         object data,
+        string? channelEventId,
         CancellationToken cancellationToken
     )
     {
@@ -56,7 +57,14 @@ internal static class WidgetAlertDispatch
 
         List<Widget> subscribers = WidgetAlertRouting.Subscribers(widgets, eventType).ToList();
         if (subscribers.Count > 0)
-            await CaptureAsync(db, broadcasterId, eventType, data, cancellationToken);
+            await CaptureAsync(
+                db,
+                broadcasterId,
+                eventType,
+                data,
+                channelEventId,
+                cancellationToken
+            );
 
         foreach (Widget widget in subscribers)
             await notifier.SendWidgetEventAsync(
@@ -78,6 +86,7 @@ internal static class WidgetAlertDispatch
         Guid broadcasterId,
         string eventType,
         object data,
+        string? channelEventId,
         CancellationToken cancellationToken
     )
     {
@@ -87,6 +96,7 @@ internal static class WidgetAlertDispatch
                 BroadcasterId = broadcasterId,
                 EventType = eventType,
                 Payload = JsonSerializer.Serialize(data),
+                ChannelEventId = channelEventId,
             }
         );
         await db.SaveChangesAsync(cancellationToken);
@@ -142,6 +152,8 @@ public sealed class WidgetNowPlayingHandler(IApplicationDbContext db, IWidgetNot
                 progressMs = @event.ProgressMs,
                 observedAt = @event.ObservedAt,
             },
+            // Standing music-state snapshot, not a ChannelEvent-backed feed item.
+            channelEventId: null,
             cancellationToken
         );
 }
@@ -170,6 +182,8 @@ public sealed class WidgetTrackSavedHandler(IApplicationDbContext db, IWidgetNot
                 artist = @event.Artist,
                 isSaved = @event.IsSaved,
             },
+            // Transient music-widget animation trigger, not a ChannelEvent-backed feed item.
+            channelEventId: null,
             cancellationToken
         );
 }

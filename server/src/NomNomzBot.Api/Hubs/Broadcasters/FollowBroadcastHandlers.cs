@@ -72,6 +72,7 @@ public sealed class FollowBroadcastHandler : IEventHandler<FollowEvent>
             @event.BroadcasterId,
             "follow",
             dto,
+            @event.EventId.ToString(),
             ct
         );
     }

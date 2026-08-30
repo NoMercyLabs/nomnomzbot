@@ -54,6 +54,10 @@ public sealed class TtsSpeakBroadcastHandler(
                 durationMs = @event.DurationMs,
                 audioUrl = @event.AudioUrl,
             },
+            // TtsUtteranceDispatchedEvent carries no reference to a triggering redemption/event — a viewer's
+            // !tts request never logs a ChannelEvent row at all (only the reward/command trigger, if any,
+            // would), so there is nothing to correlate here. Genuinely null, not a fuzzy time-window join.
+            channelEventId: null,
             cancellationToken
         );
     }

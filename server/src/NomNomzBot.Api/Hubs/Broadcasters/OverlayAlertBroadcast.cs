@@ -38,6 +38,7 @@ internal static class OverlayAlertBroadcast
         Guid broadcasterId,
         string eventType,
         object decoratedData,
+        string? channelEventId,
         CancellationToken cancellationToken
     )
     {
@@ -59,6 +60,7 @@ internal static class OverlayAlertBroadcast
             broadcasterId,
             eventType,
             decoratedData,
+            channelEventId,
             cancellationToken
         );
     }

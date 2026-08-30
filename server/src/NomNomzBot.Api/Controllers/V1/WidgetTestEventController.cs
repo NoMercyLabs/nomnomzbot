@@ -80,6 +80,8 @@ public sealed class WidgetTestEventController : BaseController
             broadcasterId,
             request.EventType,
             data,
+            // A manual test fire from the dashboard — no originating ChannelEvent row.
+            channelEventId: null,
             ct
         );
         return Ok(

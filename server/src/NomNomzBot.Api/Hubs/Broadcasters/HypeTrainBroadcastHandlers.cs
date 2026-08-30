@@ -82,6 +82,7 @@ public sealed class HypeTrainBeganBroadcastHandler : IEventHandler<HypeTrainBega
             @event.BroadcasterId,
             "hype_train_begin",
             dto,
+            @event.EventId.ToString(),
             ct
         );
     }
@@ -133,6 +134,7 @@ public sealed class HypeTrainProgressBroadcastHandler : IEventHandler<HypeTrainP
             @event.BroadcasterId,
             "hype_train_progress",
             dto,
+            @event.EventId.ToString(),
             ct
         );
     }
@@ -182,6 +184,7 @@ public sealed class HypeTrainEndedBroadcastHandler : IEventHandler<HypeTrainEnde
             @event.BroadcasterId,
             "hype_train_end",
             dto,
+            @event.EventId.ToString(),
             ct
         );
     }

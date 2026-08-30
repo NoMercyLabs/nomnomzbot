@@ -82,6 +82,10 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
 
     public DbSet<Widget> Widgets => Set<Widget>();
     public DbSet<RenderedAlertCapture> RenderedAlertCaptures => Set<RenderedAlertCapture>();
+
+    // Mapped (not throwing) so S-REPLAY-CORRELATION tests can seed a REAL ChannelEvent row and prove a
+    // capture's ChannelEventId actually resolves against it — not just string equality in isolation.
+    public DbSet<ChannelEvent> ChannelEvents => Set<ChannelEvent>();
     public DbSet<WidgetVersion> WidgetVersions => throw new NotSupportedException();
     public DbSet<WidgetGalleryItem> WidgetGalleryItems => throw new NotSupportedException();
     public DbSet<WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
@@ -105,6 +109,13 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
                 );
         });
 
+        b.Entity<ChannelEvent>(e =>
+        {
+            e.HasKey(c => c.Id);
+            e.Ignore(c => c.Channel);
+            e.Ignore(c => c.User);
+        });
+
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
@@ -113,7 +124,12 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
         b.ApplySqliteCompatibility();
     }
 
-    private static readonly HashSet<Type> Mapped = [typeof(Widget), typeof(RenderedAlertCapture)];
+    private static readonly HashSet<Type> Mapped =
+    [
+        typeof(Widget),
+        typeof(RenderedAlertCapture),
+        typeof(ChannelEvent),
+    ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
     [
@@ -180,7 +196,6 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<Domain.Giveaways.Entities.GiveawayCode> GiveawayCodes =>
         throw new NotSupportedException();
-    public DbSet<ChannelEvent> ChannelEvents => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Configuration> Configurations =>

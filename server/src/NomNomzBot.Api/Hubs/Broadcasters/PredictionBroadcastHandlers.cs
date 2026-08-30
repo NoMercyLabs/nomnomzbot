@@ -77,6 +77,7 @@ public sealed class PredictionBeganBroadcastHandler : IEventHandler<PredictionBe
             @event.BroadcasterId,
             "prediction_begin",
             dto,
+            @event.EventId.ToString(),
             ct
         );
     }
@@ -126,6 +127,7 @@ public sealed class PredictionProgressBroadcastHandler : IEventHandler<Predictio
             @event.BroadcasterId,
             "prediction_progress",
             dto,
+            @event.EventId.ToString(),
             ct
         );
     }
@@ -174,6 +176,7 @@ public sealed class PredictionLockedBroadcastHandler : IEventHandler<PredictionL
             @event.BroadcasterId,
             "prediction_lock",
             dto,
+            @event.EventId.ToString(),
             ct
         );
     }
@@ -224,6 +227,7 @@ public sealed class PredictionEndedBroadcastHandler : IEventHandler<PredictionEn
             @event.BroadcasterId,
             "prediction_end",
             dto,
+            @event.EventId.ToString(),
             ct
         );
     }

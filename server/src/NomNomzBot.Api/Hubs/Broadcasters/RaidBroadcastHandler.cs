@@ -60,6 +60,7 @@ public sealed class RaidBroadcastHandler : IEventHandler<RaidEvent>
             @event.BroadcasterId,
             "raid",
             dto,
+            @event.EventId.ToString(),
             ct
         );
     }

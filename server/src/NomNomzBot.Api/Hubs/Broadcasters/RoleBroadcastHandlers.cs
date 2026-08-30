@@ -71,6 +71,7 @@ public sealed class ModeratorAddedBroadcastHandler : IEventHandler<ModeratorAdde
             @event.BroadcasterId,
             "moderator_added",
             dto,
+            @event.EventId.ToString(),
             ct
         );
     }
@@ -132,6 +133,7 @@ public sealed class ModeratorRemovedBroadcastHandler : IEventHandler<ModeratorRe
             @event.BroadcasterId,
             "moderator_removed",
             dto,
+            @event.EventId.ToString(),
             ct
         );
     }
@@ -193,6 +195,7 @@ public sealed class VipAddedBroadcastHandler : IEventHandler<VipAddedEvent>
             @event.BroadcasterId,
             "vip_added",
             dto,
+            @event.EventId.ToString(),
             ct
         );
     }
@@ -254,6 +257,7 @@ public sealed class VipRemovedBroadcastHandler : IEventHandler<VipRemovedEvent>
             @event.BroadcasterId,
             "vip_removed",
             dto,
+            @event.EventId.ToString(),
             ct
         );
     }

@@ -60,6 +60,7 @@ public sealed class ShoutoutSentBroadcastHandler : IEventHandler<ShoutoutSentEve
             @event.BroadcasterId,
             "shoutout_sent",
             dto,
+            @event.EventId.ToString(),
             ct
         );
     }
@@ -125,6 +126,7 @@ public sealed class ShoutoutReceivedBroadcastHandler : IEventHandler<ShoutoutRec
             @event.BroadcasterId,
             "shoutout_received",
             dto,
+            @event.EventId.ToString(),
             ct
         );
     }

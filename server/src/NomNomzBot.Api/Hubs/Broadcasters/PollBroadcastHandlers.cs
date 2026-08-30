@@ -62,6 +62,7 @@ public sealed class PollBeganBroadcastHandler : IEventHandler<PollBeganEvent>
             @event.BroadcasterId,
             "poll_begin",
             dto,
+            @event.EventId.ToString(),
             ct
         );
     }
@@ -111,6 +112,7 @@ public sealed class PollProgressBroadcastHandler : IEventHandler<PollProgressEve
             @event.BroadcasterId,
             "poll_progress",
             dto,
+            @event.EventId.ToString(),
             ct
         );
     }
@@ -156,6 +158,7 @@ public sealed class PollEndedBroadcastHandler : IEventHandler<PollEndedEvent>
             @event.BroadcasterId,
             "poll_end",
             dto,
+            @event.EventId.ToString(),
             ct
         );
     }

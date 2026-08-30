@@ -35,6 +35,8 @@ public sealed class SrQueueBroadcastHandler(IApplicationDbContext db, IWidgetNot
             @event.BroadcasterId,
             "sr_queue",
             new { items = @event.Items },
+            // Standing queue snapshot — not a ChannelEvent-backed feed item.
+            channelEventId: null,
             cancellationToken
         );
 }
