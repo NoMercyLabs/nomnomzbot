@@ -592,6 +592,10 @@
     <string name="songrequests_row_description">%1$s, %2$s, aangevraagd door %3$s</string>
     <string name="tts_status_enabled">TTS ingeschakeld</string>
     <string name="tts_status_disabled">TTS uitgeschakeld</string>
+    <string name="tts_overlay_title">OBS-overlay</string>
+    <string name="tts_overlay_url_label">Browserbron-URL</string>
+    <string name="tts_overlay_never_ran">Nog niet gedraaid</string>
+    <string name="tts_overlay_last_ran">%1$dm geleden gedraaid</string>
     <string name="tts_label_voice">Standaardstem</string>
     <string name="tts_voices_title">Beschikbare stemmen</string>
     <string name="tts_voices_count">%1$d stemmen om uit te kiezen</string>

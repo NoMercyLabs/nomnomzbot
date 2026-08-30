@@ -115,6 +115,13 @@ interface TtsApi {
 
     /** Reset the signed-in viewer's OWN voice back to the channel default (404 = nothing set = success). */
     suspend fun clearMyVoice(channelId: String): ApiResult<Unit>
+
+    /**
+     * The channel's auto-provisioned TTS overlay (backend `GET /tts/overlay`) — get-or-creates the system
+     * `tts_caption` widget for this channel, so a fresh channel gets a working OBS browser-source URL with
+     * no gallery install step.
+     */
+    suspend fun overlay(channelId: String): ApiResult<TtsOverlay>
 }
 
 class RestTtsApi(private val client: ApiClient) : TtsApi {
@@ -262,6 +269,10 @@ class RestTtsApi(private val client: ApiClient) : TtsApi {
             is ApiResult.Failure ->
                 if (result.error.status == 404) ApiResult.Ok(Unit) else ApiResult.Failure(result.error)
         }
+
+    // The overlay is a StatusResponseDto<TtsOverlayDto> envelope — getEnvelope unwraps `data`.
+    override suspend fun overlay(channelId: String): ApiResult<TtsOverlay> =
+        client.getEnvelope("api/v1/channels/$channelId/tts/overlay")
 }
 
 /** The channel's TTS configuration (backend `TtsConfigDto`). Field names mirror the DTO camelCase exactly. */
@@ -419,3 +430,11 @@ data class UpsertTtsLexiconEntryBody(
     val replacement: String,
     val matchKind: String = "word",
 )
+
+/**
+ * The channel's auto-provisioned TTS overlay (backend `TtsOverlayDto`): [overlayUrl] is the OBS
+ * browser-source URL to paste in, [lastRanAt] (ISO-8601, UTC) is when it last actually ran — null
+ * when the overlay has never reported running yet.
+ */
+@Serializable
+data class TtsOverlay(val overlayUrl: String = "", val lastRanAt: String? = null)

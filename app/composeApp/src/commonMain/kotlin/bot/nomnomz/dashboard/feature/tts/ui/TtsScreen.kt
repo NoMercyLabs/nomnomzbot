@@ -33,14 +33,17 @@ import bot.nomnomz.dashboard.core.designsystem.component.PickerRef
 import bot.nomnomz.dashboard.core.designsystem.component.SearchPickerField
 import bot.nomnomz.dashboard.core.designsystem.component.RevealableSecretField
 import bot.nomnomz.dashboard.core.designsystem.component.Card
+import bot.nomnomz.dashboard.core.designsystem.component.CopyValue
 import androidx.compose.material3.Text
 
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.CheckCircleGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.PlayCircleGlyph
 import bot.nomnomz.dashboard.core.io.playSoundPreview
+import bot.nomnomz.dashboard.feature.tts.state.TtsOverlaySchedule
 import bot.nomnomz.dashboard.feature.tts.state.VoiceBrowserState
 import kotlinx.coroutines.delay
+import kotlinx.datetime.Clock
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -75,6 +78,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.TtsConfig
 import bot.nomnomz.dashboard.core.network.TtsLexiconEntry
+import bot.nomnomz.dashboard.core.network.TtsOverlay
 import bot.nomnomz.dashboard.core.network.TtsQueueEntry
 import bot.nomnomz.dashboard.core.network.TtsTestResult
 import bot.nomnomz.dashboard.core.network.TtsVoice
@@ -166,8 +170,14 @@ import nomnomzbot.composeapp.generated.resources.tts_save
 import nomnomzbot.composeapp.generated.resources.tts_save_error
 import nomnomzbot.composeapp.generated.resources.tts_saved
 import nomnomzbot.composeapp.generated.resources.tts_saving
+import nomnomzbot.composeapp.generated.resources.tts_overlay_last_ran
+import nomnomzbot.composeapp.generated.resources.tts_overlay_never_ran
+import nomnomzbot.composeapp.generated.resources.tts_overlay_title
+import nomnomzbot.composeapp.generated.resources.tts_overlay_url_label
 import nomnomzbot.composeapp.generated.resources.tts_status_disabled
 import nomnomzbot.composeapp.generated.resources.tts_status_enabled
+import nomnomzbot.composeapp.generated.resources.widgets_url_copied
+import nomnomzbot.composeapp.generated.resources.widgets_url_copy
 import nomnomzbot.composeapp.generated.resources.tts_toggle_enabled
 import nomnomzbot.composeapp.generated.resources.tts_viewer_voice_assign
 import nomnomzbot.composeapp.generated.resources.tts_viewer_voice_clear
@@ -369,6 +379,7 @@ private fun ReadyContent(
     ) {
         PageHeader(title = stringResource(Res.string.shell_nav_tts))
         StatusBanner(isEnabled = isEnabled)
+        OverlayCard(overlay = state.overlay)
 
         EditCard(
             isEnabled = isEnabled,
@@ -1508,6 +1519,40 @@ private fun StatusBanner(isEnabled: Boolean) {
                     .background(if (isEnabled) tokens.primary else tokens.mutedForeground),
             )
             Text(text = statusText, style = typography.xl, color = tokens.cardForeground)
+        }
+    }
+}
+
+// The auto-provisioned OBS overlay (widgets-overlays.md §1.2, backend GET /tts/overlay): a copyable
+// browser-source URL plus a human "last ran X ago" / "never ran" signal — never a raw timestamp. Renders
+// nothing while the overlay hasn't loaded yet ([overlay] null on first composition or a resilient failure
+// per [bot.nomnomz.dashboard.feature.tts.state.TtsController.load]); the rest of the page still shows.
+@Composable
+private fun OverlayCard(overlay: TtsOverlay?) {
+    if (overlay == null) return
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    val now = remember { Clock.System.now() }
+
+    val lastRanText: String =
+        TtsOverlaySchedule.minutesSinceLastRan(overlay.lastRanAt, now)?.let { minutesAgo ->
+            stringResource(Res.string.tts_overlay_last_ran, minutesAgo.coerceAtLeast(0).toInt())
+        } ?: stringResource(Res.string.tts_overlay_never_ran)
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
+            verticalArrangement = Arrangement.spacedBy(spacing.s2),
+        ) {
+            Text(text = stringResource(Res.string.tts_overlay_title), style = typography.xl, color = tokens.cardForeground)
+            Text(text = stringResource(Res.string.tts_overlay_url_label), style = typography.xs, color = tokens.mutedForeground)
+            CopyValue(
+                value = overlay.overlayUrl,
+                copyLabel = stringResource(Res.string.widgets_url_copy),
+                copiedLabel = stringResource(Res.string.widgets_url_copied),
+            )
+            Text(text = lastRanText, style = typography.xs, color = tokens.mutedForeground)
         }
     }
 }
