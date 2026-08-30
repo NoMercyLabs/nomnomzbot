@@ -259,21 +259,11 @@ than each consumer needing their own clone-and-customize pass.
   pipelines (`TemplateHelpersLink`/`TemplateHelpersDialog`, chip scroller removed). Remaining: rewards
   and giveaways have no free-text template field to wire it into yet — wire it in when S063 adds the
   rewards `Response` field and when giveaways grows an announcement-text field (U·A7, W·§8 i7).
-- **S046-remaining** Authoring ergonomics — branching in the step dialog. Wire-format prereq
-  (`parentStepId`/`branch`/`blockKind`/`blockConfig`/`order` both directions, c401253e) and `if`/
-  then-else block editing (ba140ecb, condition-field bug found and fixed same session — 293b9ec7:
-  the condition must live in the step's `condition` field like any leaf step, never `blockConfig`,
-  since `PipelineEngine.cs` only ever evaluates `step.Conditions` for an `if` block) both DONE and
-  verified. `switch`/`switch_case` block editing also DONE and verified (c3f5a6f9 — reads
-  `BlockConfigJson`→`{value}`/`{match,operator,is_default}` per `PipelineTreeTypes.cs:119-135`,
-  `PipelineEngine.cs` `ExecuteSwitchAsync`). `loop` (repeat/foreach/while) also DONE and verified
-  (cde1f5fa — `LoopBlockConfig{mode,count,list_var,max_iterations,max_loop_runtime_seconds}` on
-  `blockConfig`; while-mode condition on `condition` like `if`; body lane uses `branch=null`, no label
-  needed). `random_branch`/`random_case` also DONE and verified (05b7bb85 — cases carry no `Branch`
-  value, `parentStepId` alone disambiguates, weight on `blockConfig`). Remaining: `try` block kind, same
-  pattern — confirm the engine's exact field(s)/lane-label BEFORE coding
-  (U·B1, W·§6/§8 i6). Out-of-scope note: chat-triggers and automation screens also bind pipelines via a
-  plain picker and would benefit from `PipelineBindPicker` too — not yet done.
+(empty — S046-remaining fully shipped: wire-format prereq c401253e, if ba140ecb/293b9ec7, switch
+c3f5a6f9, loop cde1f5fa, random_branch 05b7bb85, try 34e75021, all verified. Out-of-scope notes filed:
+chat-triggers/automation screens could still use `PipelineBindPicker` (not yet done); the 5
+Block*Card composables in `PipelinesScreen.kt` are near-duplicated and could share an abstraction
+later.)
 - **S050** Shell truth — DONE. Hub-state dot now reads `DashboardHubClient.connectionState`
   (Connected/Reconnecting/Disconnected) instead of a hardcoded fill, rendered in both the compact top bar and
   the persistent desktop sidebar; proved with a real-socket jvmTest (drop → Reconnecting within the liveness
