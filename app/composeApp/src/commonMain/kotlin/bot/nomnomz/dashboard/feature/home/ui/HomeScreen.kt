@@ -92,6 +92,7 @@ import bot.nomnomz.dashboard.core.network.StreamInfo
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.feature.home.state.HomeController
 import bot.nomnomz.dashboard.feature.home.state.HomeState
+import bot.nomnomz.dashboard.feature.home.state.ReplayStatus
 import bot.nomnomz.dashboard.feature.chatpolls.state.ChatPollsController
 import bot.nomnomz.dashboard.feature.chatpolls.ui.ChatPollsCard
 import bot.nomnomz.dashboard.feature.liveops.state.LiveOpsController
@@ -128,6 +129,11 @@ import nomnomzbot.composeapp.generated.resources.home_activity_raid
 import nomnomzbot.composeapp.generated.resources.home_activity_raid_with_viewers
 import nomnomzbot.composeapp.generated.resources.home_activity_redemption
 import nomnomzbot.composeapp.generated.resources.home_activity_redemption_named
+import nomnomzbot.composeapp.generated.resources.home_activity_replay_button
+import nomnomzbot.composeapp.generated.resources.home_activity_replay_failed
+import nomnomzbot.composeapp.generated.resources.home_activity_replay_in_progress
+import nomnomzbot.composeapp.generated.resources.home_activity_replay_nothing
+import nomnomzbot.composeapp.generated.resources.home_activity_replay_success
 import nomnomzbot.composeapp.generated.resources.home_activity_resub
 import nomnomzbot.composeapp.generated.resources.home_activity_section
 import nomnomzbot.composeapp.generated.resources.home_activity_subscribe
@@ -246,6 +252,7 @@ fun HomeScreen(
                     activity = current.activity,
                     topCommands = current.topCommands,
                     streamError = current.streamError,
+                    replayStatus = current.replayStatus,
                     liveOpsController = liveOpsController,
                     chatPollsController = chatPollsController,
                     heldActionKeys = heldActionKeys,
@@ -254,6 +261,7 @@ fun HomeScreen(
                     },
                     onSearchCategories = controller::searchCategories,
                     onSearchRaidTargets = controller::searchRaidTargets,
+                    onReplay = { eventId -> scope.launch { controller.replay(eventId) } },
                 )
         }
     }
@@ -268,12 +276,14 @@ private fun ReadyContent(
     activity: List<ActivityEvent>,
     topCommands: List<CommandSummary>,
     streamError: String?,
+    replayStatus: Map<String, ReplayStatus>,
     liveOpsController: LiveOpsController,
     chatPollsController: ChatPollsController,
     heldActionKeys: Set<String>,
     onUpdateStream: (title: String?, game: String?, tags: List<String>?) -> Unit,
     onSearchCategories: suspend (String) -> List<PickerOption>,
     onSearchRaidTargets: suspend (String) -> List<PickerOption>,
+    onReplay: (eventId: String) -> Unit,
 ) {
     val spacing = LocalSpacing.current
     val scope = rememberCoroutineScope()
@@ -328,6 +338,9 @@ private fun ReadyContent(
         ) {
             ActivityFeedCard(
                 events = activity,
+                replayStatus = replayStatus,
+                heldActionKeys = heldActionKeys,
+                onReplay = onReplay,
                 modifier = Modifier.weight(1.6f),
             )
 
@@ -663,7 +676,13 @@ private fun StatTile(modifier: Modifier, label: String, value: String) {
 // ─── Activity feed ────────────────────────────────────────────────────────────
 
 @Composable
-private fun ActivityFeedCard(events: List<ActivityEvent>, modifier: Modifier = Modifier) {
+private fun ActivityFeedCard(
+    events: List<ActivityEvent>,
+    replayStatus: Map<String, ReplayStatus>,
+    heldActionKeys: Set<String>,
+    onReplay: (eventId: String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -687,7 +706,14 @@ private fun ActivityFeedCard(events: List<ActivityEvent>, modifier: Modifier = M
                 modifier = Modifier.fillMaxWidth().padding(vertical = spacing.s4),
             )
         } else {
-            events.forEach { event -> ActivityRow(event = event) }
+            events.forEach { event ->
+                ActivityRow(
+                    event = event,
+                    replayStatus = replayStatus[event.id],
+                    heldActionKeys = heldActionKeys,
+                    onReplay = { onReplay(event.id) },
+                )
+            }
         }
     }
     }
@@ -757,7 +783,12 @@ private fun formatDuration(seconds: Int): String =
     }
 
 @Composable
-private fun ActivityRow(event: ActivityEvent) {
+private fun ActivityRow(
+    event: ActivityEvent,
+    replayStatus: ReplayStatus?,
+    heldActionKeys: Set<String>,
+    onReplay: () -> Unit,
+) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -851,6 +882,17 @@ private fun ActivityRow(event: ActivityEvent) {
         else -> tokens.mutedForeground
     }
 
+    // Mirrors the backend's `dashboard:replay` action key (Mod floor) — the SAME per-action authorization the
+    // panel's other write actions gate on, not a client-guessed role. Disable (never hide) below the floor, with
+    // the reason as a hover tooltip — the house rule for every gated action in this screen.
+    val manage: ManageDecision = rememberManageDecisionForAction(heldActionKeys, "dashboard:replay")
+    val replayReason: String? = manage.deniedReason?.takeIf { it.isNotBlank() }
+    // Only THIS row disables while its own replay is in flight — other rows are unaffected, per-event by id.
+    val inFlight: Boolean = replayStatus is ReplayStatus.InFlight
+    val replayEnabled: Boolean = manage is ManageDecision.Allowed && !inFlight
+    val replayLabel: String = stringResource(Res.string.home_activity_replay_button)
+    val inFlightReason: String? = if (inFlight) stringResource(Res.string.home_activity_replay_in_progress) else null
+
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = spacing.s1),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -867,12 +909,45 @@ private fun ActivityRow(event: ActivityEvent) {
                     .clip(CircleShape)
                     .background(dotColor),
             )
-            Text(
-                text = label,
-                style = typography.sm,
-                color = tokens.cardForeground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+            Column {
+                Text(
+                    text = label,
+                    style = typography.sm,
+                    color = tokens.cardForeground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                // A distinct, truthful confirmation per outcome — never the same generic line for "replayed" and
+                // "nothing to replay": the streamer needs to know whether the viewer actually saw it again.
+                when (replayStatus) {
+                    is ReplayStatus.Replayed ->
+                        Text(
+                            text = stringResource(Res.string.home_activity_replay_success),
+                            style = typography.xs,
+                            color = tokens.primary,
+                        )
+                    is ReplayStatus.NothingToReplay ->
+                        Text(
+                            text = stringResource(Res.string.home_activity_replay_nothing),
+                            style = typography.xs,
+                            color = tokens.mutedForeground,
+                        )
+                    is ReplayStatus.Failed ->
+                        Text(
+                            text = stringResource(Res.string.home_activity_replay_failed),
+                            style = typography.xs,
+                            color = tokens.destructive,
+                        )
+                    is ReplayStatus.InFlight, null -> Unit
+                }
+            }
+        }
+        Tooltip(text = replayReason ?: inFlightReason ?: replayLabel) {
+            GlyphButton(
+                icon = RefreshGlyph,
+                label = replayLabel,
+                onClick = onReplay,
+                enabled = replayEnabled,
             )
         }
         Text(

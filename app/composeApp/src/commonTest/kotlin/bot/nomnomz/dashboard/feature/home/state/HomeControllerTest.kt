@@ -26,6 +26,7 @@ import bot.nomnomz.dashboard.core.network.ChannelSearchResult
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.DashboardApi
 import bot.nomnomz.dashboard.core.network.DashboardStats
+import bot.nomnomz.dashboard.core.network.ReplayResult
 import bot.nomnomz.dashboard.core.network.StreamApi
 import bot.nomnomz.dashboard.core.network.StreamInfo
 import bot.nomnomz.dashboard.core.network.StreamInfoUpdate
@@ -252,6 +253,103 @@ class HomeControllerTest {
     }
 
     @Test
+    fun replay_calls_the_api_with_the_clicked_rows_exact_event_id_and_marks_it_replayed() = runTest {
+        val dashboardApi = FakeDashboardApi(
+            result = ApiResult.Ok(DashboardStats()),
+            replayResult = ApiResult.Ok(ReplayResult(widgetsNotified = 3)),
+        )
+        val controller = HomeController(
+            channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+            dashboardApi = dashboardApi,
+            streamApi = FakeStreamApi(),
+            commandsApi = FakeCommandsApi(),
+            communityApi = FakeCommunityApi(),
+        )
+        controller.load()
+
+        controller.replay("evt-target")
+
+        assertEquals("ch1" to "evt-target", dashboardApi.lastReplayCall)
+        val ready: HomeState.Ready = controller.state.value as HomeState.Ready
+        val status: ReplayStatus? = ready.replayStatus["evt-target"]
+        assertTrue(status is ReplayStatus.Replayed)
+        assertEquals(3, (status as ReplayStatus.Replayed).widgetsNotified)
+    }
+
+    @Test
+    fun replay_on_a_404_marks_the_row_nothing_to_replay_not_a_generic_failure() = runTest {
+        val dashboardApi = FakeDashboardApi(
+            result = ApiResult.Ok(DashboardStats()),
+            replayResult = ApiResult.Failure(ApiError(404, "NOT_FOUND", "nothing captured")),
+        )
+        val controller = HomeController(
+            channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+            dashboardApi = dashboardApi,
+            streamApi = FakeStreamApi(),
+            commandsApi = FakeCommandsApi(),
+            communityApi = FakeCommunityApi(),
+        )
+        controller.load()
+
+        controller.replay("evt-uncaptured")
+
+        val ready: HomeState.Ready = controller.state.value as HomeState.Ready
+        assertEquals(ReplayStatus.NothingToReplay, ready.replayStatus["evt-uncaptured"])
+    }
+
+    @Test
+    fun replay_on_a_non_404_failure_marks_the_row_failed_distinctly_from_nothing_to_replay() = runTest {
+        val dashboardApi = FakeDashboardApi(
+            result = ApiResult.Ok(DashboardStats()),
+            replayResult = ApiResult.Failure(ApiError(500, "ERR", "widget notifier unreachable")),
+        )
+        val controller = HomeController(
+            channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+            dashboardApi = dashboardApi,
+            streamApi = FakeStreamApi(),
+            commandsApi = FakeCommandsApi(),
+            communityApi = FakeCommunityApi(),
+        )
+        controller.load()
+
+        controller.replay("evt-broken")
+
+        val ready: HomeState.Ready = controller.state.value as HomeState.Ready
+        val status: ReplayStatus? = ready.replayStatus["evt-broken"]
+        assertTrue(status is ReplayStatus.Failed)
+        assertEquals("widget notifier unreachable", (status as ReplayStatus.Failed).message)
+    }
+
+    @Test
+    fun replay_disables_only_the_clicked_row_while_in_flight_leaving_other_rows_untouched() = runTest {
+        // Prove per-event isolation: mark one row's prior outcome, then start a NEW in-flight replay on a
+        // different row and confirm the first row's earlier outcome survives untouched (not wiped/overwritten).
+        val dashboardApi = FakeDashboardApi(
+            result = ApiResult.Ok(DashboardStats()),
+            replayResult = ApiResult.Ok(ReplayResult(widgetsNotified = 1)),
+        )
+        val controller = HomeController(
+            channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+            dashboardApi = dashboardApi,
+            streamApi = FakeStreamApi(),
+            commandsApi = FakeCommandsApi(),
+            communityApi = FakeCommunityApi(),
+        )
+        controller.load()
+
+        controller.replay("evt-first")
+        val afterFirst: HomeState.Ready = controller.state.value as HomeState.Ready
+        assertTrue(afterFirst.replayStatus["evt-first"] is ReplayStatus.Replayed)
+        assertNull(afterFirst.replayStatus["evt-second"])
+
+        controller.replay("evt-second")
+        val afterSecond: HomeState.Ready = controller.state.value as HomeState.Ready
+        // evt-first's outcome from its own completed call is unaffected by evt-second's run.
+        assertTrue(afterSecond.replayStatus["evt-first"] is ReplayStatus.Replayed)
+        assertTrue(afterSecond.replayStatus["evt-second"] is ReplayStatus.Replayed)
+    }
+
+    @Test
     fun load_survives_commands_api_failure_and_shows_empty_top_commands() = runTest {
         val controller =
             HomeController(
@@ -289,10 +387,22 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
     override suspend fun moderatedChannels(): ApiResult<List<ModeratedChannel>> = ApiResult.Ok(emptyList())
 }
 
-private class FakeDashboardApi(private val result: ApiResult<DashboardStats>) : DashboardApi {
+private class FakeDashboardApi(
+    private val result: ApiResult<DashboardStats>,
+    private val replayResult: ApiResult<ReplayResult> = ApiResult.Ok(ReplayResult(widgetsNotified = 1)),
+) : DashboardApi {
+    /** The (channelId, eventId) pair of the last [replay] call — asserted against to prove the right row fired. */
+    var lastReplayCall: Pair<String, String>? = null
+        private set
+
     override suspend fun stats(channelId: String): ApiResult<DashboardStats> = result
     override suspend fun activity(channelId: String): ApiResult<List<ActivityEvent>> =
         ApiResult.Ok(emptyList())
+
+    override suspend fun replay(channelId: String, eventId: String): ApiResult<ReplayResult> {
+        lastReplayCall = channelId to eventId
+        return replayResult
+    }
 }
 
 private class FakeStreamApi(
