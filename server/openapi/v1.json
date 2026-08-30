@@ -28415,6 +28415,16 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIReadOnlyListOfFeatureFlagDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "content": {
@@ -28513,6 +28523,16 @@
           "required": true
         },
         "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfFeatureFlagDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "content": {
@@ -81053,6 +81073,59 @@
         },
         "description": "A consequence a row count cannot express: something OUTSIDE our database stops working. Deleting a channel\r\nrevokes an overlay token every live OBS browser source is polling, drops EventSub subscriptions registered\r\nwith Twitch, and orphans channel-point rewards created under our client id — none of which is \"N rows\".\r\nConsequenceKey is an i18n resource KEY naming the effect (\"N Twitch channel-point\r\nrewards stop working\"), never a table name and never a sentence."
       },
+      "FeatureFlagDto": {
+        "required": [
+          "key",
+          "description",
+          "isEnabledGlobally",
+          "rolloutPercentage",
+          "minTierKey",
+          "requiresConsent",
+          "deploymentMode"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isEnabledGlobally": {
+            "type": "boolean"
+          },
+          "rolloutPercentage": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "minTierKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "requiresConsent": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "deploymentMode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "A feature flag's global definition (admin view)."
+      },
       "FeatureStatusDto": {
         "required": [
           "featureKey",
@@ -92007,6 +92080,36 @@
           }
         }
       },
+      "StatusResponseDtoOfFeatureFlagDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FeatureFlagDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfFeatureStatusDto": {
         "type": "object",
         "properties": {
@@ -93080,6 +93183,35 @@
             ],
             "items": {
               "$ref": "#/components/schemas/EventResponsePresetDto"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfIReadOnlyListOfFeatureFlagDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/FeatureFlagDto"
             }
           },
           "message": {

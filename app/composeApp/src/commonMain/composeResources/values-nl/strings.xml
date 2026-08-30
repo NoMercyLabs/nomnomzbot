@@ -3039,6 +3039,7 @@
     <string name="admin_system_memory">Geheugen: %1$d MB</string>
     <string name="admin_system_cpu">CPU: %1$.1f%%</string>
     <string name="admin_flag_enabled">Ingeschakeld</string>
+    <string name="admin_flag_enabled_rollout">Ingeschakeld — %1$d%%</string>
     <string name="admin_flag_disabled">Uitgeschakeld</string>
     <string name="admin_invite_redemptions">%1$d / %2$d inwisselingen</string>
     <string name="admin_invite_expires">Vervalt: %1$s</string>

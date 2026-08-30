@@ -333,7 +333,13 @@ private class FakeAdminApi(
     override suspend fun getEvents(): ApiResult<List<PlatformEvent>> = ApiResult.Ok(emptyList())
     override suspend fun getFeatureFlags(): ApiResult<List<FeatureFlag>> = ApiResult.Ok(emptyList())
     override suspend fun setFeatureFlag(body: AdminSetFeatureFlagRequest): ApiResult<FeatureFlag> =
-        ApiResult.Ok(FeatureFlag(featureKey = body.key, isEnabled = body.isEnabledGlobally))
+        ApiResult.Ok(
+            FeatureFlag(
+                key = body.key,
+                isEnabledGlobally = body.isEnabledGlobally,
+                rolloutPercentage = body.rolloutPercentage,
+            )
+        )
     override suspend fun setFeatureFlagOverride(flagKey: String, broadcasterId: String, body: AdminSetFeatureFlagOverrideRequest): ApiResult<Unit> =
         ApiResult.Ok(Unit)
     override suspend fun deleteFeatureFlagOverride(flagKey: String, broadcasterId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
