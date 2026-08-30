@@ -217,5 +217,6 @@ internal fun groupTemplateHelpers(
 ): List<Pair<String, List<TemplateHelperDto>>> =
     helpers
         .groupBy { it.key.substringBefore('.', missingDelimiterValue = it.key) }
-        .toSortedMap()
+        .entries
+        .sortedBy { it.key }
         .map { (namespace, entries) -> namespace to entries }
