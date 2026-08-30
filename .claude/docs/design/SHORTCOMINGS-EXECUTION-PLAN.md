@@ -295,10 +295,13 @@ later.)
   - **S052-frontend-overlay-card**: the TTS dashboard page (`feature/tts/`) doesn't call the new
     `GET tts/overlay` endpoint yet — wire it in so the page actually SHOWS the auto-provisioned URL +
     last-seen, instead of requiring a manual gallery add.
-  - **S052-audio-queue**: confirm/build the ordered audio-queue behavior (`audioUrl` segments played
-    in order, caption optional) — verify against the current `tts_caption.vue` widget implementation,
-    which per prior audit notes (U-adjacent) renders a caption and may still ignore `audioUrl`/queueing
-    entirely; if so this is the actual audibility gap, not just provisioning.
+  - **S052-audio-queue** — DONE, verified: already correctly implemented, no change needed.
+    `OverlaySdkController.cs` builds `<audio>` elements from `payload.audioUrl` and queues them
+    (`ttsQueue`/`playNextTts()`), strictly sequential, advances past a failed utterance — the prior
+    audit note about `tts_caption.vue` ignoring `audioUrl` was stale (that logic lives at the SDK level,
+    not that widget); confirmed by existing test `OverlaySdkTtsPlaybackTests.
+    Utterances_are_queued_so_two_voices_never_talk_over_each_other` (3/3 green). Cosmetic-only leftover:
+    `tts_caption.vue`'s header comment still implies it plays audio itself — not fixed, not urgent.
   - **S052-test-through-overlay**: a Test button on the TTS page that fires a real utterance through
     the auto-provisioned overlay (mirror the pattern used elsewhere in this session, e.g. the pipeline
     dry-run Test action).
