@@ -36,6 +36,7 @@ import bot.nomnomz.dashboard.core.network.SharedBanSettings
 import bot.nomnomz.dashboard.core.network.SharedBanTrustedChannel
 import bot.nomnomz.dashboard.core.network.UpsertEscalationPolicyBody
 import bot.nomnomz.dashboard.core.network.ShieldStatus
+import bot.nomnomz.dashboard.core.network.ShoutoutOverride
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CommunityApi
