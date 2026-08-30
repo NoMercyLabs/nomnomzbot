@@ -132,7 +132,46 @@ public sealed class WidgetAlertCaptureTests
     }
 
     /// <summary>
-    /// S-REPLAY-CORRELATION's done-when proof: a real alert (FollowEvent, routed through the actual
+    /// The regression this guards: a shared per-broadcaster ring buffer that also captured "ChatMessage" filled
+    /// its 40-slot window with ordinary chat traffic within seconds on any active channel, evicting the rare,
+    /// valuable alert (a follow/sub/raid) a streamer actually wanted to replay before they ever clicked Replay
+    /// — reported live as "it was not just this event that refused, it was all of them". ChatMessage is never
+    /// captured at all now, however many widgets subscribe to it, so a real alert survives.
+    /// </summary>
+    [Fact]
+    public async Task ChatMessage_is_never_captured_even_with_a_subscribed_widget_and_a_real_correlating_id()
+    {
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid channel = Guid.CreateVersion7();
+        db.Widgets.Add(
+            new()
+            {
+                Id = Guid.NewGuid(),
+                BroadcasterId = channel,
+                Name = "Chat box",
+                IsEnabled = true,
+                EventSubscriptions = ["ChatMessage"],
+            }
+        );
+        await db.SaveChangesAsync();
+
+        // A hundred chat messages, each with a real correlating id, must not consume a single capture slot.
+        for (int i = 0; i < 100; i++)
+            await WidgetAlertDispatch.RouteAsync(
+                db,
+                widgets,
+                channel,
+                "ChatMessage",
+                new { message = $"msg{i}" },
+                channelEventId: Guid.NewGuid().ToString(),
+                CancellationToken.None
+            );
+
+        (await db.RenderedAlertCaptures.CountAsync(c => c.BroadcasterId == channel)).Should().Be(0);
+    }
+
+    /// <summary>S-REPLAY-CORRELATION's done-when proof: a real alert (FollowEvent, routed through the actual
     /// FollowBroadcastHandler — not a raw RouteAsync call) whose EventId matches a real, independently-seeded
     /// ChannelEvent row (the same convergent id TwitchAlertHandlerBase/TwitchChannelEventLogProjection key their
     /// rows by) produces a RenderedAlertCapture that is queryable BY THAT CHANNELEVENT.ID — a real join against
