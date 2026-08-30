@@ -303,6 +303,10 @@ import nomnomzbot.composeapp.generated.resources.pipelines_block_lane_then
 import nomnomzbot.composeapp.generated.resources.pipelines_block_lane_else
 import nomnomzbot.composeapp.generated.resources.pipelines_block_lane_empty
 import nomnomzbot.composeapp.generated.resources.pipelines_block_lane_add
+import nomnomzbot.composeapp.generated.resources.pipelines_block_add_try
+import nomnomzbot.composeapp.generated.resources.pipelines_block_try_summary
+import nomnomzbot.composeapp.generated.resources.pipelines_block_lane_try
+import nomnomzbot.composeapp.generated.resources.pipelines_block_lane_catch
 import nomnomzbot.composeapp.generated.resources.pipelines_block_lane_step_edit
 import nomnomzbot.composeapp.generated.resources.pipelines_block_lane_step_delete
 import nomnomzbot.composeapp.generated.resources.pipelines_block_lane_step_move_up
@@ -714,6 +718,7 @@ private fun ChainEditor(
     val addSwitchLabel: String = stringResource(Res.string.pipelines_block_add_switch)
     val addLoopLabel: String = stringResource(Res.string.pipelines_block_add_loop)
     val addRandomLabel: String = stringResource(Res.string.pipelines_block_add_random)
+    val addTryLabel: String = stringResource(Res.string.pipelines_block_add_try)
 
     // The root chain, tree-ordered: only the steps with no parent block, in their lane's `order`. Each "if"
     // block's "then"/"else" children are rendered nested inside its own card, never here at the top level.
@@ -813,6 +818,15 @@ private fun ChainEditor(
                     Text(text = addRandomLabel)
                 }
             }
+            ManageGate(decision = manage) { enabled ->
+                Button(
+                    onClick = { controller.addTryBlock() },
+                    enabled = enabled,
+                    modifier = Modifier.weight(1f).semantics { contentDescription = addTryLabel },
+                ) {
+                    Text(text = addTryLabel)
+                }
+            }
         }
 
         if (editing.steps.isEmpty()) {
@@ -894,6 +908,21 @@ private fun ChainEditor(
                                 onEditCase = { caseStep -> randomCaseDialog = RandomCaseDialogTarget(branchId = caseStep.parentStepId, caseId = caseStep.id, config = caseStep.blockConfig) },
                                 onAddCaseStep = { caseId -> stepDialog = StepDialogTarget(parentStepId = caseId, branch = null, step = null) },
                                 onEditCaseStep = { child -> stepDialog = StepDialogTarget(parentStepId = child.parentStepId, branch = child.branch, step = child) },
+                            )
+                        } else if (step.blockKind == "try") {
+                            TryBlockCard(
+                                block = step,
+                                allSteps = editing.steps,
+                                index = index,
+                                total = rootSteps.size,
+                                palette = editing.palette,
+                                manage = manage,
+                                controller = controller,
+                                onMoveUp = { step.id?.let { controller.moveBranchStepUp(it) } },
+                                onMoveDown = { step.id?.let { controller.moveBranchStepDown(it) } },
+                                onRemove = { step.id?.let { controller.removeBranchStep(it) } },
+                                onAddToLane = { branch -> stepDialog = StepDialogTarget(parentStepId = step.id, branch = branch, step = null) },
+                                onEditLaneStep = { child -> stepDialog = StepDialogTarget(parentStepId = child.parentStepId, branch = child.branch, step = child) },
                             )
                         } else {
                             StepCard(
@@ -1239,6 +1268,88 @@ private fun IfBlockCard(
         )
         LaneSection(
             label = stringResource(Res.string.pipelines_block_lane_else),
+            branch = "else",
+            steps = allSteps.filter { it.parentStepId == blockId && it.branch == "else" }.sortedBy { it.order ?: 0 },
+            palette = palette,
+            manage = manage,
+            controller = controller,
+            onAdd = { onAddToLane("else") },
+            onEditStep = onEditLaneStep,
+        )
+    }
+}
+
+// A nested "try" block: no action, condition, or config of its own — just its two lanes. The engine's
+// ExecuteTryAsync (PipelineEngine.cs:1947) reads the body lane as every child with Branch == "then" and the
+// catch lane as every child with Branch == "else" — the SAME two branch labels an "if" block's then/else
+// lanes use, repurposed here as try/catch; a failure anywhere in the body routes into the catch lane once the
+// body finishes (PipelineEngine.cs:2023-2036), with nothing exposed to the catch lane via a template variable.
+@Composable
+private fun TryBlockCard(
+    block: PipelineStep,
+    allSteps: List<PipelineStep>,
+    index: Int,
+    total: Int,
+    palette: RuntimePalette,
+    manage: ManageDecision,
+    controller: PipelinesController,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit,
+    onRemove: () -> Unit,
+    onAddToLane: (branch: String) -> Unit,
+    onEditLaneStep: (PipelineStep) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val blockId: String = block.id ?: return
+
+    val removeLabel: String = stringResource(Res.string.pipelines_step_delete, index + 1)
+    val upLabel: String = stringResource(Res.string.pipelines_step_move_up, index + 1)
+    val downLabel: String = stringResource(Res.string.pipelines_step_move_down, index + 1)
+
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
+        verticalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s3)) {
+            Text(text = "${index + 1}", style = typography.sm, color = tokens.mutedForeground)
+            Text(
+                text = stringResource(Res.string.pipelines_block_try_summary),
+                style = typography.lg,
+                color = tokens.cardForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+        }
+
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spacing.s1)) {
+            ManageGate(decision = manage) { allowed ->
+                GlyphButton(icon = ArrowUpGlyph, label = upLabel, onClick = onMoveUp, enabled = allowed && index > 0, tint = tokens.primary)
+            }
+            ManageGate(decision = manage) { allowed ->
+                GlyphButton(icon = ArrowDownGlyph, label = downLabel, onClick = onMoveDown, enabled = allowed && index < total - 1, tint = tokens.primary)
+            }
+            Box(modifier = Modifier.weight(1f))
+            ManageGate(decision = manage) { enabled ->
+                GlyphButton(icon = TrashGlyph, label = removeLabel, onClick = onRemove, enabled = enabled, tint = tokens.destructive)
+            }
+        }
+
+        LaneSection(
+            label = stringResource(Res.string.pipelines_block_lane_try),
+            branch = "then",
+            steps = allSteps.filter { it.parentStepId == blockId && it.branch == "then" }.sortedBy { it.order ?: 0 },
+            palette = palette,
+            manage = manage,
+            controller = controller,
+            onAdd = { onAddToLane("then") },
+            onEditStep = onEditLaneStep,
+        )
+        LaneSection(
+            label = stringResource(Res.string.pipelines_block_lane_catch),
             branch = "else",
             steps = allSteps.filter { it.parentStepId == blockId && it.branch == "else" }.sortedBy { it.order ?: 0 },
             palette = palette,

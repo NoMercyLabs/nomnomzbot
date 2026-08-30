@@ -2381,6 +2381,10 @@
     <string name="pipelines_block_lane_step_delete">%1$s-stap %2$d verwijderen</string>
     <string name="pipelines_block_lane_step_move_up">%1$s-stap %2$d omhoog verplaatsen</string>
     <string name="pipelines_block_lane_step_move_down">%1$s-stap %2$d omlaag verplaatsen</string>
+    <string name="pipelines_block_add_try">Try / Catch</string>
+    <string name="pipelines_block_try_summary">Try / Catch</string>
+    <string name="pipelines_block_lane_try">Try</string>
+    <string name="pipelines_block_lane_catch">Catch</string>
     <string name="pipelines_block_add_switch">Switch</string>
     <string name="pipelines_block_switch_title">Switch-blok toevoegen</string>
     <string name="pipelines_block_switch_edit_title">Switch-waarde bewerken</string>

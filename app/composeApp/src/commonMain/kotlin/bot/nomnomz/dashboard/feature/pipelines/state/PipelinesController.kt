@@ -489,6 +489,32 @@ class PipelinesController(
     }
 
     /**
+     * Add a new "try" block at the end of the root chain: a block-kind step with no action, condition, or
+     * config of its own. The engine's `ExecuteTryAsync` reads only its children — the body lane is every child
+     * with `Branch == "then"` and the catch lane every child with `Branch == "else"` (PipelineEngine.cs:1957-
+     * 1961) — the exact same two branch labels an "if" block uses for its own then/else lanes, just repurposed
+     * here as try/catch; the engine never distinguishes them by any other field. A failure anywhere in the body
+     * lane (`FailedBreak`) routes execution into the catch lane once the body finishes (PipelineEngine.cs:2023-
+     * 2036); nothing is exposed to the catch lane via a template variable — the engine folds the catch state
+     * back into the parent's counts without adding any error/exception detail to the execution context.
+     * Returns the new step's id so the caller can attach lane children with [addBranchStep].
+     */
+    fun addTryBlock(): String {
+        val editing: PipelinesState.Editing = _state.value as? PipelinesState.Editing ?: return ""
+        val id: String = newLocalStepId()
+        val order: Int = editing.steps.count { it.parentStepId == null }
+        val step =
+            PipelineStep(
+                action = PipelineNode(type = "block"),
+                blockKind = "try",
+                id = id,
+                order = order,
+            )
+        mutateChain { it + step }
+        return id
+    }
+
+    /**
      * Append [step] to the [branch] ("then"/"else") lane of the block [parentStepId]. Assigns [step] a local
      * id if it doesn't already carry one, and an `order` scoped to just that lane — every other lane (the
      * block's other branch, a sibling block's lanes, the root chain) keeps its own order values untouched.

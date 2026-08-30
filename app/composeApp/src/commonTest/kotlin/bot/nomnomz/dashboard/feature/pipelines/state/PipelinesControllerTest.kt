@@ -497,6 +497,62 @@ class PipelinesControllerTest {
         assertEquals(3, steps().size) // block + 2 "then" children
     }
 
+    // ── Branching ("try" block) edits (S046-branching-try) ─────────────────────
+
+    @Test
+    fun try_block_lanes_add_reorder_and_remove_independently_of_each_other() = runTest {
+        val api =
+            RecordingPipelinesApi(
+                listOf(PipelineSummary(id = "00000009-0000-0000-0000-000000000009", name = "Guarded", isEnabled = true)),
+                graphs = mutableMapOf("00000009-0000-0000-0000-000000000009" to PipelineGraph().toJson()),
+            )
+        val controller = pipelinesController(okChannel(), api)
+        controller.load()
+        controller.openEditor(PipelineSummary(id = "00000009-0000-0000-0000-000000000009", name = "Guarded"))
+
+        val blockId: String = controller.addTryBlock()
+
+        // The block itself: no runnable action, condition, or config of its own — the engine's ExecuteTryAsync
+        // reads only its children (PipelineEngine.cs:1947), top-level order 0.
+        val afterBlock: List<PipelineStep> = (controller.state.value as PipelinesState.Editing).steps
+        val block: PipelineStep = afterBlock.single { it.id == blockId }
+        assertEquals("try", block.blockKind)
+        assertNull(block.parentStepId)
+        assertEquals(0, block.order)
+        assertNull(block.condition)
+        assertNull(block.blockConfig)
+
+        // "then" is the try body, "else" is the catch arm — the exact same two branch labels the engine reads
+        // for an "if" block's lanes (PipelineEngine.cs:1957-1961), repurposed here as try/catch.
+        controller.addBranchStep(blockId, "then", PipelineStep(action = PipelineNode("send_message", mapOf("message" to "try-1"))))
+        controller.addBranchStep(blockId, "then", PipelineStep(action = PipelineNode("send_message", mapOf("message" to "try-2"))))
+        controller.addBranchStep(blockId, "else", PipelineStep(action = PipelineNode("send_message", mapOf("message" to "catch-1"))))
+
+        fun steps(): List<PipelineStep> = (controller.state.value as PipelinesState.Editing).steps
+        fun lane(branch: String): List<PipelineStep> =
+            steps().filter { it.parentStepId == blockId && it.branch == branch }.sortedBy { it.order }
+
+        // Each lane got its own ids/parentStepId/branch/order — "then" and "else" never share an order sequence.
+        assertEquals(listOf("try-1", "try-2"), lane("then").map { it.action.params["message"] })
+        assertEquals(listOf(0, 1), lane("then").map { it.order })
+        assertEquals(listOf("catch-1"), lane("else").map { it.action.params["message"] })
+        assertEquals(listOf(0), lane("else").map { it.order })
+
+        // Reorder within "then" only — the "else" lane and the block's own order must not move.
+        val thenSecondId: String = lane("then")[1].id!!
+        controller.moveBranchStepUp(thenSecondId)
+        assertEquals(listOf("try-2", "try-1"), lane("then").map { it.action.params["message"] })
+        assertEquals(listOf("catch-1"), lane("else").map { it.action.params["message"] })
+        assertEquals(0, steps().single { it.id == blockId }.order)
+
+        // Remove the "else" child — "then" (and the block) are untouched.
+        val elseChildId: String = lane("else").single().id!!
+        controller.removeBranchStep(elseChildId)
+        assertEquals(emptyList(), lane("else"))
+        assertEquals(listOf("try-2", "try-1"), lane("then").map { it.action.params["message"] })
+        assertEquals(3, steps().size) // block + 2 "then" children
+    }
+
     // ── Branching ("switch" block) edits (S046-branching-switch) ───────────────
 
     @Test
