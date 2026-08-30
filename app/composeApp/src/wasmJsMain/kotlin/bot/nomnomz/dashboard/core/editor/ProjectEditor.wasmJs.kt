@@ -72,7 +72,14 @@ actual class ProjectEditor : ProjectEditorIO {
         sdkTypes: String,
         compile: suspend (Map<String, String>) -> CompileFeedback,
     ) {
-        openProjectEditor(title, filesJson.encodeToString(filesSerializer, initialFiles), entryPath, language, sdkTypes)
+        openProjectEditor(
+            title,
+            filesJson.encodeToString(filesSerializer, initialFiles),
+            entryPath,
+            language,
+            sdkTypes,
+            WidgetFireBarSamples.allSamplesJson(),
+        )
         try {
             while (true) {
                 when (projectEditorStatus()) {
@@ -148,6 +155,7 @@ private fun openProjectEditor(
     entryPath: String,
     language: String,
     sdkTypes: String,
+    fireSamplesJson: String,
 ) {
     js(
         """{
@@ -157,13 +165,17 @@ private fun openProjectEditor(
             var entry = (entryPath && (entryPath in files)) ? entryPath : (paths.length ? paths[0] : entryPath);
             if (!(entry in files)) { files[entry] = ''; }
 
+            var fireSamples = {};
+            try { fireSamples = JSON.parse(fireSamplesJson) || {}; } catch (e) { fireSamples = {}; }
+
             var slot = {
                 status: 'editing', files: files, entry: entry, active: entry, pendingFilesJson: '',
                 el: null, host: null, textarea: null, result: null, saveBtn: null,
                 fileListEl: null, tabsEl: null,
                 monaco: null, editor: null, models: {},
                 previewFrame: null, previewNote: null, previewMode: 'esbuild', previewNoteText: '',
-                esbuild: null, previewTimer: null, vue: false, vueSfc: null, fireBar: null
+                esbuild: null, previewTimer: null, vue: false, vueSfc: null, fireBar: null,
+                fireSamples: fireSamples
             };
             globalThis.__nnzProjectEdit = slot;
 
@@ -549,7 +561,10 @@ private fun openProjectEditor(
                         b.style.cssText = 'font-size:11px;color:#e5e5e5;background:#1e1e22;border:1px solid #333;border-radius:6px;padding:3px 8px;cursor:pointer;';
                         b.addEventListener('click', function () {
                             if (slot.previewFrame && slot.previewFrame.contentWindow) {
-                                slot.previewFrame.contentWindow.postMessage({ __nnzFire: { type: ev, data: {} } }, '*');
+                                var sample = (slot.fireSamples && (ev in slot.fireSamples))
+                                    ? slot.fireSamples[ev]
+                                    : (slot.fireSamples && slot.fireSamples['_default']) || {};
+                                slot.previewFrame.contentWindow.postMessage({ __nnzFire: { type: ev, data: sample } }, '*');
                             }
                         });
                         slot.fireBar.appendChild(b);
