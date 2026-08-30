@@ -16,6 +16,8 @@ using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Widgets.Dtos;
+using NomNomzBot.Application.Widgets.Services;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -30,10 +32,41 @@ namespace NomNomzBot.Api.Controllers.V1;
 public class EventResponsesController : BaseController
 {
     private readonly IEventResponseService _eventResponseService;
+    private readonly IWidgetService _widgetService;
 
-    public EventResponsesController(IEventResponseService eventResponseService)
+    public EventResponsesController(
+        IEventResponseService eventResponseService,
+        IWidgetService widgetService
+    )
     {
         _eventResponseService = eventResponseService;
+        _widgetService = widgetService;
+    }
+
+    /// <summary>
+    /// The channel's auto-provisioned alert overlay (widgets-overlays.md §1.2): get-or-creates the system
+    /// <c>alerts</c> widget for this channel (never a gallery browse/install) and returns its OBS
+    /// browser-source URL plus when it last reported running. A fresh channel gets a working URL on the
+    /// first call — no widget install required.
+    /// </summary>
+    [RequireAction("eventresponses:read")]
+    [HttpGet("overlay")]
+    [ProducesResponseType<StatusResponseDto<AlertOverlayDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetOverlay(string channelId, CancellationToken ct)
+    {
+        Result<WidgetDetail> result = await _widgetService.EnsureSystemWidgetAsync(
+            channelId,
+            "alerts",
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(
+            new StatusResponseDto<AlertOverlayDto>
+            {
+                Data = new(result.Value.OverlayUrl ?? string.Empty, result.Value.LastRanAt),
+            }
+        );
     }
 
     /// <summary>List the channel's configured event responses, paginated, for the dashboard's event responses page.</summary>

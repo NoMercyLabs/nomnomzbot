@@ -26,6 +26,12 @@ public sealed record EventResponseDto(
     DateTime UpdatedAt
 );
 
+/// <summary>
+/// The channel's auto-provisioned alert overlay (widgets-overlays.md §1.2): its OBS browser-source URL and
+/// when it last reported running.
+/// </summary>
+public sealed record AlertOverlayDto(string OverlayUrl, DateTime? LastRanAt);
+
 /// <summary>Lightweight event response summary.</summary>
 public sealed record EventResponseListItem(
     Guid Id,
