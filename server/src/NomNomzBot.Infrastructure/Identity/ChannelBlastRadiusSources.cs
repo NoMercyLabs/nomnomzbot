@@ -176,6 +176,7 @@ public static class ChannelBlastRadiusSources
         Of(BlastRadiusCategoryKeys.ChannelOverlays, db => db.Widgets),
         Of(BlastRadiusCategoryKeys.ChannelOverlays, db => db.WidgetVersions),
         Of(BlastRadiusCategoryKeys.ChannelOverlays, db => db.ChannelAssets),
+        Of(BlastRadiusCategoryKeys.ChannelOverlays, db => db.RenderedAlertCaptures),
         // ── Billing ──
         Of(BlastRadiusCategoryKeys.ChannelBilling, db => db.Subscriptions),
         Of(BlastRadiusCategoryKeys.ChannelBilling, db => db.Invoices),

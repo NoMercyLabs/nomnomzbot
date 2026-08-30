@@ -347,6 +347,8 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<WidgetGalleryItem> WidgetGalleryItems => Set<WidgetGalleryItem>();
     public DbSet<WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
         Set<WidgetGallerySubmissionEvent>();
+    public DbSet<Domain.Widgets.Entities.RenderedAlertCapture> RenderedAlertCaptures =>
+        Set<Domain.Widgets.Entities.RenderedAlertCapture>();
     public DbSet<Domain.Marketplace.Entities.InstalledBundle> InstalledBundles =>
         Set<Domain.Marketplace.Entities.InstalledBundle>();
 

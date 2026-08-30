@@ -160,6 +160,7 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
     public DbSet<WidgetGalleryItem> WidgetGalleryItems => Set<WidgetGalleryItem>();
     public DbSet<WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
         Set<WidgetGallerySubmissionEvent>();
+    public DbSet<RenderedAlertCapture> RenderedAlertCaptures => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.EventSubSubscription> EventSubSubscriptions =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.EventSubConduit> EventSubConduits =>

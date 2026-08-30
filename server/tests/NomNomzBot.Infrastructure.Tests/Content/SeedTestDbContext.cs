@@ -159,6 +159,7 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
     public DbSet<WidgetGalleryItem> WidgetGalleryItems => throw new NotSupportedException();
     public DbSet<WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
         throw new NotSupportedException();
+    public DbSet<RenderedAlertCapture> RenderedAlertCaptures => throw new NotSupportedException();
     public DbSet<EventSubSubscription> EventSubSubscriptions => Set<EventSubSubscription>();
     public DbSet<EventSubConduit> EventSubConduits => Set<EventSubConduit>();
     public DbSet<EventSubConduitShard> EventSubConduitShards => Set<EventSubConduitShard>();
