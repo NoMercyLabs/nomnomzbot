@@ -227,6 +227,41 @@ public sealed class ScopeNotificationServiceTests
         row.ChatNotifiedAt.Should().NotBeNull();
     }
 
+    /// <summary>
+    /// The regression this guards: several proactive jobs (community roster sync, subscriber/VIP standing,
+    /// banned-user import) can each hit a DIFFERENT missing scope in the same reconnect/onboarding pass. Before
+    /// this, each recorded gap fired its own chat message — a batch of several gaps read as spam even though
+    /// every individual notice was, in isolation, a correctly one-time idempotent send.
+    /// </summary>
+    [Fact]
+    public async Task NotifyPending_WithSeveralGapsDetectedTogether_PostsOneBatchedMessage_NotOnePerScope()
+    {
+        (ScopeNotificationService service, AuthDbContext db, SpyChatProvider chat, _) = Build();
+        await SeedTwitchConnectionAsync(db, "moderator:read:followers");
+        await service.RecordMissingScopeAsync(
+            Tenant,
+            "channel:read:subscriptions",
+            "subscriptions"
+        );
+        await service.RecordMissingScopeAsync(Tenant, "channel:read:vips", "vips");
+        await service.RecordMissingScopeAsync(Tenant, "moderation:read", null);
+
+        Result<int> run = await service.NotifyPendingAsync(Tenant);
+
+        run.Value.Should().Be(3, "all three gaps are announced");
+        chat.Sent.Should().ContainSingle("one message covers the whole batch, not one per scope");
+        chat.Sent[0].Message.Should().Contain("channel:read:subscriptions");
+        chat.Sent[0].Message.Should().Contain("channel:read:vips");
+        chat.Sent[0].Message.Should().Contain("moderation:read");
+
+        (await db.ChannelMissingScopes.ToListAsync())
+            .Should()
+            .OnlyContain(
+                row => row.ChatNotifiedAt != null,
+                "every gap in the batch is stamped notified"
+            );
+    }
+
     [Fact]
     public async Task NotifyPending_WhenBotCannotPost_DefersAndLeavesTheGapUnnotified()
     {

@@ -23,6 +23,7 @@ using NomNomzBot.Domain.Enums.Deployment;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Identity.Events;
+using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Platform.Deployment;
 
@@ -480,9 +481,43 @@ public sealed class AuthService : IAuthService
 
     // ─── Device Code Flow login (no client secret) ─────────────────────────────
 
-    public Task<Result<DeviceCodeStartDto>> StartTwitchDeviceLoginAsync(
+    public async Task<Result<DeviceCodeStartDto>> StartTwitchDeviceLoginAsync(
         CancellationToken cancellationToken = default
-    ) => StartDeviceLoginAsync(_requiredScopes, cancellationToken);
+    ) =>
+        await StartDeviceLoginAsync(
+            await LoginScopesForNewDeviceCodeAsync(cancellationToken),
+            cancellationToken
+        );
+
+    // A returning SelfHostLite streamer clicking "Log in" again must never silently narrow their grant back
+    // to the bare login minimum — before this, a second device-code login overwrote connection.Scopes with
+    // MinimalLoginScopes (ReconcileGrantedScopesAsync trusts the token's actual scope as authoritative),
+    // dropping every scope a progressive re-grant had added since, disabling those features and re-firing
+    // their missing-scope chat notices as if freshly detected. SelfHostLite has at most one channel, so its
+    // existing connection's scopes (if any) are already knowable before the device code is even requested —
+    // union them into the request so a repeat login is a strict superset, never a downgrade. SaaS/full has no
+    // single channel to look up before the user authenticates, so it still starts from the bare minimum (a
+    // brand-new streamer there has never granted anything to preserve).
+    private async Task<string[]> LoginScopesForNewDeviceCodeAsync(CancellationToken ct)
+    {
+        if (_deploymentMode != DeploymentMode.SelfHostLite)
+            return _requiredScopes;
+
+        IntegrationConnection? connection = await _db
+            .IntegrationConnections.IgnoreQueryFilters()
+            .Where(c => c.Provider == TwitchProvider && c.DeletedAt == null)
+            .FirstOrDefaultAsync(ct);
+        if (connection is null || connection.Scopes.Count == 0)
+            return _requiredScopes;
+
+        return
+        [
+            .. new HashSet<string>(_requiredScopes, StringComparer.OrdinalIgnoreCase).Union(
+                connection.Scopes,
+                StringComparer.OrdinalIgnoreCase
+            ),
+        ];
+    }
 
     public Task<Result<DeviceCodeStartDto>> StartTwitchDeviceLoginForScopesAsync(
         IReadOnlyList<string> scopes,
