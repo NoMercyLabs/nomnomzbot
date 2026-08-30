@@ -22,6 +22,8 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Tts.Dtos;
 using NomNomzBot.Application.Tts.Services;
+using NomNomzBot.Application.Widgets.Dtos;
+using NomNomzBot.Application.Widgets.Services;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -36,18 +38,47 @@ public class TtsConfigController : BaseController
     private readonly ITtsLexiconService _ttsLexiconService;
     private readonly IApplicationDbContext _db;
     private readonly ICurrentUserService _currentUser;
+    private readonly IWidgetService _widgetService;
 
     public TtsConfigController(
         ITtsConfigService ttsConfigService,
         ITtsLexiconService ttsLexiconService,
         IApplicationDbContext db,
-        ICurrentUserService currentUser
+        ICurrentUserService currentUser,
+        IWidgetService widgetService
     )
     {
         _ttsConfigService = ttsConfigService;
         _ttsLexiconService = ttsLexiconService;
         _db = db;
         _currentUser = currentUser;
+        _widgetService = widgetService;
+    }
+
+    /// <summary>
+    /// The channel's auto-provisioned TTS overlay (widgets-overlays.md §1.2): get-or-creates the system
+    /// <c>tts_caption</c> widget for this channel (never a gallery browse/install) and returns its OBS
+    /// browser-source URL plus when it last reported running. A fresh channel gets a working URL on the
+    /// first call — no widget install required.
+    /// </summary>
+    [HttpGet("overlay")]
+    [RequireAction("tts:config:read")]
+    [ProducesResponseType<StatusResponseDto<TtsOverlayDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetOverlay(string channelId, CancellationToken ct)
+    {
+        Result<WidgetDetail> result = await _widgetService.EnsureSystemWidgetAsync(
+            channelId,
+            "tts_caption",
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(
+            new StatusResponseDto<TtsOverlayDto>
+            {
+                Data = new(result.Value.OverlayUrl ?? string.Empty, result.Value.LastRanAt),
+            }
+        );
     }
 
     /// <summary>Get the channel's TTS configuration.</summary>

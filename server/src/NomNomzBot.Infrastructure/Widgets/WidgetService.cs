@@ -233,6 +233,36 @@ public class WidgetService : IWidgetService
         return await GetAsync(broadcasterId, clone.Id.ToString(), cancellationToken);
     }
 
+    public async Task<Result<WidgetDetail>> EnsureSystemWidgetAsync(
+        string broadcasterId,
+        string galleryNaturalKey,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcasterGuid))
+            return Errors.ChannelNotFound<WidgetDetail>(broadcasterId);
+
+        WidgetGalleryItem? item = await _db.WidgetGalleryItems.FirstOrDefaultAsync(
+            i => i.NaturalKey == galleryNaturalKey,
+            cancellationToken
+        );
+        if (item is null)
+            return Errors.NotFound<WidgetDetail>("WidgetGalleryItem", galleryNaturalKey);
+
+        // Get-or-create (widgets-overlays.md §1.2): a system surface is "provisioned for every channel at
+        // channel creation (and on first use if missing)" — this is the "on first use" leg, called from the
+        // owner page (e.g. the TTS page) rather than from every channel-creation call site. Already-installed
+        // is the common case and must never re-install / re-bump the gallery item's InstallCount.
+        Widget? existing = await _db.Widgets.FirstOrDefaultAsync(
+            w => w.BroadcasterId == broadcasterGuid && w.GalleryItemId == item.Id,
+            cancellationToken
+        );
+        if (existing is not null)
+            return await GetAsync(broadcasterId, existing.Id.ToString(), cancellationToken);
+
+        return await InstallFromGalleryAsync(broadcasterId, item.Id.ToString(), cancellationToken);
+    }
+
     public async Task<Result<WidgetDetail>> InstallFromGalleryAsync(
         string broadcasterId,
         string galleryItemId,

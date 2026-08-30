@@ -250,4 +250,19 @@ public interface IWidgetService
         string galleryItemId,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// Get-or-create a channel-owned system surface widget (widgets-overlays.md §1.2 — Alert/TTS/Sound: never
+    /// installed from the gallery by the streamer, "provisioned... at channel creation (and on first use if
+    /// missing)"). Resolves the gallery item by its stable <paramref name="galleryNaturalKey"/> (e.g.
+    /// <c>tts_caption</c>); if the channel already has a widget linked to that item, returns it unchanged — no
+    /// re-install, no re-bumped install count. Otherwise installs it exactly like <see cref="InstallFromGalleryAsync"/>
+    /// would, so it is immediately compiled and loadable as an OBS overlay URL. Fails <c>NOT_FOUND</c> if no
+    /// gallery item carries that natural key.
+    /// </summary>
+    Task<Result<WidgetDetail>> EnsureSystemWidgetAsync(
+        string broadcasterId,
+        string galleryNaturalKey,
+        CancellationToken cancellationToken = default
+    );
 }

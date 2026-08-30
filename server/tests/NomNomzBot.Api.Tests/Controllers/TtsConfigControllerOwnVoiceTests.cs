@@ -55,7 +55,13 @@ public sealed class TtsConfigControllerOwnVoiceTests
             Substitute.For<Application.Identity.Services.IUserService>()
         );
 
-        return new(service, Substitute.For<ITtsLexiconService>(), db, currentUser);
+        return new(
+            service,
+            Substitute.For<ITtsLexiconService>(),
+            db,
+            currentUser,
+            Substitute.For<NomNomzBot.Application.Widgets.Services.IWidgetService>()
+        );
     }
 
     private static void SeedChannel(TtsConfigControllerOwnVoiceTestDbContext db) =>
