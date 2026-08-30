@@ -95,6 +95,24 @@ interface ModerationApi {
     suspend fun setShoutoutTemplate(channelId: String, template: String?): ApiResult<Unit>
 
     /**
+     * This channel's own personal shoutout line for specific people — old-bot parity: a deliberate note
+     * written for THIS target, independent of whether they've ever connected to NomNomzBot. Wins over the
+     * target's own [shoutoutTemplate] when this channel shouts them out.
+     */
+    suspend fun shoutoutOverrides(channelId: String): ApiResult<List<ShoutoutOverride>>
+
+    /** Create or update this channel's own shoutout line for [targetTwitchUserId]. */
+    suspend fun setShoutoutOverride(
+        channelId: String,
+        targetTwitchUserId: String,
+        targetDisplayName: String,
+        messageTemplate: String,
+    ): ApiResult<Unit>
+
+    /** Remove this channel's own shoutout line for [targetTwitchUserId]. */
+    suspend fun deleteShoutoutOverride(channelId: String, targetTwitchUserId: String): ApiResult<Unit>
+
+    /**
      * The bot's OWN recorded moderation history for [userId] (a Twitch id): ban / timeout / warn / unban counts,
      * the last action, and the most recent actions. NOTE: only actions this bot recorded (dashboard / command /
      * EventSub) — not the viewer's complete Twitch record; the panel labels it as such.
@@ -350,6 +368,26 @@ class RestModerationApi(private val client: ApiClient) : ModerationApi {
     override suspend fun setShoutoutTemplate(channelId: String, template: String?): ApiResult<Unit> =
         client.putUnit("api/v1/channels/$channelId/moderation/shoutout-template", ShoutoutTemplateDto(template))
 
+    // Single-value StatusResponseDto envelope ({ data: [ ... ] }) — getEnvelope reads the list.
+    override suspend fun shoutoutOverrides(channelId: String): ApiResult<List<ShoutoutOverride>> =
+        client.getEnvelope("api/v1/channels/$channelId/moderation/shoutout-overrides")
+
+    override suspend fun setShoutoutOverride(
+        channelId: String,
+        targetTwitchUserId: String,
+        targetDisplayName: String,
+        messageTemplate: String,
+    ): ApiResult<Unit> =
+        client.putUnit(
+            "api/v1/channels/$channelId/moderation/shoutout-overrides",
+            UpsertShoutoutOverrideBody(targetTwitchUserId, targetDisplayName, messageTemplate),
+        )
+
+    override suspend fun deleteShoutoutOverride(channelId: String, targetTwitchUserId: String): ApiResult<Unit> =
+        client.deleteUnit(
+            "api/v1/channels/$channelId/moderation/shoutout-overrides/${targetTwitchUserId.encodeURLPathPart()}"
+        )
+
     // Single-value StatusResponseDto envelope ({ data: { … } }) — getEnvelope reads the context object.
     override suspend fun userContext(channelId: String, userId: String): ApiResult<UserModerationContext> =
         client.getEnvelope("api/v1/channels/$channelId/moderation/users/$userId/context")
@@ -580,6 +618,22 @@ data class ModerationStats(
 /** Mirrors the backend `ShoutoutTemplateDto` (null/blank template = the built-in default). */
 @Serializable
 data class ShoutoutTemplateDto(val template: String? = null)
+
+/** Mirrors the backend `ModerationController.ShoutoutOverrideDto`. */
+@Serializable
+data class ShoutoutOverride(
+    val targetTwitchUserId: String = "",
+    val targetDisplayName: String = "",
+    val messageTemplate: String = "",
+)
+
+/** Mirrors the backend `UpsertShoutoutOverrideRequest`. */
+@Serializable
+data class UpsertShoutoutOverrideBody(
+    val targetTwitchUserId: String,
+    val targetDisplayName: String,
+    val messageTemplate: String,
+)
 
 /**
  * One banned viewer (backend `BannedUserDto`). Fields mirror the backend record's camelCase JSON exactly

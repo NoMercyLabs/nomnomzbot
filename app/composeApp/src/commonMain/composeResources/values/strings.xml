@@ -430,6 +430,12 @@
     <string name="moderation_shoutout_help">How you're announced when ANY streamer on this platform shouts you out with !so — not just your own. Leave blank to use the built-in default.</string>
     <string name="moderation_shoutout_label">Announcement template</string>
     <string name="moderation_shoutout_save">Save</string>
+    <string name="moderation_shoutout_overrides_title">Your personal shoutout lines</string>
+    <string name="moderation_shoutout_override_target_id_label">Target Twitch user id</string>
+    <string name="moderation_shoutout_override_target_name_label">Display name</string>
+    <string name="moderation_shoutout_override_message_label">Your line for this person</string>
+    <string name="moderation_shoutout_override_add">Add</string>
+    <string name="moderation_shoutout_override_remove_action">Remove your line for %1$s</string>
     <string name="moderation_automod_title">AutoMod filters</string>
     <string name="moderation_automod_link">Links</string>
     <string name="moderation_automod_caps">Caps</string>

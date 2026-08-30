@@ -902,6 +902,19 @@ private class FakeModerationApi(
     override suspend fun setShoutoutTemplate(channelId: String, template: String?): ApiResult<Unit> =
         ApiResult.Ok(Unit)
 
+    override suspend fun shoutoutOverrides(channelId: String): ApiResult<List<ShoutoutOverride>> =
+        ApiResult.Ok(emptyList())
+
+    override suspend fun setShoutoutOverride(
+        channelId: String,
+        targetTwitchUserId: String,
+        targetDisplayName: String,
+        messageTemplate: String,
+    ): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun deleteShoutoutOverride(channelId: String, targetTwitchUserId: String): ApiResult<Unit> =
+        ApiResult.Ok(Unit)
+
     // Single-result convenience for the read-only tests (one bans() result, default-OK unban).
     constructor(
         result: ApiResult<List<BannedUser>>

@@ -181,6 +181,8 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<TtsCacheEntry> TtsCacheEntries => Set<TtsCacheEntry>();
     public DbSet<TtsLexiconEntry> TtsLexiconEntries => Set<TtsLexiconEntry>();
     public DbSet<TtsApprovalQueueEntry> TtsApprovalQueueEntries => Set<TtsApprovalQueueEntry>();
+    public DbSet<NomNomzBot.Domain.Stream.Entities.ShoutoutOverride> ShoutoutOverrides =>
+        Set<NomNomzBot.Domain.Stream.Entities.ShoutoutOverride>();
 
     // Reference data
     public DbSet<Pronoun> Pronouns => Set<Pronoun>();

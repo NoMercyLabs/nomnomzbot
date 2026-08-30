@@ -115,6 +115,7 @@ public static class ChannelBlastRadiusSources
         Of(BlastRadiusCategoryKeys.ChannelAutomations, db => db.PipelineStepConditions),
         Of(BlastRadiusCategoryKeys.ChannelAutomations, db => db.PipelineTriggers),
         Of(BlastRadiusCategoryKeys.ChannelAutomations, db => db.PipelineExecutions),
+        Of(BlastRadiusCategoryKeys.ChannelAutomations, db => db.ShoutoutOverrides),
         Of(BlastRadiusCategoryKeys.ChannelAutomations, db => db.PipelineRunStates),
         Of(BlastRadiusCategoryKeys.ChannelAutomations, db => db.ScheduledPipelineTasks),
         Of(BlastRadiusCategoryKeys.ChannelAutomations, db => db.CodeScripts),

@@ -658,6 +658,8 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<Pronoun> Pronouns => Set<Pronoun>();
     public DbSet<NomNomzBot.Domain.Platform.Entities.DeletionAuditLog> DeletionAuditLogs =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Stream.Entities.ShoutoutOverride> ShoutoutOverrides =>
+        Set<NomNomzBot.Domain.Stream.Entities.ShoutoutOverride>();
     public DbSet<ComplianceAuditLog> ComplianceAuditLogs => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Timer> Timers =>
         Set<NomNomzBot.Domain.Commands.Entities.Timer>();

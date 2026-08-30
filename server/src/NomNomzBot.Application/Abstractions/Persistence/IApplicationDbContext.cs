@@ -116,6 +116,7 @@ public interface IApplicationDbContext
     DbSet<TtsApprovalQueueEntry> TtsApprovalQueueEntries { get; }
     DbSet<Pronoun> Pronouns { get; }
     DbSet<DeletionAuditLog> DeletionAuditLogs { get; }
+    DbSet<NomNomzBot.Domain.Stream.Entities.ShoutoutOverride> ShoutoutOverrides { get; }
 
     // GDPR erasure pipeline (gdpr-crypto.md O.6/O.10): request lifecycle + append-only compliance audit
     // (ComplianceAuditLog supersedes DeletionAuditLog, which stays for its historical rows).

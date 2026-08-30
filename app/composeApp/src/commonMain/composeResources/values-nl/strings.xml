@@ -427,6 +427,12 @@
     <string name="moderation_shoutout_help">Hoe je aangekondigd wordt wanneer WELKE streamer dan ook op dit platform je shoutout geeft met !so — niet alleen je eigen shoutouts. Laat leeg voor de standaardtekst.</string>
     <string name="moderation_shoutout_label">Aankondigingssjabloon</string>
     <string name="moderation_shoutout_save">Opslaan</string>
+    <string name="moderation_shoutout_overrides_title">Jouw persoonlijke shoutout-teksten</string>
+    <string name="moderation_shoutout_override_target_id_label">Twitch-gebruikers-ID van de doelgroep</string>
+    <string name="moderation_shoutout_override_target_name_label">Weergavenaam</string>
+    <string name="moderation_shoutout_override_message_label">Jouw tekst voor deze persoon</string>
+    <string name="moderation_shoutout_override_add">Toevoegen</string>
+    <string name="moderation_shoutout_override_remove_action">Verwijder jouw tekst voor %1$s</string>
     <string name="moderation_automod_title">AutoMod-filters</string>
     <string name="moderation_automod_link">Links</string>
     <string name="moderation_automod_caps">Hoofdletters</string>
