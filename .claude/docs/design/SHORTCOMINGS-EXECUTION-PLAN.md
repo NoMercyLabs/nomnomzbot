@@ -302,9 +302,11 @@ later.)
     not that widget); confirmed by existing test `OverlaySdkTtsPlaybackTests.
     Utterances_are_queued_so_two_voices_never_talk_over_each_other` (3/3 green). Cosmetic-only leftover:
     `tts_caption.vue`'s header comment still implies it plays audio itself — not fixed, not urgent.
-  - **S052-test-through-overlay**: a Test button on the TTS page that fires a real utterance through
-    the auto-provisioned overlay (mirror the pattern used elsewhere in this session, e.g. the pipeline
-    dry-run Test action).
+  - **S052-test-through-overlay** — DONE, verified (401c1648): Test button dispatches a real utterance
+    through the SAME `ITtsDispatchService` path a production redemption uses (not a synthetic
+    shortcut), `ChannelEventId` explicitly null (a manual test, not a paid event — no fake correlation
+    invented). UI copy says "test sent", never claims OBS actually played it (honest about what the
+    backend can and can't confirm).
   - **S052-queue-controls**: skip/clear/pause controls for the TTS queue on the dashboard page.
   - **S052-gallery-cleanup**: `tts_caption` is still listed in `FirstPartyWidgetCatalogue.cs`'s
     browsable gallery (21 items) alongside the new auto-provision path — spec calls for it trimmed out
