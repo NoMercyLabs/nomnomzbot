@@ -19,6 +19,7 @@ import bot.nomnomz.dashboard.core.network.TtsApi
 import bot.nomnomz.dashboard.core.network.TtsConfig
 import bot.nomnomz.dashboard.core.network.TtsConfigUpdate
 import bot.nomnomz.dashboard.core.network.TtsLexiconEntry
+import bot.nomnomz.dashboard.core.network.TtsOverlay
 import bot.nomnomz.dashboard.core.network.TtsTestRequest
 import bot.nomnomz.dashboard.core.network.TtsTestResult
 import bot.nomnomz.dashboard.core.network.TtsVoice
@@ -29,6 +30,7 @@ import bot.nomnomz.dashboard.core.network.ViewerOption
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.datetime.Instant
 
 // The TTS page's state-holder: resolves the active channel, loads its real TTS configuration, and
 // persists edits back (no fabricated values). The screen renders [state]; it edits a local form seeded
@@ -103,7 +105,15 @@ class TtsController(
                 is ApiResult.Ok -> result.value
             }
 
-        _state.value = TtsState.Ready(config = config, voices = voices, lexicon = lexicon)
+        // The auto-provisioned overlay (get-or-create — always succeeds once the channel exists), same
+        // resilience as voices/lexicon: a failure degrades to null, the rest of the config still shows.
+        val overlay: TtsOverlay? =
+            when (val result: ApiResult<TtsOverlay> = ttsApi.overlay(channel.id)) {
+                is ApiResult.Failure -> null
+                is ApiResult.Ok -> result.value
+            }
+
+        _state.value = TtsState.Ready(config = config, voices = voices, lexicon = lexicon, overlay = overlay)
     }
 
     /**
@@ -383,6 +393,9 @@ sealed interface TtsState {
         val lexicon: List<TtsLexiconEntry> = emptyList(),
         val lexiconBusy: Boolean = false,
         val lexiconError: String? = null,
+        // The auto-provisioned OBS overlay (URL + last-ran signal), or null while it hasn't loaded / failed
+        // to load — the rest of the page still renders in that case (see [TtsController.load]).
+        val overlay: TtsOverlay? = null,
     ) : TtsState
 
     data class Error(val detail: String) : TtsState
@@ -416,3 +429,15 @@ data class ViewerVoiceState(
     val busy: Boolean = false,
     val error: String? = null,
 )
+
+/**
+ * Pure "how long ago" math for [TtsOverlay.lastRanAt] (ISO-8601 UTC, same shape as `TimerSchedule`'s
+ * `lastFiredAt`) — no network or Compose dependency, so it is tested directly against fixed instants.
+ */
+object TtsOverlaySchedule {
+    /** Whole minutes since the overlay last ran, or null when it has never reported running. */
+    fun minutesSinceLastRan(lastRanAt: String?, now: Instant): Long? {
+        val last: Instant = lastRanAt?.let { runCatching { Instant.parse(it) }.getOrNull() } ?: return null
+        return (now - last).inWholeMinutes
+    }
+}

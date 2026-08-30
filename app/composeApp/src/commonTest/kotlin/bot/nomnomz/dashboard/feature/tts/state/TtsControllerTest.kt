@@ -19,6 +19,7 @@ import bot.nomnomz.dashboard.core.network.TtsApi
 import bot.nomnomz.dashboard.core.network.TtsConfig
 import bot.nomnomz.dashboard.core.network.TtsConfigUpdate
 import bot.nomnomz.dashboard.core.network.TtsLexiconEntry
+import bot.nomnomz.dashboard.core.network.TtsOverlay
 import bot.nomnomz.dashboard.core.network.UpsertTtsLexiconEntryBody
 import bot.nomnomz.dashboard.core.network.TtsTestRequest
 import bot.nomnomz.dashboard.core.network.TtsTestResult
@@ -257,6 +258,62 @@ class TtsControllerTest {
         assertNull((controller.state.value as? TtsState.Ready)?.viewerVoice?.currentVoiceId)
     }
 
+    // ── Overlay ──────────────────────────────────────────────────────────────
+
+    @Test
+    fun load_surfaces_the_overlay_url_and_a_real_last_ran_timestamp() = runTest {
+        val ttsApi =
+            FakeTtsApi(
+                ApiResult.Ok(TtsConfig()),
+                overlayResult =
+                    ApiResult.Ok(
+                        TtsOverlay(
+                            overlayUrl = "https://bot.example/overlays/tts_caption/abc123",
+                            lastRanAt = "2026-08-29T12:00:00Z",
+                        )
+                    ),
+            )
+        val controller = TtsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), ttsApi)
+
+        controller.load()
+
+        val ready: TtsState.Ready = controller.state.value as TtsState.Ready
+        assertEquals("https://bot.example/overlays/tts_caption/abc123", ready.overlay?.overlayUrl)
+        assertEquals("2026-08-29T12:00:00Z", ready.overlay?.lastRanAt)
+    }
+
+    @Test
+    fun load_surfaces_a_never_ran_overlay_distinctly_from_a_real_last_run() = runTest {
+        val ttsApi =
+            FakeTtsApi(
+                ApiResult.Ok(TtsConfig()),
+                overlayResult =
+                    ApiResult.Ok(TtsOverlay(overlayUrl = "https://bot.example/overlays/tts_caption/new", lastRanAt = null)),
+            )
+        val controller = TtsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), ttsApi)
+
+        controller.load()
+
+        val ready: TtsState.Ready = controller.state.value as TtsState.Ready
+        // The two states are distinguishable in the loaded data itself, not merely rendered the same way:
+        // a real run carries a parseable timestamp, "never ran" carries null.
+        assertEquals("https://bot.example/overlays/tts_caption/new", ready.overlay?.overlayUrl)
+        assertNull(ready.overlay?.lastRanAt)
+    }
+
+    @Test
+    fun load_degrades_cleanly_when_the_overlay_call_fails() = runTest {
+        val ttsApi =
+            FakeTtsApi(ApiResult.Ok(TtsConfig()), overlayResult = ApiResult.Failure(ApiError(500, "ERR", "boom")))
+        val controller = TtsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), ttsApi)
+
+        controller.load()
+
+        // The rest of the config still loads — a broken overlay call never blocks the page.
+        val ready: TtsState.Ready = controller.state.value as TtsState.Ready
+        assertNull(ready.overlay)
+    }
+
     // ── Pronunciation lexicon ────────────────────────────────────────────────
 
     @Test
@@ -361,7 +418,10 @@ private class FakeTtsApi(
     private val result: ApiResult<TtsConfig>,
     private val updateResult: ApiResult<TtsConfig> = ApiResult.Ok(TtsConfig()),
     private val voicesResult: ApiResult<List<TtsVoice>> = ApiResult.Ok(emptyList()),
+    private val overlayResult: ApiResult<TtsOverlay> = ApiResult.Ok(TtsOverlay()),
 ) : TtsApi {
+    override suspend fun overlay(channelId: String): ApiResult<TtsOverlay> = overlayResult
+
     override suspend fun myVoice(channelId: String): ApiResult<UserTtsVoice?> = ApiResult.Ok(null)
 
     override suspend fun setMyVoice(channelId: String, voiceId: String): ApiResult<UserTtsVoice> =
