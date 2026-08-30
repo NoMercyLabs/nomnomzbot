@@ -99,6 +99,7 @@ public sealed class ActionDefinitionClassificationTests
         "bundles:read",
         "sdk:read",
         "dashboard:read",
+        "dashboard:replay",
         "community:read",
         "community:trust:write",
         "integration:read",

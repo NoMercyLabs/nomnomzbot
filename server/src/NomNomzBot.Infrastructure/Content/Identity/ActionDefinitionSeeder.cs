@@ -341,6 +341,9 @@ public sealed class ActionDefinitionSeeder : ISeeder
         // Managing a viewer's trust level is a per-viewer moderation-tier community write.
         M("community:trust:write", Mod);
         MFloor("dashboard:read", Mod, Vip);
+        // Re-broadcasting a past alert to overlays is presentation-only (no currency/loyalty/reward
+        // side effect), same moderator floor as the other widget/dashboard write actions.
+        M("dashboard:replay", Mod);
         M("setup:write", Broadcaster, grant: false);
         // Per-channel feature enablement (FeaturesController): read + toggle both default to Moderator —
         // reversible bot-internal tooling (S-MOD-PERMS).

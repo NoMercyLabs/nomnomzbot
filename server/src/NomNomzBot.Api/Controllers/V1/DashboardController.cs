@@ -12,9 +12,14 @@ using System.Text.Json;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Authorization;
+using NomNomzBot.Api.Hubs;
+using NomNomzBot.Api.Hubs.Broadcasters;
+using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -23,6 +28,7 @@ using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Domain.Widgets.Entities;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -38,6 +44,7 @@ public class DashboardController : BaseController
     private readonly IApplicationDbContext _db;
     private readonly ITwitchChannelsApi _channels;
     private readonly ITwitchSubscriptionsApi _subscriptions;
+    private readonly IWidgetNotifier _widgetNotifier;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<DashboardController> _logger;
 
@@ -47,6 +54,7 @@ public class DashboardController : BaseController
         IApplicationDbContext db,
         ITwitchChannelsApi channels,
         ITwitchSubscriptionsApi subscriptions,
+        IWidgetNotifier widgetNotifier,
         TimeProvider timeProvider,
         ILogger<DashboardController> logger
     )
@@ -56,6 +64,7 @@ public class DashboardController : BaseController
         _db = db;
         _channels = channels;
         _subscriptions = subscriptions;
+        _widgetNotifier = widgetNotifier;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -70,6 +79,11 @@ public class DashboardController : BaseController
         string? Data,
         DateTime Timestamp
     );
+
+    /// <summary>How many currently-subscribed widgets a replay actually re-pushed to — 0 is a valid, truthful
+    /// outcome (e.g. every subscribed widget was disabled since the alert originally fired), never disguised
+    /// as a full success.</summary>
+    public record ReplayActivityResultDto(int WidgetsNotified);
 
     /// <summary>
     /// Returns a live stats snapshot for the given channel.
@@ -300,6 +314,66 @@ public class DashboardController : BaseController
         ];
 
         return Ok(new StatusResponseDto<List<ActivityEventDto>> { Data = result });
+    }
+
+    /// <summary>
+    /// Re-broadcasts the exact overlay/TTS alert(s) already pushed for one past activity-feed event — e.g. after
+    /// OBS missed the original push because its WebSocket dropped. Presentation-only: this re-sends the verbatim
+    /// <see cref="RenderedAlertCapture.Payload"/> captured at the original push (<c>WidgetAlertDispatch.RouteAsync</c>)
+    /// to whichever widgets currently subscribe to that event type — it NEVER re-runs currency grants, loyalty
+    /// points, or reward fulfillment, since those already ran once when the origin event fired and this endpoint
+    /// never calls into any of those services.
+    /// </summary>
+    [HttpPost("{channelId}/activity/{eventId}/replay")]
+    [RequireAction("dashboard:replay")]
+    [EnableRateLimiting(RateLimitPolicyNames.WriteExpensive)]
+    [ProducesResponseType<StatusResponseDto<ReplayActivityResultDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ReplayActivity(
+        string channelId,
+        string eventId,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid tenantId))
+            return BadRequestResponse("Invalid channel id.");
+
+        List<RenderedAlertCapture> captures = await _db
+            .RenderedAlertCaptures.Where(c =>
+                c.BroadcasterId == tenantId && c.ChannelEventId == eventId
+            )
+            .ToListAsync(ct);
+
+        if (captures.Count == 0)
+            return NotFoundResponse(
+                "No rendered alert was captured for this activity event — nothing to replay."
+            );
+
+        List<Widget> widgets = await _db
+            .Widgets.Where(w => w.BroadcasterId == tenantId)
+            .ToListAsync(ct);
+
+        int widgetsNotified = 0;
+        foreach (RenderedAlertCapture capture in captures)
+        {
+            JsonElement payload = JsonSerializer.Deserialize<JsonElement>(capture.Payload);
+            foreach (Widget widget in WidgetAlertRouting.Subscribers(widgets, capture.EventType))
+            {
+                await _widgetNotifier.SendWidgetEventAsync(
+                    tenantId.ToString(),
+                    widget.Id.ToString(),
+                    new WidgetEventDto(widget.Id.ToString(), capture.EventType, payload),
+                    ct
+                );
+                widgetsNotified++;
+            }
+        }
+
+        return Ok(
+            new StatusResponseDto<ReplayActivityResultDto>
+            {
+                Data = new ReplayActivityResultDto(widgetsNotified),
+            }
+        );
     }
 
     // The actor's name is carried in the event payload — modern EventSub events store it under
