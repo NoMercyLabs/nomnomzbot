@@ -95,12 +95,13 @@ re-running a persistent side effect.
   {eventId}/replay` (matches `DashboardController`'s real route base), action key `dashboard:replay`
   (Mod floor). Re-pushes the exact captured payload to every currently-subscribed widget verbatim; a
   real 404 (zero notifier calls) when the event has no capture — never a fake success.
-- **S-REPLAY-UI**: Replay icon-button next to each `ActivityRow` in `HomeScreen.kt`'s activity feed,
-  calling the new endpoint; shows a brief success/failure toast (truthful — "nothing to replay" is a
-  real, distinct outcome from "replayed"), disabled-with-reason (not hidden) while a replay for that row
-  is in flight. i18n en+nl. Done-when: clicking Replay on a live dashboard actually re-triggers the
-  overlay/TTS in a connected OBS source, validated live per house rule (never claimed from a
-  screenshot).
+- **S-REPLAY-UI** — code-complete and unit-verified (1c3c8ef4): Replay icon-button on each
+  `ActivityRow`, calls the endpoint with the row's exact event id, distinct "replayed" vs "nothing to
+  replay" vs generic-failure states, disables only the clicked row while in flight. **NOT yet
+  live-validated** — jvmTest proves the client-side wiring only; nobody has clicked it on a running
+  dashboard against a real connected OBS browser-source yet. Per house rule (never call a page done
+  from tests alone), do that live pass — real redemption/sub → confirm the alert renders → drop the
+  WS → click Replay → confirm it re-renders in OBS — before calling the whole Replay feature shipped.
 
 ---
 
