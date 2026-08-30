@@ -168,7 +168,11 @@ class CodeScriptsController(
             title = displayName,
             initialFiles = project.files,
             entryPath = project.manifest.entry,
-            language = project.manifest.framework.ifBlank { "script" },
+            // Always "script": a code script runs in the bot sandbox and has no DOM to render, so the editor
+            // must pick its no-preview layout. The manifest's framework holds a LANGUAGE here (typescript),
+            // not a UI framework, and passing it through made the editor reserve a live-preview pane that can
+            // never show anything. Per-file language is resolved from the file extension by the editor itself.
+            language = "script",
             // The script-context nnz.d.ts drives `nnz.` autocomplete + diagnostics in the web editor; a fetch
             // failure degrades to a plain editor rather than blocking editing.
             sdkTypes = fetchSdkTypes("script"),
