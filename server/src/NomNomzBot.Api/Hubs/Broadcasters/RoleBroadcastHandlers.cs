@@ -8,12 +8,54 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Api.Hubs.Broadcasters;
+
+/// <summary>
+/// Shared <c>ChannelEvents</c> logging for the role-broadcast handlers in this file. Unlike every other alert
+/// type (follow/sub/cheer/raid/…), VIP grants/revocations have no sibling handler deriving from
+/// <c>TwitchAlertHandlerBase</c> to log the activity-feed row — this IS the only consumer of
+/// <see cref="VipAddedEvent"/>/<see cref="VipRemovedEvent"/>, so it owns the write. Keyed by the SAME domain-event
+/// <c>EventId</c> the alert-dispatch call already threads through as <c>ChannelEventId</c>, so once this row
+/// exists that correlation resolves to something real instead of null. Idempotent: an EventSub re-delivery
+/// skips rather than double-logs. Stores the Twitch user id in <c>Data</c> rather than resolving
+/// <c>ChannelEvent.UserId</c> — the internal Users FK — since, unlike the per-event-type
+/// <c>TwitchAlertHandlerBase</c> subclasses, this generic role-broadcast path has no per-event user-resolution
+/// step of its own to reuse.
+/// </summary>
+internal static class RoleBroadcastChannelEventLogger
+{
+    public static async Task LogAsync(
+        IApplicationDbContext db,
+        Guid broadcasterId,
+        Guid eventId,
+        string twitchUserId,
+        string type,
+        CancellationToken ct
+    )
+    {
+        string id = eventId.ToString();
+        if (await db.ChannelEvents.AnyAsync(e => e.Id == id, ct))
+            return;
+
+        db.ChannelEvents.Add(
+            new()
+            {
+                Id = id,
+                ChannelId = broadcasterId,
+                Type = type,
+                Data = JsonSerializer.Serialize(new { userId = twitchUserId }),
+            }
+        );
+        await db.SaveChangesAsync(ct);
+    }
+}
 
 /// <summary>Broadcasts moderator role grants (<c>channel.moderator.add</c>) to the dashboard AND, identically, to overlays.</summary>
 public sealed class ModeratorAddedBroadcastHandler : IEventHandler<ModeratorAddedEvent>
@@ -165,6 +207,15 @@ public sealed class VipAddedBroadcastHandler : IEventHandler<VipAddedEvent>
         if (@event.BroadcasterId == Guid.Empty)
             return;
 
+        await RoleBroadcastChannelEventLogger.LogAsync(
+            _db,
+            @event.BroadcasterId,
+            @event.EventId,
+            @event.UserId,
+            "channel.vip.add",
+            ct
+        );
+
         HubUserEnrichment? enrichment = await _enricher.EnrichAsync(
             @event.BroadcasterId,
             @event.UserId,
@@ -226,6 +277,15 @@ public sealed class VipRemovedBroadcastHandler : IEventHandler<VipRemovedEvent>
     {
         if (@event.BroadcasterId == Guid.Empty)
             return;
+
+        await RoleBroadcastChannelEventLogger.LogAsync(
+            _db,
+            @event.BroadcasterId,
+            @event.EventId,
+            @event.UserId,
+            "channel.vip.remove",
+            ct
+        );
 
         HubUserEnrichment? enrichment = await _enricher.EnrichAsync(
             @event.BroadcasterId,
