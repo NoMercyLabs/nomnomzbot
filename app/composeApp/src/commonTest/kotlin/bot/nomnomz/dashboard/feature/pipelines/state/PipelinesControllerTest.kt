@@ -62,6 +62,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.doubleOrNull
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_pipeline_deleted
 import nomnomzbot.composeapp.generated.resources.feedback_pipeline_saved
@@ -721,6 +722,141 @@ class PipelinesControllerTest {
         assertEquals("keep_going", loopStep.condition?.params?.get("name"))
         assertEquals("while", (loopStep.blockConfig as JsonObject)["mode"]?.jsonPrimitive?.contentOrNull)
         assertNull((loopStep.blockConfig as JsonObject)["count"])
+    }
+
+    // ── Branching ("random_branch" block) edits (S046-branching-random) ────────
+
+    @Test
+    fun random_branch_block_with_three_weighted_cases_produces_the_correct_tree_shape() = runTest {
+        val api =
+            RecordingPipelinesApi(
+                listOf(PipelineSummary(id = "0000000b-0000-0000-0000-00000000000b", name = "Roulette", isEnabled = true)),
+                graphs = mutableMapOf("0000000b-0000-0000-0000-00000000000b" to PipelineGraph().toJson()),
+            )
+        val controller = pipelinesController(okChannel(), api)
+        controller.load()
+        controller.openEditor(PipelineSummary(id = "0000000b-0000-0000-0000-00000000000b", name = "Roulette"))
+
+        val branchId: String = controller.addRandomBranchBlock()
+
+        fun steps(): List<PipelineStep> = (controller.state.value as PipelinesState.Editing).steps
+
+        // The block itself: no runnable action, no config of its own — `ExecuteRandomBranchAsync` reads
+        // nothing off the block step, only its `random_case` children (PipelineEngine.cs:1873-1928) — top-level
+        // order 0.
+        val branchStep: PipelineStep = steps().single { it.id == branchId }
+        assertEquals("random_branch", branchStep.blockKind)
+        assertNull(branchStep.parentStepId)
+        assertEquals(0, branchStep.order)
+        assertNull(branchStep.condition)
+        assertNull(branchStep.blockConfig)
+
+        fun caseStep(weight: Double): PipelineStep =
+            PipelineStep(
+                action = PipelineNode(type = "block"),
+                blockKind = "random_case",
+                blockConfig = JsonObject(mapOf("weight" to JsonPrimitive(weight))),
+            )
+
+        controller.addBranchStep(branchId, null, caseStep(1.0))
+        controller.addBranchStep(branchId, null, caseStep(2.5))
+        controller.addBranchStep(branchId, null, caseStep(10.0))
+
+        fun cases(): List<PipelineStep> =
+            steps().filter { it.parentStepId == branchId && it.blockKind == "random_case" }.sortedBy { it.order }
+
+        assertEquals(3, cases().size)
+        assertEquals(listOf(0, 1, 2), cases().map { it.order })
+        assertTrue(cases().all { it.parentStepId == branchId })
+        // No branch label needed for a "random_branch" block's cases — `parentStepId` alone already
+        // disambiguates them, exactly like a "switch" block's `switch_case` children.
+        assertTrue(cases().all { it.branch == null })
+
+        val weights: List<Double?> = cases().map { (it.blockConfig as? JsonObject)?.get("weight")?.jsonPrimitive?.doubleOrNull }
+        assertEquals(listOf(1.0, 2.5, 10.0), weights)
+
+        // The weight field lands ONLY in blockConfig — never on `condition`.
+        assertTrue(cases().all { it.condition == null })
+        assertEquals(4, steps().size) // random_branch + 3 cases
+    }
+
+    @Test
+    fun random_case_reorder_updates_order_within_the_branchs_own_lane_only() = runTest {
+        val api =
+            RecordingPipelinesApi(
+                listOf(PipelineSummary(id = "0000000c-0000-0000-0000-00000000000c", name = "Roulette", isEnabled = true)),
+                graphs = mutableMapOf("0000000c-0000-0000-0000-00000000000c" to PipelineGraph().toJson()),
+            )
+        val controller = pipelinesController(okChannel(), api)
+        controller.load()
+        controller.openEditor(PipelineSummary(id = "0000000c-0000-0000-0000-00000000000c", name = "Roulette"))
+
+        val branchId: String = controller.addRandomBranchBlock()
+        fun caseStep(weight: Double): PipelineStep =
+            PipelineStep(
+                action = PipelineNode(type = "block"),
+                blockKind = "random_case",
+                blockConfig = JsonObject(mapOf("weight" to JsonPrimitive(weight))),
+            )
+        controller.addBranchStep(branchId, null, caseStep(1.0))
+        controller.addBranchStep(branchId, null, caseStep(2.0))
+        controller.addBranchStep(branchId, null, caseStep(3.0))
+
+        fun cases(): List<PipelineStep> =
+            (controller.state.value as PipelinesState.Editing)
+                .steps
+                .filter { it.parentStepId == branchId && it.blockKind == "random_case" }
+                .sortedBy { it.order }
+        val weightOf: (PipelineStep) -> Double? = { (it.blockConfig as? JsonObject)?.get("weight")?.jsonPrimitive?.doubleOrNull }
+        assertEquals(listOf(1.0, 2.0, 3.0), cases().map(weightOf))
+
+        // Move the middle case ("2.0") up one slot — its own order swaps with "1.0"'s, "3.0" is untouched.
+        val middleId: String = cases()[1].id!!
+        controller.moveBranchStepUp(middleId)
+        assertEquals(listOf(2.0, 1.0, 3.0), cases().map(weightOf))
+        assertEquals(listOf(0, 1, 2), cases().map { it.order })
+
+        // Move the (now-last) case down — no-op, it is already at the bottom of its lane.
+        val lastId: String = cases().last().id!!
+        controller.moveBranchStepDown(lastId)
+        assertEquals(listOf(2.0, 1.0, 3.0), cases().map(weightOf))
+    }
+
+    @Test
+    fun removing_a_random_case_reindexes_the_remaining_siblings_order() = runTest {
+        val api =
+            RecordingPipelinesApi(
+                listOf(PipelineSummary(id = "0000000d-0000-0000-0000-00000000000d", name = "Roulette", isEnabled = true)),
+                graphs = mutableMapOf("0000000d-0000-0000-0000-00000000000d" to PipelineGraph().toJson()),
+            )
+        val controller = pipelinesController(okChannel(), api)
+        controller.load()
+        controller.openEditor(PipelineSummary(id = "0000000d-0000-0000-0000-00000000000d", name = "Roulette"))
+
+        val branchId: String = controller.addRandomBranchBlock()
+        fun caseStep(weight: Double): PipelineStep =
+            PipelineStep(
+                action = PipelineNode(type = "block"),
+                blockKind = "random_case",
+                blockConfig = JsonObject(mapOf("weight" to JsonPrimitive(weight))),
+            )
+        controller.addBranchStep(branchId, null, caseStep(1.0))
+        controller.addBranchStep(branchId, null, caseStep(2.0))
+        controller.addBranchStep(branchId, null, caseStep(3.0))
+
+        fun cases(): List<PipelineStep> =
+            (controller.state.value as PipelinesState.Editing)
+                .steps
+                .filter { it.parentStepId == branchId && it.blockKind == "random_case" }
+                .sortedBy { it.order }
+        val weightOf: (PipelineStep) -> Double? = { (it.blockConfig as? JsonObject)?.get("weight")?.jsonPrimitive?.doubleOrNull }
+
+        val middleId: String = cases()[1].id!!
+        controller.removeBranchStep(middleId)
+
+        assertEquals(listOf(1.0, 3.0), cases().map(weightOf))
+        assertEquals(listOf(0, 1), cases().map { it.order }) // "3.0" compacted from order 2 down to 1
+        assertEquals(3, (controller.state.value as PipelinesState.Editing).steps.size) // random_branch + 2 remaining cases
     }
 
     @Test

@@ -2427,6 +2427,10 @@
     <string name="pipelines_block_operator_gte">greater or equal</string>
     <string name="pipelines_block_operator_lte">less or equal</string>
     <string name="pipelines_block_operator_contains">contains</string>
+    <string name="pipelines_block_add_random">Random</string>
+    <string name="pipelines_block_random_summary">Random: %1$d cases</string>
+    <string name="pipelines_block_case_weight_label">Weight</string>
+    <string name="pipelines_block_case_summary_weighted">Case %1$d: weight %2$s</string>
     <string name="pipelines_block_send_message">Send message</string>
     <string name="pipelines_block_send_reply">Send reply</string>
     <string name="pipelines_block_timeout">Time out</string>
