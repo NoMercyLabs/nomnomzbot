@@ -318,16 +318,19 @@ later.)
   - **S052-gallery-cleanup** — DONE, verified (aaa41092): `tts_caption` excluded from the browsable
     gallery listing; a new onboarding handler (`TtsSystemWidgetSeedOnOnboardingHandler`) provisions it
     at real channel creation, not just lazily on first TTS-page visit.
-  - **S052-alert-sound-provisioning**: confirmed by the gallery-cleanup slice — spec
-    (`widgets-overlays.md:40`) explicitly says the `alerts` gallery key has the SAME problem
-    (meant to be a system surface, still gallery-browsable) but no `EnsureSystemWidgetAsync`/onboarding
-    wiring exists for it yet. Mirror the exact `tts_caption` pattern (gallery-exclude + onboarding-seed)
-    for `alerts`, and confirm whether a `sound` system surface exists separately or was folded into
-    `alerts` — check the spec before assuming a third surface exists.
-  Done-when (whole item) — **S052 (TTS) itself is now COMPLETE**: auto-provisioning, ordered audio
-  queue, dashboard overlay card, Test button, live-queue controls, and gallery exclusion are all shipped
-  and verified. Only `S052-alert-sound-provisioning` (the sibling gap for Alert/Sound, not TTS) remains
-  open, as its own item.
+  - **S052-alert-sound-provisioning** — DONE, verified (15f612b9), `alerts` half: `alerts` confirmed
+    as a real, distinct catalogue entry with the same gap as `tts_caption` — fixed by generalizing
+    `TtsSystemWidgetSeedOnOnboardingHandler` into `SystemWidgetSeedOnOnboardingHandler` (provisions
+    every natural key in `SystemSurfaceNaturalKeys` at `ChannelOnboardedEvent`, one surface's failure
+    never blocking another) and adding `GET .../event-responses/overlay` mirroring the TTS page's
+    entry point. **`sound` confirmed NOT to exist as a distinct catalogue entry** —
+    `widgets-overlays.md` §1.2 names it, but `FirstPartyWidgetCatalogue.cs` has no `sound` key at all;
+    this is unstarted work, not merely unwired, and needs its own slice once/if a Sound widget surface
+    is actually built (🔒 not urgent, no current UI depends on it).
+  Done-when (whole item) — **S052 is now fully COMPLETE**: TTS (auto-provisioning, audio queue,
+  dashboard card, Test button, queue controls, gallery exclusion) and Alerts (gallery exclusion +
+  onboarding provisioning + overlay endpoint) all shipped and verified. Sound remains genuinely
+  unbuilt, tracked separately, not blocking this item's closure.
 - **S060** Editor fire-bar — real per-event samples (`WidgetTestSamples`), chat variants, events from
   subscriptions not regex, desktop gets the bar (W·§3/§8 i3, U·B5).
 - **S061** `chat_box.vue` layout batch — line break, truncation, avatar, contrast, emote size, arrival
