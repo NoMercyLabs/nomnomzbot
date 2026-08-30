@@ -113,6 +113,7 @@ export function initPreview({
     language,
     entry,
     fireSamples = {},
+    declaredEvents = [],
     noteText = '',
     snapshotFiles,
 }) {
@@ -152,7 +153,14 @@ export function initPreview({
 
     // ── Fire bar ───────────────────────────────────────────────────────────
 
+    // The widget's PERSISTED EventSubscriptions is the same list the overlay manifest reads at runtime — the
+    // authoritative source, never able to drift the way scanning source text can (a computed event name, a
+    // destructured `on`, or an unrelated `.on(...)` call from another library all confuse the scan). Prefer it
+    // whenever it is non-empty; fall back to the source scan only for a widget with no declared subscriptions
+    // yet (a brand-new custom widget — S062 tracks making this list itself editable in the dashboard).
     function subscribedEvents(files) {
+        if (declaredEvents.length > 0) return [...declaredEvents];
+
         const events = new Set();
         for (const source of Object.values(files)) {
             SUBSCRIPTION_PATTERN.lastIndex = 0;

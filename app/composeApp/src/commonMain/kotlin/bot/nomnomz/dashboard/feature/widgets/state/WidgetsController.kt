@@ -155,7 +155,9 @@ class WidgetsController(
         when (val result: ApiResult<WidgetSummary> = widgetsApi.create(channel, CreateWidgetBody(name, framework))) {
             is ApiResult.Ok -> {
                 val seeded: ProjectDto = seedProject(framework, seedSource)
-                openEditor(channel, result.value.id, name, framework, seeded, messages)
+                // A brand-new widget has no declared subscriptions yet — the fire bar falls back to scanning
+                // the seeded source until the operator saves one.
+                openEditor(channel, result.value.id, name, framework, seeded, result.value.eventSubscriptions, messages)
             }
             is ApiResult.Failure -> failWrite(result.error.message)
         }
@@ -191,7 +193,7 @@ class WidgetsController(
                 is ApiResult.Ok -> loaded.value
                 is ApiResult.Failure -> seedProject(widget.framework, "")
             }
-        openEditor(channel, widget.id, widget.name, widget.framework, project, messages)
+        openEditor(channel, widget.id, widget.name, widget.framework, project, widget.eventSubscriptions, messages)
     }
 
     /** Roll the overlay back to a past [versionId] (it becomes the served version again). Reloads on success. */
@@ -327,6 +329,7 @@ class WidgetsController(
         title: String,
         framework: String,
         project: ProjectDto,
+        eventSubscriptions: List<String>,
         messages: WidgetEditorMessages,
     ) {
         projectEditor.editAndCompile(
@@ -338,6 +341,7 @@ class WidgetsController(
             // The widget-context nnz.d.ts powers `nnz.` autocomplete + diagnostics in the web editor; a fetch
             // failure degrades to a plain editor (no autocomplete), never blocks opening it.
             sdkTypes = fetchSdkTypes("widget"),
+            eventSubscriptions = eventSubscriptions,
             compile = { editedFiles -> saveProjectFeedback(channel, widgetId, editedFiles, project.manifest, messages) },
         )
         load()

@@ -804,6 +804,7 @@ async function open(payload) {
         language: payload.language ?? '',
         entry: state.entry,
         fireSamples: payload.fireSamples ?? {},
+        declaredEvents: payload.eventSubscriptions ?? [],
         noteText: payload.previewNote ?? '',
         snapshotFiles,
     });

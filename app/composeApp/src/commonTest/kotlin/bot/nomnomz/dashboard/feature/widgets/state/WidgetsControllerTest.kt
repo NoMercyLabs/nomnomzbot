@@ -243,7 +243,13 @@ class WidgetsControllerTest {
             RecordingWidgetsApi(
                 ApiResult.Ok(
                     listOf(
-                        WidgetSummary(id = "w-1", name = "Timer", framework = "vanilla", activeVersionId = "v-1")
+                        WidgetSummary(
+                            id = "w-1",
+                            name = "Timer",
+                            framework = "vanilla",
+                            activeVersionId = "v-1",
+                            eventSubscriptions = listOf("follow", "cheer"),
+                        )
                     )
                 ),
                 projectResult =
@@ -262,7 +268,13 @@ class WidgetsControllerTest {
         controller.load()
 
         controller.editWidgetCode(
-            WidgetSummary(id = "w-1", name = "Timer", framework = "vanilla", activeVersionId = "v-1"),
+            WidgetSummary(
+                id = "w-1",
+                name = "Timer",
+                framework = "vanilla",
+                activeVersionId = "v-1",
+                eventSubscriptions = listOf("follow", "cheer"),
+            ),
             messages,
         )
 
@@ -271,6 +283,9 @@ class WidgetsControllerTest {
         assertEquals("index.html", editor.openedEntry)
         assertEquals("<old/>", editor.openedEntryContent)
         assertEquals(listOf("w-1"), widgetsApi.loadedProjectIds)
+        // The widget's PERSISTED subscriptions were handed to the editor — the fire bar's authoritative source
+        // over scanning the source text (S060-remaining: it can no longer silently drift from the real list).
+        assertEquals(listOf("follow", "cheer"), editor.openedEventSubscriptions)
         // "Save & Compile" PUT exactly the edited project for that widget — a real server build, not a no-op.
         assertEquals(listOf("w-1" to mapOf("index.html" to "<new>hi</new>")), widgetsApi.savedProjects)
         // The build outcome was reported inline as success.
@@ -587,6 +602,7 @@ private class FakeProjectEditor(private val toSave: List<String> = emptyList()) 
     var openedFiles: Map<String, String>? = null
     var openedEntry: String? = null
     var openedSdkTypes: String? = null
+    var openedEventSubscriptions: List<String>? = null
     val feedbacks: MutableList<CompileFeedback> = mutableListOf()
 
     val openedEntryContent: String?
@@ -598,12 +614,14 @@ private class FakeProjectEditor(private val toSave: List<String> = emptyList()) 
         entryPath: String,
         language: String,
         sdkTypes: String,
+        eventSubscriptions: List<String>,
         compile: suspend (Map<String, String>) -> CompileFeedback,
     ) {
         openedTitle = title
         openedFiles = initialFiles
         openedEntry = entryPath
         openedSdkTypes = sdkTypes
+        openedEventSubscriptions = eventSubscriptions
         for (edit in toSave) {
             // Model editing the entry file's content, then Save & Compile with the full updated file map.
             feedbacks += compile(initialFiles + (entryPath to edit))

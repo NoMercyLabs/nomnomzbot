@@ -21,11 +21,10 @@ package bot.nomnomz.dashboard.core.editor
 // A single-file artifact is simply a one-entry project, so both widgets and code scripts open this one editor.
 //
 // Per-target implementations live in the wasmJs and jvm source sets:
-//   Web (wasmJs):   a full-screen DOM overlay mounted into the app's shadow root (raw DOM — the documented
-//                   exception to the design-system rule, like CustomCodeEditor). A file tree/list on the left, an
-//                   active-file tab up top, and ONE CodeMirror 6 view whose document swaps as the active file
-//                   changes; a monospace <textarea> fallback when the CDN is unreachable. Its state is staged on
-//                   a global slot and polled by the Kotlin side — the same handshake as CustomCodeEditor.
+//   Web (wasmJs):   a served page (`/editor/index.html` — real HTML/CSS/ES modules, CDN-cacheable) mounted in an
+//                   iframe in the app's shadow root; this file is only the postMessage bridge (open/save/compiled/
+//                   close). Monaco, the file tree, the problems panel, and the esbuild/Vue live preview are that
+//                   page's own business, not Kotlin's.
 //   Desktop (jvm):  a non-modal Swing dialog with a file list + a monospace text area per file, a "Save & Compile"
 //                   button, and a result label — the coroutine drives each compile off the button.
 interface ProjectEditorIO {
@@ -41,6 +40,12 @@ interface ProjectEditorIO {
      * fetched by the caller from `GET /api/v1/sdk/types.d.ts`. The web editor feeds it to an in-browser TypeScript
      * language service so `nnz.` autocompletes with the typed SDK surface and inline diagnostics flag misuse. Empty
      * when the declarations could not be fetched — the editor then simply omits autocomplete (a pure enhancement).
+     *
+     * [eventSubscriptions] is the widget's PERSISTED `EventSubscriptions` — the same list the overlay manifest
+     * actually reads at runtime. The web editor's fire bar (test-fire-an-event) prefers this authoritative source
+     * over scanning the source text for `.on('x')` calls, so the bar can't silently drift from what the widget
+     * really receives; it falls back to the source scan only when this list is empty (a brand-new custom widget
+     * that has not saved any declared subscriptions yet — S062 tracks making that list itself editable).
      */
     suspend fun editAndCompile(
         title: String,
@@ -48,6 +53,7 @@ interface ProjectEditorIO {
         entryPath: String,
         language: String,
         sdkTypes: String = "",
+        eventSubscriptions: List<String> = emptyList(),
         compile: suspend (Map<String, String>) -> CompileFeedback,
     )
 }
@@ -61,6 +67,7 @@ expect class ProjectEditor() : ProjectEditorIO {
         entryPath: String,
         language: String,
         sdkTypes: String,
+        eventSubscriptions: List<String>,
         compile: suspend (Map<String, String>) -> CompileFeedback,
     )
 }

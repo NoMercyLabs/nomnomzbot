@@ -332,13 +332,17 @@ later.)
   unbuilt, tracked separately, not blocking this item's closure.
 - **S060-remaining** Editor fire-bar. **Real per-event samples DONE, verified (c4846c9c)**: fire bar
   was posting `{}` for every event type — now ports the server's `WidgetTestSamples`, real
-  event-distinct payloads. **Confirmed still open, each its own follow-up**: chat variants (only one
-  generic chat-message shape — no sub/mod/vip tiers, reply/mention, bits, `/me`, multi-platform
-  variants); events sourced from a regex scan over widget source (`.on('x')` pattern match,
-  `ProjectEditor.wasmJs.kt:525-538`) instead of the widget's real `EventSubscriptions` — can silently
-  drift from what the widget actually receives; desktop (JVM) parity — the desktop `ProjectEditor` is a
-  Swing dialog with no live preview/DOM to fire into at all, needs a product decision on what "desktop
-  gets the bar" even means before it's buildable, not a mechanical port (🔒 owner call).
+  event-distinct payloads. **Declared-events drift DONE**: the fire bar's event list now comes from
+  the widget's PERSISTED `EventSubscriptions` (the same list the overlay manifest reads at runtime),
+  passed through `ProjectEditorIO.editAndCompile` → the served editor page → `preview.js`; it falls
+  back to the old `.on('x')` source scan only when that list is empty (a widget with no declared
+  subscriptions yet). The regex-scan code itself moved from the old `ProjectEditor.wasmJs.kt` DOM
+  build into `preview.js` during the served-page migration (S-CODE-EDITOR) — the file:line this note
+  used to cite no longer exists. **Confirmed still open, each its own follow-up**: chat variants (only
+  one generic chat-message shape — no sub/mod/vip tiers, reply/mention, bits, `/me`, multi-platform
+  variants); desktop (JVM) parity — the desktop `ProjectEditor` is a Swing dialog with no live
+  preview/DOM to fire into at all, needs a product decision on what "desktop gets the bar" even means
+  before it's buildable, not a mechanical port (🔒 owner call).
   **Also found and fixed, not part of this plan item but critical**: `PipelinesController.kt` used
   `Map.getOrDefault` (JVM-only, backed by `java.util.Map`) — broke the ENTIRE wasmJs/web dashboard
   compile, introduced during this session's S046-remaining branching work. Fixed alongside an
