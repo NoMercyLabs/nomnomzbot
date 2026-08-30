@@ -41,6 +41,7 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
     private readonly IWidgetNotifier _widgets;
     private readonly IApplicationDbContext _db;
     private readonly TimeProvider _timeProvider;
+    private readonly IChannelRegistry _registry;
 
     public ChatMessageBroadcastHandler(
         IDashboardNotifier notifier,
@@ -48,7 +49,8 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
         IHubUserEnricher enricher,
         IWidgetNotifier widgets,
         IApplicationDbContext db,
-        TimeProvider timeProvider
+        TimeProvider timeProvider,
+        IChannelRegistry registry
     )
     {
         _notifier = notifier;
@@ -57,6 +59,7 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
         _widgets = widgets;
         _db = db;
         _timeProvider = timeProvider;
+        _registry = registry;
     }
 
     public async Task HandleAsync(ChatMessageReceivedEvent evt, CancellationToken ct = default)
@@ -109,7 +112,7 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
             IsModerator: evt.IsModerator,
             IsBroadcaster: evt.IsBroadcaster,
             IsCheer: evt.Bits > 0,
-            IsCommand: false,
+            IsCommand: IsCommandMessage(evt.BroadcasterId, evt.Message),
             Badges: badges,
             BitsAmount: evt.Bits,
             Color: evt.ColorHex,
@@ -151,4 +154,14 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
             ct
         );
     }
+
+    // Same channel-wide prefix ChatMessageHandler's hot-path command parse checks (Channel.CommandPrefix,
+    // default "!") — was hardcoded false here, so chat_box.vue's hideCommands fell back to a literal "!"
+    // check that missed every channel running a custom prefix.
+    private bool IsCommandMessage(Guid broadcasterId, string message) =>
+        !string.IsNullOrEmpty(message)
+        && message.StartsWith(
+            _registry.Get(broadcasterId)?.CommandPrefix ?? "!",
+            StringComparison.Ordinal
+        );
 }
