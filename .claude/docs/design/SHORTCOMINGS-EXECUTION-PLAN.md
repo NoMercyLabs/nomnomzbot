@@ -29,7 +29,7 @@ Read this block first. It is the only summary; everything below is detail.
 |---|---|---|
 | pipeline page needs love, nested if/and/or, add-remove-reorder | S-PIPE-TREE | engine + named params shipped; nested block-list EDITOR remains |
 | make effects and repercussions visible | S-CONSEQ | law recorded, applies to every slice |
-| VS Code-web editor, real npm SDK, real event payloads | S-CODE-EDITOR | CLOSED — Monaco shell, real server-generated types, multi-file, 220/220 event sample payloads (77 fixture-sourced + 143 reflection-generated) |
+| VS Code-web editor, real npm SDK, real event payloads | S-EDITOR-TYPES | Monaco shell restored (see below); the TYPES it loads are still wrong in both directions — open |
 | item pickers show a rich list, not opaque ids | S-RICH-PICKERS | backend building - dashboard half after |
 | budget system for payment tiers by resource usage | S-BUDGETS | queued - intent recorded: recover real cost, not upsell |
 | old-bot behaviour only from generic blocks | (standing rule) | verified against the spec |
