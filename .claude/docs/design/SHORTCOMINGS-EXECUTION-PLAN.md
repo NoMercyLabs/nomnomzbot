@@ -84,11 +84,17 @@ re-running a persistent side effect.
   - `tts_speak` is genuinely uncorrelated: `TtsUtteranceDispatchedEvent` carries no reference to any
     triggering redemption/command, and a viewer `!tts` request never logs a `ChannelEvent` at all —
     `ChannelEventId` is explicitly null for TTS captures, no fake time-window join was invented.
-    **S-REPLAY-TTS-CORRELATION** (needs an owner call, mark 🔒): either give TTS dispatch a real
-    triggering-event reference to correlate against, or accept TTS replay as "replay whichever TTS
-    utterance most recently accompanied this feed row" via an explicit time-window join at replay time
-    (a real, disclosed approximation, not a silent one) — pick one before S-REPLAY-ENDPOINT decides how
-    to handle a feed row whose only capture is an uncorrelated TTS push.
+    **Owner decision (2026-08-30): a free chat command (`!tts`) never needs replay — nothing was paid
+    for, out of scope permanently.** What DOES matter: TTS fired as a side effect of a PAID event's
+    pipeline/action chain (e.g. a reward redemption whose action chain includes a TTS action) —that
+    TTS should replay alongside its paid event's alert. **S-REPLAY-TTS-PIPELINE-CORRELATION**: find
+    where a pipeline action chain triggers `TtsUtteranceDispatchedEvent` (the `speak`/TTS pipeline
+    action, `NomNomzBot.Infrastructure/Tts/PipelineActions/` or similar) and check whether the pipeline
+    execution context at that point still has access to the `ChannelEvent.Id` that triggered the chain
+    (it should — the chain was invoked BECAUSE of that event). If so, thread it through the same way
+    the alert handlers were. If a chain-triggered TTS genuinely cannot see back to its `ChannelEvent`
+    (e.g. the engine doesn't carry it in its execution context at all), that's a real engine-context gap
+    to close, not a fallback to invent around — report it plainly rather than approximating.
 - **S-REPLAY-ENDPOINT**: `POST /api/v1/channels/{channelId}/activity/{eventId}/replay` (Gate-2 action
   key alongside `dashboard:read`/write floor — moderator-or-above, matches other on-stream action
   endpoints) that looks up the capture row(s) for that `ChannelEvent.Id` and re-broadcasts each recorded
