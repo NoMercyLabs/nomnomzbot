@@ -166,6 +166,7 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
         typeof(Channel),
         typeof(DiscordGuildConnection),
         typeof(Widget),
+        typeof(RenderedAlertCapture),
         typeof(IamPermission),
         typeof(IamRole),
         typeof(IamRolePermission),
@@ -204,6 +205,7 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
     public DbSet<WidgetGalleryItem> WidgetGalleryItems => throw new NotSupportedException();
     public DbSet<WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
         throw new NotSupportedException();
+    public DbSet<RenderedAlertCapture> RenderedAlertCaptures => Set<RenderedAlertCapture>();
     public DbSet<EventSubSubscription> EventSubSubscriptions => throw new NotSupportedException();
     public DbSet<EventSubConduit> EventSubConduits => throw new NotSupportedException();
     public DbSet<EventSubConduitShard> EventSubConduitShards => throw new NotSupportedException();

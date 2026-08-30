@@ -68,6 +68,7 @@ public interface IApplicationDbContext
     DbSet<WidgetVersion> WidgetVersions { get; }
     DbSet<WidgetGalleryItem> WidgetGalleryItems { get; }
     DbSet<WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents { get; }
+    DbSet<NomNomzBot.Domain.Widgets.Entities.RenderedAlertCapture> RenderedAlertCaptures { get; }
     DbSet<EventSubSubscription> EventSubSubscriptions { get; }
     DbSet<EventSubConduit> EventSubConduits { get; }
     DbSet<EventSubConduitShard> EventSubConduitShards { get; }

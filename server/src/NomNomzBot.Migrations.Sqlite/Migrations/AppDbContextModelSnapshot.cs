@@ -9226,6 +9226,38 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.ToTable("OutboundWebhookEndpoints");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Widgets.Entities.RenderedAlertCapture", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "CreatedAt")
+                        .HasDatabaseName("IX_RenderedAlertCapture_BroadcasterId_CreatedAt");
+
+                    b.ToTable("RenderedAlertCaptures");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Widgets.Entities.Widget", b =>
                 {
                     b.Property<Guid>("Id")

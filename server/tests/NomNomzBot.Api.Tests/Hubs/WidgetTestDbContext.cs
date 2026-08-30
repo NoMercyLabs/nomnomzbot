@@ -81,6 +81,7 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
     }
 
     public DbSet<Widget> Widgets => Set<Widget>();
+    public DbSet<RenderedAlertCapture> RenderedAlertCaptures => Set<RenderedAlertCapture>();
     public DbSet<WidgetVersion> WidgetVersions => throw new NotSupportedException();
     public DbSet<WidgetGalleryItem> WidgetGalleryItems => throw new NotSupportedException();
     public DbSet<WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
@@ -112,7 +113,7 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
         b.ApplySqliteCompatibility();
     }
 
-    private static readonly HashSet<Type> Mapped = [typeof(Widget)];
+    private static readonly HashSet<Type> Mapped = [typeof(Widget), typeof(RenderedAlertCapture)];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
     [

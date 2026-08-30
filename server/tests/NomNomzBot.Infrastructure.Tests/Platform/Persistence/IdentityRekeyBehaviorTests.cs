@@ -448,6 +448,8 @@ public sealed class IdentityRekeyBehaviorTests
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Widgets.Entities.WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
             throw new NotSupportedException();
+        public DbSet<NomNomzBot.Domain.Widgets.Entities.RenderedAlertCapture> RenderedAlertCaptures =>
+            throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Platform.Entities.EventSubSubscription> EventSubSubscriptions =>
             throw new NotSupportedException();
         public DbSet<NomNomzBot.Domain.Platform.Entities.EventSubConduit> EventSubConduits =>
