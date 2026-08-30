@@ -599,7 +599,7 @@ class PipelinesController(
         val nextOrderInLane: MutableMap<Pair<String?, String?>, Int> = mutableMapOf()
         return steps.map { step ->
             val lane: Pair<String?, String?> = step.parentStepId to step.branch
-            val order: Int = step.order ?: (nextOrderInLane.getOrDefault(lane, 0))
+            val order: Int = step.order ?: (nextOrderInLane[lane] ?: 0)
             nextOrderInLane[lane] = order + 1
             step.copy(id = step.id ?: newLocalStepId(), order = order)
         }
