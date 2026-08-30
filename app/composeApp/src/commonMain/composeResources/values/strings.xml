@@ -1369,6 +1369,10 @@
     <string name="widgets_never_ran">Never ran yet</string>
     <string name="widgets_last_ran">Last ran %1$dm ago</string>
     <string name="widgets_runtime_error">Last error: %1$s</string>
+    <string name="widgets_test_action">Fire a test event at overlay %1$s</string>
+    <string name="widgets_test_action_short">Test</string>
+    <string name="widgets_test_result">Test: %1$s</string>
+    <string name="widgets_test_error">Test failed: %1$s</string>
     <string name="widgets_update_action">Update overlay %1$s from the gallery</string>
     <string name="widgets_update_action_short">Update</string>
     <string name="widgets_settings_action">Settings for overlay %1$s</string>

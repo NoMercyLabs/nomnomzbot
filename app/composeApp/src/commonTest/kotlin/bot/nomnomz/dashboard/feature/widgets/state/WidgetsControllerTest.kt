@@ -525,6 +525,43 @@ class WidgetsControllerTest {
     }
 
     @Test
+    fun test_widget_fires_the_widgets_first_declared_subscription_and_returns_the_reach_description() = runTest {
+        val widgetsApi =
+            RecordingWidgetsApi(
+                ApiResult.Ok(
+                    listOf(WidgetSummary(id = "w-1", name = "Alerts", eventSubscriptions = listOf("follow", "cheer")))
+                )
+            )
+        widgetsApi.testEventResult = ApiResult.Ok("fired follow to 1 widget(s), 1 with a browser source open")
+        val controller =
+            widgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi)
+        controller.load()
+        val widget: WidgetSummary = (controller.state.value as WidgetsState.Ready).widgets.single()
+
+        val result: ApiResult<String> = controller.testWidget(widget)
+
+        // The FIRST declared subscription is what actually fires — not an arbitrary/last one — and the raw
+        // backend reach description passes through untouched (never collapsed to a bare success flag).
+        assertEquals(listOf("follow"), widgetsApi.testedEventTypes)
+        assertTrue(result is ApiResult.Ok)
+        assertEquals("fired follow to 1 widget(s), 1 with a browser source open", (result as ApiResult.Ok).value)
+    }
+
+    @Test
+    fun test_widget_falls_back_to_a_generic_sample_when_nothing_is_declared() = runTest {
+        val widgetsApi =
+            RecordingWidgetsApi(ApiResult.Ok(listOf(WidgetSummary(id = "w-1", name = "Custom", eventSubscriptions = emptyList()))))
+        val controller =
+            widgetsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), widgetsApi)
+        controller.load()
+        val widget: WidgetSummary = (controller.state.value as WidgetsState.Ready).widgets.single()
+
+        controller.testWidget(widget)
+
+        assertEquals(listOf("test"), widgetsApi.testedEventTypes)
+    }
+
+    @Test
     fun clone_from_gallery_clones_with_the_gallery_item_id_then_opens_the_editor_on_the_copy() = runTest {
         val widgetsApi =
             RecordingWidgetsApi(
@@ -840,6 +877,16 @@ private class RecordingWidgetsApi(
         val updated: WidgetSummary = store[index].copy(galleryUpdateAvailable = false)
         store[index] = updated
         return ApiResult.Ok(updated)
+    }
+
+    // Records which eventType was fired so the "Test" row action's wiring (pick the widget's first declared
+    // subscription, fall back to "test") is provable without HTTP.
+    val testedEventTypes: MutableList<String> = mutableListOf()
+    var testEventResult: ApiResult<String> = ApiResult.Ok("fired follow — no widget on this channel subscribes it")
+
+    override suspend fun testEvent(channelId: String, eventType: String): ApiResult<String> {
+        testedEventTypes += eventType
+        return testEventResult
     }
 }
 

@@ -141,6 +141,15 @@ interface WidgetsApi {
      * the gallery.
      */
     suspend fun updateFromGallery(channelId: String, widgetId: String): ApiResult<WidgetSummary>
+
+    /**
+     * Fire a representative sample of [eventType] through the exact same dispatch a real event uses
+     * (backend `WidgetTestEventController`) — the "Test" row action. Returns a human-readable reach
+     * description (who actually could have received it: no subscriber / subscriber with no browser
+     * source open / delivered), not a bare success flag, so a test that reached nothing reads
+     * differently from one the overlay actually heard.
+     */
+    suspend fun testEvent(channelId: String, eventType: String): ApiResult<String>
 }
 
 class RestWidgetsApi(private val client: ApiClient) : WidgetsApi {
@@ -269,7 +278,18 @@ class RestWidgetsApi(private val client: ApiClient) : WidgetsApi {
     // linked gallery item's current source and returns the refreshed widget (galleryUpdateAvailable now false).
     override suspend fun updateFromGallery(channelId: String, widgetId: String): ApiResult<WidgetSummary> =
         client.postEnvelope("api/v1/channels/$channelId/widgets/$widgetId/update-from-gallery", Unit)
+
+    // No custom payload — omitting `data` makes the backend pick its own representative sample for eventType.
+    override suspend fun testEvent(channelId: String, eventType: String): ApiResult<String> =
+        client.postEnvelope(
+            "api/v1/channels/$channelId/widgets/test-event",
+            TestEventBody(eventType = eventType),
+        )
 }
+
+/** The test-fire request body (backend `WidgetTestEventRequest`). [data] is always omitted — a sample is used. */
+@Serializable
+data class TestEventBody(val eventType: String, val data: JsonObject? = null)
 
 /**
  * The update-widget request body (backend `UpdateWidgetRequest`) — every field nullable so an update is a

@@ -120,6 +120,10 @@ import nomnomzbot.composeapp.generated.resources.widgets_last_ran
 import nomnomzbot.composeapp.generated.resources.widgets_runtime_error
 import nomnomzbot.composeapp.generated.resources.widgets_settings_action
 import nomnomzbot.composeapp.generated.resources.widgets_settings_action_short
+import nomnomzbot.composeapp.generated.resources.widgets_test_action
+import nomnomzbot.composeapp.generated.resources.widgets_test_action_short
+import nomnomzbot.composeapp.generated.resources.widgets_test_error
+import nomnomzbot.composeapp.generated.resources.widgets_test_result
 import nomnomzbot.composeapp.generated.resources.widgets_clone_dismiss
 import nomnomzbot.composeapp.generated.resources.widgets_clone_message
 import nomnomzbot.composeapp.generated.resources.widgets_create_action
@@ -295,6 +299,7 @@ fun WidgetsScreen(controller: WidgetsController, role: ManagementRole?, isReview
                     onVersions = { widget -> pendingVersions = widget },
                     onSettings = { widget -> pendingSettings = widget },
                     onUpdateFromGallery = { widget -> scope.launch { controller.updateFromGallery(widget.id) } },
+                    onTest = { widget -> controller.testWidget(widget) },
                 )
         }
     }
@@ -467,6 +472,7 @@ private fun ReadyContent(
     onVersions: (WidgetSummary) -> Unit,
     onSettings: (WidgetSummary) -> Unit,
     onUpdateFromGallery: (WidgetSummary) -> Unit,
+    onTest: suspend (WidgetSummary) -> ApiResult<String>,
 ) {
     val spacing = LocalSpacing.current
 
@@ -486,6 +492,7 @@ private fun ReadyContent(
             onVersions = onVersions,
             onSettings = onSettings,
             onUpdateFromGallery = onUpdateFromGallery,
+            onTest = onTest,
         )
     }
 }
@@ -502,6 +509,7 @@ private fun WidgetList(
     onVersions: (WidgetSummary) -> Unit,
     onSettings: (WidgetSummary) -> Unit,
     onUpdateFromGallery: (WidgetSummary) -> Unit,
+    onTest: suspend (WidgetSummary) -> ApiResult<String>,
 ) {
     val spacing = LocalSpacing.current
 
@@ -525,6 +533,7 @@ private fun WidgetList(
                     onVersions = { onVersions(widget) },
                     onSettings = { onSettings(widget) },
                     onUpdateFromGallery = { onUpdateFromGallery(widget) },
+                    onTest = { onTest(widget) },
                 )
             }
         }
@@ -548,10 +557,15 @@ private fun WidgetRow(
     onVersions: () -> Unit,
     onSettings: () -> Unit,
     onUpdateFromGallery: () -> Unit,
+    onTest: suspend () -> ApiResult<String>,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+    val rowScope = rememberCoroutineScope()
+    // The last "Test" fire's reach description (or error) — a read-like action local to this row, so it never
+    // disturbs the page's Ready list the way a real mutation would.
+    var testResult: ApiResult<String>? by remember(widget.id) { mutableStateOf(null) }
 
     // Typed settings exist for first-party widgets (their type has an authored schema the backend serves); the
     // Settings affordance is shown only then. A self-authored custom widget is configured via the code editor.
@@ -572,6 +586,7 @@ private fun WidgetRow(
     val settingsLabel: String = stringResource(Res.string.widgets_settings_action, widgetDisplayName)
     val versionsLabel: String = stringResource(Res.string.widgets_versions_action, widgetDisplayName)
     val updateLabel: String = stringResource(Res.string.widgets_update_action, widgetDisplayName)
+    val testLabel: String = stringResource(Res.string.widgets_test_action, widgetDisplayName)
     // "Last ran" / runtime-error state was fetched but never rendered — a widget silently failing every time it
     // ran looked identical to one that had never been asked to run at all.
     val now = remember { Clock.System.now() }
@@ -629,6 +644,25 @@ private fun WidgetRow(
                         Text(stringResource(Res.string.widgets_update_badge), style = typography.xs)
                     }
                 }
+                when (val result: ApiResult<String>? = testResult) {
+                    null -> {}
+                    is ApiResult.Ok ->
+                        Text(
+                            text = stringResource(Res.string.widgets_test_result, result.value),
+                            style = typography.xs,
+                            color = tokens.mutedForeground,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    is ApiResult.Failure ->
+                        Text(
+                            text = stringResource(Res.string.widgets_test_error, result.error.message),
+                            style = typography.xs,
+                            color = tokens.destructive,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                }
             }
 
             // Typed settings (chat_box font/background/timestamps) — a focused form over the widget's config,
@@ -656,6 +690,21 @@ private fun WidgetRow(
                 ) {
                     Text(
                         text = stringResource(Res.string.widgets_edit_code_action_short),
+                        color = if (enabled) tokens.primary else tokens.mutedForeground,
+                        maxLines = 1,
+                    )
+                }
+            }
+            // Fires a representative sample event through the real dispatch (backend widget:write test-event
+            // route) so the operator can prove the overlay reacts without waiting for a real follow/sub/cheer.
+            ManageGate(decision = manage) { enabled ->
+                TextButton(
+                    onClick = { rowScope.launch { testResult = onTest() } },
+                    enabled = enabled,
+                    modifier = Modifier.semantics { contentDescription = testLabel },
+                ) {
+                    Text(
+                        text = stringResource(Res.string.widgets_test_action_short),
                         color = if (enabled) tokens.primary else tokens.mutedForeground,
                         maxLines = 1,
                     )
