@@ -73,6 +73,20 @@ const dom = {
     previewNote: document.getElementById('previewNote'),
     fireBar: document.getElementById('fireBar'),
     refresh: document.getElementById('refresh'),
+    activity: document.getElementById('activity'),
+    sidebar: document.getElementById('sidebar'),
+    sidebarSplitter: document.getElementById('sidebarSplitter'),
+    searchInput: document.getElementById('searchInput'),
+    searchResults: document.getElementById('searchResults'),
+    problemsSidebar: document.getElementById('problemsSidebar'),
+    activityProblemBadge: document.getElementById('activityProblemBadge'),
+    runTest: document.getElementById('runTest'),
+    runNote: document.getElementById('runNote'),
+    bundleMeta: document.getElementById('bundleMeta'),
+    theme: document.getElementById('theme'),
+    paletteBackdrop: document.getElementById('paletteBackdrop'),
+    paletteInput: document.getElementById('paletteInput'),
+    paletteList: document.getElementById('paletteList'),
 };
 
 const state = {
@@ -186,44 +200,103 @@ function disposeModel(path) {
     state.models.delete(path);
 }
 
-function renderFiles() {
-    dom.fileList.replaceChildren(
-        ...[...state.files.keys()].sort().map((path) => {
-            const row = document.createElement('button');
-            row.type = 'button';
-            row.className = 'file-row';
-            row.setAttribute('aria-current', String(path === state.active));
-            row.addEventListener('click', () => selectFile(path));
+// Folder paths the operator has collapsed. Absent = expanded, so a new project opens fully visible.
+const collapsedFolders = new Set();
 
-            const name = document.createElement('span');
-            name.className = 'file-name';
-            name.textContent = path;
-            row.append(name);
-
-            if (path === state.entry) {
-                const marker = document.createElement('span');
-                marker.className = 'file-entry';
-                marker.textContent = '•';
-                marker.title = 'Entry file';
-                row.append(marker);
-            } else {
-                row.append(
-                    fileAction('Rename', (event) => {
-                        event.stopPropagation();
-                        renameFile(path);
-                    }),
-                    fileAction('Delete', (event) => {
-                        event.stopPropagation();
-                        deleteFile(path);
-                    }),
-                );
+// Group the flat path list into a nested tree so `lib/helper.ts` renders under a `lib` folder rather
+// than as a row whose name happens to contain a slash.
+function buildTree(paths) {
+    const root = { folders: new Map(), files: [] };
+    for (const path of paths) {
+        const segments = path.split('/');
+        const fileName = segments.pop();
+        let node = root;
+        let prefix = '';
+        for (const segment of segments) {
+            prefix = prefix ? `${prefix}/${segment}` : segment;
+            if (!node.folders.has(segment)) {
+                node.folders.set(segment, { name: segment, path: prefix, folders: new Map(), files: [] });
             }
+            node = node.folders.get(segment);
+        }
+        node.files.push({ path, name: fileName });
+    }
+    return root;
+}
 
+function renderFiles() {
+    const rows = [];
+    const walk = (node, depth) => {
+        for (const folder of [...node.folders.values()].sort((a, b) => a.name.localeCompare(b.name))) {
+            const collapsed = collapsedFolders.has(folder.path);
             const item = document.createElement('li');
-            item.append(row);
-            return item;
-        }),
-    );
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'tree-folder';
+            button.style.setProperty('--depth', String(depth));
+            button.setAttribute('aria-expanded', String(!collapsed));
+            button.addEventListener('click', () => {
+                if (collapsed) collapsedFolders.delete(folder.path);
+                else collapsedFolders.add(folder.path);
+                renderFiles();
+            });
+
+            const twisty = document.createElement('span');
+            twisty.className = 'tree-twisty';
+            twisty.textContent = '▾';
+            const label = document.createElement('span');
+            label.textContent = folder.name;
+            button.append(twisty, label);
+            item.append(button);
+            rows.push(item);
+
+            if (!collapsed) walk(folder, depth + 1);
+        }
+
+        for (const file of node.files.sort((a, b) => a.name.localeCompare(b.name))) {
+            rows.push(fileRow(file.path, file.name, depth));
+        }
+    };
+    walk(buildTree([...state.files.keys()]), 0);
+    dom.fileList.replaceChildren(...rows);
+}
+
+function fileRow(path, name, depth) {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'file-row tree-row';
+    row.style.setProperty('--depth', String(depth));
+    row.setAttribute('aria-current', String(path === state.active));
+    row.title = path;
+    row.addEventListener('click', () => selectFile(path));
+
+    const label = document.createElement('span');
+    label.className = 'file-name';
+    label.textContent = name;
+    row.append(label);
+
+    if (path === state.entry) {
+        const marker = document.createElement('span');
+        marker.className = 'file-entry';
+        marker.textContent = '•';
+        marker.title = 'Entry file';
+        row.append(marker);
+    } else {
+        row.append(
+            fileAction('Rename', (event) => {
+                event.stopPropagation();
+                renameFile(path);
+            }),
+            fileAction('Delete', (event) => {
+                event.stopPropagation();
+                deleteFile(path);
+            }),
+        );
+    }
+
+    const item = document.createElement('li');
+    item.append(row);
+    return item;
 }
 
 function fileAction(label, onClick) {
@@ -390,6 +463,10 @@ function renderProblems(monaco) {
             : `${errors} error${errors === 1 ? '' : 's'}, ${warnings} warning${warnings === 1 ? '' : 's'}`;
     dom.problemCount.dataset.severity = errors > 0 ? 'error' : warnings > 0 ? 'warning' : 'none';
     if (total === 0) dom.problems.hidden = true;
+
+    dom.activityProblemBadge.hidden = errors === 0;
+    dom.activityProblemBadge.textContent = String(errors);
+    if (!document.querySelector('.view[data-view="problems"]')?.hidden) renderProblemsSidebar();
 }
 
 function syncStatus() {
@@ -430,6 +507,258 @@ function installSplitter() {
         document.addEventListener('mousemove', onMove);
         document.addEventListener('mouseup', onUp);
     });
+}
+
+// ── Activity bar / side bar views ──────────────────────────────────────────
+
+function showView(name) {
+    for (const button of document.querySelectorAll('.activity-item')) {
+        button.setAttribute('aria-current', String(button.dataset.view === name));
+    }
+    for (const section of document.querySelectorAll('.view')) {
+        section.hidden = section.dataset.view !== name;
+    }
+    if (name === 'search') dom.searchInput.focus();
+    if (name === 'problems') renderProblemsSidebar();
+}
+
+function renderProblemsSidebar() {
+    if (!state.monaco) return;
+    const markers = state.monaco.editor.getModelMarkers({});
+    if (markers.length === 0) {
+        const empty = document.createElement('li');
+        empty.className = 'view-hint';
+        empty.textContent = 'No problems detected.';
+        dom.problemsSidebar.replaceChildren(empty);
+        return;
+    }
+    dom.problemsSidebar.replaceChildren(
+        ...markers.map((marker) => {
+            const file = String(marker.resource?.path ?? '').replace(/^\/+/, '');
+            const item = document.createElement('li');
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'problem-item';
+            button.addEventListener('click', () => revealMarker(file, marker));
+
+            const where = document.createElement('span');
+            where.className = 'hit-where';
+            where.textContent = `${file}:${marker.startLineNumber}`;
+            const message = document.createElement('span');
+            message.className = 'hit-line';
+            message.textContent = marker.message;
+            button.append(where, message);
+            item.append(button);
+            return item;
+        }),
+    );
+}
+
+function revealMarker(file, marker) {
+    if (file && file !== state.active && state.files.has(file)) selectFile(file);
+    state.editor.revealLineInCenter(marker.startLineNumber);
+    state.editor.setPosition({ lineNumber: marker.startLineNumber, column: marker.startColumn });
+    state.editor.focus();
+}
+
+// Plain substring search across the in-memory buffers — the project is a handful of files, so there is
+// nothing to index and no worker to justify.
+function runSearch(term) {
+    const needle = term.trim().toLowerCase();
+    if (needle.length < 2) {
+        dom.searchResults.replaceChildren();
+        return;
+    }
+    flushActive();
+    const hits = [];
+    for (const [path, content] of state.files) {
+        content.split('\n').forEach((line, index) => {
+            if (line.toLowerCase().includes(needle)) hits.push({ path, line: index + 1, text: line.trim() });
+        });
+    }
+    if (hits.length === 0) {
+        const empty = document.createElement('li');
+        empty.className = 'view-hint';
+        empty.textContent = `No matches for “${term}”.`;
+        dom.searchResults.replaceChildren(empty);
+        return;
+    }
+    dom.searchResults.replaceChildren(
+        ...hits.slice(0, 200).map((hit) => {
+            const item = document.createElement('li');
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'search-hit';
+            button.addEventListener('click', () => {
+                if (hit.path !== state.active) selectFile(hit.path);
+                state.editor.revealLineInCenter(hit.line);
+                state.editor.setPosition({ lineNumber: hit.line, column: 1 });
+                state.editor.focus();
+            });
+            const where = document.createElement('span');
+            where.className = 'hit-where';
+            where.textContent = `${hit.path}:${hit.line}`;
+            const text = document.createElement('span');
+            text.className = 'hit-line';
+            text.textContent = hit.text;
+            button.append(where, text);
+            item.append(button);
+            return item;
+        }),
+    );
+}
+
+// ── Themes ─────────────────────────────────────────────────────────────────
+
+const THEMES = Object.freeze([
+    { id: 'vs-dark', label: 'Dark' },
+    { id: 'vs', label: 'Light' },
+    { id: 'hc-black', label: 'High contrast dark' },
+    { id: 'hc-light', label: 'High contrast light' },
+]);
+
+const THEME_STORAGE_KEY = 'nnz.editor.theme';
+
+function applyTheme(id) {
+    state.theme = id;
+    state.monaco?.editor.setTheme(id);
+    dom.theme.textContent = `Theme: ${THEMES.find((t) => t.id === id)?.label ?? id}`;
+    // Per-viewer convenience only; a browser that refuses storage must not break the editor.
+    try {
+        localStorage.setItem(THEME_STORAGE_KEY, id);
+    } catch {
+        /* private mode / storage disabled */
+    }
+}
+
+function storedTheme() {
+    try {
+        return localStorage.getItem(THEME_STORAGE_KEY) ?? 'vs-dark';
+    } catch {
+        return 'vs-dark';
+    }
+}
+
+// ── Command palette + quick open ───────────────────────────────────────────
+
+const palette = { items: [], filtered: [], index: 0, mode: 'files' };
+
+function commands() {
+    return [
+        { label: 'Save & Compile', detail: 'Ctrl+S', run: requestSave },
+        { label: 'Run in sandbox', detail: '', run: runSandbox },
+        { label: 'Format document', detail: '', run: () => state.editor?.getAction('editor.action.formatDocument')?.run() },
+        { label: 'New file', detail: '', run: addFile },
+        { label: 'Toggle preview', detail: '', run: () => setPreviewCollapsed(dom.shell.dataset.preview !== 'collapsed') },
+        { label: 'Toggle word wrap', detail: '', run: toggleWrap },
+        { label: 'Toggle minimap', detail: '', run: toggleMinimap },
+        ...THEMES.map((theme) => ({ label: `Theme: ${theme.label}`, detail: theme.id, run: () => applyTheme(theme.id) })),
+        ...['explorer', 'search', 'problems', 'run', 'bundle'].map((view) => ({
+            label: `View: ${view[0].toUpperCase()}${view.slice(1)}`,
+            detail: '',
+            run: () => showView(view),
+        })),
+    ];
+}
+
+function openPalette(mode) {
+    palette.mode = mode;
+    palette.items =
+        mode === 'commands'
+            ? commands()
+            : [...state.files.keys()].sort().map((path) => ({ label: path, detail: '', run: () => selectFile(path) }));
+    dom.paletteInput.value = mode === 'commands' ? '>' : '';
+    dom.paletteBackdrop.hidden = false;
+    filterPalette();
+    dom.paletteInput.focus();
+}
+
+function closePalette() {
+    dom.paletteBackdrop.hidden = true;
+    state.editor?.focus();
+}
+
+function filterPalette() {
+    const raw = dom.paletteInput.value;
+    const commandMode = raw.startsWith('>');
+    if (commandMode !== (palette.mode === 'commands')) {
+        palette.mode = commandMode ? 'commands' : 'files';
+        palette.items = commandMode
+            ? commands()
+            : [...state.files.keys()].sort().map((path) => ({ label: path, detail: '', run: () => selectFile(path) }));
+    }
+    const term = (commandMode ? raw.slice(1) : raw).trim().toLowerCase();
+    palette.filtered = term
+        ? palette.items.filter((item) => item.label.toLowerCase().includes(term))
+        : palette.items;
+    palette.index = 0;
+    renderPalette();
+}
+
+function renderPalette() {
+    if (palette.filtered.length === 0) {
+        const empty = document.createElement('li');
+        empty.className = 'palette-empty';
+        empty.textContent = 'No matches.';
+        dom.paletteList.replaceChildren(empty);
+        return;
+    }
+    dom.paletteList.replaceChildren(
+        ...palette.filtered.map((entry, index) => {
+            const item = document.createElement('li');
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'palette-item';
+            button.setAttribute('aria-selected', String(index === palette.index));
+            button.addEventListener('click', () => {
+                closePalette();
+                entry.run();
+            });
+            const label = document.createElement('span');
+            label.textContent = entry.label;
+            button.append(label);
+            if (entry.detail) {
+                const detail = document.createElement('span');
+                detail.className = 'palette-item-detail';
+                detail.textContent = entry.detail;
+                button.append(detail);
+            }
+            item.append(button);
+            return item;
+        }),
+    );
+}
+
+function movePalette(delta) {
+    if (palette.filtered.length === 0) return;
+    palette.index = (palette.index + delta + palette.filtered.length) % palette.filtered.length;
+    renderPalette();
+    dom.paletteList.children[palette.index]?.scrollIntoView({ block: 'nearest' });
+}
+
+// ── Sandbox run ────────────────────────────────────────────────────────────
+
+// Rebuilds the preview from the CURRENT buffers. Never posts to the host, so nothing is compiled
+// server-side and no version is published — the whole point of testing before release.
+function runSandbox() {
+    showView('run');
+    setPreviewCollapsed(false);
+    state.preview?.rebuildNow();
+}
+
+function toggleWrap() {
+    state.wrap = !state.wrap;
+    state.editor?.updateOptions({ wordWrap: state.wrap ? 'on' : 'off' });
+    if (state.wrap) state.editor?.setScrollLeft(0);
+    dom.wrap.textContent = `Wrap: ${state.wrap ? 'on' : 'off'}`;
+}
+
+function toggleMinimap() {
+    state.minimap = !state.minimap;
+    state.editor?.updateOptions({
+        minimap: { enabled: state.minimap, renderCharacters: false, maxColumn: 80 },
+    });
+    dom.minimap.textContent = `Minimap: ${state.minimap ? 'on' : 'off'}`;
 }
 
 // ── Save / close ───────────────────────────────────────────────────────────
@@ -497,14 +826,38 @@ async function open(payload) {
     state.editor.onDidChangeModel(syncStatus);
     monaco.editor.onDidChangeMarkers(() => renderProblems(monaco));
 
+    applyTheme(storedTheme());
     renderFiles();
     renderTabs();
     syncStatus();
     renderProblems(monaco);
+    renderBundleMeta(payload);
+    dom.runNote.textContent =
+        state.preview.mode === 'note'
+            ? 'This project runs in the bot sandbox, so there is nothing to render. Save & Compile validates it.'
+            : 'Renders the current editor contents. Fire an event below to drive it.';
 
     dom.boot.hidden = true;
     dom.shell.hidden = false;
     state.editor.focus();
+}
+
+function renderBundleMeta(payload) {
+    const rows = [
+        ['Name', payload.title ?? '—'],
+        ['Kind', payload.language || '—'],
+        ['Entry', state.entry],
+        ['Files', String(state.files.size)],
+    ];
+    dom.bundleMeta.replaceChildren(
+        ...rows.flatMap(([term, value]) => {
+            const dt = document.createElement('dt');
+            dt.textContent = term;
+            const dd = document.createElement('dd');
+            dd.textContent = value;
+            return [dt, dd];
+        }),
+    );
 }
 
 function wireChrome() {
@@ -521,24 +874,84 @@ function wireChrome() {
         state.editor?.getAction('editor.action.formatDocument')?.run();
         state.editor?.focus();
     });
-    dom.wrap.addEventListener('click', () => {
-        state.wrap = !state.wrap;
-        state.editor?.updateOptions({ wordWrap: state.wrap ? 'on' : 'off' });
-        if (state.wrap) state.editor?.setScrollLeft(0);
-        dom.wrap.textContent = `Wrap: ${state.wrap ? 'on' : 'off'}`;
+    dom.wrap.addEventListener('click', toggleWrap);
+    dom.minimap.addEventListener('click', toggleMinimap);
+    dom.theme.addEventListener('click', () => openPalette('commands'));
+    dom.runTest.addEventListener('click', runSandbox);
+
+    for (const button of dom.activity.querySelectorAll('.activity-item')) {
+        button.addEventListener('click', () => showView(button.dataset.view));
+    }
+    dom.searchInput.addEventListener('input', () => runSearch(dom.searchInput.value));
+
+    dom.paletteBackdrop.addEventListener('click', (event) => {
+        if (event.target === dom.paletteBackdrop) closePalette();
     });
-    dom.minimap.addEventListener('click', () => {
-        state.minimap = !state.minimap;
-        state.editor?.updateOptions({
-            minimap: { enabled: state.minimap, renderCharacters: false, maxColumn: 80 },
-        });
-        dom.minimap.textContent = `Minimap: ${state.minimap ? 'on' : 'off'}`;
+    dom.paletteInput.addEventListener('input', filterPalette);
+    dom.paletteInput.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            movePalette(1);
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            movePalette(-1);
+        } else if (event.key === 'Enter') {
+            event.preventDefault();
+            const entry = palette.filtered[palette.index];
+            closePalette();
+            entry?.run();
+        } else if (event.key === 'Escape') {
+            event.preventDefault();
+            closePalette();
+        }
     });
+
+    installSidebarSplitter();
+
     window.addEventListener('keydown', (event) => {
+        const meta = event.ctrlKey || event.metaKey;
         if (event.key === 'Escape') {
+            // Esc closes the palette first — closing the whole editor out from under an open palette
+            // would lose unsaved work to a keystroke meant for the palette.
+            if (!dom.paletteBackdrop.hidden) return;
             event.preventDefault();
             postToHost({ type: HOST_MESSAGE.close });
+        } else if (event.key === 'F1' || (meta && event.shiftKey && event.key.toLowerCase() === 'p')) {
+            event.preventDefault();
+            openPalette('commands');
+        } else if (meta && !event.shiftKey && event.key.toLowerCase() === 'p') {
+            event.preventDefault();
+            openPalette('files');
+        } else if (meta && event.shiftKey && event.key.toLowerCase() === 'e') {
+            event.preventDefault();
+            showView('explorer');
+        } else if (meta && event.shiftKey && event.key.toLowerCase() === 'f') {
+            event.preventDefault();
+            showView('search');
+        } else if (meta && event.shiftKey && event.key.toLowerCase() === 'm') {
+            event.preventDefault();
+            showView('problems');
+        } else if (meta && event.shiftKey && event.key.toLowerCase() === 'd') {
+            event.preventDefault();
+            showView('run');
         }
+    });
+}
+
+function installSidebarSplitter() {
+    dom.sidebarSplitter.addEventListener('mousedown', (down) => {
+        down.preventDefault();
+        const onMove = (move) => {
+            const left = dom.sidebar.getBoundingClientRect().left;
+            dom.sidebar.style.flexBasis = `${Math.min(Math.max(move.clientX - left, 180), 480)}px`;
+            state.editor?.layout();
+        };
+        const onUp = () => {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
     });
 }
 
