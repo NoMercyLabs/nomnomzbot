@@ -122,6 +122,14 @@ interface TtsApi {
      * no gallery install step.
      */
     suspend fun overlay(channelId: String): ApiResult<TtsOverlay>
+
+    /**
+     * Fire a real test utterance through the LIVE dispatch pipeline (backend `POST /tts/overlay/test`) — the
+     * same path production reward-triggered TTS uses — so the streamer can confirm the OBS browser source is
+     * actually wired up. This is NOT [testSpeak]: that endpoint only synthesises audio and hands it back for
+     * inline playback in the dashboard; this one dispatches to the real overlay and never returns audio.
+     */
+    suspend fun testOverlay(channelId: String): ApiResult<Unit>
 }
 
 class RestTtsApi(private val client: ApiClient) : TtsApi {
@@ -273,6 +281,11 @@ class RestTtsApi(private val client: ApiClient) : TtsApi {
     // The overlay is a StatusResponseDto<TtsOverlayDto> envelope — getEnvelope unwraps `data`.
     override suspend fun overlay(channelId: String): ApiResult<TtsOverlay> =
         client.getEnvelope("api/v1/channels/$channelId/tts/overlay")
+
+    // No request body; the dispatch outcome (voice/provider/duration) isn't rendered by the dashboard, so
+    // postUnit discards the response body and only reports success/failure.
+    override suspend fun testOverlay(channelId: String): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/tts/overlay/test")
 }
 
 /** The channel's TTS configuration (backend `TtsConfigDto`). Field names mirror the DTO camelCase exactly. */

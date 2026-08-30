@@ -187,6 +187,28 @@ class TtsController(
     }
 
     /**
+     * Fire a real test utterance through the LIVE dispatch pipeline (backend `POST /tts/overlay/test`), so the
+     * operator can confirm the OBS browser source is actually wired up — a dispatch was SENT, not proof it was
+     * heard, so the confirmation on [TtsState.Ready.overlayTestSent] must never claim it played in OBS. No-ops
+     * when no channel is loaded.
+     */
+    suspend fun testOverlay() {
+        val channel: String = channelId ?: return
+        val current: TtsState = _state.value
+        if (current !is TtsState.Ready) return
+        _state.value = current.copy(overlayTestSending = true, overlayTestSent = false, overlayTestError = null)
+        _state.value =
+            when (val result: ApiResult<Unit> = ttsApi.testOverlay(channel)) {
+                is ApiResult.Failure ->
+                    (_state.value as? TtsState.Ready)?.copy(overlayTestSending = false, overlayTestError = result.error.message)
+                        ?: current.copy(overlayTestSending = false, overlayTestError = result.error.message)
+                is ApiResult.Ok ->
+                    (_state.value as? TtsState.Ready)?.copy(overlayTestSending = false, overlayTestSent = true)
+                        ?: current.copy(overlayTestSending = false, overlayTestSent = true)
+            }
+    }
+
+    /**
      * Look up the per-viewer voice override for [userId] and open the viewer-voice panel on it. A 404 (no
      * override) is not an error — it resolves to "uses the channel default" (a null voice). Surfaces a real
      * error on the panel. No-ops when no channel is loaded.
@@ -396,6 +418,11 @@ sealed interface TtsState {
         // The auto-provisioned OBS overlay (URL + last-ran signal), or null while it hasn't loaded / failed
         // to load — the rest of the page still renders in that case (see [TtsController.load]).
         val overlay: TtsOverlay? = null,
+        // The overlay "Test" button's in-flight / confirmation / error signals (see [TtsController.testOverlay]).
+        // [overlayTestSent] means the request reached the dispatch pipeline — NOT proof it was heard in OBS.
+        val overlayTestSending: Boolean = false,
+        val overlayTestSent: Boolean = false,
+        val overlayTestError: String? = null,
     ) : TtsState
 
     data class Error(val detail: String) : TtsState

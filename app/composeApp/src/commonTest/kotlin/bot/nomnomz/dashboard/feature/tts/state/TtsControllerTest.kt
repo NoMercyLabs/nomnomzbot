@@ -314,6 +314,36 @@ class TtsControllerTest {
         assertNull(ready.overlay)
     }
 
+    @Test
+    fun test_overlay_dispatches_through_the_api_and_shows_the_confirmation() = runTest {
+        val ttsApi = FakeTtsApi(ApiResult.Ok(TtsConfig()))
+        val controller = TtsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), ttsApi)
+        controller.load()
+
+        controller.testOverlay()
+
+        assertEquals(listOf("ch1"), ttsApi.testOverlayCalls)
+        val ready: TtsState.Ready = controller.state.value as TtsState.Ready
+        assertTrue(ready.overlayTestSent)
+        assertEquals(false, ready.overlayTestSending)
+        assertNull(ready.overlayTestError)
+    }
+
+    @Test
+    fun test_overlay_failure_surfaces_the_error_without_a_false_confirmation() = runTest {
+        val ttsApi =
+            FakeTtsApi(ApiResult.Ok(TtsConfig()), testOverlayResult = ApiResult.Failure(ApiError(500, "ERR", "boom")))
+        val controller = TtsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), ttsApi)
+        controller.load()
+
+        controller.testOverlay()
+
+        val ready: TtsState.Ready = controller.state.value as TtsState.Ready
+        assertEquals(false, ready.overlayTestSent)
+        assertEquals(false, ready.overlayTestSending)
+        assertEquals("boom", ready.overlayTestError)
+    }
+
     // ── Pronunciation lexicon ────────────────────────────────────────────────
 
     @Test
@@ -419,8 +449,16 @@ private class FakeTtsApi(
     private val updateResult: ApiResult<TtsConfig> = ApiResult.Ok(TtsConfig()),
     private val voicesResult: ApiResult<List<TtsVoice>> = ApiResult.Ok(emptyList()),
     private val overlayResult: ApiResult<TtsOverlay> = ApiResult.Ok(TtsOverlay()),
+    private val testOverlayResult: ApiResult<Unit> = ApiResult.Ok(Unit),
 ) : TtsApi {
     override suspend fun overlay(channelId: String): ApiResult<TtsOverlay> = overlayResult
+
+    val testOverlayCalls: MutableList<String> = mutableListOf()
+
+    override suspend fun testOverlay(channelId: String): ApiResult<Unit> {
+        testOverlayCalls.add(channelId)
+        return testOverlayResult
+    }
 
     override suspend fun myVoice(channelId: String): ApiResult<UserTtsVoice?> = ApiResult.Ok(null)
 
