@@ -897,6 +897,11 @@ private class FakeModerationApi(
     override suspend fun deleteChatFilter(channelId: String, filterId: String): ApiResult<Unit> =
         ApiResult.Ok(Unit)
 
+    override suspend fun shoutoutTemplate(channelId: String): ApiResult<String?> = ApiResult.Ok(null)
+
+    override suspend fun setShoutoutTemplate(channelId: String, template: String?): ApiResult<Unit> =
+        ApiResult.Ok(Unit)
+
     // Single-result convenience for the read-only tests (one bans() result, default-OK unban).
     constructor(
         result: ApiResult<List<BannedUser>>

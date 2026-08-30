@@ -225,15 +225,26 @@ public sealed class ShoutoutAction : ICommandAction
         Channel? channel = await _db
             .Channels.AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == ctx.BroadcasterId, ctx.CancellationToken);
+
+        // Old-bot parity: the announcement template is the TARGET's own — each NomNomzBot streamer sets how
+        // they want to be announced when shouted out BY ANYONE, not a template the shouting streamer picks
+        // for them (ShoutoutQueueService.ExecuteShoutoutAsync read channel?.ShoutoutTemplate off the target's
+        // own Channel row). Only a target who is themselves a NomNomzBot streamer has one; a plain Twitch
+        // channel with no account here falls through to the shouting streamer's own default.
+        Channel? targetChannel = await _db
+            .Channels.AsNoTracking()
+            .FirstOrDefaultAsync(c => c.TwitchChannelId == target.Id, ctx.CancellationToken);
+
         string templateOverride = ResolveVariable(
             action.GetString("template") ?? string.Empty,
             ctx.Variables
         );
         string template =
             !string.IsNullOrWhiteSpace(templateOverride) ? templateOverride
-            : channel is null || string.IsNullOrWhiteSpace(channel.ShoutoutTemplate)
-                ? DefaultTemplate
-            : channel.ShoutoutTemplate;
+            : !string.IsNullOrWhiteSpace(targetChannel?.ShoutoutTemplate)
+                ? targetChannel!.ShoutoutTemplate!
+            : !string.IsNullOrWhiteSpace(channel?.ShoutoutTemplate) ? channel!.ShoutoutTemplate!
+            : DefaultTemplate;
 
         Dictionary<string, string> seed = new(ctx.Variables, StringComparer.OrdinalIgnoreCase)
         {
@@ -263,15 +274,19 @@ public sealed class ShoutoutAction : ICommandAction
 
         // TTS is opt-in per invocation (old-bot parity: manual !so speaks it, an automated
         // presence-detection shoutout stays silent by simply never passing tts:true) and best-effort — a
-        // synthesis/dispatch failure never fails the shoutout itself.
+        // synthesis/dispatch failure never fails the shoutout itself. Speaks in the SHOUTED-OUT target's
+        // own assigned voice (ResolveVoiceAsync looks up UserTtsVoices by RequestedByTwitchUserId) — old-bot
+        // parity (ShoutoutQueueService.ExecuteShoutoutAsync called SendCachedTts(ttsText, TargetUserId, ...)).
+        // Stamping the broadcaster's own id here instead collapsed every shoutout onto one voice, silently
+        // losing the per-target variety a streamer configured through UserTtsVoices.
         if (action.GetBool("tts", false) && channel is not null)
         {
             Result<TtsDispatchOutcome> speakResult = await _tts.RequestSpeakAsync(
                 new(
                     BroadcasterId: ctx.BroadcasterId,
                     RequestedByUserId: channel.OwnerUserId,
-                    RequestedByTwitchUserId: channel.TwitchChannelId ?? string.Empty,
-                    RequestedByDisplayName: channel.Name,
+                    RequestedByTwitchUserId: target.Id,
+                    RequestedByDisplayName: target.DisplayName,
                     Text: announcement,
                     VoiceIdOverride: null,
                     BitsAmount: 0,

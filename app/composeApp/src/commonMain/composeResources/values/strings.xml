@@ -426,6 +426,10 @@
     <string name="moderation_terms_remove_action">Remove %1$s</string>
     <string name="moderation_terms_add_label">Add a term</string>
     <string name="moderation_terms_add">Add</string>
+    <string name="moderation_shoutout_title">Shoutout announcement</string>
+    <string name="moderation_shoutout_help">How you're announced when ANY streamer on this platform shouts you out with !so — not just your own. Leave blank to use the built-in default.</string>
+    <string name="moderation_shoutout_label">Announcement template</string>
+    <string name="moderation_shoutout_save">Save</string>
     <string name="moderation_automod_title">AutoMod filters</string>
     <string name="moderation_automod_link">Links</string>
     <string name="moderation_automod_caps">Caps</string>

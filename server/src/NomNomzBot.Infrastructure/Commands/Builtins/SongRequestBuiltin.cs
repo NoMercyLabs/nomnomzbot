@@ -128,6 +128,9 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
                     // claim the search ran cleanly and the song simply doesn't exist.
                     "MISSING_SCOPE" => requested.ErrorMessage!,
                     "PROVIDER_UNAVAILABLE" => requested.ErrorMessage!,
+                    // A real playlist/album/episode/show/artist link — never a search miss, so it must
+                    // never render as "No tracks found for <url>".
+                    "UNSUPPORTED_CONTENT_TYPE" => requested.ErrorMessage!,
                     _ =>
                         $"Couldn't reach the music service for \"{query}\" — try again in a moment.",
                 }

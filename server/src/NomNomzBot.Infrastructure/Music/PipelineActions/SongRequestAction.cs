@@ -95,6 +95,9 @@ public sealed class SongRequestAction : ICommandAction
                 "TRACK_BLOCKED" => $"@{ctx.TriggeredByDisplayName} {requested.ErrorMessage}",
                 "SERVICE_UNAVAILABLE" =>
                     $"@{ctx.TriggeredByDisplayName} Song requests aren't set up for this channel yet.",
+                // A real playlist/album/episode/show/artist link — never a search miss.
+                "UNSUPPORTED_CONTENT_TYPE" =>
+                    $"@{ctx.TriggeredByDisplayName} {requested.ErrorMessage}",
                 _ =>
                     $"@{ctx.TriggeredByDisplayName} Couldn't reach the music service — try again in a moment.",
             };

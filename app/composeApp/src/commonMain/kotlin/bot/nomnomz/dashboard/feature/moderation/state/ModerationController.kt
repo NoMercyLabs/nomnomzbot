@@ -248,6 +248,14 @@ class ModerationController(
                 is ApiResult.Ok -> result.value
             }
 
+        // This channel's own custom shoutout announcement template — also what OTHER streamers see when THEY
+        // shout this channel out. Resilient — a failure just means "use the built-in default" for display.
+        val shoutoutTemplate: String? =
+            when (val result: ApiResult<String?> = moderationApi.shoutoutTemplate(channel.id)) {
+                is ApiResult.Failure -> null
+                is ApiResult.Ok -> result.value
+            }
+
         // Empty only when there is genuinely nothing to show AND every always-on control (shield, automod) is off
         // AND every live-Twitch section is available (an unavailable section must render Ready so its needs-permission
         // notice shows — never Empty, which would read as "nothing here" rather than "you can't see this here").
@@ -261,6 +269,7 @@ class ModerationController(
                     reports.isEmpty() &&
                     !shieldEnabled &&
                     !anyAutomodEnabled &&
+                    shoutoutTemplate.isNullOrBlank() &&
                     bansAvailable &&
                     blockedTermsAvailable &&
                     shieldAvailable
@@ -283,6 +292,7 @@ class ModerationController(
                     escalationPolicy = escalationPolicy,
                     sharedBanSettings = sharedBanSettings,
                     nukeBatches = nukeBatches,
+                    shoutoutTemplate = shoutoutTemplate,
                 )
             }
     }
@@ -606,6 +616,15 @@ class ModerationController(
     }
 
     /**
+     * Set (or clear, with a blank [template]) this channel's own shoutout announcement template — the text
+     * OTHER streamers' `!so` speaks/posts when THEY shout this channel out, then reload so it shows saved.
+     */
+    suspend fun setShoutoutTemplate(template: String) {
+        val channel: String = channelId ?: return
+        afterWrite(moderationApi.setShoutoutTemplate(channel, template.ifBlank { null }))
+    }
+
+    /**
      * Flip one AutoMod [filter]'s enabled flag and persist the whole config (the backend POST takes the full
      * config; the other filters' settings ride along unchanged), then reload. No-ops off a Ready state.
      */
@@ -837,6 +856,9 @@ sealed interface ModerationState {
         val escalationPolicy: EscalationPolicy? = null,
         val sharedBanSettings: SharedBanSettings? = null,
         val nukeBatches: List<NetworkNukeBatch> = emptyList(),
+        // This channel's own custom shoutout announcement template (null/blank = built-in default) — also
+        // what OTHER streamers see when THEY shout this channel out. See load().
+        val shoutoutTemplate: String? = null,
     ) : ModerationState
 
     data object Empty : ModerationState

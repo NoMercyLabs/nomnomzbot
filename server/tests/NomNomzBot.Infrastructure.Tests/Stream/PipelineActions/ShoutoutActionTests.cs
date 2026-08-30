@@ -185,6 +185,86 @@ public sealed class ShoutoutActionTests
         await chat.Received(1).SendShoutoutAsync(Channel, "456", Arg.Any<CancellationToken>());
     }
 
+    /// <summary>
+    /// Old-bot parity (S-SHOUTOUT-TARGET-TEMPLATE): the announcement template is the TARGET's own — a
+    /// streamer sets how THEY want to be announced, and it's honored whoever gives the shoutout — not the
+    /// shouting streamer's own default template, which the target's own (when they have one) takes priority
+    /// over (ShoutoutQueueService.ExecuteShoutoutAsync read the template off the target's own Channel row).
+    /// </summary>
+    [Fact]
+    public async Task The_targets_own_ShoutoutTemplate_wins_over_the_shouting_channels_default()
+    {
+        ITwitchChatApi chat = Substitute.For<ITwitchChatApi>();
+        chat.SendShoutoutAsync(Channel, Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        chat.SendAnnouncementAsync(
+                Channel,
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+        ITwitchUsersApi users = Substitute.For<ITwitchUsersApi>();
+        users
+            .GetUsersByIdsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchUser>>([User("123456", "numerictarget")]));
+        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
+        resolver
+            .ResolveAsync(
+                Arg.Any<string>(),
+                Arg.Any<IDictionary<string, string>>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(callInfo => Task.FromResult(NaiveResolve(callInfo)));
+
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Channels.Add(
+            new()
+            {
+                Id = Channel,
+                Name = "stoney",
+                NameNormalized = "stoney",
+                OwnerUserId = Guid.NewGuid(),
+                ShoutoutTemplate = "This is MY default template, never used here",
+            }
+        );
+        db.Channels.Add(
+            new()
+            {
+                Id = Guid.NewGuid(),
+                Name = "numerictarget",
+                NameNormalized = "numerictarget",
+                OwnerUserId = Guid.NewGuid(),
+                TwitchChannelId = "123456",
+                ShoutoutTemplate = "Go watch {target.name} being awesome!",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        ShoutoutAction sut = new(
+            chat,
+            users,
+            Substitute.For<IChannelRegistry>(),
+            db,
+            resolver,
+            Substitute.For<ITtsDispatchService>(),
+            TimeProvider.System,
+            NullLogger<ShoutoutAction>.Instance
+        );
+
+        ActionResult result = await sut.ExecuteAsync(Ctx(), Shoutout("123456"));
+
+        result.Succeeded.Should().BeTrue();
+        await chat.Received(1)
+            .SendAnnouncementAsync(
+                Channel,
+                "Go watch numerictarget being awesome!",
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
     [Fact]
     public async Task Always_posts_a_templated_announcement_alongside_the_native_shoutout()
     {
@@ -297,8 +377,17 @@ public sealed class ShoutoutActionTests
                 },
             }
         );
+        // Speaks in the SHOUTED-OUT target's own voice (old-bot parity), not the broadcaster's — a
+        // regression that silently collapsed every shoutout onto one voice, losing the per-target variety
+        // configured through UserTtsVoices.
         await tts.Received(1)
-            .RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>());
+            .RequestSpeakAsync(
+                Arg.Is<TtsSpeakRequest>(r =>
+                    r.RequestedByTwitchUserId == "123456"
+                    && r.RequestedByDisplayName == "numerictarget"
+                ),
+                Arg.Any<CancellationToken>()
+            );
 
         // Automated invocation (e.g. presence-detection): tts omitted stays silent.
         tts.ClearReceivedCalls();

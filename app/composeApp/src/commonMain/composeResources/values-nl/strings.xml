@@ -423,6 +423,10 @@
     <string name="moderation_terms_remove_action">%1$s verwijderen</string>
     <string name="moderation_terms_add_label">Term toevoegen</string>
     <string name="moderation_terms_add">Toevoegen</string>
+    <string name="moderation_shoutout_title">Shoutout-aankondiging</string>
+    <string name="moderation_shoutout_help">Hoe je aangekondigd wordt wanneer WELKE streamer dan ook op dit platform je shoutout geeft met !so — niet alleen je eigen shoutouts. Laat leeg voor de standaardtekst.</string>
+    <string name="moderation_shoutout_label">Aankondigingssjabloon</string>
+    <string name="moderation_shoutout_save">Opslaan</string>
     <string name="moderation_automod_title">AutoMod-filters</string>
     <string name="moderation_automod_link">Links</string>
     <string name="moderation_automod_caps">Hoofdletters</string>
