@@ -21,6 +21,7 @@ import kotlinx.coroutines.await
 import kotlinx.coroutines.channels.Channel
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -60,6 +61,7 @@ actual class ProjectEditor : ProjectEditorIO {
         entryPath: String,
         language: String,
         sdkTypes: String,
+        eventSubscriptions: List<String>,
         compile: suspend (Map<String, String>) -> CompileFeedback,
     ) {
         // Subscribed before the frame exists: the page posts `ready` as soon as its module runs, which can
@@ -84,7 +86,7 @@ actual class ProjectEditor : ProjectEditorIO {
                     MESSAGE_READY ->
                         postToEditor(
                             frame,
-                            openMessage(title, initialFiles, entryPath, language, sdkTypes),
+                            openMessage(title, initialFiles, entryPath, language, sdkTypes, eventSubscriptions),
                         )
                     MESSAGE_SAVE -> {
                         val feedback: CompileFeedback = compile(message.files)
@@ -107,6 +109,7 @@ private fun openMessage(
     entryPath: String,
     language: String,
     sdkTypes: String,
+    eventSubscriptions: List<String>,
 ): String =
     editorJson.encodeToString(
         JsonObject.serializer(),
@@ -123,6 +126,13 @@ private fun openMessage(
                     // Per-event payload shapes for the preview's fire bar, so a transient widget can be
                     // triggered without OBS. Single-sourced here rather than duplicated in the page's JS.
                     put("fireSamples", editorJson.parseToJsonElement(WidgetFireBarSamples.allSamplesJson()))
+                    // The widget's PERSISTED subscription list — the fire bar's preferred, authoritative source
+                    // over scanning source text (see ProjectEditorIO.editAndCompile doc). Empty for a widget
+                    // that has not saved any declared subscriptions yet.
+                    put(
+                        "eventSubscriptions",
+                        JsonArray(eventSubscriptions.map { event -> JsonPrimitive(event) }),
+                    )
                 },
             )
         },

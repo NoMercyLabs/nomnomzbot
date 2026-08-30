@@ -149,6 +149,7 @@ class CodeScriptsControllerTestRunTest {
             entryPath: String,
             language: String,
             sdkTypes: String,
+            eventSubscriptions: List<String>,
             compile: suspend (Map<String, String>) -> CompileFeedback,
         ) = Unit
     }
