@@ -1,0 +1,475 @@
+/*
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+*/
+
+/*
+  The editor chrome. Tokens first so the host can theme it: the dashboard's accent is derived at runtime
+  from the signed-in user's Twitch chat colour, and is handed over with the project payload, so --accent
+  is set from script rather than hard-coded here.
+*/
+:root {
+    --bg: #0a0a0a;
+    --surface: #111111;
+    --surface-raised: #141414;
+    --surface-sunken: #0f0f0f;
+    --border: #262626;
+    --border-subtle: #1f1f1f;
+    --text: #e5e5e5;
+    --text-muted: #a3a3a3;
+    --text-dim: #7a7a7a;
+    --accent: #772ce8;
+    --accent-text: #ffffff;
+    --danger: #f87171;
+    --warning: #fbbf24;
+    --info: #7dd3fc;
+
+    --s1: 4px;
+    --s2: 8px;
+    --s3: 12px;
+    --s4: 16px;
+
+    --radius-sm: 5px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+
+    --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-code: "Cascadia Code", "Fira Code", Menlo, Consolas, monospace;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+/*
+  The `hidden` attribute is only `display: none` in the UA stylesheet, so ANY author rule setting display
+  (every panel here is flex) silently outranks it and the element stays visible. Several panels below are
+  toggled via `hidden`, so this has to win.
+*/
+[hidden] {
+    display: none !important;
+}
+
+html,
+body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-ui);
+}
+
+.shell {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+/* ── Title bar ─────────────────────────────────────────────────────────── */
+
+.titlebar {
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+    padding: 10px var(--s4);
+    background: var(--surface-raised);
+    border-bottom: 1px solid var(--border);
+}
+
+.title {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.badge {
+    padding: 2px var(--s2);
+    border: 1px solid #333333;
+    border-radius: var(--radius-md);
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.hint {
+    font-size: 11px;
+    color: #666666;
+    white-space: nowrap;
+}
+
+/* Exactly one accented control on the page: Save & Compile. Everything else is neutral, so the eye
+   lands on the action that publishes a new version. */
+.btn {
+    padding: 7px var(--s4);
+    font: 600 13px var(--font-ui);
+    color: var(--text);
+    background: transparent;
+    border: 1px solid #333333;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+}
+
+.btn:hover {
+    border-color: #454545;
+}
+
+.btn-primary {
+    color: var(--accent-text);
+    background: var(--accent);
+    border-color: transparent;
+}
+
+.btn-primary:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.btn-quiet {
+    padding: 3px var(--s2);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
+    border-radius: var(--radius-md);
+}
+
+.result {
+    margin: 0;
+    padding: var(--s2) var(--s4);
+    font-size: 13px;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+}
+
+.result[data-ok="true"] {
+    color: #4ade80;
+}
+
+.result[data-ok="false"] {
+    color: var(--danger);
+}
+
+/* ── Body split ────────────────────────────────────────────────────────── */
+
+.body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+}
+
+.explorer {
+    width: 240px;
+    min-width: 200px;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface-sunken);
+    border-right: 1px solid var(--border);
+}
+
+.explorer-head,
+.preview-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--s2) var(--s3);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.section-label {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.file-list {
+    flex: 1;
+    min-height: 0;
+    margin: 0;
+    padding: var(--s1) var(--s2);
+    overflow: auto;
+    list-style: none;
+}
+
+.file-row {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    width: 100%;
+    padding: 5px var(--s2);
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+    font: 400 12px var(--font-code);
+    text-align: left;
+    cursor: pointer;
+}
+
+.file-row:hover {
+    background: #191919;
+}
+
+.file-row[aria-current="true"] {
+    background: #1f1f1f;
+    color: var(--text);
+}
+
+.file-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.file-entry {
+    color: var(--accent);
+}
+
+.file-action {
+    padding: 0 4px;
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.file-action:hover {
+    color: var(--text);
+}
+
+/* ── Code column ───────────────────────────────────────────────────────── */
+
+.code {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.tabs {
+    display: flex;
+    gap: 2px;
+    padding: var(--s1) var(--s2);
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+}
+
+.tab {
+    padding: 5px 10px;
+    font-size: 12px;
+    color: #9a9a9a;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.tab[aria-selected="true"] {
+    color: #ffffff;
+    background: var(--bg);
+    border-color: #333333;
+    border-bottom-color: var(--bg);
+}
+
+.editor-host {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+    overflow: hidden;
+}
+
+.problems {
+    max-height: 180px;
+    overflow: auto;
+    background: var(--surface-sunken);
+    border-top: 1px solid var(--border);
+}
+
+.problem {
+    display: flex;
+    gap: var(--s2);
+    width: 100%;
+    padding: 5px var(--s3);
+    border: none;
+    background: transparent;
+    color: #c9c9c9;
+    font-size: 12px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.problem:hover {
+    background: #191919;
+}
+
+.problem-severity {
+    min-width: 56px;
+}
+
+.problem-severity[data-severity="error"] {
+    color: var(--danger);
+}
+
+.problem-severity[data-severity="warning"] {
+    color: var(--warning);
+}
+
+.problem-severity[data-severity="info"] {
+    color: var(--info);
+}
+
+.problem-where {
+    min-width: 150px;
+    color: var(--text-dim);
+    font-family: var(--font-code);
+}
+
+.problem-message {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.statusbar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: var(--s1) var(--s3);
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: #8a8a8a;
+    white-space: nowrap;
+}
+
+.spacer {
+    flex: 1;
+}
+
+.status-btn {
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: inherit;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.status-btn[data-severity="error"] {
+    color: var(--danger);
+}
+
+.status-btn[data-severity="warning"] {
+    color: var(--warning);
+}
+
+.status-toggle {
+    padding: 1px 7px;
+    border: 1px solid #2a2a2a;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: inherit;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.status-toggle:hover {
+    border-color: #3a3a3a;
+    color: var(--text);
+}
+
+/* ── Preview ───────────────────────────────────────────────────────────── */
+
+.splitter {
+    flex: 0 0 5px;
+    background: var(--border);
+    cursor: col-resize;
+}
+
+.preview {
+    flex: 0 0 42%;
+    min-width: 260px;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+}
+
+.fire-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s1);
+    padding: var(--s2) var(--s3);
+    background: var(--surface-sunken);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.preview-body {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+    background: var(--bg);
+}
+
+#previewFrame {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: transparent;
+}
+
+.preview-note {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 24px;
+    text-align: center;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-muted);
+    white-space: pre-line;
+}
+
+.preview-note[data-error="true"] {
+    color: var(--danger);
+}
+
+/* Collapsed preview: hide the pane AND its handle, so the code column takes the full width. */
+.shell[data-preview="collapsed"] .preview,
+.shell[data-preview="collapsed"] .splitter {
+    display: none;
+}
+
+/* ── Boot ──────────────────────────────────────────────────────────────── */
+
+.boot {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.boot[data-error="true"] {
+    color: var(--danger);
+}
