@@ -44,6 +44,14 @@ public class Widget : SoftDeletableEntity, ITenantScoped
     /// <summary>The gallery item this widget was installed from (null for a self-authored <c>custom</c> widget).</summary>
     public Guid? GalleryItemId { get; set; }
 
+    /// <summary>
+    /// The linked <see cref="WidgetGalleryItem"/>'s <see cref="WidgetGalleryItem.SourceRevision"/> at the time this
+    /// widget's active version was built from the gallery (install, or a later applied update). Null for a widget
+    /// with no <see cref="GalleryItemId"/>. Compared against the gallery item's current revision to tell an
+    /// installed clone it is running stale first-party/community code without ever silently rebuilding it.
+    /// </summary>
+    public int? InstalledSourceRevision { get; set; }
+
     /// <summary>The <see cref="WidgetVersion"/> the overlay currently serves; null until the first successful build.</summary>
     public Guid? ActiveVersionId { get; set; }
 

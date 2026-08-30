@@ -9355,6 +9355,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<Guid?>("GalleryItemId")
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("InstalledSourceRevision")
+                        .HasColumnType("INTEGER");
+
                     b.Property<bool>("IsEnabled")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
@@ -9477,6 +9480,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("SourceRevision")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("SubmitterDisplayNameSnapshot")
                         .HasMaxLength(255)

@@ -133,6 +133,14 @@ interface WidgetsApi {
      * update once [list] re-fetches with the new token baked in.
      */
     suspend fun rotateOverlayToken(channelId: String): ApiResult<String>
+
+    /**
+     * Pull the linked gallery item's current source into this widget as a new compiled version — the explicit
+     * action behind [WidgetSummary.galleryUpdateAvailable]. The platform never rebuilds an installed widget on
+     * its own; this is the streamer choosing to take the update. Fails if the widget was never installed from
+     * the gallery.
+     */
+    suspend fun updateFromGallery(channelId: String, widgetId: String): ApiResult<WidgetSummary>
 }
 
 class RestWidgetsApi(private val client: ApiClient) : WidgetsApi {
@@ -256,6 +264,11 @@ class RestWidgetsApi(private val client: ApiClient) : WidgetsApi {
     // property shared by every overlay, not owned by any one widget.
     override suspend fun rotateOverlayToken(channelId: String): ApiResult<String> =
         client.postEnvelope("api/v1/channels/$channelId/overlay-token/rotate", Unit)
+
+    // No body — the widget is addressed entirely by the {widgetId} segment; the backend recompiles from its
+    // linked gallery item's current source and returns the refreshed widget (galleryUpdateAvailable now false).
+    override suspend fun updateFromGallery(channelId: String, widgetId: String): ApiResult<WidgetSummary> =
+        client.postEnvelope("api/v1/channels/$channelId/widgets/$widgetId/update-from-gallery", Unit)
 }
 
 /**
@@ -325,6 +338,10 @@ data class WidgetSummary(
     val lastRanAt: String? = null,
     val createdAt: String = "",
     val updatedAt: String = "",
+    // True when this widget was installed from the gallery and the gallery item's source has moved on since —
+    // the streamer's clone is running stale code. The platform never rebuilds it silently; [WidgetsApi.updateFromGallery]
+    // is the explicit action that pulls the update in.
+    val galleryUpdateAvailable: Boolean = false,
 )
 
 /**

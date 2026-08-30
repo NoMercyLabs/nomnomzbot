@@ -50,7 +50,8 @@ public sealed class TtsConfigControllerPlaybackControlTests
             null,
             null,
             DateTime.UtcNow,
-            DateTime.UtcNow
+            DateTime.UtcNow,
+            false
         );
 
     private static (

@@ -287,6 +287,8 @@ private class FakeWidgetsApi : WidgetsApi {
     override suspend fun cloneFromGallery(channelId: String, galleryItemId: String): ApiResult<WidgetSummary> =
         error("stub")
     override suspend fun rotateOverlayToken(channelId: String): ApiResult<String> = error("stub")
+    override suspend fun updateFromGallery(channelId: String, widgetId: String): ApiResult<WidgetSummary> =
+        error("stub")
 }
 
 private class FakePickListsApi : PickListsApi {

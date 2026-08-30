@@ -247,6 +247,31 @@ public class WidgetsController : BaseController
         );
     }
 
+    /// <summary>
+    /// Pull the linked gallery item's current source into this widget as a new compiled version — the explicit
+    /// action behind <c>WidgetDetail.galleryUpdateAvailable</c>. The platform never rebuilds an installed widget
+    /// on its own; this is the streamer choosing to take the update.
+    /// </summary>
+    [RequireAction("widget:write")]
+    [HttpPost("{widgetId}/update-from-gallery")]
+    [EnableRateLimiting(RateLimitPolicyNames.WriteExpensive)]
+    [ProducesResponseType<StatusResponseDto<WidgetDetail>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> UpdateWidgetFromGallery(
+        string channelId,
+        string widgetId,
+        CancellationToken ct
+    )
+    {
+        Result<WidgetDetail> result = await _widgetService.UpdateFromGalleryAsync(
+            channelId,
+            Decode(widgetId),
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<WidgetDetail> { Data = WithOverlayOrigin(result.Value) });
+    }
+
     /// <summary>Update an existing overlay widget's configuration.</summary>
     [RequireAction("widget:write")]
     [HttpPut("{widgetId}")]
