@@ -367,11 +367,16 @@ later.)
   refactor (a structure improvement, not a behavior fix). **Not independently visually verified**
   (chrome-devtools/playwright MCP were unavailable this session) — only compile-verified; a
   live-render check is worth doing before calling this fully closed.
-- **S062** Widget setup — per-widget tokens + staged rotation + post-rotate URL list; Test button on
-  the row; inline preview; error/last-ran badge; overlay last-seen; in-overlay banner on rejected
-  token; resume without reload; settings form by schema availability; colour picker; asset/sound/font
-  field types; unsupported-type + invalid-value errors; editable subscriptions; gallery version/update
-  + search/paging; sound upload limits (U·B5). Done-when: add → copy → test → live from one row.
+- **S062** Widget setup — DONE: error/last-ran badge (commit 79284d13 — `RelativeTime` shared primitive,
+  a widget row now shows "last ran Xm ago" / "never ran yet", replaced by the last runtime error when
+  one exists — both fields existed on the DTO but were never rendered); Test button on the row (commit
+  3916e445 — wired the dashboard to the backend's `WidgetTestEventController` test-event dispatch, which
+  had zero callers anywhere in the frontend; fires the widget's first declared subscription, shows the
+  real reach description, not a bare toast). **Still open**: per-widget tokens + staged rotation +
+  post-rotate URL list; inline preview; overlay last-seen; in-overlay banner on rejected token; resume
+  without reload; settings form by schema availability; colour picker; asset/sound/font field types;
+  unsupported-type + invalid-value errors; editable subscriptions; gallery version/update + search/paging;
+  sound upload limits (U·B5). Done-when: add → copy → test → live from one row.
 - **S063** Rewards reach — `Response` field in create + update; `ActionType/ActionSettings` exposed or
   deleted; rewards poll backoff; null-as-empty reads → errors (U·B2).
 - **S064** Economy reach — catalog item full form + edit; leaderboard config CRUD + opt-outs + display
