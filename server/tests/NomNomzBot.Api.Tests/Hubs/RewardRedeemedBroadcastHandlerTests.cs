@@ -96,6 +96,41 @@ public sealed class RewardRedeemedBroadcastHandlerTests
             );
     }
 
+    /// <summary>
+    /// The regression this guards: the dashboard's live-pushed activity row used RedemptionId (Twitch's own
+    /// redemption GUID) as its Replay-button id, but DashboardController.ReplayActivity and the underlying
+    /// RenderedAlertCapture rows are keyed by the domain EventId — so every Replay click on a redemption that
+    /// arrived live (never reloaded) 404'd even though a real capture existed, reported live as "redeemed
+    /// Text-to-Speech Message... Nothing to replay for this event" right after the message was audibly spoken.
+    /// </summary>
+    [Fact]
+    public async Task Redemption_dto_carries_the_domain_EventId_distinct_from_RedemptionId()
+    {
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        ISoundClipService soundClips = Substitute.For<ISoundClipService>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid channel = Guid.CreateVersion7();
+        enricher
+            .EnrichAsync(channel, "u1", Arg.Any<CancellationToken>())
+            .Returns((HubUserEnrichment?)null);
+        RewardRedeemedEvent redemption = Event(channel);
+        RewardRedeemedBroadcastHandler handler = new(notifier, enricher, db, widgets, soundClips);
+
+        await handler.HandleAsync(redemption);
+
+        await notifier
+            .Received(1)
+            .SendRewardRedeemedAsync(
+                channel.ToString(),
+                Arg.Is<RewardRedeemedDto>(dto =>
+                    dto.EventId == redemption.EventId.ToString() && dto.EventId != dto.RedemptionId
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
     [Fact]
     public async Task Redemption_is_also_pushed_to_overlays_as_a_decorated_reward_redeemed_event()
     {

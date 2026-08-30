@@ -279,7 +279,12 @@ class HomeController(
                         // so without this branch it fell through and only appeared on a manual reload. Prepend it
                         // live to the activity feed (its type is already in ACTIVITY_EVENT_TYPES and rendered).
                         val newEvent: ActivityEvent = ActivityEvent(
-                            id = evt.event.redemptionId,
+                            // The backend keys RenderedAlertCapture (and therefore Replay) by the domain
+                            // EventId, not Twitch's own redemptionId — using redemptionId here made every
+                            // live-pushed redemption row 404 on Replay even though a capture existed under
+                            // the correct id (a reload, which fetches via REST, never showed the bug since
+                            // GetActivity already returns the right id).
+                            id = evt.event.eventId ?: evt.event.redemptionId,
                             type = "channel.channel_points_custom_reward_redemption.add",
                             userId = evt.event.userId,
                             username = evt.event.userDisplayName,

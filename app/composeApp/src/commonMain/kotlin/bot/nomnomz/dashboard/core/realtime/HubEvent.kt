@@ -230,6 +230,9 @@ data class HubRewardRedeemed(
     val cost: Int = 0,
     val userInput: String? = null,
     val timestamp: String = "",
+    // The ChannelEvent.Id the REST activity feed (and Replay) key by — distinct from redemptionId
+    // (Twitch's own redemption GUID). Falls back to redemptionId only if an older backend omits it.
+    val eventId: String? = null,
 )
 
 /** Mirror of the backend `RedemptionStatusChangedDto`. */
