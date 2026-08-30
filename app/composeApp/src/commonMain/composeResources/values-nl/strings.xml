@@ -1379,6 +1379,7 @@
     <string name="widgets_settings_error">Kon de instellingen niet laden: %1$s</string>
     <string name="widgets_settings_close">Sluiten</string>
     <string name="widgets_settings_invalid_json">Geen geldige JSON.</string>
+    <string name="widgets_settings_unsupported_field">Niet-ondersteund veldtype "%1$s" — het dashboard kan dit nog niet bewerken; de huidige waarde blijft ongewijzigd.</string>
     <string name="widgets_settings_listens_for">Luistert naar</string>
     <string name="widgets_settings_save">Opslaan</string>
     <string name="widgets_settings_cancel">Annuleren</string>
