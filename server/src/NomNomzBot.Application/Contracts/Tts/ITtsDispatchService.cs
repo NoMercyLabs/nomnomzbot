@@ -85,6 +85,13 @@ public sealed record TtsQueueEntryDto(
 );
 
 /// <summary>One TTS utterance request (tts.md §3.4). The caller resolves the requester + community standing.</summary>
+/// <param name="ChannelEventId">
+/// The activity-feed row id (a <c>DomainEventBase.EventId</c>) of the PAID channel event whose pipeline
+/// action chain triggered this utterance (e.g. a reward redemption) — carried through to
+/// <c>TtsUtteranceDispatchedEvent</c> so the Replay capture can correlate the <c>tts_speak</c> push back to
+/// that event. <c>null</c> for a standalone chat-triggered utterance (a free <c>!tts</c> command never logs
+/// a ChannelEvent, so there is genuinely nothing to correlate).
+/// </param>
 public sealed record TtsSpeakRequest(
     Guid BroadcasterId,
     Guid RequestedByUserId,
@@ -95,7 +102,8 @@ public sealed record TtsSpeakRequest(
     int BitsAmount,
     string CommunityStanding,
     string? SourceMessageId,
-    Guid? StreamId
+    Guid? StreamId,
+    string? ChannelEventId = null
 );
 
 public enum TtsDispatchDisposition

@@ -245,6 +245,7 @@ public sealed class PipelineEngine : IPipelineEngine
             MessageId = request.MessageId ?? string.Empty,
             RedemptionId = request.RedemptionId,
             RewardId = request.RewardId,
+            ChannelEventId = request.ChannelEventId,
             RawMessage = request.RawMessage,
             CancellationToken = ct,
         };

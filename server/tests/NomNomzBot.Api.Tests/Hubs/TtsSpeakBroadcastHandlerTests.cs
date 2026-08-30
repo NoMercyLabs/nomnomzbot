@@ -9,6 +9,8 @@
 // -----------------------------------------------------------------------------
 
 using System.Text.Json;
+using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
@@ -241,5 +243,114 @@ public sealed class TtsSpeakBroadcastHandlerTests
         await dashboard
             .DidNotReceive()
             .SendAlertAsync(Arg.Any<string>(), Arg.Any<AlertDto>(), Arg.Any<CancellationToken>());
+    }
+
+    /// <summary>
+    /// S-REPLAY-TTS-PIPELINE-CORRELATION's done-when proof: a TTS utterance fired by a reward redemption's
+    /// pipeline action chain (play_tts) carries the redemption's own ChannelEvent id all the way through
+    /// TtsSpeakRequest → TtsDispatchService → TtsUtteranceDispatchedEvent, so the capture this handler writes
+    /// for the <c>tts_speak</c> push is queryable by that SAME id — the real join a Replay lookup needs, not
+    /// a fuzzy time-window match.
+    /// </summary>
+    [Fact]
+    public async Task Pipeline_triggered_utterance_captures_the_triggering_redemptions_ChannelEventId()
+    {
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid channel = Guid.CreateVersion7();
+        Guid redemptionEventId = Guid.CreateVersion7();
+        string channelEventId = redemptionEventId.ToString();
+
+        db.Widgets.Add(
+            new Widget
+            {
+                Id = Guid.NewGuid(),
+                BroadcasterId = channel,
+                Name = "TTS caption",
+                IsEnabled = true,
+                EventSubscriptions = ["tts_speak"],
+            }
+        );
+        await db.SaveChangesAsync();
+
+        TtsSpeakBroadcastHandler handler = new(
+            db,
+            Substitute.For<IWidgetNotifier>(),
+            Substitute.For<IOverlayPresenceRegistry>(),
+            Substitute.For<IDashboardNotifier>(),
+            NullLogger<TtsSpeakBroadcastHandler>.Instance
+        );
+
+        await handler.HandleAsync(
+            new()
+            {
+                BroadcasterId = channel,
+                Text = "thanks for the redemption",
+                VoiceId = "en-US-AvaNeural",
+                Provider = "azure",
+                CharacterCount = 26,
+                DurationMs = 3000,
+                RequestedByTwitchUserId = "u1",
+                DispatchMode = "self_host",
+                AudioUrl = "data:audio/mpeg;base64,AQIDBA==",
+                ChannelEventId = channelEventId,
+            }
+        );
+
+        RenderedAlertCapture capture = await db.RenderedAlertCaptures.SingleAsync(c =>
+            c.BroadcasterId == channel && c.EventType == "tts_speak"
+        );
+        capture.ChannelEventId.Should().Be(channelEventId);
+    }
+
+    /// <summary>
+    /// The other half of the done-when proof: a standalone chat-command utterance (no triggering
+    /// ChannelEvent — a free <c>!tts</c> never logs one) still correctly captures with a null
+    /// ChannelEventId, not an invented/approximated correlation.
+    /// </summary>
+    [Fact]
+    public async Task Chat_command_triggered_utterance_captures_a_null_ChannelEventId()
+    {
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid channel = Guid.CreateVersion7();
+
+        db.Widgets.Add(
+            new Widget
+            {
+                Id = Guid.NewGuid(),
+                BroadcasterId = channel,
+                Name = "TTS caption",
+                IsEnabled = true,
+                EventSubscriptions = ["tts_speak"],
+            }
+        );
+        await db.SaveChangesAsync();
+
+        TtsSpeakBroadcastHandler handler = new(
+            db,
+            Substitute.For<IWidgetNotifier>(),
+            Substitute.For<IOverlayPresenceRegistry>(),
+            Substitute.For<IDashboardNotifier>(),
+            NullLogger<TtsSpeakBroadcastHandler>.Instance
+        );
+
+        await handler.HandleAsync(
+            new()
+            {
+                BroadcasterId = channel,
+                Text = "hello chat",
+                VoiceId = "en-US-AvaNeural",
+                Provider = "azure",
+                CharacterCount = 10,
+                DurationMs = 2500,
+                RequestedByTwitchUserId = "u1",
+                DispatchMode = "self_host",
+                AudioUrl = "data:audio/mpeg;base64,AQIDBA==",
+            }
+        );
+
+        RenderedAlertCapture capture = await db.RenderedAlertCaptures.SingleAsync(c =>
+            c.BroadcasterId == channel && c.EventType == "tts_speak"
+        );
+        capture.ChannelEventId.Should().BeNull();
     }
 }

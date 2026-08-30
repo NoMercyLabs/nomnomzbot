@@ -228,6 +228,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
             wasCensored,
             wasModApproved: null,
             request.StreamId,
+            request.ChannelEventId,
             ct
         );
     }
@@ -256,6 +257,9 @@ public sealed class TtsDispatchService : ITtsDispatchService
 
         string spokenText = entry.CensoredText ?? entry.OriginalText;
         await using IAsyncDisposable gate = await _serializer.AcquireAsync(broadcasterId, ct);
+        // Approval-queue entries have no ChannelEventId of their own — a ModApprovalRequired channel only
+        // ever queues chat-triggered utterances (a reward-pipeline play_tts speaks directly), so there is
+        // nothing to correlate here.
         Result<TtsDispatchOutcome> played = await DispatchAsync(
             broadcasterId,
             configResult.Value,
@@ -265,6 +269,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
             entry.WasCensored,
             wasModApproved: true,
             entry.StreamId,
+            channelEventId: null,
             ct
         );
         if (played.IsFailure)
@@ -432,6 +437,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
         bool wasCensored,
         bool? wasModApproved,
         Guid? streamId,
+        string? channelEventId,
         CancellationToken ct
     )
     {
@@ -447,6 +453,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
                     wasCensored,
                     wasModApproved,
                     streamId,
+                    channelEventId,
                     ct
                 )
                 : SynthesizeStorePlayAsync(
@@ -458,6 +465,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
                     wasCensored,
                     wasModApproved,
                     streamId,
+                    channelEventId,
                     ct
                 )
         );
@@ -478,6 +486,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
         bool wasCensored,
         bool? wasModApproved,
         Guid? streamId,
+        string? channelEventId,
         CancellationToken ct
     )
     {
@@ -522,6 +531,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
                 RequestedByTwitchUserId = requestedByTwitchUserId,
                 DispatchMode = "client_edge",
                 ContentHash = null,
+                ChannelEventId = channelEventId,
             },
             ct
         );
@@ -548,6 +558,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
         bool wasCensored,
         bool? wasModApproved,
         Guid? streamId,
+        string? channelEventId,
         CancellationToken ct
     )
     {
@@ -660,6 +671,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
                 DispatchMode = config.Mode == "byok" ? "byok" : "self_host",
                 ContentHash = null,
                 AudioUrl = dataUri,
+                ChannelEventId = channelEventId,
             },
             ct
         );

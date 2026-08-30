@@ -131,7 +131,8 @@ public sealed class PlayTtsAction : ICommandAction
                 ? role
                 : "everyone",
             SourceMessageId: ctx.MessageId,
-            StreamId: null
+            StreamId: null,
+            ChannelEventId: ctx.ChannelEventId
         );
 
         Result<TtsDispatchOutcome> result = await _dispatch.RequestSpeakAsync(

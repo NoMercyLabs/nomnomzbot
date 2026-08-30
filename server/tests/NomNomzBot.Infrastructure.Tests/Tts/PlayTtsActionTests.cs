@@ -235,4 +235,82 @@ public sealed class PlayTtsActionTests
                 Arg.Any<CancellationToken>()
             );
     }
+
+    // S-REPLAY-TTS-PIPELINE-CORRELATION: a reward redemption's pipeline action chain runs with the
+    // redemption's own ChannelEvent id on the execution context (RewardRedeemedHandler → PipelineRequest →
+    // PipelineExecutionContext); play_tts must forward it into the dispatch request unchanged so the
+    // eventual TtsUtteranceDispatchedEvent — and the RenderedAlertCapture it produces — can correlate back
+    // to that redemption for Replay.
+    [Fact]
+    public async Task ExecuteAsync_ContextCarriesAChannelEventId_ForwardsItToTheDispatchRequest()
+    {
+        (PlayTtsAction action, ITtsDispatchService dispatch) = Build("hello resolved");
+        dispatch
+            .RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new TtsDispatchOutcome(
+                        TtsDispatchDisposition.Dispatched,
+                        "v1",
+                        "edge",
+                        14,
+                        900,
+                        "https://bot.local/sounds/tts.mp3"
+                    )
+                )
+            );
+        PipelineExecutionContext ctx = new()
+        {
+            BroadcasterId = Channel,
+            TriggeredByUserId = "viewer-9",
+            TriggeredByDisplayName = "viewer",
+            MessageId = "m1",
+            RawMessage = string.Empty,
+            ChannelEventId = "019f2a00-2222-7000-8000-000000000002",
+            CancellationToken = default,
+        };
+
+        ActionResult result = await action.ExecuteAsync(ctx, Action(("text", "{{args}}")));
+
+        result.Succeeded.Should().BeTrue(result.ErrorMessage);
+        await dispatch
+            .Received(1)
+            .RequestSpeakAsync(
+                Arg.Is<TtsSpeakRequest>(r =>
+                    r.ChannelEventId == "019f2a00-2222-7000-8000-000000000002"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    /// <summary>A standalone chat-command context (no triggering ChannelEvent) forwards null — never invented.</summary>
+    [Fact]
+    public async Task ExecuteAsync_ContextWithNoChannelEventId_ForwardsNull()
+    {
+        (PlayTtsAction action, ITtsDispatchService dispatch) = Build("hi");
+        dispatch
+            .RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new TtsDispatchOutcome(
+                        TtsDispatchDisposition.Dispatched,
+                        "v1",
+                        "edge",
+                        2,
+                        400,
+                        null
+                    )
+                )
+            );
+
+        ActionResult result = await action.ExecuteAsync(Context(), Action(("text", "{{args}}")));
+
+        result.Succeeded.Should().BeTrue(result.ErrorMessage);
+        await dispatch
+            .Received(1)
+            .RequestSpeakAsync(
+                Arg.Is<TtsSpeakRequest>(r => r.ChannelEventId == null),
+                Arg.Any<CancellationToken>()
+            );
+    }
 }

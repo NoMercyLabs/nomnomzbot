@@ -54,10 +54,12 @@ public sealed class TtsSpeakBroadcastHandler(
                 durationMs = @event.DurationMs,
                 audioUrl = @event.AudioUrl,
             },
-            // TtsUtteranceDispatchedEvent carries no reference to a triggering redemption/event — a viewer's
-            // !tts request never logs a ChannelEvent row at all (only the reward/command trigger, if any,
-            // would), so there is nothing to correlate here. Genuinely null, not a fuzzy time-window join.
-            channelEventId: null,
+            // Non-null only when this utterance was fired by a pipeline action chain triggered by a PAID
+            // channel event (e.g. a reward redemption whose actions include play_tts) — PlayTtsAction threads
+            // the triggering ChannelEvent id down through TtsSpeakRequest.ChannelEventId. A standalone chat
+            // command (!tts) never logs a ChannelEvent at all, so it stays genuinely null here, not a fuzzy
+            // time-window join.
+            channelEventId: @event.ChannelEventId,
             cancellationToken
         );
     }

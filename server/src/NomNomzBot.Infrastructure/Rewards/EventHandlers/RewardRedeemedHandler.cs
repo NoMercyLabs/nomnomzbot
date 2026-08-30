@@ -178,6 +178,7 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
             @event.UserDisplayName,
             @event.RedemptionId,
             @event.RewardId,
+            @event.EventId.ToString(),
             variables,
             cancellationToken
         );
@@ -198,6 +199,7 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
         string displayName,
         string redemptionId,
         string rewardId,
+        string channelEventId,
         Dictionary<string, string> variables,
         CancellationToken ct
     )
@@ -213,6 +215,10 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
                     TriggeredByDisplayName = displayName,
                     RedemptionId = redemptionId,
                     RewardId = rewardId,
+                    // The redemption's own activity-feed row id — a reward's pipeline can include play_tts,
+                    // and that utterance's dispatched event needs this to correlate its Replay capture back
+                    // to the redemption (S-REPLAY-TTS-PIPELINE-CORRELATION).
+                    ChannelEventId = channelEventId,
                     RawMessage = string.Empty,
                     InitialVariables = variables,
                 },
