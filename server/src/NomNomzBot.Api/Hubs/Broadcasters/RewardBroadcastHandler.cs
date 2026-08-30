@@ -79,6 +79,7 @@ public sealed class RewardRedeemedBroadcastHandler : IEventHandler<RewardRedeeme
             @event.BroadcasterId,
             "reward_redeemed",
             dto,
+            @event.EventId.ToString(),
             ct
         );
 

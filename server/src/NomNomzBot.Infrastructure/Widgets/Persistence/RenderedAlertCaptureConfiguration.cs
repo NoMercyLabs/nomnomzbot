@@ -24,10 +24,19 @@ public class RenderedAlertCaptureConfiguration : IEntityTypeConfiguration<Render
 
         builder.Property(c => c.Payload).IsRequired().HasColumnType("jsonb");
 
+        builder.Property(c => c.ChannelEventId).HasMaxLength(50);
+
         // Read pattern is "most recent N per broadcaster" (prune-on-write + a later replay lookup) — same
         // shape as IX_ChannelEvent_ChannelId_CreatedAt.
         builder
             .HasIndex(c => new { c.BroadcasterId, c.CreatedAt })
             .HasDatabaseName("IX_RenderedAlertCapture_BroadcasterId_CreatedAt");
+
+        // Replay's actual lookup: "find the capture(s) for the activity-feed item the operator clicked" —
+        // by ChannelEventId, not type+recency. Not unique: a single origin event can fan out to multiple
+        // subscribed widgets, each capturing its own row for the same ChannelEventId.
+        builder
+            .HasIndex(c => new { c.BroadcasterId, c.ChannelEventId })
+            .HasDatabaseName("IX_RenderedAlertCapture_BroadcasterId_ChannelEventId");
     }
 }

@@ -55,6 +55,7 @@ public sealed class NewSubscriptionBroadcastHandler : IEventHandler<NewSubscript
             @event.BroadcasterId,
             "subscription",
             dto,
+            @event.EventId.ToString(),
             ct
         );
     }
@@ -107,6 +108,7 @@ public sealed class ResubscriptionBroadcastHandler : IEventHandler<Resubscriptio
             @event.BroadcasterId,
             "resub",
             dto,
+            @event.EventId.ToString(),
             ct
         );
     }
@@ -158,6 +160,7 @@ public sealed class GiftSubscriptionBroadcastHandler : IEventHandler<GiftSubscri
             @event.BroadcasterId,
             "gift",
             dto,
+            @event.EventId.ToString(),
             ct
         );
     }

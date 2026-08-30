@@ -61,6 +61,7 @@ public sealed class CheerBroadcastHandler : IEventHandler<CheerEvent>
             @event.BroadcasterId,
             "cheer",
             dto,
+            @event.EventId.ToString(),
             ct
         );
     }

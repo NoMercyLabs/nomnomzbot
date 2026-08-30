@@ -38,9 +38,18 @@ public class RenderedAlertCapture : BaseEntity, ITenantScoped
     [MaxLength(100)]
     public string EventType { get; set; } = null!;
 
-    // The verbatim `data` object RouteAsync pushed to the widget, serialized as JSON. No ChannelEvent
-    // correlation yet — RouteAsync's callers do not thread a ChannelEvent.Id through today (some pushes,
-    // e.g. tts_speak from TtsUtteranceDispatchedEvent, have no ChannelEvent row at all); a later slice can
-    // add that correlation once the call sites are revisited.
+    // The verbatim `data` object RouteAsync pushed to the widget, serialized as JSON.
     public string Payload { get; set; } = null!;
+
+    // FK→ChannelEvents.Id (string, MaxLength 50 — see ChannelEvent.Id) — the activity-feed row that produced
+    // this alert, so a later "Replay" action can look a capture up by the feed item the operator clicked. Set
+    // from the originating domain event's EventId (IDomainEvent.EventId), which is the SAME id
+    // TwitchAlertHandlerBase/TwitchChannelEventLogProjection key the ChannelEvent row by — so this column
+    // resolves to a real row whenever one was (or will be) written for that event. Genuinely null for pushes
+    // with no corresponding ChannelEvent at all (e.g. tts_speak from TtsUtteranceDispatchedEvent, or the
+    // now_playing/track_saved music-state pushes) — never fabricated. Not a database FK: ChannelEvents is
+    // written asynchronously by a projection that can race this write, and some values here never resolve
+    // (VIP/shoutout events currently log no ChannelEvent row at all).
+    [MaxLength(50)]
+    public string? ChannelEventId { get; set; }
 }

@@ -146,6 +146,8 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
             evt.BroadcasterId,
             "ChatMessage",
             dto,
+            // Same convergent id TwitchChannelEventLogProjection keys its "channel.chat.message" row by.
+            evt.EventId.ToString(),
             ct
         );
     }

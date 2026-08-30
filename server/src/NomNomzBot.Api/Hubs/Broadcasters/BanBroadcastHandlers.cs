@@ -67,6 +67,7 @@ public sealed class UserBannedBroadcastHandler : IEventHandler<UserBannedEvent>
             @event.BroadcasterId,
             "ban",
             dto,
+            @event.EventId.ToString(),
             ct
         );
     }
@@ -124,6 +125,7 @@ public sealed class UserTimedOutBroadcastHandler : IEventHandler<UserTimedOutEve
             @event.BroadcasterId,
             "timeout",
             dto,
+            @event.EventId.ToString(),
             ct
         );
     }
@@ -181,6 +183,7 @@ public sealed class UserUnbannedBroadcastHandler : IEventHandler<UserUnbannedEve
             @event.BroadcasterId,
             "unban",
             dto,
+            @event.EventId.ToString(),
             ct
         );
     }
