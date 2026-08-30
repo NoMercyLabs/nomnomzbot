@@ -46,11 +46,9 @@ public sealed class SdkTypeEmitterTests
         ts.Should().Contain("isSubscriber: boolean;");
         ts.Should().Contain("fragments: NnzChatMessageFragment[];");
 
-        // The typed nomercy-player-core surface is emitted verbatim in shape.
-        ts.Should()
-            .Contain(
-                "on<K extends keyof NnzEventMap>(event: K, fn: (data: NnzEventMap[K]) => void): void;"
-            );
+        // Wire names are the map's keys, so the whole catalogue is addressable by its stable name.
+        ts.Should().Contain("interface NnzEventMap {");
+        ts.Should().Contain("'stream.online': NnzChannelOnline;");
     }
 
     [Fact]
@@ -238,24 +236,40 @@ public sealed class SdkTypeEmitterTests
     }
 
     [Fact]
-    public void Widget_dts_keeps_the_batteries_and_read_api_but_omits_the_script_only_api()
+    public void Widget_dts_declares_the_browser_globals_and_nothing_from_the_script_sandbox()
     {
         string ts = RealEmitter().EmitTypeScript(SdkContext.Widget);
 
-        // Batteries are available everywhere.
-        ts.Should().Contain("convert(value: number, from: string, to: string): number;");
-        // The read-mostly api is available to widgets.
-        ts.Should().Contain("get(id?: string): NnzApiUser | null");
-        ts.Should().Contain("nowPlaying(): NnzApiTrack | null");
+        // A widget page has exactly one SDK object — window.NomNomz from /overlay/sdk.js — plus the config the
+        // host page injects. Signatures, not bare names: every registration returns the SDK so calls chain.
+        ts.Should().Contain("declare const NomNomz: NnzOverlaySdk;");
+        ts.Should()
+            .Contain(
+                "  on(eventType: string, handler: (data: any, eventType: string) => void): NnzOverlaySdk;"
+            );
+        ts.Should()
+            .Contain("  onAny(handler: (eventType: string, data: any) => void): NnzOverlaySdk;");
+        ts.Should()
+            .Contain(
+                "  onSettings(handler: (settings: Record<string, any>) => void): NnzOverlaySdk;"
+            );
+        ts.Should().Contain("  reportError(message: string): void;");
+        ts.Should().Contain("  readonly settings: Record<string, any>;");
+        ts.Should().Contain("declare const WIDGET_ID: string;");
+        ts.Should().Contain("declare const WIDGET_TOKEN: string;");
+        ts.Should().Contain("declare const WIDGET_NAME: string;");
+        ts.Should().Contain("declare const WIDGET_SETTINGS: Record<string, any>;");
+        ts.Should().Contain("declare const WIDGET_EVENT_SUBSCRIPTIONS: string[];");
 
-        // The write/privileged api is script-only — it must not appear in the untrusted widget surface.
+        // There is no `nnz` in a browser — no capability broker, so neither the batteries nor ANY of the api.
+        ts.Should().NotContain("declare const nnz");
+        ts.Should().NotContain("declare const bot");
+        ts.Should().NotContain("convert(value: number, from: string, to: string): number;");
+        ts.Should().NotContain("NnzApiUser");
+        ts.Should().NotContain("NnzApiTrack");
         ts.Should().NotContain("chat: {");
         ts.Should().NotContain("http: {");
-        ts.Should().NotContain("queue(uri: string): boolean");
         ts.Should().NotContain("storage: {");
-        ts.Should().NotContain("tts: {");
-        ts.Should().NotContain("stats: {");
-        ts.Should().NotContain("widget: {");
         ts.Should().NotContain("reward: {");
     }
 
@@ -268,9 +282,9 @@ public sealed class SdkTypeEmitterTests
 
         ts.Should().Contain("'chat.message': NnzChatMessageReceived;");
         ts.Should().Contain("interface NnzChatMessageReceived {");
-        ts.Should()
-            .Contain(
-                "on<K extends keyof NnzEventMap>(event: K, fn: (data: NnzEventMap[K]) => void): void;"
-            );
+
+        // …and the authored globals sit alongside them, untouched by the reflection pass.
+        ts.Should().Contain("declare const bot: {");
+        ts.Should().Contain("declare const nnz: {");
     }
 }

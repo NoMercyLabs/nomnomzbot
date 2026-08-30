@@ -9,30 +9,36 @@
 // -----------------------------------------------------------------------------
 
 using System.Text;
-using NomNomzBot.Application.DevPlatform;
 
 namespace NomNomzBot.Infrastructure.DevPlatform;
 
 /// <summary>
 /// The single authored source-of-truth for the SDK's <b>fixed</b> runtime surface (dev-platform.md §3.1) — the
-/// pure-JS batteries (<c>nnz.units/time/math/str/json/random</c>) and the <c>nnz.api.*</c> wrappers over the
-/// capability broker. Unlike the event map (which is 100%-reflected from the C# event records and must never be
-/// hand-typed), this surface is a <b>bounded, one-time library</b>: its shape is fixed by the JS implementation in
-/// <c>JintScriptExecutor</c>'s bootstrap, so declaring its TypeScript from one authored descriptor here — rather
-/// than reflecting it — is the correct, drift-free choice (there is nothing to reflect; the JS is the contract).
-/// The event codegen is untouched by this class. Per-context: batteries + the read-mostly api appear everywhere;
-/// the write/privileged api (<c>chat</c>, <c>http</c>, <c>music.queue</c>, <c>storage</c>, <c>tts</c>,
-/// <c>widget</c>, <c>reward</c>) is <see cref="SdkContext.Script"/>-only, mirroring which capabilities each
-/// context can be granted.
+/// globals each context actually has. Script: the <c>bot</c> facade plus the <c>nnz</c> batteries and
+/// <c>nnz.api.*</c> wrappers that <c>JintScriptExecutor</c>'s bootstrap builds. Widget: <c>window.NomNomz</c> from
+/// <c>OverlaySdkController</c>'s served SDK plus the <c>WIDGET_*</c> config globals <c>OverlayHostController</c>
+/// injects into the page. Unlike the event map (100%-reflected from the C# event records) there is nothing here to
+/// reflect — the JS is the contract — so this surface is declared by hand.
+/// <para>
+/// Hand-authoring is only drift-free when it is <b>enforced</b>, and for a long time it was not: the script context
+/// declared an <c>nnz.on/once/off</c> that never existed and omitted the <c>bot</c> global entirely. Two tests now
+/// hold the claim up. <c>SdkScriptSurfaceDriftTests</c> runs the real bootstrap in the real hardened Jint engine and
+/// fails on any global or top-level member this file declares-but-the-runtime-lacks, or the runtime-has-but-this-file
+/// omits. <c>OverlaySdkSurfaceDriftTests</c> (Api.Tests) does the same against the served overlay SDK and the
+/// injected page config. Change the JS and those tests name the member to change here.
+/// </para>
+/// The event codegen is untouched by this class. The write/privileged api (<c>chat</c>, <c>http</c>,
+/// <c>music.queue</c>, <c>storage</c>, <c>tts</c>, <c>widget</c>, <c>reward</c>, <c>schedule</c>) exists only in the
+/// script sandbox; a widget has no host bridge at all, so it gets no <c>nnz</c>.
 /// </summary>
 internal static class SdkRuntimeSurface
 {
     /// <summary>
-    /// The supporting payload interfaces the api methods return (the public projections the host bridge emits —
-    /// no PII). Always emitted (both contexts reference them via the read-mostly api). Named <c>NnzApi*</c> so
-    /// they never collide with a reflected event payload interface.
+    /// The supporting payload interfaces the <c>nnz.api.*</c> methods return (the public projections the host
+    /// bridge emits — no PII). Script-only, like the api itself. Named <c>NnzApi*</c> so they never collide with a
+    /// reflected event payload interface.
     /// </summary>
-    public static string Interfaces()
+    public static string ScriptApiInterfaces()
     {
         StringBuilder sb = new();
         sb.AppendLine("interface NnzApiUser {");
@@ -100,17 +106,91 @@ internal static class SdkRuntimeSurface
     }
 
     /// <summary>
-    /// The <c>nnz</c> member lines (batteries + api) inserted inside the generated <c>declare const nnz: {</c>
-    /// block, after the reflected <c>on/once/off</c> event surface. Indented two spaces to sit at member level.
-    /// <paramref name="context"/> selects the api subset: <see cref="SdkContext.Widget"/> gets the read-mostly
-    /// set only; <see cref="SdkContext.Script"/> gets the full set.
+    /// Every global the Jint sandbox actually exposes to a user script: the <c>bot</c> facade and the <c>nnz</c>
+    /// SDK, in the order the bootstrap defines them. There is no event bus in the sandbox — a script is invoked by
+    /// the <c>run_code</c> pipeline action with args + variables — so no <c>on/once/off</c> is declared.
     /// </summary>
-    public static string Members(SdkContext context)
+    public static string ScriptGlobals()
     {
         StringBuilder sb = new();
+        AppendBotFacade(sb);
+        sb.AppendLine();
+        sb.AppendLine("declare const nnz: {");
         AppendBatteries(sb);
-        AppendApi(sb, context);
-        return sb.ToString().TrimEnd('\r', '\n');
+        AppendApi(sb);
+        sb.Append("};");
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Every global a widget page actually has: <c>window.NomNomz</c> (the overlay SDK) and the five
+    /// <c>WIDGET_*</c> values the host page injects before the bundle runs. A widget has no capability broker, so
+    /// none of the <c>nnz</c> batteries or <c>nnz.api.*</c> wrappers exist here.
+    /// </summary>
+    public static string WidgetGlobals()
+    {
+        StringBuilder sb = new();
+        sb.AppendLine("/**");
+        sb.AppendLine(
+            " * The overlay SDK global, served as /overlay/sdk.js and installed before the widget bundle"
+        );
+        sb.AppendLine(" * runs. Event names are this widget's OWN subscription keys (see");
+        sb.AppendLine(
+            " * WIDGET_EVENT_SUBSCRIPTIONS) — e.g. 'follow', 'tts_speak' — not the NnzEventMap wire names."
+        );
+        sb.AppendLine(" * Every registration returns the SDK, so calls chain.");
+        sb.AppendLine(" */");
+        sb.AppendLine("interface NnzOverlaySdk {");
+        sb.AppendLine(
+            "  on(eventType: string, handler: (data: any, eventType: string) => void): NnzOverlaySdk;"
+        );
+        sb.AppendLine(
+            "  /** Removes a handler registered with on() — pass the SAME function reference. */"
+        );
+        sb.AppendLine(
+            "  off(eventType: string, handler: (data: any, eventType: string) => void): NnzOverlaySdk;"
+        );
+        sb.AppendLine("  onAny(handler: (eventType: string, data: any) => void): NnzOverlaySdk;");
+        sb.AppendLine(
+            "  /** Fires immediately with the injected settings, then again on every dashboard change. */"
+        );
+        sb.AppendLine(
+            "  onSettings(handler: (settings: Record<string, any>) => void): NnzOverlaySdk;"
+        );
+        sb.AppendLine(
+            "  /** Logs the message and reports it to the server as a widget runtime error. */"
+        );
+        sb.AppendLine("  reportError(message: string): void;");
+        sb.AppendLine("  readonly settings: Record<string, any>;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("declare const NomNomz: NnzOverlaySdk;");
+        sb.AppendLine();
+        sb.AppendLine("declare const WIDGET_ID: string;");
+        sb.AppendLine("declare const WIDGET_TOKEN: string;");
+        sb.AppendLine("declare const WIDGET_NAME: string;");
+        sb.AppendLine("declare const WIDGET_SETTINGS: Record<string, any>;");
+        sb.Append("declare const WIDGET_EVENT_SUBSCRIPTIONS: string[];");
+        return sb.ToString();
+    }
+
+    private static void AppendBotFacade(StringBuilder sb)
+    {
+        sb.AppendLine(
+            "/** The primitive-in/primitive-out host facade every script runs against. */"
+        );
+        sb.AppendLine("declare const bot: {");
+        sb.AppendLine("  /** The arguments the trigger passed in ('!roll 20' -> ['20']). */");
+        sb.AppendLine("  args: string[];");
+        sb.AppendLine("  getVar(key: string): string | null;");
+        sb.AppendLine("  setVar(key: string, value: string): void;");
+        sb.AppendLine("  /** Appends to the script's output (capped by the execution budget). */");
+        sb.AppendLine("  send(message: string): void;");
+        sb.AppendLine(
+            "  /** The raw capability bridge every nnz.api.* wrapper goes through; an ungranted key is denied. */"
+        );
+        sb.AppendLine("  call(key: string, ...args: string[]): string | null;");
+        sb.AppendLine("};");
     }
 
     private static void AppendBatteries(StringBuilder sb)
@@ -158,59 +238,50 @@ internal static class SdkRuntimeSurface
         sb.AppendLine("  };");
     }
 
-    private static void AppendApi(StringBuilder sb, SdkContext context)
+    private static void AppendApi(StringBuilder sb)
     {
         sb.AppendLine("  api: {");
-        // Read-mostly surface — present in every context (the widget's safe read set + the full script set).
         sb.AppendLine("    user: { get(id?: string): NnzApiUser | null };");
         sb.AppendLine("    economy: { balance(userId?: string): number };");
-        if (context == SdkContext.Script)
-        {
-            // Write/privileged surface — script context only (server-side, broker-gated at grant time).
-            sb.AppendLine("    chat: { send(text: string): void; reply(text: string): void };");
-            sb.AppendLine(
-                "    music: { nowPlaying(): NnzApiTrack | null; queue(uri: string): boolean };"
-            );
-            sb.AppendLine("    http: { fetch(url: string): string | null };");
-            sb.AppendLine(
-                "    /** Per-channel key/value state that persists between runs (64 KB per value, 200 keys). */"
-            );
-            sb.AppendLine(
-                "    storage: { get(key: string): string | null; set(key: string, value: string): boolean; delete(key: string): boolean; list(prefix?: string): string[] };"
-            );
-            sb.AppendLine(
-                "    /** Speak text on the overlay; read/assign a viewer's per-channel voice (setVoice with no voiceId clears to the channel default). */"
-            );
-            sb.AppendLine(
-                "    tts: { speak(text: string, voiceId?: string): NnzApiTtsResult | null; getVoice(userIdOrLogin: string): NnzApiTtsVoice | null; setVoice(userIdOrLogin: string, voiceId?: string): boolean };"
-            );
-            sb.AppendLine(
-                "    /** A viewer's channel stats (messages/watchtime/first-seen/redemptions/song requests); the triggering user when no arg. */"
-            );
-            sb.AppendLine("    stats: { viewer(userIdOrLogin?: string): NnzApiViewerStats };");
-            sb.AppendLine(
-                "    /** Push an event to one of this channel's enabled widgets (by id or name). */"
-            );
-            sb.AppendLine(
-                "    widget: { emit(widgetIdOrName: string, eventType: string, data?: unknown): boolean };"
-            );
-            sb.AppendLine(
-                "    /** Read / patch a channel-point reward (by id or title); update needs a bot-manageable reward. */"
-            );
-            sb.AppendLine(
-                "    reward: { get(rewardIdOrTitle: string): NnzApiReward | null; update(rewardIdOrTitle: string, patch: NnzApiRewardPatch): boolean };"
-            );
-            sb.AppendLine(
-                "    /** Schedule a saved pipeline to run once after a delay in seconds (survives restarts); optional variables + dedupeKey (re-scheduling with the same key replaces the pending run). */"
-            );
-            sb.AppendLine(
-                "    schedule: { pipeline(pipelineName: string, delaySeconds: number, variables?: Record<string, string>, dedupeKey?: string): boolean };"
-            );
-        }
-        else
-        {
-            sb.AppendLine("    music: { nowPlaying(): NnzApiTrack | null };");
-        }
+        sb.AppendLine("    chat: { send(text: string): void; reply(text: string): void };");
+        sb.AppendLine(
+            "    music: { nowPlaying(): NnzApiTrack | null; queue(uri: string): boolean };"
+        );
+        sb.AppendLine("    http: { fetch(url: string): string | null };");
+        sb.AppendLine(
+            "    /** Per-channel key/value state that persists between runs (64 KB per value, 200 keys). */"
+        );
+        sb.AppendLine(
+            "    storage: { get(key: string): string | null; set(key: string, value: string): boolean; delete(key: string): boolean; list(prefix?: string): string[] };"
+        );
+        sb.AppendLine(
+            "    /** Speak text on the overlay; read/assign a viewer's per-channel voice (setVoice with no voiceId clears to the channel default). */"
+        );
+        sb.AppendLine(
+            "    tts: { speak(text: string, voiceId?: string): NnzApiTtsResult | null; getVoice(userIdOrLogin: string): NnzApiTtsVoice | null; setVoice(userIdOrLogin: string, voiceId?: string): boolean };"
+        );
+        sb.AppendLine(
+            "    /** A viewer's channel stats (messages/watchtime/first-seen/redemptions/song requests); the triggering user when no arg. */"
+        );
+        sb.AppendLine("    stats: { viewer(userIdOrLogin?: string): NnzApiViewerStats };");
+        sb.AppendLine(
+            "    /** Push an event to one of this channel's enabled widgets (by id or name). */"
+        );
+        sb.AppendLine(
+            "    widget: { emit(widgetIdOrName: string, eventType: string, data?: unknown): boolean };"
+        );
+        sb.AppendLine(
+            "    /** Read / patch a channel-point reward (by id or title); update needs a bot-manageable reward. */"
+        );
+        sb.AppendLine(
+            "    reward: { get(rewardIdOrTitle: string): NnzApiReward | null; update(rewardIdOrTitle: string, patch: NnzApiRewardPatch): boolean };"
+        );
+        sb.AppendLine(
+            "    /** Schedule a saved pipeline to run once after a delay in seconds (survives restarts); optional variables + dedupeKey (re-scheduling with the same key replaces the pending run). */"
+        );
+        sb.AppendLine(
+            "    schedule: { pipeline(pipelineName: string, delaySeconds: number, variables?: Record<string, string>, dedupeKey?: string): boolean };"
+        );
         sb.AppendLine("  };");
     }
 }

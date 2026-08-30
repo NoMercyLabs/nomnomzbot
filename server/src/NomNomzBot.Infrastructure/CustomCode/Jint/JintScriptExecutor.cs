@@ -39,7 +39,10 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
     // `nnz.api.*` wrappers, each a thin call over the SAME `bot.call(key, …)` capability bridge (so an ungranted
     // key still denies at run time, unchanged). `bot` stays as-is so existing scripts and the executor tests keep
     // working.
-    private const string Bootstrap = """
+    // internal (not private): SdkScriptSurfaceDriftTests executes THIS string in a real hardened engine and
+    // enumerates the globals it creates, so the generated nnz.d.ts can never again declare a member the sandbox
+    // does not have (or miss one it does). InternalsVisibleTo(NomNomzBot.Infrastructure.Tests) is already wired.
+    internal const string Bootstrap = """
         var bot = {
             args: JSON.parse(__argsJson),
             getVar: function (k) { return __getVar(String(k)); },
@@ -276,9 +279,11 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                 "__getVar",
                 (Func<string, string?>)(k => vars.TryGetValue(k, out string? v) ? v : null)
             );
+            // string? on the value: guest code reaches __setVar directly and Jint hands a JS null straight
+            // through, so the coalesce is real defence — typed non-null it read as redundant.
             engine.SetValue(
                 "__setVar",
-                (Action<string, string>)((k, v) => vars[k] = v ?? string.Empty)
+                (Action<string, string?>)((k, v) => vars[k] = v ?? string.Empty)
             );
             engine.SetValue(
                 "__send",

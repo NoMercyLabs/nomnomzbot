@@ -17,9 +17,9 @@ namespace NomNomzBot.Infrastructure.DevPlatform;
 
 /// <summary>
 /// Reflects a set of visible <see cref="EventDescriptor"/>s into the generated <c>nnz.d.ts</c> (dev-platform.md
-/// §2.1): one <c>interface</c> per event payload and per nested value object, the <c>NnzEventMap</c>, and the
-/// typed <c>nnz.on&lt;K&gt;</c> surface copied from the <c>nomercy-player-core</c> shape. One instance builds one
-/// context's output; it is not reused.
+/// §2.1): one <c>interface</c> per event payload and per nested value object, plus the <c>NnzEventMap</c>. The
+/// context's fixed globals come from <see cref="SdkRuntimeSurface"/> — the script sandbox's <c>bot</c>/<c>nnz</c>,
+/// or the widget page's <c>NomNomz</c>/<c>WIDGET_*</c>. One instance builds one context's output; it is not reused.
 /// </summary>
 internal sealed class TypeScriptDefinitionWriter
 {
@@ -75,10 +75,13 @@ internal sealed class TypeScriptDefinitionWriter
             sb.AppendLine();
         }
 
-        // The fixed SDK payload interfaces (nnz.api.* return types) — authored, not reflected (dev-platform.md
-        // §3.1); the event map above stays 100%-reflected from the C# records.
-        sb.AppendLine(SdkRuntimeSurface.Interfaces());
-        sb.AppendLine();
+        // The fixed nnz.api.* payload interfaces — authored, not reflected (dev-platform.md §3.1), and script-only
+        // because a widget page has no capability broker to return them.
+        if (_context == SdkContext.Script)
+        {
+            sb.AppendLine(SdkRuntimeSurface.ScriptApiInterfaces());
+            sb.AppendLine();
+        }
 
         sb.AppendLine("interface NnzEventMap {");
         foreach (EventDescriptor descriptor in events)
@@ -86,19 +89,11 @@ internal sealed class TypeScriptDefinitionWriter
         sb.AppendLine("}");
         sb.AppendLine();
 
-        sb.AppendLine("declare const nnz: {");
         sb.AppendLine(
-            "  on<K extends keyof NnzEventMap>(event: K, fn: (data: NnzEventMap[K]) => void): void;"
+            _context == SdkContext.Script
+                ? SdkRuntimeSurface.ScriptGlobals()
+                : SdkRuntimeSurface.WidgetGlobals()
         );
-        sb.AppendLine(
-            "  once<K extends keyof NnzEventMap>(event: K, fn: (data: NnzEventMap[K]) => void): void;"
-        );
-        sb.AppendLine(
-            "  off<K extends keyof NnzEventMap>(event: K, fn?: (data: NnzEventMap[K]) => void): void;"
-        );
-        // The fixed batteries + nnz.api.* surface (authored source-of-truth, per-context subset).
-        sb.AppendLine(SdkRuntimeSurface.Members(_context));
-        sb.AppendLine("};");
 
         return sb.ToString();
     }
