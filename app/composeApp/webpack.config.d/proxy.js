@@ -26,13 +26,20 @@
 const LOCAL_API = "http://localhost:5080";
 const DEPLOYED_API = "https://dev.nomnomz.bot";
 
+// Probed inline via `node -e` rather than a separate .cjs file: kotlin-webpack-plugin copies this
+// script into a generated build/wasm/.../webpack.config.js whose __dirname no longer sits next to
+// the source tree, so a path resolved relative to __dirname silently pointed at a file that doesn't
+// exist there — execFileSync then threw ENOENT, which the catch below indistinguishably read as
+// "nothing listening on 5080" and always fell back to the deployed backend.
 function localApiIsListening() {
+    const probe =
+        "const s=require('net').connect(5080,'127.0.0.1');" +
+        "s.setTimeout(600);" +
+        "s.on('connect',()=>{s.destroy();process.exit(0)});" +
+        "s.on('error',()=>process.exit(1));" +
+        "s.on('timeout',()=>{s.destroy();process.exit(1)});";
     try {
-        require("child_process").execFileSync(
-            process.execPath,
-            [require("path").resolve(__dirname, "../../dev/probe-local-api.cjs")],
-            { stdio: "ignore" }
-        );
+        require("child_process").execFileSync(process.execPath, ["-e", probe], { stdio: "ignore" });
         return true;
     } catch {
         return false;
