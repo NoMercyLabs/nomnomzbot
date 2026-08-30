@@ -78,9 +78,13 @@ re-running a persistent side effect.
   dashboard/custom-data/sr-queue/tts_speak + the widget-test-event caller). Two honest gaps found, not
   invented around:
   - `RoleBroadcastHandlers.cs` (Vip/Shoutout) never logs a `ChannelEvent` row at all today — its id is
-    threaded through for consistency but will always resolve to nothing until a later slice adds that
-    logging. **S-REPLAY-VIPSHOUTOUT-CHANNELEVENT**: add `ChannelEvent` logging for Vip/Shoutout so
-    their alerts become replayable like every other type (U-adjacent completeness gap, not urgent).
+    threaded through for consistency but will always resolve to nothing until logging is added.
+    **Vip DONE, verified (acb97be6)**: VIP grant/revoke now logs a real `ChannelEvent` + correlates its
+    `RenderedAlertCapture`. **Still open — Shoutout lives in a SEPARATE file
+    (`ShoutoutBroadcastHandlers.cs`), not `RoleBroadcastHandlers.cs`, so it was NOT covered by the Vip
+    fix** — same gap, same fix pattern, own slice: **S-REPLAY-SHOUTOUT-CHANNELEVENT**. Also found:
+    `RoleBroadcastHandlers.cs:65,127` — `ModeratorAddedEvent`/`ModeratorRemovedEvent` have the identical
+    gap, not yet queued as its own slice — **S-REPLAY-MODERATOR-CHANNELEVENT**.
   - `tts_speak` is genuinely uncorrelated: `TtsUtteranceDispatchedEvent` carries no reference to any
     triggering redemption/command, and a viewer `!tts` request never logs a `ChannelEvent` at all —
     `ChannelEventId` is explicitly null for TTS captures, no fake time-window join was invented.
