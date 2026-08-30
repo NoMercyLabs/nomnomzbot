@@ -8344,6 +8344,52 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.ToTable("SoundClips");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Stream.Entities.ShoutoutOverride", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("MessageTemplate")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("TargetDisplayName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("TargetTwitchUserId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "TargetTwitchUserId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ShoutoutOverride_Broadcaster_Target")
+                        .HasFilter("\"DeletedAt\" IS NULL");
+
+                    b.ToTable("ShoutoutOverrides");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Stream.Entities.Stream", b =>
                 {
                     b.Property<string>("Id")

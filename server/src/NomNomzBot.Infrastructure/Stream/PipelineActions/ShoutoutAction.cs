@@ -18,6 +18,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Domain.Stream.Entities;
 using Channel = NomNomzBot.Domain.Identity.Entities.Channel;
 
 namespace NomNomzBot.Infrastructure.Stream.PipelineActions;
@@ -235,12 +236,26 @@ public sealed class ShoutoutAction : ICommandAction
             .Channels.AsNoTracking()
             .FirstOrDefaultAsync(c => c.TwitchChannelId == target.Id, ctx.CancellationToken);
 
+        // The shouting streamer's OWN per-target note (old-bot parity: the legacy bot's Shoutout table,
+        // keyed by (channel, shouted user)) — a deliberate personal line written for THIS specific person,
+        // regardless of whether they've ever connected to NomNomzBot. Wins over the target's own
+        // self-managed template: it is this broadcaster's own choice about how they introduce this
+        // specific person, not something another streamer's account setting should override.
+        ShoutoutOverride? perTargetOverride = await _db
+            .ShoutoutOverrides.AsNoTracking()
+            .FirstOrDefaultAsync(
+                o => o.BroadcasterId == ctx.BroadcasterId && o.TargetTwitchUserId == target.Id,
+                ctx.CancellationToken
+            );
+
         string templateOverride = ResolveVariable(
             action.GetString("template") ?? string.Empty,
             ctx.Variables
         );
         string template =
             !string.IsNullOrWhiteSpace(templateOverride) ? templateOverride
+            : !string.IsNullOrWhiteSpace(perTargetOverride?.MessageTemplate)
+                ? perTargetOverride!.MessageTemplate
             : !string.IsNullOrWhiteSpace(targetChannel?.ShoutoutTemplate)
                 ? targetChannel!.ShoutoutTemplate!
             : !string.IsNullOrWhiteSpace(channel?.ShoutoutTemplate) ? channel!.ShoutoutTemplate!

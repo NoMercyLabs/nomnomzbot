@@ -243,6 +243,8 @@ internal sealed class PipelineTestRunDbContext : DbContext, IApplicationDbContex
         throw new NotSupportedException();
     public DbSet<Pronoun> Pronouns => throw new NotSupportedException();
     public DbSet<DeletionAuditLog> DeletionAuditLogs => throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Stream.Entities.ShoutoutOverride> ShoutoutOverrides =>
+        throw new NotSupportedException();
     public DbSet<ComplianceAuditLog> ComplianceAuditLogs => throw new NotSupportedException();
     public DbSet<EventResponse> EventResponses => throw new NotSupportedException();
     public DbSet<WatchStreak> WatchStreaks => throw new NotSupportedException();

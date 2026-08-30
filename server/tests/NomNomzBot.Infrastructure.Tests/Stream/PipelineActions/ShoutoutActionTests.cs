@@ -265,6 +265,94 @@ public sealed class ShoutoutActionTests
             );
     }
 
+    /// <summary>
+    /// The broadcaster's own per-target note (old-bot parity: the legacy bot's <c>Shoutout</c> table, keyed
+    /// by channel+target) wins over BOTH the target's own self-set template AND this channel's default —
+    /// it is this broadcaster's own deliberate choice about how THEY introduce this specific person.
+    /// </summary>
+    [Fact]
+    public async Task The_shouting_channels_own_per_target_override_wins_over_everything_else()
+    {
+        ITwitchChatApi chat = Substitute.For<ITwitchChatApi>();
+        chat.SendShoutoutAsync(Channel, Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        chat.SendAnnouncementAsync(
+                Channel,
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+        ITwitchUsersApi users = Substitute.For<ITwitchUsersApi>();
+        users
+            .GetUsersByIdsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchUser>>([User("123456", "numerictarget")]));
+        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
+        resolver
+            .ResolveAsync(
+                Arg.Any<string>(),
+                Arg.Any<IDictionary<string, string>>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(callInfo => Task.FromResult(NaiveResolve(callInfo)));
+
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Channels.Add(
+            new()
+            {
+                Id = Channel,
+                Name = "stoney",
+                NameNormalized = "stoney",
+                OwnerUserId = Guid.NewGuid(),
+                ShoutoutTemplate = "My default template, never used here",
+            }
+        );
+        db.Channels.Add(
+            new()
+            {
+                Id = Guid.NewGuid(),
+                Name = "numerictarget",
+                NameNormalized = "numerictarget",
+                OwnerUserId = Guid.NewGuid(),
+                TwitchChannelId = "123456",
+                ShoutoutTemplate = "The target's own self-set template, never used here either",
+            }
+        );
+        db.ShoutoutOverrides.Add(
+            new()
+            {
+                BroadcasterId = Channel,
+                TargetTwitchUserId = "123456",
+                TargetDisplayName = "numerictarget",
+                MessageTemplate = "My personal note for {target.name} specifically!",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        ShoutoutAction sut = new(
+            chat,
+            users,
+            Substitute.For<IChannelRegistry>(),
+            db,
+            resolver,
+            Substitute.For<ITtsDispatchService>(),
+            TimeProvider.System,
+            NullLogger<ShoutoutAction>.Instance
+        );
+
+        ActionResult result = await sut.ExecuteAsync(Ctx(), Shoutout("123456"));
+
+        result.Succeeded.Should().BeTrue();
+        await chat.Received(1)
+            .SendAnnouncementAsync(
+                Channel,
+                "My personal note for numerictarget specifically!",
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
     [Fact]
     public async Task Always_posts_a_templated_announcement_alongside_the_native_shoutout()
     {

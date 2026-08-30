@@ -22,6 +22,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
+using NomNomzBot.Domain.Stream.Entities;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -1291,6 +1292,123 @@ public class ModerationController : BaseController
             return ResultResponse(helperValidation);
 
         channel.ShoutoutTemplate = normalizedTemplate;
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
+    public record ShoutoutOverrideDto(
+        string TargetTwitchUserId,
+        string TargetDisplayName,
+        string MessageTemplate
+    );
+
+    public record UpsertShoutoutOverrideRequest(
+        string TargetTwitchUserId,
+        string TargetDisplayName,
+        string MessageTemplate
+    );
+
+    /// <summary>
+    /// This broadcaster's own per-target shoutout overrides — old-bot parity (the legacy bot's <c>Shoutout</c>
+    /// table): a personal line THIS broadcaster wrote for a specific person, regardless of whether that
+    /// person has ever connected to NomNomzBot. Wins over the target's own <see cref="ShoutoutTemplateDto"/>.
+    /// </summary>
+    [RequireAction("moderation:read")]
+    [HttpGet("shoutout-overrides")]
+    [ProducesResponseType<StatusResponseDto<List<ShoutoutOverrideDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetShoutoutOverrides(string channelId, CancellationToken ct)
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        List<ShoutoutOverrideDto> overrides = await _db
+            .ShoutoutOverrides.Where(o => o.BroadcasterId == broadcasterId)
+            .OrderBy(o => o.TargetDisplayName)
+            .Select(o => new ShoutoutOverrideDto(
+                o.TargetTwitchUserId,
+                o.TargetDisplayName,
+                o.MessageTemplate
+            ))
+            .ToListAsync(ct);
+
+        return Ok(new StatusResponseDto<List<ShoutoutOverrideDto>> { Data = overrides });
+    }
+
+    /// <summary>Creates or updates this broadcaster's own shoutout line for one specific target.</summary>
+    [RequireAction("moderation:shoutout")]
+    [HttpPut("shoutout-overrides")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> SetShoutoutOverride(
+        string channelId,
+        [FromBody] UpsertShoutoutOverrideRequest request,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+        if (string.IsNullOrWhiteSpace(request.TargetTwitchUserId))
+            return BadRequestResponse("A target Twitch user id is required.");
+        if (string.IsNullOrWhiteSpace(request.MessageTemplate))
+            return BadRequestResponse("A non-empty message template is required.");
+
+        Result helperValidation = _templateHelperValidator.Validate(
+            request.MessageTemplate,
+            TemplateHelperContext.EventResponse
+        );
+        if (helperValidation.IsFailure)
+            return ResultResponse(helperValidation);
+
+        ShoutoutOverride? existing = await _db.ShoutoutOverrides.FirstOrDefaultAsync(
+            o =>
+                o.BroadcasterId == broadcasterId
+                && o.TargetTwitchUserId == request.TargetTwitchUserId,
+            ct
+        );
+        if (existing is null)
+            _db.ShoutoutOverrides.Add(
+                new()
+                {
+                    BroadcasterId = broadcasterId,
+                    TargetTwitchUserId = request.TargetTwitchUserId,
+                    TargetDisplayName = request.TargetDisplayName,
+                    MessageTemplate = request.MessageTemplate.Trim(),
+                }
+            );
+        else
+        {
+            existing.TargetDisplayName = request.TargetDisplayName;
+            existing.MessageTemplate = request.MessageTemplate.Trim();
+        }
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
+    /// <summary>Removes this broadcaster's own shoutout line for one target — future shoutouts fall back to
+    /// the target's own template, then this channel's default.</summary>
+    [RequireAction("moderation:shoutout")]
+    [NotDestructive(
+        "Deletes one shoutout-override row; no other entity carries an FK to it, and the target's own "
+            + "ShoutoutTemplate / this channel's default remain unaffected."
+    )]
+    [HttpDelete("shoutout-overrides/{targetTwitchUserId}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> DeleteShoutoutOverride(
+        string channelId,
+        string targetTwitchUserId,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        ShoutoutOverride? existing = await _db.ShoutoutOverrides.FirstOrDefaultAsync(
+            o => o.BroadcasterId == broadcasterId && o.TargetTwitchUserId == targetTwitchUserId,
+            ct
+        );
+        if (existing is null)
+            return NotFoundResponse("No shoutout override found for this target.");
+
+        _db.ShoutoutOverrides.Remove(existing);
         await _db.SaveChangesAsync(ct);
         return NoContent();
     }

@@ -37,6 +37,7 @@ import bot.nomnomz.dashboard.core.network.SaveSharedBanSettingsBody
 import bot.nomnomz.dashboard.core.network.SetModerationStandingBody
 import bot.nomnomz.dashboard.core.network.SharedBanSettings
 import bot.nomnomz.dashboard.core.network.SharedBanTrustedChannel
+import bot.nomnomz.dashboard.core.network.ShoutoutOverride
 import bot.nomnomz.dashboard.core.network.UnbanRequest
 import bot.nomnomz.dashboard.core.network.UpsertEscalationPolicyBody
 import bot.nomnomz.dashboard.core.network.ShieldStatus
@@ -256,6 +257,14 @@ class ModerationController(
                 is ApiResult.Ok -> result.value
             }
 
+        // This channel's own personal shoutout lines for specific people (old-bot parity). Resilient — a
+        // failure degrades to an empty list rather than failing the page.
+        val shoutoutOverrides: List<ShoutoutOverride> =
+            when (val result: ApiResult<List<ShoutoutOverride>> = moderationApi.shoutoutOverrides(channel.id)) {
+                is ApiResult.Failure -> emptyList()
+                is ApiResult.Ok -> result.value
+            }
+
         // Empty only when there is genuinely nothing to show AND every always-on control (shield, automod) is off
         // AND every live-Twitch section is available (an unavailable section must render Ready so its needs-permission
         // notice shows — never Empty, which would read as "nothing here" rather than "you can't see this here").
@@ -293,6 +302,7 @@ class ModerationController(
                     sharedBanSettings = sharedBanSettings,
                     nukeBatches = nukeBatches,
                     shoutoutTemplate = shoutoutTemplate,
+                    shoutoutOverrides = shoutoutOverrides,
                 )
             }
     }
@@ -624,6 +634,20 @@ class ModerationController(
         afterWrite(moderationApi.setShoutoutTemplate(channel, template.ifBlank { null }))
     }
 
+    /** Create or update this channel's own shoutout line for [targetTwitchUserId], then reload. */
+    suspend fun setShoutoutOverride(targetTwitchUserId: String, targetDisplayName: String, messageTemplate: String) {
+        val channel: String = channelId ?: return
+        afterWrite(
+            moderationApi.setShoutoutOverride(channel, targetTwitchUserId, targetDisplayName, messageTemplate)
+        )
+    }
+
+    /** Remove this channel's own shoutout line for [targetTwitchUserId], then reload. */
+    suspend fun deleteShoutoutOverride(targetTwitchUserId: String) {
+        val channel: String = channelId ?: return
+        afterWrite(moderationApi.deleteShoutoutOverride(channel, targetTwitchUserId))
+    }
+
     /**
      * Flip one AutoMod [filter]'s enabled flag and persist the whole config (the backend POST takes the full
      * config; the other filters' settings ride along unchanged), then reload. No-ops off a Ready state.
@@ -859,6 +883,8 @@ sealed interface ModerationState {
         // This channel's own custom shoutout announcement template (null/blank = built-in default) — also
         // what OTHER streamers see when THEY shout this channel out. See load().
         val shoutoutTemplate: String? = null,
+        // This channel's own personal shoutout lines for specific people (old-bot parity). See load().
+        val shoutoutOverrides: List<ShoutoutOverride> = emptyList(),
     ) : ModerationState
 
     data object Empty : ModerationState

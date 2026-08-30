@@ -214,6 +214,8 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
     public DbSet<TtsLexiconEntry> TtsLexiconEntries => throw new NotSupportedException();
     public DbSet<TtsApprovalQueueEntry> TtsApprovalQueueEntries => Set<TtsApprovalQueueEntry>();
     public DbSet<DeletionAuditLog> DeletionAuditLogs => Set<DeletionAuditLog>();
+    public DbSet<NomNomzBot.Domain.Stream.Entities.ShoutoutOverride> ShoutoutOverrides =>
+        throw new NotSupportedException();
     public DbSet<ComplianceAuditLog> ComplianceAuditLogs => Set<ComplianceAuditLog>();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Timer> Timers =>
         Set<NomNomzBot.Domain.Commands.Entities.Timer>();

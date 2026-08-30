@@ -227,6 +227,8 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Tts.Entities.TtsApprovalQueueEntry> TtsApprovalQueueEntries =>
         throw new NotSupportedException();
     public DbSet<DeletionAuditLog> DeletionAuditLogs => throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Stream.Entities.ShoutoutOverride> ShoutoutOverrides =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Timer> Timers =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.EventResponse> EventResponses =>
