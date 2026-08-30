@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.Authorization;
+using NomNomzBot.Api.Models;
 using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Platform;
@@ -39,12 +40,16 @@ public class FeatureFlagAdminController(
     /// <summary>List all feature-flag definitions.</summary>
     [HttpGet]
     [EnableRateLimiting(RateLimitPolicyNames.Read)]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<FeatureFlagDto>>>(
+        StatusCodes.Status200OK
+    )]
     public async Task<IActionResult> List(CancellationToken ct) =>
         ResultResponse(await flags.ListAsync(ct));
 
     /// <summary>Create or update a feature flag's global definition and rollout ramp.</summary>
     [HttpPut]
     [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
+    [ProducesResponseType<StatusResponseDto<FeatureFlagDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> SetFlag(
         [FromBody] SetFeatureFlagRequest request,
         CancellationToken ct

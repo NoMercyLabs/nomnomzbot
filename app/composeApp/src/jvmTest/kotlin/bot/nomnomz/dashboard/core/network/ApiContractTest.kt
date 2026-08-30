@@ -307,6 +307,8 @@ class ApiContractTest {
             PublisherTokenBody.serializer() to "MarketplacePublisherTokenRequest",
             // Assets (overlay/widget media library).
             ChannelAsset.serializer() to "ChannelAssetDto",
+            // Platform admin.
+            FeatureFlag.serializer() to "FeatureFlagDto",
         )
 
     @Test

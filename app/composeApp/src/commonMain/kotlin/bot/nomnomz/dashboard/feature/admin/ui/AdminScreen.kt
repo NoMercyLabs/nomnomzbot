@@ -81,6 +81,7 @@ import nomnomzbot.composeapp.generated.resources.admin_user_row_type
 import nomnomzbot.composeapp.generated.resources.admin_event_log
 import nomnomzbot.composeapp.generated.resources.admin_flag_disabled
 import nomnomzbot.composeapp.generated.resources.admin_flag_enabled
+import nomnomzbot.composeapp.generated.resources.admin_flag_enabled_rollout
 import nomnomzbot.composeapp.generated.resources.admin_grant_founder
 import nomnomzbot.composeapp.generated.resources.admin_grant_tier
 import nomnomzbot.composeapp.generated.resources.admin_health_degraded
@@ -582,13 +583,20 @@ private fun FeatureFlagsTab(state: AdminState, controller: AdminController) {
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(text = flag.featureKey, style = typography.sm, color = tokens.cardForeground)
+                            Text(text = flag.key, style = typography.sm, color = tokens.cardForeground)
+                            flag.description?.takeIf { it.isNotBlank() }?.let { description ->
+                                Text(text = description, style = typography.xs, color = tokens.mutedForeground)
+                            }
                         }
                         Text(
-                            text = if (flag.isEnabled) stringResource(Res.string.admin_flag_enabled)
-                            else stringResource(Res.string.admin_flag_disabled),
+                            text =
+                                if (flag.isEnabledGlobally) {
+                                    stringResource(Res.string.admin_flag_enabled_rollout, flag.rolloutPercentage)
+                                } else {
+                                    stringResource(Res.string.admin_flag_disabled)
+                                },
                             style = typography.sm,
-                            color = if (flag.isEnabled) tokens.primary else tokens.mutedForeground,
+                            color = if (flag.isEnabledGlobally) tokens.primary else tokens.mutedForeground,
                         )
                     }
                     if (index < state.featureFlags.lastIndex) {

@@ -77,23 +77,31 @@ data class PlatformEvent(
 
 // ─── Feature Flags ───────────────────────────────────────────────────────────
 
+/**
+ * A staged-rollout feature flag's global definition (backend `FeatureFlagDto`). [requiresConsent] is a consent
+ * TYPE key the tenant must hold for the flag to apply (or null), not a boolean — the flag can require a specific
+ * consent grant, not merely "some consent". [deploymentMode] is `saas` | `self_host` | null (both).
+ */
 @Serializable
 data class FeatureFlag(
-    val featureKey: String,
-    val isEnabled: Boolean,
-    val enabledAt: String? = null,
-    val requiredScopes: List<String> = emptyList(),
+    val key: String = "",
+    val description: String? = null,
+    val isEnabledGlobally: Boolean = false,
+    val rolloutPercentage: Int = 0,
+    val minTierKey: String? = null,
+    val requiresConsent: String? = null,
+    val deploymentMode: String? = null,
 )
 
 @Serializable
 data class AdminSetFeatureFlagRequest(
     val key: String,
-    val description: String,
+    val description: String? = null,
     val isEnabledGlobally: Boolean,
     val rolloutPercentage: Int,
     val minTierKey: String? = null,
-    val requiresConsent: Boolean,
-    val deploymentMode: String,
+    val requiresConsent: String? = null,
+    val deploymentMode: String? = null,
 )
 
 @Serializable
