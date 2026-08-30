@@ -68,16 +68,24 @@ comment) and **record it against its originating `ChannelEvent.Id`**. Replay the
 recorded payload byte-for-byte — no new computation, no chance of drift, no chance of accidentally
 re-running a persistent side effect.
 
-- **S-REPLAY-CAPTURE**: add a persisted record (new table or a JSON column keyed by
-  `ChannelEvent.Id`) of every widget-event push (`eventType` + `data`, including any `tts_speak` push)
-  that resulted from a given `ChannelEvent` at the time it was first processed. Wire this at the single
-  shared choke point (`WidgetAlertDispatch.RouteAsync`, `server/src/NomNomzBot.Api/Hubs/Broadcasters/
-  WidgetAlertHandlers.cs`) so every existing alert type (follow/sub/cheer/raid/gift/resub/reward/role/
-  shoutout/ban/hype-train/tts_speak) is captured for free, not one integration per event type. Bound
-  retention sensibly (e.g. only the same window `GetActivity` already surfaces, ~40 rows per channel)
-  so this never becomes unbounded growth. Done-when: triggering any one real alert type end-to-end
-  produces a queryable capture row carrying the exact widget payload(s) that were pushed for it.
-- **S-REPLAY-ENDPOINT**: `POST /api/v1/channels/{channelId}/activity/{eventId}/replay` (Gate-2 action
+- **S-REPLAY-CAPTURE** — DONE, verified (8d4cfb69): `RenderedAlertCapture` table + `WidgetAlertDispatch.
+  RouteAsync` choke-point wiring, 40-row-per-channel pruning, real dispatch→capture test. **Found its
+  own follow-up blocker**: `RouteAsync`'s callers never thread a `ChannelEvent.Id` through, so captures
+  have NO correlation to the activity-feed row that produced them yet — S-REPLAY-ENDPOINT cannot map
+  "replay this feed row" to its captures until that's fixed.
+- **S-REPLAY-CORRELATION** (new, blocks S-REPLAY-ENDPOINT): thread the originating `ChannelEvent.Id`
+  through to `WidgetAlertDispatch.RouteAsync`'s capture call, for every caller that has one available
+  (`OverlayAlertBroadcast` and friends — these fire from a domain event handler that DOES know which
+  `ChannelEvent` row it's handling; find that link). For `tts_speak` (`TtsSpeakBroadcastHandler.cs`),
+  which has no `ChannelEvent` at all today, DECIDE and implement one of: (a) leave it uncorrelated but
+  captured standalone, replayable only as "the TTS that most recently accompanied this feed row" via a
+  time-window join at replay time, or (b) determine whether TTS dispatch already carries a reference
+  back to the redemption/event that triggered it (check `TtsUtteranceDispatchedEvent`'s fields) and
+  correlate properly if so — do not invent a fake correlation. Done-when: triggering a real alert whose
+  originating row is a `ChannelEvent` produces a capture queryable BY that `ChannelEvent.Id` (not just
+  by type+recency), proven by a test that looks up captures via the event id and gets back exactly the
+  right payload(s).
+- **S-REPLAY-ENDPOINT** (after S-REPLAY-CORRELATION): `POST /api/v1/channels/{channelId}/activity/{eventId}/replay` (Gate-2 action
   key alongside `dashboard:read`/write floor — moderator-or-above, matches other on-stream action
   endpoints) that looks up the capture row(s) for that `ChannelEvent.Id` and re-broadcasts each recorded
   widget-event payload verbatim via the notifier, unchanged. Returns a real failure (not a blanket
