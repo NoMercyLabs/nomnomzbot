@@ -48,7 +48,12 @@ public sealed class SecurityHeadersMiddleware
     private const string DashboardContentSecurityPolicy =
         "default-src 'self'; "
         + "script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' https://esm.sh https://cdn.jsdelivr.net; "
-        + "style-src 'self' 'unsafe-inline'; "
+        // The CDN belongs on style-src as well as script-src: Monaco's AMD css plugin loads
+        // editor.main.css as a real <link>, and `vs/editor/editor.main` does not resolve until that
+        // stylesheet has loaded. Omitting the host here does not merely leave the editor unstyled — the
+        // module graph never completes, the `monaco` global never appears, and the editor silently falls
+        // back to a plain textarea.
+        + "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
         + "img-src 'self' https: data: blob:; "
         + "media-src 'self' https: blob: data:; "
         + "font-src 'self' https: data:; "

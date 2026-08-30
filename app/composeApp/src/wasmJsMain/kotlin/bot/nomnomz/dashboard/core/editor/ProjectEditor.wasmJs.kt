@@ -764,6 +764,35 @@ private fun openProjectEditor(
             // still using it -- so the loaded `monaco` namespace is cached as a Promise on `globalThis` and every
             // editor open (including this one, on a later re-open) awaits the same promise. This is the Monaco
             // equivalent of the CodeMirror build's esm.sh ?deps dedup: one shared module instance, not one per open.
+            // One pinned base for every Monaco artefact -- the AMD loader, the module root and the
+            // stylesheet must never drift to different versions.
+            var MONACO_BASE = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs';
+
+            // Monaco's own AMD css plugin appends editor.main.css to document.head. This editor mounts
+            // inside body.shadowRoot, and shadow-DOM encapsulation stops a document-level stylesheet from
+            // reaching in -- head CSS leaves the editor as raw unstyled DOM (no gutter, no cursor metrics,
+            // no token colours). Fetch that same stylesheet once and inject it INTO the shadow root, where
+            // it actually applies. Kept to fetch + <style> on purpose: connect-src already allows the
+            // fetch and style-src already allows inline styles, so this needs no further CSP surface.
+            function ensureMonacoCss() {
+                if (!mountRoot || mountRoot === document.body) { return Promise.resolve(); }
+                if (mountRoot.querySelector('style[data-nnz-monaco-css]')) { return Promise.resolve(); }
+                if (!globalThis.__nnzMonacoCssText) {
+                    globalThis.__nnzMonacoCssText = fetch(MONACO_BASE + '/editor/editor.main.css')
+                        .then(function (r) {
+                            if (!r.ok) { throw new Error('editor.main.css responded ' + r.status); }
+                            return r.text();
+                        });
+                }
+                return globalThis.__nnzMonacoCssText.then(function (css) {
+                    if (mountRoot.querySelector('style[data-nnz-monaco-css]')) { return; }
+                    var el = document.createElement('style');
+                    el.setAttribute('data-nnz-monaco-css', '');
+                    el.textContent = css;
+                    mountRoot.appendChild(el);
+                });
+            }
+
             function loadMonaco() {
                 if (!globalThis.__nnzMonacoReady) {
                     globalThis.__nnzMonacoReady = new Promise(function (resolve, reject) {
@@ -771,7 +800,7 @@ private fun openProjectEditor(
                         function onLoaderReady() {
                             var req = globalThis.require;
                             if (!req || !req.config) { reject(new Error('Monaco AMD loader did not install require()')); return; }
-                            req.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs' } });
+                            req.config({ paths: { vs: MONACO_BASE } });
                             req(['vs/editor/editor.main'], function () {
                                 if (globalThis.monaco) { resolve(globalThis.monaco); }
                                 else { reject(new Error('monaco global missing after vs/editor/editor.main load')); }
@@ -785,7 +814,7 @@ private fun openProjectEditor(
                         }
                         var script = document.createElement('script');
                         script.setAttribute('data-nnz-monaco-loader', '');
-                        script.src = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js';
+                        script.src = MONACO_BASE + '/loader.js';
                         script.onload = onLoaderReady;
                         script.onerror = function () { reject(new Error('Monaco loader script failed to load')); };
                         document.head.appendChild(script);
@@ -822,7 +851,8 @@ private fun openProjectEditor(
                 });
             }
 
-            loadMonaco().then(function (monaco) {
+            Promise.all([loadMonaco(), ensureMonacoCss()]).then(function (loaded) {
+                var monaco = loaded[0];
                 if (slot.textarea || slot.status === 'closed') { return; }
                 slot.monaco = monaco;
                 // Wire the language service to the server-generated ground-truth SDK types: `sdkTypes` is the
@@ -863,7 +893,18 @@ private fun openProjectEditor(
             }).catch(function () { mountTextarea(); });
 
             setTimeout(function () {
-                if (!slot.editor && !slot.textarea && slot.status !== 'closed') { mountTextarea(); }
+                if (slot.status === 'closed' || slot.textarea) { return; }
+                if (!slot.editor) { mountTextarea(); return; }
+                // The editor object existing is not proof the editor WORKS. If its stylesheet never
+                // applied, Monaco is raw unstyled DOM -- unusable, and strictly worse than the textarea.
+                // The .catch above cannot see this: the load promise resolved perfectly well. Monaco's own
+                // CSS is what makes .monaco-editor positioned, so a `static` position means no stylesheet.
+                var node = slot.host ? slot.host.querySelector('.monaco-editor') : null;
+                if (node && globalThis.getComputedStyle(node).position !== 'static') { return; }
+                try { slot.editor.dispose(); } catch (e) { }
+                slot.editor = null;
+                if (slot.host) { slot.host.innerHTML = ''; }
+                mountTextarea();
             }, 2500);
 
             // Kick off the preview independently of the editor surface.

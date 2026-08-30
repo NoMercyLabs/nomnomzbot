@@ -63,6 +63,26 @@ public class SecurityHeadersMiddlewareTests
     }
 
     [Fact]
+    public async Task InvokeAsync_DashboardPath_AllowsTheCodeEditorCdnStylesheet()
+    {
+        // Monaco resolves `vs/editor/editor.main` only once its own AMD css plugin has fetched
+        // editor.main.css from the CDN. Trusting that CDN for scripts alone is NOT enough: with it absent
+        // from style-src the browser refuses the stylesheet, the module graph never completes, the
+        // `monaco` global never appears, and the editor silently degrades to a plain textarea.
+        SecurityHeadersMiddleware middleware = CreateMiddleware(NoOpNext, isDevelopment: false);
+        DefaultHttpContext context = CreateContext("/");
+
+        await middleware.InvokeAsync(context);
+
+        string policy = context.Response.Headers["Content-Security-Policy"].ToString();
+        string styleSrc = policy
+            .Split(';', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Single(directive => directive.StartsWith("style-src ", StringComparison.Ordinal));
+
+        styleSrc.Should().Contain("https://cdn.jsdelivr.net");
+    }
+
+    [Fact]
     public async Task InvokeAsync_JsonApiPath_DoesNotSetContentSecurityPolicy()
     {
         SecurityHeadersMiddleware middleware = CreateMiddleware(NoOpNext, isDevelopment: false);
