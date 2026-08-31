@@ -65,6 +65,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.CodePool
 import bot.nomnomz.dashboard.core.network.Giveaway
 import bot.nomnomz.dashboard.core.network.GiveawayCodeStatus
+import bot.nomnomz.dashboard.core.network.GiveawayEntry
 import bot.nomnomz.dashboard.core.network.GiveawayEntryMode
 import bot.nomnomz.dashboard.core.network.GiveawayPrizeMode
 import bot.nomnomz.dashboard.core.network.GiveawayStatus
@@ -77,6 +78,7 @@ import bot.nomnomz.dashboard.feature.giveaways.state.GiveawaysAccess
 import bot.nomnomz.dashboard.feature.giveaways.state.GiveawaysController
 import bot.nomnomz.dashboard.feature.giveaways.state.GiveawaysState
 import bot.nomnomz.dashboard.feature.giveaways.state.PoolDetailState
+import bot.nomnomz.dashboard.feature.giveaways.state.EntriesState
 import bot.nomnomz.dashboard.feature.giveaways.state.WinnersState
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
@@ -182,6 +184,13 @@ import nomnomzbot.composeapp.generated.resources.giveaways_winner_status_drawn
 import nomnomzbot.composeapp.generated.resources.giveaways_winner_status_forfeited
 import nomnomzbot.composeapp.generated.resources.giveaways_winner_status_redrawn
 import nomnomzbot.composeapp.generated.resources.giveaways_winners_action
+import nomnomzbot.composeapp.generated.resources.giveaways_entries_action
+import nomnomzbot.composeapp.generated.resources.giveaways_entries_title
+import nomnomzbot.composeapp.generated.resources.giveaways_entries_loading
+import nomnomzbot.composeapp.generated.resources.giveaways_entries_empty
+import nomnomzbot.composeapp.generated.resources.giveaways_entries_error
+import nomnomzbot.composeapp.generated.resources.giveaways_entries_close
+import nomnomzbot.composeapp.generated.resources.giveaways_entry_tickets
 import nomnomzbot.composeapp.generated.resources.giveaways_winners_close
 import nomnomzbot.composeapp.generated.resources.giveaways_winners_empty
 import nomnomzbot.composeapp.generated.resources.giveaways_winners_error
@@ -210,6 +219,7 @@ fun GiveawaysScreen(controller: GiveawaysController, heldActionKeys: Set<String>
     val state: GiveawaysState by controller.state.collectAsStateWithLifecycle()
     val codePools: CodePoolsState by controller.codePools.collectAsStateWithLifecycle()
     val winners: WinnersState by controller.winners.collectAsStateWithLifecycle()
+    val entries: EntriesState by controller.entries.collectAsStateWithLifecycle()
     val poolDetail: PoolDetailState by controller.poolDetail.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
@@ -246,6 +256,7 @@ fun GiveawaysScreen(controller: GiveawaysController, heldActionKeys: Set<String>
             onOpen = { giveaway -> scope.launch { controller.openGiveaway(giveaway.id) } },
             onConfirmLifecycle = { giveaway, kind -> pendingLifecycle = LifecycleConfirm(giveaway, kind) },
             onShowWinners = { giveaway -> scope.launch { controller.showWinners(giveaway) } },
+            onShowEntries = { giveaway -> scope.launch { controller.showEntries(giveaway) } },
         )
 
     LaunchedEffect(Unit) {
@@ -456,6 +467,10 @@ fun GiveawaysScreen(controller: GiveawaysController, heldActionKeys: Set<String>
         )
     }
 
+    if (entries !is EntriesState.Hidden) {
+        EntriesDialog(state = entries, onDismiss = { controller.hideEntries() })
+    }
+
     if (poolDetail !is PoolDetailState.Hidden) {
         ManagePoolDialog(
             state = poolDetail,
@@ -605,6 +620,17 @@ private fun GiveawayRow(
         )
 
         FlowRow(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+            // Entries only exist for keyword mode (active_viewers pulls from live chat, no rows to inspect) and
+            // only once the giveaway has actually been opened — draft never has any.
+            if (giveaway.entryMode == GiveawayEntryMode.Keyword && giveaway.status != GiveawayStatus.Draft) {
+                Button(
+                    onClick = { callbacks.onShowEntries(giveaway) },
+                    variant = ButtonVariant.Outline,
+                    size = ButtonSize.Sm,
+                ) {
+                    Text(text = stringResource(Res.string.giveaways_entries_action))
+                }
+            }
             if (giveaway.drawnAt != null || giveaway.status == GiveawayStatus.Drawn) {
                 Button(
                     onClick = { callbacks.onShowWinners(giveaway) },
@@ -890,6 +916,7 @@ private class GiveawayRowCallbacks(
     val onOpen: (Giveaway) -> Unit,
     val onConfirmLifecycle: (Giveaway, LifecycleKind) -> Unit,
     val onShowWinners: (Giveaway) -> Unit,
+    val onShowEntries: (Giveaway) -> Unit,
 )
 
 private enum class LifecycleKind { Open, Close, Draw }
@@ -1342,6 +1369,110 @@ private fun winnerStatusVariant(status: String): BadgeVariant =
         GiveawayWinnerStatus.Redrawn -> BadgeVariant.Outline
         else -> BadgeVariant.Secondary
     }
+
+// ── Entries panel ────────────────────────────────────────────────────────────────
+
+@Composable
+private fun EntriesDialog(state: EntriesState, onDismiss: () -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val giveaway: Giveaway? =
+        when (state) {
+            is EntriesState.Loading -> state.giveaway
+            is EntriesState.Ready -> state.giveaway
+            is EntriesState.Error -> state.giveaway
+            EntriesState.Hidden -> null
+        }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text =
+                    stringResource(
+                        Res.string.giveaways_entries_title,
+                        resolveRowLabel(
+                            primary = giveaway?.title,
+                            typeLabel = stringResource(Res.string.giveaways_row_type),
+                            discriminatorSource = giveaway?.id ?: "unknown",
+                        ),
+                    ),
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth().heightIn(max = spacing.s24 * 5).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(spacing.s2),
+            ) {
+                when (state) {
+                    is EntriesState.Loading ->
+                        Text(
+                            text = stringResource(Res.string.giveaways_entries_loading),
+                            style = typography.sm,
+                            color = tokens.mutedForeground,
+                        )
+                    is EntriesState.Error ->
+                        Text(
+                            text = stringResource(Res.string.giveaways_entries_error, state.detail),
+                            style = typography.sm,
+                            color = tokens.destructive,
+                        )
+                    is EntriesState.Ready -> {
+                        if (state.entries.isEmpty()) {
+                            Text(
+                                text = stringResource(Res.string.giveaways_entries_empty),
+                                style = typography.sm,
+                                color = tokens.mutedForeground,
+                            )
+                        } else {
+                            state.entries.forEach { entry ->
+                                EntryRow(entry)
+                                Separator()
+                            }
+                        }
+                    }
+                    EntriesState.Hidden -> Unit
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = stringResource(Res.string.giveaways_entries_close), color = tokens.primary)
+            }
+        },
+    )
+}
+
+@Composable
+private fun EntryRow(entry: GiveawayEntry) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = spacing.s2),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+    ) {
+        Text(
+            text = entry.viewerDisplayName,
+            style = typography.base,
+            color = tokens.cardForeground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        // Ticket count only matters once weighting is on — plain 1-ticket entries don't need the noise, but a
+        // sub-luck-weighted entrant should be visible here so the list explains why the draw favors them.
+        if (entry.ticketCount > 1) {
+            Badge(variant = BadgeVariant.Secondary) {
+                Text(text = stringResource(Res.string.giveaways_entry_tickets, entry.ticketCount))
+            }
+        }
+    }
+}
 
 // ── Code-pool dialogs ────────────────────────────────────────────────────────────
 

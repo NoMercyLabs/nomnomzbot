@@ -77,6 +77,9 @@ interface GiveawaysApi {
     /** The giveaway's append-only winner history. */
     suspend fun winners(id: String): ApiResult<List<GiveawayWinner>>
 
+    /** Entries so far, newest first — lets a broadcaster inspect who's entered before drawing. */
+    suspend fun entries(id: String): ApiResult<List<GiveawayEntry>>
+
     /**
      * Reveal a winner's assigned code — the failed-whisper fallback, Broadcaster-gated (`giveaways:codes:write`).
      * Returns the PLAINTEXT code (the single path that ever decrypts one); the screen shows it once, on demand.
@@ -155,6 +158,17 @@ class RestGiveawaysApi(private val client: ApiClient) : GiveawaysApi {
         return when (
             val page: ApiResult<PaginatedEnvelope<GiveawayWinner>> =
                 client.getDirect("api/v1/giveaways/$id/winners?page=1&take=100")
+        ) {
+            is ApiResult.Failure -> ApiResult.Failure(page.error)
+            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
+        }
+    }
+
+    override suspend fun entries(id: String): ApiResult<List<GiveawayEntry>> {
+        // Same shape as winners() — a PaginatedResponse; take=100 fetches the full list, no pagination UI needed.
+        return when (
+            val page: ApiResult<PaginatedEnvelope<GiveawayEntry>> =
+                client.getDirect("api/v1/giveaways/$id/entries?page=1&take=100")
         ) {
             is ApiResult.Failure -> ApiResult.Failure(page.error)
             is ApiResult.Ok -> ApiResult.Ok(page.value.data)
@@ -273,6 +287,20 @@ data class GiveawayWinner(
     val isRedraw: Boolean = false,
     val assignedCodeId: String? = null,
     val whisperDelivered: Boolean? = null,
+)
+
+/**
+ * One recorded entry (backend `GiveawayEntryDto`) — [ticketCount] is the weighted ticket count (D4 sub-luck),
+ * not a raw count of entries; [viewerDisplayName] is resolved server-side, never a raw id in the UI.
+ */
+@Serializable
+data class GiveawayEntry(
+    val id: String = "",
+    val giveawayId: String = "",
+    val viewerUserId: String = "",
+    val viewerDisplayName: String = "",
+    val ticketCount: Int = 0,
+    val enteredAt: String = "",
 )
 
 /**

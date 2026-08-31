@@ -20,6 +20,7 @@ import bot.nomnomz.dashboard.core.network.CodePoolDetail
 import bot.nomnomz.dashboard.core.network.CreateCodePoolBody
 import bot.nomnomz.dashboard.core.network.Giveaway
 import bot.nomnomz.dashboard.core.network.GiveawayCodeStatus
+import bot.nomnomz.dashboard.core.network.GiveawayEntry
 import bot.nomnomz.dashboard.core.network.GiveawayEntryMode
 import bot.nomnomz.dashboard.core.network.GiveawayStatus
 import bot.nomnomz.dashboard.core.network.GiveawayWinner
@@ -198,6 +199,29 @@ class GiveawaysControllerTest {
     }
 
     @Test
+    fun show_entries_loads_who_has_entered_into_the_panel() = runTest {
+        val g: Giveaway = draft("g1").copy(status = GiveawayStatus.Open)
+        val api =
+            RecordingGiveawaysApi(
+                ApiResult.Ok(listOf(g)),
+                entriesResult = ApiResult.Ok(listOf(entry("e1", "g1", "frank", tickets = 3))),
+            )
+        val controller = GiveawaysController(api)
+        controller.load()
+
+        controller.showEntries(g)
+
+        val panel: EntriesState = controller.entries.value
+        assertTrue(panel is EntriesState.Ready)
+        val loaded: GiveawayEntry = (panel as EntriesState.Ready).entries.single()
+        assertEquals("frank", loaded.viewerDisplayName)
+        assertEquals(3, loaded.ticketCount)
+
+        controller.hideEntries()
+        assertTrue(controller.entries.value is EntriesState.Hidden)
+    }
+
+    @Test
     fun redraw_marks_the_old_winner_redrawn_and_appends_a_replacement() = runTest {
         val g: Giveaway = draft("g1").copy(status = GiveawayStatus.Drawn)
         val api = RecordingGiveawaysApi(ApiResult.Ok(listOf(g)))
@@ -356,6 +380,16 @@ class GiveawaysControllerTest {
             drawnAt = "2026-07-12T12:00:00Z",
             status = GiveawayWinnerStatus.Drawn,
         )
+
+    private fun entry(id: String, giveawayId: String, name: String, tickets: Int = 1): GiveawayEntry =
+        GiveawayEntry(
+            id = id,
+            giveawayId = giveawayId,
+            viewerUserId = "u-$id",
+            viewerDisplayName = name,
+            ticketCount = tickets,
+            enteredAt = "2026-07-12T11:00:00Z",
+        )
 }
 
 // A recording fake that behaves like the backend store: list() returns the live store, and each successful write
@@ -471,6 +505,10 @@ private class RecordingGiveawaysApi(
 
     override suspend fun winners(id: String): ApiResult<List<GiveawayWinner>> =
         ApiResult.Ok(winnersStore[id]?.toList() ?: emptyList())
+
+    var entriesResult: ApiResult<List<GiveawayEntry>> = ApiResult.Ok(emptyList())
+
+    override suspend fun entries(id: String): ApiResult<List<GiveawayEntry>> = entriesResult
 
     override suspend fun revealCode(id: String, winnerId: String): ApiResult<String> = revealResult
 
