@@ -199,6 +199,44 @@ public sealed class IntegrationTokenVaultTests
     }
 
     [Fact]
+    public async Task StoreTokens_WhenScopeReconcileFails_SurfacesTheFailure_InsteadOfReportingSuccess()
+    {
+        // Guards S070: StoreTokensAsync used to await ReconcileGrantedScopesAsync and discard the Result,
+        // so a reconcile failure (e.g. the connection vanished mid-refresh) was invisible to the caller —
+        // StoreTokensAsync always returned Result.Success() regardless. The vault must propagate the real
+        // failure instead of swallowing it.
+        AuthDbContext db = AuthTestBuilder.NewContext(Guid.NewGuid().ToString());
+        ITokenProtector protector = AuthTestBuilder.RealTokenProtector(
+            db,
+            out ISubjectKeyService keys
+        );
+        RecordingEventBus bus = new();
+        FailingScopeGrant failingScopeGrant = new();
+        IntegrationTokenVault vault = new(
+            db,
+            protector,
+            keys,
+            failingScopeGrant,
+            bus,
+            TimeProvider.System,
+            NullLogger<IntegrationTokenVault>.Instance
+        );
+        Guid connectionId = (await vault.UpsertConnectionAsync(TwitchConnect())).Value.Id;
+
+        Result store = await vault.StoreTokensAsync(
+            connectionId,
+            new("access-token", "refresh-token", null, DateTime.UtcNow.AddHours(1)),
+            grantedScopes: ["channel:read:subscriptions"]
+        );
+
+        store.IsSuccess.Should().BeFalse("the scope reconcile failed and must not be swallowed");
+        store.ErrorMessage.Should().Be("Reconcile blew up.");
+        store.ErrorCode.Should().Be("RECONCILE_BOOM");
+        // The token refresh event must not fire on a failed store — a half-applied write is not a success.
+        bus.Published.OfType<IntegrationTokenRefreshedEvent>().Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task MarkRefreshFailure_AtThreshold_FlipsToNeedsReauth_AndEmitsEvent()
     {
         (IntegrationTokenVault vault, AuthDbContext db, RecordingEventBus bus) = Build();
@@ -361,5 +399,27 @@ public sealed class IntegrationTokenVaultTests
             IReadOnlyList<string> actualScopes,
             CancellationToken cancellationToken = default
         ) => Task.FromResult(Result.Success<IReadOnlyList<string>>([]));
+    }
+
+    /// <summary>A scope-grant stub whose reconcile always fails, to prove StoreTokensAsync (S070) propagates it.</summary>
+    private sealed class FailingScopeGrant : IScopeGrantService
+    {
+        public IReadOnlyList<string> RequiredScopesFor(string featureKey) => [];
+
+        public Task<Result<ScopeGrantState>> EnsureFeatureScopesAsync(
+            Guid broadcasterId,
+            string featureKey,
+            string? baseUrl = null,
+            CancellationToken cancellationToken = default
+        ) => Task.FromResult(Result.Success(new ScopeGrantState(true, null, [])));
+
+        public Task<Result<IReadOnlyList<string>>> ReconcileGrantedScopesAsync(
+            Guid connectionId,
+            IReadOnlyList<string> actualScopes,
+            CancellationToken cancellationToken = default
+        ) =>
+            Task.FromResult(
+                Result.Failure<IReadOnlyList<string>>("Reconcile blew up.", "RECONCILE_BOOM")
+            );
     }
 }
