@@ -389,35 +389,12 @@ later.)
   contract addition first); editable subscriptions (blocked on S085's `domain.action` naming realignment
   landing first — building this against today's ad-hoc event names would need re-doing); gallery
   version/update; sound upload limits (U·B5). Done-when: add → copy → test → live from one row.
-- **S063** Rewards reach — DONE: `Response` field in create + update (0940f891 — was write-only, accepted
-  on create but never returned by `ToDetail`; added to `RewardDetail`/`UpdateRewardRequest`, applied in
-  `UpdateAsync`, wired a form field end-to-end); `ActionType`/`ActionSettings` deleted (0940f891 — verified
-  genuinely dead: no `Reward` entity columns, no service code reads them, `RewardRedeemedHandler` only
-  ever dispatches via bound `PipelineId` or `Response` — a create/update request carrying them was silently
-  dropped, not "stored with no UI"). DONE: `BackgroundColor`/`MaxPerStream`/`MaxPerUserPerStream`/
-  `GlobalCooldownSeconds` create/read-back gap (737d1a7a — new `Reward` entity columns, both migration
-  assemblies; `CreateAsync` persists Helix-confirmed values; `UpdateAsync` caches the pushed value after a
-  successful push instead of leaving `ToDetail` always `null`). **Most severe finding of this pass, found
-  while tracing the gap above and now fixed (737d1a7a)**: `CreateCustomRewardAsync` had exactly ONE caller
-  in the whole codebase (`RecreateUnderBotAsync`) — the dashboard's "Create Reward" button only ever wrote
-  a LOCAL row, so a created reward could never actually be redeemed by a viewer; nothing surfaced this
-  because every code path assumed create was already Twitch-synced. `CreateAsync` now pushes to Helix
-  first and fails closed on refusal (a new `pushToTwitch = true` parameter lets bundle import opt out,
-  preserving its documented D2 local-only/Helix-resilient behavior unchanged). **New finding, still
-  open**: while fixing the above, `BundleImportService.cs`'s D2 comment claims "the channel's existing
-  sync/recreate endpoints push it to Twitch later" — no such deferred-sync mechanism exists anywhere in
-  the codebase (`SyncWithTwitchAsync` reconciles bot-managed rewards that are already synced; nothing
-  ever picks up an unsynced local-only reward and creates it on Twitch). A bundle-imported reward is
-  therefore in the same "looks created, never redeemable" state the dashboard-create path was just fixed
-  from — needs either a real deferred-sync job/action, or the import path pushed to Twitch synchronously
-  like dashboard-create with a clear failure surfaced to the importer. DONE: rewards poll backoff
-  (bced87e4 — the 3s redemption-timer poll had no backoff and retried forever against a down/erroring
-  backend; `refreshTimers` now reports success/failure and the loop doubles up to a 30s cap, resetting on
-  success). DONE: null-as-empty reads (bced87e4 — a failed redemptions/pipelines/timers read during `load`
-  silently degraded to an empty list with no signal, indistinguishable from `RewardsState.Empty`; `load`
-  now tracks which sections failed and surfaces a `loadWarning` banner, and never reports `Empty` when the
-  only reason a list is empty is a failed fetch, not the channel genuinely having none) (U·B2). S063
-  closed except the newly-filed bundle-import D2 sync gap above.
+- **S063** Rewards reach — DONE, closed (0940f891, 737d1a7a, bced87e4, 48e93130). Most severe finding: reward
+  create never actually pushed to Twitch (`CreateCustomRewardAsync` had exactly one caller in the whole
+  codebase) — a dashboard-created reward could never be redeemed. Fixed alongside the `Response`/
+  `ActionType`/four-sync-field gaps, the rewards poll's missing backoff, load failures silently rendering as
+  "empty", and the bundle-import D2 promise ("sync pushes it to Twitch later") — `SyncWithTwitchAsync` now
+  actually does that, best-effort per reward.
 - **S064** Economy reach — catalog item full form + edit; leaderboard config CRUD + opt-outs + display
   names; jar role dropdown + jar update/delete (U·B2). Done-when: the store can sell an item with an
   effect, stock and cooldown from the UI.
