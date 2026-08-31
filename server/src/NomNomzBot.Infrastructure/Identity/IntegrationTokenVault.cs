@@ -189,13 +189,27 @@ public sealed class IntegrationTokenVault : IIntegrationTokenVault
 
         await _db.SaveChangesAsync(cancellationToken);
 
-        // Keep the stored grant set truthful (identity-auth §3.4a) on every store/refresh.
+        // Keep the stored grant set truthful (identity-auth §3.4a) on every store/refresh. The reconcile
+        // Result was previously awaited and discarded here, so a reconcile failure (S070) was invisible to
+        // every caller — StoreTokensAsync always reported success regardless. Surface it instead.
         if (grantedScopes is not null)
-            await _scopeGrant.ReconcileGrantedScopesAsync(
+        {
+            Result<IReadOnlyList<string>> reconcile = await _scopeGrant.ReconcileGrantedScopesAsync(
                 connectionId,
                 grantedScopes,
                 cancellationToken
             );
+            if (reconcile.IsFailure)
+            {
+                _logger.LogError(
+                    "Scope reconcile failed for connection {ConnectionId}: {Error} ({ErrorCode})",
+                    connectionId,
+                    reconcile.ErrorMessage,
+                    reconcile.ErrorCode
+                );
+                return Result.Failure(reconcile.ErrorMessage, reconcile.ErrorCode);
+            }
+        }
 
         await _eventBus.PublishAsync(
             new IntegrationTokenRefreshedEvent
