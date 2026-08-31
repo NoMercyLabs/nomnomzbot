@@ -119,10 +119,17 @@ class IntegrationsController(
                 is ApiResult.Failure -> BotConnection(connected = false, accountName = null)
             }
 
+        // A genuine fetch FAILURE (network/5xx/etc.) must never silently render as "zero integrations
+        // connected" — that would hide a broken backend behind an innocent-looking empty state (Dashboard
+        // reflects backend API / Truthful data hard rules). Distinguish the two: Error is a distinct state
+        // the screen renders as a retry-able banner, never folded into Ready with an empty provider list.
         val providers: List<ProviderConnection> =
             when (val result: ApiResult<List<IntegrationStatus>> = integrationsApi.status(id)) {
                 is ApiResult.Ok -> result.value.map { it.toProviderConnection() }
-                is ApiResult.Failure -> emptyList()
+                is ApiResult.Failure -> {
+                    _state.value = IntegrationsState.Error(result.error.message)
+                    return
+                }
             }
 
         // The streamer-token scope gaps. A failure (e.g. no Twitch connection yet) is a non-event — render

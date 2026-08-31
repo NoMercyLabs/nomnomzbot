@@ -94,6 +94,7 @@ import nomnomzbot.composeapp.generated.resources.integrations_discord_subtitle
 import nomnomzbot.composeapp.generated.resources.integrations_discord_title
 import nomnomzbot.composeapp.generated.resources.integrations_kick_subtitle
 import nomnomzbot.composeapp.generated.resources.integrations_kick_title
+import nomnomzbot.composeapp.generated.resources.integrations_load_failed_title
 import nomnomzbot.composeapp.generated.resources.integrations_kick_bot_subtitle
 import nomnomzbot.composeapp.generated.resources.integrations_kick_bot_title
 import nomnomzbot.composeapp.generated.resources.integrations_provider_connected_as
@@ -246,9 +247,31 @@ fun IntegrationsScreen(
                 }
 
             is IntegrationsState.Error ->
-                Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                // A genuine load FAILURE, never folded into an innocent "nothing connected" empty state
+                // (Dashboard reflects backend API / Truthful data hard rules) — a bordered card, distinct
+                // from every ProviderRow's not-connected copy, with a retry that re-runs the full load.
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(tokens.card, RoundedCornerShape(tokens.radius.lg))
+                        .border(
+                            width = spacing.s0_5 / 2,
+                            color = tokens.destructive,
+                            shape = RoundedCornerShape(tokens.radius.lg),
+                        )
+                        .padding(spacing.s4),
+                    verticalArrangement = Arrangement.spacedBy(spacing.s2),
+                ) {
+                    Text(
+                        text = stringResource(Res.string.integrations_load_failed_title),
+                        style = typography.base,
+                        color = tokens.cardForeground,
+                    )
                     Text(text = current.detail, style = typography.sm, color = tokens.destructive)
-                    TextButton(onClick = { scope.launch { controller.load() } }) {
+                    TextButton(
+                        onClick = { scope.launch { controller.load() } },
+                        modifier = Modifier.align(Alignment.Start),
+                    ) {
                         Text(stringResource(Res.string.integrations_action_retry))
                     }
                 }

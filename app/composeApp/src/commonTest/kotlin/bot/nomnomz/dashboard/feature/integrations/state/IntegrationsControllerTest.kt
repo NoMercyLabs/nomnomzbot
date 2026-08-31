@@ -148,6 +148,40 @@ class IntegrationsControllerTest {
     }
 
     @Test
+    fun load_surfaces_a_distinct_failure_state_when_the_integration_status_fetch_fails_then_retry_recovers() =
+        runTest {
+            // A genuine backend failure fetching integration statuses must never render as an innocent
+            // "nothing connected" Ready state (Dashboard reflects backend API / Truthful data hard rules)
+            // — it is a DISTINCT state the screen renders as a retry-able error card.
+            val integrations =
+                FakeIntegrationsApi(
+                    status = emptyList(),
+                    statusResult = ApiResult.Failure(ApiError(503, "UPSTREAM_DOWN", "Backend unreachable.")),
+                )
+            val controller =
+                controller(
+                    channels = FakeChannelsApi(ApiResult.Ok(channel)),
+                    bot = FakeBotAuthApi(BotStatus(connected = false)),
+                    integrations = integrations,
+                    launcher = FakeConnectLauncher(),
+                )
+
+            controller.load()
+
+            // The failure is a distinct Error state, never a Ready state with an empty provider list.
+            val error: IntegrationsState.Error = controller.state.value as IntegrationsState.Error
+            assertEquals("Backend unreachable.", error.detail)
+
+            // The backend recovers; retrying (load()) re-reads it and lands on the real Ready state.
+            integrations.statusResult = null
+            integrations.statusAfter = listOf(IntegrationStatus("spotify", connected = true, accountName = "stoney"))
+            controller.load()
+
+            val ready: IntegrationsState.Ready = controller.state.value as IntegrationsState.Ready
+            assertTrue(ready.providers.row("spotify").connected)
+        }
+
+    @Test
     fun disconnect_bot_calls_the_backend_then_reflects_the_disconnect() = runTest {
         val bot = FakeBotAuthApi(status = BotStatus(connected = true, displayName = "NomNomzBot"))
         val controller =
@@ -850,6 +884,9 @@ private class FakeSystemApi(
 private class FakeIntegrationsApi(
     status: List<IntegrationStatus>,
     private val authorizeUrl: String = "https://provider/authorize",
+    // When set, status() returns this instead of the normal ok/statusAfter value — models a genuine
+    // backend failure (network/5xx) reading integration statuses. Cleared to null to model recovery.
+    var statusResult: ApiResult<List<IntegrationStatus>>? = null,
 ) : IntegrationsApi {
     // Not exercised here: the counted delete preview has its own tests. The seam is implemented so the double
     // stays a real implementation of the interface rather than a partial one.
@@ -869,7 +906,7 @@ private class FakeIntegrationsApi(
     var disconnectedDiscord: Boolean = false
 
     override suspend fun status(channelId: String): ApiResult<List<IntegrationStatus>> =
-        ApiResult.Ok(statusAfter ?: initial)
+        statusResult ?: ApiResult.Ok(statusAfter ?: initial)
 
     override suspend fun startGenericConnect(
         channelId: String,
