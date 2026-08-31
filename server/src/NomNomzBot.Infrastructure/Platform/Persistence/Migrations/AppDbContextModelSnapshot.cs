@@ -4524,6 +4524,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("AnnounceOnConnect")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("BillingTierKey")
                         .IsRequired()
                         .HasMaxLength(20)

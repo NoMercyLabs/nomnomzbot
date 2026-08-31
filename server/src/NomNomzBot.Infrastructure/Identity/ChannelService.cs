@@ -10,10 +10,12 @@
 
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
@@ -31,13 +33,17 @@ public class ChannelService : IChannelService
     private readonly IEventBus _eventBus;
     private readonly IChannelRegistry _registry;
     private readonly ITwitchEventSubService _eventSub;
+    private readonly IChatProvider _chatProvider;
+    private readonly IBuiltinResponseComposer _responseComposer;
 
     public ChannelService(
         IApplicationDbContext db,
         TimeProvider timeProvider,
         IEventBus eventBus,
         IChannelRegistry registry,
-        ITwitchEventSubService eventSub
+        ITwitchEventSubService eventSub,
+        IChatProvider chatProvider,
+        IBuiltinResponseComposer responseComposer
     )
     {
         _db = db;
@@ -45,6 +51,8 @@ public class ChannelService : IChannelService
         _eventBus = eventBus;
         _registry = registry;
         _eventSub = eventSub;
+        _chatProvider = chatProvider;
+        _responseComposer = responseComposer;
     }
 
     public async Task<Result> JoinAsync(
@@ -75,6 +83,31 @@ public class ChannelService : IChannelService
             BotLifecycleService.ChannelEventTypes,
             cancellationToken
         );
+
+        // Opt-in, default OFF (house rule: opt-in/default-deny) — announce the bot's own connect. Distinct
+        // from the operator-configured "stream.online" event response (that fires on the STREAM going live);
+        // this fires once, right here, on the real connect — never on BotLifecycleService's periodic no-op
+        // reconcile of an already-joined channel, since JoinAsync only runs on an actual join.
+        if (channel.AnnounceOnConnect)
+        {
+            string announcement = await _responseComposer.ComposeAsync(
+                new()
+                {
+                    BroadcasterId = broadcasterGuid,
+                    Personality = channel.Personality,
+                    BuiltinKey = "connect",
+                    Slot = "announce",
+                    NeutralFallback = "I'm now active in this channel!",
+                },
+                cancellationToken
+            );
+            if (!string.IsNullOrEmpty(announcement))
+                await _chatProvider.SendMessageAsync(
+                    broadcasterGuid,
+                    announcement,
+                    cancellationToken
+                );
+        }
 
         return Result.Success();
     }

@@ -10,9 +10,11 @@
 
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
+using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -64,7 +66,8 @@ public sealed class ChannelBasicsServiceTests
         ChannelService Sut,
         IChannelRegistry Registry,
         RecordingEventBus Bus,
-        ITwitchEventSubService EventSub
+        ITwitchEventSubService EventSub,
+        IChatProvider ChatProvider
     ) Build(AuthDbContext db)
     {
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
@@ -80,13 +83,29 @@ public sealed class ChannelBasicsServiceTests
         eventSub
             .UnsubscribeAllAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success());
-        return (new(db, TimeProvider.System, bus, registry, eventSub), registry, bus, eventSub);
+        IChatProvider chatProvider = Substitute.For<IChatProvider>();
+        chatProvider
+            .SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+        IBuiltinResponseComposer composer = Substitute.For<IBuiltinResponseComposer>();
+        composer
+            .ComposeAsync(Arg.Any<BuiltinResponseRequest>(), Arg.Any<CancellationToken>())
+            .Returns(callInfo =>
+                Task.FromResult(callInfo.Arg<BuiltinResponseRequest>().NeutralFallback)
+            );
+        return (
+            new(db, TimeProvider.System, bus, registry, eventSub, chatProvider, composer),
+            registry,
+            bus,
+            eventSub,
+            chatProvider
+        );
     }
 
     [Fact]
     public async Task Get_defaults_to_bang_prefix_and_auto_join_on()
     {
-        (ChannelService sut, _, _, _) = Build(SeededDb());
+        (ChannelService sut, _, _, _, _) = Build(SeededDb());
 
         Result<ChannelBasicsDto> result = await sut.GetBasicsAsync(ChannelId.ToString());
 
@@ -101,7 +120,7 @@ public sealed class ChannelBasicsServiceTests
     public async Task Update_persists_every_field_refreshes_the_registry_and_fans_the_change_out()
     {
         AuthDbContext db = SeededDb();
-        (ChannelService sut, IChannelRegistry registry, RecordingEventBus bus, _) = Build(db);
+        (ChannelService sut, IChannelRegistry registry, RecordingEventBus bus, _, _) = Build(db);
 
         Result<ChannelBasicsDto> result = await sut.UpdateBasicsAsync(
             ChannelId.ToString(),
@@ -146,7 +165,7 @@ public sealed class ChannelBasicsServiceTests
     public async Task Update_leaves_untouched_fields_unchanged_when_null()
     {
         AuthDbContext db = SeededDb();
-        (ChannelService sut, _, _, _) = Build(db);
+        (ChannelService sut, _, _, _, _) = Build(db);
 
         // Only the prefix is supplied; locale/auto-join/timezone are null and must not be overwritten.
         Result<ChannelBasicsDto> result = await sut.UpdateBasicsAsync(
@@ -165,7 +184,7 @@ public sealed class ChannelBasicsServiceTests
     public async Task Update_with_a_whitespace_prefix_is_rejected_and_does_not_write()
     {
         AuthDbContext db = SeededDb();
-        (ChannelService sut, IChannelRegistry registry, _, _) = Build(db);
+        (ChannelService sut, IChannelRegistry registry, _, _, _) = Build(db);
 
         Result<ChannelBasicsDto> result = await sut.UpdateBasicsAsync(
             ChannelId.ToString(),
@@ -183,7 +202,7 @@ public sealed class ChannelBasicsServiceTests
     [Fact]
     public async Task Update_with_an_over_long_prefix_is_rejected()
     {
-        (ChannelService sut, _, _, _) = Build(SeededDb());
+        (ChannelService sut, _, _, _, _) = Build(SeededDb());
 
         Result<ChannelBasicsDto> result = await sut.UpdateBasicsAsync(
             ChannelId.ToString(),
@@ -197,7 +216,7 @@ public sealed class ChannelBasicsServiceTests
     [Fact]
     public async Task Get_for_an_unknown_channel_is_not_found()
     {
-        (ChannelService sut, _, _, _) = Build(SeededDb());
+        (ChannelService sut, _, _, _, _) = Build(SeededDb());
 
         Result<ChannelBasicsDto> result = await sut.GetBasicsAsync(Guid.NewGuid().ToString());
 
@@ -209,7 +228,7 @@ public sealed class ChannelBasicsServiceTests
     public async Task Update_toggling_auto_join_off_unsubscribes_the_channel_live_without_a_restart()
     {
         AuthDbContext db = SeededDb();
-        (ChannelService sut, _, _, ITwitchEventSubService eventSub) = Build(db);
+        (ChannelService sut, _, _, ITwitchEventSubService eventSub, _) = Build(db);
 
         Result<ChannelBasicsDto> result = await sut.UpdateBasicsAsync(
             ChannelId.ToString(),
@@ -228,7 +247,7 @@ public sealed class ChannelBasicsServiceTests
         Channel channel = await db.Channels.SingleAsync(c => c.Id == ChannelId);
         channel.Enabled = false;
         await db.SaveChangesAsync();
-        (ChannelService sut, _, _, ITwitchEventSubService eventSub) = Build(db);
+        (ChannelService sut, _, _, ITwitchEventSubService eventSub, _) = Build(db);
 
         Result<ChannelBasicsDto> result = await sut.UpdateBasicsAsync(
             ChannelId.ToString(),
@@ -250,7 +269,7 @@ public sealed class ChannelBasicsServiceTests
     public async Task Update_with_auto_join_unchanged_does_not_touch_the_live_eventsub_state()
     {
         AuthDbContext db = SeededDb();
-        (ChannelService sut, _, _, ITwitchEventSubService eventSub) = Build(db);
+        (ChannelService sut, _, _, ITwitchEventSubService eventSub, _) = Build(db);
 
         // AutoJoin is already true on the seeded channel — re-sending true must not re-trigger a live subscribe.
         Result<ChannelBasicsDto> result = await sut.UpdateBasicsAsync(
@@ -267,7 +286,7 @@ public sealed class ChannelBasicsServiceTests
     public async Task JoinAsync_subscribes_the_channel_to_eventsub_live()
     {
         AuthDbContext db = SeededDb();
-        (ChannelService sut, _, _, ITwitchEventSubService eventSub) = Build(db);
+        (ChannelService sut, _, _, ITwitchEventSubService eventSub, _) = Build(db);
 
         Result result = await sut.JoinAsync(ChannelId.ToString());
 
@@ -282,10 +301,46 @@ public sealed class ChannelBasicsServiceTests
     }
 
     [Fact]
+    public async Task JoinAsync_with_announce_on_connect_enabled_sends_the_tone_resolved_chat_message()
+    {
+        AuthDbContext db = SeededDb();
+        Channel channel = await db.Channels.SingleAsync(c => c.Id == ChannelId);
+        channel.AnnounceOnConnect = true;
+        await db.SaveChangesAsync();
+        (ChannelService sut, _, _, _, IChatProvider chatProvider) = Build(db);
+
+        Result result = await sut.JoinAsync(ChannelId.ToString());
+
+        result.IsSuccess.Should().BeTrue();
+        await chatProvider
+            .Received(1)
+            .SendMessageAsync(
+                ChannelId,
+                "I'm now active in this channel!",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task JoinAsync_with_announce_on_connect_left_at_its_default_off_sends_nothing()
+    {
+        AuthDbContext db = SeededDb();
+        (ChannelService sut, _, _, _, IChatProvider chatProvider) = Build(db);
+
+        Result result = await sut.JoinAsync(ChannelId.ToString());
+
+        result.IsSuccess.Should().BeTrue();
+        (await db.Channels.SingleAsync(c => c.Id == ChannelId))
+            .AnnounceOnConnect.Should()
+            .BeFalse();
+        await chatProvider.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+    }
+
+    [Fact]
     public async Task LeaveAsync_unsubscribes_the_channel_from_eventsub_live()
     {
         AuthDbContext db = SeededDb();
-        (ChannelService sut, _, _, ITwitchEventSubService eventSub) = Build(db);
+        (ChannelService sut, _, _, ITwitchEventSubService eventSub, _) = Build(db);
 
         Result result = await sut.LeaveAsync(ChannelId.ToString());
 
