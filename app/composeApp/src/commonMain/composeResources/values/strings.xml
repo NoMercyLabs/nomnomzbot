@@ -1207,6 +1207,21 @@
     <string name="economy_catalog_delete_message">Delete "%1$s"? This cannot be undone.</string>
     <string name="economy_catalog_delete_confirm">Delete</string>
     <string name="economy_catalog_delete_dismiss">Cancel</string>
+    <string name="economy_catalog_edit_action">Edit %1$s</string>
+    <string name="economy_catalog_edit_title">Edit catalog item</string>
+    <string name="economy_catalog_save">Save</string>
+    <string name="economy_catalog_permission_label">Who can buy</string>
+    <string name="economy_catalog_perm_everyone">Everyone</string>
+    <string name="economy_catalog_perm_subscriber">Subscriber</string>
+    <string name="economy_catalog_perm_vip">VIP</string>
+    <string name="economy_catalog_perm_moderator">Moderator</string>
+    <string name="economy_catalog_effect_label">Effect (pipeline)</string>
+    <string name="economy_catalog_effect_none">No effect</string>
+    <string name="economy_catalog_cooldown_label">Cooldown (seconds, 0 = none)</string>
+    <string name="economy_catalog_cooldown_per_user_label">Cooldown applies per viewer</string>
+    <string name="economy_catalog_stock_label">Stock limit (blank = unlimited)</string>
+    <string name="economy_catalog_max_per_viewer_label">Max per viewer per stream (blank = unlimited)</string>
+    <string name="economy_catalog_sort_order_label">Sort order</string>
     <string name="economy_earning_enable">Enable</string>
     <string name="economy_earning_disable">Disable</string>
     <string name="economy_earning_enable_action">Enable %1$s earning</string>

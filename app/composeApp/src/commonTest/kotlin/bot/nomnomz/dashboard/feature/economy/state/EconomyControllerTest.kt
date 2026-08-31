@@ -31,6 +31,7 @@ import bot.nomnomz.dashboard.core.network.JarMovement
 import bot.nomnomz.dashboard.core.network.SavingsJarDetail
 import bot.nomnomz.dashboard.core.network.SavingsJarMembership
 import bot.nomnomz.dashboard.core.network.TransferBody
+import bot.nomnomz.dashboard.core.network.UpdateCatalogItemBody
 import bot.nomnomz.dashboard.core.network.EconomyApi
 import bot.nomnomz.dashboard.core.network.LeaderboardEntry
 import bot.nomnomz.dashboard.core.network.SavingsJar
@@ -355,6 +356,48 @@ class EconomyControllerTest {
     }
 
     @Test
+    fun updating_a_catalog_item_sends_the_full_edit_then_reloads() = runTest {
+        // Proves the full edit path is distinct from the toggle-only one: every field the edit dialog
+        // collects reaches the backend as one partial patch, addressed by item id.
+        val economyApi =
+            FakeEconomyApi(
+                configResult = ApiResult.Ok(loadedConfig),
+                leaderboardResult = ApiResult.Ok(leaderboard),
+                catalogResult =
+                    ApiResult.Ok(
+                        listOf(CatalogItem(id = "c1", name = "Hydrate", cost = 50, isEnabled = true))
+                    ),
+            )
+        val controller =
+            EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi, FakeUsersApi())
+        controller.load()
+
+        controller.updateCatalogItem(
+            "c1",
+            UpdateCatalogItemBody(
+                name = "Hydrate!",
+                cost = 100,
+                permission = "Subscriber",
+                pipelineId = "p1",
+                cooldownSeconds = 30,
+                cooldownPerUser = true,
+                stockLimit = 5,
+            ),
+        )
+
+        val (itemId, request) = economyApi.lastCatalogItemUpdate!!
+        assertEquals("c1", itemId)
+        assertEquals("Hydrate!", request.name)
+        assertEquals(100L, request.cost)
+        assertEquals("Subscriber", request.permission)
+        assertEquals("p1", request.pipelineId)
+        assertEquals(30, request.cooldownSeconds)
+        assertTrue(request.cooldownPerUser == true)
+        assertEquals(5, request.stockLimit)
+        assertTrue(controller.state.value is EconomyState.Ready) // reloaded; page intact
+    }
+
+    @Test
     fun load_seeds_a_default_form_when_the_economy_is_not_configured() = runTest {
         // A null config means the economy was never set up — the page must still render a (default) form so the
         // operator can create it, flagged not-configured, with whatever leaderboard exists (empty here).
@@ -623,6 +666,18 @@ private class FakeEconomyApi(
 
     override suspend fun createCatalogItem(channelId: String, request: CreateCatalogItemBody): ApiResult<CatalogItem> =
         ApiResult.Ok(CatalogItem())
+
+    var lastCatalogItemUpdate: Pair<String, UpdateCatalogItemBody>? = null
+        private set
+
+    override suspend fun updateCatalogItem(
+        channelId: String,
+        itemId: String,
+        request: UpdateCatalogItemBody,
+    ): ApiResult<CatalogItem> {
+        lastCatalogItemUpdate = itemId to request
+        return ApiResult.Ok(CatalogItem())
+    }
 
     override suspend fun deleteCatalogItem(channelId: String, itemId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 

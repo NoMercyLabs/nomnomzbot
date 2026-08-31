@@ -74,6 +74,16 @@ interface EconomyApi {
         request: CreateCatalogItemBody,
     ): ApiResult<CatalogItem>
 
+    /**
+     * Full edit of an existing catalog item — a partial PATCH ([request], null fields unchanged) that returns the
+     * item as the backend actually saved it, so a rejected or clamped field never shows as if it applied.
+     */
+    suspend fun updateCatalogItem(
+        channelId: String,
+        itemId: String,
+        request: UpdateCatalogItemBody,
+    ): ApiResult<CatalogItem>
+
     /** Delete a catalog item ([itemId]) permanently. */
     suspend fun deleteCatalogItem(channelId: String, itemId: String): ApiResult<Unit>
 
@@ -238,6 +248,13 @@ class RestEconomyApi(private val client: ApiClient) : EconomyApi {
         request: CreateCatalogItemBody,
     ): ApiResult<CatalogItem> =
         client.postEnvelope("api/v1/channels/$channelId/economy/catalog", request)
+
+    override suspend fun updateCatalogItem(
+        channelId: String,
+        itemId: String,
+        request: UpdateCatalogItemBody,
+    ): ApiResult<CatalogItem> =
+        client.patchEnvelope("api/v1/channels/$channelId/economy/catalog/$itemId", request)
 
     override suspend fun deleteCatalogItem(channelId: String, itemId: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/economy/catalog/$itemId")
