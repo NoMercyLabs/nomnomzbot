@@ -17,6 +17,7 @@ import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ChatApi
 import bot.nomnomz.dashboard.core.network.ChatMessage
 import bot.nomnomz.dashboard.core.network.NetworkBanResult
+import bot.nomnomz.dashboard.core.realtime.HubConnectionState
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -42,6 +43,7 @@ class MultiChatController(
     private val chatApi: ChatApi,
     private val joinChannel: (channelId: String) -> Unit,
     private val leaveChannel: (channelId: String) -> Unit,
+    private val watchListStore: WatchListStore = WatchListStore.NoOp,
 ) {
     private val _state: MutableStateFlow<MultiChatState> = MutableStateFlow(MultiChatState.Loading)
 
@@ -51,10 +53,17 @@ class MultiChatController(
     /**
      * Load the channels the caller can watch — every channel they own or moderate (`GET /api/v1/channels`,
      * already access-scoped, so the picker is correct regardless of the exact read floor). Lands Ready with an
-     * empty watched set; the operator picks channels to start watching. A load failure surfaces as Error.
+     * empty watched set (a fresh controller) or the CURRENT watched set (a page-only re-load while already Ready,
+     * e.g. a channel-list refresh) — never resets a live selection back to empty.
+     *
+     * On the very first load (a brand-new controller — no prior Ready state), the previously-selected watch list
+     * is restored from [watchListStore] (S076b — the set survives an app restart, not just a socket drop) by
+     * re-running [addChannel] for every persisted id still present in [ChannelSummary]s the caller can watch. A
+     * load failure surfaces as Error.
      */
     suspend fun load() {
-        if (_state.value !is MultiChatState.Ready) _state.value = MultiChatState.Loading
+        val wasReady: Boolean = _state.value is MultiChatState.Ready
+        if (!wasReady) _state.value = MultiChatState.Loading
         when (val result: ApiResult<List<ChannelSummary>> = channelsApi.list()) {
             is ApiResult.Failure -> _state.value = MultiChatState.Error(result.error.message)
             is ApiResult.Ok -> {
@@ -65,6 +74,9 @@ class MultiChatController(
                         watched = ready?.watched ?: emptyList(),
                         messages = ready?.messages ?: emptyList(),
                     )
+                if (!wasReady) {
+                    for (channelId: String in watchListStore.read()) addChannel(channelId)
+                }
             }
         }
     }
@@ -80,6 +92,7 @@ class MultiChatController(
 
         joinChannel(channelId)
         _state.value = ready.copy(watched = ready.watched + channel)
+        watchListStore.write((ready.watched + channel).map { it.id })
 
         // Load the channel's persisted scrollback and merge it in (deduped, capped, newest last).
         when (val result: ApiResult<List<ChatMessage>> = chatApi.messages(channelId)) {
@@ -103,11 +116,13 @@ class MultiChatController(
         if (ready.watched.none { it.id == channelId }) return
 
         leaveChannel(channelId)
+        val watched: List<ChannelSummary> = ready.watched.filterNot { it.id == channelId }
         _state.value =
             ready.copy(
-                watched = ready.watched.filterNot { it.id == channelId },
+                watched = watched,
                 messages = ready.messages.filterNot { it.channelId == channelId },
             )
+        watchListStore.write(watched.map { it.id })
     }
 
     /**
@@ -198,6 +213,26 @@ class MultiChatController(
         }
     }
 
+    /**
+     * Re-join every currently watched channel's hub group whenever the connection comes back from a drop (S076b).
+     * [DashboardHubClient] itself already replays its own persisted joined-channel set on a reconnect internally,
+     * but this is the controller's own, independently-testable guarantee that the set it re-subscribes is
+     * whatever THIS page's [MultiChatState.Ready.watched] holds at the moment — never a default — regardless of
+     * how the underlying transport implements its own replay. Fires only on a Reconnecting → Connected edge, never
+     * on the very first Connected of a fresh session (nothing to resubscribe yet — [addChannel] already joined).
+     * Must run from a scope that outlives the page; cancels with that scope.
+     */
+    suspend fun subscribeToConnectionState(connectionState: StateFlow<HubConnectionState>) {
+        var wasReconnecting: Boolean = false
+        connectionState.collect { current: HubConnectionState ->
+            if (current == HubConnectionState.Connected && wasReconnecting) {
+                val ready: MultiChatState.Ready? = _state.value as? MultiChatState.Ready
+                ready?.watched?.forEach { channel: ChannelSummary -> joinChannel(channel.id) }
+            }
+            wasReconnecting = current == HubConnectionState.Reconnecting
+        }
+    }
+
     // Merge new lines into the feed: dedupe by non-blank id, sort by timestamp (ISO-8601 sorts lexically), and
     // cap so the merged list stays bounded across many busy channels.
     private fun merge(existing: List<ChatMessage>, incoming: List<ChatMessage>): List<ChatMessage> {
@@ -233,4 +268,27 @@ sealed interface MultiChatState {
     ) : MultiChatState
 
     data class Error(val detail: String) : MultiChatState
+}
+
+/**
+ * Persists the multi-watch page's selected channel ids across app restarts (S076b), mirroring the read/write
+ * contract of the existing per-target preference stores ([bot.nomnomz.dashboard.core.emoji.EmojiStyleStore],
+ * `LanguagePreferenceStore`) — a small text file on desktop, `localStorage` on web, never a secret, so no
+ * platform-specific concern beyond "outlive the process". [MultiChatController] only depends on this interface;
+ * wiring the real expect/actual implementation into `AppGraph` is out of this slice's scope (see the slice
+ * report) — [NoOp] keeps every existing call site building unchanged in the meantime.
+ */
+interface WatchListStore {
+    /** The persisted channel ids, in no particular order; empty when nothing was ever saved or on read failure. */
+    fun read(): List<String>
+
+    /** Overwrite the persisted set with exactly [channelIds]. A write failure must never throw. */
+    fun write(channelIds: List<String>)
+
+    /** The default when no real store is wired yet: reads empty, writes nowhere. */
+    object NoOp : WatchListStore {
+        override fun read(): List<String> = emptyList()
+
+        override fun write(channelIds: List<String>): Unit = Unit
+    }
 }
