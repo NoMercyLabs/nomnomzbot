@@ -915,6 +915,7 @@
     <string name="rewards_delete_action">%1$s verwijderen</string>
     <string name="rewards_delete_action_short">Verwijderen</string>
     <string name="rewards_action_error">Actie mislukt: %1$s</string>
+    <string name="rewards_load_warning">Sommige gegevens konden niet worden geladen (%1$s) — probeer het opnieuw.</string>
     <string name="rewards_dialog_create_title">Nieuwe beloning</string>
     <string name="rewards_dialog_edit_title">Beloning bewerken</string>
     <string name="rewards_dialog_title_label">Titel</string>

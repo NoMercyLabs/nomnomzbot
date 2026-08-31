@@ -78,45 +78,54 @@ class RewardsController(
                 is ApiResult.Ok -> result.value
             }
 
-        // The pending redemption queue (status=unfulfilled). A failure here must NOT blank the page — the rewards
-        // loaded fine — so it degrades to an empty queue rather than erroring the whole screen.
-        val redemptions: List<RedemptionSummary> =
-            when (val result: ApiResult<List<RedemptionSummary>> =
-                rewardsApi.redemptions(channel.id, status = "unfulfilled")
-            ) {
-                is ApiResult.Failure -> emptyList()
+        // The pending redemption queue (status=unfulfilled), the channel's pipelines (for the reward form's
+        // bind-pipeline picker), and its active/recent redemption countdown timers are all supplementary — a
+        // failure on any of them must NOT blank the whole page, since the rewards loaded fine. It degrades to an
+        // empty list rather than erroring the whole screen, but a degraded read is NOT the same thing as a
+        // genuinely empty one: silently rendering a failed fetch as "nothing here" hides a real backend problem
+        // behind a state that looks intentional, so a failure here is tracked and surfaced as a load warning
+        // instead of being indistinguishable from "the channel has none of these".
+        val failedSections = mutableListOf<String>()
+        suspend fun <T> loadOptional(section: String, call: suspend () -> ApiResult<List<T>>): List<T> =
+            when (val result: ApiResult<List<T>> = call()) {
                 is ApiResult.Ok -> result.value
+                is ApiResult.Failure -> {
+                    failedSections += section
+                    emptyList()
+                }
             }
 
-        // The channel's pipelines (for the reward form's bind-pipeline picker) and its active/recent redemption
-        // countdown timers. Both are supplementary — a failure degrades to empty, never fails the whole page.
-        val pipelines: List<PipelineSummary> =
-            when (val result: ApiResult<List<PipelineSummary>> = pipelinesApi.list(channel.id)) {
-                is ApiResult.Failure -> emptyList()
-                is ApiResult.Ok -> result.value
-            }
+        val redemptions: List<RedemptionSummary> =
+            loadOptional("redemptions") { rewardsApi.redemptions(channel.id, status = "unfulfilled") }
+        val pipelines: List<PipelineSummary> = loadOptional("pipelines") { pipelinesApi.list(channel.id) }
         val timers: List<RedemptionTimer> =
-            when (val result: ApiResult<List<RedemptionTimer>> = rewardsApi.redemptionTimers(channel.id)) {
-                is ApiResult.Failure -> emptyList()
-                is ApiResult.Ok -> result.value
-            }
+            loadOptional("timers") { rewardsApi.redemptionTimers(channel.id) }
+
+        val loadWarning: String? =
+            failedSections.takeIf { it.isNotEmpty() }?.joinToString(", ")
 
         _state.value =
-            if (rewards.isEmpty() && redemptions.isEmpty() && timers.isEmpty()) RewardsState.Empty
-            else RewardsState.Ready(rewards, redemptions, pipelines, timers)
+            if (loadWarning == null && rewards.isEmpty() && redemptions.isEmpty() && timers.isEmpty())
+                RewardsState.Empty
+            else RewardsState.Ready(rewards, redemptions, pipelines, timers, loadWarning = loadWarning)
     }
 
     /**
      * Re-fetch just the redemption timers (not the whole page) — for the live countdown card to refresh without a
      * full reload. Leaves the rest of the Ready state untouched; a failure leaves the current timers in place.
+     * Returns whether the fetch succeeded, so the polling loop can back off on repeated failures instead of
+     * hammering a backend that's down or erroring every 3 seconds forever.
      */
-    suspend fun refreshTimers() {
-        val channel: String = channelId ?: return
+    suspend fun refreshTimers(): Boolean {
+        val channel: String = channelId ?: return true
         val current: RewardsState = _state.value
-        if (current !is RewardsState.Ready) return
-        when (val result: ApiResult<List<RedemptionTimer>> = rewardsApi.redemptionTimers(channel)) {
-            is ApiResult.Ok -> _state.value = current.copy(timers = result.value)
-            is ApiResult.Failure -> Unit
+        if (current !is RewardsState.Ready) return true
+        return when (val result: ApiResult<List<RedemptionTimer>> = rewardsApi.redemptionTimers(channel)) {
+            is ApiResult.Ok -> {
+                _state.value = current.copy(timers = result.value)
+                true
+            }
+            is ApiResult.Failure -> false
         }
     }
 
@@ -398,7 +407,10 @@ sealed interface RewardsState {
     /**
      * The channel's rewards are listed, alongside the [redemptions] pending in the queue (status=unfulfilled,
      * newest-first). [actionError] is non-null only when the last create/edit/toggle/delete failed — the screen
-     * surfaces it as a transient banner while keeping the list rendered.
+     * surfaces it as a transient banner while keeping the list rendered. [loadWarning] is non-null when one of
+     * the supplementary reads (redemptions/pipelines/timers) failed on the last [RewardsController.load] — those
+     * lists then degrade to empty rather than failing the whole page, but that must stay visibly distinct from
+     * the channel genuinely having none, so the screen surfaces it too.
      */
     data class Ready(
         val rewards: List<RewardSummary>,
@@ -406,6 +418,7 @@ sealed interface RewardsState {
         val pipelines: List<PipelineSummary> = emptyList(),
         val timers: List<RedemptionTimer> = emptyList(),
         val actionError: String? = null,
+        val loadWarning: String? = null,
     ) : RewardsState
 
     data object Empty : RewardsState
