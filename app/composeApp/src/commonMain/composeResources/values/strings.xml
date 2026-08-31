@@ -1111,6 +1111,7 @@
     <string name="integrations_action_disconnect">Disconnect</string>
     <string name="integrations_action_reauth">Reconnect</string>
     <string name="integrations_action_retry">Retry</string>
+    <string name="integrations_load_failed_title">Could not load integrations</string>
     <string name="permissions_banner_title">Twitch permissions needed</string>
     <string name="permissions_banner_body">NomNomzBot needs %1$s on your own Twitch account — the one you stream on, not the bot account — to %2$s. One click re-authorizes your account and keeps every permission you already granted.</string>
     <string name="permissions_banner_body_generic">NomNomzBot needs %1$d more permission(s) on your own Twitch account — the one you stream on, not the bot account — to power some features. One click re-authorizes your account and keeps every permission you already granted.</string>
