@@ -73,7 +73,7 @@ internal static class PermitBuiltinSupport
         CancellationToken ct
     )
     {
-        string login = mention.Trim().TrimStart('@').ToLowerInvariant();
+        string login = MentionParser.ParseUserMention(mention).ToLowerInvariant();
         if (login.Length == 0)
             return Result.Failure<(Guid, string)>(
                 $"{verb}: no target — mention a user with @name",

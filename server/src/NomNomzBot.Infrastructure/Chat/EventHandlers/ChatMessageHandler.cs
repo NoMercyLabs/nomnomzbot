@@ -1242,7 +1242,8 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
     )
     {
         string[] argParts = args.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        string target = argParts.Length > 0 ? argParts[0].TrimStart('@') : string.Empty;
+        string target =
+            argParts.Length > 0 ? MentionParser.ParseUserMention(argParts[0]) : string.Empty;
 
         Dictionary<string, string> vars = new(StringComparer.OrdinalIgnoreCase)
         {

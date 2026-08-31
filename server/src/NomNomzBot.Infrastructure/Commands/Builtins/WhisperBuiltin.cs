@@ -54,7 +54,7 @@ public sealed class WhisperBuiltin : IBuiltinCommand
         if (parts.Length < 2)
             return Result.Success("Usage: !whisper <user> <message>");
 
-        string targetLogin = parts[0].TrimStart('@').ToLowerInvariant();
+        string targetLogin = MentionParser.ParseUserMention(parts[0]).ToLowerInvariant();
         string message = parts[1];
 
         Result<IReadOnlyList<TwitchUser>> lookup = await _twitchUsers.GetUsersByLoginsAsync(

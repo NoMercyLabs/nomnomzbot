@@ -14,6 +14,7 @@ using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
@@ -257,7 +258,7 @@ internal static class ViewerDataActionSupport
         string resolved = target.Trim();
         if (resolved.StartsWith('{') && resolved.EndsWith('}'))
             resolved = ctx.Variables.GetValueOrDefault(resolved[1..^1].Trim()) ?? string.Empty;
-        resolved = resolved.Trim().TrimStart('@');
+        resolved = MentionParser.ParseUserMention(resolved);
         if (resolved.Length == 0)
             return Result.Failure<Guid>(
                 $"{verb}: the target could not be resolved — mention a user with @name.",
