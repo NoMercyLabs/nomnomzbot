@@ -620,7 +620,17 @@ later.)
   (previously `load()`-only) `IntegrationsState.Error` and returns early; the screen renders a
   destructive-toned retry card instead of plain text. Test covers failure → `Error` state → retry →
   real `Ready` state, i18n en+nl.
-- **S076** Multi-chat as a tool — mod-log pushes with names + time; shield pushes consumed (U·B3).
+- **S076** Multi-chat as a tool — mod-log pushes need a `ModeratorDisplayName`/`Timestamp` on
+  `ModActionDto` first (backend gap, see below) (U·B3).
+  **Shield mode pushes consumed DONE, verified (9395077b)**: `MultiChatController` now handles
+  `HubEvent.ChannelEvent` for `shield_mode_begin`/`shield_mode_end` (wire shape confirmed against
+  `ShieldModeBeganBroadcastHandler`/`ShieldModeEndedBroadcastHandler` — no new DTO needed, already
+  decoded), toggling a new `shieldModeActiveChannelIds` set scoped to watched channels only. **Mod-log
+  names+time OUT-OF-SCOPE FOUND**: `ModActionDto` (`HubResponseDtos.cs:56`) carries `ModeratorId` but no
+  `ModeratorDisplayName`/`Timestamp` at all — unlike the enrichment already present on
+  `TargetDisplayName`/`TargetAvatarUrl` on the same record. A real backend DTO gap, not a frontend
+  resolution bug; nothing on the wire for the client to surface. Flagged for the backend track rather
+  than guessing a shape.
   **`joinedChannels` preserved on reconnect DONE, verified (be76f6e5)**: `DashboardHubClient` already
   replayed its own transport-level joined set on reconnect — the raw symptom wasn't reproducible there —
   but `MultiChatController` gained its own controller-owned guarantee anyway: a `Reconnecting→Connected`
