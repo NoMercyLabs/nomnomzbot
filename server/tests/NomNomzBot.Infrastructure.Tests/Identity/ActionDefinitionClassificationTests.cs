@@ -261,6 +261,8 @@ public sealed class ActionDefinitionClassificationTests
         "economy:catalog:refund",
         "economy:leaderboards:config:write",
         "economy:leaderboards:config:delete",
+        "economy:jars:update",
+        "economy:jars:delete",
         "federation:optin:read",
         "federation:optin:write",
         "federation:optin:delete",

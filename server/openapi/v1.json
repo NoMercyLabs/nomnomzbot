@@ -59489,6 +59489,326 @@
             }
           }
         }
+      },
+      "patch": {
+        "tags": [
+          "Economy — Savings Jars"
+        ],
+        "summary": "Owner-only partial update of the jar's own fields.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "jarId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSavingsJarRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSavingsJarRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSavingsJarRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Economy — Savings Jars"
+        ],
+        "summary": "Owner-only permanent delete of the jar. The confirm step calls\r\n    Task&lt;IActionResult&gt; SavingsJarsController.GetDeleteJarBlastRadius(string channelId, Guid jarId, CancellationToken ct) first and shows the counted dependents before this runs.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "jarId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/economy/jars/{jarId}/blast-radius": {
+      "get": {
+        "tags": [
+          "Economy — Savings Jars"
+        ],
+        "summary": "Real, counted blast radius for deleting this jar (S-CONSEQ). The dashboard MUST call this and render the\r\nresult before the confirm can proceed.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "jarId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfBlastRadiusDto"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v{version}/channels/{channelId}/economy/jars/{jarId}/invite": {
@@ -100363,6 +100683,54 @@
             "format": "ulid"
           }
         }
+      },
+      "UpdateSavingsJarRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "goalAmount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "iconUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isOpen": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "maxWithdrawalPerChannel": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        },
+        "description": "Partially update a savings jar (economy.md §4) — every field nullable, null = unchanged. Owner-only."
       },
       "UpdateScheduleSegmentRequest": {
         "type": "object",

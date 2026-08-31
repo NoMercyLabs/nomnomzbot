@@ -378,6 +378,11 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("economy:leaderboards:config:read", Mod);
         M("economy:leaderboards:config:write", Editor);
         M("economy:leaderboards:config:delete", Editor);
+        // Jar update/delete affects every member channel's shared pool, not just the caller's own — the
+        // service also enforces owner-only regardless of floor, matching the catalog/leaderboard-config
+        // CRUD floor above rather than the jar's own create/invite/contribute actions (community plane).
+        M("economy:jars:update", Editor);
+        M("economy:jars:delete", Editor);
 
         // Billing (owner-level control — reads included; mods/editors never see or touch billing)
         M("billing:read", Broadcaster);

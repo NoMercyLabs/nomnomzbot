@@ -152,6 +152,16 @@ public sealed record CreateSavingsJarRequest(
     long? MaxWithdrawalPerChannel
 );
 
+/// <summary>Partially update a savings jar (economy.md §4) — every field nullable, null = unchanged. Owner-only.</summary>
+public sealed record UpdateSavingsJarRequest(
+    string? Name = null,
+    string? Description = null,
+    long? GoalAmount = null,
+    string? IconUrl = null,
+    bool? IsOpen = null,
+    long? MaxWithdrawalPerChannel = null
+);
+
 /// <summary>Invite a partner channel into a jar (economy.md §4). <see cref="Role"/> is a JarRole token.</summary>
 public sealed record InviteChannelRequest(
     Guid JarId,
