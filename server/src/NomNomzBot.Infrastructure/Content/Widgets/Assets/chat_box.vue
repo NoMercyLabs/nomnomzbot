@@ -119,6 +119,24 @@ interface ChatLine {
   message: string
   time: string
   faded: boolean
+  role: string          // 'broadcaster' | 'moderator' | 'vip' | 'subscriber' | '' — for role accent/badge
+  isCheer: boolean
+  bitsAmount: number
+  replyUserName: string
+  replyMessageBody: string
+  provider: string      // 'twitch' | 'kick' | 'youtube'
+}
+
+const PROVIDER_LABEL: Record<string, string> = { twitch: 'Twitch', kick: 'Kick', youtube: 'YouTube' }
+
+// Highest-priority role wins the line accent when a user carries more than one — broadcaster and
+// moderator/VIP/subscriber are not mutually exclusive on Twitch (a mod can also be a subscriber).
+function resolveRole(m: any): string {
+  if (m.isBroadcaster) return 'broadcaster'
+  if (m.isModerator) return 'moderator'
+  if (m.isVip) return 'vip'
+  if (m.isSubscriber) return 'subscriber'
+  return ''
 }
 
 const lines = ref<ChatLine[]>([])
@@ -169,6 +187,12 @@ function onChat(m: any): void {
     message: text,
     time: clockLabel(m.timestamp),
     faded: false,
+    role: resolveRole(m),
+    isCheer: !!m.isCheer,
+    bitsAmount: isFinite(Number(m.bitsAmount)) ? Number(m.bitsAmount) : 0,
+    replyUserName: typeof m.replyParentUserName === 'string' ? m.replyParentUserName : '',
+    replyMessageBody: typeof m.replyParentMessageBody === 'string' ? m.replyParentMessageBody : '',
+    provider: typeof m.provider === 'string' ? m.provider.toLowerCase() : 'twitch',
   }
   const next: ChatLine[] = lines.value.concat([line])
   while (next.length > Math.max(1, cfg.maxMessages)) next.shift()
@@ -210,13 +234,27 @@ onUnmounted(() => {
 
 <template>
   <TransitionGroup tag="div" name="chat-line" class="nnz-chatbox" :class="'theme-' + cfg.theme" :style="rootStyle">
-    <div v-for="l in lines" :key="l.id" class="line" :class="{ faded: l.faded }" :style="lineStyle">
+    <div
+      v-for="l in lines"
+      :key="l.id"
+      class="line"
+      :class="{ faded: l.faded, [`role-${l.role}`]: !!l.role, cheer: l.isCheer }"
+      :style="lineStyle"
+    >
+      <span v-if="l.replyMessageBody" class="reply-preview">
+        <span class="reply-arrow">↳</span>
+        <span class="reply-user">{{ l.replyUserName }}</span>
+        <span class="reply-body">{{ l.replyMessageBody }}</span>
+      </span>
       <span class="head">
         <span v-if="cfg.showTimestamps && l.time" class="time">{{ l.time }}</span>
+        <span v-if="l.provider !== 'twitch'" class="platform" :class="'platform-' + l.provider">{{ PROVIDER_LABEL[l.provider] || l.provider }}</span>
         <img v-if="l.avatarUrl" class="avatar" :src="l.avatarUrl" alt="">
         <img v-for="(b, i) in l.badgeUrls" :key="i" class="badge" :src="b" alt="">
+        <span v-if="l.role" class="role-badge" :class="'role-badge-' + l.role">{{ l.role }}</span>
         <span class="name" :style="{ color: l.color ? contrastColor(l.color, cfg.theme) : '' }">{{ l.name }}</span>
         <span v-if="l.pronouns" class="pron">({{ l.pronouns }})</span>
+        <span v-if="l.isCheer && l.bitsAmount > 0" class="line-cheer-bits">{{ l.bitsAmount }} bits</span>
       </span>
       <span class="body">
         <template v-if="l.fragments.length">
@@ -287,6 +325,89 @@ onUnmounted(() => {
   background: transparent;
   border: none;
   padding: 2px 0;
+}
+/* Role accents: a subtle left border in the role's conventional colour so a mod/VIP/sub/broadcaster
+   message reads at a glance, without fighting the theme's own line background. */
+.line.role-broadcaster {
+  border-left: 3px solid #e91916;
+}
+.line.role-moderator {
+  border-left: 3px solid #00ad03;
+}
+.line.role-vip {
+  border-left: 3px solid #e005b9;
+}
+.line.role-subscriber {
+  border-left: 3px solid #9146ff;
+}
+.line.cheer {
+  border-left: 3px solid #f2b21c;
+  background: color-mix(in srgb, #f2b21c 12%, transparent);
+}
+.role-badge {
+  font-size: 0.65em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  padding: 1px 5px;
+  border-radius: 4px;
+  color: #fff;
+  flex: none;
+}
+.role-badge-broadcaster {
+  background: #e91916;
+}
+.role-badge-moderator {
+  background: #00ad03;
+}
+.role-badge-vip {
+  background: #e005b9;
+}
+.role-badge-subscriber {
+  background: #9146ff;
+}
+.line-cheer-bits {
+  font-size: 0.75em;
+  font-weight: 700;
+  color: #f2b21c;
+  background: color-mix(in srgb, #f2b21c 20%, transparent);
+  border-radius: 4px;
+  padding: 0 5px;
+}
+.platform {
+  font-size: 0.65em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  padding: 1px 5px;
+  border-radius: 4px;
+  color: #fff;
+  flex: none;
+  opacity: 0.9;
+}
+.platform-kick {
+  background: #53fc18;
+  color: #0a0a0a;
+}
+.platform-youtube {
+  background: #ff0000;
+}
+/* Reply preview: a quoted line above the head row showing who/what this message replies to. */
+.reply-preview {
+  display: block;
+  font-size: 0.8em;
+  opacity: 0.7;
+  margin-bottom: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.reply-arrow {
+  margin-right: 3px;
+}
+.reply-user {
+  font-weight: 700;
+  margin-right: 4px;
 }
 .head {
   /* Block-level (not inline-flex) so the head row and the message body below it are separate lines —
