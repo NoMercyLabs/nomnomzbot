@@ -20,6 +20,7 @@ import bot.nomnomz.dashboard.core.network.CodePoolDetail
 import bot.nomnomz.dashboard.core.network.CreateCodePoolBody
 import bot.nomnomz.dashboard.core.network.Giveaway
 import bot.nomnomz.dashboard.core.network.GiveawayStatus
+import bot.nomnomz.dashboard.core.network.GiveawayEntry
 import bot.nomnomz.dashboard.core.network.GiveawayWinner
 import bot.nomnomz.dashboard.core.network.GiveawaysApi
 import bot.nomnomz.dashboard.core.network.UpsertGiveawayBody
@@ -68,6 +69,11 @@ class GiveawaysController(
 
     /** The winner panel: hidden, or open for one giveaway (with its history + any revealed codes). */
     val winners: StateFlow<WinnersState> = _winners.asStateFlow()
+
+    private val _entries: MutableStateFlow<EntriesState> = MutableStateFlow(EntriesState.Hidden)
+
+    /** The entries panel: hidden, or open for one giveaway (who's entered so far, before a draw). */
+    val entries: StateFlow<EntriesState> = _entries.asStateFlow()
 
     private val _poolDetail: MutableStateFlow<PoolDetailState> = MutableStateFlow(PoolDetailState.Hidden)
 
@@ -204,6 +210,22 @@ class GiveawaysController(
     private fun winnersActionError(detail: String) {
         val current: WinnersState = _winners.value
         if (current is WinnersState.Ready) _winners.value = current.copy(actionError = detail)
+    }
+
+    // ── Entries panel ────────────────────────────────────────────────────────────
+
+    /** Open the entries panel for [giveaway] and load who's entered so far. */
+    suspend fun showEntries(giveaway: Giveaway) {
+        _entries.value = EntriesState.Loading(giveaway)
+        when (val result: ApiResult<List<GiveawayEntry>> = giveawaysApi.entries(giveaway.id)) {
+            is ApiResult.Ok -> _entries.value = EntriesState.Ready(giveaway, result.value)
+            is ApiResult.Failure -> _entries.value = EntriesState.Error(giveaway, result.error.message)
+        }
+    }
+
+    /** Close the entries panel. */
+    fun hideEntries() {
+        _entries.value = EntriesState.Hidden
     }
 
     // ── Code pools (Broadcaster-only) ─────────────────────────────────────────────
@@ -394,6 +416,17 @@ sealed interface WinnersState {
     ) : WinnersState
 
     data class Error(val giveaway: Giveaway, val detail: String) : WinnersState
+}
+
+/** The entries-panel render state, opened for one giveaway — who's entered so far, before a draw. */
+sealed interface EntriesState {
+    data object Hidden : EntriesState
+
+    data class Loading(val giveaway: Giveaway) : EntriesState
+
+    data class Ready(val giveaway: Giveaway, val entries: List<GiveawayEntry>) : EntriesState
+
+    data class Error(val giveaway: Giveaway, val detail: String) : EntriesState
 }
 
 /** The manage-pool panel render state, opened for one code pool. */

@@ -1960,6 +1960,13 @@
     <string name="giveaways_close_action">Close</string>
     <string name="giveaways_draw_action">Draw</string>
     <string name="giveaways_winners_action">Winners</string>
+    <string name="giveaways_entries_action">Entries</string>
+    <string name="giveaways_entries_title">%1$s — entries</string>
+    <string name="giveaways_entries_loading">Loading entries…</string>
+    <string name="giveaways_entries_empty">No entries yet.</string>
+    <string name="giveaways_entries_error">Couldn't load entries: %1$s</string>
+    <string name="giveaways_entries_close">Close</string>
+    <string name="giveaways_entry_tickets">%1$d tickets</string>
     <string name="giveaways_edit_action">Edit %1$s</string>
     <string name="giveaways_delete_action">Delete %1$s</string>
     <string name="giveaways_requires_write">Requires giveaway-management permission</string>

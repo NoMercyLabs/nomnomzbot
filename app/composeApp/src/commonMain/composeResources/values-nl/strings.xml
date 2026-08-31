@@ -1956,6 +1956,13 @@
     <string name="giveaways_close_action">Sluiten</string>
     <string name="giveaways_draw_action">Trekken</string>
     <string name="giveaways_winners_action">Winnaars</string>
+    <string name="giveaways_entries_action">Inzendingen</string>
+    <string name="giveaways_entries_title">%1$s — inzendingen</string>
+    <string name="giveaways_entries_loading">Inzendingen laden…</string>
+    <string name="giveaways_entries_empty">Nog geen inzendingen.</string>
+    <string name="giveaways_entries_error">Inzendingen laden mislukt: %1$s</string>
+    <string name="giveaways_entries_close">Sluiten</string>
+    <string name="giveaways_entry_tickets">%1$d tickets</string>
     <string name="giveaways_edit_action">%1$s bewerken</string>
     <string name="giveaways_delete_action">%1$s verwijderen</string>
     <string name="giveaways_requires_write">Vereist toestemming om weggeefacties te beheren</string>
