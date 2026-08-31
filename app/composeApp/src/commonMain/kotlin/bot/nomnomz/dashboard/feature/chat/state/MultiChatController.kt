@@ -17,13 +17,13 @@ import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ChatApi
 import bot.nomnomz.dashboard.core.network.ChatMessage
 import bot.nomnomz.dashboard.core.network.NetworkBanResult
+import bot.nomnomz.dashboard.core.realtime.HubChannelEvent
 import bot.nomnomz.dashboard.core.realtime.HubConnectionState
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.filterIsInstance
 
 // The multi-channel chat-watch page's state-holder (frontend-ia.md — the Chat group; owner requirement
 // 2026-07-10: "a viewer+ should be able to view multiple chats at once so mods can monitor multiple channels").
@@ -196,20 +196,45 @@ class MultiChatController(
     }
 
     /**
-     * Forward live [hubEvents] into the merged feed: append each incoming [HubEvent.ChatMessage] whose channel is
-     * currently watched (routing by `channelId`), deduped by id and capped. Ignores pushes for channels not in the
-     * watched set (the one shared connection may carry a socket-opening primary channel we aren't watching). Must
-     * run from a scope that outlives the page; cancels with that scope.
+     * Forward live [hubEvents] into the merged feed and transient status: append each incoming
+     * [HubEvent.ChatMessage] whose channel is currently watched (routing by `channelId`), deduped by id and
+     * capped, and toggle [MultiChatState.Ready.shieldModeActiveChannelIds] on a watched channel's
+     * `shield_mode_begin`/`shield_mode_end` push (S076c — Twitch's automated protection-mode toggle, pushed as a
+     * generic [HubEvent.ChannelEvent] — the backend's `ShieldModeBeganBroadcastHandler`/`ShieldModeEndedBroadcastHandler`
+     * route through the same `ChannelEventDto` wire shape as every other channel-scoped push). Ignores pushes for
+     * channels not in the watched set (the one shared connection may carry a socket-opening primary channel we
+     * aren't watching). Must run from a scope that outlives the page; cancels with that scope.
      */
     suspend fun subscribeToHub(hubEvents: SharedFlow<HubEvent>) {
-        hubEvents.filterIsInstance<HubEvent.ChatMessage>().collect { evt ->
-            val line: ChatMessage = evt.message.toLocalMessage()
-            val ready: MultiChatState.Ready = _state.value as? MultiChatState.Ready ?: return@collect
-            // Route by channelId — only surface a line for a channel we are actively watching.
-            if (ready.watched.none { it.id == line.channelId }) return@collect
-            // Skip a non-blank id already present (EventSub is at-least-once; scrollback may overlap live).
-            if (line.id.isNotEmpty() && ready.messages.any { it.id == line.id }) return@collect
-            _state.value = ready.copy(messages = merge(ready.messages, listOf(line)))
+        hubEvents.collect { evt ->
+            when (evt) {
+                is HubEvent.ChatMessage -> {
+                    val line: ChatMessage = evt.message.toLocalMessage()
+                    val ready: MultiChatState.Ready = _state.value as? MultiChatState.Ready ?: return@collect
+                    // Route by channelId — only surface a line for a channel we are actively watching.
+                    if (ready.watched.none { it.id == line.channelId }) return@collect
+                    // Skip a non-blank id already present (EventSub is at-least-once; scrollback may overlap live).
+                    if (line.id.isNotEmpty() && ready.messages.any { it.id == line.id }) return@collect
+                    _state.value = ready.copy(messages = merge(ready.messages, listOf(line)))
+                }
+                is HubEvent.ChannelEvent -> applyShieldModeEvent(evt.event)
+                else -> Unit
+            }
+        }
+    }
+
+    // Shield Mode begin/end arrives as a generic ChannelEvent (type "shield_mode_begin" / "shield_mode_end"),
+    // never a dedicated HubEvent case — see ShieldModeBeganBroadcastHandler/ShieldModeEndedBroadcastHandler
+    // (server) which route through the same NotifyChannelAsync -> ChannelEventDto wire shape as every other
+    // channel-scoped push. Ignored for a channel not currently watched.
+    private fun applyShieldModeEvent(event: HubChannelEvent) {
+        val ready: MultiChatState.Ready = _state.value as? MultiChatState.Ready ?: return
+        if (ready.watched.none { it.id == event.broadcasterId }) return
+        when (event.type) {
+            "shield_mode_begin" ->
+                _state.value = ready.copy(shieldModeActiveChannelIds = ready.shieldModeActiveChannelIds + event.broadcasterId)
+            "shield_mode_end" ->
+                _state.value = ready.copy(shieldModeActiveChannelIds = ready.shieldModeActiveChannelIds - event.broadcasterId)
         }
     }
 
@@ -258,13 +283,16 @@ sealed interface MultiChatState {
      * [available] is every channel the caller can watch (the picker); [watched] is the subset currently being
      * monitored; [messages] is the merged, time-ordered feed across the watched channels (tag each line by its
      * `channelId`). [actionError] is non-null only when the last add/scrollback failed — surfaced as a transient
-     * banner while keeping the feed rendered.
+     * banner while keeping the feed rendered. [shieldModeActiveChannelIds] holds the watched channel ids currently
+     * under Twitch Shield Mode (S076c) — surfaced as a per-channel banner/indicator, toggled by the live
+     * `shield_mode_begin`/`shield_mode_end` hub push.
      */
     data class Ready(
         val available: List<ChannelSummary>,
         val watched: List<ChannelSummary>,
         val messages: List<ChatMessage>,
         val actionError: String? = null,
+        val shieldModeActiveChannelIds: Set<String> = emptySet(),
     ) : MultiChatState
 
     data class Error(val detail: String) : MultiChatState
