@@ -33,6 +33,7 @@ import bot.nomnomz.dashboard.core.network.CurrencyConfig
 import bot.nomnomz.dashboard.core.network.CurrencyLedgerEntry
 import bot.nomnomz.dashboard.core.network.EarningRule
 import bot.nomnomz.dashboard.core.network.EconomyApi
+import bot.nomnomz.dashboard.core.network.LeaderboardConfig
 import bot.nomnomz.dashboard.core.network.LeaderboardEntry
 import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.PipelinesApi
@@ -41,6 +42,7 @@ import bot.nomnomz.dashboard.core.network.TransferBody
 import bot.nomnomz.dashboard.core.network.UpdateCatalogItemBody
 import bot.nomnomz.dashboard.core.network.UpsertCurrencyConfig
 import bot.nomnomz.dashboard.core.network.UpsertEarningRuleBody
+import bot.nomnomz.dashboard.core.network.UpsertLeaderboardConfigBody
 import bot.nomnomz.dashboard.core.network.UserSearchResult
 import bot.nomnomz.dashboard.core.network.ChannelSearchResult
 import bot.nomnomz.dashboard.core.network.StreamApi
@@ -172,6 +174,13 @@ class EconomyController(
                 is ApiResult.Ok -> result.value
             }
 
+        // The channel's configured leaderboards (the management list). Same resilience contract.
+        val leaderboardConfigs: List<LeaderboardConfig> =
+            when (val result: ApiResult<List<LeaderboardConfig>> = economyApi.leaderboardConfigs(channel.id)) {
+                is ApiResult.Failure -> emptyList()
+                is ApiResult.Ok -> result.value
+            }
+
         _state.value =
             EconomyState.Ready(
                 // A null config means the economy was never set up; seed the form with sensible defaults so the
@@ -187,6 +196,7 @@ class EconomyController(
                 savingsJars = savingsJars,
                 catalogPurchases = catalogPurchases,
                 pipelines = pipelines,
+                leaderboardConfigs = leaderboardConfigs,
             )
     }
 
@@ -220,6 +230,46 @@ class EconomyController(
     suspend fun prevAccountsPage() {
         val current: EconomyState.Ready = _state.value as? EconomyState.Ready ?: return
         if (current.accountsPage > 1) loadAccountsPage(current.accountsPage - 1)
+    }
+
+    /**
+     * Create or update a leaderboard config ([request.id] null = create). Reloads on success so the management
+     * list reflects the saved config; surfaces the error on the Ready state on failure.
+     */
+    suspend fun upsertLeaderboardConfig(request: UpsertLeaderboardConfigBody) {
+        val channel: String = channelId ?: return
+        afterWrite(economyApi.upsertLeaderboardConfig(channel, request))
+    }
+
+    /** Delete a leaderboard config, then reload so it drops off the management list. Surfaces the error on failure. */
+    suspend fun deleteLeaderboardConfig(configId: String) {
+        val channel: String = channelId ?: return
+        afterWrite(economyApi.deleteLeaderboardConfig(channel, configId))
+    }
+
+    /**
+     * The real, backend-counted blast radius of deleting the leaderboard config [configId] (S-CONSEQ) — rendered
+     * in the confirm BEFORE the destructive save. No resolved channel is a genuine failure, never a silent zero.
+     */
+    suspend fun leaderboardConfigBlastRadius(configId: String): ApiResult<BlastRadiusSummary> {
+        val channel: String =
+            channelId
+                ?: return ApiResult.Failure(
+                    ApiError(status = 0, code = "NO_CHANNEL", message = "No active channel.")
+                )
+        return economyApi.leaderboardConfigBlastRadius(channel, configId)
+    }
+
+    /** Opt [viewerUserId] out of the channel's leaderboards. Surfaces the error on the Ready state on failure. */
+    suspend fun optOutOfLeaderboards(viewerUserId: String) {
+        val channel: String = channelId ?: return
+        afterWrite(economyApi.optOutOfLeaderboards(channel, viewerUserId))
+    }
+
+    /** Opt [viewerUserId] back into the channel's leaderboards. Surfaces the error on the Ready state on failure. */
+    suspend fun optInToLeaderboards(viewerUserId: String) {
+        val channel: String = channelId ?: return
+        afterWrite(economyApi.optInToLeaderboards(channel, viewerUserId))
     }
 
     /**
@@ -592,6 +642,8 @@ sealed interface EconomyState {
         val catalogPurchases: List<CatalogPurchase> = emptyList(),
         // The catalog item dialog's effect (bound pipeline) picker source.
         val pipelines: List<PipelineSummary> = emptyList(),
+        // The channel's configured leaderboards — the management list (create/edit/delete + opt-out/opt-in).
+        val leaderboardConfigs: List<LeaderboardConfig> = emptyList(),
         val saving: Boolean = false,
         val justSaved: Boolean = false,
         val saveError: String? = null,

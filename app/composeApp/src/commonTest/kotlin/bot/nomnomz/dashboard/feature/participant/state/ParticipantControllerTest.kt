@@ -33,11 +33,13 @@ import bot.nomnomz.dashboard.core.network.SavingsJarDetail
 import bot.nomnomz.dashboard.core.network.SavingsJarMembership
 import bot.nomnomz.dashboard.core.network.TransferBody
 import bot.nomnomz.dashboard.core.network.UpdateCatalogItemBody
+import bot.nomnomz.dashboard.core.network.UpsertLeaderboardConfigBody
 import bot.nomnomz.dashboard.core.network.ActivityEvent
 import bot.nomnomz.dashboard.core.network.DashboardApi
 import bot.nomnomz.dashboard.core.network.DashboardStats
 import bot.nomnomz.dashboard.core.network.ReplayResult
 import bot.nomnomz.dashboard.core.network.EconomyApi
+import bot.nomnomz.dashboard.core.network.LeaderboardConfig
 import bot.nomnomz.dashboard.core.network.GamePlay
 import bot.nomnomz.dashboard.core.network.GamePlayResult
 import bot.nomnomz.dashboard.core.network.GameSummary
@@ -599,6 +601,28 @@ private class FakeEconomyApi(
         leaderboardCalls.add(channelId)
         return ApiResult.Ok(leaderboard)
     }
+
+    override suspend fun leaderboardConfigs(channelId: String): ApiResult<List<LeaderboardConfig>> =
+        ApiResult.Ok(emptyList())
+
+    override suspend fun upsertLeaderboardConfig(
+        channelId: String,
+        request: UpsertLeaderboardConfigBody,
+    ): ApiResult<LeaderboardConfig> = ApiResult.Ok(LeaderboardConfig())
+
+    override suspend fun deleteLeaderboardConfig(channelId: String, configId: String): ApiResult<Unit> =
+        ApiResult.Ok(Unit)
+
+    override suspend fun leaderboardConfigBlastRadius(
+        channelId: String,
+        configId: String,
+    ): ApiResult<BlastRadiusSummary> = ApiResult.Ok(BlastRadiusSummary())
+
+    override suspend fun optOutOfLeaderboards(channelId: String, viewerUserId: String): ApiResult<Unit> =
+        ApiResult.Ok(Unit)
+
+    override suspend fun optInToLeaderboards(channelId: String, viewerUserId: String): ApiResult<Unit> =
+        ApiResult.Ok(Unit)
 
     override suspend fun accounts(
         channelId: String,

@@ -41,6 +41,33 @@ interface EconomyApi {
     /** The channel's primary points leaderboard — the top holders, capped at [top] rows. */
     suspend fun leaderboard(channelId: String, top: Int): ApiResult<List<LeaderboardEntry>>
 
+    /** The channel's configured leaderboards (metric/scope/period/visibility/size) — the management list. */
+    suspend fun leaderboardConfigs(channelId: String): ApiResult<List<LeaderboardConfig>>
+
+    /** Create or update a leaderboard config ([request.id] null = create, set = update-by-id). */
+    suspend fun upsertLeaderboardConfig(
+        channelId: String,
+        request: UpsertLeaderboardConfigBody,
+    ): ApiResult<LeaderboardConfig>
+
+    /** Delete a leaderboard config permanently. */
+    suspend fun deleteLeaderboardConfig(channelId: String, configId: String): ApiResult<Unit>
+
+    /**
+     * The real, backend-counted blast radius of deleting this leaderboard config (S-CONSEQ). The confirm dialog
+     * MUST call this and render the result before the destructive save can proceed.
+     */
+    suspend fun leaderboardConfigBlastRadius(
+        channelId: String,
+        configId: String,
+    ): ApiResult<BlastRadiusSummary>
+
+    /** Opt [viewerUserId] out of the channel's leaderboards — hidden from every ranking until opted back in. */
+    suspend fun optOutOfLeaderboards(channelId: String, viewerUserId: String): ApiResult<Unit>
+
+    /** Opt [viewerUserId] back into the channel's leaderboards. */
+    suspend fun optInToLeaderboards(channelId: String, viewerUserId: String): ApiResult<Unit>
+
     /** The channel's currency accounts — viewer balances + lifetime totals. First page only here. */
     suspend fun accounts(
         channelId: String,
@@ -203,6 +230,32 @@ class RestEconomyApi(private val client: ApiClient) : EconomyApi {
             "api/v1/channels/$channelId/economy/leaderboards/${primary.id}?top=$top"
         )
     }
+
+    override suspend fun leaderboardConfigs(channelId: String): ApiResult<List<LeaderboardConfig>> =
+        client.getEnvelope("api/v1/channels/$channelId/economy/leaderboards/configs")
+
+    override suspend fun upsertLeaderboardConfig(
+        channelId: String,
+        request: UpsertLeaderboardConfigBody,
+    ): ApiResult<LeaderboardConfig> =
+        client.putEnvelope("api/v1/channels/$channelId/economy/leaderboards/configs", request)
+
+    override suspend fun deleteLeaderboardConfig(channelId: String, configId: String): ApiResult<Unit> =
+        client.deleteUnit("api/v1/channels/$channelId/economy/leaderboards/configs/$configId")
+
+    override suspend fun leaderboardConfigBlastRadius(
+        channelId: String,
+        configId: String,
+    ): ApiResult<BlastRadiusSummary> =
+        client.getEnvelope(
+            "api/v1/channels/$channelId/economy/leaderboards/configs/$configId/blast-radius"
+        )
+
+    override suspend fun optOutOfLeaderboards(channelId: String, viewerUserId: String): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/economy/leaderboards/opt-out/$viewerUserId")
+
+    override suspend fun optInToLeaderboards(channelId: String, viewerUserId: String): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/economy/leaderboards/opt-in/$viewerUserId")
 
     // Flat PaginatedResponse like the other lists — read with getDirect. First page only; the pager layers later.
     override suspend fun accounts(
@@ -510,17 +563,37 @@ data class LeaderboardEntry(
 )
 
 /**
- * One configured leaderboard (backend `LeaderboardConfigDto`) — only [id] is used here, to address the ranking
- * read. The full config CRUD is a separate management surface; the Economy page consumes the primary ranking only.
+ * One configured leaderboard (backend `LeaderboardConfigDto`) — the channel's leaderboard management surface
+ * (list/create/edit/delete) plus the read the Economy page's primary-ranking card addresses by [id].
+ * [scope] is `"channel"` or `"jar"` ([jarId] set only for the latter); [metric] is `"balance"`, `"earned"`, or
+ * `"spent"`; [period] is `"alltime"`, `"daily"`, `"weekly"`, or `"monthly"`.
  */
 @Serializable
 data class LeaderboardConfig(
     val id: String = "",
+    val jarId: String? = null,
     val metric: String = "",
     val scope: String = "",
     val period: String = "",
     val isPublic: Boolean = false,
     val topN: Int = 0,
+    val createdAt: String = "",
+    val updatedAt: String = "",
+)
+
+/**
+ * A leaderboard config create/edit (backend `UpsertLeaderboardConfigRequest`). [id] null = create; the backend
+ * upserts by id when set.
+ */
+@Serializable
+data class UpsertLeaderboardConfigBody(
+    val id: String? = null,
+    val metric: String,
+    val scope: String,
+    val period: String,
+    val isPublic: Boolean,
+    val topN: Int,
+    val jarId: String? = null,
 )
 
 /**

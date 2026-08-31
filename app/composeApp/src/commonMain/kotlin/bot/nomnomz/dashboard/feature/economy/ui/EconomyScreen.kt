@@ -97,9 +97,11 @@ import bot.nomnomz.dashboard.core.network.CurrencyConfig
 import bot.nomnomz.dashboard.core.network.CurrencyLedgerEntry
 import bot.nomnomz.dashboard.core.network.EarningRule
 import bot.nomnomz.dashboard.core.network.UpsertEarningRuleBody
+import bot.nomnomz.dashboard.core.network.LeaderboardConfig
 import bot.nomnomz.dashboard.core.network.LeaderboardEntry
 import bot.nomnomz.dashboard.core.network.SavingsJar
 import bot.nomnomz.dashboard.core.network.TransferBody
+import bot.nomnomz.dashboard.core.network.UpsertLeaderboardConfigBody
 import bot.nomnomz.dashboard.feature.economy.state.EconomyController
 import bot.nomnomz.dashboard.feature.economy.state.EconomyState
 import bot.nomnomz.dashboard.feature.shell.nav.ManageAction
@@ -263,6 +265,44 @@ import nomnomzbot.composeapp.generated.resources.economy_label_max_balance
 import nomnomzbot.composeapp.generated.resources.economy_label_starting_balance
 import nomnomzbot.composeapp.generated.resources.economy_leaderboard_empty
 import nomnomzbot.composeapp.generated.resources.economy_leaderboard_row_description
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_config_cancel
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_config_create
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_config_create_title
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_config_delete_action
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_config_delete_confirm
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_config_delete_dismiss
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_config_delete_message
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_config_delete_title
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_config_edit_action
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_config_edit_title
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_config_jar_label
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_config_jar_none
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_config_metric_balance
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_config_metric_earned
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_config_metric_label
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_config_metric_spent
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_config_period_alltime
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_config_period_daily
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_config_period_label
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_config_period_monthly
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_config_period_weekly
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_config_private
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_config_public
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_config_public_label
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_config_row_description
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_config_save
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_config_scope_channel
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_config_scope_jar
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_config_scope_label
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_config_top_n_invalid
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_config_top_n_label
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_configs_add
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_configs_empty
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_configs_title
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_opt_in_confirm
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_opt_out_confirm
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_opt_out_search_label
+import nomnomzbot.composeapp.generated.resources.economy_leaderboard_opt_out_title
 import nomnomzbot.composeapp.generated.resources.economy_participant_row_type
 import nomnomzbot.composeapp.generated.resources.economy_leaderboard_title
 import nomnomzbot.composeapp.generated.resources.economy_loading
@@ -406,6 +446,22 @@ fun EconomyScreen(controller: EconomyController, role: ManagementRole?, hubEvent
                     onRefundPurchase = { purchaseId ->
                         scope.launch { controller.refundPurchase(purchaseId) }
                     },
+                    onCreateLeaderboardConfig = { request ->
+                        scope.launch { controller.upsertLeaderboardConfig(request) }
+                    },
+                    onUpdateLeaderboardConfig = { request ->
+                        scope.launch { controller.upsertLeaderboardConfig(request) }
+                    },
+                    onDeleteLeaderboardConfig = { configId ->
+                        scope.launch { controller.deleteLeaderboardConfig(configId) }
+                    },
+                    onLeaderboardConfigBlastRadius = controller::leaderboardConfigBlastRadius,
+                    onOptOutOfLeaderboards = { viewerUserId ->
+                        scope.launch { controller.optOutOfLeaderboards(viewerUserId) }
+                    },
+                    onOptInToLeaderboards = { viewerUserId ->
+                        scope.launch { controller.optInToLeaderboards(viewerUserId) }
+                    },
                 )
         }
     }
@@ -446,6 +502,12 @@ private fun ReadyContent(
     searchViewers: suspend (query: String) -> List<PickerOption>,
     searchChannels: suspend (query: String) -> List<PickerOption>,
     onRefundPurchase: (purchaseId: Long) -> Unit,
+    onCreateLeaderboardConfig: (UpsertLeaderboardConfigBody) -> Unit,
+    onUpdateLeaderboardConfig: (UpsertLeaderboardConfigBody) -> Unit,
+    onDeleteLeaderboardConfig: (String) -> Unit,
+    onLeaderboardConfigBlastRadius: suspend (String) -> ApiResult<BlastRadiusSummary>,
+    onOptOutOfLeaderboards: (String) -> Unit,
+    onOptInToLeaderboards: (String) -> Unit,
 ) {
     val spacing = LocalSpacing.current
     val loaded: CurrencyConfig = state.config
@@ -553,6 +615,19 @@ private fun ReadyContent(
         )
 
         LeaderboardSection(entries = state.leaderboard)
+
+        LeaderboardConfigsSection(
+            configs = state.leaderboardConfigs,
+            jars = state.savingsJars,
+            manage = config,
+            onCreate = onCreateLeaderboardConfig,
+            onUpdate = onUpdateLeaderboardConfig,
+            onDelete = onDeleteLeaderboardConfig,
+            onBlastRadius = onLeaderboardConfigBlastRadius,
+            searchViewers = searchViewers,
+            onOptOut = onOptOutOfLeaderboards,
+            onOptIn = onOptInToLeaderboards,
+        )
 
         AccountsSection(
             accounts = state.accounts,
@@ -994,6 +1069,504 @@ private fun LeaderboardRow(entry: LeaderboardEntry) {
             modifier = Modifier.wrapContentWidth(),
         )
     }
+}
+
+// The leaderboard MANAGEMENT surface (economy.md §5) — the config list (metric/scope/period/visibility/size)
+// plus create/edit/delete and the per-viewer opt-out/opt-in toggle. The backend implemented all of this
+// (EconomyLeaderboardsController) well before the dashboard had any client for it; the ranking card above
+// stays the read-only "what viewers see" projection, this section is where an operator actually shapes it.
+@Composable
+private fun LeaderboardConfigsSection(
+    configs: List<LeaderboardConfig>,
+    jars: List<SavingsJar>,
+    manage: ManageDecision,
+    onCreate: (UpsertLeaderboardConfigBody) -> Unit,
+    onUpdate: (UpsertLeaderboardConfigBody) -> Unit,
+    onDelete: (String) -> Unit,
+    onBlastRadius: suspend (String) -> ApiResult<BlastRadiusSummary>,
+    searchViewers: suspend (query: String) -> List<PickerOption>,
+    onOptOut: (String) -> Unit,
+    onOptIn: (String) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var showCreateDialog: Boolean by remember { mutableStateOf(false) }
+    var editing: LeaderboardConfig? by remember { mutableStateOf(null) }
+    var pendingDelete: LeaderboardConfig? by remember { mutableStateOf(null) }
+    var showOptOut: Boolean by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = stringResource(Res.string.economy_leaderboard_configs_title),
+            style = typography.lg,
+            color = tokens.cardForeground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        ManageGate(decision = manage) { enabled ->
+            Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                TextButton(onClick = { showOptOut = true }, enabled = enabled) {
+                    Text(
+                        text = stringResource(Res.string.economy_leaderboard_opt_out_title),
+                        color = if (enabled) tokens.primary else tokens.mutedForeground,
+                        maxLines = 1,
+                    )
+                }
+                TextButton(onClick = { showCreateDialog = true }, enabled = enabled) {
+                    val addTint: Color = if (enabled) tokens.primary else tokens.mutedForeground
+                    AppIcon(AddGlyph, contentDescription = null, tint = addTint, size = spacing.s4)
+                    Text(
+                        text = stringResource(Res.string.economy_leaderboard_configs_add),
+                        color = addTint,
+                        maxLines = 1,
+                    )
+                }
+            }
+        }
+    }
+
+    if (configs.isEmpty()) {
+        Text(
+            text = stringResource(Res.string.economy_leaderboard_configs_empty),
+            style = typography.sm,
+            color = tokens.mutedForeground,
+        )
+    } else {
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                configs.forEachIndexed { index, cfg ->
+                    LeaderboardConfigRow(
+                        config = cfg,
+                        jars = jars,
+                        manage = manage,
+                        onEdit = { editing = cfg },
+                        onDelete = { pendingDelete = cfg },
+                    )
+                    if (index < configs.lastIndex) {
+                        Separator()
+                    }
+                }
+            }
+        }
+    }
+
+    if (showCreateDialog) {
+        LeaderboardConfigDialog(
+            existing = null,
+            jars = jars,
+            onConfirm = { request ->
+                onCreate(request)
+                showCreateDialog = false
+            },
+            onDismiss = { showCreateDialog = false },
+        )
+    }
+
+    editing?.let { cfg ->
+        LeaderboardConfigDialog(
+            existing = cfg,
+            jars = jars,
+            onConfirm = { request ->
+                onUpdate(request)
+                editing = null
+            },
+            onDismiss = { editing = null },
+        )
+    }
+
+    pendingDelete?.let { cfg ->
+        val name: String = "${cfg.scope} ${cfg.metric} ${cfg.period}"
+        var blastRadius: BlastRadiusLoadState by remember(cfg.id) { mutableStateOf(BlastRadiusLoadState.Loading) }
+        LaunchedEffect(cfg.id) {
+            blastRadius =
+                when (val result: ApiResult<BlastRadiusSummary> = onBlastRadius(cfg.id)) {
+                    is ApiResult.Ok -> BlastRadiusLoadState.Loaded(result.value)
+                    is ApiResult.Failure -> BlastRadiusLoadState.Failed
+                }
+        }
+        DeleteBlastRadiusDialog(
+            title = stringResource(Res.string.economy_leaderboard_config_delete_title),
+            message = stringResource(Res.string.economy_leaderboard_config_delete_message, cfg.scope, cfg.metric),
+            confirmLabel = stringResource(Res.string.economy_leaderboard_config_delete_confirm),
+            dismissLabel = stringResource(Res.string.economy_leaderboard_config_delete_dismiss),
+            blastRadius = blastRadius,
+            onConfirm = {
+                onDelete(cfg.id)
+                pendingDelete = null
+            },
+            onDismiss = { pendingDelete = null },
+        )
+    }
+
+    if (showOptOut) {
+        LeaderboardOptOutDialog(
+            searchViewers = searchViewers,
+            onOptOut = { viewerUserId -> onOptOut(viewerUserId) },
+            onOptIn = { viewerUserId -> onOptIn(viewerUserId) },
+            onDismiss = { showOptOut = false },
+        )
+    }
+}
+
+@Composable
+private fun LeaderboardConfigRow(
+    config: LeaderboardConfig,
+    jars: List<SavingsJar>,
+    manage: ManageDecision,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val scopeLabel: String =
+        if (config.scope.equals("jar", ignoreCase = true)) {
+            jars.firstOrNull { it.id == config.jarId }?.name
+                ?: stringResource(Res.string.economy_leaderboard_config_scope_jar)
+        } else {
+            stringResource(Res.string.economy_leaderboard_config_scope_channel)
+        }
+    val metricLabel: String = leaderboardMetricLabel(config.metric)
+    val periodLabel: String = leaderboardPeriodLabel(config.period)
+    val visibilityLabel: String =
+        stringResource(
+            if (config.isPublic) Res.string.economy_leaderboard_config_public
+            else Res.string.economy_leaderboard_config_private
+        )
+    val displayName: String = "$scopeLabel / $metricLabel / $periodLabel"
+    val rowDescription: String =
+        stringResource(
+            Res.string.economy_leaderboard_config_row_description,
+            scopeLabel,
+            metricLabel,
+            periodLabel,
+            config.topN,
+        )
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .clearAndSetSemantics { contentDescription = rowDescription },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+        ) {
+            Text(
+                text = displayName,
+                style = typography.base,
+                color = tokens.cardForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = visibilityLabel,
+                style = typography.sm,
+                color = tokens.mutedForeground,
+                maxLines = 1,
+                modifier = Modifier.wrapContentWidth(),
+            )
+            Text(
+                text = "top ${config.topN}",
+                style = typography.sm,
+                color = tokens.mutedForeground,
+                maxLines = 1,
+                modifier = Modifier.wrapContentWidth(),
+            )
+        }
+        ManageGate(decision = manage) { enabled ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                val editLabel: String =
+                    stringResource(Res.string.economy_leaderboard_config_edit_action, displayName)
+                GlyphButton(
+                    icon = EditGlyph,
+                    label = editLabel,
+                    onClick = onEdit,
+                    enabled = enabled,
+                    tint = if (enabled) tokens.primary else tokens.mutedForeground,
+                )
+                val deleteLabel: String =
+                    stringResource(Res.string.economy_leaderboard_config_delete_action, displayName)
+                GlyphButton(
+                    icon = TrashGlyph,
+                    label = deleteLabel,
+                    onClick = onDelete,
+                    enabled = enabled,
+                    tint = tokens.destructive,
+                )
+            }
+        }
+    }
+}
+
+private val LeaderboardMetricOptions: List<Pair<String, StringResource>> =
+    listOf(
+        "balance" to Res.string.economy_leaderboard_config_metric_balance,
+        "earned" to Res.string.economy_leaderboard_config_metric_earned,
+        "spent" to Res.string.economy_leaderboard_config_metric_spent,
+    )
+
+@Composable
+private fun leaderboardMetricLabel(token: String): String =
+    stringResource(
+        LeaderboardMetricOptions.firstOrNull { it.first.equals(token, ignoreCase = true) }?.second
+            ?: Res.string.economy_leaderboard_config_metric_balance
+    )
+
+private val LeaderboardPeriodOptions: List<Pair<String, StringResource>> =
+    listOf(
+        "alltime" to Res.string.economy_leaderboard_config_period_alltime,
+        "daily" to Res.string.economy_leaderboard_config_period_daily,
+        "weekly" to Res.string.economy_leaderboard_config_period_weekly,
+        "monthly" to Res.string.economy_leaderboard_config_period_monthly,
+    )
+
+@Composable
+private fun leaderboardPeriodLabel(token: String): String =
+    stringResource(
+        LeaderboardPeriodOptions.firstOrNull { it.first.equals(token, ignoreCase = true) }?.second
+            ?: Res.string.economy_leaderboard_config_period_alltime
+    )
+
+/**
+ * The leaderboard config create/edit form: what it ranks by (metric), the channel or one savings jar (scope +
+ * jar picker), the time window (period), visibility to viewers, and how many rows to show. [existing] null =
+ * create; non-null = edit (seeds every field from the loaded config, addressed by its id on save).
+ */
+@Composable
+private fun LeaderboardConfigDialog(
+    existing: LeaderboardConfig?,
+    jars: List<SavingsJar>,
+    onConfirm: (UpsertLeaderboardConfigBody) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var metric: String by remember { mutableStateOf(existing?.metric?.ifBlank { "balance" } ?: "balance") }
+    var metricMenuOpen: Boolean by remember { mutableStateOf(false) }
+    var scope: String by remember { mutableStateOf(existing?.scope?.ifBlank { "channel" } ?: "channel") }
+    var scopeMenuOpen: Boolean by remember { mutableStateOf(false) }
+    var jarId: String? by remember { mutableStateOf(existing?.jarId) }
+    var jarMenuOpen: Boolean by remember { mutableStateOf(false) }
+    var period: String by remember { mutableStateOf(existing?.period?.ifBlank { "alltime" } ?: "alltime") }
+    var periodMenuOpen: Boolean by remember { mutableStateOf(false) }
+    var isPublic: Boolean by remember { mutableStateOf(existing?.isPublic ?: true) }
+    var topNText: String by remember { mutableStateOf((existing?.topN ?: 10).toString()) }
+    var topNError: Boolean by remember { mutableStateOf(false) }
+
+    val isJarScope: Boolean = scope.equals("jar", ignoreCase = true)
+    val selectedJarLabel: String =
+        jars.firstOrNull { it.id == jarId }?.name
+            ?: jars.firstOrNull()?.name
+            ?: stringResource(Res.string.economy_leaderboard_config_jar_none)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text =
+                    stringResource(
+                        if (existing == null) Res.string.economy_leaderboard_config_create_title
+                        else Res.string.economy_leaderboard_config_edit_title
+                    ),
+                style = typography.lg,
+                color = tokens.cardForeground,
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(spacing.s3),
+            ) {
+                EconomyPickerField(
+                    label = stringResource(Res.string.economy_leaderboard_config_metric_label),
+                    value = leaderboardMetricLabel(metric),
+                    expanded = metricMenuOpen,
+                    onExpandedChange = { metricMenuOpen = it },
+                ) {
+                    LeaderboardMetricOptions.forEach { (token, res) ->
+                        DropdownMenuItem(
+                            text = { Text(stringResource(res), color = tokens.cardForeground) },
+                            onClick = { metric = token; metricMenuOpen = false },
+                        )
+                    }
+                }
+                EconomyPickerField(
+                    label = stringResource(Res.string.economy_leaderboard_config_scope_label),
+                    value =
+                        stringResource(
+                            if (isJarScope) Res.string.economy_leaderboard_config_scope_jar
+                            else Res.string.economy_leaderboard_config_scope_channel
+                        ),
+                    expanded = scopeMenuOpen,
+                    onExpandedChange = { scopeMenuOpen = it },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(Res.string.economy_leaderboard_config_scope_channel), color = tokens.cardForeground) },
+                        onClick = { scope = "channel"; jarId = null; scopeMenuOpen = false },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(Res.string.economy_leaderboard_config_scope_jar), color = tokens.cardForeground) },
+                        onClick = {
+                            scope = "jar"
+                            if (jarId == null) jarId = jars.firstOrNull()?.id
+                            scopeMenuOpen = false
+                        },
+                    )
+                }
+                if (isJarScope) {
+                    EconomyPickerField(
+                        label = stringResource(Res.string.economy_leaderboard_config_jar_label),
+                        value = selectedJarLabel,
+                        expanded = jarMenuOpen,
+                        onExpandedChange = { jarMenuOpen = it },
+                    ) {
+                        jars.forEach { jar ->
+                            DropdownMenuItem(
+                                text = { Text(jar.name, color = tokens.cardForeground) },
+                                onClick = { jarId = jar.id; jarMenuOpen = false },
+                            )
+                        }
+                    }
+                }
+                EconomyPickerField(
+                    label = stringResource(Res.string.economy_leaderboard_config_period_label),
+                    value = leaderboardPeriodLabel(period),
+                    expanded = periodMenuOpen,
+                    onExpandedChange = { periodMenuOpen = it },
+                ) {
+                    LeaderboardPeriodOptions.forEach { (token, res) ->
+                        DropdownMenuItem(
+                            text = { Text(stringResource(res), color = tokens.cardForeground) },
+                            onClick = { period = token; periodMenuOpen = false },
+                        )
+                    }
+                }
+                SwitchRow(
+                    label = stringResource(Res.string.economy_leaderboard_config_public_label),
+                    checked = isPublic,
+                    onCheckedChange = { isPublic = it },
+                    enabled = true,
+                )
+                AppTextField(
+                    value = topNText,
+                    onValueChange = { topNText = it; topNError = false },
+                    label = stringResource(Res.string.economy_leaderboard_config_top_n_label),
+                    isError = topNError,
+                    errorText = stringResource(Res.string.economy_leaderboard_config_top_n_invalid),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                val topN: Int? = topNText.trim().toIntOrNull()?.takeIf { it > 0 }
+                topNError = topN == null
+                if (!topNError) {
+                    onConfirm(
+                        UpsertLeaderboardConfigBody(
+                            id = existing?.id,
+                            metric = metric,
+                            scope = scope,
+                            period = period,
+                            isPublic = isPublic,
+                            topN = topN!!,
+                            jarId = if (isJarScope) jarId else null,
+                        )
+                    )
+                }
+            }) {
+                Text(
+                    stringResource(
+                        if (existing == null) Res.string.economy_leaderboard_config_create
+                        else Res.string.economy_leaderboard_config_save
+                    )
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.economy_leaderboard_config_cancel))
+            }
+        },
+    )
+}
+
+/**
+ * A single-purpose opt-out/opt-in control: search a viewer, then either hide them from every ranking or
+ * restore them. Not tied to any one config — [EconomyApi.optOutOfLeaderboards]/[optInToLeaderboards] apply
+ * channel-wide, per rewards.md/economy.md's opt-out model.
+ */
+@Composable
+private fun LeaderboardOptOutDialog(
+    searchViewers: suspend (query: String) -> List<PickerOption>,
+    onOptOut: (String) -> Unit,
+    onOptIn: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+
+    var picked: PickerRef? by remember { mutableStateOf(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.economy_leaderboard_opt_out_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                SearchPickerField(
+                    search = searchViewers,
+                    selected = picked,
+                    onSelect = { picked = it },
+                    onClear = { picked = null },
+                    label = stringResource(Res.string.economy_leaderboard_opt_out_search_label),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { picked?.let { p -> onOptOut(p.id) }; onDismiss() },
+                enabled = picked != null,
+            ) {
+                Text(
+                    stringResource(Res.string.economy_leaderboard_opt_out_confirm),
+                    color = if (picked != null) tokens.destructive else tokens.mutedForeground,
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = { picked?.let { p -> onOptIn(p.id) }; onDismiss() },
+                enabled = picked != null,
+            ) {
+                Text(
+                    stringResource(Res.string.economy_leaderboard_opt_in_confirm),
+                    color = if (picked != null) tokens.primary else tokens.mutedForeground,
+                )
+            }
+        },
+    )
 }
 
 // The account-admin list (economy.md §4): one row per viewer account — the holder (Twitch id), a frozen flag,
