@@ -11,10 +11,12 @@
 package bot.nomnomz.dashboard.feature.chat.state
 
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.ChannelBanOutcome
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ChatApi
 import bot.nomnomz.dashboard.core.network.ChatMessage
+import bot.nomnomz.dashboard.core.network.NetworkBanResult
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -106,6 +108,76 @@ class MultiChatController(
                 watched = ready.watched.filterNot { it.id == channelId },
                 messages = ready.messages.filterNot { it.channelId == channelId },
             )
+    }
+
+    /**
+     * Send [message] to [channelId]'s chat as the bot (the same `POST .../chat/messages` call the single-channel
+     * Chat page uses — [ChatApi.send]). The composer lets a mod reply into any ONE of the currently watched
+     * channels without leaving the merged feed. The sent line arrives back through the live hub push like any
+     * other message; a failure surfaces as [MultiChatState.Ready.actionError].
+     */
+    suspend fun sendMessage(channelId: String, message: String) {
+        if (message.isBlank()) return
+        runModerationCall { chatApi.send(channelId, message) }
+    }
+
+    /**
+     * Delete [messageId] from [channelId]'s chat (the same `DELETE .../chat/messages/{id}` call the single-channel
+     * Chat page uses — [ChatApi.deleteMessage]) — an inline moderation quick-action from the merged feed. On
+     * success the line is dropped from the local feed immediately (the backend delete is not itself echoed back
+     * over the hub); a failure surfaces as [MultiChatState.Ready.actionError].
+     */
+    suspend fun deleteMessage(channelId: String, messageId: String) {
+        runModerationCall(
+            call = { chatApi.deleteMessage(channelId, messageId) },
+            onSuccess = { ready, _ -> ready.copy(messages = ready.messages.filterNot { it.id == messageId }) },
+        )
+    }
+
+    /**
+     * Timeout [userId] in [channelId] for [durationSeconds] (the same `POST .../moderation/actions` call the
+     * single-channel Chat page uses — [ChatApi.timeout]) — an inline moderation quick-action from the merged feed.
+     * A failure surfaces as [MultiChatState.Ready.actionError].
+     */
+    suspend fun timeoutUser(channelId: String, userId: String, durationSeconds: Int = ChatApi.DEFAULT_TIMEOUT_SECONDS) {
+        runModerationCall { chatApi.timeout(channelId, userId, durationSeconds) }
+    }
+
+    /**
+     * Ban [userId] from [channelId] only ("this_channel" scope, the same `POST .../moderation/actions/ban` call
+     * the single-channel Chat page uses — [ChatApi.banUser]) — an inline moderation quick-action from the merged
+     * feed. A failure (network or a per-channel rejection reported inside the result) surfaces as
+     * [MultiChatState.Ready.actionError].
+     */
+    suspend fun banUser(channelId: String, userId: String) {
+        runModerationCall(
+            call = { chatApi.banUser(channelId, userId, scope = "this_channel") },
+            onSuccess = { ready, banResult ->
+                val outcome: ChannelBanOutcome? = banResult.channels.firstOrNull()
+                if (outcome != null && !outcome.succeeded) ready.copy(actionError = outcome.error) else ready
+            },
+        )
+    }
+
+    // The one place a chat mutation's [ApiResult] turns into a state update: on [ApiResult.Failure] it stamps
+    // [MultiChatState.Ready.actionError] with the backend's message; on [ApiResult.Ok] it clears any prior
+    // actionError and applies [onSuccess] (defaulting to a no-op) to the cleared state, given the call's own
+    // result value — the single mechanism [sendMessage]/[deleteMessage]/[timeoutUser]/[banUser] all share,
+    // rather than four repeats of the same when-branch.
+    private suspend fun <T> runModerationCall(
+        onSuccess: (MultiChatState.Ready, T) -> MultiChatState.Ready = { ready, _ -> ready },
+        call: suspend () -> ApiResult<T>,
+    ) {
+        when (val result: ApiResult<T> = call()) {
+            is ApiResult.Failure -> {
+                val current: MultiChatState.Ready = _state.value as? MultiChatState.Ready ?: return
+                _state.value = current.copy(actionError = result.error.message)
+            }
+            is ApiResult.Ok -> {
+                val current: MultiChatState.Ready = _state.value as? MultiChatState.Ready ?: return
+                _state.value = onSuccess(current.copy(actionError = null), result.value)
+            }
+        }
     }
 
     /**
