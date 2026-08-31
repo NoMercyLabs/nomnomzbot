@@ -1019,6 +1019,14 @@
     <string name="songrequests_config_enabled">Song requests enabled</string>
     <string name="songrequests_config_allow_spotify">Allow Spotify requests</string>
     <string name="songrequests_config_allow_youtube">Allow YouTube requests</string>
+    <string name="songrequests_config_provider">Preferred provider</string>
+    <string name="songrequests_config_provider_auto">Auto</string>
+    <string name="songrequests_config_provider_spotify">Spotify</string>
+    <string name="songrequests_config_provider_youtube">YouTube</string>
+    <string name="songrequests_config_max_queue">Max queue size</string>
+    <string name="songrequests_config_max_per_user">Max per user</string>
+    <string name="songrequests_config_trust">Minimum trust level</string>
+    <string name="songrequests_config_save">Save</string>
     <string name="songrequests_token_title">Song Request Page Link</string>
     <string name="songrequests_token_copy">Copy</string>
     <string name="songrequests_token_rotate">Rotate link…</string>
@@ -2379,18 +2387,6 @@
     <string name="music_add_requested_by">Requested by</string>
     <string name="music_add_action">Add</string>
     <!-- Music: config -->
-    <string name="music_config_title">Song Request Settings</string>
-    <string name="music_config_enabled">Enabled</string>
-    <string name="music_config_provider">Preferred provider</string>
-    <string name="music_config_provider_auto">Auto</string>
-    <string name="music_config_provider_spotify">Spotify</string>
-    <string name="music_config_provider_youtube">YouTube</string>
-    <string name="music_config_max_queue">Max queue size</string>
-    <string name="music_config_max_per_user">Max per user</string>
-    <string name="music_config_allow_youtube">Allow YouTube</string>
-    <string name="music_config_allow_spotify">Allow Spotify</string>
-    <string name="music_config_trust">Minimum trust level</string>
-    <string name="music_config_save">Save</string>
     <!-- Music: SR-page token -->
     <string name="music_token_title">SR Page Link</string>
     <string name="music_token_value">Token: %1$s</string>
@@ -2430,6 +2426,8 @@
     <string name="music_blocked_unblock_dismiss">Cancel</string>
     <string name="music_block_form_title">Block a track</string>
     <string name="music_block_provider">Provider</string>
+    <string name="music_block_provider_spotify">Spotify</string>
+    <string name="music_block_provider_youtube">YouTube</string>
     <string name="music_block_uri">Track URI</string>
     <string name="music_block_track_title">Title</string>
     <string name="music_block_reason">Reason (optional)</string>
