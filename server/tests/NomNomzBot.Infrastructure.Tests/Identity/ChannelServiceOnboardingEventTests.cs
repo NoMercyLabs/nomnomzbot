@@ -12,6 +12,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -55,7 +56,8 @@ public sealed class ChannelServiceOnboardingEventTests
             db,
             new FakeTimeProvider(Now),
             bus,
-            Substitute.For<IChannelRegistry>()
+            Substitute.For<IChannelRegistry>(),
+            Substitute.For<ITwitchEventSubService>()
         );
 
         Result<ChannelDto> result = await sut.OnboardAsync(
@@ -109,7 +111,8 @@ public sealed class ChannelServiceOnboardingEventTests
             db,
             new FakeTimeProvider(Now),
             bus,
-            Substitute.For<IChannelRegistry>()
+            Substitute.For<IChannelRegistry>(),
+            Substitute.For<ITwitchEventSubService>()
         );
 
         Result<ChannelDto> result = await sut.OnboardAsync(
@@ -152,7 +155,8 @@ public sealed class ChannelServiceOnboardingEventTests
             db,
             new FakeTimeProvider(Now),
             bus,
-            Substitute.For<IChannelRegistry>()
+            Substitute.For<IChannelRegistry>(),
+            Substitute.For<ITwitchEventSubService>()
         );
         CreateChannelRequest request = new() { BroadcasterId = ownerId.ToString() };
 

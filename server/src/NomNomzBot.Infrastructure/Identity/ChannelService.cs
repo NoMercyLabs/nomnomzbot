@@ -11,6 +11,7 @@
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity;
@@ -19,6 +20,7 @@ using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.BackgroundServices;
 
 namespace NomNomzBot.Infrastructure.Identity;
 
@@ -28,18 +30,21 @@ public class ChannelService : IChannelService
     private readonly TimeProvider _timeProvider;
     private readonly IEventBus _eventBus;
     private readonly IChannelRegistry _registry;
+    private readonly ITwitchEventSubService _eventSub;
 
     public ChannelService(
         IApplicationDbContext db,
         TimeProvider timeProvider,
         IEventBus eventBus,
-        IChannelRegistry registry
+        IChannelRegistry registry,
+        ITwitchEventSubService eventSub
     )
     {
         _db = db;
         _timeProvider = timeProvider;
         _eventBus = eventBus;
         _registry = registry;
+        _eventSub = eventSub;
     }
 
     public async Task<Result> JoinAsync(
@@ -62,6 +67,15 @@ public class ChannelService : IChannelService
         channel.BotJoinedAt = _timeProvider.GetUtcNow().UtcDateTime;
 
         await _db.SaveChangesAsync(cancellationToken);
+
+        // Take effect now, not on BotLifecycleService's next 5-minute reconcile tick — EnsureSubscribedAsync
+        // is idempotent so it is safe even if the periodic reconcile also picks this channel up.
+        await _eventSub.EnsureSubscribedAsync(
+            broadcasterGuid,
+            BotLifecycleService.ChannelEventTypes,
+            cancellationToken
+        );
+
         return Result.Success();
     }
 
@@ -84,6 +98,10 @@ public class ChannelService : IChannelService
         channel.Enabled = false;
 
         await _db.SaveChangesAsync(cancellationToken);
+
+        // Take effect now, not on BotLifecycleService's next 5-minute reconcile tick.
+        await _eventSub.UnsubscribeAllAsync(broadcasterGuid, cancellationToken);
+
         return Result.Success();
     }
 
@@ -338,13 +356,26 @@ public class ChannelService : IChannelService
                 request.BotLinePrefix.Length == 0 ? null : request.BotLinePrefix;
         if (request.Locale is not null)
             channel.Language = request.Locale;
-        if (request.AutoJoin.HasValue)
-            channel.Enabled = request.AutoJoin.Value;
+        bool? autoJoinChangedTo = null;
+        if (request.AutoJoin.HasValue && request.AutoJoin.Value != channel.Enabled)
+            autoJoinChangedTo = channel.Enabled = request.AutoJoin.Value;
         if (request.Timezone is not null)
             channel.User.Timezone = request.Timezone.Length == 0 ? null : request.Timezone;
 
         await _db.SaveChangesAsync(cancellationToken);
         await _registry.InvalidateSettingsAsync(broadcasterGuid, cancellationToken);
+
+        // Take effect now, not on BotLifecycleService's next 5-minute reconcile tick — the dashboard's
+        // auto-join toggle must actually connect/disconnect the channel's EventSub presence immediately.
+        if (autoJoinChangedTo == true)
+            await _eventSub.EnsureSubscribedAsync(
+                broadcasterGuid,
+                BotLifecycleService.ChannelEventTypes,
+                cancellationToken
+            );
+        else if (autoJoinChangedTo == false)
+            await _eventSub.UnsubscribeAllAsync(broadcasterGuid, cancellationToken);
+
         await _eventBus.PublishAsync(
             new ChannelConfigChangedEvent
             {
