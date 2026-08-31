@@ -116,6 +116,7 @@
     <string name="setup_error_bot">Bot authorization failed: %1$s</string>
     <string name="setup_error_bot_unreachable">Couldn't reach your bot's API. Check that it's running and try again.</string>
     <string name="setup_error_signin">Twitch sign-in failed. Please try again.</string>
+    <string name="setup_error_basics">Couldn't save your basics: %1$s</string>
     <string name="setup_copy_action">Copy</string>
     <string name="setup_copy_done">Copied</string>
     <string name="setup_step_twitch_app_title">Connect your Twitch application</string>

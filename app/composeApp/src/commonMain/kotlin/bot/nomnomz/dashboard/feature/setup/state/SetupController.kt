@@ -14,6 +14,7 @@ import bot.nomnomz.dashboard.core.connection.ConnectLauncher
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.BotAuthApi
+import bot.nomnomz.dashboard.core.network.ChannelBasics
 import bot.nomnomz.dashboard.core.network.ChannelSettingsApi
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -264,15 +265,17 @@ class SetupController(
         }
         // The streamer session is live; finalize setup so the credential endpoints lock to admins.
         systemApi.completeSetup()
-        // Persist the onboarding basics to the streamer's now-onboarded channel. Best-effort and AFTER
-        // completion: a channel not yet resolvable, or a rejected write, must never block finishing setup —
-        // the Settings "Bot basics" card is the durable home for these and reaches the same PUT.
+        // Persist the onboarding basics to the streamer's now-onboarded channel. Setup itself is already
+        // finalized at this point (never blocked on this write), but a rejected/failed write is a real
+        // failure the operator must see and can retry from — never swallowed. On success, S070 clears busy
+        // with no error; on failure, busy clears and the real backend error message is surfaced instead —
+        // the wizard stays on the review step (no further step exists to advance past).
         applyBasics()
     }
 
     // Resolve the signed-in streamer's channel and PUT the collected basics. A blank prefix falls back to the
     // conventional "!" so onboarding never persists an empty (match-everything) prefix; blank locale/timezone
-    // are sent as null (leave unchanged). Silent on failure — this is a nice-to-have, not a setup gate.
+    // are sent as null (leave unchanged).
     //
     // The bot-line marker (D5: "the bot types as the streamer's own account with a user-defined line prefix"
     // until a dedicated bot account connects) is a SEPARATE field from the command prefix above — it must
@@ -280,23 +283,38 @@ class SetupController(
     // "Bot basics" tab enforces (SettingsScreen.kt BasicsForm): once the platform_bot step is complete, the
     // marker is left unchanged (null) rather than overwritten with whatever the user typed before connecting;
     // otherwise the trimmed value the user entered on the review step is persisted as the actual line prefix.
+    //
+    // S070: neither failure path here is silent — a channel that can't be resolved, or a rejected write,
+    // surfaces the backend's real error message via [SetupError.Basics] rather than leaving the operator with
+    // no feedback (or a state that only LOOKS like it succeeded).
     private suspend fun applyBasics() {
+        val current: SetupState.Steps = _state.value as? SetupState.Steps ?: return
+
         val channel: ChannelSummary =
             when (val result: ApiResult<ChannelSummary> = channelsApi.primaryChannel()) {
-                is ApiResult.Failure -> return
+                is ApiResult.Failure -> {
+                    _state.value = current.copy(busy = null, error = SetupError.Basics(result.error.message))
+                    return
+                }
                 is ApiResult.Ok -> result.value
             }
         val prefix: String = basics.prefix.trim().ifEmpty { "!" }
         val platformBotConnected: Boolean = (_state.value as? SetupState.Steps)?.platformBotConnected == true
-        channelSettingsApi.updateBasics(
-            channel.id,
-            UpdateBasicsBody(
-                prefix = prefix,
-                locale = basics.locale.trim().ifEmpty { null },
-                timezone = basics.timezone.trim().ifEmpty { null },
-                botLinePrefix = if (platformBotConnected) null else basics.botLinePrefix.trim(),
-            ),
-        )
+        val result: ApiResult<ChannelBasics> =
+            channelSettingsApi.updateBasics(
+                channel.id,
+                UpdateBasicsBody(
+                    prefix = prefix,
+                    locale = basics.locale.trim().ifEmpty { null },
+                    timezone = basics.timezone.trim().ifEmpty { null },
+                    botLinePrefix = if (platformBotConnected) null else basics.botLinePrefix.trim(),
+                ),
+            )
+
+        when (result) {
+            is ApiResult.Failure -> _state.value = current.copy(busy = null, error = SetupError.Basics(result.error.message))
+            is ApiResult.Ok -> _state.value = current.copy(busy = null, error = null)
+        }
     }
 
     // Re-read the wizard + readiness from the backend and rebuild the steps state. Preserves the user's
@@ -458,4 +476,7 @@ sealed interface SetupError {
 
     /** The final streamer sign-in failed. */
     data object SignIn : SetupError
+
+    /** Persisting the review step's onboarding basics (prefix/locale/timezone/bot-line-prefix) failed. */
+    data class Basics(val detail: String) : SetupError
 }
