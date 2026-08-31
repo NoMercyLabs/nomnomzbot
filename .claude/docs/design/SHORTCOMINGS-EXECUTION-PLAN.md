@@ -395,37 +395,30 @@ later.)
   `ActionType`/four-sync-field gaps, the rewards poll's missing backoff, load failures silently rendering as
   "empty", and the bundle-import D2 promise ("sync pushes it to Twitch later") — `SyncWithTwitchAsync` now
   actually does that, best-effort per reward.
-- **S065** Giveaways reach — eligibility/weighting/prize pipeline in dialog; `ClosesAt` auto-close;
-  entries endpoint + list; platform-generic DM delivery (U·B2, spec `giveaways.md`). Done-when: a
-  weighted sub giveaway runs end to end. DONE: pool picker guard (417462d4 — the code-pool picker
-  rendered every pool as selectable regardless of `available`; a broadcaster could bind a prize to an
-  already-exhausted pool. A zero-`available` pool now shows "no codes left" and is disabled, except
-  the currently-selected one so switching away mid-edit doesn't strand the form. The "already-bound
-  to another giveaway" half of this guard was NOT added — no backend concept of it exists yet and two
-  giveaways racing for the same pool's codes is a real but non-fatal foot-gun, not the fulfillment
-  bug the zero-`available` case was). DONE: code labels (26ee0534 —
-  the backend always accepted `CodeInput.Label`/`GiveawayCode.Label` but the bulk add-codes textarea
-  only ever sent `CodeInput(code)`; a code could never be named from the UI. Each line now optionally
-  carries `"CODE | a label"`, parsed in `GiveawaysController.addCodes` before the wire body). DONE:
-  zero-value-out gate for
-  code-pool prizes (002f9d2e/c132fdd0 — `GiveawayService.Validate()` had NO check at all; a
-  broadcaster could configure and run "pay points → win a real-value game key" with no gate
-  whatsoever, exactly the gambling scenario D5 exists to close. Added `Giveaway.Requires18Plus`
-  mirroring `GameConfig.Requires18Plus`/`GameService`'s existing `IAgeConsentService` gate:
-  `Validate()` refuses a paid `code_pool` giveaway unless it's explicitly on
-  (`VALUE_OUT_PAID_ENTRY`), `EnterAsync()` then requires each entrant to pass the 18+ gate
-  (`AGE_CONSENT_REQUIRED`). Free-entry `code_pool` and every other prize mode stay ungated. **Not yet
-  settable from the dashboard** — the `Requires18Plus` toggle needs adding when the dialog rework
-  below happens; until then the gate fails closed, which is the safe default). Investigation
-  (2026-08-31, not yet acted on) found the backend weighted-draw math (`ComputeTickets`,
-  `BuildCandidatePoolAsync`, CSPRNG weighted pick, currency/pipeline/code-pool fulfillment) is solid
-  and spec-accurate; every remaining sub-item above is a dashboard-exposure gap or a genuinely
-  missing backend piece — see the full per-sub-item breakdown that should be re-derived from the code
-  (`GiveawaysScreen.kt`'s `GiveawayFormDialog` has no eligibility/weighting/pipeline/`ClosesAt` UI at
-  all; no `ClosesAt` auto-close worker exists; no entries list endpoint;
-  `GiveawayFulfillment.FulfillCodeAsync` is hardcoded to `ITwitchWhispersApi`, no
-  `IPlatformDirectMessageSender` exists, `GiveawayEntry`/`GiveawayWinner` carry no `Provider`/
-  `ProviderUserId`).
+- **S065** Giveaways reach — spec `giveaways.md`. Done-when: a weighted sub giveaway runs end to end
+  (U·B2). Backend weighted-draw math (`ComputeTickets`, `BuildCandidatePoolAsync`, CSPRNG weighted
+  pick, currency/pipeline/code-pool fulfillment) is solid and spec-accurate (2026-08-31 audit); four
+  of six sub-items shipped this pass, all self-contained fixes/additions, none touching the draw math:
+  value-out gate for paid code-pool prizes (002f9d2e/c132fdd0 — `Giveaway.Requires18Plus` +
+  `IAgeConsentService`, same pattern as `GameConfig`/`GameService`; **not yet settable from the
+  dashboard**, deferred to the dialog rework below, fails closed in the meantime); code labels
+  (26ee0534 — bulk add-codes now accepts `"CODE | a label"`); pool picker guard (417462d4 — a
+  zero-`available` pool is disabled in the prize picker; the "already-bound to another giveaway" half
+  was explicitly NOT added, no backend concept of it exists and it's a non-fatal foot-gun, not a
+  fulfillment bug); `ClosesAt` auto-close (501225e5 — `Giveaway.ScheduledCloseAt` target field +
+  `GiveawayAutoCloseWorker` 1-minute sweep, mirrors `GiveawayClaimSweepWorker`; **not yet settable
+  from the dashboard** either, same deferral). **Still open, both large:**
+  - Eligibility/weighting/prize-pipeline/`ClosesAt` dialog UI — `GiveawaysScreen.kt`'s
+    `GiveawayFormDialog` has NONE of these fields; a broadcaster cannot configure sub-luck weighting,
+    eligibility filters, a pipeline prize, or a scheduled close time from the dashboard at all (the
+    wire contracts are all ready, this is purely the missing form). This is the actual done-when
+    blocker — closing it should also add the `Requires18Plus`/`ScheduledCloseAt` toggles deferred
+    above.
+  - Entries endpoint + list (no `GET /{id}/entries`, `IGiveawayService` has no `ListEntriesAsync`) and
+    platform-generic DM delivery (`GiveawayFulfillment.FulfillCodeAsync` hardcoded to
+    `ITwitchWhispersApi`; no `IPlatformDirectMessageSender`; `GiveawayEntry`/`GiveawayWinner` carry no
+    `Provider`/`ProviderUserId` — a Kick/YouTube/X-only broadcaster's code-pool winner can never
+    receive their code today).
 - **S066** Moderation reach — chat-filters screen; AutoMod settings; AutoMod held-message queue; mod
   add/remove endpoints + UI; clear chat; full `AutomodConfigDto`; concurrency guard on whole-config
   POST; chat-settings slow/followers/unique/non-mod fields (U·B3). Done-when: a mod approves a held
