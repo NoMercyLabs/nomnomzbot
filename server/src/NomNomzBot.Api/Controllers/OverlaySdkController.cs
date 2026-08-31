@@ -96,16 +96,52 @@ public sealed class OverlaySdkController : ControllerBase
             return proto + location.host + "/hubs/overlay?ticket=" + encodeURIComponent(ticket || "");
           }
 
+          // Visible-in-OBS banner for a rejected token — "silently blank" is the bug this exists to prevent
+          // (S062): a streamer glancing at their OBS preview must SEE that a widget's token was revoked or
+          // is otherwise wrong, not just an empty browser source with an error only visible in devtools.
+          var BANNER_ID = "__nomnomz_overlay_banner";
+          function showBanner(message) {
+            var el = document.getElementById(BANNER_ID);
+            if (!el) {
+              el = document.createElement("div");
+              el.id = BANNER_ID;
+              el.style.cssText =
+                "position:fixed;left:8px;top:8px;z-index:2147483647;padding:6px 12px;" +
+                "background:rgba(153,27,27,.9);color:#fff;border-radius:6px;" +
+                "font:13px system-ui,sans-serif;max-width:80vw";
+              (document.body || document.documentElement).appendChild(el);
+            }
+            el.textContent = message;
+          }
+          function hideBanner() {
+            var el = document.getElementById(BANNER_ID);
+            if (el) el.parentNode.removeChild(el);
+          }
+
           function fetchTicket() {
             return fetch("/overlay/ticket", { method: "POST", headers: { "X-Overlay-Token": token || "" } })
-              .then(function (r) { if (!r.ok) throw new Error("ticket request failed: " + r.status); return r.json(); })
+              .then(function (r) {
+                if (r.status === 401 || r.status === 403) {
+                  var err = new Error("ticket rejected: " + r.status);
+                  err.rejected = true;
+                  throw err;
+                }
+                if (!r.ok) throw new Error("ticket request failed: " + r.status);
+                return r.json();
+              })
               .then(function (body) { return body.ticket; });
           }
 
           function connect() {
-            if (!token) { console.error("[widget] missing token — cannot connect to the overlay hub"); return; }
-            fetchTicket().then(openSocket).catch(function (e) {
+            if (!token) {
+              console.error("[widget] missing token — cannot connect to the overlay hub");
+              showBanner("Widget token invalid or revoked — reconnect from the dashboard");
+              return;
+            }
+            fetchTicket().then(function (ticket) { hideBanner(); openSocket(ticket); }).catch(function (e) {
               console.error("[widget] could not obtain an overlay ticket:", e);
+              if (e && e.rejected)
+                showBanner("Widget token invalid or revoked — reconnect from the dashboard");
               setTimeout(connect, backoffMs);
               backoffMs = Math.min(backoffMs * 2, 30000);
             });
