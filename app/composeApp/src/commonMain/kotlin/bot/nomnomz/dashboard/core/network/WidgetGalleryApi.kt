@@ -29,16 +29,19 @@ import kotlinx.serialization.json.JsonObject
 interface WidgetGalleryApi {
     /**
      * Browse the widget catalogue, newest page first. Optional [framework] / [trustTier] narrow the list; a
-     * blank/null filter is omitted. [reviewStatus] is the REVIEWER-only queue filter (`submitted` / `in_review`
-     * / `verified` / `rejected`) — the backend ignores it for a non-reviewer, so an unfiltered browse omits it.
+     * blank/null filter is omitted. [search] is a case-insensitive substring match against name OR description.
+     * [reviewStatus] is the REVIEWER-only queue filter (`submitted` / `in_review` / `verified` / `rejected`) —
+     * the backend ignores it for a non-reviewer, so an unfiltered browse omits it. Returns a [GalleryPage] so the
+     * browse dialog can offer "load more" instead of silently truncating past [pageSize].
      */
     suspend fun listGallery(
         framework: String? = null,
         trustTier: String? = null,
         reviewStatus: String? = null,
+        search: String? = null,
         page: Int = 1,
         pageSize: Int = 50,
-    ): ApiResult<List<GalleryItemSummary>>
+    ): ApiResult<GalleryPage>
 
     /** One gallery item in full — carries its [GalleryItemDetail.sourceCode] + default config + review metadata. */
     suspend fun getGalleryItem(galleryItemId: String): ApiResult<GalleryItemDetail>
@@ -62,20 +65,23 @@ class RestWidgetGalleryApi(private val client: ApiClient) : WidgetGalleryApi {
         framework: String?,
         trustTier: String?,
         reviewStatus: String?,
+        search: String?,
         page: Int,
         pageSize: Int,
-    ): ApiResult<List<GalleryItemSummary>> {
-        // The list is a PaginatedResponse (a flat `{ data: [...] }`), read whole-body with getDirect — same shape
-        // as the widgets / commands lists. The filters append only when set so an unfiltered browse omits them.
+    ): ApiResult<GalleryPage> {
+        // The list is a PaginatedResponse (`{ data: [...], hasMore, nextPage }`), read whole-body with getDirect —
+        // same shape as the widgets / commands lists. The filters append only when set so an unfiltered browse
+        // omits them; hasMore/nextPage pass straight through so the browse dialog can page instead of truncating.
         val query: StringBuilder = StringBuilder("api/v1/widget-gallery?page=$page&pageSize=$pageSize")
         framework?.takeIf { it.isNotBlank() }?.let { query.append("&framework=").append(it) }
         trustTier?.takeIf { it.isNotBlank() }?.let { query.append("&trustTier=").append(it) }
         reviewStatus?.takeIf { it.isNotBlank() }?.let { query.append("&reviewStatus=").append(it) }
+        search?.takeIf { it.isNotBlank() }?.let { query.append("&search=").append(it.encodeQuery()) }
         return when (
             val result: ApiResult<PaginatedEnvelope<GalleryItemSummary>> = client.getDirect(query.toString())
         ) {
             is ApiResult.Failure -> ApiResult.Failure(result.error)
-            is ApiResult.Ok -> ApiResult.Ok(result.value.data)
+            is ApiResult.Ok -> ApiResult.Ok(GalleryPage(result.value.data, result.value.hasMore, result.value.nextPage))
         }
     }
 
@@ -185,11 +191,24 @@ data class PinGalleryItemBody(
 
 /**
  * The gallery browse filters the browse dialog tracks as it lists (client-side only — the gallery list is a GET
- * with query params, so this is never serialized to a wire body). [framework] / [trustTier] are null for "any".
+ * with query params, so this is never serialized to a wire body). [framework] / [trustTier] / [search] are null
+ * for "any".
  */
 data class GalleryListRequest(
     val framework: String? = null,
     val trustTier: String? = null,
+    val search: String? = null,
     val page: Int = 1,
     val pageSize: Int = 50,
+)
+
+/**
+ * One browse page: the items plus whether another page exists ([hasMore]) and, if so, the page number to fetch
+ * next ([nextPage]) — mirrors the backend's flat `PaginatedResponse` shape so the browse dialog can offer
+ * "load more" instead of silently truncating the catalogue past one page.
+ */
+data class GalleryPage(
+    val items: List<GalleryItemSummary>,
+    val hasMore: Boolean = false,
+    val nextPage: Int? = null,
 )

@@ -22,7 +22,7 @@ namespace NomNomzBot.Infrastructure.Tests.Widgets;
 /// </summary>
 public sealed class WidgetGalleryServiceTests
 {
-    private static readonly PaginationParams FirstPage = new(1, 25);
+    private static readonly PaginationParams FirstPage = new();
 
     private static WidgetGalleryService NewService(WidgetTestDbContext db) =>
         new(db, new Identity.RecordingEventBus(), TimeProvider.System);
@@ -183,6 +183,53 @@ public sealed class WidgetGalleryServiceTests
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
         result.Value.Items.Should().ContainSingle().Which.Name.Should().Be("Community");
+    }
+
+    [Fact]
+    public async Task List_search_matches_name_or_description_case_insensitively()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        await SeedItemAsync(database, "Follower Alert", framework: "vue");
+        await SeedItemAsync(database, "Goal Bar", framework: "vue");
+
+        await using WidgetTestDbContext db = database.NewContext();
+        Result<PagedList<GalleryItemSummary>> result = await NewService(db)
+            .ListAsync(new() { Search = "FOLLOWER" }, FirstPage);
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Items.Should().ContainSingle().Which.Name.Should().Be("Follower Alert");
+    }
+
+    [Fact]
+    public async Task List_search_matches_against_description_when_the_name_does_not_match()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        // SeedItemAsync stamps the description as "{name} description" — searching that word must still find it
+        // even though the search term never appears in the name field itself.
+        await SeedItemAsync(database, "Ticker", framework: "vanilla");
+        await SeedItemAsync(database, "Goal Bar", framework: "vue");
+
+        await using WidgetTestDbContext db = database.NewContext();
+        Result<PagedList<GalleryItemSummary>> result = await NewService(db)
+            .ListAsync(new() { Search = "ticker description" }, FirstPage);
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Items.Should().ContainSingle().Which.Name.Should().Be("Ticker");
+    }
+
+    [Fact]
+    public async Task List_search_with_no_match_returns_an_empty_page_not_a_failure()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        await SeedItemAsync(database, "Ticker");
+
+        await using WidgetTestDbContext db = database.NewContext();
+        Result<PagedList<GalleryItemSummary>> result = await NewService(db)
+            .ListAsync(new() { Search = "nothing matches this" }, FirstPage);
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Items.Should().BeEmpty();
+        result.Value.TotalCount.Should().Be(0);
     }
 
     [Fact]

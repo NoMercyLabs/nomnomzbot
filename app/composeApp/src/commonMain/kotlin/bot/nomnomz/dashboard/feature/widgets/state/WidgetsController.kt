@@ -22,6 +22,7 @@ import bot.nomnomz.dashboard.core.network.CreateWidgetBody
 import bot.nomnomz.dashboard.core.network.GalleryItemDetail
 import bot.nomnomz.dashboard.core.network.GalleryItemSummary
 import bot.nomnomz.dashboard.core.network.GalleryListRequest
+import bot.nomnomz.dashboard.core.network.GalleryPage
 import bot.nomnomz.dashboard.core.network.PinGalleryItemBody
 import bot.nomnomz.dashboard.core.network.ProjectDto
 import bot.nomnomz.dashboard.core.network.ReviewGalleryItemBody
@@ -263,14 +264,15 @@ class WidgetsController(
     }
 
     /**
-     * Browse the public widget gallery for the browse surface. Returns the raw result so the dialog renders its
-     * own loading / error / list — a read that does not disturb the page's [state], and (like the catalogue
-     * itself) needs no channel resolve.
+     * Browse the public widget gallery for the browse surface. Returns the raw result — including [GalleryPage]'s
+     * `hasMore`/`nextPage` — so the dialog renders its own loading / error / list / "load more", a read that does
+     * not disturb the page's [state], and (like the catalogue itself) needs no channel resolve.
      */
-    suspend fun listGallery(request: GalleryListRequest): ApiResult<List<GalleryItemSummary>> =
+    suspend fun listGallery(request: GalleryListRequest): ApiResult<GalleryPage> =
         widgetGalleryApi.listGallery(
             framework = request.framework,
             trustTier = request.trustTier,
+            search = request.search,
             page = request.page,
             pageSize = request.pageSize,
         )
@@ -288,7 +290,10 @@ class WidgetsController(
      * own loading/error/list without touching the overlays [state].
      */
     suspend fun listReviewQueue(reviewStatus: String): ApiResult<List<GalleryItemSummary>> =
-        widgetGalleryApi.listGallery(reviewStatus = reviewStatus, pageSize = 100)
+        when (val result: ApiResult<GalleryPage> = widgetGalleryApi.listGallery(reviewStatus = reviewStatus, pageSize = 100)) {
+            is ApiResult.Ok -> ApiResult.Ok(result.value.items)
+            is ApiResult.Failure -> result
+        }
 
     /** Load one gallery item in full (its review metadata + source) for the review detail panel. */
     suspend fun galleryItemDetail(galleryItemId: String): ApiResult<GalleryItemDetail> =

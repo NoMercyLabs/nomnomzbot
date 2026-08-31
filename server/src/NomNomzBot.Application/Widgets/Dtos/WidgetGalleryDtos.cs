@@ -68,6 +68,9 @@ public sealed record GalleryListRequest
 
     /// <summary>Reviewer-only: <c>submitted</c> | <c>in_review</c> | <c>verified</c> | <c>rejected</c>.</summary>
     public string? ReviewStatus { get; init; }
+
+    /// <summary>Case-insensitive substring match against name OR description. Blank/omitted matches everything.</summary>
+    public string? Search { get; init; }
 }
 
 /// <summary>A community widget submission (widgets-overlays.md §3.3): GitHub-pinned source, never pulled at HEAD.</summary>
