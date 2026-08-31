@@ -12,9 +12,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.DTOs.Economy;
+using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Integrations.Services;
 using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Domain.Economy.Enums;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.Exceptions;
@@ -45,6 +48,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
     private readonly ILogger<MusicService> _logger;
     private readonly IIntegrationCapabilityStore _capabilities;
     private readonly IMusicConfigService _config;
+    private readonly ICurrencyAccountService _accounts;
 
     public MusicService(
         IEnumerable<IMusicProvider> providers,
@@ -55,7 +59,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         ISongRequestQueuePersistence queuePersistence,
         ILogger<MusicService> logger,
         IIntegrationCapabilityStore capabilities,
-        IMusicConfigService config
+        IMusicConfigService config,
+        ICurrencyAccountService accounts
     )
     {
         _providers = providers;
@@ -67,6 +72,49 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         _queuePersistence = queuePersistence;
         _logger = logger;
         _capabilities = capabilities;
+        _accounts = accounts;
+    }
+
+    /// <summary>
+    /// Refunds a removed/banned queue entry's <see cref="SongRequestEntry.Cost"/> to
+    /// <see cref="SongRequestEntry.RequesterUserId"/> (S067b) — the same reversing-ledger-entry pattern
+    /// <c>MediaShareService.RefundIfChargedAsync</c> uses. A no-op whenever <see cref="SongRequestEntry.Cost"/>
+    /// is 0 (free — every admission today) or the requester never resolved to a viewer account (e.g. an
+    /// anonymous public song-request page submission), so this never fabricates a refund for a request
+    /// nothing ever charged.
+    /// </summary>
+    private async Task RefundIfPaidAsync(
+        Guid tenantId,
+        SongRequestEntry entry,
+        CancellationToken cancellationToken
+    )
+    {
+        if (entry.Cost <= 0 || entry.RequesterUserId is not { } requesterUserId)
+            return;
+
+        Result<CurrencyLedgerEntryDto> refund = await _accounts.PostLedgerEntryAsync(
+            tenantId,
+            new(
+                requesterUserId,
+                entry.Cost,
+                nameof(CurrencyEntryType.RefundSongRequest),
+                nameof(CurrencyLedgerSourceType.SongRequest),
+                SourceId: null,
+                EventId: null,
+                Reason: $"Song request removed: {entry.TrackName}",
+                ActorUserId: null,
+                IdempotencyKey: $"song-request-refund:{tenantId}:{requesterUserId}:{entry.TrackUri}:{Guid.CreateVersion7()}"
+            ),
+            cancellationToken
+        );
+        if (refund.IsFailure)
+            _logger.LogWarning(
+                "Song request refund failed for channel {TenantId}, viewer {RequesterUserId}, amount {Cost}: {Error}",
+                tenantId,
+                requesterUserId,
+                entry.Cost,
+                refund.ErrorMessage
+            );
     }
 
     /// <summary>Write-through persistence checkpoint (S001b) — called immediately after every in-memory
@@ -994,13 +1042,23 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
     )
     {
         FairQueue<SongRequestEntry>? queue = _queueStore.TryGet(broadcasterId);
+        IReadOnlyList<(SongRequestEntry Item, int Rank, string OwnerKey)> snapshotBeforeRemove =
+            queue?.GetSnapshot() ?? [];
+        SongRequestEntry? removedEntry =
+            position >= 0 && position < snapshotBeforeRemove.Count
+                ? snapshotBeforeRemove[position].Item
+                : null;
         bool removed = queue is not null && queue.RemoveAt(position);
 
         if (removed)
         {
             await SyncPersistedQueueAsync(broadcasterId, queue!, cancellationToken);
             if (Guid.TryParse(broadcasterId, out Guid tenantId))
+            {
+                if (removedEntry is not null)
+                    await RefundIfPaidAsync(tenantId, removedEntry, cancellationToken);
                 await PublishQueueChangedAsync(tenantId, broadcasterId, cancellationToken);
+            }
         }
 
         return removed;
@@ -1070,6 +1128,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         // the provider.
         queue!.RemoveAt(position);
         await SyncPersistedQueueAsync(broadcasterId, queue, cancellationToken);
+        await RefundIfPaidAsync(tenantId, target, cancellationToken);
         await PublishQueueChangedAsync(tenantId, broadcasterId, cancellationToken);
 
         return blocked;

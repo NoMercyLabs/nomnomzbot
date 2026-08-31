@@ -68,6 +68,12 @@ public enum CurrencyEntryType
     // Live games (live-games.md D4/D9): the reversing credit for an unsettled live-game entry fee
     // (cancel / min-players-unmet / startup crash sweep), linked to the original debit via RelatedEntryId.
     RefundGame,
+
+    // Song requests (S067b): the reversing credit when a moderator removes or bans a paid queue entry.
+    // There is no SpendSongRequest yet — no admission path charges for a song request today — but the
+    // refund side is real: SongRequestQueueItem.Cost/RequesterUserId exist for the day a paid-request
+    // mechanism lands, and this is the entry type that reverses it.
+    RefundSongRequest,
 }
 
 /// <summary>
@@ -89,4 +95,7 @@ public enum CurrencyLedgerSourceType
     // Live games (live-games.md D4): SourceId carries the GameSession id — the durable link that makes
     // crash refunds and settlement idempotence reconstructible from the ledger alone.
     LiveGame,
+
+    // Song requests (S067b): pairs with RefundSongRequest.
+    SongRequest,
 }

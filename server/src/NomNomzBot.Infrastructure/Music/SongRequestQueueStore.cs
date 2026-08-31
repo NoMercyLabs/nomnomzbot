@@ -141,12 +141,17 @@ public sealed class SongRequestQueueStore : ISongRequestQueueStore
     }
 }
 
-/// <summary>An item in the per-channel song request queue.</summary>
+/// <summary>An item in the per-channel song request queue. <see cref="Cost"/>/<see cref="RequesterUserId"/>
+/// mirror <c>SongRequestQueueItem.Cost</c>/<c>RequesterUserId</c> (S067b) — carried through the in-memory
+/// fair queue so a removal/ban can refund a paid request without a database round-trip. No admission path
+/// sets them today (nothing charges for a song request yet), so they default to "free".</summary>
 public sealed record SongRequestEntry(
     string TrackUri,
     string TrackName,
     string Artist,
     string? ImageUrl,
     int DurationMs,
-    string RequestedBy
+    string RequestedBy,
+    int Cost = 0,
+    Guid? RequesterUserId = null
 );

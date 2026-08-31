@@ -13,6 +13,7 @@ using System.Text;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Events;
@@ -20,6 +21,7 @@ using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Tests.Identity;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
 
@@ -153,7 +155,8 @@ public sealed class MusicServiceQueuePromoteBanTests
             new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
             new InMemoryIntegrationCapabilityStore(),
-            PermissiveMusicConfigService.Instance
+            PermissiveMusicConfigService.Instance,
+            Substitute.For<ICurrencyAccountService>()
         );
         return (sut, bus, db);
     }
