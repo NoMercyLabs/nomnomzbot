@@ -30,6 +30,16 @@ public class GiveawayEntry : SoftDeletableEntity, ITenantScoped
 
     public string ViewerTwitchUserId { get; set; } = null!;
 
+    /// <summary>
+    /// The platform the entrant is on (<see cref="NomNomzBot.Domain.Identity.Enums.AuthEnums.Platform"/>
+    /// string set) — S065: lets fulfillment resolve the right DM sender instead of assuming Twitch.
+    /// </summary>
+    public string Provider { get; set; } =
+        NomNomzBot.Domain.Identity.Enums.AuthEnums.Platform.Twitch;
+
+    /// <summary>The entrant's native user id on <see cref="Provider"/> (S065).</summary>
+    public string? ProviderUserId { get; set; }
+
     /// <summary>Weighted tickets this entry holds in the draw pool (D4; 1 = unweighted).</summary>
     public int TicketCount { get; set; } = 1;
 

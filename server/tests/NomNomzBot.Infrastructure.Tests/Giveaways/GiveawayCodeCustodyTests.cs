@@ -21,6 +21,7 @@ using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Giveaways.Dtos;
 using NomNomzBot.Domain.Giveaways.Entities;
 using NomNomzBot.Infrastructure.Giveaways;
+using NomNomzBot.Infrastructure.Platform.Messaging;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
@@ -172,7 +173,7 @@ public sealed class GiveawayCodeCustodyTests
             new ServiceCollection()
                 .AddScoped<IPipelineEngine>(_ => Substitute.For<IPipelineEngine>())
                 .BuildServiceProvider(),
-            whispers,
+            [new TwitchWhisperDirectMessageSender(whispers)],
             new FakeProtector(),
             TimeProvider.System,
             NullLogger<GiveawayFulfillment>.Instance
@@ -259,6 +260,30 @@ public sealed class GiveawayCodeCustodyTests
     }
 
     [Fact]
+    public async Task A_winner_on_a_platform_with_no_dm_sender_fails_cleanly_without_touching_twitch_whispers()
+    {
+        (GiveawayFulfillment fulfillment, AuthDbContext db, ITwitchWhispersApi whispers) =
+            BuildFulfillment(Result.Success());
+        (Giveaway giveaway, GiveawayWinner winner, GiveawayCode code) = SeedCodeDraw(db);
+        winner.Provider = "kick";
+        winner.ProviderUserId = "kick-999";
+        db.SaveChanges();
+
+        await fulfillment.FulfillAsync(giveaway, winner);
+        db.SaveChanges();
+
+        // No Kick DM sender is registered (only Twitch exists today) — the delivery fails cleanly,
+        // the code stays assigned for the broadcaster to reveal manually, and Twitch whispers are
+        // never touched for a non-Twitch winner.
+        winner.WhisperDelivered.Should().BeFalse("there is no DM sender registered for Kick");
+        winner.AssignedCodeId.Should().Be(code.Id, "the code must never be lost");
+        code.Status.Should().Be(GiveawayCodeStatus.Assigned);
+        await whispers
+            .DidNotReceiveWithAnyArgs()
+            .SendWhisperAsync(default, default!, default!, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task An_exhausted_pool_leaves_the_winner_un_coded_and_flagged()
     {
         (GiveawayFulfillment fulfillment, AuthDbContext db, ITwitchWhispersApi whispers) =
@@ -333,7 +358,7 @@ public sealed class GiveawayCodeCustodyTests
             new ServiceCollection()
                 .AddScoped<IPipelineEngine>(_ => Substitute.For<IPipelineEngine>())
                 .BuildServiceProvider(),
-            Substitute.For<ITwitchWhispersApi>(),
+            [new TwitchWhisperDirectMessageSender(Substitute.For<ITwitchWhispersApi>())],
             new FakeProtector(),
             TimeProvider.System,
             NullLogger<GiveawayFulfillment>.Instance

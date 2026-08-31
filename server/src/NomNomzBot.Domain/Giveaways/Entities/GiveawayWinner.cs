@@ -30,6 +30,17 @@ public class GiveawayWinner : BaseEntity, ITenantScoped
 
     public string ViewerTwitchUserId { get; set; } = null!;
 
+    /// <summary>
+    /// The platform the winner is on (<see cref="NomNomzBot.Domain.Identity.Enums.AuthEnums.Platform"/>
+    /// string set), carried over from the winning <c>GiveawayEntry</c> — S065: lets fulfillment resolve
+    /// the right DM sender instead of assuming Twitch.
+    /// </summary>
+    public string Provider { get; set; } =
+        NomNomzBot.Domain.Identity.Enums.AuthEnums.Platform.Twitch;
+
+    /// <summary>The winner's native user id on <see cref="Provider"/> (S065).</summary>
+    public string? ProviderUserId { get; set; }
+
     public DateTime DrawnAt { get; set; }
 
     /// <summary><c>drawn</c> | <c>claimed</c> | <c>forfeited</c> | <c>redrawn</c>.</summary>
