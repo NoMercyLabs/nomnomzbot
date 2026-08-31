@@ -2032,8 +2032,8 @@
     <string name="giveaways_pool_manage_loading">Loading codes…</string>
     <string name="giveaways_pool_manage_error">Couldn't load the pool: %1$s</string>
     <string name="giveaways_pool_manage_empty">No codes yet. Paste some below.</string>
-    <string name="giveaways_pool_add_label">Add codes (one per line)</string>
-    <string name="giveaways_pool_add_placeholder">PROMO-1234</string>
+    <string name="giveaways_pool_add_label">Add codes (one per line — optionally "CODE | a label")</string>
+    <string name="giveaways_pool_add_placeholder">PROMO-1234 | Steam key — Cyberpunk 2077</string>
     <string name="giveaways_pool_add_action">Add codes</string>
     <string name="giveaways_code_status_available">Available</string>
     <string name="giveaways_code_status_assigned">Assigned</string>

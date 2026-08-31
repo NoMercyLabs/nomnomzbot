@@ -247,9 +247,18 @@ class GiveawaysController(
      * pool list AND — when the manage-pool panel is open for this pool — its masked code rows. Surfaces the error
      * on failure.
      */
+    // Each line is a code, optionally followed by "| a label" to identify it later without unmasking it
+    // (giveaways.md D6 — the plaintext is masked everywhere once stored, so this is the only chance to name it).
     suspend fun addCodes(poolId: String, codes: List<String>) {
         val inputs: List<CodeInput> =
-            codes.mapNotNull { it.trim().takeIf(String::isNotBlank)?.let { code -> CodeInput(code) } }
+            codes.mapNotNull { line ->
+                val trimmed: String = line.trim()
+                if (trimmed.isBlank()) return@mapNotNull null
+                val parts: List<String> = trimmed.split('|', limit = 2)
+                val code: String = parts[0].trim()
+                val label: String? = parts.getOrNull(1)?.trim()?.ifBlank { null }
+                code.takeIf(String::isNotBlank)?.let { CodeInput(it, label) }
+            }
         when (val result: ApiResult<Unit> = giveawaysApi.addCodes(poolId, AddCodesBody(inputs))) {
             is ApiResult.Ok -> {
                 feedback.success(Res.string.feedback_codepool_codes_added)
