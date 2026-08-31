@@ -21,12 +21,14 @@ import bot.nomnomz.dashboard.core.network.ChatSettings
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.NetworkBanResult
 import bot.nomnomz.dashboard.core.realtime.HubChatMessage
+import bot.nomnomz.dashboard.core.realtime.HubConnectionState
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -234,6 +236,79 @@ class MultiChatControllerTest {
         controller.banUser("a", "user-99")
 
         assertEquals(listOf(Triple("a", "user-99", "this_channel")), chat.banned)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun reconnect_rejoins_the_previously_watched_channels_not_a_default_set() = runTest {
+        val joined: MutableList<String> = mutableListOf()
+        val controller =
+            MultiChatController(
+                FakeMultiChannelsApi(ApiResult.Ok(listOf(channel("a", "Alpha"), channel("b", "Beta"), channel("c", "Gamma")))),
+                FakeMultiChatApi(),
+                joinChannel = { joined.add(it) },
+                leaveChannel = {},
+            )
+        controller.load()
+        controller.addChannel("a")
+        controller.addChannel("b")
+        joined.clear() // only care about what happens ACROSS the reconnect from here on
+
+        val connectionState = MutableStateFlow(HubConnectionState.Connected)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            controller.subscribeToConnectionState(connectionState)
+        }
+
+        // Simulate a drop and recovery.
+        connectionState.value = HubConnectionState.Reconnecting
+        connectionState.value = HubConnectionState.Connected
+
+        // The exact watched set (a, b) is re-subscribed — never channel c, which was never selected.
+        assertEquals(listOf("a", "b"), joined)
+    }
+
+    @Test
+    fun the_watch_list_survives_a_fresh_controller_instance_restoring_from_the_store() = runTest {
+        val store = FakeWatchListStore()
+        val channelsApi = FakeMultiChannelsApi(ApiResult.Ok(listOf(channel("a", "Alpha"), channel("b", "Beta"))))
+        val firstSessionJoined: MutableList<String> = mutableListOf()
+        val firstController =
+            MultiChatController(
+                channelsApi,
+                FakeMultiChatApi(),
+                joinChannel = { firstSessionJoined.add(it) },
+                leaveChannel = {},
+                watchListStore = store,
+            )
+        firstController.load()
+        firstController.addChannel("a")
+
+        // A fresh controller instance — simulating an app restart — restores the persisted watch list on load,
+        // re-joining it, rather than landing on an empty/default watched set.
+        val restoredJoined: MutableList<String> = mutableListOf()
+        val restartedController =
+            MultiChatController(
+                channelsApi,
+                FakeMultiChatApi(),
+                joinChannel = { restoredJoined.add(it) },
+                leaveChannel = {},
+                watchListStore = store,
+            )
+        restartedController.load()
+
+        val ready: MultiChatState.Ready = restartedController.state.value as MultiChatState.Ready
+        assertEquals(listOf("a"), ready.watched.map { it.id })
+        assertEquals(listOf("a"), restoredJoined)
+    }
+}
+
+private class FakeWatchListStore : WatchListStore {
+    private var saved: List<String> = emptyList()
+
+    override fun read(): List<String> = saved
+
+    override fun write(channelIds: List<String>) {
+        saved = channelIds
     }
 }
 
