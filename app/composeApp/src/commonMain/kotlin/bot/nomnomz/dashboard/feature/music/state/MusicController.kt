@@ -26,7 +26,6 @@ import bot.nomnomz.dashboard.core.network.NowPlaying
 import bot.nomnomz.dashboard.core.network.MusicDevice
 import bot.nomnomz.dashboard.core.network.MusicPlaylist
 import bot.nomnomz.dashboard.core.network.MusicSongRequestBody
-import bot.nomnomz.dashboard.core.network.UpdateMusicConfigBody
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -146,7 +145,6 @@ class MusicController(
                 MusicState.Ready(
                     nowPlaying = snapshot.nowPlaying,
                     queue = snapshot.queue,
-                    config = config,
                     srPageToken = srToken,
                     shareLink = shareLink,
                     devices = devices,
@@ -231,24 +229,6 @@ class MusicController(
     suspend fun addToQueue(query: String, requestedBy: String) {
         val channel: String = channelId ?: return
         control { musicApi.addToQueue(channel, MusicSongRequestBody(query, requestedBy)) }
-    }
-
-    /**
-     * Persist a partial config update. Only the fields present in [body] are changed; everything else is
-     * carried unchanged by the backend. Reloads on success (the new config replaces the old); surfaces the
-     * error on the Ready state on failure.
-     */
-    suspend fun updateConfig(body: UpdateMusicConfigBody) {
-        val channel: String = channelId ?: return
-        when (val result: ApiResult<MusicConfig> = musicApi.updateConfig(channel, body)) {
-            is ApiResult.Failure -> {
-                val current: MusicState = _state.value
-                if (current is MusicState.Ready) {
-                    _state.value = current.copy(actionError = result.error.message)
-                }
-            }
-            is ApiResult.Ok -> load()
-        }
     }
 
     /** Rotate the SR-page token. The new token replaces the old on the Ready state. */
@@ -376,14 +356,14 @@ sealed interface MusicState {
     /**
      * The live playback snapshot: the [nowPlaying] track (null when nothing is playing), the upcoming [queue],
      * and an optional [actionError] when the last control failed (the snapshot is intact). The screen drives
-     * play/pause from [NowPlaying.isPlaying] and offers a per-track remove on the queue. [config] is null
-     * when the config endpoint is unavailable (the playback section still renders). [srPageToken] is the
-     * minted SR-page shareable token (null if not yet minted or the endpoint is down).
+     * play/pause from [NowPlaying.isPlaying] and offers a per-track remove on the queue. SR config lives on
+     * the Song Requests page (`SongRequestsController`), not here — Music is the playback/transport/library
+     * area home (frontend-ia.md). [srPageToken] is the minted SR-page shareable token (null if not yet minted
+     * or the endpoint is down).
      */
     data class Ready(
         val nowPlaying: NowPlaying?,
         val queue: List<MusicTrack>,
-        val config: MusicConfig? = null,
         val srPageToken: String? = null,
         // The absolute, human-friendly public SR link (`{origin}/sr/@name`); null when the origin/login is unknown.
         val shareLink: String? = null,

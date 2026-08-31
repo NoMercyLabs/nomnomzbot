@@ -68,12 +68,10 @@ import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.network.BlockedTrack
-import bot.nomnomz.dashboard.core.network.MusicConfig
 import bot.nomnomz.dashboard.core.network.MusicDevice
 import bot.nomnomz.dashboard.core.network.MusicPlaylist
 import bot.nomnomz.dashboard.core.network.MusicTrack
 import bot.nomnomz.dashboard.core.network.NowPlaying
-import bot.nomnomz.dashboard.core.network.UpdateMusicConfigBody
 import bot.nomnomz.dashboard.feature.music.state.MusicController
 import bot.nomnomz.dashboard.feature.music.state.MusicState
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
@@ -119,18 +117,8 @@ import nomnomzbot.composeapp.generated.resources.music_add_title
 import nomnomzbot.composeapp.generated.resources.music_add_query
 import nomnomzbot.composeapp.generated.resources.music_add_requested_by
 import nomnomzbot.composeapp.generated.resources.music_add_action
-import nomnomzbot.composeapp.generated.resources.music_config_title
-import nomnomzbot.composeapp.generated.resources.music_config_enabled
-import nomnomzbot.composeapp.generated.resources.music_config_provider
-import nomnomzbot.composeapp.generated.resources.music_config_provider_auto
-import nomnomzbot.composeapp.generated.resources.music_config_provider_spotify
-import nomnomzbot.composeapp.generated.resources.music_config_provider_youtube
-import nomnomzbot.composeapp.generated.resources.music_config_max_queue
-import nomnomzbot.composeapp.generated.resources.music_config_max_per_user
-import nomnomzbot.composeapp.generated.resources.music_config_allow_youtube
-import nomnomzbot.composeapp.generated.resources.music_config_allow_spotify
-import nomnomzbot.composeapp.generated.resources.music_config_trust
-import nomnomzbot.composeapp.generated.resources.music_config_save
+import nomnomzbot.composeapp.generated.resources.music_block_provider_spotify
+import nomnomzbot.composeapp.generated.resources.music_block_provider_youtube
 import nomnomzbot.composeapp.generated.resources.music_token_title
 import nomnomzbot.composeapp.generated.resources.music_share_link_copied
 import nomnomzbot.composeapp.generated.resources.music_share_link_copy
@@ -215,7 +203,6 @@ fun MusicScreen(
                 ReadyContent(
                     nowPlaying = current.nowPlaying,
                     queue = current.queue,
-                    config = current.config,
                     srPageToken = current.srPageToken,
                     shareLink = current.shareLink,
                     devices = current.devices,
@@ -232,7 +219,6 @@ fun MusicScreen(
                     onSkip = { scope.launch { controller.skip() } },
                     onRemove = { position -> scope.launch { controller.remove(position) } },
                     onAddToQueue = { query, requestedBy -> scope.launch { controller.addToQueue(query, requestedBy) } },
-                    onSaveConfig = { body -> scope.launch { controller.updateConfig(body) } },
                     onRotateToken = { scope.launch { controller.rotateSrPageToken() } },
                     onSetShuffle = { enabled -> scope.launch { controller.setShuffle(enabled) } },
                     onSetRepeat = { mode -> scope.launch { controller.setRepeat(mode) } },
@@ -254,7 +240,6 @@ fun MusicScreen(
 private fun ReadyContent(
     nowPlaying: NowPlaying?,
     queue: List<MusicTrack>,
-    config: MusicConfig?,
     srPageToken: String?,
     shareLink: String?,
     devices: List<MusicDevice>,
@@ -271,7 +256,6 @@ private fun ReadyContent(
     onSkip: () -> Unit,
     onRemove: (position: Int) -> Unit,
     onAddToQueue: (query: String, requestedBy: String) -> Unit,
-    onSaveConfig: (UpdateMusicConfigBody) -> Unit,
     onRotateToken: () -> Unit,
     onSetShuffle: (Boolean) -> Unit,
     onSetRepeat: (String) -> Unit,
@@ -349,12 +333,6 @@ private fun ReadyContent(
         // ── Add to queue ──────────────────────────────────────────────────
         Separator()
         AddToQueueSection(manage = manage, onAdd = onAddToQueue)
-
-        // ── SR config ────────────────────────────────────────────────────
-        if (config != null) {
-            Separator()
-            MusicConfigSection(config = config, manage = manage, onSave = onSaveConfig)
-        }
 
         // ── SR-page token + shareable link ────────────────────────────────
         if (srPageToken != null) {
@@ -880,156 +858,6 @@ private fun AddToQueueSection(manage: ManageDecision, onAdd: (query: String, req
     }
 }
 
-// ── Music / SR config ────────────────────────────────────────────────────────
-
-@Composable
-private fun MusicConfigSection(config: MusicConfig, manage: ManageDecision, onSave: (UpdateMusicConfigBody) -> Unit) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    var isEnabled: Boolean by remember(config) { mutableStateOf(config.isEnabled) }
-    var preferredProvider: String by remember(config) { mutableStateOf(config.preferredProvider) }
-    var maxQueueSize: String by remember(config) { mutableStateOf(config.maxQueueSize.toString()) }
-    var maxPerUser: String by remember(config) { mutableStateOf(config.maxRequestsPerUser.toString()) }
-    var allowYouTube: Boolean by remember(config) { mutableStateOf(config.allowYouTube) }
-    var allowSpotify: Boolean by remember(config) { mutableStateOf(config.allowSpotify) }
-    var minTrustLevel: String by remember(config) { mutableStateOf(config.minTrustLevel) }
-
-    val trustLevels: List<String> = listOf("everyone", "subscribers", "vip", "moderators", "broadcaster")
-    val providerOptions: List<Pair<String, String>> = listOf(
-        "auto" to stringResource(Res.string.music_config_provider_auto),
-        "spotify" to stringResource(Res.string.music_config_provider_spotify),
-        "youtube" to stringResource(Res.string.music_config_provider_youtube),
-    )
-
-    Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-        Text(text = stringResource(Res.string.music_config_title), style = typography.base, color = tokens.cardForeground)
-
-        // Enabled toggle
-        ManageGate(decision = manage) { enabled ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text(text = stringResource(Res.string.music_config_enabled), color = tokens.cardForeground)
-                Switch(
-                    checked = isEnabled,
-                    onCheckedChange = { isEnabled = it },
-                    enabled = enabled,
-                )
-            }
-        }
-
-        // Provider selector
-        Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-            Text(text = stringResource(Res.string.music_config_provider), style = typography.sm, color = tokens.mutedForeground)
-            TabsList {
-                providerOptions.forEach { (key, label) ->
-                    ManageGate(decision = manage) { gateEnabled ->
-                        TabsTrigger(
-                            selected = preferredProvider == key,
-                            onClick = { preferredProvider = key },
-                            enabled = gateEnabled,
-                        ) {
-                            Text(label, maxLines = 1)
-                        }
-                    }
-                }
-            }
-        }
-
-        // Max queue / per-user fields
-        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s3)) {
-            AppTextField(
-                // Digits only: a stray non-digit makes Save send `toIntOrNull()` = null, which the partial-patch
-                // backend reads as "leave unchanged", so the edit silently vanishes on the next reload.
-                value = maxQueueSize,
-                onValueChange = { maxQueueSize = it.filter { c -> c.isDigit() } },
-                label = stringResource(Res.string.music_config_max_queue),
-                isError = false,
-                errorText = null,
-                modifier = Modifier.weight(1f),
-            )
-            AppTextField(
-                value = maxPerUser,
-                onValueChange = { maxPerUser = it.filter { c -> c.isDigit() } },
-                label = stringResource(Res.string.music_config_max_per_user),
-                isError = false,
-                errorText = null,
-                modifier = Modifier.weight(1f),
-            )
-        }
-
-        // Allow YouTube / Spotify toggles
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(spacing.s4),
-        ) {
-            ManageGate(decision = manage) { enabled ->
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                    Switch(
-                        checked = allowYouTube,
-                        onCheckedChange = { allowYouTube = it },
-                        enabled = enabled,
-                    )
-                    Text(text = stringResource(Res.string.music_config_allow_youtube), style = typography.sm, color = tokens.cardForeground)
-                }
-            }
-            ManageGate(decision = manage) { enabled ->
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                    Switch(
-                        checked = allowSpotify,
-                        onCheckedChange = { allowSpotify = it },
-                        enabled = enabled,
-                    )
-                    Text(text = stringResource(Res.string.music_config_allow_spotify), style = typography.sm, color = tokens.cardForeground)
-                }
-            }
-        }
-
-        // Trust level
-        Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-            Text(text = stringResource(Res.string.music_config_trust), style = typography.sm, color = tokens.mutedForeground)
-            TabsList {
-                trustLevels.forEach { level ->
-                    ManageGate(decision = manage) { gateEnabled ->
-                        TabsTrigger(
-                            selected = minTrustLevel == level,
-                            onClick = { minTrustLevel = level },
-                            enabled = gateEnabled,
-                        ) {
-                            Text(level, maxLines = 1)
-                        }
-                    }
-                }
-            }
-        }
-
-        ManageGate(decision = manage) { enabled ->
-            Button(
-                onClick = {
-                    onSave(
-                        UpdateMusicConfigBody(
-                            isEnabled = isEnabled,
-                            preferredProvider = preferredProvider,
-                            maxQueueSize = maxQueueSize.toIntOrNull(),
-                            maxRequestsPerUser = maxPerUser.toIntOrNull(),
-                            allowYouTube = allowYouTube,
-                            allowSpotify = allowSpotify,
-                            minTrustLevel = minTrustLevel,
-                        )
-                    )
-                },
-                enabled = enabled,
-            ) {
-                Text(text = stringResource(Res.string.music_config_save))
-            }
-        }
-    }
-}
-
 // ── SR page token ─────────────────────────────────────────────────────────────
 
 @Composable
@@ -1366,8 +1194,8 @@ private fun BlockTrackForm(
     val canBlock: Boolean = trackUri.isNotBlank() && title.isNotBlank()
 
     val providerOptions: List<Pair<String, String>> = listOf(
-        "spotify" to stringResource(Res.string.music_config_provider_spotify),
-        "youtube" to stringResource(Res.string.music_config_provider_youtube),
+        "spotify" to stringResource(Res.string.music_block_provider_spotify),
+        "youtube" to stringResource(Res.string.music_block_provider_youtube),
     )
 
     Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {

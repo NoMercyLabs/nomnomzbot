@@ -24,7 +24,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.Text
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Card
+import bot.nomnomz.dashboard.core.designsystem.component.TabsList
+import bot.nomnomz.dashboard.core.designsystem.component.TabsTrigger
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -74,7 +77,15 @@ import nomnomzbot.composeapp.generated.resources.songrequests_action_error
 import nomnomzbot.composeapp.generated.resources.songrequests_config_allow_spotify
 import nomnomzbot.composeapp.generated.resources.songrequests_config_allow_youtube
 import nomnomzbot.composeapp.generated.resources.songrequests_config_enabled
+import nomnomzbot.composeapp.generated.resources.songrequests_config_max_per_user
+import nomnomzbot.composeapp.generated.resources.songrequests_config_max_queue
+import nomnomzbot.composeapp.generated.resources.songrequests_config_provider
+import nomnomzbot.composeapp.generated.resources.songrequests_config_provider_auto
+import nomnomzbot.composeapp.generated.resources.songrequests_config_provider_spotify
+import nomnomzbot.composeapp.generated.resources.songrequests_config_provider_youtube
+import nomnomzbot.composeapp.generated.resources.songrequests_config_save
 import nomnomzbot.composeapp.generated.resources.songrequests_config_title
+import nomnomzbot.composeapp.generated.resources.songrequests_config_trust
 import nomnomzbot.composeapp.generated.resources.songrequests_empty
 import nomnomzbot.composeapp.generated.resources.songrequests_error
 import nomnomzbot.composeapp.generated.resources.songrequests_loading
@@ -288,6 +299,22 @@ private fun ConfigSection(
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
+    // Local draft state for the fields that batch into one explicit Save (provider/queue-size/per-user/trust)
+    // — matches the toggles' semantics: PATCH sends only the fields the operator actually touched, so a stale
+    // draft can never clobber a setting nobody meant to change. `remember(config)` re-seeds the draft whenever
+    // a fresh config lands (e.g. after Save reloads, or another session's edit arrives over the hub).
+    var preferredProvider: String by remember(config) { mutableStateOf(config.preferredProvider) }
+    var maxQueueSize: String by remember(config) { mutableStateOf(config.maxQueueSize.toString()) }
+    var maxPerUser: String by remember(config) { mutableStateOf(config.maxRequestsPerUser.toString()) }
+    var minTrustLevel: String by remember(config) { mutableStateOf(config.minTrustLevel) }
+
+    val trustLevels: List<String> = listOf("everyone", "subscribers", "vip", "moderators", "broadcaster")
+    val providerOptions: List<Pair<String, String>> = listOf(
+        "auto" to stringResource(Res.string.songrequests_config_provider_auto),
+        "spotify" to stringResource(Res.string.songrequests_config_provider_spotify),
+        "youtube" to stringResource(Res.string.songrequests_config_provider_youtube),
+    )
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
@@ -318,6 +345,90 @@ private fun ConfigSection(
                 configure = configure,
                 onToggle = { onUpdate(UpdateMusicConfigBody(allowYouTube = it)) },
             )
+
+            // Preferred provider
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+                Text(
+                    text = stringResource(Res.string.songrequests_config_provider),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                )
+                TabsList {
+                    providerOptions.forEach { (key, label) ->
+                        ManageGate(decision = configure) { enabled ->
+                            TabsTrigger(
+                                selected = preferredProvider == key,
+                                onClick = { preferredProvider = key },
+                                enabled = enabled,
+                            ) {
+                                Text(label, maxLines = 1)
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Max queue / per-user fields
+            Row(horizontalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                AppTextField(
+                    // Digits only: a stray non-digit makes Save send `toIntOrNull()` = null, which the
+                    // partial-patch backend reads as "leave unchanged", so the edit silently vanishes on reload.
+                    value = maxQueueSize,
+                    onValueChange = { maxQueueSize = it.filter { c -> c.isDigit() } },
+                    label = stringResource(Res.string.songrequests_config_max_queue),
+                    isError = false,
+                    errorText = null,
+                    modifier = Modifier.weight(1f),
+                )
+                AppTextField(
+                    value = maxPerUser,
+                    onValueChange = { maxPerUser = it.filter { c -> c.isDigit() } },
+                    label = stringResource(Res.string.songrequests_config_max_per_user),
+                    isError = false,
+                    errorText = null,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+
+            // Minimum trust level
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+                Text(
+                    text = stringResource(Res.string.songrequests_config_trust),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                )
+                TabsList {
+                    trustLevels.forEach { level ->
+                        ManageGate(decision = configure) { enabled ->
+                            TabsTrigger(
+                                selected = minTrustLevel == level,
+                                onClick = { minTrustLevel = level },
+                                enabled = enabled,
+                            ) {
+                                Text(level, maxLines = 1)
+                            }
+                        }
+                    }
+                }
+            }
+
+            ManageGate(decision = configure) { enabled ->
+                TextButton(
+                    onClick = {
+                        onUpdate(
+                            UpdateMusicConfigBody(
+                                preferredProvider = preferredProvider,
+                                maxQueueSize = maxQueueSize.toIntOrNull(),
+                                maxRequestsPerUser = maxPerUser.toIntOrNull(),
+                                minTrustLevel = minTrustLevel,
+                            )
+                        )
+                    },
+                    enabled = enabled,
+                ) {
+                    Text(text = stringResource(Res.string.songrequests_config_save), color = tokens.primary)
+                }
+            }
         }
     }
 }
