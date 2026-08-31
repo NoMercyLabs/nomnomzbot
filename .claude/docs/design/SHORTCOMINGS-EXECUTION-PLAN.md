@@ -481,9 +481,14 @@ later.)
   sub-items above (queue promote/ban-track/refund, public page polish, token→URL, bounded steppers,
   enum lists from API, rate policy, `RequestedBy`, hub-driven reloads, polling fan-out, cost/duration/
   cooldown) are still open — tracker stays open for those.
-- **S068** Legacy builtins — `!help`, `!commands`, `!lurk`/`!unlurk`, `!leaderboard`, `!songhistory`,
-  `!playlist`, `!bansong`, `!whisper`, `!discord`, `!accountage` + seeded fun-command preset pack +
+- **S068** Legacy builtins — `!help`, `!commands`, `!leaderboard`, `!songhistory`,
+  `!playlist`, `!bansong`, `!whisper`, `!discord` + seeded fun-command preset pack +
   on-connect announcement (U·C7). Done-when: a fresh channel has every legacy command or a seed for it.
+  **`!lurk`/`!unlurk`/`!accountage` DONE, verified (042a3b1f)**: `User.IsLurking` (new field, both
+  migration projects) flipped by the two new builtins with a confirming reply; `!accountage` resolves
+  `created_at` from an already-hydrated row or falls back to a live Helix Get Users call and persists it,
+  reporting a platform failure cleanly if that call fails. 5 new tests, all assert the real row/reply,
+  not "no exception".
 - **S069** Bot voice everywhere — tone applied to custom commands/timers/event responses/chat triggers/
   `send_message`; tone slots for usage/errors; one reply-or-mention helper; one `ParseUserMention`;
   permit via identity path; whisper-with-fallback for GDPR + inbound whisper handler; `announce`
