@@ -26,16 +26,34 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.component.AppSelectField
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
+import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
+import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
+import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
+import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
+import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
+import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
+import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.Spinner
+import bot.nomnomz.dashboard.core.designsystem.icon.DotsHorizontalGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -45,34 +63,62 @@ import bot.nomnomz.dashboard.core.realtime.HubEvent
 import bot.nomnomz.dashboard.feature.chat.state.MultiChatController
 import bot.nomnomz.dashboard.feature.chat.state.MultiChatState
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
+import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
+import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.multichat_ban_action
+import nomnomzbot.composeapp.generated.resources.multichat_ban_confirm
+import nomnomzbot.composeapp.generated.resources.multichat_ban_dismiss
+import nomnomzbot.composeapp.generated.resources.multichat_ban_message
+import nomnomzbot.composeapp.generated.resources.multichat_ban_title
+import nomnomzbot.composeapp.generated.resources.multichat_composer_channel_label
+import nomnomzbot.composeapp.generated.resources.multichat_composer_placeholder
+import nomnomzbot.composeapp.generated.resources.multichat_composer_send
+import nomnomzbot.composeapp.generated.resources.multichat_delete_action
+import nomnomzbot.composeapp.generated.resources.multichat_delete_confirm
+import nomnomzbot.composeapp.generated.resources.multichat_delete_dismiss
+import nomnomzbot.composeapp.generated.resources.multichat_delete_message
+import nomnomzbot.composeapp.generated.resources.multichat_delete_title
 import nomnomzbot.composeapp.generated.resources.multichat_empty_feed
 import nomnomzbot.composeapp.generated.resources.multichat_error
 import nomnomzbot.composeapp.generated.resources.multichat_loading
 import nomnomzbot.composeapp.generated.resources.multichat_picker_hint
 import nomnomzbot.composeapp.generated.resources.multichat_picker_none
 import nomnomzbot.composeapp.generated.resources.multichat_pick_a_channel
+import nomnomzbot.composeapp.generated.resources.multichat_row_actions
+import nomnomzbot.composeapp.generated.resources.multichat_timeout_action
+import nomnomzbot.composeapp.generated.resources.multichat_timeout_confirm
+import nomnomzbot.composeapp.generated.resources.multichat_timeout_dismiss
+import nomnomzbot.composeapp.generated.resources.multichat_timeout_message
+import nomnomzbot.composeapp.generated.resources.multichat_timeout_title
 import nomnomzbot.composeapp.generated.resources.shell_nav_multichat
 import org.jetbrains.compose.resources.stringResource
 
 // The multi-channel chat-watch page (owner requirement 2026-07-10): a moderator picks several channels they
 // own/moderate and watches all their live chats at once in ONE merged, time-ordered feed, each line tagged with
 // its channel. The picker toggles a channel on/off (join/leave on a dedicated hub connection); the feed routes
-// each live line by its channelId. Read-only monitoring — no composer here; a mod acts on a channel from its own
-// Chat page. [hubEvents] is the dedicated multi-watch hub's event stream (kept separate from the main dashboard
-// hub so watching extra channels never leaks their chat into the single-channel Chat page).
+// each live line by its channelId. A composer sends a message to any ONE watched channel (the same
+// `ChatApi.send` the single-channel Chat page uses), and each line carries inline moderation quick-actions
+// (delete / timeout / ban) via the same `ChatApi` moderation calls — a mod no longer has to leave the merged
+// feed to act on what they're watching (S076). [hubEvents] is the dedicated multi-watch hub's event stream
+// (kept separate from the main dashboard hub so watching extra channels never leaks their chat into the
+// single-channel Chat page).
 @Composable
 fun MultiChatScreen(
     controller: MultiChatController,
-    @Suppress("UNUSED_PARAMETER") role: ManagementRole?,
+    role: ManagementRole?,
     hubEvents: SharedFlow<HubEvent>,
 ) {
     val spacing = LocalSpacing.current
     val state: MultiChatState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
+    // The write gate for the composer and the inline moderation actions. The route's own read floor (Moderator)
+    // already governs whether this page is reachable at all, so there is no separate manage floor to name here —
+    // a caller who can see the page can act from it.
+    val manage: ManageDecision = rememberManageDecision(role, ShellRoute.MultiChat)
 
     LaunchedEffect(Unit) { controller.load() }
     // Forward live hub pushes into the merged feed for the WHOLE time the page is open, so new messages appear
@@ -86,17 +132,30 @@ fun MultiChatScreen(
             is MultiChatState.Ready ->
                 ReadyContent(
                     ready = current,
+                    manage = manage,
                     onToggle = { channel ->
                         if (current.watched.any { it.id == channel.id }) controller.removeChannel(channel.id)
                         else scope.launch { controller.addChannel(channel.id) }
                     },
+                    onSend = { channelId, message -> scope.launch { controller.sendMessage(channelId, message) } },
+                    onDelete = { channelId, messageId -> scope.launch { controller.deleteMessage(channelId, messageId) } },
+                    onTimeout = { channelId, userId -> scope.launch { controller.timeoutUser(channelId, userId) } },
+                    onBan = { channelId, userId -> scope.launch { controller.banUser(channelId, userId) } },
                 )
         }
     }
 }
 
 @Composable
-private fun ReadyContent(ready: MultiChatState.Ready, onToggle: (ChannelSummary) -> Unit) {
+private fun ReadyContent(
+    ready: MultiChatState.Ready,
+    manage: ManageDecision,
+    onToggle: (ChannelSummary) -> Unit,
+    onSend: (channelId: String, message: String) -> Unit,
+    onDelete: (channelId: String, messageId: String) -> Unit,
+    onTimeout: (channelId: String, userId: String) -> Unit,
+    onBan: (channelId: String, userId: String) -> Unit,
+) {
     val spacing = LocalSpacing.current
     // channelId -> display name, so each feed line can be tagged with its source channel.
     val nameByChannel: Map<String, String> =
@@ -116,7 +175,81 @@ private fun ReadyContent(ready: MultiChatState.Ready, onToggle: (ChannelSummary)
                 CenteredText(stringResource(Res.string.multichat_pick_a_channel))
             ready.messages.isEmpty() ->
                 CenteredText(stringResource(Res.string.multichat_empty_feed))
-            else -> MergedFeed(messages = ready.messages, nameByChannel = nameByChannel)
+            else ->
+                MergedFeed(
+                    messages = ready.messages,
+                    nameByChannel = nameByChannel,
+                    manage = manage,
+                    onDelete = onDelete,
+                    onTimeout = onTimeout,
+                    onBan = onBan,
+                )
+        }
+
+        if (ready.watched.isNotEmpty()) {
+            Composer(watched = ready.watched, manage = manage, onSend = onSend)
+        }
+    }
+}
+
+// The multi-target composer: pick WHICH watched channel to send into (a plain select, defaulting to the first
+// watched channel and following it as the watched set changes), then type + send. Gated by [manage] like the
+// inline moderation actions — a caller below the page's floor never reaches this surface at all (the route's
+// own read floor already keeps them off the page), so this only guards a genuinely denied state.
+@Composable
+private fun Composer(watched: List<ChannelSummary>, manage: ManageDecision, onSend: (channelId: String, message: String) -> Unit) {
+    val spacing = LocalSpacing.current
+    var targetChannelId: String by remember(watched.firstOrNull()?.id) { mutableStateOf(watched.first().id) }
+    var draft: String by remember { mutableStateOf("") }
+    var channelPickerExpanded: Boolean by remember { mutableStateOf(false) }
+    val target: ChannelSummary = watched.firstOrNull { it.id == targetChannelId } ?: watched.first()
+
+    fun submit() {
+        val text: String = draft.trim()
+        if (text.isEmpty()) return
+        onSend(target.id, text)
+        draft = ""
+    }
+
+    ManageGate(decision = manage) { enabled ->
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(spacing.s4),
+                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                verticalAlignment = Alignment.Bottom,
+            ) {
+                if (watched.size > 1) {
+                    AppSelectField(
+                        value = target.displayName.ifBlank { target.login },
+                        label = stringResource(Res.string.multichat_composer_channel_label),
+                        expanded = channelPickerExpanded,
+                        onExpandedChange = { channelPickerExpanded = it },
+                        enabled = enabled,
+                        modifier = Modifier.weight(0.3f),
+                    ) {
+                        watched.forEach { channel ->
+                            DropdownMenuItem(
+                                text = { Text(text = channel.displayName.ifBlank { channel.login }) },
+                                onClick = {
+                                    targetChannelId = channel.id
+                                    channelPickerExpanded = false
+                                },
+                            )
+                        }
+                    }
+                }
+                AppTextField(
+                    value = draft,
+                    onValueChange = { draft = it },
+                    label = stringResource(Res.string.multichat_composer_placeholder),
+                    placeholder = stringResource(Res.string.multichat_composer_placeholder),
+                    enabled = enabled,
+                    modifier = Modifier.weight(1f),
+                )
+                Button(onClick = ::submit, enabled = enabled && draft.isNotBlank()) {
+                    Text(text = stringResource(Res.string.multichat_composer_send))
+                }
+            }
         }
     }
 }
@@ -167,7 +300,14 @@ private fun ChannelPicker(
 }
 
 @Composable
-private fun MergedFeed(messages: List<ChatMessage>, nameByChannel: Map<String, String>) {
+private fun MergedFeed(
+    messages: List<ChatMessage>,
+    nameByChannel: Map<String, String>,
+    manage: ManageDecision,
+    onDelete: (channelId: String, messageId: String) -> Unit,
+    onTimeout: (channelId: String, userId: String) -> Unit,
+    onBan: (channelId: String, userId: String) -> Unit,
+) {
     val spacing = LocalSpacing.current
     // Auto-follow the tail as new lines arrive, like a live chat feed. Key on the tail id as well as the size:
     // the merged feed is capped (300), so a size-only key would freeze auto-follow once it fills — exactly on the
@@ -184,18 +324,33 @@ private fun MergedFeed(messages: List<ChatMessage>, nameByChannel: Map<String, S
             verticalArrangement = Arrangement.spacedBy(spacing.s1),
         ) {
             itemsIndexed(items = messages, key = { index, msg -> if (msg.id.isNotEmpty()) msg.id else "idx-$index" }) { _, msg ->
-                MultiChatRow(message = msg, channelName = nameByChannel[msg.channelId])
+                MultiChatRow(
+                    message = msg,
+                    channelName = nameByChannel[msg.channelId],
+                    manage = manage,
+                    onDelete = onDelete,
+                    onTimeout = onTimeout,
+                    onBan = onBan,
+                )
             }
         }
     }
 }
 
-// One compact monitoring line: time · channel tag · provider tag · colored name · message text. Deliberately
-// lighter than the single-channel MessageRow (no per-line moderation actions) — this surface is for WATCHING
-// many channels at once; a mod acts on a specific channel from its own Chat page.
+// One compact monitoring line: time · channel tag · provider tag · colored name · message text · inline
+// moderation menu. The moderation menu (delete / timeout / ban) targets the line's OWN channelId — since the
+// feed merges several channels, an action must always be routed to the channel that message actually belongs
+// to, never to whichever channel the composer currently targets.
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun MultiChatRow(message: ChatMessage, channelName: String?) {
+private fun MultiChatRow(
+    message: ChatMessage,
+    channelName: String?,
+    manage: ManageDecision,
+    onDelete: (channelId: String, messageId: String) -> Unit,
+    onTimeout: (channelId: String, userId: String) -> Unit,
+    onBan: (channelId: String, userId: String) -> Unit,
+) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -235,6 +390,101 @@ private fun MultiChatRow(message: ChatMessage, channelName: String?) {
         ) {
             ChatMessageFragments(fragments = message.fragments, fallbackText = message.message)
         }
+        // A system/announcement line carries no chatter id — nothing to timeout/ban/delete there.
+        if (message.userId.isNotBlank()) {
+            ModerationMenu(message = message, name = name, manage = manage, onDelete = onDelete, onTimeout = onTimeout, onBan = onBan)
+        }
+    }
+}
+
+// The per-line moderation menu: delete this message, timeout the author, or ban the author — all routed to
+// the LINE's OWN channelId (not the composer's current target). Each destructive action confirms first via the
+// shared [ConfirmDialog], mirroring the single-channel Chat page's moderation menu.
+@Composable
+private fun ModerationMenu(
+    message: ChatMessage,
+    name: String,
+    manage: ManageDecision,
+    onDelete: (channelId: String, messageId: String) -> Unit,
+    onTimeout: (channelId: String, userId: String) -> Unit,
+    onBan: (channelId: String, userId: String) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val typography = LocalTypography.current
+
+    var expanded: Boolean by remember { mutableStateOf(false) }
+    var confirmDelete: Boolean by remember { mutableStateOf(false) }
+    var confirmTimeout: Boolean by remember { mutableStateOf(false) }
+    var confirmBan: Boolean by remember { mutableStateOf(false) }
+
+    val menuLabel: String = stringResource(Res.string.multichat_row_actions, name)
+    val deleteItemLabel: String = stringResource(Res.string.multichat_delete_action)
+    val timeoutItemLabel: String = stringResource(Res.string.multichat_timeout_action, name)
+    val banItemLabel: String = stringResource(Res.string.multichat_ban_action, name)
+
+    Box {
+        ManageGate(decision = manage) { enabled ->
+            GlyphButton(
+                icon = DotsHorizontalGlyph,
+                label = menuLabel,
+                onClick = { expanded = true },
+                enabled = enabled,
+            )
+        }
+
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text(text = deleteItemLabel, style = typography.sm, color = tokens.destructive) },
+                modifier = Modifier.semantics { role = Role.Button; contentDescription = deleteItemLabel },
+                onClick = { expanded = false; confirmDelete = true },
+            )
+            DropdownMenuItem(
+                text = { Text(text = timeoutItemLabel, style = typography.sm, color = tokens.destructive) },
+                modifier = Modifier.semantics { role = Role.Button; contentDescription = timeoutItemLabel },
+                onClick = { expanded = false; confirmTimeout = true },
+            )
+            DropdownMenuItem(
+                text = { Text(text = banItemLabel, style = typography.sm, color = tokens.destructive) },
+                modifier = Modifier.semantics { role = Role.Button; contentDescription = banItemLabel },
+                onClick = { expanded = false; confirmBan = true },
+            )
+        }
+    }
+
+    if (confirmDelete) {
+        ConfirmDialog(
+            title = stringResource(Res.string.multichat_delete_title),
+            message = stringResource(Res.string.multichat_delete_message, name),
+            confirmLabel = stringResource(Res.string.multichat_delete_confirm),
+            dismissLabel = stringResource(Res.string.multichat_delete_dismiss),
+            destructive = true,
+            onConfirm = { onDelete(message.channelId, message.id); confirmDelete = false },
+            onDismiss = { confirmDelete = false },
+        )
+    }
+
+    if (confirmTimeout) {
+        ConfirmDialog(
+            title = stringResource(Res.string.multichat_timeout_title),
+            message = stringResource(Res.string.multichat_timeout_message, name),
+            confirmLabel = stringResource(Res.string.multichat_timeout_confirm),
+            dismissLabel = stringResource(Res.string.multichat_timeout_dismiss),
+            destructive = true,
+            onConfirm = { onTimeout(message.channelId, message.userId); confirmTimeout = false },
+            onDismiss = { confirmTimeout = false },
+        )
+    }
+
+    if (confirmBan) {
+        ConfirmDialog(
+            title = stringResource(Res.string.multichat_ban_title),
+            message = stringResource(Res.string.multichat_ban_message, name),
+            confirmLabel = stringResource(Res.string.multichat_ban_confirm),
+            dismissLabel = stringResource(Res.string.multichat_ban_dismiss),
+            destructive = true,
+            onConfirm = { onBan(message.channelId, message.userId); confirmBan = false },
+            onDismiss = { confirmBan = false },
+        )
     }
 }
 

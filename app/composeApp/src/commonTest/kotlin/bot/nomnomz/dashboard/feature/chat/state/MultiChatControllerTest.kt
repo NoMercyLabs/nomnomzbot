@@ -138,6 +138,103 @@ class MultiChatControllerTest {
         val ready: MultiChatState.Ready = controller.state.value as MultiChatState.Ready
         assertEquals(listOf("l1"), ready.messages.map { it.id })
     }
+
+    @Test
+    fun send_message_calls_chat_send_with_the_target_channel_and_text() = runTest {
+        val chat = FakeMultiChatApi()
+        val controller =
+            MultiChatController(
+                FakeMultiChannelsApi(ApiResult.Ok(listOf(channel("a", "Alpha")))),
+                chat,
+                joinChannel = {},
+                leaveChannel = {},
+            )
+        controller.load()
+        controller.addChannel("a")
+
+        controller.sendMessage("a", "hello chat")
+
+        assertEquals(listOf(Triple("a", "hello chat", "you")), chat.sent)
+    }
+
+    @Test
+    fun send_message_failure_surfaces_as_action_error_without_touching_the_feed() = runTest {
+        val chat = FakeMultiChatApi()
+        chat.sendResult = ApiResult.Failure(ApiError(500, "SEND_FAILED", "could not send"))
+        val controller =
+            MultiChatController(
+                FakeMultiChannelsApi(ApiResult.Ok(listOf(channel("a", "Alpha")))),
+                chat,
+                joinChannel = {},
+                leaveChannel = {},
+            )
+        controller.load()
+        controller.addChannel("a")
+
+        controller.sendMessage("a", "hello chat")
+
+        val ready: MultiChatState.Ready = controller.state.value as MultiChatState.Ready
+        assertEquals("could not send", ready.actionError)
+        assertTrue(ready.messages.isEmpty())
+    }
+
+    @Test
+    fun timeout_calls_the_moderation_timeout_endpoint_with_the_target_user_and_channel() = runTest {
+        val chat = FakeMultiChatApi()
+        val controller =
+            MultiChatController(
+                FakeMultiChannelsApi(ApiResult.Ok(listOf(channel("a", "Alpha")))),
+                chat,
+                joinChannel = {},
+                leaveChannel = {},
+            )
+        controller.load()
+        controller.addChannel("a")
+
+        controller.timeoutUser("a", "user-42", durationSeconds = 300)
+
+        assertEquals(listOf(Triple("a", "user-42", 300)), chat.timedOut)
+    }
+
+    @Test
+    fun delete_message_calls_the_delete_endpoint_and_drops_the_line_from_the_feed() = runTest {
+        val chat = FakeMultiChatApi()
+        chat.messagesByChannel["a"] =
+            listOf(ChatMessage(id = "m1", channelId = "a", message = "spam", timestamp = "2026-07-18T10:00:00Z"))
+        val controller =
+            MultiChatController(
+                FakeMultiChannelsApi(ApiResult.Ok(listOf(channel("a", "Alpha")))),
+                chat,
+                joinChannel = {},
+                leaveChannel = {},
+            )
+        controller.load()
+        controller.addChannel("a")
+
+        controller.deleteMessage("a", "m1")
+
+        assertEquals(listOf(Pair("a", "m1")), chat.deleted)
+        val ready: MultiChatState.Ready = controller.state.value as MultiChatState.Ready
+        assertTrue(ready.messages.isEmpty())
+    }
+
+    @Test
+    fun ban_user_calls_the_ban_endpoint_scoped_to_this_channel() = runTest {
+        val chat = FakeMultiChatApi()
+        val controller =
+            MultiChatController(
+                FakeMultiChannelsApi(ApiResult.Ok(listOf(channel("a", "Alpha")))),
+                chat,
+                joinChannel = {},
+                leaveChannel = {},
+            )
+        controller.load()
+        controller.addChannel("a")
+
+        controller.banUser("a", "user-99")
+
+        assertEquals(listOf(Triple("a", "user-99", "this_channel")), chat.banned)
+    }
 }
 
 private class FakeMultiChannelsApi(private val listResult: ApiResult<List<ChannelSummary>>) : ChannelsApi {
@@ -157,9 +254,19 @@ private class FakeMultiChannelsApi(private val listResult: ApiResult<List<Channe
     override suspend fun moderatedChannels(): ApiResult<List<ModeratedChannel>> = ApiResult.Ok(emptyList())
 }
 
-// Only messages() matters here; every mutating action is unused by this read-only monitoring surface.
+// messages() serves scrollback; send/deleteMessage/timeout/banUser record every call so the composer and
+// inline-moderation tests can assert the real API method fired with the right channel/user/text, not merely
+// that no exception was thrown.
 private class FakeMultiChatApi : ChatApi {
     val messagesByChannel: MutableMap<String, List<ChatMessage>> = mutableMapOf()
+    val sent: MutableList<Triple<String, String, String>> = mutableListOf()
+    val deleted: MutableList<Pair<String, String>> = mutableListOf()
+    val timedOut: MutableList<Triple<String, String, Int>> = mutableListOf()
+    val banned: MutableList<Triple<String, String, String>> = mutableListOf()
+    var sendResult: ApiResult<Unit> = ApiResult.Ok(Unit)
+    var deleteResult: ApiResult<Unit> = ApiResult.Ok(Unit)
+    var timeoutResult: ApiResult<Unit> = ApiResult.Ok(Unit)
+    var banResult: ApiResult<NetworkBanResult> = ApiResult.Ok(NetworkBanResult())
 
     override suspend fun messages(channelId: String, limit: Int): ApiResult<List<ChatMessage>> =
         ApiResult.Ok(messagesByChannel[channelId] ?: emptyList())
@@ -171,12 +278,20 @@ private class FakeMultiChatApi : ChatApi {
         message: String,
         senderIdentity: String,
         replyToMessageId: String?,
-    ): ApiResult<Unit> = error("unused")
+    ): ApiResult<Unit> {
+        sent += Triple(channelId, message, senderIdentity)
+        return sendResult
+    }
 
-    override suspend fun deleteMessage(channelId: String, messageId: String): ApiResult<Unit> = error("unused")
+    override suspend fun deleteMessage(channelId: String, messageId: String): ApiResult<Unit> {
+        deleted += Pair(channelId, messageId)
+        return deleteResult
+    }
 
-    override suspend fun timeout(channelId: String, userId: String, durationSeconds: Int): ApiResult<Unit> =
-        error("unused")
+    override suspend fun timeout(channelId: String, userId: String, durationSeconds: Int): ApiResult<Unit> {
+        timedOut += Triple(channelId, userId, durationSeconds)
+        return timeoutResult
+    }
 
     override suspend fun banUser(
         channelId: String,
@@ -184,7 +299,10 @@ private class FakeMultiChatApi : ChatApi {
         scope: String,
         reason: String?,
         durationSeconds: Int?,
-    ): ApiResult<NetworkBanResult> = error("unused")
+    ): ApiResult<NetworkBanResult> {
+        banned += Triple(channelId, targetTwitchUserId, scope)
+        return banResult
+    }
 
     override suspend fun fileReport(
         channelId: String,
