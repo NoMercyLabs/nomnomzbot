@@ -410,9 +410,14 @@ later.)
   ever picks up an unsynced local-only reward and creates it on Twitch). A bundle-imported reward is
   therefore in the same "looks created, never redeemable" state the dashboard-create path was just fixed
   from — needs either a real deferred-sync job/action, or the import path pushed to Twitch synchronously
-  like dashboard-create with a clear failure surfaced to the importer. **Still open**: rewards poll
-  backoff (`RewardsScreen.kt:179-186`, 3s loop, no backoff); null-as-empty reads → errors
-  (`RewardsController.kt:76-95,112`) (U·B2).
+  like dashboard-create with a clear failure surfaced to the importer. DONE: rewards poll backoff
+  (bced87e4 — the 3s redemption-timer poll had no backoff and retried forever against a down/erroring
+  backend; `refreshTimers` now reports success/failure and the loop doubles up to a 30s cap, resetting on
+  success). DONE: null-as-empty reads (bced87e4 — a failed redemptions/pipelines/timers read during `load`
+  silently degraded to an empty list with no signal, indistinguishable from `RewardsState.Empty`; `load`
+  now tracks which sections failed and surfaces a `loadWarning` banner, and never reports `Empty` when the
+  only reason a list is empty is a failed fetch, not the channel genuinely having none) (U·B2). S063
+  closed except the newly-filed bundle-import D2 sync gap above.
 - **S064** Economy reach — catalog item full form + edit; leaderboard config CRUD + opt-outs + display
   names; jar role dropdown + jar update/delete (U·B2). Done-when: the store can sell an item with an
   effect, stock and cooldown from the UI.
