@@ -6021,6 +6021,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<bool>("IsBot")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsLurking")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("IsPlatformPrincipal")
                         .HasColumnType("boolean");
 
