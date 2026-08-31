@@ -312,6 +312,33 @@ class GiveawaysControllerTest {
         assertTrue((detail as PoolDetailState.Ready).pool.codes.all { it.status == GiveawayCodeStatus.Available })
     }
 
+    @Test
+    fun add_codes_splits_an_optional_pipe_delimited_label() = runTest {
+        val api =
+            RecordingGiveawaysApi(
+                ApiResult.Ok(emptyList()),
+                poolsInitial = ApiResult.Ok(listOf(CodePool(id = "p1", name = "keys", total = 0))),
+            )
+        val controller = GiveawaysController(api)
+        controller.loadCodePools()
+        controller.showPoolDetail(CodePool(id = "p1", name = "keys"))
+
+        controller.addCodes(
+            "p1",
+            listOf("PROMO-1234 | Steam key — Cyberpunk 2077", "PROMO-5678", "  PROMO-9 |  "),
+        )
+
+        val body: AddCodesBody = api.addedCodes.single { it.first == "p1" }.second
+        assertEquals(
+            listOf("PROMO-1234", "PROMO-5678", "PROMO-9"),
+            body.codes.map { it.code },
+        )
+        assertEquals("Steam key — Cyberpunk 2077", body.codes[0].label)
+        assertEquals(null, body.codes[1].label)
+        // A trailing "|" with nothing after it is a blank label, not an empty-string one.
+        assertEquals(null, body.codes[2].label)
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────────
 
     private fun readyGiveaways(controller: GiveawaysController): List<Giveaway> =
