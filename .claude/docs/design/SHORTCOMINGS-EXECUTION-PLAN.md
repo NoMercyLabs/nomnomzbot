@@ -494,9 +494,16 @@ later.)
   permit via identity path; whisper-with-fallback for GDPR + inbound whisper handler; `announce`
   action/toggle; tone catalogue per locale (U·C7, K copy). Done-when: same `!sr` sounds the same from
   builtin and pipeline; sassy channel has sassy errors.
-- **S070** Settings + onboarding truth — auto-join semantics;
+- **S070** Settings + onboarding truth —
   timezone/language wired or removed; wizard `botUsername` contract; `applyBasics` failure reported;
   scope→feature map + re-grant on Settings; swallowed regrant/reconcile failures; copy fixes (U·B6).
+  **Auto-join semantics DONE, verified (9fbadca8)**: `ChannelService.JoinAsync`/`LeaveAsync` and the
+  settings `AutoJoin` toggle only ever flipped `Channel.Enabled` in the DB — the actual EventSub
+  subscribe/unsubscribe only happened on `BotLifecycleService`'s 5-minute reconcile tick, so toggling
+  auto-join silently did nothing live for up to 5 minutes despite the controller's own doc comments
+  claiming it joins immediately. `ChannelService` now calls `EnsureSubscribedAsync`/`UnsubscribeAllAsync`
+  directly on join/leave/toggle (idempotent, reconcile tick stays a safe no-op fallback). 23/23 tests
+  green, assert on the actual EventSub call not DB state.
   **Integrations read-failure state DONE, verified (c4c9a6b7)**: `IntegrationsController.refresh()` was
   swallowing a failed `integrationsApi.status()` call into `emptyList()`, indistinguishable from "zero
   integrations connected" — violated the truthful-data house rule. `refresh()` now sets the existing
