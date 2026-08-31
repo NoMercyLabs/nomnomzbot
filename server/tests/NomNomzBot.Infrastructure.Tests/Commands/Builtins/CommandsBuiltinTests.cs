@@ -9,10 +9,13 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Commands.Builtins;
 using NSubstitute;
 
@@ -21,18 +24,44 @@ namespace NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 /// <summary>
 /// <c>!commands</c> (legacy parity, S068b) must list REAL, currently-enabled triggers pulled from the same
 /// two read paths the dashboard's Commands screen uses — not a hardcoded string. Also proves a disabled
-/// command/built-in is excluded, so the listing reflects live state, not the full catalog.
+/// command/built-in is excluded, so the listing reflects live state, not the full catalog, and that the
+/// reply renders in the channel's personality tone (S069a) rather than a hardcoded string.
 /// </summary>
 public sealed class CommandsBuiltinTests
 {
-    private static BuiltinCommandContext Context() =>
+    private static BuiltinCommandContext Context(
+        string personality = PersonalityTone.Informative
+    ) =>
         new()
         {
             BroadcasterId = Guid.CreateVersion7(),
             TriggeringUserId = "42",
             TriggeringUserDisplayName = "Stoney_Eagle",
             TriggeringUserLogin = "stoney_eagle",
+            Personality = personality,
         };
+
+    private static IBuiltinResponseComposer FakeComposer()
+    {
+        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
+        resolver
+            .ResolveAsync(
+                Arg.Any<string>(),
+                Arg.Any<IDictionary<string, string>>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(call =>
+            {
+                string template = call.ArgAt<string>(0);
+                foreach (
+                    KeyValuePair<string, string> kvp in call.ArgAt<IDictionary<string, string>>(1)
+                )
+                    template = template.Replace($"{{{kvp.Key}}}", kvp.Value);
+                return Task.FromResult(template);
+            });
+        return new BuiltinResponseComposer(resolver);
+    }
 
     private static CommandListItem FakeCommand(string name, bool isEnabled) =>
         new(
@@ -84,7 +113,7 @@ public sealed class CommandsBuiltinTests
                 ])
             );
 
-        CommandsBuiltin builtin = new(commands, builtins);
+        CommandsBuiltin builtin = new(commands, builtins, FakeComposer());
 
         Result<string> result = await builtin.ExecuteAsync(Context());
 
@@ -124,7 +153,7 @@ public sealed class CommandsBuiltinTests
                 ])
             );
 
-        CommandsBuiltin builtin = new(commands, builtins);
+        CommandsBuiltin builtin = new(commands, builtins, FakeComposer());
 
         Result<string> result = await builtin.ExecuteAsync(Context());
 
@@ -132,5 +161,46 @@ public sealed class CommandsBuiltinTests
         result.Value.Should().Contain("sr");
         result.Value.Should().NotContain("disabledcmd");
         result.Value.Should().NotContain("lurk");
+    }
+
+    [Fact]
+    public async Task Sassy_tone_produces_the_sassy_variant_not_the_raw_hardcoded_string()
+    {
+        ICommandService commands = Substitute.For<ICommandService>();
+        commands
+            .ListAsync(Arg.Any<string>(), Arg.Any<PaginationParams>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new PagedList<CommandListItem>([FakeCommand("sr", isEnabled: true)], 1, 100, 1)
+                )
+            );
+        IBuiltinCommandService builtins = Substitute.For<IBuiltinCommandService>();
+        builtins
+            .ListAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<BuiltinCommandDto>>([]));
+
+        CommandsBuiltin builtin = new(commands, builtins, FakeComposer());
+
+        Result<string> sassy = await builtin.ExecuteAsync(Context(PersonalityTone.Sassy));
+        Result<string> informative = await builtin.ExecuteAsync(
+            Context(PersonalityTone.Informative)
+        );
+
+        string oldHardcodedString = "@Stoney_Eagle available commands: sr";
+        sassy.Value.Should().NotBe(oldHardcodedString);
+        HashSet<string> sassyVariants =
+        [
+            .. ToneTemplateCatalog
+                .Get(
+                    PersonalityTone.Sassy,
+                    BuiltinResponseSlots.Commands.Key,
+                    BuiltinResponseSlots.Commands.List
+                )
+                .Select(t => t.Replace("{user}", "Stoney_Eagle").Replace("{commands}", "sr")),
+        ];
+        sassyVariants.Should().Contain(sassy.Value);
+
+        // Default tone still reads exactly as it did before this slice (regression).
+        informative.Value.Should().Be(oldHardcodedString);
     }
 }

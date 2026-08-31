@@ -9,11 +9,14 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Commands.Builtins;
 using NSubstitute;
 
@@ -21,22 +24,47 @@ namespace NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 
 /// <summary>
 /// <c>!lurk</c>/<c>!unlurk</c> (legacy parity, S068a) flip <see cref="User.IsLurking"/> on the caller's
-/// real row and confirm it in chat — these prove the FLAG ACTUALLY FLIPS on the persisted row, not just
-/// that a string came back.
+/// real row and confirm it in chat, in the channel's personality tone (S069a) — these prove the FLAG
+/// ACTUALLY FLIPS on the persisted row, not just that a string came back.
 /// </summary>
 public sealed class LurkBuiltinsTests
 {
     private const string TwitchId = "42";
     private const string Login = "stoney_eagle";
 
-    private static BuiltinCommandContext Context() =>
+    private static BuiltinCommandContext Context(
+        string personality = PersonalityTone.Informative
+    ) =>
         new()
         {
             BroadcasterId = Guid.CreateVersion7(),
             TriggeringUserId = TwitchId,
             TriggeringUserDisplayName = "Stoney_Eagle",
             TriggeringUserLogin = Login,
+            Personality = personality,
         };
+
+    private static IBuiltinResponseComposer FakeComposer()
+    {
+        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
+        resolver
+            .ResolveAsync(
+                Arg.Any<string>(),
+                Arg.Any<IDictionary<string, string>>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(call =>
+            {
+                string template = call.ArgAt<string>(0);
+                foreach (
+                    KeyValuePair<string, string> kvp in call.ArgAt<IDictionary<string, string>>(1)
+                )
+                    template = template.Replace($"{{{kvp.Key}}}", kvp.Value);
+                return Task.FromResult(template);
+            });
+        return new BuiltinResponseComposer(resolver);
+    }
 
     private static IUserService FakeUsers() =>
         Substitute
@@ -80,13 +108,54 @@ public sealed class LurkBuiltinsTests
         );
         await db.SaveChangesAsync();
 
-        LurkBuiltin builtin = new(FakeUsers(), db);
+        LurkBuiltin builtin = new(FakeUsers(), db, FakeComposer());
 
         Result<string> result = await builtin.ExecuteAsync(Context());
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Contain("lurking");
         db.Users.Single(u => u.TwitchUserId == TwitchId).IsLurking.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Sassy_tone_produces_the_sassy_variant_not_the_raw_hardcoded_string()
+    {
+        await using CommandsTestDbContext db = CommandsTestDbContext.New();
+        db.Users.Add(
+            new User
+            {
+                TwitchUserId = TwitchId,
+                Username = Login,
+                UsernameNormalized = Login,
+                DisplayName = "Stoney_Eagle",
+                IsLurking = false,
+            }
+        );
+        await db.SaveChangesAsync();
+
+        LurkBuiltin builtin = new(FakeUsers(), db, FakeComposer());
+
+        Result<string> sassy = await builtin.ExecuteAsync(Context(PersonalityTone.Sassy));
+        Result<string> informative = await builtin.ExecuteAsync(
+            Context(PersonalityTone.Informative)
+        );
+
+        string oldHardcodedString = "@Stoney_Eagle is now lurking. Enjoy the stream!";
+        sassy.Value.Should().NotBe(oldHardcodedString);
+        HashSet<string> sassyVariants =
+        [
+            .. ToneTemplateCatalog
+                .Get(
+                    PersonalityTone.Sassy,
+                    BuiltinResponseSlots.Lurk.Key,
+                    BuiltinResponseSlots.Lurk.Lurking
+                )
+                .Select(t => t.Replace("{user}", "Stoney_Eagle")),
+        ];
+        sassyVariants.Should().Contain(sassy.Value);
+
+        // Default tone still reads exactly as it did before this slice (regression).
+        informative.Value.Should().Be(oldHardcodedString);
     }
 
     [Fact]
@@ -105,7 +174,7 @@ public sealed class LurkBuiltinsTests
         );
         await db.SaveChangesAsync();
 
-        UnlurkBuiltin builtin = new(FakeUsers(), db);
+        UnlurkBuiltin builtin = new(FakeUsers(), db, FakeComposer());
 
         Result<string> result = await builtin.ExecuteAsync(Context());
 

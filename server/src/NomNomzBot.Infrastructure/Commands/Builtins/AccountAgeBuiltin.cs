@@ -11,6 +11,7 @@
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Services;
@@ -24,25 +25,30 @@ namespace NomNomzBot.Infrastructure.Commands.Builtins;
 /// the already-hydrated <see cref="User.AccountCreatedAt"/> (set once from Helix Get Users <c>created_at</c>
 /// by <see cref="UserProfileHydrationService"/>/login, per-viewer-data §D2); a row that was never hydrated
 /// falls back to one live Helix lookup and persists it, the same on-demand-refresh shape
-/// <see cref="UpdateUserInfoBuiltin"/> already uses.
+/// <see cref="UpdateUserInfoBuiltin"/> already uses. The successful reply renders in the channel's
+/// personality tone via <see cref="IBuiltinResponseComposer"/>; the error/unresolved paths stay neutral,
+/// same as every other built-in's usage/error strings.
 /// </summary>
 public sealed class AccountAgeBuiltin : IBuiltinCommand
 {
     private readonly ITwitchUsersApi _twitchUsers;
     private readonly IUserService _users;
     private readonly IApplicationDbContext _db;
+    private readonly IBuiltinResponseComposer _composer;
     private readonly TimeProvider _clock;
 
     public AccountAgeBuiltin(
         ITwitchUsersApi twitchUsers,
         IUserService users,
         IApplicationDbContext db,
+        IBuiltinResponseComposer composer,
         TimeProvider clock
     )
     {
         _twitchUsers = twitchUsers;
         _users = users;
         _db = db;
+        _composer = composer;
         _clock = clock;
     }
 
@@ -98,9 +104,25 @@ public sealed class AccountAgeBuiltin : IBuiltinCommand
             );
 
         string age = FormatAge(_clock.GetUtcNow().UtcDateTime - row.AccountCreatedAt.Value);
-        return Result.Success(
-            $"@{context.TriggeringUserDisplayName} your Twitch account is {age} old."
+        string reply = await _composer.ComposeAsync(
+            new()
+            {
+                BroadcasterId = context.BroadcasterId,
+                Personality = context.Personality,
+                BuiltinKey = BuiltinResponseSlots.AccountAge.Key,
+                Slot = BuiltinResponseSlots.AccountAge.Age,
+                OverrideTemplate = context.CustomResponseTemplate,
+                NeutralFallback =
+                    $"@{context.TriggeringUserDisplayName} your Twitch account is {age} old.",
+                Variables = new Dictionary<string, string>
+                {
+                    ["user"] = context.TriggeringUserDisplayName,
+                    ["age"] = age,
+                },
+            },
+            ct
         );
+        return Result.Success(reply);
     }
 
     private static string FormatAge(TimeSpan span)
