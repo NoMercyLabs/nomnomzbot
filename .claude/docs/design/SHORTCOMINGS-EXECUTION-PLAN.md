@@ -545,9 +545,27 @@ later.)
   not "no exception".
 - **S069** Bot voice everywhere — tone applied to custom commands/timers/event responses/chat triggers/
   `send_message`; tone slots for usage/errors;
-  permit via identity path; whisper-with-fallback for GDPR + inbound whisper handler;
+  permit via identity path; inbound whisper handler;
   tone catalogue per locale (U·C7, K copy). Done-when: same `!sr` sounds the same from
   builtin and pipeline; sassy channel has sassy errors.
+  **🔒 OWNER CALL NEEDED — architectural gap found, not a simple wiring task (2026-09-01)**: attempted
+  to wire tone into custom-command responses and `SendMessageAction` (pipeline `send_message`), same
+  mechanism the legacy builtins now use. Found the premise itself is wrong: `IBuiltinResponseComposer`/
+  `ToneTemplateCatalog` only pick among hand-authored per-tone TEXT VARIANTS keyed by
+  `(tone, builtinKey, slot)` for a small fixed set of known builtin messages — there is NO generic
+  mechanism to restyle arbitrary already-resolved freeform text (a user's own custom-command template,
+  or a pipeline `send_message`'s resolved text) as sassy/etc. `SendMessageAction` currently applies NO
+  tone at all, just plain template resolution — the Done-when ("same `!sr` sounds the same from builtin
+  and pipeline; sassy channel has sassy errors") is not actually achievable with the mechanism as it
+  exists today. Building a generic freeform-text tone rewriter (LLM-based, or a template
+  prefix/suffix/wrapper system) is a real design decision, not a "wire the existing thing" slice — needs
+  an owner call on approach before any implementation.
+  **GDPR whisper-with-fallback CLOSED N/A**: every existing GDPR chat reply
+  (`GdprSelfServiceExecutor.ForgetAsync`/`ExportAsync`/`StatusAsync`) is already designed strictly
+  PII-free by construction (own doc comment: "chat is public, so they carry state words, never data") —
+  the export path never posts actual data/tokens/links in chat, only points to the dashboard/operator.
+  No sensitive payload exists anywhere that would need whisper-first delivery; building the mechanism
+  would be speculative machinery with nothing real to protect.
   **One reply-or-mention helper DONE, verified (e3463e7e)**: only 2 real duplicate call sites found
   (`SendReplyAction.cs`, `ChatMessageHandler.SendResponseAsync`) — both already used the identical
   fallback format and shape, no inconsistency to resolve, pure consolidation. New
