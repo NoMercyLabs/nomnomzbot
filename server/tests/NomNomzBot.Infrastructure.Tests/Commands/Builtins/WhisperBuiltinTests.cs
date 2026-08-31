@@ -9,7 +9,9 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Platform;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -23,20 +25,46 @@ namespace NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 /// <c>!whisper &lt;user&gt; &lt;message&gt;</c> (legacy parity, S068c) proves the REAL side effect: the
 /// target login is actually resolved to a Twitch id via <see cref="ITwitchUsersApi"/>, and the Twitch
 /// <see cref="IPlatformDirectMessageSender"/> is actually invoked with that id and the exact message —
-/// not merely "no exception".
+/// not merely "no exception". Also proves the usage/notfound copy is tone-styled (S069h).
 /// </summary>
 public sealed class WhisperBuiltinTests
 {
     private static readonly Guid Broadcaster = Guid.Parse("0192a000-0000-7000-8000-000000009903");
 
-    private static BuiltinCommandContext Context(string args) =>
+    private static BuiltinCommandContext Context(
+        string args,
+        string personality = PersonalityTone.Informative
+    ) =>
         new()
         {
             BroadcasterId = Broadcaster,
             TriggeringUserId = "mod-1",
             TriggeringUserDisplayName = "SomeMod",
             Args = args,
+            Personality = personality,
         };
+
+    private static IBuiltinResponseComposer FakeComposer()
+    {
+        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
+        resolver
+            .ResolveAsync(
+                Arg.Any<string>(),
+                Arg.Any<IDictionary<string, string>>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(call =>
+            {
+                string template = call.ArgAt<string>(0);
+                foreach (
+                    KeyValuePair<string, string> kvp in call.ArgAt<IDictionary<string, string>>(1)
+                )
+                    template = template.Replace($"{{{kvp.Key}}}", kvp.Value);
+                return Task.FromResult(template);
+            });
+        return new BuiltinResponseComposer(resolver);
+    }
 
     private static TwitchUser Viewer1() =>
         new(
@@ -69,7 +97,7 @@ public sealed class WhisperBuiltinTests
             .SendAsync(Broadcaster, "999", "hey stop that", Arg.Any<CancellationToken>())
             .Returns(Result.Success());
 
-        WhisperBuiltin sut = new(twitchUsers, [twitchSender]);
+        WhisperBuiltin sut = new(twitchUsers, [twitchSender], FakeComposer());
 
         Result<string> result = await sut.ExecuteAsync(Context("@viewer1 hey stop that"));
 
@@ -92,7 +120,7 @@ public sealed class WhisperBuiltinTests
         IPlatformDirectMessageSender twitchSender = Substitute.For<IPlatformDirectMessageSender>();
         twitchSender.Provider.Returns(AuthEnums.Platform.Twitch);
 
-        WhisperBuiltin sut = new(twitchUsers, [twitchSender]);
+        WhisperBuiltin sut = new(twitchUsers, [twitchSender], FakeComposer());
 
         Result<string> result = await sut.ExecuteAsync(Context("ghostuser hello"));
 
@@ -113,7 +141,7 @@ public sealed class WhisperBuiltinTests
     public async Task Missing_message_argument_never_looks_up_a_user()
     {
         ITwitchUsersApi twitchUsers = Substitute.For<ITwitchUsersApi>();
-        WhisperBuiltin sut = new(twitchUsers, []);
+        WhisperBuiltin sut = new(twitchUsers, [], FakeComposer());
 
         Result<string> result = await sut.ExecuteAsync(Context("viewer1"));
 
@@ -123,5 +151,47 @@ public sealed class WhisperBuiltinTests
         await twitchUsers
             .DidNotReceive()
             .GetUsersByLoginsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Sassy_tone_produces_a_different_usage_message_than_the_default_tone()
+    {
+        WhisperBuiltin sut = new(Substitute.For<ITwitchUsersApi>(), [], FakeComposer());
+
+        Result<string> sassy = await sut.ExecuteAsync(Context("viewer1", PersonalityTone.Sassy));
+        Result<string> informative = await sut.ExecuteAsync(
+            Context("viewer1", PersonalityTone.Informative)
+        );
+
+        informative.Value.Should().Be("Usage: !whisper <user> <message>");
+        sassy.Value.Should().NotBe(informative.Value);
+        ToneTemplateCatalog
+            .Get(
+                PersonalityTone.Sassy,
+                BuiltinResponseSlots.Whisper.Key,
+                BuiltinResponseSlots.Whisper.Usage
+            )
+            .Should()
+            .Contain(sassy.Value);
+    }
+
+    [Fact]
+    public async Task Sassy_tone_produces_a_different_not_found_message_than_the_default_tone()
+    {
+        ITwitchUsersApi twitchUsers = Substitute.For<ITwitchUsersApi>();
+        twitchUsers
+            .GetUsersByLoginsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchUser>>([]));
+        WhisperBuiltin sut = new(twitchUsers, [], FakeComposer());
+
+        Result<string> sassy = await sut.ExecuteAsync(
+            Context("ghostuser hello", PersonalityTone.Sassy)
+        );
+        Result<string> informative = await sut.ExecuteAsync(
+            Context("ghostuser hello", PersonalityTone.Informative)
+        );
+
+        informative.Value.Should().Be("Could not find a Twitch user named \"ghostuser\".");
+        sassy.Value.Should().NotBe(informative.Value);
     }
 }

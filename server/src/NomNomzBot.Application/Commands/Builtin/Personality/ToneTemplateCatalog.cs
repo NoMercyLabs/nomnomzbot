@@ -593,6 +593,66 @@ public static class ToneTemplateCatalog
             chill: ["@{user} account's {age} old."]
         );
 
+        // ── !whisper / usage (no args) ───────────────────────────────────────────
+        Add(
+            catalog,
+            BuiltinResponseSlots.Whisper.Key,
+            BuiltinResponseSlots.Whisper.Usage,
+            informative: ["Usage: !whisper <user> <message>"],
+            friendly: ["Almost! Try: !whisper <user> <message>"],
+            sassy: ["Usage: !whisper <user> <message>. Both parts. Every time. Not optional."],
+            hype: ["USAGE: !whisper <user> <message>. FILL IT IN AND SEND IT."],
+            chill: ["usage: !whisper <user> <message>"]
+        );
+
+        // ── !whisper / notfound ({user}) ─────────────────────────────────────────
+        Add(
+            catalog,
+            BuiltinResponseSlots.Whisper.Key,
+            BuiltinResponseSlots.Whisper.NotFound,
+            informative: ["Could not find a Twitch user named \"{user}\"."],
+            friendly: ["Hmm, couldn't find a Twitch user named \"{user}\" — check the spelling?"],
+            sassy: ["\"{user}\" is not a Twitch user. Checked. Twice. Try spelling it right."],
+            hype: ["NO TWITCH USER NAMED \"{user}\". DOUBLE-CHECK AND RETRY."],
+            chill: ["couldn't find \"{user}\" on twitch."]
+        );
+
+        // ── !bansong / nothing (no args) ─────────────────────────────────────────
+        Add(
+            catalog,
+            BuiltinResponseSlots.BanSong.Key,
+            BuiltinResponseSlots.BanSong.Nothing,
+            informative: ["Nothing is playing right now — there's no track to ban."],
+            friendly: ["Nothing's playing right now, so there's nothing to ban!"],
+            sassy: ["Nothing is playing. Banning silence would be a bold new frontier. Let's not."],
+            hype: ["NOTHING PLAYING. NOTHING TO BAN. GET A TRACK GOING FIRST."],
+            chill: ["nothing playing. nothing to ban."]
+        );
+
+        // ── !update / notfound ({user}) ──────────────────────────────────────────
+        Add(
+            catalog,
+            BuiltinResponseSlots.UpdateUserInfo.Key,
+            BuiltinResponseSlots.UpdateUserInfo.NotFound,
+            informative: ["Could not find user '{user}' on Twitch."],
+            friendly: ["Couldn't find '{user}' on Twitch — mind checking the spelling?"],
+            sassy: ["'{user}' does not exist on Twitch. Not my fault. Check the name."],
+            hype: ["NO SUCH USER '{user}' ON TWITCH. TRY AGAIN."],
+            chill: ["couldn't find '{user}' on twitch."]
+        );
+
+        // ── !volume / usage (no args) ────────────────────────────────────────────
+        Add(
+            catalog,
+            BuiltinResponseSlots.Volume.Key,
+            BuiltinResponseSlots.Volume.Usage,
+            informative: ["Usage: !volume <0-100>"],
+            friendly: ["Almost! Try: !volume <0-100>"],
+            sassy: ["Usage: !volume <0-100>. A number. Between zero and a hundred. That's it."],
+            hype: ["USAGE: !volume <0-100>. PICK A NUMBER AND SEND IT."],
+            chill: ["usage: !volume <0-100>"]
+        );
+
         return catalog;
     }
 
