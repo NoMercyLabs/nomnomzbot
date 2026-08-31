@@ -424,10 +424,16 @@ later.)
   `Requires18Plus`/`ScheduledCloseAt (minutes-from-now)` toggles, and the `requires18Plus`/
   `scheduledCloseAt` Kotlin DTO fields that had been missing since the two backend slices that added
   them). **Still open:**
-  - Platform-generic DM delivery — `GiveawayFulfillment.FulfillCodeAsync` hardcoded to
-    `ITwitchWhispersApi`; no `IPlatformDirectMessageSender`; `GiveawayEntry`/`GiveawayWinner` carry no
-    `Provider`/`ProviderUserId` — a Kick/YouTube/X-only broadcaster's code-pool winner can never
-    receive their code today.
+  - **Platform-generic DM delivery DONE, verified (391964ac)**: new `IPlatformDirectMessageSender`
+    (Application) + `TwitchWhisperDirectMessageSender` (Infrastructure) mirroring the `IChatProvider`
+    pattern; `GiveawayEntry`/`GiveawayWinner` gained `Provider`/`ProviderUserId` (both Postgres + SQLite
+    migrations, per house rule); `FulfillCodeAsync` now resolves the sender by the winner's `Provider` —
+    a Kick/YouTube winner fails cleanly with no sender available (code stays `Assigned`, no Twitch
+    whisper attempted) instead of silently misdirecting to Twitch; Twitch winners unchanged (regression
+    covered). Kick/YouTube/X senders themselves are still unbuilt — tracked as their own future item,
+    not fabricated here. Found in passing, not fixed (own future cleanup): `PlatformType.cs` is a stale
+    2-member (Twitch/Discord) enum unrelated to the real platform-routing convention; giveaway
+    `active_viewers` entry mode still resolves candidates via Twitch-only chat history.
 - **S066** Moderation reach — mod add/remove endpoints + UI; clear chat; full `AutomodConfigDto`;
   concurrency guard on whole-config POST; chat-settings slow/followers/unique/non-mod fields (U·B3).
   **Chat-filters screen DONE, verified (ea18f8a4)**: backend (`ChatFiltersController` +
