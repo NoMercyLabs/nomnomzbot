@@ -377,13 +377,18 @@ later.)
   invalid-value errors (5acb519e — an unrecognized schema field type used to silently render as a text
   box and overwrite structured data on save; now shows an inline notice and leaves the value untouched);
   overlay last-seen (d3375b49 — `WidgetDetail.IsAttached` backed by the existing `IOverlayPresenceRegistry`,
-  row shows "Live in OBS" / "Not connected" without firing a test event first). **Still open**: per-widget
-  tokens + staged rotation + post-rotate URL list; inline preview; in-overlay banner on rejected token;
-  resume without reload; settings form by schema availability; asset/sound/font field types (no backend
-  field type for these exists yet — needs a schema contract addition first); editable subscriptions
-  (blocked on S085's `domain.action` naming realignment landing first — building this against today's
-  ad-hoc event names would need re-doing); gallery version/update + search/paging; sound upload limits
-  (U·B5). Done-when: add → copy → test → live from one row.
+  row shows "Live in OBS" / "Not connected" without firing a test event first); gallery search + load-more
+  paging (5e1e93b2 — the browse dialog only ever fetched page 1 of 50 with no way to reach older items or
+  find one by name; uncovered and fixed a real bug along the way — a second `[FromQuery]`-bound `Search`
+  property collided with `PageRequestDto.Search` on the same action and made the .NET 10 OpenAPI XML-comment
+  generator 500 on EVERY request, not just this endpoint — `WidgetGalleryController` now binds
+  framework/trustTier/reviewStatus as scalars per the `PickListsController`/`QuotesController`/
+  `MarketplaceController` convention). **Still open**: per-widget tokens + staged rotation + post-rotate URL
+  list; inline preview; in-overlay banner on rejected token; resume without reload; settings form by schema
+  availability; asset/sound/font field types (no backend field type for these exists yet — needs a schema
+  contract addition first); editable subscriptions (blocked on S085's `domain.action` naming realignment
+  landing first — building this against today's ad-hoc event names would need re-doing); gallery
+  version/update; sound upload limits (U·B5). Done-when: add → copy → test → live from one row.
 - **S063** Rewards reach — `Response` field in create + update; `ActionType/ActionSettings` exposed or
   deleted; rewards poll backoff; null-as-empty reads → errors (U·B2).
 - **S064** Economy reach — catalog item full form + edit; leaderboard config CRUD + opt-outs + display
