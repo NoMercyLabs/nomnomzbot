@@ -20,6 +20,7 @@ import bot.nomnomz.dashboard.core.network.ChatMessage
 import bot.nomnomz.dashboard.core.network.ChatSettings
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.NetworkBanResult
+import bot.nomnomz.dashboard.core.realtime.HubChannelEvent
 import bot.nomnomz.dashboard.core.realtime.HubChatMessage
 import bot.nomnomz.dashboard.core.realtime.HubConnectionState
 import bot.nomnomz.dashboard.core.realtime.HubEvent
@@ -139,6 +140,35 @@ class MultiChatControllerTest {
 
         val ready: MultiChatState.Ready = controller.state.value as MultiChatState.Ready
         assertEquals(listOf("l1"), ready.messages.map { it.id })
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun shield_mode_begin_push_marks_the_channel_active_and_end_clears_it() = runTest {
+        val controller =
+            MultiChatController(
+                FakeMultiChannelsApi(ApiResult.Ok(listOf(channel("a", "Alpha"), channel("b", "Beta")))),
+                FakeMultiChatApi(),
+                joinChannel = {},
+                leaveChannel = {},
+            )
+        controller.load()
+        controller.addChannel("a") // watch channel a only
+
+        val events = MutableSharedFlow<HubEvent>(extraBufferCapacity = 16)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.subscribeToHub(events) }
+
+        // A real shield-mode-begin push for an UNWATCHED channel is ignored.
+        events.emit(HubEvent.ChannelEvent(HubChannelEvent(type = "shield_mode_begin", broadcasterId = "b", userId = "mod-1", userDisplayName = "ModMax", timestamp = "2026-07-18T12:00:00Z")))
+        assertTrue((controller.state.value as MultiChatState.Ready).shieldModeActiveChannelIds.isEmpty())
+
+        // The real push for the watched channel toggles the state field on.
+        events.emit(HubEvent.ChannelEvent(HubChannelEvent(type = "shield_mode_begin", broadcasterId = "a", userId = "mod-1", userDisplayName = "ModMax", timestamp = "2026-07-18T12:00:01Z")))
+        assertEquals(setOf("a"), (controller.state.value as MultiChatState.Ready).shieldModeActiveChannelIds)
+
+        // The matching end push clears it again.
+        events.emit(HubEvent.ChannelEvent(HubChannelEvent(type = "shield_mode_end", broadcasterId = "a", userId = "mod-1", userDisplayName = "ModMax", timestamp = "2026-07-18T12:05:00Z")))
+        assertTrue((controller.state.value as MultiChatState.Ready).shieldModeActiveChannelIds.isEmpty())
     }
 
     @Test
