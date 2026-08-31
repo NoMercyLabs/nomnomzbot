@@ -92,6 +92,61 @@ class SetupControllerTest {
     }
 
     @Test
+    fun finish_with_bot_connection_skipped_persists_the_typed_line_prefix_not_a_botusername() = runTest {
+        // S070: with the platform_bot step left incomplete (skipped), D5 applies — the bot types as the
+        // streamer's own account with a user-defined LINE PREFIX. The review step's typed prefix must be
+        // sent as botLinePrefix, not silently dropped or conflated with the twitch_app step's botUsername.
+        val api = FakeSystemApi(wizard = wizard(twitch = true, bot = false), ready = true)
+        val settings = FakeSetupChannelSettingsApi()
+        val controller = controller(api, settingsApi = settings, onReadyToSignIn = { true })
+        controller.load()
+
+        controller.onBasicsChange(SetupBasics(prefix = "!", botLinePrefix = "*"))
+        controller.finish()
+
+        assertEquals("*", settings.lastBasics?.botLinePrefix)
+    }
+
+    @Test
+    fun finish_with_a_real_bot_connection_persists_the_line_prefix_as_unchanged_not_the_stale_typed_value() = runTest {
+        // S070: once the platform_bot step is COMPLETE (a real bot account connected, proven via the
+        // device-poll authorizing then the backend re-read reporting the step complete), the line-prefix
+        // marker is meaningless (D5 — the bot now types as itself) and must be sent as null (leave
+        // unchanged), never as whatever the user happened to type before connecting.
+        val bot =
+            FakeBotAuthApi(
+                deviceStart =
+                    ApiResult.Ok(
+                        DeviceCodeStart(
+                            deviceCode = "BOT-DEV-S070",
+                            userCode = "S070-CODE",
+                            verificationUri = "https://www.twitch.tv/activate",
+                            interval = 1,
+                            expiresIn = 10,
+                        )
+                    ),
+                devicePollStatuses = listOf("authorized"),
+            )
+        val api = FakeSystemApi(wizard = wizard(twitch = true, bot = false), ready = false)
+        val settings = FakeSetupChannelSettingsApi()
+        val controller = controller(api, botAuthApi = bot, settingsApi = settings, onReadyToSignIn = { true })
+        controller.load()
+
+        // The user typed a prefix BEFORE connecting the real bot — it must not survive into the persisted
+        // state once the bot actually connects.
+        controller.onBasicsChange(SetupBasics(botLinePrefix = "*"))
+
+        api.wizardAfter = wizard(twitch = true, bot = true)
+        api.readyAfter = true
+        controller.connectBot()
+        assertTrue((controller.state.value as SetupState.Steps).platformBotConnected)
+
+        controller.finish()
+
+        assertNull(settings.lastBasics?.botLinePrefix)
+    }
+
+    @Test
     fun with_no_client_id_the_credentials_form_shows_and_no_signin_affordance_is_reachable() = runTest {
         // BYOC-before-login (owner requirement): with no Twitch client id stored, the wizard renders the
         // credentials input on step 0 and the required, incomplete twitch_app step blocks canAdvance — so

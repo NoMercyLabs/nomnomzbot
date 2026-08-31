@@ -101,6 +101,9 @@
     <string name="setup_basics_locale_hint">BCP-47-code, bijv. en of nl. Laat leeg om de kanaalstandaard te gebruiken.</string>
     <string name="setup_basics_timezone">Tijdzone</string>
     <string name="setup_basics_timezone_hint">IANA-naam, bijv. Europe/Amsterdam. Optioneel.</string>
+    <string name="setup_basics_bot_line_prefix">Bot-regelprefix</string>
+    <string name="setup_basics_bot_line_prefix_hint">Markeert regels die de bot via je eigen account verstuurt zolang er geen apart bot-account is verbonden, bijv. * voor een door de bot verstuurd bericht. Optioneel.</string>
+    <string name="setup_basics_bot_line_prefix_disabled_note">Er is een apart bot-account verbonden, dus die typt als zichzelf — het regelprefix is dan niet meer van toepassing.</string>
     <string name="setup_review_status_done">Geconfigureerd</string>
     <string name="setup_review_status_skipped">Overgeslagen (optioneel)</string>
     <string name="setup_review_status_pending">Niet geconfigureerd</string>

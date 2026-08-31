@@ -69,6 +69,9 @@ import nomnomzbot.composeapp.generated.resources.setup_basics_prefix_hint
 import nomnomzbot.composeapp.generated.resources.setup_basics_locale
 import nomnomzbot.composeapp.generated.resources.setup_basics_locale_hint
 import nomnomzbot.composeapp.generated.resources.setup_basics_timezone
+import nomnomzbot.composeapp.generated.resources.setup_basics_bot_line_prefix
+import nomnomzbot.composeapp.generated.resources.setup_basics_bot_line_prefix_disabled_note
+import nomnomzbot.composeapp.generated.resources.setup_basics_bot_line_prefix_hint
 import nomnomzbot.composeapp.generated.resources.setup_basics_timezone_hint
 import nomnomzbot.composeapp.generated.resources.setup_action_connect_bot
 import nomnomzbot.composeapp.generated.resources.setup_action_continue
@@ -360,7 +363,7 @@ private fun ReviewPanel(controller: SetupController, state: SetupState.Steps) {
             ReviewRow(step = step)
         }
 
-        BasicsForm(controller = controller, basics = state.basics)
+        BasicsForm(controller = controller, basics = state.basics, platformBotConnected = state.platformBotConnected)
 
         if (!state.ready) {
             ErrorText(stringResource(Res.string.setup_review_not_ready))
@@ -371,11 +374,15 @@ private fun ReviewPanel(controller: SetupController, state: SetupState.Steps) {
     }
 }
 
-// The "Configure basics" block on the review step: the command prefix, the bot's default language, and the
-// streamer's timezone. These are applied to the streamer's channel at finish() (once signed in). Everything is
-// optional — the prefix defaults to "!", and a blank language/timezone leaves the channel default untouched.
+// The "Configure basics" block on the review step: the command prefix, the bot's default language, the
+// streamer's timezone, and (D5) the bot-line prefix. These are applied to the streamer's channel at finish()
+// (once signed in). Everything is optional — the prefix defaults to "!", and a blank language/timezone leaves
+// the channel default untouched. The bot-line prefix field is shown only while no dedicated bot account is
+// connected ([platformBotConnected] == false); once connected the bot types as itself and the marker is
+// meaningless, so the field hides behind an explanation instead of silently doing nothing (mirrors the
+// Settings "Bot basics" tab's BasicsForm).
 @Composable
-private fun BasicsForm(controller: SetupController, basics: SetupBasics) {
+private fun BasicsForm(controller: SetupController, basics: SetupBasics, platformBotConnected: Boolean) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -396,6 +403,21 @@ private fun BasicsForm(controller: SetupController, basics: SetupBasics) {
             supportingText = stringResource(Res.string.setup_basics_prefix_hint),
             modifier = Modifier.fillMaxWidth(),
         )
+        if (platformBotConnected) {
+            Text(
+                text = stringResource(Res.string.setup_basics_bot_line_prefix_disabled_note),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+            )
+        } else {
+            AppTextField(
+                value = basics.botLinePrefix,
+                onValueChange = { controller.onBasicsChange(basics.copy(botLinePrefix = it)) },
+                label = stringResource(Res.string.setup_basics_bot_line_prefix),
+                supportingText = stringResource(Res.string.setup_basics_bot_line_prefix_hint),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
         AppTextField(
             value = basics.locale,
             onValueChange = { controller.onBasicsChange(basics.copy(locale = it)) },
