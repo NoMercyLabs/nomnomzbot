@@ -221,10 +221,6 @@ data class CreateRewardBody(
     // A pipeline to run when this reward is redeemed (a ULID; null = none). `explicitNulls = false` omits it when
     // absent so an unset binding never clears the stored one.
     val pipelineId: String? = null,
-    // The reward's built-in typed action + its settings (backend actionType / actionSettings, an arbitrary JSON
-    // object) — so a reward can be created to run a typed action, not only a bound pipeline.
-    val actionType: String? = null,
-    val actionSettings: kotlinx.serialization.json.JsonObject? = null,
 )
 
 /**
@@ -238,6 +234,9 @@ data class UpdateRewardBody(
     val title: String? = null,
     val cost: Int? = null,
     val prompt: String? = null,
+    // The on-redeem bot response text (backend UpdateRewardRequest.response). Null leaves it unchanged; an
+    // empty string clears it.
+    val response: String? = null,
     val isEnabled: Boolean? = null,
     // Pause redemptions without disabling the reward (Twitch "pause"). Null leaves it unchanged.
     val isPaused: Boolean? = null,
@@ -255,10 +254,6 @@ data class UpdateRewardBody(
     val timerDurationSeconds: Int? = null,
     // The pipeline bound to this reward (a ULID). Null omits it from the patch (unchanged).
     val pipelineId: String? = null,
-    // The reward's built-in typed action + its settings (backend actionType / actionSettings). Null omits from
-    // the patch (unchanged).
-    val actionType: String? = null,
-    val actionSettings: kotlinx.serialization.json.JsonObject? = null,
 )
 
 /**
@@ -277,6 +272,9 @@ data class RewardSummary(
     // The viewer-facing prompt the operator set on Twitch (backend RewardDetail.prompt). The list endpoint returns
     // the full RewardDetail schema, so this arrives on every row and the edit dialog pre-fills it.
     val prompt: String? = null,
+    // The on-redeem bot response text (backend RewardDetail.response). Read so the edit dialog pre-fills it —
+    // it used to be write-only (accepted on create, never returned), so an edit always saw it blank.
+    val response: String? = null,
     val isEnabled: Boolean = false,
     val isManageable: Boolean = false,
     // Set once "Take control" hit a Twitch title conflict it can't resolve on its own (another reward — still
@@ -297,10 +295,6 @@ data class RewardSummary(
     // edit dialog pre-fills the timer field + pipeline picker.
     val timerDurationSeconds: Int? = null,
     val pipelineId: String? = null,
-    // The reward's built-in typed action + its settings (backend RewardDetail.actionType / actionSettings, an
-    // arbitrary JSON object) — so the operator can read/configure a reward's action, not only a bound pipeline.
-    val actionType: String? = null,
-    val actionSettings: kotlinx.serialization.json.JsonObject? = null,
     val createdAt: String = "",
     val updatedAt: String = "",
 )

@@ -920,6 +920,7 @@
     <string name="rewards_dialog_title_label">Titel</string>
     <string name="rewards_dialog_cost_label">Kosten in punten</string>
     <string name="rewards_dialog_prompt_label">Tekst</string>
+    <string name="rewards_dialog_response_label">Chatbericht bij inwisselen</string>
     <string name="rewards_dialog_background_color_label">Achtergrondkleur (hex, leeg = standaard)</string>
     <string name="rewards_dialog_max_per_stream_label">Max per stream (leeg = geen limiet)</string>
     <string name="rewards_dialog_max_per_user_label">Max per kijker per stream (leeg = geen limiet)</string>

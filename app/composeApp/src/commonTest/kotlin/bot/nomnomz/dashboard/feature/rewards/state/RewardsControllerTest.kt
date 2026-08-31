@@ -197,6 +197,7 @@ class RewardsControllerTest {
             title = "Hydrate!",
             cost = 500,
             prompt = "Drink up",
+            response = "Go drink some water!",
             isUserInputRequired = true,
             backgroundColor = "#112233",
             maxPerStream = 5,
@@ -213,6 +214,7 @@ class RewardsControllerTest {
         assertEquals("Hydrate!", body.title)
         assertEquals(500, body.cost)
         assertEquals("Drink up", body.prompt)
+        assertEquals("Go drink some water!", body.response)
         assertEquals(true, body.isUserInputRequired)
         assertEquals("#112233", body.backgroundColor)
         assertEquals(5, body.maxPerStream)
@@ -246,6 +248,7 @@ class RewardsControllerTest {
             title = "Hydrate Now!",
             cost = 750,
             prompt = "Sip",
+            response = "Cheers!",
             isEnabled = false,
             isPaused = true,
             isUserInputRequired = false,
@@ -264,6 +267,7 @@ class RewardsControllerTest {
         assertEquals("Hydrate Now!", update.second.title)
         assertEquals(750, update.second.cost)
         assertEquals("Sip", update.second.prompt)
+        assertEquals("Cheers!", update.second.response)
         assertEquals(false, update.second.isEnabled)
         assertEquals(true, update.second.isPaused)
         assertEquals("#445566", update.second.backgroundColor)

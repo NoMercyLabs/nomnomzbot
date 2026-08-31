@@ -223,7 +223,7 @@ public sealed class RewardServiceUpdateTests
         result.ErrorCode.Should().Be("FORBIDDEN");
         await points
             .DidNotReceiveWithAnyArgs()
-            .UpdateCustomRewardAsync(default, default!, default!, default);
+            .UpdateCustomRewardAsync(default, default!, default!);
         (await db.Rewards.SingleAsync(r => r.Id == RewardId)).Cost.Should().Be(500);
     }
 
@@ -248,7 +248,7 @@ public sealed class RewardServiceUpdateTests
         row.TimerDurationSeconds.Should().Be(60);
         await points
             .DidNotReceiveWithAnyArgs()
-            .UpdateCustomRewardAsync(default, default!, default!, default);
+            .UpdateCustomRewardAsync(default, default!, default!);
     }
 
     [Fact]
@@ -271,6 +271,51 @@ public sealed class RewardServiceUpdateTests
         row.Cost.Should().Be(100);
         await points
             .DidNotReceiveWithAnyArgs()
-            .UpdateCustomRewardAsync(default, default!, default!, default);
+            .UpdateCustomRewardAsync(default, default!, default!);
+    }
+
+    [Fact]
+    public async Task Update_sets_the_on_redeem_response_text_bot_locally_without_a_helix_call()
+    {
+        // Response never went to Twitch (it's the bot's own chat message, not a Twitch reward field) and was
+        // never applied in UpdateAsync at all — the patch was silently accepted and dropped.
+        (RewardService sut, AuthDbContext db, ITwitchChannelPointsApi points) = Build(
+            manageable: false,
+            twitchRewardId: null
+        );
+
+        Result<RewardDetail> result = await sut.UpdateAsync(
+            Channel.ToString(),
+            RewardId.ToString(),
+            new() { Response = "Thanks for the redeem, {{user}}!" }
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Response.Should().Be("Thanks for the redeem, {{user}}!");
+        Reward row = await db.Rewards.SingleAsync(r => r.Id == RewardId);
+        row.Response.Should().Be("Thanks for the redeem, {{user}}!");
+        await points
+            .DidNotReceiveWithAnyArgs()
+            .UpdateCustomRewardAsync(default, default!, default!);
+    }
+
+    [Fact]
+    public async Task Update_with_no_response_field_leaves_the_existing_response_text_unchanged()
+    {
+        (RewardService sut, AuthDbContext db, ITwitchChannelPointsApi points) = Build(
+            manageable: false,
+            twitchRewardId: null
+        );
+        (await db.Rewards.SingleAsync(r => r.Id == RewardId)).Response = "Original message";
+        await db.SaveChangesAsync();
+
+        Result<RewardDetail> result = await sut.UpdateAsync(
+            Channel.ToString(),
+            RewardId.ToString(),
+            new() { Title = "Renamed" }
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Response.Should().Be("Original message");
     }
 }

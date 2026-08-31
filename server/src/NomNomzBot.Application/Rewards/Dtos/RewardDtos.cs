@@ -43,6 +43,8 @@ public sealed record RewardDetail(
     string Id,
     string Title,
     string? Prompt,
+    // The chat template announced when the reward is redeemed; null when none.
+    string? Response,
     int Cost,
     bool IsEnabled,
     // True when the bot created this reward under its own Twitch client and may edit/delete it; false for
@@ -58,8 +60,6 @@ public sealed record RewardDetail(
     int? MaxPerStream,
     int? MaxPerUserPerStream,
     int? GlobalCooldownSeconds,
-    string? ActionType,
-    Dictionary<string, object?>? ActionSettings,
     // Opt-in countdown for time-limited rewards: redeeming starts a RedemptionTimer for this many
     // seconds; completion fulfills the redemption. Null = a normal reward.
     int? TimerDurationSeconds,
@@ -84,8 +84,6 @@ public sealed record CreateRewardRequest
     public int? MaxPerStream { get; init; }
     public int? MaxPerUserPerStream { get; init; }
     public int? GlobalCooldownSeconds { get; init; }
-    public string? ActionType { get; init; }
-    public Dictionary<string, object?>? ActionSettings { get; init; }
 
     /// <summary>Opt-in countdown (seconds, capped at 24h) — makes this a time-limited reward.</summary>
     public int? TimerDurationSeconds { get; init; }
@@ -99,6 +97,11 @@ public sealed record UpdateRewardRequest
     public string? Title { get; init; }
     public int? Cost { get; init; }
     public string? Prompt { get; init; }
+
+    /// <summary>The chat template announced when the reward is redeemed; null leaves it unchanged, an
+    /// empty string clears it.</summary>
+    public string? Response { get; init; }
+
     public bool? IsUserInputRequired { get; init; }
     public bool? IsEnabled { get; init; }
     public bool? IsPaused { get; init; }
@@ -106,8 +109,6 @@ public sealed record UpdateRewardRequest
     public int? MaxPerStream { get; init; }
     public int? MaxPerUserPerStream { get; init; }
     public int? GlobalCooldownSeconds { get; init; }
-    public string? ActionType { get; init; }
-    public Dictionary<string, object?>? ActionSettings { get; init; }
 
     /// <summary>Countdown seconds for a time-limited reward; 0 clears it, absent leaves it unchanged.</summary>
     public int? TimerDurationSeconds { get; init; }

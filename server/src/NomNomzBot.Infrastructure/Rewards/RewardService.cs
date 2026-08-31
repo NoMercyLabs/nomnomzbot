@@ -190,6 +190,8 @@ public class RewardService : IRewardService
             reward.Cost = request.Cost.Value;
         if (request.Prompt is not null)
             reward.Description = request.Prompt;
+        if (request.Response is not null)
+            reward.Response = request.Response;
         if (request.IsEnabled.HasValue)
             reward.IsEnabled = request.IsEnabled.Value;
         if (request.IsPaused.HasValue)
@@ -850,14 +852,13 @@ public class RewardService : IRewardService
             r.Id.ToString(),
             r.Title,
             r.Description,
+            r.Response,
             r.Cost ?? 0,
             r.IsEnabled,
             r.IsManageable,
             r.IsUserInputRequired,
             r.IsPaused,
             r.PendingMigrationRequestedAt.HasValue,
-            null,
-            null,
             null,
             null,
             null,

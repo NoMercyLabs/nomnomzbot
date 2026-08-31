@@ -78504,18 +78504,6 @@
             ],
             "format": "int32"
           },
-          "actionType": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "actionSettings": {
-            "type": [
-              "null",
-              "object"
-            ]
-          },
           "timerDurationSeconds": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
@@ -89119,6 +89107,7 @@
           "id",
           "title",
           "prompt",
+          "response",
           "cost",
           "isEnabled",
           "isManageable",
@@ -89130,8 +89119,6 @@
           "maxPerStream",
           "maxPerUserPerStream",
           "globalCooldownSeconds",
-          "actionType",
-          "actionSettings",
           "timerDurationSeconds",
           "pipelineId",
           "createdAt",
@@ -89146,6 +89133,12 @@
             "type": "string"
           },
           "prompt": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "response": {
             "type": [
               "null",
               "string"
@@ -89212,18 +89205,6 @@
               "string"
             ],
             "format": "int32"
-          },
-          "actionType": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "actionSettings": {
-            "type": [
-              "null",
-              "object"
-            ]
           },
           "timerDurationSeconds": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -100305,6 +100286,13 @@
               "string"
             ]
           },
+          "response": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The chat template announced when the reward is redeemed; null leaves it unchanged, an\r\n            empty string clears it."
+          },
           "isUserInputRequired": {
             "type": [
               "null",
@@ -100355,18 +100343,6 @@
               "string"
             ],
             "format": "int32"
-          },
-          "actionType": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "actionSettings": {
-            "type": [
-              "null",
-              "object"
-            ]
           },
           "timerDurationSeconds": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
