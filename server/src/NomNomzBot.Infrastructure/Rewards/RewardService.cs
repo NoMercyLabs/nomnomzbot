@@ -121,16 +121,6 @@ public class RewardService : IRewardService
                 Cost = tr.Cost,
                 Description = tr.Prompt,
                 Response = request.Response,
-                BackgroundColor = tr.BackgroundColor,
-                MaxPerStream = tr.MaxPerStreamSetting.IsEnabled
-                    ? tr.MaxPerStreamSetting.MaxPerStream
-                    : null,
-                MaxPerUserPerStream = tr.MaxPerUserPerStreamSetting.IsEnabled
-                    ? tr.MaxPerUserPerStreamSetting.MaxPerUserPerStream
-                    : null,
-                GlobalCooldownSeconds = tr.GlobalCooldownSetting.IsEnabled
-                    ? tr.GlobalCooldownSetting.GlobalCooldownSeconds
-                    : null,
                 IsEnabled = tr.IsEnabled,
                 IsManageable = true,
                 IsUserInputRequired = tr.IsUserInputRequired,
@@ -139,6 +129,7 @@ public class RewardService : IRewardService
                 TimerDurationSeconds = NormalizeTimerDuration(request.TimerDurationSeconds),
                 PipelineId = request.PipelineId,
             };
+            ApplyTwitchConfirmedFields(reward, tr);
         }
         else
         {
@@ -257,18 +248,7 @@ public class RewardService : IRewardService
         // Cache exactly what Helix confirmed (never the raw request — Twitch can clamp/reject a value) so a
         // later read reflects the real Twitch state instead of always showing null for these four fields.
         if (confirmed is not null)
-        {
-            reward.BackgroundColor = confirmed.BackgroundColor;
-            reward.MaxPerStream = confirmed.MaxPerStreamSetting.IsEnabled
-                ? confirmed.MaxPerStreamSetting.MaxPerStream
-                : null;
-            reward.MaxPerUserPerStream = confirmed.MaxPerUserPerStreamSetting.IsEnabled
-                ? confirmed.MaxPerUserPerStreamSetting.MaxPerUserPerStream
-                : null;
-            reward.GlobalCooldownSeconds = confirmed.GlobalCooldownSetting.IsEnabled
-                ? confirmed.GlobalCooldownSetting.GlobalCooldownSeconds
-                : null;
-        }
+            ApplyTwitchConfirmedFields(reward, confirmed);
 
         if (request.Title is not null)
             reward.Title = request.Title;
@@ -593,6 +573,7 @@ public class RewardService : IRewardService
         }
 
         IReadOnlyList<TwitchCustomReward> twitchRewards = rewardsResult.Value;
+        int syncedCount = 0;
         if (twitchRewards.Count == 0)
         {
             _logger.LogInformation(
@@ -600,25 +581,34 @@ public class RewardService : IRewardService
                     + "(streamer-created rewards are unmanaged and surface at redemption time, not via sync)",
                 broadcasterId
             );
-            return Result.Success();
+        }
+        else
+        {
+            // Sync read `only_manageable_rewards=true`, so every reward it received is one THIS client can
+            // manage — the whole returned set IS the manageable id set.
+            HashSet<string> manageableRewardIds = twitchRewards
+                .Select(r => r.Id)
+                .ToHashSet(StringComparer.Ordinal);
+
+            syncedCount = await UpsertTwitchRewardsAsync(
+                broadcaster,
+                twitchRewards,
+                manageableRewardIds,
+                cancellationToken
+            );
         }
 
-        // Sync read `only_manageable_rewards=true`, so every reward it received is one THIS client can manage —
-        // the whole returned set IS the manageable id set.
-        HashSet<string> manageableRewardIds = twitchRewards
-            .Select(r => r.Id)
-            .ToHashSet(StringComparer.Ordinal);
-
-        int syncedCount = await UpsertTwitchRewardsAsync(
-            broadcaster,
-            twitchRewards,
-            manageableRewardIds,
-            cancellationToken
-        );
+        // The other direction: any bot-manageable LOCAL reward Twitch has never seen (no TwitchRewardId) —
+        // e.g. one a bundle import created deliberately local-only (D2) — is pushed to Helix now, best-effort.
+        // This is what makes "sync pushes it to Twitch later" actually true instead of a promise nothing
+        // fulfills; a refusal on one reward is logged and skipped, never fails the whole sync.
+        int pushedCount = await PushUnsyncedLocalRewardsAsync(broadcaster, cancellationToken);
 
         _logger.LogInformation(
-            "Synced {Count} rewards for broadcaster {BroadcasterId}",
+            "Synced {PulledCount} rewards from Twitch and pushed {PushedCount} local-only rewards to Twitch "
+                + "for broadcaster {BroadcasterId}",
             syncedCount,
+            pushedCount,
             broadcasterId
         );
         return Result.Success();
@@ -927,6 +917,96 @@ public class RewardService : IRewardService
 
         await _db.SaveChangesAsync(cancellationToken);
         return upsertedCount;
+    }
+
+    /// <summary>
+    /// Pushes every bot-manageable local reward Twitch has never seen (no <see cref="Reward.TwitchRewardId"/>)
+    /// to Helix — the deferred half of a reward created with <c>pushToTwitch: false</c> (bundle import, D2).
+    /// Best-effort per reward: a Helix refusal is logged and that one reward is left local-only for the next
+    /// sync to retry, never failing the rest of the batch. Caches exactly what Twitch confirmed, same as
+    /// <see cref="CreateAsync"/>'s Helix-first path. Returns the number actually pushed.
+    /// </summary>
+    private async Task<int> PushUnsyncedLocalRewardsAsync(
+        Guid broadcaster,
+        CancellationToken cancellationToken
+    )
+    {
+        List<Reward> unsynced = await _db
+            .Rewards.Where(r =>
+                r.BroadcasterId == broadcaster && r.TwitchRewardId == null && r.IsManageable
+            )
+            .ToListAsync(cancellationToken);
+        if (unsynced.Count == 0)
+            return 0;
+
+        int pushedCount = 0;
+        foreach (Reward reward in unsynced)
+        {
+            Result<TwitchCustomReward> created = await _channelPoints.CreateCustomRewardAsync(
+                broadcaster,
+                new(
+                    Title: reward.Title,
+                    Cost: reward.Cost ?? 0,
+                    Prompt: reward.Description,
+                    IsEnabled: reward.IsEnabled,
+                    BackgroundColor: reward.BackgroundColor,
+                    IsUserInputRequired: reward.IsUserInputRequired,
+                    IsMaxPerStreamEnabled: reward.MaxPerStream.HasValue,
+                    MaxPerStream: reward.MaxPerStream,
+                    IsMaxPerUserPerStreamEnabled: reward.MaxPerUserPerStream.HasValue,
+                    MaxPerUserPerStream: reward.MaxPerUserPerStream,
+                    IsGlobalCooldownEnabled: reward.GlobalCooldownSeconds.HasValue,
+                    GlobalCooldownSeconds: reward.GlobalCooldownSeconds
+                ),
+                cancellationToken
+            );
+            if (created.IsFailure)
+            {
+                _logger.LogWarning(
+                    "Reward sync: could not push local reward '{Title}' ({RewardId}) to Twitch for "
+                        + "broadcaster {BroadcasterId}: {Error} ({Code})",
+                    reward.Title,
+                    reward.Id,
+                    broadcaster,
+                    created.ErrorMessage,
+                    created.ErrorCode
+                );
+                continue;
+            }
+
+            TwitchCustomReward tr = created.Value;
+            reward.TwitchRewardId = tr.Id;
+            reward.Title = tr.Title;
+            reward.Cost = tr.Cost;
+            reward.IsEnabled = tr.IsEnabled;
+            ApplyTwitchConfirmedFields(reward, tr);
+            pushedCount++;
+        }
+
+        if (pushedCount > 0)
+            await _db.SaveChangesAsync(cancellationToken);
+
+        return pushedCount;
+    }
+
+    /// <summary>
+    /// Applies the four reward fields Twitch itself decides on a create/update push — it can clamp, reject,
+    /// or default any of them — so a later read reflects what's actually live instead of the raw request.
+    /// Never applied from anything but a Helix-confirmed <see cref="TwitchCustomReward"/>. Shared by every
+    /// path that just pushed to Helix: create, update, and the deferred local-to-Twitch sync push.
+    /// </summary>
+    private static void ApplyTwitchConfirmedFields(Reward reward, TwitchCustomReward confirmed)
+    {
+        reward.BackgroundColor = confirmed.BackgroundColor;
+        reward.MaxPerStream = confirmed.MaxPerStreamSetting.IsEnabled
+            ? confirmed.MaxPerStreamSetting.MaxPerStream
+            : null;
+        reward.MaxPerUserPerStream = confirmed.MaxPerUserPerStreamSetting.IsEnabled
+            ? confirmed.MaxPerUserPerStreamSetting.MaxPerUserPerStream
+            : null;
+        reward.GlobalCooldownSeconds = confirmed.GlobalCooldownSetting.IsEnabled
+            ? confirmed.GlobalCooldownSetting.GlobalCooldownSeconds
+            : null;
     }
 
     /// <summary>Clamps a requested countdown to sane bounds: 0/negative clears it; the ceiling is 24h.</summary>
