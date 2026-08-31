@@ -4255,6 +4255,8 @@
     <string name="pipeline_adjust_viewer_data_delta_help">Hoeveel er bij de opgeslagen numerieke waarde van de kijker wordt opgeteld (gebruik een negatief getal om af te trekken).</string>
     <string name="pipeline_adjust_viewer_data_key_help">De naam van het per-kijker gegevensveld dat wordt aangepast.</string>
     <string name="pipeline_adjust_viewer_data_target_help">Van welke kijker de gegevens worden aangepast. Leeg richt zich op de gebruiker die deze pipeline activeerde.</string>
+    <string name="pipeline_announce_color_help">De accentkleur van de aankondiging in de chat. Leeg laten voor de standaardkleur.</string>
+    <string name="pipeline_announce_message_help">Het bericht dat als chataankondiging wordt geplaatst. Ondersteunt sjabloonvariabelen (bijv. {{user.name}}).</string>
     <string name="pipeline_check_balance_min_help">Het minimale saldo waarop wordt gecontroleerd. Leeg laten om alleen het saldo te lezen zonder te vergelijken.</string>
     <string name="pipeline_check_balance_set_var_help">De variabelenaam waarin het valutasaldo van de kijker wordt opgeslagen, zodat latere stappen deze kunnen lezen (bijv. {{balance}}).</string>
     <string name="pipeline_clear_viewer_data_key_help">Het per-kijker gegevensveld dat voor alle kijkers in het kanaal tegelijk wordt gewist.</string>
@@ -4415,6 +4417,7 @@
     <string name="pipeline_category_condition">Voorwaarde</string>
     <string name="pipeline_adjust_counter_description">Verhoog of verlaag een benoemde teller met een bepaalde waarde</string>
     <string name="pipeline_adjust_viewer_data_description">Verhoog of verlaag een opgeslagen numerieke waarde op het profiel van een kijker</string>
+    <string name="pipeline_announce_description">Plaats een uitgelichte chataankondiging</string>
     <string name="pipeline_ban_description">Ban een kijker uit de chat</string>
     <string name="pipeline_break_description">Breek uit de omsluitende lus</string>
     <string name="pipeline_cancel_live_game_description">Annuleer het momenteel lopende live spel</string>
