@@ -61,6 +61,7 @@ public sealed class ModerationStandingTests
         ModerationService service = new(
             db,
             twitch,
+            Substitute.For<ITwitchModeratorsApi>(),
             registry,
             TimeProvider.System,
             NullLogger<ModerationService>.Instance,

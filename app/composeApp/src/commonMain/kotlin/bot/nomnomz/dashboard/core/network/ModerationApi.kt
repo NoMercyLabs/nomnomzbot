@@ -286,6 +286,20 @@ interface ModerationApi {
         queueItemId: String,
         action: String,
     ): ApiResult<ModerationQueueItem>
+
+    // ── Moderator roster (S066-mod-actions) ──────────────────────────────────────────────────────────
+
+    /** The channel's current Twitch moderators, live from the Twitch moderation API. */
+    suspend fun moderators(channelId: String): ApiResult<List<Moderator>>
+
+    /** Grant [targetTwitchUserId] moderator privileges. Requires the channel's OWN broadcaster token. */
+    suspend fun addModerator(channelId: String, targetTwitchUserId: String): ApiResult<Unit>
+
+    /** Revoke [userId]'s moderator privileges. Requires the channel's OWN broadcaster token. */
+    suspend fun removeModerator(channelId: String, userId: String): ApiResult<Unit>
+
+    /** Clear every message from the channel's chat room (Twitch Clear Chat — no message survives). */
+    suspend fun clearChat(channelId: String): ApiResult<Unit>
 }
 
 class RestModerationApi(private val client: ApiClient) : ModerationApi {
@@ -636,6 +650,22 @@ class RestModerationApi(private val client: ApiClient) : ModerationApi {
             "api/v1/channels/$channelId/moderation/automod/queue/$queueItemId/resolve",
             ResolveModerationQueueItemBody(action = action),
         )
+
+    // Single-value StatusResponseDto envelope ({ data: [ ... ] }) — getEnvelope reads the roster.
+    override suspend fun moderators(channelId: String): ApiResult<List<Moderator>> =
+        client.getEnvelope("api/v1/channels/$channelId/moderation/moderators")
+
+    override suspend fun addModerator(channelId: String, targetTwitchUserId: String): ApiResult<Unit> =
+        client.postUnit(
+            "api/v1/channels/$channelId/moderation/moderators",
+            ModeratorBody(targetTwitchUserId = targetTwitchUserId),
+        )
+
+    override suspend fun removeModerator(channelId: String, userId: String): ApiResult<Unit> =
+        client.deleteUnit("api/v1/channels/$channelId/moderation/moderators/$userId")
+
+    override suspend fun clearChat(channelId: String): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/moderation/chat/clear")
 }
 
 /** Today's moderation counters (backend `GET /moderation/stats` anonymous object). */
@@ -1152,3 +1182,11 @@ data class SaveSharedBanSettingsBody(
 /** Add one partner to the inbound-ban trust list (backend `AddTrustedChannelRequest`). */
 @Serializable
 data class AddTrustedChannelBody(val trustedChannelId: String)
+
+/** One current Twitch moderator on the channel (backend `ModeratorDto`). camelCase mirror. */
+@Serializable
+data class Moderator(val userId: String = "", val username: String = "")
+
+/** Grant or revoke a moderator (backend `ModeratorRequest`). [targetTwitchUserId] is the viewer's Twitch id. */
+@Serializable
+data class ModeratorBody(val targetTwitchUserId: String)

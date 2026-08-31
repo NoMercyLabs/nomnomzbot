@@ -38,6 +38,7 @@ public sealed class ModerationServiceRuleDeletionAuditTests
         new(
             db,
             Substitute.For<ITwitchModerationApi>(),
+            Substitute.For<ITwitchModeratorsApi>(),
             Substitute.For<IChannelRegistry>(),
             TimeProvider.System,
             NullLogger<ModerationService>.Instance,

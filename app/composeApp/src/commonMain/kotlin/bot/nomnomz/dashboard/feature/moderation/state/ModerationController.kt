@@ -30,6 +30,7 @@ import bot.nomnomz.dashboard.core.network.CreateModerationRuleBody
 import bot.nomnomz.dashboard.core.network.ModerationActionResult
 import bot.nomnomz.dashboard.core.network.ModerationApi
 import bot.nomnomz.dashboard.core.network.EscalationPolicy
+import bot.nomnomz.dashboard.core.network.Moderator
 import bot.nomnomz.dashboard.core.network.ModerationRule
 import bot.nomnomz.dashboard.core.network.ModerationQueueItem
 import bot.nomnomz.dashboard.core.network.ModerationStanding
@@ -239,6 +240,15 @@ class ModerationController(
                 is ApiResult.Ok -> result.value
             }
 
+        // The channel's current Twitch moderators (S066-mod-actions). Resilient — a failure degrades to an
+        // empty roster rather than failing the page (a channel with no broadcaster token / missing scope
+        // still gets the rest of the page).
+        val moderators: List<Moderator> =
+            when (val result: ApiResult<List<Moderator>> = moderationApi.moderators(channel.id)) {
+                is ApiResult.Failure -> emptyList()
+                is ApiResult.Ok -> result.value
+            }
+
         // The AutoMod held-message review queue (J.1, S066). Resilient — a failure degrades to an empty queue.
         val automodQueue: List<ModerationQueueItem> =
             when (
@@ -295,6 +305,7 @@ class ModerationController(
                     modLog.isEmpty() &&
                     blockedTerms.isEmpty() &&
                     rules.isEmpty() &&
+                    moderators.isEmpty() &&
                     chatFilters.isEmpty() &&
                     unbanRequests.isEmpty() &&
                     reports.isEmpty() &&
@@ -315,6 +326,7 @@ class ModerationController(
                     blockedTerms,
                     automod,
                     rules,
+                    moderators = moderators,
                     chatFilters = chatFilters,
                     stats = stats,
                     unbanRequests = unbanRequests,
@@ -890,6 +902,39 @@ class ModerationController(
     }
 
     /**
+     * Grant [targetTwitchUserId] moderator privileges, then reload so the roster reflects it. Surfaces the
+     * error on the current Ready state on failure. No-ops when no channel is loaded.
+     */
+    suspend fun addModerator(targetTwitchUserId: String) {
+        val channel: String = channelId ?: return
+        afterWrite(moderationApi.addModerator(channel, targetTwitchUserId))
+    }
+
+    /**
+     * Revoke [userId]'s moderator privileges, then reload so they drop off the roster. Surfaces the error
+     * on the current Ready state on failure. No-ops when no channel is loaded. The screen gates this
+     * behind a confirmation before calling.
+     */
+    suspend fun removeModerator(userId: String) {
+        val channel: String = channelId ?: return
+        afterWrite(moderationApi.removeModerator(channel, userId))
+    }
+
+    /**
+     * Clear every message from the channel's chat room (Twitch Clear Chat — irreversible, no message
+     * survives). Does not reload the page — the chat itself isn't part of this screen's state. Surfaces
+     * the error on the current Ready state on failure. The screen gates this behind a confirmation before
+     * calling. No-ops when no channel is loaded.
+     */
+    suspend fun clearChat() {
+        val channel: String = channelId ?: return
+        when (val result: ApiResult<Unit> = moderationApi.clearChat(channel)) {
+            is ApiResult.Ok -> Unit
+            is ApiResult.Failure -> setActionError(result.error.message)
+        }
+    }
+
+    /**
      * Send a chat announcement with [message] and optional Twitch [color] (`"blue"`, `"green"`, `"orange"`,
      * `"purple"`, `"primary"`). Does not reload the page — the banner is transient. Surfaces any error.
      */
@@ -958,6 +1003,8 @@ sealed interface ModerationState {
         val blockedTerms: List<String> = emptyList(),
         val automod: AutomodConfig = AutomodConfig(),
         val rules: List<ModerationRule> = emptyList(),
+        // The channel's current Twitch moderators (S066-mod-actions) — see load().
+        val moderators: List<Moderator> = emptyList(),
         // Custom chat filters (regex / blocklist, J.6, S066) — see load().
         val chatFilters: List<ChatFilter> = emptyList(),
         val stats: ModerationStats = ModerationStats(),
