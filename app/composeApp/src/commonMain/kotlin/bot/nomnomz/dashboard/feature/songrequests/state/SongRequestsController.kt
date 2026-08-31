@@ -102,6 +102,15 @@ class SongRequestsController(
      */
     suspend fun remove(position: Int) = control { channel -> songRequestsApi.remove(channel, position) }
 
+    /** Move the queued song at [position] to the front of the queue — play it next. Reloads on success. */
+    suspend fun promote(position: Int) = control { channel -> songRequestsApi.promote(channel, position) }
+
+    /**
+     * Ban the queued song at [position] from future song requests, removing it from the live queue too.
+     * The screen gates this behind a confirmation before calling. Reloads on success.
+     */
+    suspend fun ban(position: Int) = control { channel -> songRequestsApi.ban(channel, position) }
+
     /** Save a patched SR / music config. Reloads on success. */
     suspend fun updateConfig(body: UpdateMusicConfigBody) {
         val channel: String = channelId ?: return
