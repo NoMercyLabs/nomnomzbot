@@ -479,9 +479,13 @@ later.)
   sub-items above (queue promote/ban-track/refund, public page polish, token→URL, bounded steppers,
   enum lists from API, rate policy, `RequestedBy`, hub-driven reloads, polling fan-out, cost/duration/
   cooldown) are still open — tracker stays open for those.
-- **S068** Legacy builtins — `!help`, `!commands`, `!leaderboard`, `!songhistory`,
+- **S068** Legacy builtins — `!leaderboard`, `!songhistory`,
   `!playlist`, `!bansong`, `!whisper`, `!discord` + seeded fun-command preset pack +
   on-connect announcement (U·C7). Done-when: a fresh channel has every legacy command or a seed for it.
+  **`!help`/`!commands` DONE, verified (1ac80938)**: both reuse the existing `ICommandService`/
+  `IBuiltinCommandService` read paths (no duplicated query logic); `!commands` merges enabled custom +
+  builtin command names; `!help <name>` resolves the real `CommandDto.Description`, falls back sanely
+  for builtins/unknowns. 5 tests, real service data not hardcoded strings.
   **`!lurk`/`!unlurk`/`!accountage` DONE, verified (042a3b1f)**: `User.IsLurking` (new field, both
   migration projects) flipped by the two new builtins with a confirming reply; `!accountage` resolves
   `created_at` from an already-hydrated row or falls back to a live Helix Get Users call and persists it,
