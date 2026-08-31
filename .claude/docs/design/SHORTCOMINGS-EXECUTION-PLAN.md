@@ -496,8 +496,14 @@ later.)
   page polish, token→URL, bounded steppers, enum lists from API, rate policy, `RequestedBy`, hub-driven
   reloads, polling fan-out, cost/duration/cooldown) are still open — tracker stays open for those.
 - **S068** Legacy builtins — `!discord` (needs a Discord invite-link concept first — backend gap, not a
-  chat-builtin task) + seeded fun-command preset pack (U·C7). Done-when: a
-  fresh channel has every legacy command or a seed for it.
+  chat-builtin task) (U·C7). Done-when: a fresh channel has every legacy command or a seed for it.
+  **Seeded fun-command preset pack DONE, verified (27c8b1dc)**: new
+  `FunCommandPresetPackSeedOnOnboardingHandler` (`IEventHandler<ChannelOnboardedEvent>`, same
+  auto-discovered pattern as `SystemWidgetSeedOnOnboardingHandler`) seeds 6 real custom commands
+  (`!8ball`/`!hug`/`!slap`/`!ping`/`!rps`/`!compliment`) via `ICommandService.CreateAsync` — no `!dice`,
+  redundant with the existing random-roll builtin. Idempotent via `CreateAsync`'s existing duplicate-name
+  check (skip, not clobber, so a streamer's own same-named command survives onboarding untouched). 4
+  tests over a real SQLite context, not mocked — real persistence + read-back proven.
   **On-connect announcement DONE, verified (1e65b8d7)**: new opt-in `Channel.AnnounceOnConnect` (default
   OFF per opt-in/default-deny house rule, both migration assemblies) — when on, `ChannelService.JoinAsync`
   composes a tone-resolved message via `IBuiltinResponseComposer` and sends it through `IChatProvider`,
