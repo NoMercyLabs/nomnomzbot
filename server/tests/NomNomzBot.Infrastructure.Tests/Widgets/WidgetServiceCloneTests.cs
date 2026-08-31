@@ -52,7 +52,8 @@ public sealed class WidgetServiceCloneTests
             Clock,
             Substitute.For<IMusicService>(),
             Substitute.For<IScriptStorageService>(),
-            new PipelineStepReferenceScanner(db)
+            new PipelineStepReferenceScanner(db),
+            Substitute.For<IOverlayPresenceRegistry>()
         );
     }
 

@@ -12,6 +12,7 @@ using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Caching;
 using NomNomzBot.Application.Abstractions.Content;
@@ -393,6 +394,14 @@ public static class DependencyInjection
         services.AddSingleton<
             Application.Widgets.Services.IWidgetSettingsSchemaProvider,
             Content.Widgets.WidgetSettingsSchemaProvider
+        >();
+        // The real overlay-attachment tracker lives in NomNomzBot.Api next to the SignalR hub that owns its
+        // writes, so it cannot be registered here — TryAdd only fills the gap for an Infrastructure-only DI
+        // container (this project's own composition tests); the API host's own registration (after
+        // AddInfrastructure) always wins in the running application.
+        services.TryAddSingleton<
+            Application.Widgets.Services.IOverlayPresenceRegistry,
+            Widgets.NoOpOverlayPresenceRegistry
         >();
         // Every outbound HttpClient the factory builds (provider fetches, OAuth, Twitch, TTS, webhooks…) sends
         // the product User-Agent by default, stamped with the running build version. A client may still override.
@@ -1150,10 +1159,10 @@ public static class DependencyInjection
         );
 
         // Standalone-validation fallback — the API host replaces this with the hub-backed pusher.
-        Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions.TryAddSingleton<
+        services.TryAddSingleton<
             Application.Obs.Services.IObsBridgePusher,
             Obs.Bridge.UnavailableObsBridgePusher
-        >(services);
+        >();
 
         // Spotify HTTP clients with resilience (Music providers themselves are scanned by
         // IMusicProvider above; IMusicService is scanned by AddServicesByConvention).

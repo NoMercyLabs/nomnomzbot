@@ -17,7 +17,9 @@ namespace NomNomzBot.Application.Widgets.Dtos;
 /// (first_party|verified_gallery|custom). <see cref="GalleryUpdateAvailable"/> is true when
 /// <see cref="GalleryItemId"/> is set and the gallery item's source has moved on since this widget was installed
 /// or last updated from it — the streamer's clone is running stale code. Always false for a self-authored
-/// <c>custom</c> widget (no gallery link to compare against).
+/// <c>custom</c> widget (no gallery link to compare against). <see cref="IsAttached"/> is true when a live
+/// browser source has this widget open right now (<c>IOverlayPresenceRegistry</c>) — the "overlay last-seen"
+/// signal, so a streamer can tell an overlay is actually loaded in OBS without firing a test event.
 /// </summary>
 public sealed record WidgetDetail(
     Guid Id,
@@ -35,7 +37,8 @@ public sealed record WidgetDetail(
     DateTime? LastRanAt,
     DateTime CreatedAt,
     DateTime UpdatedAt,
-    bool GalleryUpdateAvailable
+    bool GalleryUpdateAvailable,
+    bool IsAttached
 );
 
 public sealed record CreateWidgetRequest

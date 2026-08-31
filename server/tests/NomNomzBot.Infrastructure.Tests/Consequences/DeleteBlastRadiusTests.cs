@@ -121,7 +121,8 @@ public class DeleteBlastRadiusTests
             new FakeTimeProvider(new DateTimeOffset(2026, 8, 26, 12, 0, 0, TimeSpan.Zero)),
             Substitute.For<IMusicService>(),
             Substitute.For<IScriptStorageService>(),
-            new PipelineStepReferenceScanner(db)
+            new PipelineStepReferenceScanner(db),
+            Substitute.For<IOverlayPresenceRegistry>()
         );
 
     private static RewardService NewRewards(BlastRadiusTestDbContext db) =>

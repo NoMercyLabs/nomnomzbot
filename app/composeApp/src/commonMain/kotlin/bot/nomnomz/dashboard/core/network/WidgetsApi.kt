@@ -362,6 +362,10 @@ data class WidgetSummary(
     // the streamer's clone is running stale code. The platform never rebuilds it silently; [WidgetsApi.updateFromGallery]
     // is the explicit action that pulls the update in.
     val galleryUpdateAvailable: Boolean = false,
+    // True when a live browser source has this widget open right now (backend IOverlayPresenceRegistry) — the
+    // "overlay last-seen" signal, so a streamer can tell an overlay is actually loaded in OBS without needing
+    // to fire a test event first.
+    val isAttached: Boolean = false,
 )
 
 /**

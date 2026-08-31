@@ -520,7 +520,8 @@ public sealed class ScriptHostBridgeTests
             LastRanAt: null,
             CreatedAt: DateTime.UtcNow,
             UpdatedAt: DateTime.UtcNow,
-            GalleryUpdateAvailable: false
+            GalleryUpdateAvailable: false,
+            IsAttached: false
         );
 
     [Fact]

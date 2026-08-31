@@ -1370,6 +1370,8 @@
     <string name="widgets_test_action_short">Test</string>
     <string name="widgets_test_result">Test: %1$s</string>
     <string name="widgets_test_error">Test mislukt: %1$s</string>
+    <string name="widgets_overlay_live">Live in OBS</string>
+    <string name="widgets_overlay_not_connected">Niet verbonden</string>
     <string name="widgets_update_action">Overlay %1$s bijwerken vanuit de galerij</string>
     <string name="widgets_update_action_short">Bijwerken</string>
     <string name="widgets_settings_action">Instellingen voor overlay %1$s</string>
