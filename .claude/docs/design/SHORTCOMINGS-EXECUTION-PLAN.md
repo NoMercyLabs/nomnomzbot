@@ -517,6 +517,12 @@ later.)
   permit via identity path; whisper-with-fallback for GDPR + inbound whisper handler; `announce`
   action/toggle; tone catalogue per locale (U·C7, K copy). Done-when: same `!sr` sounds the same from
   builtin and pipeline; sassy channel has sassy errors.
+  **Legacy-builtin tone parity DONE, verified (d5905b10)** — see S068 for detail: `CommandsBuiltin`/
+  `HelpBuiltin`/`LurkBuiltins`/`AccountAgeBuiltin` now route through `IBuiltinResponseComposer` like
+  pipeline `send_message` does. Remaining S069 scope (custom commands/timers/event responses/chat
+  triggers, usage/error tone slots, reply-or-mention helper, `ParseUserMention` unification, GDPR
+  whisper-with-fallback, inbound whisper handler, `announce` action/toggle, per-locale tone catalogue)
+  is still open.
 - **S070** Settings + onboarding truth —
   timezone/language wired or removed;
   scope→feature map + re-grant on Settings; swallowed regrant/reconcile failures; copy fixes (U·B6).
