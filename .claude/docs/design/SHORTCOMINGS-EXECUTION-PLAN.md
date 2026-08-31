@@ -502,8 +502,16 @@ later.)
   action/toggle; tone catalogue per locale (U·C7, K copy). Done-when: same `!sr` sounds the same from
   builtin and pipeline; sassy channel has sassy errors.
 - **S070** Settings + onboarding truth —
-  timezone/language wired or removed; wizard `botUsername` contract; `applyBasics` failure reported;
+  timezone/language wired or removed; `applyBasics` failure reported;
   scope→feature map + re-grant on Settings; swallowed regrant/reconcile failures; copy fixes (U·B6).
+  **Wizard `botLinePrefix` contract DONE, verified (978b8b2d)**: `SetupBasics` had no field for the D5
+  "user-defined line prefix" the bot uses while typing as the streamer's own account, and
+  `applyBasics()` never sent it — skipping bot connection silently left it unset with no way to
+  configure it. `SetupState.Steps` now tracks `platformBotConnected` (from the backend's re-read step
+  completion, never optimistic); `applyBasics()` sends the typed prefix when no bot is connected, or
+  `null` ("leave unchanged") once one is — matching the rule Settings' own `BasicsForm` already
+  enforces. The separate legacy `twitch.bot_username` system-config field (`twitch_app` step) is
+  unrelated and was left untouched — no bug found there. 2 new tests assert the exact persisted value.
   **Auto-join semantics DONE, verified (9fbadca8)**: `ChannelService.JoinAsync`/`LeaveAsync` and the
   settings `AutoJoin` toggle only ever flipped `Channel.Enabled` in the DB — the actual EventSub
   subscribe/unsubscribe only happened on `BotLifecycleService`'s 5-minute reconcile tick, so toggling
