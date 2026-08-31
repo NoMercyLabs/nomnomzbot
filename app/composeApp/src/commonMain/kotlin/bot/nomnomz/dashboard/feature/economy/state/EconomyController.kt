@@ -21,6 +21,7 @@ import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CreateCatalogItemBody
 import bot.nomnomz.dashboard.core.network.CreateSavingsJarBody
+import bot.nomnomz.dashboard.core.network.UpdateSavingsJarBody
 import bot.nomnomz.dashboard.core.network.CurrencyAccountSummary
 import bot.nomnomz.dashboard.core.network.PaginatedEnvelope
 import bot.nomnomz.dashboard.core.network.AdminJarContributeBody
@@ -445,6 +446,34 @@ class EconomyController(
                 }
             }
         }
+    }
+
+    /**
+     * Owner-only partial edit of [jarId] with [request]. Reloads on success; surfaces the error on the Ready state
+     * on failure.
+     */
+    suspend fun updateJar(jarId: String, request: UpdateSavingsJarBody) {
+        val channel: String = channelId ?: return
+        afterWrite(economyApi.updateJar(channel, jarId, request))
+    }
+
+    /** Owner-only permanent delete of [jarId] (soft delete). Reloads on success. */
+    suspend fun deleteJar(jarId: String) {
+        val channel: String = channelId ?: return
+        afterWrite(economyApi.deleteJar(channel, jarId))
+    }
+
+    /**
+     * The real, backend-counted blast radius of deleting jar [jarId] (S-CONSEQ) — rendered in the confirm BEFORE
+     * the destructive delete. No resolved channel is a genuine failure, never a silent zero.
+     */
+    suspend fun jarBlastRadius(jarId: String): ApiResult<BlastRadiusSummary> {
+        val channel: String =
+            channelId
+                ?: return ApiResult.Failure(
+                    ApiError(status = 0, code = "NO_CHANNEL", message = "No active channel.")
+                )
+        return economyApi.jarBlastRadius(channel, jarId)
     }
 
     /** Load a jar's detail (jar metadata + membership list). Returns null on failure. */

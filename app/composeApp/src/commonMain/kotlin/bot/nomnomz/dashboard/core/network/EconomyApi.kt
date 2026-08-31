@@ -168,6 +168,26 @@ interface EconomyApi {
     /** Get a single savings jar's detail (includes membership list). */
     suspend fun getJar(channelId: String, jarId: String): ApiResult<SavingsJarDetail>
 
+    /**
+     * Owner-only partial edit of a jar's own fields — a PATCH ([request], null fields unchanged) that returns the
+     * jar as the backend actually saved it.
+     */
+    suspend fun updateJar(
+        channelId: String,
+        jarId: String,
+        request: UpdateSavingsJarBody,
+    ): ApiResult<SavingsJar>
+
+    /** Owner-only permanent delete of a jar (soft delete). */
+    suspend fun deleteJar(channelId: String, jarId: String): ApiResult<Unit>
+
+    /**
+     * The real, backend-counted blast radius of deleting this jar (S-CONSEQ): the other member channels who lose
+     * access and the recorded movement history that stops being reachable. The confirm dialog MUST call this and
+     * render the result before the destructive delete can proceed.
+     */
+    suspend fun jarBlastRadius(channelId: String, jarId: String): ApiResult<BlastRadiusSummary>
+
     /** Invite another channel (broadcaster) to join a savings jar. */
     suspend fun inviteChannel(channelId: String, jarId: String, request: InviteChannelBody): ApiResult<SavingsJarMembership>
 
@@ -377,6 +397,19 @@ class RestEconomyApi(private val client: ApiClient) : EconomyApi {
     override suspend fun getJar(channelId: String, jarId: String): ApiResult<SavingsJarDetail> =
         client.getEnvelope("api/v1/channels/$channelId/economy/jars/$jarId")
 
+    override suspend fun updateJar(
+        channelId: String,
+        jarId: String,
+        request: UpdateSavingsJarBody,
+    ): ApiResult<SavingsJar> =
+        client.patchEnvelope("api/v1/channels/$channelId/economy/jars/$jarId", request)
+
+    override suspend fun deleteJar(channelId: String, jarId: String): ApiResult<Unit> =
+        client.deleteUnit("api/v1/channels/$channelId/economy/jars/$jarId")
+
+    override suspend fun jarBlastRadius(channelId: String, jarId: String): ApiResult<BlastRadiusSummary> =
+        client.getEnvelope("api/v1/channels/$channelId/economy/jars/$jarId/blast-radius")
+
     override suspend fun inviteChannel(
         channelId: String,
         jarId: String,
@@ -510,6 +543,19 @@ data class CreateSavingsJarBody(
     val goalAmount: Long? = null,
     val iconUrl: String? = null,
     val isOpen: Boolean = true,
+    val maxWithdrawalPerChannel: Long? = null,
+)
+
+/**
+ * A partial jar update (backend `UpdateSavingsJarRequest`) — every field nullable, null = unchanged. Owner-only.
+ */
+@Serializable
+data class UpdateSavingsJarBody(
+    val name: String? = null,
+    val description: String? = null,
+    val goalAmount: Long? = null,
+    val iconUrl: String? = null,
+    val isOpen: Boolean? = null,
     val maxWithdrawalPerChannel: Long? = null,
 )
 

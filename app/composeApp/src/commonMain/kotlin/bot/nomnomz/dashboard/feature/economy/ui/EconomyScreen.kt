@@ -88,6 +88,7 @@ import bot.nomnomz.dashboard.core.network.UpdateCatalogItemBody
 import bot.nomnomz.dashboard.core.network.AdminJarContributeBody
 import bot.nomnomz.dashboard.core.network.AdminJarWithdrawBody
 import bot.nomnomz.dashboard.core.network.CreateSavingsJarBody
+import bot.nomnomz.dashboard.core.network.UpdateSavingsJarBody
 import bot.nomnomz.dashboard.core.network.InviteChannelBody
 import bot.nomnomz.dashboard.core.network.JarMovement
 import bot.nomnomz.dashboard.core.network.SavingsJarDetail
@@ -203,6 +204,17 @@ import nomnomzbot.composeapp.generated.resources.economy_earning_row_description
 import nomnomzbot.composeapp.generated.resources.economy_earning_title
 import nomnomzbot.composeapp.generated.resources.economy_jars_add
 import nomnomzbot.composeapp.generated.resources.economy_jars_close
+import nomnomzbot.composeapp.generated.resources.economy_jars_edit
+import nomnomzbot.composeapp.generated.resources.economy_jars_edit_title
+import nomnomzbot.composeapp.generated.resources.economy_jars_edit_save
+import nomnomzbot.composeapp.generated.resources.economy_jars_edit_cancel
+import nomnomzbot.composeapp.generated.resources.economy_jars_max_withdrawal
+import nomnomzbot.composeapp.generated.resources.economy_jars_is_open
+import nomnomzbot.composeapp.generated.resources.economy_jars_delete
+import nomnomzbot.composeapp.generated.resources.economy_jars_delete_title
+import nomnomzbot.composeapp.generated.resources.economy_jars_delete_message
+import nomnomzbot.composeapp.generated.resources.economy_jars_delete_confirm
+import nomnomzbot.composeapp.generated.resources.economy_jars_delete_dismiss
 import nomnomzbot.composeapp.generated.resources.economy_jars_contribute
 import nomnomzbot.composeapp.generated.resources.economy_jars_contribute_amount
 import nomnomzbot.composeapp.generated.resources.economy_jars_contribute_amount_invalid
@@ -427,6 +439,9 @@ fun EconomyScreen(controller: EconomyController, role: ManagementRole?, hubEvent
                     onCreateSavingsJar = { request ->
                         scope.launch { controller.createSavingsJar(request) }
                     },
+                    onUpdateJar = { jarId, request -> controller.updateJar(jarId, request) },
+                    onDeleteJar = { jarId -> controller.deleteJar(jarId) },
+                    onJarBlastRadius = controller::jarBlastRadius,
                     loadJarDetail = controller::getJar,
                     onJarInvite = { jarId, request -> controller.inviteChannel(jarId, request) },
                     onJarAcceptMembership = { membershipId -> controller.acceptMembership(membershipId) },
@@ -487,6 +502,11 @@ private fun ReadyContent(
     onUpsertEarningRule: (UpsertEarningRuleBody) -> Unit,
     onDeleteEarningRule: (ruleId: String) -> Unit,
     onCreateSavingsJar: (CreateSavingsJarBody) -> Unit,
+    onUpdateJar: suspend (jarId: String, UpdateSavingsJarBody) -> Unit,
+    onDeleteJar: suspend (jarId: String) -> Unit,
+    // The real, backend-counted blast radius of deleting a jar (S-CONSEQ) — rendered in the confirm before the
+    // destructive delete; never counted in the UI.
+    onJarBlastRadius: suspend (jarId: String) -> ApiResult<BlastRadiusSummary>,
     loadJarDetail: suspend (jarId: String) -> SavingsJarDetail?,
     // The jar-detail mutations are suspend so the manage dialog can await them and reload its own detail — a
     // fire-and-forget write left the dialog's membership list / balance stale until it was reopened.
@@ -666,6 +686,9 @@ private fun ReadyContent(
             jars = state.savingsJars,
             manage = config,
             onCreate = onCreateSavingsJar,
+            onUpdate = onUpdateJar,
+            onDelete = onDeleteJar,
+            onBlastRadius = onJarBlastRadius,
             loadJarDetail = loadJarDetail,
             onInvite = onJarInvite,
             onAcceptMembership = onJarAcceptMembership,
@@ -2975,6 +2998,9 @@ private fun SavingsJarsSection(
     jars: List<SavingsJar>,
     manage: ManageDecision,
     onCreate: (CreateSavingsJarBody) -> Unit,
+    onUpdate: suspend (jarId: String, UpdateSavingsJarBody) -> Unit,
+    onDelete: suspend (jarId: String) -> Unit,
+    onBlastRadius: suspend (jarId: String) -> ApiResult<BlastRadiusSummary>,
     loadJarDetail: suspend (jarId: String) -> SavingsJarDetail?,
     onInvite: suspend (jarId: String, InviteChannelBody) -> Unit,
     onAcceptMembership: suspend (membershipId: String) -> Unit,
@@ -3064,6 +3090,9 @@ private fun SavingsJarsSection(
             loadHistory = loadHistory,
             searchViewers = searchViewers,
             searchChannels = searchChannels,
+            onUpdate = { request -> onUpdate(jar.id, request) },
+            onDelete = { onDelete(jar.id) },
+            onBlastRadius = { onBlastRadius(jar.id) },
             onDismiss = { managingJar = null },
         )
     }
@@ -3148,6 +3177,9 @@ private fun JarManageDialog(
     loadHistory: suspend (jarId: String) -> List<JarMovement>?,
     searchViewers: suspend (query: String) -> List<PickerOption>,
     searchChannels: suspend (query: String) -> List<PickerOption>,
+    onUpdate: suspend (UpdateSavingsJarBody) -> Unit,
+    onDelete: suspend () -> Unit,
+    onBlastRadius: suspend () -> ApiResult<BlastRadiusSummary>,
     onDismiss: () -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -3160,6 +3192,8 @@ private fun JarManageDialog(
     var showContribute: Boolean by remember { mutableStateOf(false) }
     var showWithdraw: Boolean by remember { mutableStateOf(false) }
     var showHistory: Boolean by remember { mutableStateOf(false) }
+    var showEdit: Boolean by remember { mutableStateOf(false) }
+    var pendingDelete: Boolean by remember { mutableStateOf(false) }
 
     LaunchedEffect(jar.id) { detail = loadDetail(jar.id) }
 
@@ -3204,6 +3238,16 @@ private fun JarManageDialog(
                     }
                     TextButton(onClick = { showHistory = true }) {
                         Text(stringResource(Res.string.economy_jars_history), color = tokens.primary)
+                    }
+                    ManageGate(decision = manage) { enabled ->
+                        TextButton(onClick = { showEdit = true }, enabled = enabled) {
+                            Text(stringResource(Res.string.economy_jars_edit), color = if (enabled) tokens.primary else tokens.mutedForeground)
+                        }
+                    }
+                    ManageGate(decision = manage) { enabled ->
+                        TextButton(onClick = { pendingDelete = true }, enabled = enabled) {
+                            Text(stringResource(Res.string.economy_jars_delete), color = if (enabled) tokens.destructive else tokens.mutedForeground)
+                        }
                     }
                 }
 
@@ -3315,6 +3359,56 @@ private fun JarManageDialog(
             jar = jar,
             loadHistory = loadHistory,
             onDismiss = { showHistory = false },
+        )
+    }
+    if (showEdit) {
+        // Prefer the freshest fetched detail (has maxWithdrawalPerChannel); fall back to the row's own stale
+        // SavingsJar copy if detail hasn't loaded yet.
+        val editSeed: SavingsJarDetail =
+            detail
+                ?: SavingsJarDetail(
+                    id = jar.id,
+                    ownerBroadcasterId = jar.ownerBroadcasterId,
+                    name = jar.name,
+                    description = jar.description,
+                    goalAmount = jar.goalAmount,
+                    balance = jar.balance,
+                    iconUrl = jar.iconUrl,
+                    isOpen = jar.isOpen,
+                )
+        JarEditDialog(
+            jar = editSeed,
+            onConfirm = { request ->
+                mutateThenReload { onUpdate(request) }
+                showEdit = false
+            },
+            onDismiss = { showEdit = false },
+        )
+    }
+    if (pendingDelete) {
+        val jarDisplayNameForDelete: String = jarDisplayName
+        // Fetched fresh (never cached or guessed) — the counted blast radius the confirm MUST show before the
+        // destructive delete can proceed (S-CONSEQ).
+        var blastRadius: BlastRadiusLoadState by remember(jar.id) { mutableStateOf(BlastRadiusLoadState.Loading) }
+        LaunchedEffect(jar.id) {
+            blastRadius =
+                when (val result: ApiResult<BlastRadiusSummary> = onBlastRadius()) {
+                    is ApiResult.Ok -> BlastRadiusLoadState.Loaded(result.value)
+                    is ApiResult.Failure -> BlastRadiusLoadState.Failed
+                }
+        }
+        DeleteBlastRadiusDialog(
+            title = stringResource(Res.string.economy_jars_delete_title),
+            message = stringResource(Res.string.economy_jars_delete_message, jarDisplayNameForDelete),
+            confirmLabel = stringResource(Res.string.economy_jars_delete_confirm),
+            dismissLabel = stringResource(Res.string.economy_jars_delete_dismiss),
+            blastRadius = blastRadius,
+            onConfirm = {
+                scope.launch { onDelete() }
+                pendingDelete = false
+                onDismiss()
+            },
+            onDismiss = { pendingDelete = false },
         )
     }
 }
@@ -3543,6 +3637,98 @@ private fun JarHistoryDialog(
         confirmButton = {
             TextButton(onClick = onDismiss) {
                 Text(stringResource(Res.string.economy_jars_history_close), color = tokens.mutedForeground)
+            }
+        },
+    )
+}
+
+// Owner-only full edit of a jar's own fields ([UpdateSavingsJarBody] — only what changed is sent, the rest stays
+// null/unchanged). Seeded from [jar] (the freshest fetched detail when available, falling back to the row's own
+// stale copy) so a reopened dialog always starts from what the backend actually holds.
+@Composable
+private fun JarEditDialog(
+    jar: SavingsJarDetail,
+    onConfirm: (UpdateSavingsJarBody) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var name: String by remember { mutableStateOf(jar.name) }
+    var description: String by remember { mutableStateOf(jar.description.orEmpty()) }
+    var goalText: String by remember { mutableStateOf(jar.goalAmount?.toString().orEmpty()) }
+    var maxWithdrawalText: String by remember { mutableStateOf(jar.maxWithdrawalPerChannel?.toString().orEmpty()) }
+    var isOpen: Boolean by remember { mutableStateOf(jar.isOpen) }
+    var nameError: Boolean by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(Res.string.economy_jars_edit_title, jar.name),
+                style = typography.lg,
+                color = tokens.cardForeground,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                AppTextField(
+                    value = name,
+                    onValueChange = { name = it; nameError = false },
+                    label = stringResource(Res.string.economy_jars_name),
+                    isError = nameError,
+                    errorText = stringResource(Res.string.economy_jars_name_required),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                AppTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = stringResource(Res.string.economy_jars_description),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                AppTextField(
+                    value = goalText,
+                    onValueChange = { goalText = it },
+                    label = stringResource(Res.string.economy_jars_goal),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                AppTextField(
+                    value = maxWithdrawalText,
+                    onValueChange = { maxWithdrawalText = it },
+                    label = stringResource(Res.string.economy_jars_max_withdrawal),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                SwitchRow(
+                    label = stringResource(Res.string.economy_jars_is_open),
+                    checked = isOpen,
+                    onCheckedChange = { isOpen = it },
+                    enabled = true,
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                val trimmedName: String = name.trim()
+                nameError = trimmedName.isEmpty()
+                if (!nameError) {
+                    onConfirm(
+                        UpdateSavingsJarBody(
+                            name = trimmedName,
+                            description = description.trim().ifEmpty { null },
+                            goalAmount = goalText.trim().toLongOrNull(),
+                            isOpen = isOpen,
+                            maxWithdrawalPerChannel = maxWithdrawalText.trim().toLongOrNull(),
+                        )
+                    )
+                }
+            }) {
+                Text(stringResource(Res.string.economy_jars_edit_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.economy_jars_edit_cancel))
             }
         },
     )
