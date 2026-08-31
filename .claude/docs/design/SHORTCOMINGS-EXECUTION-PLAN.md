@@ -372,11 +372,18 @@ later.)
   one exists — both fields existed on the DTO but were never rendered); Test button on the row (commit
   3916e445 — wired the dashboard to the backend's `WidgetTestEventController` test-event dispatch, which
   had zero callers anywhere in the frontend; fires the widget's first declared subscription, shows the
-  real reach description, not a bare toast). **Still open**: per-widget tokens + staged rotation +
-  post-rotate URL list; inline preview; overlay last-seen; in-overlay banner on rejected token; resume
-  without reload; settings form by schema availability; colour picker; asset/sound/font field types;
-  unsupported-type + invalid-value errors; editable subscriptions; gallery version/update + search/paging;
-  sound upload limits (U·B5). Done-when: add → copy → test → live from one row.
+  real reach description, not a bare toast); colour picker (already shipped pre-existing — `ColorSwatch`
+  + hex field in `WidgetSettingsForms.kt`, matches the spec's own definition); unsupported-type +
+  invalid-value errors (5acb519e — an unrecognized schema field type used to silently render as a text
+  box and overwrite structured data on save; now shows an inline notice and leaves the value untouched);
+  overlay last-seen (d3375b49 — `WidgetDetail.IsAttached` backed by the existing `IOverlayPresenceRegistry`,
+  row shows "Live in OBS" / "Not connected" without firing a test event first). **Still open**: per-widget
+  tokens + staged rotation + post-rotate URL list; inline preview; in-overlay banner on rejected token;
+  resume without reload; settings form by schema availability; asset/sound/font field types (no backend
+  field type for these exists yet — needs a schema contract addition first); editable subscriptions
+  (blocked on S085's `domain.action` naming realignment landing first — building this against today's
+  ad-hoc event names would need re-doing); gallery version/update + search/paging; sound upload limits
+  (U·B5). Done-when: add → copy → test → live from one row.
 - **S063** Rewards reach — `Response` field in create + update; `ActionType/ActionSettings` exposed or
   deleted; rewards poll backoff; null-as-empty reads → errors (U·B2).
 - **S064** Economy reach — catalog item full form + edit; leaderboard config CRUD + opt-outs + display
