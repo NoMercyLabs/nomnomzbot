@@ -100,6 +100,7 @@ import nomnomzbot.composeapp.generated.resources.rewards_dialog_max_per_stream_l
 import nomnomzbot.composeapp.generated.resources.rewards_dialog_max_per_user_label
 import nomnomzbot.composeapp.generated.resources.rewards_dialog_paused_label
 import nomnomzbot.composeapp.generated.resources.rewards_dialog_prompt_label
+import nomnomzbot.composeapp.generated.resources.rewards_dialog_response_label
 import nomnomzbot.composeapp.generated.resources.rewards_dialog_require_input_label
 import nomnomzbot.composeapp.generated.resources.rewards_dialog_save
 import nomnomzbot.composeapp.generated.resources.rewards_dialog_title_label
@@ -280,6 +281,7 @@ fun RewardsScreen(
                             result.title,
                             result.cost,
                             result.prompt,
+                            result.response,
                             result.isEnabled,
                             result.isPaused,
                             result.isUserInputRequired,
@@ -295,6 +297,7 @@ fun RewardsScreen(
                             result.title,
                             result.cost,
                             result.prompt,
+                            result.response,
                             result.isUserInputRequired,
                             result.backgroundColor,
                             result.maxPerStream,
@@ -872,6 +875,7 @@ private data class RewardFormResult(
     val title: String,
     val cost: Int,
     val prompt: String,
+    val response: String,
     val isEnabled: Boolean,
     val isPaused: Boolean,
     val isUserInputRequired: Boolean,
@@ -900,6 +904,7 @@ private fun RewardFormDialog(
     var title: String by remember { mutableStateOf(editor.title) }
     var cost: String by remember { mutableStateOf(editor.cost) }
     var prompt: String by remember { mutableStateOf(editor.prompt) }
+    var response: String by remember { mutableStateOf(editor.response) }
     var enabled: Boolean by remember { mutableStateOf(editor.isEnabled) }
     var paused: Boolean by remember { mutableStateOf(editor.isPaused) }
     var requireInput: Boolean by remember { mutableStateOf(editor.isUserInputRequired) }
@@ -962,6 +967,13 @@ private fun RewardFormDialog(
                     onValueChange = { prompt = it },
                     modifier = Modifier.fillMaxWidth(),
                     label = stringResource(Res.string.rewards_dialog_prompt_label),
+                )
+                // The chat message the bot posts when this reward is redeemed. Blank = no announcement.
+                AppTextField(
+                    value = response,
+                    onValueChange = { response = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = stringResource(Res.string.rewards_dialog_response_label),
                 )
                 // The reward card's background colour (hex). Blank = Twitch's default. Uses the design-system
                 // colour control (hex field + live swatch).
@@ -1040,6 +1052,7 @@ private fun RewardFormDialog(
                                 title = title,
                                 cost = validCost,
                                 prompt = prompt,
+                                response = response,
                                 isEnabled = enabled,
                                 isPaused = paused,
                                 isUserInputRequired = requireInput,
@@ -1124,14 +1137,14 @@ private fun CenteredMessage(text: String) {
 
 // The create/edit dialog's seed: an empty editor opens a blank create form; one seeded from a reward opens a
 // pre-filled edit form. [isEdit] decides create-vs-update on submit and [id] addresses the row the update /
-// toggle / delete targets. The list-row projection carries no prompt (it is a detail-only field), so the edit
-// form opens with an empty prompt the operator can fill to set it on save.
+// toggle / delete targets.
 private data class RewardEditor(
     val isEdit: Boolean,
     val id: String,
     val title: String,
     val cost: String,
     val prompt: String,
+    val response: String,
     val isEnabled: Boolean,
     // Paused = live but temporarily not redeemable; require-input = viewer must type text on redeem.
     val isPaused: Boolean,
@@ -1155,6 +1168,7 @@ private data class RewardEditor(
                 title = "",
                 cost = "",
                 prompt = "",
+                response = "",
                 isEnabled = true,
                 isPaused = false,
                 isUserInputRequired = false,
@@ -1173,6 +1187,7 @@ private data class RewardEditor(
                 title = reward.title,
                 cost = reward.cost.toString(),
                 prompt = reward.prompt.orEmpty(),
+                response = reward.response.orEmpty(),
                 isEnabled = reward.isEnabled,
                 isPaused = reward.isPaused,
                 isUserInputRequired = reward.isUserInputRequired,

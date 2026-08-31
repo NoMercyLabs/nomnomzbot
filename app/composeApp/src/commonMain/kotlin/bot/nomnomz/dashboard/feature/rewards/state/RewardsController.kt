@@ -129,6 +129,7 @@ class RewardsController(
         title: String,
         cost: Int,
         prompt: String,
+        response: String,
         isUserInputRequired: Boolean,
         backgroundColor: String?,
         maxPerStream: Int?,
@@ -145,6 +146,7 @@ class RewardsController(
                     title = title,
                     cost = cost,
                     prompt = prompt.ifBlank { null },
+                    response = response.ifBlank { null },
                     isUserInputRequired = isUserInputRequired,
                     backgroundColor = backgroundColor?.ifBlank { null },
                     maxPerStream = maxPerStream,
@@ -158,15 +160,16 @@ class RewardsController(
     }
 
     /**
-     * Edit a reward's title / cost / prompt / enabled flag, plus its countdown [timerDurationSeconds] (0 clears)
-     * and bound [pipelineId] (empty string clears), addressed by its [rewardId]. Reloads on success. Surfaces the
-     * error on failure.
+     * Edit a reward's title / cost / prompt / [response] text / enabled flag, plus its countdown
+     * [timerDurationSeconds] (0 clears) and bound [pipelineId] (empty string clears), addressed by its
+     * [rewardId]. Reloads on success. Surfaces the error on failure.
      */
     suspend fun updateReward(
         rewardId: String,
         title: String,
         cost: Int,
         prompt: String,
+        response: String,
         isEnabled: Boolean,
         isPaused: Boolean,
         isUserInputRequired: Boolean,
@@ -186,6 +189,7 @@ class RewardsController(
                     title = title,
                     cost = cost,
                     prompt = prompt.ifBlank { null },
+                    response = response.ifBlank { null },
                     isEnabled = isEnabled,
                     isPaused = isPaused,
                     isUserInputRequired = isUserInputRequired,

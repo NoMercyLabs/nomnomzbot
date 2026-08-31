@@ -156,4 +156,35 @@ public sealed class RewardServiceCreateTests
         result.Value.Title.Should().Be("Brand New Reward");
         db.Rewards.Should().ContainSingle(r => r.Title == "Brand New Reward");
     }
+
+    [Fact]
+    public async Task CreateAsync_persists_the_on_redeem_response_text_and_returns_it()
+    {
+        // Response was write-only: accepted here, stored on the entity, but ToDetail never returned it — an
+        // edit dialog reading the create result back would always see it blank even right after saving one.
+        (RewardService sut, AuthDbContext db, ITwitchChannelPointsApi points) = Build();
+        points
+            .GetCustomRewardsAsync(
+                Channel,
+                Arg.Any<IReadOnlyList<string>?>(),
+                onlyManageableRewards: false,
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success<IReadOnlyList<TwitchCustomReward>>([]));
+
+        Result<RewardDetail> result = await sut.CreateAsync(
+            Channel.ToString(),
+            new()
+            {
+                Title = "Hydrate!",
+                Cost = 100,
+                Response = "{{user}} redeemed a hydration break!",
+            }
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Response.Should().Be("{{user}} redeemed a hydration break!");
+        db.Rewards.Should()
+            .ContainSingle(r => r.Response == "{{user}} redeemed a hydration break!");
+    }
 }

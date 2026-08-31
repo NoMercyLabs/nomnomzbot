@@ -923,6 +923,7 @@
     <string name="rewards_dialog_title_label">Title</string>
     <string name="rewards_dialog_cost_label">Cost in points</string>
     <string name="rewards_dialog_prompt_label">Prompt</string>
+    <string name="rewards_dialog_response_label">Chat response on redeem</string>
     <string name="rewards_dialog_background_color_label">Background colour (hex, blank = default)</string>
     <string name="rewards_dialog_max_per_stream_label">Max per stream (blank = no limit)</string>
     <string name="rewards_dialog_max_per_user_label">Max per user per stream (blank = no limit)</string>
