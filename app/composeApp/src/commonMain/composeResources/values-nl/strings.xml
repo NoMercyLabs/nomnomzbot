@@ -1277,7 +1277,9 @@
     <string name="economy_jars_invite">Kanaal uitnodigen</string>
     <string name="economy_jars_invite_title">Kanaal uitnodigen voor spaarpot</string>
     <string name="economy_jars_invite_broadcaster">Broadcaster-ID</string>
-    <string name="economy_jars_invite_role">Rol (owner / member)</string>
+    <string name="economy_jars_invite_role">Rol</string>
+    <string name="economy_jars_invite_role_partner">Partner (kan bijdragen en opnemen)</string>
+    <string name="economy_jars_invite_role_viewer">Kijker (alleen lezen)</string>
     <string name="economy_jars_invite_confirm">Uitnodigen</string>
     <string name="economy_jars_invite_cancel">Annuleren</string>
     <string name="economy_jars_membership_pending">In afwachting</string>
