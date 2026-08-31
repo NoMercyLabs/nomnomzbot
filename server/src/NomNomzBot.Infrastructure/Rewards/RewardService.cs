@@ -43,6 +43,7 @@ public class RewardService : IRewardService
     public async Task<Result<RewardDetail>> CreateAsync(
         string broadcasterId,
         CreateRewardRequest request,
+        bool pushToTwitch = true,
         CancellationToken cancellationToken = default
     )
     {
@@ -80,22 +81,89 @@ public class RewardService : IRewardService
                 "ALREADY_EXISTS"
             );
 
-        // A locally-created reward is a bot-owned DEFINITION: it persists the full requested shape and is
-        // manageable by construction (it has no Twitch id yet — sync/recreate pushes it to Twitch later).
-        Reward reward = new()
+        Reward reward;
+        if (pushToTwitch)
         {
-            Id = Guid.NewGuid(),
-            BroadcasterId = broadcaster,
-            Title = request.Title,
-            Cost = request.Cost,
-            Description = request.Prompt,
-            Response = request.Response,
-            IsEnabled = true,
-            IsManageable = true,
-            IsUserInputRequired = request.IsUserInputRequired,
-            TimerDurationSeconds = NormalizeTimerDuration(request.TimerDurationSeconds),
-            PipelineId = request.PipelineId,
-        };
+            // Twitch first: a reward that only ever exists in our own table is never redeemable, so nothing
+            // here is real until Helix has created it. Fail closed on a Helix refusal — never persist a
+            // definition that isn't actually live on the channel.
+            Result<TwitchCustomReward> created = await _channelPoints.CreateCustomRewardAsync(
+                broadcaster,
+                new(
+                    Title: request.Title,
+                    Cost: request.Cost,
+                    Prompt: request.Prompt,
+                    IsEnabled: true,
+                    BackgroundColor: request.BackgroundColor,
+                    IsUserInputRequired: request.IsUserInputRequired,
+                    IsMaxPerStreamEnabled: request.MaxPerStream.HasValue,
+                    MaxPerStream: request.MaxPerStream,
+                    IsMaxPerUserPerStreamEnabled: request.MaxPerUserPerStream.HasValue,
+                    MaxPerUserPerStream: request.MaxPerUserPerStream,
+                    IsGlobalCooldownEnabled: request.GlobalCooldownSeconds.HasValue,
+                    GlobalCooldownSeconds: request.GlobalCooldownSeconds
+                ),
+                cancellationToken
+            );
+            if (created.IsFailure)
+                return created.WithValue<RewardDetail>(default!);
+
+            TwitchCustomReward tr = created.Value;
+
+            // A bot-owned DEFINITION: manageable by construction (this client_id just created it on Twitch),
+            // and the local row mirrors exactly what Helix confirmed — not the raw request — so a field
+            // Twitch rejected, clamped, or defaulted never shows as if it were saved.
+            reward = new()
+            {
+                Id = Guid.NewGuid(),
+                BroadcasterId = broadcaster,
+                Title = tr.Title,
+                Cost = tr.Cost,
+                Description = tr.Prompt,
+                Response = request.Response,
+                BackgroundColor = tr.BackgroundColor,
+                MaxPerStream = tr.MaxPerStreamSetting.IsEnabled
+                    ? tr.MaxPerStreamSetting.MaxPerStream
+                    : null,
+                MaxPerUserPerStream = tr.MaxPerUserPerStreamSetting.IsEnabled
+                    ? tr.MaxPerUserPerStreamSetting.MaxPerUserPerStream
+                    : null,
+                GlobalCooldownSeconds = tr.GlobalCooldownSetting.IsEnabled
+                    ? tr.GlobalCooldownSetting.GlobalCooldownSeconds
+                    : null,
+                IsEnabled = tr.IsEnabled,
+                IsManageable = true,
+                IsUserInputRequired = tr.IsUserInputRequired,
+                TwitchRewardId = tr.Id,
+                IsPlatform = true,
+                TimerDurationSeconds = NormalizeTimerDuration(request.TimerDurationSeconds),
+                PipelineId = request.PipelineId,
+            };
+        }
+        else
+        {
+            // Deliberately offline (bundle import, D2): a LOCAL, bot-manageable definition with no
+            // TwitchRewardId yet — never blocked by Helix being down. The caller owns getting it onto
+            // Twitch afterward.
+            reward = new()
+            {
+                Id = Guid.NewGuid(),
+                BroadcasterId = broadcaster,
+                Title = request.Title,
+                Cost = request.Cost,
+                Description = request.Prompt,
+                Response = request.Response,
+                BackgroundColor = request.BackgroundColor,
+                MaxPerStream = request.MaxPerStream,
+                MaxPerUserPerStream = request.MaxPerUserPerStream,
+                GlobalCooldownSeconds = request.GlobalCooldownSeconds,
+                IsEnabled = true,
+                IsManageable = true,
+                IsUserInputRequired = request.IsUserInputRequired,
+                TimerDurationSeconds = NormalizeTimerDuration(request.TimerDurationSeconds),
+                PipelineId = request.PipelineId,
+            };
+        }
 
         _db.Rewards.Add(reward);
         await _db.SaveChangesAsync(cancellationToken);
@@ -155,6 +223,7 @@ public class RewardService : IRewardService
         // Helix first, then the local copy — so a Twitch refusal never leaves the dashboard showing state
         // that is not live on Twitch. IsPaused syncs locally too, so the paused/resumed transition source
         // (RewardLifecycleHandler) and a dashboard patch can never disagree about the last-known state.
+        TwitchCustomReward? confirmed = null;
         if (patchesTwitchFacing && reward is { IsManageable: true, TwitchRewardId: not null })
         {
             Result<TwitchCustomReward> pushed = await _channelPoints.UpdateCustomRewardAsync(
@@ -182,6 +251,23 @@ public class RewardService : IRewardService
                     pushed.ErrorMessage ?? "Twitch rejected the reward update.",
                     pushed.ErrorCode ?? "TWITCH_ERROR"
                 );
+            confirmed = pushed.Value;
+        }
+
+        // Cache exactly what Helix confirmed (never the raw request — Twitch can clamp/reject a value) so a
+        // later read reflects the real Twitch state instead of always showing null for these four fields.
+        if (confirmed is not null)
+        {
+            reward.BackgroundColor = confirmed.BackgroundColor;
+            reward.MaxPerStream = confirmed.MaxPerStreamSetting.IsEnabled
+                ? confirmed.MaxPerStreamSetting.MaxPerStream
+                : null;
+            reward.MaxPerUserPerStream = confirmed.MaxPerUserPerStreamSetting.IsEnabled
+                ? confirmed.MaxPerUserPerStreamSetting.MaxPerUserPerStream
+                : null;
+            reward.GlobalCooldownSeconds = confirmed.GlobalCooldownSetting.IsEnabled
+                ? confirmed.GlobalCooldownSetting.GlobalCooldownSeconds
+                : null;
         }
 
         if (request.Title is not null)
@@ -859,11 +945,11 @@ public class RewardService : IRewardService
             r.IsUserInputRequired,
             r.IsPaused,
             r.PendingMigrationRequestedAt.HasValue,
+            r.BackgroundColor,
             null,
-            null,
-            null,
-            null,
-            null,
+            r.MaxPerStream,
+            r.MaxPerUserPerStream,
+            r.GlobalCooldownSeconds,
             r.TimerDurationSeconds,
             r.PipelineId,
             r.CreatedAt,

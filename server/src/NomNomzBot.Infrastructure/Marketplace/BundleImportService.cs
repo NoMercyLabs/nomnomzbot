@@ -611,6 +611,7 @@ public class BundleImportService : IBundleImportService
                             ? pipelineIdsByName.GetValueOrDefault(export.PipelineName)
                             : null,
                     },
+                    pushToTwitch: false,
                     ct
                 );
                 if (createdReward.IsFailure)

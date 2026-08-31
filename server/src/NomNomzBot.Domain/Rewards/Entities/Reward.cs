@@ -77,6 +77,21 @@ public class Reward : SoftDeletableEntity, ITenantScoped
 
     public int? Cost { get; set; }
 
+    /// <summary>The reward card's background colour as Twitch reports it (hex, e.g. "#9147FF"). Null = Twitch
+    /// default. Kept in step with Helix on every create/update so a read of this entity reflects reality
+    /// instead of always showing blank regardless of what was actually pushed.</summary>
+    [MaxLength(20)]
+    public string? BackgroundColor { get; set; }
+
+    /// <summary>Twitch's per-stream redemption cap. Null = no limit.</summary>
+    public int? MaxPerStream { get; set; }
+
+    /// <summary>Twitch's per-user-per-stream redemption cap. Null = no limit.</summary>
+    public int? MaxPerUserPerStream { get; set; }
+
+    /// <summary>Twitch's global cooldown between redemptions, in seconds. Null = no cooldown.</summary>
+    public int? GlobalCooldownSeconds { get; set; }
+
     /// <summary>
     /// Opt-in countdown for time-limited rewards ("streamer does X for Y"): when set, every redemption
     /// starts a <see cref="RedemptionTimer"/> for this many seconds; when the countdown completes the
