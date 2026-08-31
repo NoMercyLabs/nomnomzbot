@@ -983,6 +983,8 @@ public static class DependencyInjection
         // Legacy parity (S068c): !bansong (mod+, blocks the playing track) and !whisper (mod+, DMs
         // a viewer) — both reuse existing domain capability (IBlockedTrackService, IPlatformDirectMessageSender).
         services.AddScoped<IBuiltinCommand, Commands.Builtins.BanSongBuiltin>();
+        services.AddScoped<IBuiltinCommand, Commands.Builtins.LeaderboardBuiltin>();
+        services.AddScoped<IBuiltinCommand, Commands.Builtins.PlaylistBuiltin>();
         services.AddScoped<IBuiltinCommand, Commands.Builtins.WhisperBuiltin>();
         services.AddScoped<IBuiltinCommand, Commands.Builtins.CoinflipBuiltin>();
         services.AddScoped<IBuiltinCommand, Commands.Builtins.DiceBuiltin>();
