@@ -563,6 +563,7 @@ class AppGraph {
             economyApi = economyApi,
             usersApi = usersApi,
             streamApi = streamApi,
+            pipelinesApi = pipelinesApi,
         )
 
     val alertsController: AlertsController =

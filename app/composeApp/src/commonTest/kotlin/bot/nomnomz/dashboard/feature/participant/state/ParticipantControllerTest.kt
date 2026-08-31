@@ -32,6 +32,7 @@ import bot.nomnomz.dashboard.core.network.JarMovement
 import bot.nomnomz.dashboard.core.network.SavingsJarDetail
 import bot.nomnomz.dashboard.core.network.SavingsJarMembership
 import bot.nomnomz.dashboard.core.network.TransferBody
+import bot.nomnomz.dashboard.core.network.UpdateCatalogItemBody
 import bot.nomnomz.dashboard.core.network.ActivityEvent
 import bot.nomnomz.dashboard.core.network.DashboardApi
 import bot.nomnomz.dashboard.core.network.DashboardStats
@@ -625,6 +626,12 @@ private class FakeEconomyApi(
 
     override suspend fun createCatalogItem(channelId: String, request: CreateCatalogItemBody): ApiResult<CatalogItem> =
         ApiResult.Ok(CatalogItem())
+
+    override suspend fun updateCatalogItem(
+        channelId: String,
+        itemId: String,
+        request: UpdateCatalogItemBody,
+    ): ApiResult<CatalogItem> = ApiResult.Ok(CatalogItem())
 
     override suspend fun deleteCatalogItem(channelId: String, itemId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 

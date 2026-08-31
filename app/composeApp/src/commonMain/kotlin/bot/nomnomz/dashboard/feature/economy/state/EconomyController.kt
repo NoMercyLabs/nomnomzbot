@@ -34,8 +34,11 @@ import bot.nomnomz.dashboard.core.network.CurrencyLedgerEntry
 import bot.nomnomz.dashboard.core.network.EarningRule
 import bot.nomnomz.dashboard.core.network.EconomyApi
 import bot.nomnomz.dashboard.core.network.LeaderboardEntry
+import bot.nomnomz.dashboard.core.network.PipelineSummary
+import bot.nomnomz.dashboard.core.network.PipelinesApi
 import bot.nomnomz.dashboard.core.network.SavingsJar
 import bot.nomnomz.dashboard.core.network.TransferBody
+import bot.nomnomz.dashboard.core.network.UpdateCatalogItemBody
 import bot.nomnomz.dashboard.core.network.UpsertCurrencyConfig
 import bot.nomnomz.dashboard.core.network.UpsertEarningRuleBody
 import bot.nomnomz.dashboard.core.network.UserSearchResult
@@ -61,6 +64,9 @@ class EconomyController(
     // Optional broadcaster-search source for the shared-jar invite picker. Nullable so the state-holder tests
     // construct the controller without it.
     private val streamApi: StreamApi? = null,
+    // Feeds the catalog item dialog's effect (bound pipeline) picker. Nullable so the state-holder tests
+    // construct the controller without it — a missing pipelines source just yields an empty picker list.
+    private val pipelinesApi: PipelinesApi? = null,
 ) {
     private val _state: MutableStateFlow<EconomyState> = MutableStateFlow(EconomyState.Loading)
 
@@ -158,6 +164,14 @@ class EconomyController(
                 is ApiResult.Ok -> result.value
             }
 
+        // The channel's pipelines, for the catalog item dialog's effect (bound pipeline) picker. Same
+        // resilience contract; a missing source or a failed fetch just yields an empty picker.
+        val pipelines: List<PipelineSummary> =
+            when (val result: ApiResult<List<PipelineSummary>>? = pipelinesApi?.list(channel.id)) {
+                null, is ApiResult.Failure -> emptyList()
+                is ApiResult.Ok -> result.value
+            }
+
         _state.value =
             EconomyState.Ready(
                 // A null config means the economy was never set up; seed the form with sensible defaults so the
@@ -172,6 +186,7 @@ class EconomyController(
                 catalog = catalog,
                 savingsJars = savingsJars,
                 catalogPurchases = catalogPurchases,
+                pipelines = pipelines,
             )
     }
 
@@ -317,6 +332,15 @@ class EconomyController(
     suspend fun upsertEarningRule(body: UpsertEarningRuleBody) {
         val channel: String = channelId ?: return
         afterWrite(economyApi.upsertEarningRule(channel, body))
+    }
+
+    /**
+     * Full edit of an existing catalog item ([itemId]) with [request] — every field, not just the enabled toggle
+     * [setCatalogItemEnabled] carries. Reloads on success; surfaces the error on the Ready state on failure.
+     */
+    suspend fun updateCatalogItem(itemId: String, request: UpdateCatalogItemBody) {
+        val channel: String = channelId ?: return
+        afterWrite(economyApi.updateCatalogItem(channel, itemId, request))
     }
 
     /**
@@ -566,6 +590,8 @@ sealed interface EconomyState {
         val catalog: List<CatalogItem> = emptyList(),
         val savingsJars: List<SavingsJar> = emptyList(),
         val catalogPurchases: List<CatalogPurchase> = emptyList(),
+        // The catalog item dialog's effect (bound pipeline) picker source.
+        val pipelines: List<PipelineSummary> = emptyList(),
         val saving: Boolean = false,
         val justSaved: Boolean = false,
         val saveError: String? = null,

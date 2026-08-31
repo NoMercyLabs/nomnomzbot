@@ -1204,6 +1204,21 @@
     <string name="economy_catalog_delete_message">"%1$s" verwijderen? Dit kan niet ongedaan worden gemaakt.</string>
     <string name="economy_catalog_delete_confirm">Verwijderen</string>
     <string name="economy_catalog_delete_dismiss">Annuleren</string>
+    <string name="economy_catalog_edit_action">%1$s bewerken</string>
+    <string name="economy_catalog_edit_title">Winkelitem bewerken</string>
+    <string name="economy_catalog_save">Opslaan</string>
+    <string name="economy_catalog_permission_label">Wie mag kopen</string>
+    <string name="economy_catalog_perm_everyone">Iedereen</string>
+    <string name="economy_catalog_perm_subscriber">Abonnee</string>
+    <string name="economy_catalog_perm_vip">VIP</string>
+    <string name="economy_catalog_perm_moderator">Moderator</string>
+    <string name="economy_catalog_effect_label">Effect (pipeline)</string>
+    <string name="economy_catalog_effect_none">Geen effect</string>
+    <string name="economy_catalog_cooldown_label">Afkoeltijd (seconden, 0 = geen)</string>
+    <string name="economy_catalog_cooldown_per_user_label">Afkoeltijd geldt per kijker</string>
+    <string name="economy_catalog_stock_label">Voorraadlimiet (leeg = onbeperkt)</string>
+    <string name="economy_catalog_max_per_viewer_label">Max per kijker per stream (leeg = onbeperkt)</string>
+    <string name="economy_catalog_sort_order_label">Sorteervolgorde</string>
     <string name="economy_earning_enable">Inschakelen</string>
     <string name="economy_earning_disable">Uitschakelen</string>
     <string name="economy_earning_enable_action">%1$s inschakelen</string>

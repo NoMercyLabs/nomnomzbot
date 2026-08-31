@@ -76,12 +76,15 @@ import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.AppIcon
 import bot.nomnomz.dashboard.core.designsystem.icon.CheckCircleGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.RemoveGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.unit.dp
 import bot.nomnomz.dashboard.core.network.CatalogItem
 import bot.nomnomz.dashboard.core.network.CatalogPurchase
 import bot.nomnomz.dashboard.core.network.CreateCatalogItemBody
+import bot.nomnomz.dashboard.core.network.PipelineSummary
+import bot.nomnomz.dashboard.core.network.UpdateCatalogItemBody
 import bot.nomnomz.dashboard.core.network.AdminJarContributeBody
 import bot.nomnomz.dashboard.core.network.AdminJarWithdrawBody
 import bot.nomnomz.dashboard.core.network.CreateSavingsJarBody
@@ -125,6 +128,21 @@ import nomnomzbot.composeapp.generated.resources.economy_catalog_cost
 import nomnomzbot.composeapp.generated.resources.economy_catalog_cost_invalid
 import nomnomzbot.composeapp.generated.resources.economy_catalog_create
 import nomnomzbot.composeapp.generated.resources.economy_catalog_create_title
+import nomnomzbot.composeapp.generated.resources.economy_catalog_edit_action
+import nomnomzbot.composeapp.generated.resources.economy_catalog_edit_title
+import nomnomzbot.composeapp.generated.resources.economy_catalog_save
+import nomnomzbot.composeapp.generated.resources.economy_catalog_permission_label
+import nomnomzbot.composeapp.generated.resources.economy_catalog_perm_everyone
+import nomnomzbot.composeapp.generated.resources.economy_catalog_perm_subscriber
+import nomnomzbot.composeapp.generated.resources.economy_catalog_perm_vip
+import nomnomzbot.composeapp.generated.resources.economy_catalog_perm_moderator
+import nomnomzbot.composeapp.generated.resources.economy_catalog_effect_label
+import nomnomzbot.composeapp.generated.resources.economy_catalog_effect_none
+import nomnomzbot.composeapp.generated.resources.economy_catalog_cooldown_label
+import nomnomzbot.composeapp.generated.resources.economy_catalog_cooldown_per_user_label
+import nomnomzbot.composeapp.generated.resources.economy_catalog_stock_label
+import nomnomzbot.composeapp.generated.resources.economy_catalog_max_per_viewer_label
+import nomnomzbot.composeapp.generated.resources.economy_catalog_sort_order_label
 import nomnomzbot.composeapp.generated.resources.economy_catalog_delete
 import nomnomzbot.composeapp.generated.resources.economy_catalog_delete_action
 import nomnomzbot.composeapp.generated.resources.economy_catalog_delete_confirm
@@ -348,6 +366,9 @@ fun EconomyScreen(controller: EconomyController, role: ManagementRole?, hubEvent
                     onCreateCatalogItem = { request ->
                         scope.launch { controller.createCatalogItem(request) }
                     },
+                    onUpdateCatalogItem = { itemId, request ->
+                        scope.launch { controller.updateCatalogItem(itemId, request) }
+                    },
                     onDeleteCatalogItem = { itemId ->
                         scope.launch { controller.deleteCatalogItem(itemId) }
                     },
@@ -399,6 +420,7 @@ private fun ReadyContent(
     onAccountsNextPage: () -> Unit,
     onToggleCatalog: (String, Boolean) -> Unit,
     onCreateCatalogItem: (CreateCatalogItemBody) -> Unit,
+    onUpdateCatalogItem: (String, UpdateCatalogItemBody) -> Unit,
     onDeleteCatalogItem: (String) -> Unit,
     // The real, backend-counted blast radius of deleting a catalog item (S-CONSEQ) — rendered in the confirm
     // before the destructive save; never counted in the UI.
@@ -554,9 +576,11 @@ private fun ReadyContent(
 
         CatalogSection(
             catalog = state.catalog,
+            pipelines = state.pipelines,
             manage = config,
             onToggle = onToggleCatalog,
             onCreate = onCreateCatalogItem,
+            onUpdate = onUpdateCatalogItem,
             onDelete = onDeleteCatalogItem,
             onBlastRadius = onCatalogItemBlastRadius,
         )
@@ -1895,9 +1919,11 @@ private fun earningRoleLabel(level: Int): String =
 @Composable
 private fun CatalogSection(
     catalog: List<CatalogItem>,
+    pipelines: List<PipelineSummary>,
     manage: ManageDecision,
     onToggle: (String, Boolean) -> Unit,
     onCreate: (CreateCatalogItemBody) -> Unit,
+    onUpdate: (String, UpdateCatalogItemBody) -> Unit,
     onDelete: (String) -> Unit,
     onBlastRadius: suspend (String) -> ApiResult<BlastRadiusSummary>,
 ) {
@@ -1906,6 +1932,7 @@ private fun CatalogSection(
     val typography = LocalTypography.current
 
     var showCreateDialog: Boolean by remember { mutableStateOf(false) }
+    var editing: CatalogItem? by remember { mutableStateOf(null) }
     var pendingDelete: CatalogItem? by remember { mutableStateOf(null) }
 
     Row(
@@ -1948,6 +1975,7 @@ private fun CatalogSection(
                         item = item,
                         manage = manage,
                         onToggle = onToggle,
+                        onEdit = { editing = item },
                         onDelete = { pendingDelete = item },
                     )
                     if (index < catalog.lastIndex) {
@@ -1959,12 +1987,40 @@ private fun CatalogSection(
     }
 
     if (showCreateDialog) {
-        CreateCatalogItemDialog(
+        CatalogItemDialog(
+            existing = null,
+            pipelines = pipelines,
             onConfirm = { request ->
                 onCreate(request)
                 showCreateDialog = false
             },
             onDismiss = { showCreateDialog = false },
+        )
+    }
+
+    editing?.let { item ->
+        CatalogItemDialog(
+            existing = item,
+            pipelines = pipelines,
+            onConfirm = { request ->
+                onUpdate(
+                    item.id,
+                    UpdateCatalogItemBody(
+                        name = request.name,
+                        description = request.description,
+                        cost = request.cost,
+                        permission = request.permission,
+                        pipelineId = request.pipelineId,
+                        cooldownSeconds = request.cooldownSeconds,
+                        cooldownPerUser = request.cooldownPerUser,
+                        stockLimit = request.stockLimit,
+                        maxPerViewerPerStream = request.maxPerViewerPerStream,
+                        sortOrder = request.sortOrder,
+                    ),
+                )
+                editing = null
+            },
+            onDismiss = { editing = null },
         )
     }
 
@@ -2006,6 +2062,7 @@ private fun CatalogItemRow(
     item: CatalogItem,
     manage: ManageDecision,
     onToggle: (String, Boolean) -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -2107,6 +2164,14 @@ private fun CatalogItemRow(
                         maxLines = 1,
                     )
                 }
+                val editLabel: String = stringResource(Res.string.economy_catalog_edit_action, item.name)
+                GlyphButton(
+                    icon = EditGlyph,
+                    label = editLabel,
+                    onClick = onEdit,
+                    enabled = enabled,
+                    tint = if (enabled) tokens.primary else tokens.mutedForeground,
+                )
                 // Delete — destructive; the caller confirms before calling onDelete.
                 val deleteLabel: String = stringResource(Res.string.economy_catalog_delete_action, item.name)
                 GlyphButton(
@@ -2121,8 +2186,34 @@ private fun CatalogItemRow(
     }
 }
 
+// The catalog item's community-standing permission options — role NAMES only, never the numeric ladder value.
+private val CatalogPermissionOptions: List<Pair<String, StringResource>> =
+    listOf(
+        "Everyone" to Res.string.economy_catalog_perm_everyone,
+        "Subscriber" to Res.string.economy_catalog_perm_subscriber,
+        "Vip" to Res.string.economy_catalog_perm_vip,
+        "Moderator" to Res.string.economy_catalog_perm_moderator,
+    )
+
 @Composable
-private fun CreateCatalogItemDialog(
+private fun catalogPermissionLabel(name: String): String =
+    stringResource(
+        CatalogPermissionOptions.firstOrNull { it.first.equals(name, ignoreCase = true) }?.second
+            ?: Res.string.economy_catalog_perm_everyone
+    )
+
+/**
+ * The catalog item create/edit form — every field the backend's `CreateCatalogItemRequest`/
+ * `UpdateCatalogItemRequest` accept (economy.md §catalog): name, description, cost, who can buy, the bound
+ * pipeline ("effect"), cooldown (+ per-viewer), stock limit, per-viewer-per-stream cap, and sort order.
+ * [existing] null = create (seeds blank/default); non-null = edit (seeds every field from the loaded item).
+ * Always emits a full [CreateCatalogItemBody] — the caller maps it into an [UpdateCatalogItemBody] partial
+ * patch for the edit path, since every field here was just explicitly set by the operator.
+ */
+@Composable
+private fun CatalogItemDialog(
+    existing: CatalogItem?,
+    pipelines: List<PipelineSummary>,
     onConfirm: (CreateCatalogItemBody) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -2130,23 +2221,43 @@ private fun CreateCatalogItemDialog(
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    var name: String by remember { mutableStateOf("") }
-    var description: String by remember { mutableStateOf("") }
-    var costText: String by remember { mutableStateOf("") }
+    var name: String by remember { mutableStateOf(existing?.name ?: "") }
+    var description: String by remember { mutableStateOf(existing?.description ?: "") }
+    var costText: String by remember { mutableStateOf(existing?.cost?.toString() ?: "") }
     var nameError: Boolean by remember { mutableStateOf(false) }
     var costError: Boolean by remember { mutableStateOf(false) }
+    var permission: String by remember { mutableStateOf(existing?.permission?.ifBlank { "Everyone" } ?: "Everyone") }
+    var permissionMenuOpen: Boolean by remember { mutableStateOf(false) }
+    var pipelineId: String? by remember { mutableStateOf(existing?.pipelineId) }
+    var pipelineMenuOpen: Boolean by remember { mutableStateOf(false) }
+    var cooldownText: String by remember { mutableStateOf(existing?.cooldownSeconds?.toString() ?: "0") }
+    var cooldownPerUser: Boolean by remember { mutableStateOf(existing?.cooldownPerUser ?: false) }
+    var stockText: String by remember { mutableStateOf(existing?.stockLimit?.toString() ?: "") }
+    var maxPerViewerText: String by remember { mutableStateOf(existing?.maxPerViewerPerStream?.toString() ?: "") }
+    var sortOrderText: String by remember { mutableStateOf(existing?.sortOrder?.toString() ?: "0") }
+
+    val selectedPipelineLabel: String =
+        pipelines.firstOrNull { it.id == pipelineId }?.name
+            ?: stringResource(Res.string.economy_catalog_effect_none)
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = stringResource(Res.string.economy_catalog_create_title),
+                text =
+                    stringResource(
+                        if (existing == null) Res.string.economy_catalog_create_title
+                        else Res.string.economy_catalog_edit_title
+                    ),
                 style = typography.lg,
                 color = tokens.cardForeground,
             )
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(spacing.s3),
+            ) {
                 AppTextField(
                     value = name,
                     onValueChange = { name = it; nameError = false },
@@ -2167,6 +2278,80 @@ private fun CreateCatalogItemDialog(
                     label = stringResource(Res.string.economy_catalog_cost),
                     isError = costError,
                     errorText = stringResource(Res.string.economy_catalog_cost_invalid),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                EconomyPickerField(
+                    label = stringResource(Res.string.economy_catalog_permission_label),
+                    value = catalogPermissionLabel(permission),
+                    expanded = permissionMenuOpen,
+                    onExpandedChange = { permissionMenuOpen = it },
+                ) {
+                    CatalogPermissionOptions.forEach { (token, res) ->
+                        DropdownMenuItem(
+                            text = { Text(stringResource(res), color = tokens.cardForeground) },
+                            onClick = {
+                                permission = token
+                                permissionMenuOpen = false
+                            },
+                        )
+                    }
+                }
+                EconomyPickerField(
+                    label = stringResource(Res.string.economy_catalog_effect_label),
+                    value = selectedPipelineLabel,
+                    expanded = pipelineMenuOpen,
+                    onExpandedChange = { pipelineMenuOpen = it },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(Res.string.economy_catalog_effect_none), color = tokens.cardForeground) },
+                        onClick = {
+                            pipelineId = null
+                            pipelineMenuOpen = false
+                        },
+                    )
+                    pipelines.forEach { pipeline ->
+                        DropdownMenuItem(
+                            text = { Text(pipeline.name, color = tokens.cardForeground) },
+                            onClick = {
+                                pipelineId = pipeline.id
+                                pipelineMenuOpen = false
+                            },
+                        )
+                    }
+                }
+                AppTextField(
+                    value = cooldownText,
+                    onValueChange = { cooldownText = it },
+                    label = stringResource(Res.string.economy_catalog_cooldown_label),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                SwitchRow(
+                    label = stringResource(Res.string.economy_catalog_cooldown_per_user_label),
+                    checked = cooldownPerUser,
+                    onCheckedChange = { cooldownPerUser = it },
+                    enabled = true,
+                )
+                AppTextField(
+                    value = stockText,
+                    onValueChange = { stockText = it },
+                    label = stringResource(Res.string.economy_catalog_stock_label),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                AppTextField(
+                    value = maxPerViewerText,
+                    onValueChange = { maxPerViewerText = it },
+                    label = stringResource(Res.string.economy_catalog_max_per_viewer_label),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                AppTextField(
+                    value = sortOrderText,
+                    onValueChange = { sortOrderText = it },
+                    label = stringResource(Res.string.economy_catalog_sort_order_label),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
@@ -2183,11 +2368,23 @@ private fun CreateCatalogItemDialog(
                             name = trimmedName,
                             description = description.trim().ifEmpty { null },
                             cost = cost!!,
+                            permission = permission,
+                            pipelineId = pipelineId,
+                            cooldownSeconds = cooldownText.trim().toIntOrNull()?.coerceAtLeast(0) ?: 0,
+                            cooldownPerUser = cooldownPerUser,
+                            stockLimit = stockText.trim().toIntOrNull()?.takeIf { it > 0 },
+                            maxPerViewerPerStream = maxPerViewerText.trim().toIntOrNull()?.takeIf { it > 0 },
+                            sortOrder = sortOrderText.trim().toIntOrNull(),
                         )
                     )
                 }
             }) {
-                Text(stringResource(Res.string.economy_catalog_create))
+                Text(
+                    stringResource(
+                        if (existing == null) Res.string.economy_catalog_create
+                        else Res.string.economy_catalog_save
+                    )
+                )
             }
         },
         dismissButton = {

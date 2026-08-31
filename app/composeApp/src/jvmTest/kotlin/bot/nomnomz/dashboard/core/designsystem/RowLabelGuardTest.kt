@@ -66,6 +66,7 @@ class RowLabelGuardTest {
             "commands/ui/CommandsScreen.kt" to 1,
             "community/state/CommunityController.kt" to 1,
             "connect/ui/ConnectScreen.kt" to 1,
+            "economy/ui/EconomyScreen.kt" to 1,
             "eventresponses/state/EventResponsesController.kt" to 1,
             "giveaways/ui/GiveawaysScreen.kt" to 1,
             "home/state/HomeController.kt" to 2,
