@@ -433,11 +433,15 @@ later.)
   `POST /moderation/automod/message`; a pending-queue panel on the Moderation screen lets a mod
   approve/deny, mirroring the viewer-reports panel. Remaining sub-items above are still open — the
   tracker item stays until they're picked up.
-- **S067** Music UX — admission enforces every setting + `IsEnabled` + trust gate + `PreferredProvider`;
-  one config editor; queue promote/ban-track/refund; public `/sr/` page built; token → URL; bounded
-  steppers; enum lists from API; `public-sr` rate policy; `RequestedBy` not the owner key; hub-driven
-  reloads; polling fan-out bound (U·B4). 🔒 cost/max-duration/cooldown fields. Done-when: every SR toggle
-  changes what `!sr` does (test per setting).
+- **S067** Music UX — admission enforces every setting: `PreferredProvider`; one config editor (two
+  duplicate config editors still coexist on the dashboard — consolidate); queue promote/ban-track/refund;
+  public `/sr/` page built; token → URL; bounded steppers; enum lists from API; `public-sr` rate policy;
+  `RequestedBy` not the owner key; hub-driven reloads; polling fan-out bound (U·B4). 🔒 cost/max-duration/
+  cooldown fields. Done-when: every SR toggle changes what `!sr` does (test per setting).
+  DONE (8604498a): `IsEnabled` + `MinTrustLevel` trust-floor gate wired into `MusicService.RequestTrackAsync`
+  — refuses `SR_DISABLED`/`MIN_TRUST_LEVEL` before ever resolving a provider or touching the fair queue,
+  for both the chat command and the pipeline action. `PreferredProvider`/`AllowSpotify`/`AllowYouTube`/
+  `MaxQueueSize`/`MaxRequestsPerUser` remain unwired — 2 of ~7 settings done, rest above still open.
 - **S068** Legacy builtins — `!help`, `!commands`, `!lurk`/`!unlurk`, `!leaderboard`, `!songhistory`,
   `!playlist`, `!bansong`, `!whisper`, `!discord`, `!accountage` + seeded fun-command preset pack +
   on-connect announcement (U·C7). Done-when: a fresh channel has every legacy command or a seed for it.
