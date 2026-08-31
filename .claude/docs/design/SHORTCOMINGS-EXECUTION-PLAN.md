@@ -404,10 +404,14 @@ later.)
   the dashboard client has NO methods for any of it; `EconomyScreen.kt`'s leaderboard section is
   read-only ranking display only; this is a net-new management surface, no existing scaffolding). DONE:
   jar role dropdown (f7bab570 — the invite dialog's role field was free-text defaulting to `"member"`,
-  which matches no `JarRole` enum member; replaced with a Partner/Viewer dropdown). **Still open**: jar
-  update/delete — backend genuinely missing: no `PATCH`/`DELETE` on `SavingsJarsController`, no
-  `UpdateSavingsJarRequest`, no `economy:jars:update`/`economy:jars:delete` action keys — needs both new
-  backend endpoints and the dashboard UI (U·B2).
+  which matches no `JarRole` enum member; replaced with a Partner/Viewer dropdown). DONE: leaderboard
+  config CRUD + opt-outs (641a12c9 — `EconomyLeaderboardsController` already had full config
+  list/upsert/delete/blast-radius/opt-out/opt-in; dashboard client had no methods for any of it; added
+  the full client + a management section: config list with counted-blast-radius delete, a create/edit
+  dialog for metric/scope+jar/period/visibility/row-count, and a per-viewer opt-out/opt-in control).
+  **Still open**: jar update/delete — backend genuinely missing: no `PATCH`/`DELETE` on
+  `SavingsJarsController`, no `UpdateSavingsJarRequest`, no `economy:jars:update`/`economy:jars:delete`
+  action keys — needs both new backend endpoints and the dashboard UI (U·B2).
 - **S065** Giveaways reach — eligibility/weighting/prize pipeline in dialog; `ClosesAt` auto-close;
   code labels; entries endpoint + list; pool picker guard; zero-value-out gate for code-pool prizes;
   platform-generic DM delivery (U·B2, spec `giveaways.md`). Done-when: a weighted sub giveaway runs
