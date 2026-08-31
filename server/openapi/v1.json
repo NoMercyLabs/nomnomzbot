@@ -82023,6 +82023,7 @@
           "status",
           "openedAt",
           "closesAt",
+          "scheduledCloseAt",
           "drawnAt",
           "entryCount",
           "createdAt"
@@ -82140,6 +82141,13 @@
             "format": "date-time"
           },
           "closesAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "scheduledCloseAt": {
             "type": [
               "null",
               "string"
@@ -101630,6 +101638,13 @@
           "requires18Plus": {
             "type": "boolean",
             "default": false
+          },
+          "scheduledCloseAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         },
         "description": "Create/update payload — the full configurable surface (draft/closed only for updates)."

@@ -894,6 +894,15 @@ public sealed class GiveawayService : IGiveawayService
                 "VALUE_OUT_PAID_ENTRY"
             );
 
+        if (
+            request.ScheduledCloseAt is { } scheduled
+            && scheduled <= _clock.GetUtcNow().UtcDateTime
+        )
+            return Result.Failure(
+                "The scheduled close time must be in the future.",
+                "VALIDATION_FAILED"
+            );
+
         // require_follower cannot be verified truthfully yet (no follower standing and no single-user
         // Helix follow check in the client) — reject loudly instead of silently ignoring it.
         if (
@@ -930,6 +939,7 @@ public sealed class GiveawayService : IGiveawayService
         giveaway.PrizePipelineId = request.PrizePipelineId;
         giveaway.PrizeCodePoolId = request.PrizeCodePoolId;
         giveaway.Requires18Plus = request.Requires18Plus;
+        giveaway.ScheduledCloseAt = request.ScheduledCloseAt;
     }
 
     private Task<Giveaway?> FindAsync(Guid broadcasterId, Guid giveawayId, CancellationToken ct) =>
@@ -990,6 +1000,7 @@ public sealed class GiveawayService : IGiveawayService
             g.Status,
             g.OpenedAt,
             g.ClosesAt,
+            g.ScheduledCloseAt,
             g.DrawnAt,
             entryCount,
             g.CreatedAt
