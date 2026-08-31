@@ -52,6 +52,9 @@ public record MusicTrackDto(
 /// <paramref name="TargetDisplayName"/>/<paramref name="TargetAvatarUrl"/>/<paramref name="TargetPronouns"/>/
 /// <paramref name="TargetCommunityStanding"/> are additive hub-broadcast-layer enrichment
 /// (<c>IHubUserEnricher</c>) for the moderated viewer — null when unavailable.
+/// <paramref name="ModeratorDisplayName"/> comes straight off the originating domain event's own
+/// <c>ModeratorDisplayName</c> field (<c>moderator_user_name</c> on Twitch ingests) — no extra lookup.
+/// <paramref name="Timestamp"/> is the originating event's <c>OccurredAt</c>.
 /// </summary>
 public record ModActionDto(
     string Action,
@@ -62,7 +65,9 @@ public record ModActionDto(
     string? TargetDisplayName = null,
     string? TargetAvatarUrl = null,
     string? TargetPronouns = null,
-    string? TargetCommunityStanding = null
+    string? TargetCommunityStanding = null,
+    string? ModeratorDisplayName = null,
+    DateTimeOffset Timestamp = default
 );
 
 public record CommandExecutedDto(

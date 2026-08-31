@@ -38,6 +38,7 @@ public sealed class BanBroadcastHandlersTests
                 new HubUserEnrichment("Naughty", "https://cdn/avatar.png", "he/him", "Everyone")
             );
         UserBannedBroadcastHandler handler = new(notifier, enricher, db, widgets);
+        DateTimeOffset occurredAt = DateTimeOffset.Parse("2026-08-31T12:00:00Z");
 
         await handler.HandleAsync(
             new()
@@ -46,7 +47,9 @@ public sealed class BanBroadcastHandlersTests
                 TargetUserId = "target1",
                 TargetDisplayName = "Naughty",
                 ModeratorUserId = "mod1",
+                ModeratorDisplayName = "ModeratorMax",
                 Reason = "spam",
+                OccurredAt = occurredAt,
             }
         );
 
@@ -61,6 +64,8 @@ public sealed class BanBroadcastHandlersTests
                     && dto.TargetAvatarUrl == "https://cdn/avatar.png"
                     && dto.TargetPronouns == "he/him"
                     && dto.TargetCommunityStanding == "Everyone"
+                    && dto.ModeratorDisplayName == "ModeratorMax"
+                    && dto.Timestamp == occurredAt
                 ),
                 Arg.Any<CancellationToken>()
             );
