@@ -46,6 +46,8 @@ public class GiveawayEntryConfiguration : IEntityTypeConfiguration<GiveawayEntry
         builder.HasKey(e => e.Id);
         builder.Property(e => e.BroadcasterId).IsRequired();
         builder.Property(e => e.ViewerTwitchUserId).IsRequired().HasMaxLength(50);
+        builder.Property(e => e.Provider).IsRequired().HasMaxLength(20);
+        builder.Property(e => e.ProviderUserId).HasMaxLength(50);
 
         builder
             .HasIndex(e => new { e.GiveawayId, e.ViewerUserId })
@@ -63,6 +65,8 @@ public class GiveawayWinnerConfiguration : IEntityTypeConfiguration<GiveawayWinn
         builder.HasKey(e => e.Id);
         builder.Property(e => e.BroadcasterId).IsRequired();
         builder.Property(e => e.ViewerTwitchUserId).IsRequired().HasMaxLength(50);
+        builder.Property(e => e.Provider).IsRequired().HasMaxLength(20);
+        builder.Property(e => e.ProviderUserId).HasMaxLength(50);
         builder.Property(e => e.Status).IsRequired().HasMaxLength(20);
 
         builder.HasIndex(e => e.GiveawayId).HasDatabaseName("IX_GiveawayWinner_Giveaway");

@@ -15,7 +15,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
-using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Contracts.Platform;
 using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Domain.Economy.Enums;
@@ -41,7 +41,7 @@ public sealed class GiveawayFulfillment : IGiveawayFulfillment
     private readonly IApplicationDbContext _db;
     private readonly ICurrencyAccountService _accounts;
     private readonly IServiceProvider _services;
-    private readonly ITwitchWhispersApi _whispers;
+    private readonly IReadOnlyDictionary<string, IPlatformDirectMessageSender> _dmSendersByProvider;
     private readonly ITokenProtector _protector;
     private readonly TimeProvider _clock;
     private readonly ILogger<GiveawayFulfillment> _logger;
@@ -50,7 +50,7 @@ public sealed class GiveawayFulfillment : IGiveawayFulfillment
         IApplicationDbContext db,
         ICurrencyAccountService accounts,
         IServiceProvider services,
-        ITwitchWhispersApi whispers,
+        IEnumerable<IPlatformDirectMessageSender> dmSenders,
         ITokenProtector protector,
         TimeProvider clock,
         ILogger<GiveawayFulfillment> logger
@@ -62,7 +62,7 @@ public sealed class GiveawayFulfillment : IGiveawayFulfillment
         // ICommandAction eagerly, and the giveaway actions depend on IGiveawayService → this fulfillment
         // — a constructor-injected engine here closes that loop into a DI cycle.
         _services = services;
-        _whispers = whispers;
+        _dmSendersByProvider = dmSenders.ToDictionary(s => s.Provider);
         _protector = protector;
         _clock = clock;
         _logger = logger;
@@ -236,13 +236,31 @@ public sealed class GiveawayFulfillment : IGiveawayFulfillment
             return;
         }
 
-        Result whispered = await _whispers.SendWhisperAsync(
+        if (
+            !_dmSendersByProvider.TryGetValue(
+                winner.Provider,
+                out IPlatformDirectMessageSender? sender
+            )
+        )
+        {
+            // D6: no sender for this platform is exactly the "couldn't deliver" case — the code stays
+            // assigned and the broadcaster reveals it manually; never lost, never silently no-op'd.
+            winner.WhisperDelivered = false;
+            _logger.LogWarning(
+                "Giveaway code delivery skipped for winner {WinnerId} — no DM sender registered for provider {Provider}; code stays assigned for broadcaster reveal",
+                winner.Id,
+                winner.Provider
+            );
+            return;
+        }
+
+        Result delivered = await sender.SendAsync(
             giveaway.BroadcasterId,
-            winner.ViewerTwitchUserId,
+            winner.ProviderUserId ?? winner.ViewerTwitchUserId,
             $"You won \"{giveaway.Title}\"! Your code: {plaintext}",
             ct
         );
-        if (whispered.IsSuccess)
+        if (delivered.IsSuccess)
         {
             code.Status = GiveawayCodeStatus.Delivered;
             winner.WhisperDelivered = true;
@@ -252,9 +270,9 @@ public sealed class GiveawayFulfillment : IGiveawayFulfillment
             // D6: the code stays assigned and the broadcaster reveals it manually — never lost.
             winner.WhisperDelivered = false;
             _logger.LogWarning(
-                "Giveaway code whisper failed for winner {WinnerId} ({Error}) — code stays assigned for broadcaster reveal",
+                "Giveaway code delivery failed for winner {WinnerId} ({Error}) — code stays assigned for broadcaster reveal",
                 winner.Id,
-                whispered.ErrorMessage
+                delivered.ErrorMessage
             );
         }
     }

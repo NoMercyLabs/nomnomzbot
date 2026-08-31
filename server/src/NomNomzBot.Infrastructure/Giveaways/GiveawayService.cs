@@ -352,6 +352,10 @@ public sealed class GiveawayService : IGiveawayService
             GiveawayId = giveawayId,
             ViewerUserId = viewerUserId,
             ViewerTwitchUserId = viewerTwitchId,
+            // Entry recording only resolves the entrant's Twitch id today (the User lookup above); a
+            // future non-Twitch entry path threads its own Provider/ProviderUserId through here.
+            Provider = AuthEnums.Platform.Twitch,
+            ProviderUserId = viewerTwitchId,
             TicketCount = ComputeTickets(giveaway.WeightingJson, standing),
             EntryCostLedgerEntryId = costLedgerEntryId,
             EnteredAt = _clock.GetUtcNow().UtcDateTime,
@@ -451,6 +455,8 @@ public sealed class GiveawayService : IGiveawayService
                         GiveawayId = giveawayId,
                         ViewerUserId = picked.UserId,
                         ViewerTwitchUserId = picked.TwitchUserId,
+                        Provider = picked.Provider,
+                        ProviderUserId = picked.ProviderUserId,
                         DrawnAt = _clock.GetUtcNow().UtcDateTime,
                         Status = giveaway.ClaimWindowMinutes is null
                             ? GiveawayWinnerStatus.Claimed
@@ -547,6 +553,8 @@ public sealed class GiveawayService : IGiveawayService
                     GiveawayId = giveawayId,
                     ViewerUserId = picked.UserId,
                     ViewerTwitchUserId = picked.TwitchUserId,
+                    Provider = picked.Provider,
+                    ProviderUserId = picked.ProviderUserId,
                     DrawnAt = _clock.GetUtcNow().UtcDateTime,
                     Status = giveaway.ClaimWindowMinutes is null
                         ? GiveawayWinnerStatus.Claimed
@@ -596,7 +604,13 @@ public sealed class GiveawayService : IGiveawayService
 
     // ── Candidates, eligibility, weighting ──────────────────────────────────
 
-    private sealed record WeightedCandidate(Guid UserId, string TwitchUserId, int Tickets);
+    private sealed record WeightedCandidate(
+        Guid UserId,
+        string TwitchUserId,
+        int Tickets,
+        string Provider,
+        string? ProviderUserId
+    );
 
     private async Task<List<WeightedCandidate>> BuildCandidatePoolAsync(
         Giveaway giveaway,
@@ -618,7 +632,9 @@ public sealed class GiveawayService : IGiveawayService
                 .Select(e => new WeightedCandidate(
                     e.ViewerUserId,
                     e.ViewerTwitchUserId,
-                    e.TicketCount
+                    e.TicketCount,
+                    e.Provider,
+                    e.ProviderUserId
                 ))
                 .ToListAsync(ct);
         }
@@ -661,7 +677,10 @@ public sealed class GiveawayService : IGiveawayService
                     new(
                         viewer.Id,
                         viewer.TwitchUserId!,
-                        ComputeTickets(giveaway.WeightingJson, standing)
+                        ComputeTickets(giveaway.WeightingJson, standing),
+                        // active_viewers only resolves chatters via Twitch chat history today.
+                        AuthEnums.Platform.Twitch,
+                        viewer.TwitchUserId
                     )
                 );
             }

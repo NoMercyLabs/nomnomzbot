@@ -1365,6 +1365,13 @@ public static class DependencyInjection
             Platform.Transport.Helix.SubClients.TwitchGuestStarApi
         >();
 
+        // Per-platform DM senders (S065) — multi-bound; callers resolve by Provider (e.g. a giveaway
+        // winner's platform). One impl today; add a sibling per platform as its DM API is implemented.
+        services.AddScoped<
+            Application.Contracts.Platform.IPlatformDirectMessageSender,
+            Platform.Messaging.TwitchWhisperDirectMessageSender
+        >();
+
         // Top-level façade (twitch-helix.md §3.1) — composes the scoped sub-clients above into one
         // named-accessor surface for discoverability. Pure passthrough, scoped to share their lifetime.
         services.AddScoped<ITwitchHelixClient, TwitchHelixClient>();
