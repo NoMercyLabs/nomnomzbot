@@ -480,10 +480,21 @@ later.)
   DONE (b30bf452): the duplicate config editor is consolidated — Music's out-of-place 7-field editor
   (frontend-ia.md puts config ownership on Song Requests, not Music) is removed; Song Requests' editor
   gained the 4 fields it was missing (`PreferredProvider`/`MaxQueueSize`/`MaxRequestsPerUser`/
-  `MinTrustLevel`), so exactly one screen edits `MusicConfig` now, with all 7 settings. Remaining
-  sub-items above (queue promote/ban-track/refund, public page polish, token→URL, bounded steppers,
-  enum lists from API, rate policy, `RequestedBy`, hub-driven reloads, polling fan-out, cost/duration/
-  cooldown) are still open — tracker stays open for those.
+  `MinTrustLevel`), so exactly one screen edits `MusicConfig` now, with all 7 settings.
+  **Queue promote + ban-track DONE, verified (ad40c8f1)**: `IFairQueue<T>.MoveToFront` (recalculates
+  every owner's rank after) + `IMusicService.PromoteToTopAsync` (real reorder, persists, republishes
+  `SongRequestQueueChangedEvent`); `BanQueuedTrackAsync` reuses `IBlockedTrackService.BlockAsync` (same
+  one `!bansong` uses) targeted at a QUEUED position, not now-playing, then removes it from the live
+  queue. `POST .../music/queue/{position}/promote` + `/ban` endpoints. **Refund found genuinely
+  blocked**: no cost/currency concept exists anywhere on the song-request path at all (not on
+  `SongRequestEntry`, `MusicConfigDto`, or the persistence entity) — `MediaShare`'s
+  `RefundIfChargedAsync`/`ICurrencyAccountService` pattern is the right one to reuse, but wiring it needs
+  a cost field + migrations in BOTH migration assemblies + config DTO changes first; tracked as its own
+  future slice (**S067b**), not half-built here. Dashboard UI for promote/ban also deferred pending
+  S067b's data model (a "paid" indicator needs the cost field to exist first). 4 new tests, real
+  reorder/block/removal asserted, not "no exception". Remaining sub-items (S067b refund + UI, public
+  page polish, token→URL, bounded steppers, enum lists from API, rate policy, `RequestedBy`, hub-driven
+  reloads, polling fan-out, cost/duration/cooldown) are still open — tracker stays open for those.
 - **S068** Legacy builtins — `!discord` (needs a Discord invite-link concept first — backend gap, not a
   chat-builtin task) + seeded fun-command preset pack + on-connect announcement (U·C7). Done-when: a
   fresh channel has every legacy command or a seed for it.
