@@ -11,9 +11,11 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
+using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
+using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Identity;
@@ -57,7 +59,9 @@ public sealed class ChannelServiceOnboardingEventTests
             new FakeTimeProvider(Now),
             bus,
             Substitute.For<IChannelRegistry>(),
-            Substitute.For<ITwitchEventSubService>()
+            Substitute.For<ITwitchEventSubService>(),
+            Substitute.For<IChatProvider>(),
+            Substitute.For<IBuiltinResponseComposer>()
         );
 
         Result<ChannelDto> result = await sut.OnboardAsync(
@@ -112,7 +116,9 @@ public sealed class ChannelServiceOnboardingEventTests
             new FakeTimeProvider(Now),
             bus,
             Substitute.For<IChannelRegistry>(),
-            Substitute.For<ITwitchEventSubService>()
+            Substitute.For<ITwitchEventSubService>(),
+            Substitute.For<IChatProvider>(),
+            Substitute.For<IBuiltinResponseComposer>()
         );
 
         Result<ChannelDto> result = await sut.OnboardAsync(
@@ -156,7 +162,9 @@ public sealed class ChannelServiceOnboardingEventTests
             new FakeTimeProvider(Now),
             bus,
             Substitute.For<IChannelRegistry>(),
-            Substitute.For<ITwitchEventSubService>()
+            Substitute.For<ITwitchEventSubService>(),
+            Substitute.For<IChatProvider>(),
+            Substitute.For<IBuiltinResponseComposer>()
         );
         CreateChannelRequest request = new() { BroadcasterId = ownerId.ToString() };
 

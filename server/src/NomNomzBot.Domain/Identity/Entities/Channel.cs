@@ -143,6 +143,16 @@ public class Channel : SoftDeletableEntity
 
     public bool IsBrandedContent { get; set; }
 
+    /// <summary>
+    /// Opt-in (default OFF, house rule: opt-in/default-deny) — when true, the bot posts a short
+    /// tone-resolved "I'm online" announcement in this channel's chat the moment it successfully
+    /// joins/connects (<see cref="NomNomzBot.Application.Identity.Services.IChannelService.JoinAsync"/>).
+    /// Distinct from the operator-configured <c>stream.online</c> event response (that fires on the
+    /// STREAM going live; this fires on the BOT's own connect), so existing channels are never
+    /// surprised by a new unsolicited message until they turn it on.
+    /// </summary>
+    public bool AnnounceOnConnect { get; set; }
+
     [ForeignKey(nameof(OwnerUserId))]
     public virtual User User { get; set; } = null!;
 

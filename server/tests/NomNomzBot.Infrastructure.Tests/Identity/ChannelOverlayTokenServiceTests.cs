@@ -9,9 +9,11 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
+using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Identity;
@@ -62,7 +64,9 @@ public sealed class ChannelOverlayTokenServiceTests
             TimeProvider.System,
             new RecordingEventBus(),
             Substitute.For<IChannelRegistry>(),
-            Substitute.For<ITwitchEventSubService>()
+            Substitute.For<ITwitchEventSubService>(),
+            Substitute.For<IChatProvider>(),
+            Substitute.For<IBuiltinResponseComposer>()
         );
 
     [Fact]
