@@ -566,7 +566,12 @@ later.)
   slots, reply-or-mention helper, GDPR whisper-with-fallback, inbound whisper handler, per-locale tone
   catalogue) is still open.
 - **S070** Settings + onboarding truth —
-  swallowed regrant/reconcile failures; copy fixes (U·B6).
+  swallowed regrant/reconcile failures (U·B6).
+  **Copy fixes CLOSED — verified clean, no changes needed**: audited `SetupWizardScreen.kt`,
+  `SettingsScreen.kt`, both `strings.xml` files against all 5 sibling behavior changes this session
+  (botLinePrefix, applyBasics failure, timezone, scope-feature-map/regrant, auto-join) — every string
+  already matches current behavior with complete en/nl pairs. The sibling slices kept their own copy
+  accurate as they shipped; nothing stale was left behind.
   **Scope→feature map + re-grant on Settings DONE, verified (fe5762ec)**: backend already had the full
   matrix (`GET /twitch/diagnostics/scopes` → `TwitchScopeDiagnosticsDto`) and the additive device-code
   re-grant endpoint — pure frontend wiring. New "Permissions" section on Settings shows one row per
