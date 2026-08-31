@@ -439,8 +439,17 @@ later.)
     not fabricated here. Found in passing, not fixed (own future cleanup): `PlatformType.cs` is a stale
     2-member (Twitch/Discord) enum unrelated to the real platform-routing convention; giveaway
     `active_viewers` entry mode still resolves candidates via Twitch-only chat history.
-- **S066** Moderation reach — mod add/remove endpoints + UI; clear chat; full `AutomodConfigDto`;
+- **S066** Moderation reach — full `AutomodConfigDto`;
   concurrency guard on whole-config POST; chat-settings slow/followers/unique/non-mod fields (U·B3).
+  **Mod add/remove + clear chat DONE, verified (4391b58b)**: Helix coverage already existed
+  (`ITwitchModeratorsApi.AddModeratorAsync/RemoveModeratorAsync`, `ITwitchModerationApi.
+  DeleteAllChatMessagesAsync`) — pure wiring. `IModerationService` gained
+  `GetModeratorsAsync/AddModeratorAsync/RemoveModeratorAsync/ClearChatAsync`; new
+  `GET/POST /moderators`, `DELETE /moderators/{userId}`, `POST /chat/clear` endpoints gated by existing
+  `moderation:moderator:write`/`moderation:delete_message` action keys (broadcaster token, not
+  delegable to an operator per Twitch's own requirement). Dashboard Moderation screen gained a
+  Moderators section (list/add-by-id/remove) and a confirm-gated Clear Chat action, i18n en+nl.
+  218/218 Moderation tests green, jvmTest + wasmJs compile clean.
   **Chat-filters screen DONE, verified (ea18f8a4)**: backend (`ChatFiltersController` +
   `IChatFilterService`) and the KMP client/DTOs already existed but no screen used them; Moderation
   page now has a full Chat filters section — list/add/toggle/delete, match-type (pattern/regex or word
