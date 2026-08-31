@@ -242,7 +242,8 @@ public sealed class SpotifyMusicProviderAuthStatusTests
             new SongRequestQueueStore(),
             new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
-            capabilityStore
+            capabilityStore,
+            PermissiveMusicConfigService.Instance
         );
 
         return (sut, handler, capabilityStore, vault);

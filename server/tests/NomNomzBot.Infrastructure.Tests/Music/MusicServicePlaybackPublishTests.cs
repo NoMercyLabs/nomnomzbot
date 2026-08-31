@@ -115,7 +115,8 @@ public sealed class MusicServicePlaybackPublishTests
             new SongRequestQueueStore(),
             new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
-            new InMemoryIntegrationCapabilityStore()
+            new InMemoryIntegrationCapabilityStore(),
+            PermissiveMusicConfigService.Instance
         );
 
         Result ok = await sut.PlayAsync(ChannelId.ToString());
@@ -167,7 +168,8 @@ public sealed class MusicServicePlaybackPublishTests
             new SongRequestQueueStore(),
             new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
-            new InMemoryIntegrationCapabilityStore()
+            new InMemoryIntegrationCapabilityStore(),
+            PermissiveMusicConfigService.Instance
         );
         return (sut, bus, handler);
     }

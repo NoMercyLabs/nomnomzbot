@@ -136,6 +136,7 @@ public sealed class SongRequestActionTests
                 ChannelId.ToString(),
                 Arg.Any<string>(),
                 Arg.Any<string?>(),
+                Arg.Any<int?>(),
                 Arg.Any<CancellationToken>()
             )
             .Returns(requestResult);

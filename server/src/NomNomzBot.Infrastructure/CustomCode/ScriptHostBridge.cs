@@ -205,7 +205,12 @@ public sealed class ScriptHostBridge(
         // A refused admission (no provider, not found, blocked track) surfaces as "false" — the guest sees
         // the boolean contract, never the host's typed error.
         Result<MusicTrack> queued = musicService
-            .RequestTrackAsync(broadcasterId.ToString(), args[0], triggeringUserId, ct)
+            .RequestTrackAsync(
+                broadcasterId.ToString(),
+                args[0],
+                triggeringUserId,
+                cancellationToken: ct
+            )
             .GetAwaiter()
             .GetResult();
         return queued.IsSuccess ? "true" : "false";

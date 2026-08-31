@@ -598,6 +598,7 @@ public sealed class MusicStatePollingServiceTests
             string broadcasterId,
             string query,
             string? requestedBy = null,
+            int? requesterRoleLevel = null,
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();
 

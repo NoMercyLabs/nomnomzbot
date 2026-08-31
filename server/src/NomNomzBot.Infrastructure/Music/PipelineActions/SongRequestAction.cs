@@ -14,6 +14,8 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Domain.Identity;
+using NomNomzBot.Domain.Identity.Enums;
 
 namespace NomNomzBot.Infrastructure.Music.PipelineActions;
 
@@ -69,10 +71,15 @@ public sealed class SongRequestAction : ICommandAction
 
         // One resolve: a track link lands on its exact track, a search phrase falls through to the
         // provider's search — then straight into the fair queue (music-sr.md §3.9).
+        // The pipeline's own user_role condition reads this same variable — see UserRoleCondition.
+        int requesterRoleLevel = ChatRole
+            .Parse(ctx.Variables.GetValueOrDefault("user.role", "viewer"))
+            .ToLevelValue();
         Result<MusicTrack> requested = await _music.RequestTrackAsync(
             ctx.BroadcasterId.ToString(),
             query,
             ctx.TriggeredByDisplayName,
+            requesterRoleLevel,
             ctx.CancellationToken
         );
 
@@ -92,6 +99,8 @@ public sealed class SongRequestAction : ICommandAction
             // erroring" are not the same as "your specific song was refused" (TRACK_BLOCKED).
             string chatMessage = requested.ErrorCode switch
             {
+                "SR_DISABLED" => $"@{ctx.TriggeredByDisplayName} {requested.ErrorMessage}",
+                "MIN_TRUST_LEVEL" => $"@{ctx.TriggeredByDisplayName} {requested.ErrorMessage}",
                 "TRACK_BLOCKED" => $"@{ctx.TriggeredByDisplayName} {requested.ErrorMessage}",
                 "SERVICE_UNAVAILABLE" =>
                     $"@{ctx.TriggeredByDisplayName} Song requests aren't set up for this channel yet.",
@@ -119,6 +128,6 @@ public sealed class SongRequestAction : ICommandAction
     {
         if (value.StartsWith('{') && value.EndsWith('}'))
             vars.TryGetValue(value[1..^1], out value!);
-        return value ?? string.Empty;
+        return value;
     }
 }

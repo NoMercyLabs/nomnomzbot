@@ -283,7 +283,8 @@ public sealed class MusicServiceQueuePushFailureTests
             new SongRequestQueueStore(),
             new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
-            new InMemoryIntegrationCapabilityStore()
+            new InMemoryIntegrationCapabilityStore(),
+            PermissiveMusicConfigService.Instance
         );
         return (sut, handler, db, vault, connectionId);
     }

@@ -146,7 +146,8 @@ public sealed class MusicServiceDuplicateRequestTests
             new SongRequestQueueStore(),
             new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
-            new InMemoryIntegrationCapabilityStore()
+            new InMemoryIntegrationCapabilityStore(),
+            PermissiveMusicConfigService.Instance
         );
         return (sut, handler);
     }

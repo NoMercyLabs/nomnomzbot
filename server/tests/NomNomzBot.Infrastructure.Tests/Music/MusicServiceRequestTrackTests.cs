@@ -330,7 +330,8 @@ public sealed class MusicServiceRequestTrackTests
             new SongRequestQueueStore(),
             new NoOpSongRequestQueuePersistence(),
             logger ?? NullLogger<MusicService>.Instance,
-            new InMemoryIntegrationCapabilityStore()
+            new InMemoryIntegrationCapabilityStore(),
+            PermissiveMusicConfigService.Instance
         );
         return (sut, handler, blocks);
     }

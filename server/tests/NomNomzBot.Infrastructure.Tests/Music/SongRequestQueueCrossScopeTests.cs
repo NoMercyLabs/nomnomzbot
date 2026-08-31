@@ -151,7 +151,8 @@ public sealed class SongRequestQueueCrossScopeTests
             store,
             new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
-            new InMemoryIntegrationCapabilityStore()
+            new InMemoryIntegrationCapabilityStore(),
+            PermissiveMusicConfigService.Instance
         );
 
     private static MusicTestDbContext SeedChannel(Guid channelId, MusicTestDbContext? into = null)

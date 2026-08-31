@@ -167,7 +167,8 @@ public sealed class MusicServiceBlockedAdmissionTests
             new SongRequestQueueStore(),
             new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
-            new InMemoryIntegrationCapabilityStore()
+            new InMemoryIntegrationCapabilityStore(),
+            PermissiveMusicConfigService.Instance
         );
         return (sut, bus, blocks);
     }
