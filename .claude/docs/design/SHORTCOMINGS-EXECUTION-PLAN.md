@@ -407,18 +407,24 @@ later.)
   was explicitly NOT added, no backend concept of it exists and it's a non-fatal foot-gun, not a
   fulfillment bug); `ClosesAt` auto-close (501225e5 — `Giveaway.ScheduledCloseAt` target field +
   `GiveawayAutoCloseWorker` 1-minute sweep, mirrors `GiveawayClaimSweepWorker`; **not yet settable
-  from the dashboard** either, same deferral). **Still open, both large:**
+  from the dashboard** either, same deferral). DONE: entries endpoint + list (f8e6385d/caf03f6f —
+  `IGiveawayService` had no `GetEntriesAsync`, no `GET /{id}/entries`; a broadcaster could only see
+  the raw `entryCount` integer, never who's entered before drawing. Added `GetEntriesAsync` +
+  `ToEntryDtosAsync` mirroring the existing `GetWinnersAsync`/`ToWinnerDtosAsync`; `GiveawayEntryDto`
+  gained `ViewerDisplayName` — it previously carried only the raw `ViewerUserId`, which would have
+  forced the dashboard list to render an opaque GUID; an "Entries" row action opens a read-only panel
+  with resolved names + a ticket-count badge once weighting makes tickets worth showing). **Still
+  open, both large:**
   - Eligibility/weighting/prize-pipeline/`ClosesAt` dialog UI — `GiveawaysScreen.kt`'s
     `GiveawayFormDialog` has NONE of these fields; a broadcaster cannot configure sub-luck weighting,
     eligibility filters, a pipeline prize, or a scheduled close time from the dashboard at all (the
     wire contracts are all ready, this is purely the missing form). This is the actual done-when
     blocker — closing it should also add the `Requires18Plus`/`ScheduledCloseAt` toggles deferred
     above.
-  - Entries endpoint + list (no `GET /{id}/entries`, `IGiveawayService` has no `ListEntriesAsync`) and
-    platform-generic DM delivery (`GiveawayFulfillment.FulfillCodeAsync` hardcoded to
+  - Platform-generic DM delivery — `GiveawayFulfillment.FulfillCodeAsync` hardcoded to
     `ITwitchWhispersApi`; no `IPlatformDirectMessageSender`; `GiveawayEntry`/`GiveawayWinner` carry no
     `Provider`/`ProviderUserId` — a Kick/YouTube/X-only broadcaster's code-pool winner can never
-    receive their code today).
+    receive their code today.
 - **S066** Moderation reach — chat-filters screen; AutoMod settings; AutoMod held-message queue; mod
   add/remove endpoints + UI; clear chat; full `AutomodConfigDto`; concurrency guard on whole-config
   POST; chat-settings slow/followers/unique/non-mod fields (U·B3). Done-when: a mod approves a held
