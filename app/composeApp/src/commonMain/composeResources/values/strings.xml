@@ -1990,6 +1990,7 @@
     <string name="giveaways_dialog_code_pool_label">Code pool</string>
     <string name="giveaways_dialog_code_pool_none">No code pools yet — create one in the section below.</string>
     <string name="giveaways_dialog_code_pool_placeholder">Choose a code pool.</string>
+    <string name="giveaways_dialog_code_pool_exhausted">%1$s (no codes left)</string>
     <string name="giveaways_dialog_create">Create</string>
     <string name="giveaways_dialog_save">Save</string>
     <string name="giveaways_winners_title">%1$s — winners</string>

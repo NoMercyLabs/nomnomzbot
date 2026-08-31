@@ -100,6 +100,7 @@ import nomnomzbot.composeapp.generated.resources.giveaways_delete_title
 import nomnomzbot.composeapp.generated.resources.giveaways_dialog_claim_window_label
 import nomnomzbot.composeapp.generated.resources.giveaways_dialog_code_pool_label
 import nomnomzbot.composeapp.generated.resources.giveaways_dialog_code_pool_none
+import nomnomzbot.composeapp.generated.resources.giveaways_dialog_code_pool_exhausted
 import nomnomzbot.composeapp.generated.resources.giveaways_dialog_code_pool_placeholder
 import nomnomzbot.composeapp.generated.resources.giveaways_dialog_create
 import nomnomzbot.composeapp.generated.resources.giveaways_dialog_create_title
@@ -1107,8 +1108,8 @@ private fun FieldLabel(text: String) {
 
 // A selectable chip (shadcn Badge in its selectable/toggle form) — one option in a segmented picker.
 @Composable
-private fun SelectChip(label: String, selected: Boolean, onClick: () -> Unit) {
-    Badge(selected = selected, onClick = onClick) { Text(text = label) }
+private fun SelectChip(label: String, selected: Boolean, enabled: Boolean = true, onClick: () -> Unit) {
+    Badge(selected = selected, enabled = enabled, onClick = onClick) { Text(text = label) }
 }
 
 // The code-pool picker for a code-prize giveaway: the channel's pools as selectable chips (a code pool has no
@@ -1144,7 +1145,20 @@ private fun CodePoolPicker(pools: List<CodePool>, selectedId: String?, onSelect:
                     typeLabel = poolTypeLabel,
                     discriminatorSource = pool.id,
                 )
-            SelectChip(label = poolLabel, selected = pool.id == selectedId, onClick = { onSelect(pool.id) })
+            val isSelected: Boolean = pool.id == selectedId
+            // A pool with zero available codes can never fulfill a draw — disable it so a broadcaster can't
+            // bind a giveaway to a pool that's already fully claimed; the CURRENT selection stays pickable
+            // even if it just ran dry, so switching prize modes doesn't silently strand the form.
+            val isPickable: Boolean = isSelected || pool.available > 0
+            val chipLabel: String =
+                if (pool.available > 0) poolLabel
+                else stringResource(Res.string.giveaways_dialog_code_pool_exhausted, poolLabel)
+            SelectChip(
+                label = chipLabel,
+                selected = isSelected,
+                enabled = isPickable,
+                onClick = { onSelect(pool.id) },
+            )
         }
     }
 }
