@@ -14,6 +14,7 @@ using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -137,7 +138,7 @@ public sealed class ShoutoutAction : ICommandAction
             action.GetString("user_id") ?? string.Empty,
             ctx.Variables
         );
-        rawUserId = rawUserId.Trim().TrimStart('@');
+        rawUserId = MentionParser.ParseUserMention(rawUserId);
         if (string.IsNullOrWhiteSpace(rawUserId))
             return ActionResult.Failure("shoutout action requires a non-empty 'user_id'");
 

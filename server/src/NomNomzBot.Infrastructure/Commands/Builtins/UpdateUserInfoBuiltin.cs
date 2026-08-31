@@ -55,7 +55,7 @@ public sealed class UpdateUserInfoBuiltin : IBuiltinCommand
         CancellationToken ct = default
     )
     {
-        string requestedLogin = context.Args.Trim().TrimStart('@').ToLowerInvariant();
+        string requestedLogin = MentionParser.ParseUserMention(context.Args).ToLowerInvariant();
         bool targetsSomeoneElse =
             requestedLogin.Length > 0
             && !requestedLogin.Equals(

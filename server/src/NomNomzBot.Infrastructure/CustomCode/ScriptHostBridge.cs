@@ -12,6 +12,7 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
@@ -582,7 +583,7 @@ public sealed class ScriptHostBridge(
                 .GetAwaiter()
                 .GetResult();
 
-        string login = subject.Trim().TrimStart('@').ToLowerInvariant();
+        string login = MentionParser.ParseUserMention(subject).ToLowerInvariant();
         return db.Users.AsNoTracking()
                 .FirstOrDefaultAsync(u => u.TwitchUserId == subject, ct)
                 .GetAwaiter()

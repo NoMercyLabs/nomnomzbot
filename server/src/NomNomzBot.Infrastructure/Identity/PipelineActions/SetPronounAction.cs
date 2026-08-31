@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
@@ -82,12 +83,9 @@ public sealed class SetPronounAction : ICommandAction
         ActionDefinition action
     )
     {
-        string username = ResolveVariable(
-                action.GetString("username") ?? string.Empty,
-                ctx.Variables
-            )
-            .Trim()
-            .TrimStart('@');
+        string username = MentionParser.ParseUserMention(
+            ResolveVariable(action.GetString("username") ?? string.Empty, ctx.Variables)
+        );
         string pronounArg = ResolveVariable(
                 action.GetString("pronoun") ?? string.Empty,
                 ctx.Variables

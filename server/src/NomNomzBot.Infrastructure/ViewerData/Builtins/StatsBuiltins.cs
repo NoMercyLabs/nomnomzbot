@@ -141,7 +141,8 @@ public abstract class StatsBuiltinBase : IBuiltinCommand
     )
     {
         string[] argParts = context.Args.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        string mention = argParts.Length > 0 ? argParts[0].TrimStart('@') : string.Empty;
+        string mention =
+            argParts.Length > 0 ? MentionParser.ParseUserMention(argParts[0]) : string.Empty;
 
         if (mention.Length == 0)
         {
