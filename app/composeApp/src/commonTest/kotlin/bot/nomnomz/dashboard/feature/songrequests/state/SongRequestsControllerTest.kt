@@ -181,6 +181,78 @@ class SongRequestsControllerTest {
     }
 
     @Test
+    fun promote_hits_the_promote_route_with_the_position_then_reloads() = runTest {
+        val before = listOf(QueuedSong(position = 0, trackName = "A"), QueuedSong(position = 1, trackName = "B"))
+        val after = listOf(QueuedSong(position = 0, trackName = "B"), QueuedSong(position = 1, trackName = "A"))
+        val songRequestsApi =
+            FakeSongRequestsApi(queueResults = listOf(ApiResult.Ok(before), ApiResult.Ok(after)))
+        val controller =
+            SongRequestsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), songRequestsApi)
+
+        controller.load()
+        controller.promote(1)
+
+        // The promote hit the real route with the resolved channel + the zero-based position.
+        assertEquals(listOf("ch1" to 1), songRequestsApi.promoteCalls)
+        val state: SongRequestsState = controller.state.value
+        assertTrue(state is SongRequestsState.Ready)
+        assertEquals(listOf("B", "A"), (state as SongRequestsState.Ready).queue.map { it.trackName })
+        assertNull(state.actionError)
+    }
+
+    @Test
+    fun ban_hits_the_ban_route_with_the_position_then_reloads() = runTest {
+        val before = listOf(QueuedSong(position = 0, trackName = "A"), QueuedSong(position = 1, trackName = "B"))
+        val after = listOf(QueuedSong(position = 0, trackName = "A"))
+        val songRequestsApi =
+            FakeSongRequestsApi(queueResults = listOf(ApiResult.Ok(before), ApiResult.Ok(after)))
+        val controller =
+            SongRequestsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), songRequestsApi)
+
+        controller.load()
+        controller.ban(1)
+
+        // The ban hit the real route with the resolved channel + the zero-based position.
+        assertEquals(listOf("ch1" to 1), songRequestsApi.banCalls)
+        val state: SongRequestsState = controller.state.value
+        assertTrue(state is SongRequestsState.Ready)
+        assertEquals(listOf("A"), (state as SongRequestsState.Ready).queue.map { it.trackName })
+        assertNull(state.actionError)
+    }
+
+    @Test
+    fun a_failed_ban_surfaces_the_error_and_keeps_the_queue() = runTest {
+        val queue = listOf(QueuedSong(position = 0, trackName = "A"))
+        val songRequestsApi =
+            FakeSongRequestsApi(
+                queueResults = listOf(ApiResult.Ok(queue)),
+                controlResult = ApiResult.Failure(ApiError(500, "ERR", "Ban failed.")),
+            )
+        val controller =
+            SongRequestsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), songRequestsApi)
+
+        controller.load()
+        controller.ban(0)
+
+        assertEquals(listOf("ch1" to 0), songRequestsApi.banCalls)
+        val state: SongRequestsState = controller.state.value
+        assertTrue(state is SongRequestsState.Ready)
+        assertEquals(listOf("A"), (state as SongRequestsState.Ready).queue.map { it.trackName })
+        assertEquals("Ban failed.", state.actionError)
+        assertEquals(1, songRequestsApi.queueCalls)
+    }
+
+    @Test
+    fun a_queued_song_with_a_positive_cost_is_flagged_paid_but_a_free_one_is_not() = runTest {
+        // Proves the DTO shape the paid badge reads: cost > 0 marks a paid request, 0/default does not.
+        val paid = QueuedSong(position = 0, trackName = "A", cost = 500)
+        val free = QueuedSong(position = 1, trackName = "B")
+
+        assertTrue(paid.cost > 0)
+        assertEquals(0, free.cost)
+    }
+
+    @Test
     fun a_failed_control_surfaces_the_error_and_keeps_the_queue() = runTest {
         val queue = listOf(QueuedSong(position = 0, trackName = "A"))
         val songRequestsApi =
@@ -239,6 +311,8 @@ private class FakeSongRequestsApi(
     val pauseCalls: MutableList<String> = mutableListOf()
     val resumeCalls: MutableList<String> = mutableListOf()
     val removeCalls: MutableList<Pair<String, Int>> = mutableListOf()
+    val promoteCalls: MutableList<Pair<String, Int>> = mutableListOf()
+    val banCalls: MutableList<Pair<String, Int>> = mutableListOf()
 
     override suspend fun queue(channelId: String): ApiResult<List<QueuedSong>> {
         // Walk through the configured sequence; the last entry repeats once the script runs out.
@@ -264,6 +338,16 @@ private class FakeSongRequestsApi(
 
     override suspend fun remove(channelId: String, position: Int): ApiResult<Unit> {
         removeCalls.add(channelId to position)
+        return controlResult
+    }
+
+    override suspend fun promote(channelId: String, position: Int): ApiResult<Unit> {
+        promoteCalls.add(channelId to position)
+        return controlResult
+    }
+
+    override suspend fun ban(channelId: String, position: Int): ApiResult<Unit> {
+        banCalls.add(channelId to position)
         return controlResult
     }
 

@@ -1056,6 +1056,13 @@
     <string name="songrequests_remove_message">%1$s uit de wachtrij verwijderen? Het wordt niet afgespeeld.</string>
     <string name="songrequests_remove_confirm">Verwijderen</string>
     <string name="songrequests_remove_dismiss">Annuleren</string>
+    <string name="songrequests_promote_action">%1$s als volgende afspelen</string>
+    <string name="songrequests_ban_action">%1$s verbannen</string>
+    <string name="songrequests_ban_title">Dit nummer verbannen?</string>
+    <string name="songrequests_ban_message">%1$s verbannen van toekomstige verzoeken? Het wordt ook uit de wachtrij verwijderd.</string>
+    <string name="songrequests_ban_confirm">Verbannen</string>
+    <string name="songrequests_ban_dismiss">Annuleren</string>
+    <string name="songrequests_paid_badge">Betaald</string>
     <string name="songrequests_action_error">Afspelen aansturen mislukt: %1$s</string>
     <string name="songrequests_queue_title">Wachtrij</string>
     <string name="songrequests_config_title">Verzoekinstellingen</string>

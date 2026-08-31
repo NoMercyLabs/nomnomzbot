@@ -24,6 +24,8 @@ import kotlinx.serialization.Serializable
 //   POST   /api/v1/channels/{channelId}/music/pause               →  StatusResponseDto<object>
 //   POST   /api/v1/channels/{channelId}/music/resume              →  StatusResponseDto<object>
 //   DELETE /api/v1/channels/{channelId}/music/queue/{position}    →  204 No Content
+//   POST   /api/v1/channels/{channelId}/music/queue/{position}/promote →  204 No Content
+//   POST   /api/v1/channels/{channelId}/music/queue/{position}/ban →  StatusResponseDto<BlockedTrackDto>
 //   GET    /api/v1/channels/{channelId}/music/config              →  StatusResponseDto<MusicConfigDto>
 //   PUT    /api/v1/channels/{channelId}/music/config              →  StatusResponseDto<MusicConfigDto>
 //   GET    /api/v1/channels/{channelId}/music/sr-page-token       →  StatusResponseDto<string>
@@ -43,6 +45,12 @@ interface SongRequestsApi {
 
     /** Remove one queued song by its zero-based [position] (the [QueuedSong.position]). */
     suspend fun remove(channelId: String, position: Int): ApiResult<Unit>
+
+    /** Move the queued song at [position] to the front of the queue — play it next. */
+    suspend fun promote(channelId: String, position: Int): ApiResult<Unit>
+
+    /** Ban the queued song at [position] from future song requests and remove it from the live queue. */
+    suspend fun ban(channelId: String, position: Int): ApiResult<Unit>
 
     /** The channel's SR / music configuration. Reuses [MusicConfig] (same shape). */
     suspend fun config(channelId: String): ApiResult<MusicConfig>
@@ -83,6 +91,12 @@ class RestSongRequestsApi(private val client: ApiClient) : SongRequestsApi {
     override suspend fun remove(channelId: String, position: Int): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/music/queue/$position")
 
+    override suspend fun promote(channelId: String, position: Int): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/music/queue/$position/promote")
+
+    override suspend fun ban(channelId: String, position: Int): ApiResult<Unit> =
+        client.postUnit("api/v1/channels/$channelId/music/queue/$position/ban")
+
     override suspend fun config(channelId: String): ApiResult<MusicConfig> =
         client.getEnvelope("api/v1/channels/$channelId/music/config")
 
@@ -108,7 +122,9 @@ data class MusicQueue(
 
 /**
  * A queued song-request (backend `QueueItemDto`): its position in the queue, the track identity, and who
- * requested it. The field names are the serialized (camelCase) names of `QueueItemDto`.
+ * requested it. The field names are the serialized (camelCase) names of `QueueItemDto`. [cost] is the
+ * channel-currency amount the requester paid (0 for a free/unpaid request) — a paid entry (`cost > 0`)
+ * gets a "paid" indicator on the queue row.
  */
 @Serializable
 data class QueuedSong(
@@ -118,4 +134,5 @@ data class QueuedSong(
     val imageUrl: String? = null,
     val durationMs: Int = 0,
     val requestedBy: String? = null,
+    val cost: Int = 0,
 )

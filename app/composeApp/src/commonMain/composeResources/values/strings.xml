@@ -1059,6 +1059,13 @@
     <string name="songrequests_remove_message">Remove %1$s from the queue? It won't be played.</string>
     <string name="songrequests_remove_confirm">Remove</string>
     <string name="songrequests_remove_dismiss">Cancel</string>
+    <string name="songrequests_promote_action">Play %1$s next</string>
+    <string name="songrequests_ban_action">Ban %1$s</string>
+    <string name="songrequests_ban_title">Ban this song?</string>
+    <string name="songrequests_ban_message">Ban %1$s from future song requests? It will also be removed from the queue.</string>
+    <string name="songrequests_ban_confirm">Ban</string>
+    <string name="songrequests_ban_dismiss">Cancel</string>
+    <string name="songrequests_paid_badge">Paid</string>
     <string name="songrequests_action_error">Could not control playback: %1$s</string>
     <string name="songrequests_queue_title">Queue</string>
     <string name="songrequests_config_title">Song Request Settings</string>

@@ -57,7 +57,9 @@ import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.designsystem.icon.ArrowUpGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.RefreshGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.RemoveGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.network.MusicConfig
 import bot.nomnomz.dashboard.core.network.QueuedSong
@@ -74,6 +76,13 @@ import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.shell_nav_song_requests
 import nomnomzbot.composeapp.generated.resources.songrequests_action_error
+import nomnomzbot.composeapp.generated.resources.songrequests_ban_action
+import nomnomzbot.composeapp.generated.resources.songrequests_ban_confirm
+import nomnomzbot.composeapp.generated.resources.songrequests_ban_dismiss
+import nomnomzbot.composeapp.generated.resources.songrequests_ban_message
+import nomnomzbot.composeapp.generated.resources.songrequests_ban_title
+import nomnomzbot.composeapp.generated.resources.songrequests_paid_badge
+import nomnomzbot.composeapp.generated.resources.songrequests_promote_action
 import nomnomzbot.composeapp.generated.resources.songrequests_config_allow_spotify
 import nomnomzbot.composeapp.generated.resources.songrequests_config_allow_youtube
 import nomnomzbot.composeapp.generated.resources.songrequests_config_enabled
@@ -153,6 +162,8 @@ fun SongRequestsScreen(
                     onPause = { scope.launch { controller.pause() } },
                     onResume = { scope.launch { controller.resume() } },
                     onRemove = { position -> scope.launch { controller.remove(position) } },
+                    onPromote = { position -> scope.launch { controller.promote(position) } },
+                    onBan = { position -> scope.launch { controller.ban(position) } },
                     onUpdateConfig = { body -> scope.launch { controller.updateConfig(body) } },
                     onRotateToken = { scope.launch { controller.rotateSrPageToken() } },
                 )
@@ -172,6 +183,8 @@ private fun ReadyContent(
     onPause: () -> Unit,
     onResume: () -> Unit,
     onRemove: (position: Int) -> Unit,
+    onPromote: (position: Int) -> Unit,
+    onBan: (position: Int) -> Unit,
     onUpdateConfig: (UpdateMusicConfigBody) -> Unit,
     onRotateToken: () -> Unit,
 ) {
@@ -180,6 +193,7 @@ private fun ReadyContent(
     val typography = LocalTypography.current
 
     var pendingRemoval: QueuedSong? by remember { mutableStateOf(null) }
+    var pendingBan: QueuedSong? by remember { mutableStateOf(null) }
     var showRotateConfirm: Boolean by remember { mutableStateOf(false) }
 
     LazyColumn(
@@ -222,6 +236,8 @@ private fun ReadyContent(
                                 song = song,
                                 moderate = moderate,
                                 onRemove = { pendingRemoval = song },
+                                onPromote = { onPromote(song.position) },
+                                onBan = { pendingBan = song },
                             )
                             if (index < queue.lastIndex) {
                                 Separator()
@@ -269,6 +285,23 @@ private fun ReadyContent(
                 pendingRemoval = null
             },
             onDismiss = { pendingRemoval = null },
+        )
+    }
+
+    // Ban confirmation
+    pendingBan?.let { song ->
+        val title: String = song.trackName.takeIf { it.isNotBlank() } ?: song.artist
+        ConfirmDialog(
+            title = stringResource(Res.string.songrequests_ban_title),
+            message = stringResource(Res.string.songrequests_ban_message, title),
+            confirmLabel = stringResource(Res.string.songrequests_ban_confirm),
+            dismissLabel = stringResource(Res.string.songrequests_ban_dismiss),
+            destructive = true,
+            onConfirm = {
+                onBan(song.position)
+                pendingBan = null
+            },
+            onDismiss = { pendingBan = null },
         )
     }
 
@@ -552,7 +585,13 @@ private fun ControlButton(label: String, moderate: ManageDecision, onClick: () -
 }
 
 @Composable
-private fun QueueRow(song: QueuedSong, moderate: ManageDecision, onRemove: () -> Unit) {
+private fun QueueRow(
+    song: QueuedSong,
+    moderate: ManageDecision,
+    onRemove: () -> Unit,
+    onPromote: () -> Unit,
+    onBan: () -> Unit,
+) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -566,6 +605,9 @@ private fun QueueRow(song: QueuedSong, moderate: ManageDecision, onRemove: () ->
     val rowDescription: String =
         stringResource(Res.string.songrequests_row_description, positionLabel, title, requester)
     val removeLabel: String = stringResource(Res.string.songrequests_remove_action, title)
+    val promoteLabel: String = stringResource(Res.string.songrequests_promote_action, title)
+    val banLabel: String = stringResource(Res.string.songrequests_ban_action, title)
+    val paidBadgeLabel: String = stringResource(Res.string.songrequests_paid_badge)
 
     Row(
         modifier = Modifier
@@ -579,6 +621,13 @@ private fun QueueRow(song: QueuedSong, moderate: ManageDecision, onRemove: () ->
             background = tokens.secondary,
             foreground = tokens.secondaryForeground,
         )
+        if (song.cost > 0) {
+            Badge(
+                label = paidBadgeLabel,
+                background = tokens.primary,
+                foreground = tokens.primaryForeground,
+            )
+        }
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -609,6 +658,24 @@ private fun QueueRow(song: QueuedSong, moderate: ManageDecision, onRemove: () ->
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+        ManageGate(decision = moderate) { enabled ->
+            GlyphButton(
+                icon = ArrowUpGlyph,
+                label = promoteLabel,
+                onClick = onPromote,
+                enabled = enabled,
+                tint = tokens.primary,
+            )
+        }
+        ManageGate(decision = moderate) { enabled ->
+            GlyphButton(
+                icon = RemoveGlyph,
+                label = banLabel,
+                onClick = onBan,
+                enabled = enabled,
+                tint = tokens.destructive,
+            )
+        }
         ManageGate(decision = moderate) { enabled ->
             GlyphButton(
                 icon = TrashGlyph,
