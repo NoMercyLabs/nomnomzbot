@@ -1405,6 +1405,8 @@
     <string name="widgets_gallery_title">Widgetgalerij</string>
     <string name="widgets_gallery_loading">Galerij laden…</string>
     <string name="widgets_gallery_empty">Geen galerijwidgets beschikbaar</string>
+    <string name="widgets_gallery_search">Zoek op naam of omschrijving</string>
+    <string name="widgets_gallery_load_more">Meer laden</string>
     <string name="widgets_gallery_error">Kon de galerij niet laden: %1$s</string>
     <string name="widgets_gallery_close">Sluiten</string>
     <string name="widgets_gallery_filter_all">Alle</string>

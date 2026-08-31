@@ -1408,6 +1408,8 @@
     <string name="widgets_gallery_title">Widget gallery</string>
     <string name="widgets_gallery_loading">Loading the gallery…</string>
     <string name="widgets_gallery_empty">No gallery widgets available</string>
+    <string name="widgets_gallery_search">Search by name or description</string>
+    <string name="widgets_gallery_load_more">Load more</string>
     <string name="widgets_gallery_error">Could not load the gallery: %1$s</string>
     <string name="widgets_gallery_close">Close</string>
     <string name="widgets_gallery_filter_all">All</string>

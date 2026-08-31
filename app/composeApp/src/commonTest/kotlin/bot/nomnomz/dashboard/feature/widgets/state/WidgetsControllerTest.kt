@@ -21,6 +21,7 @@ import bot.nomnomz.dashboard.core.network.CreateWidgetBody
 import bot.nomnomz.dashboard.core.network.GalleryItemDetail
 import bot.nomnomz.dashboard.core.network.GalleryItemSummary
 import bot.nomnomz.dashboard.core.network.GalleryListRequest
+import bot.nomnomz.dashboard.core.network.GalleryPage
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.ProjectDto
 import bot.nomnomz.dashboard.core.network.ProjectManifestDto
@@ -451,13 +452,15 @@ class WidgetsControllerTest {
         val galleryApi =
             FakeWidgetGalleryApi(
                 ApiResult.Ok(
-                    listOf(
-                        GalleryItemSummary(
-                            id = "g-1",
-                            name = "Follower Alert",
-                            framework = "vue",
-                            trustTier = "first_party",
-                            installCount = 42,
+                    GalleryPage(
+                        listOf(
+                            GalleryItemSummary(
+                                id = "g-1",
+                                name = "Follower Alert",
+                                framework = "vue",
+                                trustTier = "first_party",
+                                installCount = 42,
+                            )
                         )
                     )
                 )
@@ -469,12 +472,12 @@ class WidgetsControllerTest {
                 galleryApi = galleryApi,
             )
 
-        val result: ApiResult<List<GalleryItemSummary>> =
+        val result: ApiResult<GalleryPage> =
             controller.listGallery(GalleryListRequest(framework = "vue"))
 
         // The catalogue items surface with their browse fields intact (name, trust tier, install count) …
         assertTrue(result is ApiResult.Ok)
-        val items: List<GalleryItemSummary> = (result as ApiResult.Ok).value
+        val items: List<GalleryItemSummary> = (result as ApiResult.Ok).value.items
         assertEquals(1, items.size)
         assertEquals("Follower Alert", items.first().name)
         assertEquals("first_party", items.first().trustTier)
@@ -893,7 +896,7 @@ private class RecordingWidgetsApi(
 // A recording fake gallery catalogue: returns the preset [listResult] / [detail] and records every browse
 // request so the controller's filter threading is provable without HTTP.
 private class FakeWidgetGalleryApi(
-    private val listResult: ApiResult<List<GalleryItemSummary>> = ApiResult.Ok(emptyList()),
+    private val listResult: ApiResult<GalleryPage> = ApiResult.Ok(GalleryPage(emptyList())),
     private val detail: ApiResult<GalleryItemDetail> = ApiResult.Ok(GalleryItemDetail()),
 ) : WidgetGalleryApi {
     val listedRequests: MutableList<GalleryListRequest> = mutableListOf()
@@ -902,10 +905,11 @@ private class FakeWidgetGalleryApi(
         framework: String?,
         trustTier: String?,
         reviewStatus: String?,
+        search: String?,
         page: Int,
         pageSize: Int,
-    ): ApiResult<List<GalleryItemSummary>> {
-        listedRequests += GalleryListRequest(framework, trustTier, page, pageSize)
+    ): ApiResult<GalleryPage> {
+        listedRequests += GalleryListRequest(framework, trustTier, search, page, pageSize)
         return listResult
     }
 

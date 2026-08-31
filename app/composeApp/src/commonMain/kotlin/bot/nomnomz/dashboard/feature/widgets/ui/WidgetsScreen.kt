@@ -70,6 +70,7 @@ import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.GalleryItemSummary
 import bot.nomnomz.dashboard.core.network.GalleryListRequest
+import bot.nomnomz.dashboard.core.network.GalleryPage
 import bot.nomnomz.dashboard.core.network.WidgetSummary
 import bot.nomnomz.dashboard.core.network.WidgetTemplate
 import bot.nomnomz.dashboard.core.network.WidgetVersionSummary
@@ -79,6 +80,7 @@ import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import bot.nomnomz.dashboard.feature.widgets.state.WidgetEditorMessages
 import bot.nomnomz.dashboard.feature.widgets.state.WidgetsController
 import bot.nomnomz.dashboard.feature.widgets.state.WidgetsState
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.widgets_action_error
@@ -170,6 +172,8 @@ import nomnomzbot.composeapp.generated.resources.widgets_gallery_install_action
 import nomnomzbot.composeapp.generated.resources.widgets_gallery_install_action_short
 import nomnomzbot.composeapp.generated.resources.widgets_gallery_install_count
 import nomnomzbot.composeapp.generated.resources.widgets_gallery_loading
+import nomnomzbot.composeapp.generated.resources.widgets_gallery_load_more
+import nomnomzbot.composeapp.generated.resources.widgets_gallery_search
 import nomnomzbot.composeapp.generated.resources.widgets_gallery_title
 import nomnomzbot.composeapp.generated.resources.widgets_gallery_trust_first_party
 import nomnomzbot.composeapp.generated.resources.widgets_gallery_trust_unverified
@@ -1207,7 +1211,7 @@ private fun WidgetVersionRow(
 @Composable
 private fun GalleryBrowseDialog(
     manage: ManageDecision,
-    loadGallery: suspend (GalleryListRequest) -> ApiResult<List<GalleryItemSummary>>,
+    loadGallery: suspend (GalleryListRequest) -> ApiResult<GalleryPage>,
     onInstall: (GalleryItemSummary) -> Unit,
     onClone: (GalleryItemSummary) -> Unit,
     onDismiss: () -> Unit,
@@ -1217,10 +1221,20 @@ private fun GalleryBrowseDialog(
     val typography = LocalTypography.current
 
     var selectedFramework: String? by remember { mutableStateOf(null) }
-    var result: ApiResult<List<GalleryItemSummary>>? by remember { mutableStateOf(null) }
+    var searchText: String by remember { mutableStateOf("") }
+    // Accumulated across "load more" pages; reset to empty whenever a filter/search change starts a fresh browse.
+    var items: List<GalleryItemSummary> by remember { mutableStateOf(emptyList()) }
+    var page: ApiResult<GalleryPage>? by remember { mutableStateOf(null) }
+    var loadingMore: Boolean by remember { mutableStateOf(false) }
 
-    // First open (framework null) and every filter change re-list the catalogue.
-    LaunchedEffect(selectedFramework) { result = loadGallery(GalleryListRequest(framework = selectedFramework)) }
+    // Debounced: a filter/framework change resets the list and re-fetches page 1; typing waits 300ms so every
+    // keystroke doesn't fire its own request.
+    LaunchedEffect(selectedFramework, searchText) {
+        delay(300)
+        items = emptyList()
+        page = loadGallery(GalleryListRequest(framework = selectedFramework, search = searchText.trim().ifBlank { null }))
+        (page as? ApiResult.Ok)?.let { items = it.value.items }
+    }
 
     val allLabel: String = stringResource(Res.string.widgets_gallery_filter_all)
 
@@ -1238,6 +1252,13 @@ private fun GalleryBrowseDialog(
                 modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(spacing.s3),
             ) {
+                AppTextField(
+                    value = searchText,
+                    onValueChange = { searchText = it },
+                    label = stringResource(Res.string.widgets_gallery_search),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
                 // The framework filter — "All" plus each supported framework; picking one re-lists the catalogue.
                 BadgeRow(
                     options = listOf<String?>(null) + WIDGET_FRAMEWORKS,
@@ -1246,7 +1267,7 @@ private fun GalleryBrowseDialog(
                     onSelect = { selectedFramework = it },
                 )
 
-                when (val current: ApiResult<List<GalleryItemSummary>>? = result) {
+                when (val current: ApiResult<GalleryPage>? = page) {
                     null ->
                         Text(
                             text = stringResource(Res.string.widgets_gallery_loading),
@@ -1260,20 +1281,51 @@ private fun GalleryBrowseDialog(
                             color = tokens.destructive,
                         )
                     is ApiResult.Ok ->
-                        if (current.value.isEmpty()) {
+                        if (items.isEmpty()) {
                             Text(
                                 text = stringResource(Res.string.widgets_gallery_empty),
                                 style = typography.sm,
                                 color = tokens.mutedForeground,
                             )
                         } else {
-                            current.value.forEach { item ->
+                            items.forEach { item ->
                                 GalleryItemCard(
                                     item = item,
                                     manage = manage,
                                     onInstall = { onInstall(item) },
                                     onClone = { onClone(item) },
                                 )
+                            }
+                            val nextPage: Int? = current.value.nextPage.takeIf { current.value.hasMore }
+                            if (nextPage != null) {
+                                TextButton(
+                                    onClick = {
+                                        loadingMore = true
+                                    },
+                                ) {
+                                    Text(
+                                        text =
+                                            if (loadingMore) stringResource(Res.string.widgets_gallery_loading)
+                                            else stringResource(Res.string.widgets_gallery_load_more),
+                                        color = tokens.primary,
+                                    )
+                                }
+                                LaunchedEffect(loadingMore) {
+                                    if (!loadingMore) return@LaunchedEffect
+                                    val more: ApiResult<GalleryPage> =
+                                        loadGallery(
+                                            GalleryListRequest(
+                                                framework = selectedFramework,
+                                                search = searchText.trim().ifBlank { null },
+                                                page = nextPage,
+                                            )
+                                        )
+                                    if (more is ApiResult.Ok) {
+                                        items = items + more.value.items
+                                        page = more
+                                    }
+                                    loadingMore = false
+                                }
                             }
                         }
                 }

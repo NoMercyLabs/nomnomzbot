@@ -70,6 +70,16 @@ public partial class WidgetGalleryService(
             query = query.Where(i => i.Framework == request.Framework);
         if (!string.IsNullOrWhiteSpace(request.TrustTier))
             query = query.Where(i => i.TrustTier == request.TrustTier);
+        if (!string.IsNullOrWhiteSpace(request.Search))
+        {
+            // ToLower().Contains() rather than EF.Functions.Like — LIKE's case sensitivity differs between
+            // SQLite (self_host_lite) and PostgreSQL (full/saas), and this project runs both.
+            string needle = request.Search.Trim().ToLowerInvariant();
+            query = query.Where(i =>
+                i.Name.ToLower().Contains(needle)
+                || (i.Description != null && i.Description.ToLower().Contains(needle))
+            );
+        }
 
         int total = await query.CountAsync(cancellationToken);
 
@@ -339,7 +349,7 @@ public partial class WidgetGalleryService(
     private static Result<string> NormalizeGitHubUrl(string raw)
     {
         if (
-            !Uri.TryCreate(raw?.Trim(), UriKind.Absolute, out Uri? uri)
+            !Uri.TryCreate(raw.Trim(), UriKind.Absolute, out Uri? uri)
             || uri.Scheme != Uri.UriSchemeHttps
             || !string.Equals(
                 uri.Host.StartsWith("www.", StringComparison.OrdinalIgnoreCase)
@@ -370,7 +380,7 @@ public partial class WidgetGalleryService(
     /// <summary>Only a FULL 40-hex commit sha pins a submission — short shas and branch names are refused.</summary>
     private static Result<string> NormalizeCommitSha(string raw)
     {
-        string normalized = (raw ?? string.Empty).Trim().ToLowerInvariant();
+        string normalized = raw.Trim().ToLowerInvariant();
         return FullCommitSha().IsMatch(normalized)
             ? Result.Success(normalized)
             : Result.Failure<string>(

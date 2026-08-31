@@ -71231,25 +71231,22 @@
         "summary": "Browse the verified widget catalogue, paginated, filterable by framework and trust tier. A caller\r\nholding `gallery:review` may additionally filter by `reviewStatus` to read the moderation queue.",
         "parameters": [
           {
-            "name": "Framework",
+            "name": "framework",
             "in": "query",
-            "description": "Restrict to one source language: `vue` | `react` | `svelte` | `vanilla`.",
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "TrustTier",
+            "name": "trustTier",
             "in": "query",
-            "description": "Restrict to one trust tier: `first_party` | `verified_community` | `unverified`.",
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "ReviewStatus",
+            "name": "reviewStatus",
             "in": "query",
-            "description": "Reviewer-only: `submitted` | `in_review` | `verified` | `rejected`.",
             "schema": {
               "type": "string"
             }

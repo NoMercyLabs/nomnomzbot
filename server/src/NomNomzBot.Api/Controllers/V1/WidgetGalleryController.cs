@@ -43,11 +43,24 @@ public class WidgetGalleryController(
     [AllowAnonymous]
     [ProducesResponseType<PaginatedResponse<GalleryItemSummary>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListGalleryItems(
-        [FromQuery] GalleryListRequest filter,
+        // Bound as scalars, not the whole GalleryListRequest, so the free-text search reuses the one
+        // ?search= query param PageRequestDto already carries (the project-wide convention — see
+        // PickListsController/QuotesController/MarketplaceController) instead of exposing a second,
+        // identically-named bindable property that made the OpenAPI generator ambiguous.
+        [FromQuery] string? framework,
+        [FromQuery] string? trustTier,
+        [FromQuery] string? reviewStatus,
         [FromQuery] PageRequestDto request,
         CancellationToken ct
     )
     {
+        GalleryListRequest filter = new()
+        {
+            Framework = framework,
+            TrustTier = trustTier,
+            ReviewStatus = reviewStatus,
+            Search = request.Search,
+        };
         PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
         Result<PagedList<GalleryItemSummary>> result = await galleryService.ListAsync(
             filter,
