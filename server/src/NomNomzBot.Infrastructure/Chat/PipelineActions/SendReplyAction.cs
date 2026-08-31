@@ -11,6 +11,7 @@
 using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Chat.PipelineActions;
@@ -72,9 +73,14 @@ public sealed class SendReplyAction : ICommandAction
         // The reply form was rejected (e.g. a deleted/invalid parent message) — fall back to a plain
         // line that still addresses the triggering user via an inline mention, rather than dropping
         // the response silently.
+        ReplyOrMentionPlan fallback = ReplyOrMentionComposer.Compose(
+            null,
+            ctx.TriggeredByDisplayName,
+            resolved
+        );
         bool fallbackSent = await _chat.SendMessageAsync(
             ctx.BroadcasterId,
-            $"@{ctx.TriggeredByDisplayName} {resolved}",
+            fallback.Message,
             ctx.CancellationToken
         );
 

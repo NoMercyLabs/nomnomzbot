@@ -692,11 +692,16 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         )
             return true;
 
+        ReplyOrMentionPlan fallback = ReplyOrMentionComposer.Compose(
+            null,
+            @event.UserDisplayName,
+            text
+        );
         return (
             await _chat.SendMessageAsync(
                 @event.BroadcasterId,
                 @event.Provider,
-                $"@{@event.UserDisplayName} {text}",
+                fallback.Message,
                 ct
             )
         ).IsSuccess;
