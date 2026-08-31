@@ -424,10 +424,15 @@ later.)
     `ITwitchWhispersApi`; no `IPlatformDirectMessageSender`; `GiveawayEntry`/`GiveawayWinner` carry no
     `Provider`/`ProviderUserId` — a Kick/YouTube/X-only broadcaster's code-pool winner can never
     receive their code today.
-- **S066** Moderation reach — chat-filters screen; AutoMod settings; AutoMod held-message queue; mod
-  add/remove endpoints + UI; clear chat; full `AutomodConfigDto`; concurrency guard on whole-config
-  POST; chat-settings slow/followers/unique/non-mod fields (U·B3). Done-when: a mod approves a held
-  message from the dashboard.
+- **S066** Moderation reach — chat-filters screen (the `ChatFilter` API client + DTOs exist but no
+  screen renders them); mod add/remove endpoints + UI; clear chat; full `AutomodConfigDto`;
+  concurrency guard on whole-config POST; chat-settings slow/followers/unique/non-mod fields (U·B3).
+  DONE-WHEN MET (f3ca6fa0 backend + e37f028c dashboard): AutoMod held-message queue —
+  `ModerationQueueItem` (J.1) enqueued from `automod.message.hold`, resolved via
+  `GET/POST .../moderation/automod/queue` relaying through the already-built Helix
+  `POST /moderation/automod/message`; a pending-queue panel on the Moderation screen lets a mod
+  approve/deny, mirroring the viewer-reports panel. Remaining sub-items above are still open — the
+  tracker item stays until they're picked up.
 - **S067** Music UX — admission enforces every setting + `IsEnabled` + trust gate + `PreferredProvider`;
   one config editor; queue promote/ban-track/refund; public `/sr/` page built; token → URL; bounded
   steppers; enum lists from API; `public-sr` rate policy; `RequestedBy` not the owner key; hub-driven
