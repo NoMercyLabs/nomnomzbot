@@ -337,13 +337,9 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         if (!Guid.TryParse(broadcasterId, out Guid tenantId))
             return InvalidChannelId<MusicTrack>();
 
-        Result<MusicConfigDto> configResult = await _config.GetConfigAsync(
-            broadcasterId,
-            cancellationToken
-        );
-        if (configResult.IsSuccess)
+        MusicConfigDto? config = await GetConfigOrNullAsync(broadcasterId, cancellationToken);
+        if (config is not null)
         {
-            MusicConfigDto config = configResult.Value;
             if (!config.IsEnabled)
                 return Result.Failure<MusicTrack>(
                     "Song requests are turned off in this channel.",
@@ -497,6 +493,31 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             );
 
         FairQueue<SongRequestEntry> queue = _queueStore.GetOrCreate(broadcasterId);
+
+        // Capacity admission gate: both AddToQueueAsync and RequestTrackAsync fold into this one
+        // enqueue point, so MaxQueueSize/MaxRequestsPerUser are enforced here once rather than at
+        // each caller — refused before the duplicate/provider-push work below ever runs.
+        MusicConfigDto? config = await GetConfigOrNullAsync(broadcasterId, cancellationToken);
+        if (config is not null)
+        {
+            IReadOnlyList<(SongRequestEntry Item, int Rank, string OwnerKey)> snapshot =
+                queue.GetSnapshot();
+            if (snapshot.Count >= config.MaxQueueSize)
+                return Result.Failure(
+                    $"The queue is full ({config.MaxQueueSize} max) — try again once it's shorter.",
+                    "QUEUE_FULL"
+                );
+
+            string ownerKey = requestedBy ?? "anonymous";
+            int ownedCount = snapshot.Count(e =>
+                string.Equals(e.OwnerKey, ownerKey, StringComparison.OrdinalIgnoreCase)
+            );
+            if (ownedCount >= config.MaxRequestsPerUser)
+                return Result.Failure(
+                    $"You already have {config.MaxRequestsPerUser} request(s) queued — wait for one to play before adding more.",
+                    "PER_USER_LIMIT"
+                );
+        }
 
         // Duplicate gate (legacy parity): the same track already pending, or playing right now, is
         // refused with the requester's name rather than queued twice.
@@ -831,11 +852,28 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
+    /// <summary>Fetches the channel's <see cref="MusicConfigDto"/>, collapsing a failed lookup to
+    /// <c>null</c> — every caller treats "no config" the same way: fall through as if nothing is
+    /// configured, rather than refusing the request over a config-service outage.</summary>
+    private async Task<MusicConfigDto?> GetConfigOrNullAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken
+    )
+    {
+        Result<MusicConfigDto> result = await _config.GetConfigAsync(
+            broadcasterId,
+            cancellationToken
+        );
+        return result.IsSuccess ? result.Value : null;
+    }
+
     /// <summary>
     /// Resolves the channel's active provider: the connected-integration names for the tenant,
-    /// intersected with the registered provider keys, preferring a provider that can drive playback
-    /// (interim priority rule until the §3.1 ProviderPriority config lands; keeps today's
-    /// Spotify-before-YouTube ordering without naming either).
+    /// intersected with the registered provider keys and the config's <c>AllowSpotify</c>/
+    /// <c>AllowYouTube</c> toggles. A non-"auto" <c>PreferredProvider</c> wins outright when it's
+    /// among the allowed, connected candidates; otherwise falls back to the interim priority rule
+    /// (prefers a provider that can drive playback, keeping today's Spotify-before-YouTube ordering
+    /// without naming either).
     /// </summary>
     private async Task<IMusicProvider?> GetActiveProviderAsync(
         Guid tenantId,
@@ -848,8 +886,22 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             .Select(s => s.Name)
             .ToListAsync(cancellationToken);
 
-        IMusicProvider? provider = _providers
-            .Where(p => connected.Contains(p.Provider))
+        MusicConfigDto? config = await GetConfigOrNullAsync(tenantId.ToString(), cancellationToken);
+
+        IEnumerable<IMusicProvider> candidates = _providers.Where(p =>
+            connected.Contains(p.Provider) && IsAllowed(p.Provider, config)
+        );
+
+        if (config is { PreferredProvider: "spotify" or "youtube" } preferring)
+        {
+            IMusicProvider? preferred = candidates.FirstOrDefault(p =>
+                p.Provider == preferring.PreferredProvider
+            );
+            if (preferred is not null)
+                return preferred;
+        }
+
+        IMusicProvider? provider = candidates
             .OrderByDescending(p => HasCapability(p, MusicProviderCapabilities.PlaybackControl))
             .ThenBy(p => p.Provider, StringComparer.Ordinal)
             .FirstOrDefault();
@@ -859,6 +911,15 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
 
         return provider;
     }
+
+    private static bool IsAllowed(string providerKey, MusicConfigDto? config) =>
+        config is null
+        || providerKey switch
+        {
+            "spotify" => config.AllowSpotify,
+            "youtube" => config.AllowYouTube,
+            _ => true,
+        };
 
     private static bool HasCapability(
         IMusicProvider provider,
