@@ -84,6 +84,7 @@ import bot.nomnomz.dashboard.core.network.ModLogEntry
 import bot.nomnomz.dashboard.core.network.NetworkNukeBatch
 import bot.nomnomz.dashboard.core.network.UnbanRequest
 import bot.nomnomz.dashboard.core.network.UpsertEscalationPolicyBody
+import bot.nomnomz.dashboard.core.network.ModerationQueueItem
 import bot.nomnomz.dashboard.core.network.ViewerReport
 import bot.nomnomz.dashboard.core.network.ModerationActionLog
 import bot.nomnomz.dashboard.core.network.ModerationRule
@@ -255,6 +256,10 @@ import nomnomzbot.composeapp.generated.resources.moderation_announce_message_lab
 import nomnomzbot.composeapp.generated.resources.moderation_announce_message_required
 import nomnomzbot.composeapp.generated.resources.moderation_announce_send
 import nomnomzbot.composeapp.generated.resources.moderation_announce_title
+import nomnomzbot.composeapp.generated.resources.moderation_automod_queue_approve
+import nomnomzbot.composeapp.generated.resources.moderation_automod_queue_category
+import nomnomzbot.composeapp.generated.resources.moderation_automod_queue_deny
+import nomnomzbot.composeapp.generated.resources.moderation_automod_queue_title
 import nomnomzbot.composeapp.generated.resources.moderation_reports_dismiss
 import nomnomzbot.composeapp.generated.resources.moderation_reports_escalate
 import nomnomzbot.composeapp.generated.resources.moderation_reports_reported_by
@@ -399,6 +404,7 @@ fun ModerationScreen(
                     actionError = current.actionError,
                     unbanRequests = current.unbanRequests,
                     reports = current.reports,
+                    automodQueue = current.automodQueue,
                     bansAvailable = current.bansAvailable,
                     blockedTermsAvailable = current.blockedTermsAvailable,
                     shieldAvailable = current.shieldAvailable,
@@ -422,6 +428,9 @@ fun ModerationScreen(
                     },
                     onResolveReport = { reportId, action ->
                         scope.launch { controller.resolveReport(reportId, action) }
+                    },
+                    onResolveAutomodQueueItem = { queueItemId, action ->
+                        scope.launch { controller.resolveAutomodQueueItem(queueItemId, action) }
                     },
                     onUnban = { userId -> scope.launch { controller.unban(userId) } },
                     onNetworkUnban = { userId ->
@@ -515,6 +524,7 @@ private fun BansList(
     actionError: String?,
     unbanRequests: List<UnbanRequest>,
     reports: List<ViewerReport>,
+    automodQueue: List<ModerationQueueItem>,
     bansAvailable: Boolean,
     blockedTermsAvailable: Boolean,
     shieldAvailable: Boolean,
@@ -533,6 +543,7 @@ private fun BansList(
     onRevertNuke: (batchId: String) -> Unit,
     onResolveUnban: (requestId: String, approve: Boolean, note: String?) -> Unit,
     onResolveReport: (reportId: String, action: String) -> Unit,
+    onResolveAutomodQueueItem: (queueItemId: String, action: String) -> Unit,
     onUnban: (userId: String) -> Unit,
     onNetworkUnban: (userId: String) -> Unit,
     onViewContext: (userId: String) -> Unit,
@@ -717,6 +728,33 @@ private fun BansList(
                                 onEscalate = { onResolveReport(report.id, "escalate") },
                             )
                             if (index < reports.lastIndex) {
+                                Separator()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (automodQueue.isNotEmpty()) {
+            item(key = "automod-queue-header") {
+                Text(
+                    text = stringResource(Res.string.moderation_automod_queue_title),
+                    style = typography.lg,
+                    color = tokens.cardForeground,
+                    maxLines = 1,
+                )
+            }
+            item(key = "automod-queue-card") {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column {
+                        automodQueue.forEachIndexed { index, item ->
+                            AutomodQueueRow(
+                                item = item,
+                                manage = manage,
+                                onApprove = { onResolveAutomodQueueItem(item.id, "approve") },
+                                onDeny = { onResolveAutomodQueueItem(item.id, "deny") },
+                            )
+                            if (index < automodQueue.lastIndex) {
                                 Separator()
                             }
                         }
@@ -1532,6 +1570,68 @@ private fun ViewerReportRow(
                 TextButton(onClick = onDismiss, enabled = enabled) {
                     Text(
                         text = stringResource(Res.string.moderation_reports_dismiss),
+                        color = tokens.mutedForeground,
+                    )
+                }
+            }
+        }
+    }
+}
+
+// One pending AutoMod-held message (J.1, S066) — approve releases it to chat, deny drops it. Both relay through
+// Helix on the backend before the row clears from the pending queue (a failed relay leaves it pending to retry).
+@Composable
+private fun AutomodQueueRow(
+    item: ModerationQueueItem,
+    manage: ManageDecision,
+    onApprove: () -> Unit,
+    onDeny: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
+        verticalArrangement = Arrangement.spacedBy(spacing.s2),
+    ) {
+        Text(
+            text = item.targetUsernameSnapshot?.takeIf { it.isNotBlank() }
+                ?: item.targetTwitchUserId
+                ?: "",
+            style = typography.base,
+            color = tokens.cardForeground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        item.messageContentSnapshot?.takeIf { it.isNotBlank() }?.let { text ->
+            Text(
+                text = text,
+                style = typography.sm,
+                color = tokens.mutedForeground,
+                maxLines = 4,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        item.autoModCategory?.takeIf { it.isNotBlank() }?.let { category ->
+            Text(
+                text = stringResource(Res.string.moderation_automod_queue_category, category),
+                style = typography.xs,
+                color = tokens.mutedForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+            ManageGate(decision = manage) { enabled ->
+                Button(onClick = onApprove, enabled = enabled) {
+                    Text(stringResource(Res.string.moderation_automod_queue_approve))
+                }
+            }
+            ManageGate(decision = manage) { enabled ->
+                TextButton(onClick = onDeny, enabled = enabled) {
+                    Text(
+                        text = stringResource(Res.string.moderation_automod_queue_deny),
                         color = tokens.mutedForeground,
                     )
                 }

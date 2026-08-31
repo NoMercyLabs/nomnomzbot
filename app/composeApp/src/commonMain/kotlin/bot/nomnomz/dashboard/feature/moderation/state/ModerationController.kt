@@ -28,6 +28,7 @@ import bot.nomnomz.dashboard.core.network.ModerationActionResult
 import bot.nomnomz.dashboard.core.network.ModerationApi
 import bot.nomnomz.dashboard.core.network.EscalationPolicy
 import bot.nomnomz.dashboard.core.network.ModerationRule
+import bot.nomnomz.dashboard.core.network.ModerationQueueItem
 import bot.nomnomz.dashboard.core.network.ModerationStanding
 import bot.nomnomz.dashboard.core.network.ModerationStats
 import bot.nomnomz.dashboard.core.network.NetworkBanResult
@@ -227,6 +228,15 @@ class ModerationController(
                 is ApiResult.Ok -> result.value
             }
 
+        // The AutoMod held-message review queue (J.1, S066). Resilient — a failure degrades to an empty queue.
+        val automodQueue: List<ModerationQueueItem> =
+            when (
+                val result: ApiResult<List<ModerationQueueItem>> = moderationApi.automodQueue(channel.id)
+            ) {
+                is ApiResult.Failure -> emptyList()
+                is ApiResult.Ok -> result.value
+            }
+
         // The repeat-offender escalation ladder (J.10). Resilient — a failure (below the read floor) leaves the
         // card hidden rather than failing the page; when unset the backend still returns the disabled default.
         val escalationPolicy: EscalationPolicy? =
@@ -276,6 +286,7 @@ class ModerationController(
                     rules.isEmpty() &&
                     unbanRequests.isEmpty() &&
                     reports.isEmpty() &&
+                    automodQueue.isEmpty() &&
                     !shieldEnabled &&
                     !anyAutomodEnabled &&
                     shoutoutTemplate.isNullOrBlank() &&
@@ -295,6 +306,7 @@ class ModerationController(
                     stats = stats,
                     unbanRequests = unbanRequests,
                     reports = reports,
+                    automodQueue = automodQueue,
                     bansAvailable = bansAvailable,
                     blockedTermsAvailable = blockedTermsAvailable,
                     shieldAvailable = shieldAvailable,
@@ -449,6 +461,22 @@ class ModerationController(
     suspend fun resolveReport(reportId: String, action: String) {
         val channel: String = channelId ?: return
         afterWrite(moderationApi.resolveReport(channel, reportId, action))
+    }
+
+    /**
+     * Resolve a held AutoMod message [queueItemId]: [action] is `approve` (release it to chat) or `deny` (drop
+     * it) — this is the S066 done-when action. Reloads on success so the item drops off the pending queue;
+     * surfaces the error on the current list on failure. No-ops when no channel is loaded.
+     */
+    suspend fun resolveAutomodQueueItem(queueItemId: String, action: String) {
+        val channel: String = channelId ?: return
+        when (
+            val result: ApiResult<ModerationQueueItem> =
+                moderationApi.resolveAutomodQueueItem(channel, queueItemId, action)
+        ) {
+            is ApiResult.Ok -> load()
+            is ApiResult.Failure -> setActionError(result.error.message)
+        }
     }
 
     /**
@@ -870,6 +898,8 @@ sealed interface ModerationState {
         val actionError: String? = null,
         val unbanRequests: List<UnbanRequest> = emptyList(),
         val reports: List<ViewerReport> = emptyList(),
+        // The AutoMod held-message review queue (J.1, S066) — pending items awaiting approve/deny. See load().
+        val automodQueue: List<ModerationQueueItem> = emptyList(),
         // Live-Twitch sections: false when the section's read failed (missing scope / bot not installed here), so
         // the UI shows a needs-permission notice instead of an empty/off state. See load().
         val bansAvailable: Boolean = true,

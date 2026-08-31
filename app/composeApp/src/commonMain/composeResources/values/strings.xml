@@ -844,6 +844,10 @@
     <string name="moderation_reports_reported_by">Reported by %1$s</string>
     <string name="moderation_reports_escalate">Escalate</string>
     <string name="moderation_reports_dismiss">Dismiss</string>
+    <string name="moderation_automod_queue_title">AutoMod held messages</string>
+    <string name="moderation_automod_queue_category">Flagged for %1$s</string>
+    <string name="moderation_automod_queue_approve">Approve</string>
+    <string name="moderation_automod_queue_deny">Deny</string>
     <string name="moderation_notes_title">Notes</string>
     <string name="moderation_notes_empty">No notes yet.</string>
     <string name="moderation_notes_meta">%1$s · %2$s</string>
