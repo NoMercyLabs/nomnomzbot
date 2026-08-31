@@ -533,8 +533,16 @@ later.)
   whisper-with-fallback, inbound whisper handler, `announce` action/toggle, per-locale tone catalogue)
   is still open.
 - **S070** Settings + onboarding truth —
-  timezone/language wired or removed;
   scope→feature map + re-grant on Settings; swallowed regrant/reconcile failures; copy fixes (U·B6).
+  **Timezone DONE, verified (772e5b69)**: `User.Timezone` was saved but only ever read back for
+  display — genuinely dead. Now loaded into `ChannelContext` (`ChannelRegistry`, refreshed on
+  `InvalidateSettingsAsync`); `TemplateResolver`'s `{time}`/`{date}` convert from UTC into the channel's
+  configured timezone (falls back to UTC if unset/unrecognized), `{time.utc}` untouched. 3 new tests +
+  51/51 Templating suite green. **Language found dead too** (saved, never read — no server-side i18n or
+  bot-reply locale selection exists; the dashboard's own `LanguageStore` is a separate, unrelated UI-
+  language concept) but NOT removed this pass: a clean removal touches the wizard, Settings, backend
+  DTOs, the KMP client, the openapi snapshot, and `ApiContractTest` — beyond this slice's scope, flagged
+  as its own future slice rather than half-removed.
   **`applyBasics` failure reported DONE, verified (bda60814)**: `applyBasics()` ignored the `ApiResult`
   from both `channelsApi.primaryChannel()` and `channelSettingsApi.updateBasics()` — on failure it just
   returned silently with no error surfaced anywhere. New `SetupError.Basics(detail)` variant renders via
