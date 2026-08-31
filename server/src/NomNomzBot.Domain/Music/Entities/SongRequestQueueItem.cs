@@ -69,4 +69,17 @@ public class SongRequestQueueItem
     /// on an otherwise-ordinary row, not a second table.
     /// </summary>
     public bool IsInFlight { get; set; }
+
+    /// <summary>
+    /// The currency amount debited from <see cref="RequesterUserId"/> to admit this request — 0 means
+    /// free (S067b). No admission path charges for a song request today, so this is currently always 0;
+    /// it exists so a moderator removal/ban can refund the debit once a paid-request mechanism is wired,
+    /// without a further schema change.
+    /// </summary>
+    public int Cost { get; set; }
+
+    /// <summary>The viewer account to refund <see cref="Cost"/> to on removal — null whenever
+    /// <see cref="Cost"/> is 0, or the requester could not be resolved to a viewer account (e.g. an
+    /// anonymous public song-request page submission).</summary>
+    public Guid? RequesterUserId { get; set; }
 }

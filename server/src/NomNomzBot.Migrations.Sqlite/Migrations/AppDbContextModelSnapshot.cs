@@ -7102,6 +7102,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("Cost")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
@@ -7118,6 +7121,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<string>("OwnerKey")
                         .IsRequired()
                         .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("RequesterUserId")
                         .HasColumnType("TEXT");
 
                     b.Property<long>("Sequence")
