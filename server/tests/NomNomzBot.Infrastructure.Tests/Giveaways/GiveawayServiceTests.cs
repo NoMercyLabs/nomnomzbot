@@ -453,6 +453,9 @@ public sealed class GiveawayServiceTests
         (await harness.Service.EnterAsync(Tenant, giveawayId, first, CancellationToken.None))
             .IsSuccess.Should()
             .BeTrue();
+        // Entry ordering is by UUIDv7 id (newest first): two entries minted within the same millisecond tie
+        // on their timestamp prefix and fall back to random tail bits, so force them into different ticks.
+        await Task.Delay(2);
         (await harness.Service.EnterAsync(Tenant, giveawayId, second, CancellationToken.None))
             .IsSuccess.Should()
             .BeTrue();
