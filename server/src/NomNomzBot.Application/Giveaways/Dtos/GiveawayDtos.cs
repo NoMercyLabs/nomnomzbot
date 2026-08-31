@@ -28,6 +28,7 @@ public sealed record GiveawayDto(
     bool PrizeFromPot,
     Guid? PrizePipelineId,
     Guid? PrizeCodePoolId,
+    bool Requires18Plus,
     string Status,
     DateTime? OpenedAt,
     DateTime? ClosesAt,
@@ -52,7 +53,10 @@ public sealed record UpsertGiveawayRequest(
     long? PrizeCurrencyAmount = null,
     bool PrizeFromPot = false,
     Guid? PrizePipelineId = null,
-    Guid? PrizeCodePoolId = null
+    Guid? PrizeCodePoolId = null,
+    // The value-out gate (D5): must be explicitly true for a paid code_pool giveaway, or Validate() refuses it
+    // with VALUE_OUT_PAID_ENTRY. Ignored by every other prize mode / free entry.
+    bool Requires18Plus = false
 );
 
 /// <summary>List filter — null status = all live (non-archived) giveaways.</summary>

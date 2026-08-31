@@ -82019,6 +82019,7 @@
           "prizeFromPot",
           "prizePipelineId",
           "prizeCodePoolId",
+          "requires18Plus",
           "status",
           "openedAt",
           "closesAt",
@@ -82124,6 +82125,9 @@
             ],
             "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
             "format": "ulid"
+          },
+          "requires18Plus": {
+            "type": "boolean"
           },
           "status": {
             "type": "string"
@@ -101622,6 +101626,10 @@
             ],
             "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
             "format": "ulid"
+          },
+          "requires18Plus": {
+            "type": "boolean",
+            "default": false
           }
         },
         "description": "Create/update payload — the full configurable surface (draft/closed only for updates)."
