@@ -480,9 +480,15 @@ later.)
   permit via identity path; whisper-with-fallback for GDPR + inbound whisper handler; `announce`
   action/toggle; tone catalogue per locale (U·C7, K copy). Done-when: same `!sr` sounds the same from
   builtin and pipeline; sassy channel has sassy errors.
-- **S070** Settings + onboarding truth — auto-join semantics; Integrations read-failure state;
+- **S070** Settings + onboarding truth — auto-join semantics;
   timezone/language wired or removed; wizard `botUsername` contract; `applyBasics` failure reported;
   scope→feature map + re-grant on Settings; swallowed regrant/reconcile failures; copy fixes (U·B6).
+  **Integrations read-failure state DONE, verified (c4c9a6b7)**: `IntegrationsController.refresh()` was
+  swallowing a failed `integrationsApi.status()` call into `emptyList()`, indistinguishable from "zero
+  integrations connected" — violated the truthful-data house rule. `refresh()` now sets the existing
+  (previously `load()`-only) `IntegrationsState.Error` and returns early; the screen renders a
+  destructive-toned retry card instead of plain text. Test covers failure → `Error` state → retry →
+  real `Ready` state, i18n en+nl.
 - **S076** Multi-chat as a tool — moderation actions + composer; `joinedChannels` preserved on
   reconnect; watch list persisted; mod-log pushes with names + time; shield pushes consumed (U·B3).
 
