@@ -10,6 +10,7 @@
 
 using FluentAssertions;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
@@ -54,7 +55,11 @@ public sealed class ChannelPersonalityServiceTests
     {
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
         RecordingEventBus bus = new();
-        return (new(db, TimeProvider.System, bus, registry), registry, bus);
+        return (
+            new(db, TimeProvider.System, bus, registry, Substitute.For<ITwitchEventSubService>()),
+            registry,
+            bus
+        );
     }
 
     [Fact]

@@ -10,6 +10,7 @@
 
 using FluentAssertions;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -56,7 +57,13 @@ public sealed class ChannelOverlayTokenServiceTests
     }
 
     private static ChannelService Build(AuthDbContext db) =>
-        new(db, TimeProvider.System, new RecordingEventBus(), Substitute.For<IChannelRegistry>());
+        new(
+            db,
+            TimeProvider.System,
+            new RecordingEventBus(),
+            Substitute.For<IChannelRegistry>(),
+            Substitute.For<ITwitchEventSubService>()
+        );
 
     [Fact]
     public async Task GetOverlayToken_returns_the_channels_current_token()
