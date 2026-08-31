@@ -390,8 +390,13 @@ later.)
   property collided with `PageRequestDto.Search` on the same action and made the .NET 10 OpenAPI XML-comment
   generator 500 on EVERY request, not just this endpoint — `WidgetGalleryController` now binds
   framework/trustTier/reviewStatus as scalars per the `PickListsController`/`QuotesController`/
-  `MarketplaceController` convention). **Still open**: per-widget tokens + staged rotation + post-rotate URL
-  list; inline preview; in-overlay banner on rejected token; resume without reload; settings form by schema
+  `MarketplaceController` convention). **In-overlay banner on rejected token DONE, verified (7c07e41e)**:
+  `OverlaySdkController`'s SDK ticket-exchange (`POST /overlay/ticket`) rejected a bad token with a bare
+  401/403 and the SDK just `console.error`'d and retried silently forever — the OBS browser source
+  stayed blank with no indication anything was wrong. SDK now shows an in-overlay banner
+  ("Widget token invalid or revoked — reconnect from the dashboard") on 401/403, clears it on the next
+  successful ticket fetch; token validation logic itself untouched. **Still open**: per-widget tokens +
+  staged rotation + post-rotate URL list; inline preview; resume without reload; settings form by schema
   availability; asset/sound/font field types (no backend field type for these exists yet — needs a schema
   contract addition first); editable subscriptions (blocked on S085's `domain.action` naming realignment
   landing first — building this against today's ad-hoc event names would need re-doing); gallery
