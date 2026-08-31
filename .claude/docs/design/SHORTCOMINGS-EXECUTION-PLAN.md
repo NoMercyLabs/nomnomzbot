@@ -502,8 +502,13 @@ later.)
   action/toggle; tone catalogue per locale (U·C7, K copy). Done-when: same `!sr` sounds the same from
   builtin and pipeline; sassy channel has sassy errors.
 - **S070** Settings + onboarding truth —
-  timezone/language wired or removed; `applyBasics` failure reported;
+  timezone/language wired or removed;
   scope→feature map + re-grant on Settings; swallowed regrant/reconcile failures; copy fixes (U·B6).
+  **`applyBasics` failure reported DONE, verified (bda60814)**: `applyBasics()` ignored the `ApiResult`
+  from both `channelsApi.primaryChannel()` and `channelSettingsApi.updateBasics()` — on failure it just
+  returned silently with no error surfaced anywhere. New `SetupError.Basics(detail)` variant renders via
+  the same destructive-toned `ErrorText` pattern as `SetupError.SignIn`; wizard no longer advances on
+  failure. Tests cover failure-surfaces-real-message and success-after-prior-failure regression.
   **Wizard `botLinePrefix` contract DONE, verified (978b8b2d)**: `SetupBasics` had no field for the D5
   "user-defined line prefix" the bot uses while typing as the streamer's own account, and
   `applyBasics()` never sent it — skipping bot connection silently left it unset with no way to
