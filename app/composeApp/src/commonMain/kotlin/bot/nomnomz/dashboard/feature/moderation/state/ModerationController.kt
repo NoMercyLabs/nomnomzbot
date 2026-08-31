@@ -20,9 +20,12 @@ import bot.nomnomz.dashboard.core.network.BannedUser
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ChannelSearchResult
+import bot.nomnomz.dashboard.core.network.ChatFilter
 import bot.nomnomz.dashboard.core.network.CommunityApi
 import bot.nomnomz.dashboard.core.network.StreamApi
 import bot.nomnomz.dashboard.core.network.ModLogEntry
+import bot.nomnomz.dashboard.core.network.CreateChatFilterBody
+import bot.nomnomz.dashboard.core.network.UpdateChatFilterBody
 import bot.nomnomz.dashboard.core.network.CreateModerationRuleBody
 import bot.nomnomz.dashboard.core.network.ModerationActionResult
 import bot.nomnomz.dashboard.core.network.ModerationApi
@@ -206,6 +209,14 @@ class ModerationController(
                 is ApiResult.Ok -> result.value
             }
 
+        // Custom chat filters (regex / blocklist / link-policy, J.6, S066). Resilient — a failure degrades to
+        // an empty list rather than failing the page.
+        val chatFilters: List<ChatFilter> =
+            when (val result: ApiResult<List<ChatFilter>> = moderationApi.chatFilters(channel.id)) {
+                is ApiResult.Failure -> emptyList()
+                is ApiResult.Ok -> result.value
+            }
+
         // Today's moderation counters for the stats banner. Resilient — a failure leaves all counters at zero.
         val stats: ModerationStats =
             when (val result: ApiResult<ModerationStats> = moderationApi.stats(channel.id)) {
@@ -284,6 +295,7 @@ class ModerationController(
                     modLog.isEmpty() &&
                     blockedTerms.isEmpty() &&
                     rules.isEmpty() &&
+                    chatFilters.isEmpty() &&
                     unbanRequests.isEmpty() &&
                     reports.isEmpty() &&
                     automodQueue.isEmpty() &&
@@ -303,6 +315,7 @@ class ModerationController(
                     blockedTerms,
                     automod,
                     rules,
+                    chatFilters = chatFilters,
                     stats = stats,
                     unbanRequests = unbanRequests,
                     reports = reports,
@@ -796,6 +809,57 @@ class ModerationController(
     }
 
     /**
+     * Create a chat filter (J.6, S066) — a regex [pattern] or a literal-word [terms] blocklist, with the
+     * given [action]. [timeoutSeconds] applies only when [action] is `"Timeout"`. Reloads on success so the
+     * new filter appears in the list. Surfaces the error on failure. No-ops when no channel is loaded.
+     */
+    suspend fun createChatFilter(
+        filterType: String,
+        name: String,
+        action: String,
+        pattern: String?,
+        terms: List<String>?,
+        timeoutSeconds: Int?,
+    ) {
+        val channel: String = channelId ?: return
+        when (
+            val result: ApiResult<ChatFilter> =
+                moderationApi.createChatFilter(
+                    channel,
+                    CreateChatFilterBody(
+                        filterType = filterType,
+                        name = name,
+                        action = action,
+                        pattern = pattern,
+                        terms = terms,
+                        timeoutSeconds = timeoutSeconds,
+                    ),
+                )
+        ) {
+            is ApiResult.Ok -> load()
+            is ApiResult.Failure -> setActionError(result.error.message)
+        }
+    }
+
+    /** Enable or disable a chat filter ([enabled]), then reload. Surfaces the error on failure. */
+    suspend fun toggleChatFilter(filterId: String, enabled: Boolean) {
+        val channel: String = channelId ?: return
+        when (
+            val result: ApiResult<ChatFilter> =
+                moderationApi.updateChatFilter(channel, filterId, UpdateChatFilterBody(isEnabled = enabled))
+        ) {
+            is ApiResult.Ok -> load()
+            is ApiResult.Failure -> setActionError(result.error.message)
+        }
+    }
+
+    /** Delete a chat filter, then reload so it drops off the list. Surfaces the error on failure. */
+    suspend fun deleteChatFilter(filterId: String) {
+        val channel: String = channelId ?: return
+        afterWrite(moderationApi.deleteChatFilter(channel, filterId))
+    }
+
+    /**
      * Apply a moderation [action] (`"ban"` or `"timeout"`) to [targetUserId]. On success the page reloads so the new
      * ban appears. On failure the error surfaces on the Ready state without losing the lists.
      * [durationSeconds] is only required for `"timeout"` (ignored for ban). [reason] is optional.
@@ -894,6 +958,8 @@ sealed interface ModerationState {
         val blockedTerms: List<String> = emptyList(),
         val automod: AutomodConfig = AutomodConfig(),
         val rules: List<ModerationRule> = emptyList(),
+        // Custom chat filters (regex / blocklist, J.6, S066) — see load().
+        val chatFilters: List<ChatFilter> = emptyList(),
         val stats: ModerationStats = ModerationStats(),
         val actionError: String? = null,
         val unbanRequests: List<UnbanRequest> = emptyList(),
