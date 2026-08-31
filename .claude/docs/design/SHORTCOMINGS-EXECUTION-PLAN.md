@@ -569,8 +569,14 @@ later.)
   (previously `load()`-only) `IntegrationsState.Error` and returns early; the screen renders a
   destructive-toned retry card instead of plain text. Test covers failure → `Error` state → retry →
   real `Ready` state, i18n en+nl.
-- **S076** Multi-chat as a tool — moderation actions + composer; `joinedChannels` preserved on
+- **S076** Multi-chat as a tool — `joinedChannels` preserved on
   reconnect; watch list persisted; mod-log pushes with names + time; shield pushes consumed (U·B3).
+  **Moderation actions + composer DONE, verified (9648b235)**: `MultiChatController` gained
+  `sendMessage`/`deleteMessage`/`timeoutUser`/`banUser`, all delegating to the existing `ChatApi` (same
+  calls the single-channel Chat page uses — no duplicated network logic). Screen gained a composer
+  (channel-target select + text + send) and a per-row moderation menu (delete/timeout/ban, confirm-gated),
+  role-gated via `rememberManageDecision`; each row action targets that message's own channel, not the
+  composer's currently-selected one. 5 new tests assert the real `ChatApi` calls + feed mutation.
 
 - **S085** Spec-led contract deltas (the 2026-08-22 realignment now leads the code) — `ResolvedAccessDto`/
   `RoleResolver` rungs by name not int; `IAutomationEventDescriptor` → attribute catalog; `FirstPartyWidgetCatalogue`
