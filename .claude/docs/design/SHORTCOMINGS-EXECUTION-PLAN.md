@@ -496,8 +496,13 @@ later.)
   page polish, token→URL, bounded steppers, enum lists from API, rate policy, `RequestedBy`, hub-driven
   reloads, polling fan-out, cost/duration/cooldown) are still open — tracker stays open for those.
 - **S068** Legacy builtins — `!discord` (needs a Discord invite-link concept first — backend gap, not a
-  chat-builtin task) + seeded fun-command preset pack + on-connect announcement (U·C7). Done-when: a
+  chat-builtin task) + seeded fun-command preset pack (U·C7). Done-when: a
   fresh channel has every legacy command or a seed for it.
+  **On-connect announcement DONE, verified (1e65b8d7)**: new opt-in `Channel.AnnounceOnConnect` (default
+  OFF per opt-in/default-deny house rule, both migration assemblies) — when on, `ChannelService.JoinAsync`
+  composes a tone-resolved message via `IBuiltinResponseComposer` and sends it through `IChatProvider`,
+  reusing the exact composer + send mechanism the `stream.online` path already uses. 2 tests (on sends
+  the real message, off/default sends nothing).
   **`!leaderboard`/`!playlist` DONE, verified (f1d4f0e9)**: `!leaderboard` reads
   `IEconomyLeaderboardService.ListConfigsAsync`/`GetRankingAsync` (first public config, no
   dashboard-default flag exists yet); `!playlist` reads `IMusicService.GetQueueAsync` (current track +
@@ -545,10 +550,21 @@ later.)
   — not a defect in this slice, re-verify once the tree is clear).
   **Legacy-builtin tone parity DONE, verified (d5905b10)** — see S068 for detail: `CommandsBuiltin`/
   `HelpBuiltin`/`LurkBuiltins`/`AccountAgeBuiltin` now route through `IBuiltinResponseComposer` like
-  pipeline `send_message` does. Remaining S069 scope (custom commands/timers/event responses/chat
-  triggers, usage/error tone slots, reply-or-mention helper, `ParseUserMention` unification, GDPR
-  whisper-with-fallback, inbound whisper handler, `announce` action/toggle, per-locale tone catalogue)
-  is still open.
+  pipeline `send_message` does.
+  **`announce` action/toggle DONE, verified (a3666432 + cf959b9e)**: Helix `SendAnnouncementAsync`
+  already existed (full-API-coverage rule) — new `AnnounceAction` pipeline action (type `"announce"`,
+  auto-registered via the `ICommandAction` scan) mirrors `SendMessageAction`'s tone/template resolution
+  with a `color` field (primary/purple/blue/green/orange, invalid input normalizes to `null`). 4 tests
+  (real Helix call with resolved message+color, invalid color normalized, missing message fails without
+  calling Helix, Helix failure surfaces in `ActionResult`). **Caught + fixed same session**: the new i18n
+  keys weren't in the committed `schema-i18n-keys.manifest.json` nor translated (en+nl) —
+  `SchemaLocalizationManifestTests` genuinely failed on this, not a pre-existing/unrelated issue as first
+  assumed; manifest regenerated + real en/nl strings added (cf959b9e). Lesson: a new pipeline action's
+  help-text/description fields need BOTH a manifest entry AND real strings.xml translations, or the
+  drift guard fails — always run `SchemaLocalizationManifestTests` for any new `ICommandAction`.
+  Remaining S069 scope (custom commands/timers/event responses/chat triggers tone, usage/error tone
+  slots, reply-or-mention helper, GDPR whisper-with-fallback, inbound whisper handler, per-locale tone
+  catalogue) is still open.
 - **S070** Settings + onboarding truth —
   swallowed regrant/reconcile failures; copy fixes (U·B6).
   **Scope→feature map + re-grant on Settings DONE, verified (fe5762ec)**: backend already had the full
