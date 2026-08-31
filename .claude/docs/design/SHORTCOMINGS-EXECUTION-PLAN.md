@@ -413,14 +413,13 @@ later.)
   `ToEntryDtosAsync` mirroring the existing `GetWinnersAsync`/`ToWinnerDtosAsync`; `GiveawayEntryDto`
   gained `ViewerDisplayName` — it previously carried only the raw `ViewerUserId`, which would have
   forced the dashboard list to render an opaque GUID; an "Entries" row action opens a read-only panel
-  with resolved names + a ticket-count badge once weighting makes tickets worth showing). **Still
-  open, both large:**
-  - Eligibility/weighting/prize-pipeline/`ClosesAt` dialog UI — `GiveawaysScreen.kt`'s
-    `GiveawayFormDialog` has NONE of these fields; a broadcaster cannot configure sub-luck weighting,
-    eligibility filters, a pipeline prize, or a scheduled close time from the dashboard at all (the
-    wire contracts are all ready, this is purely the missing form). This is the actual done-when
-    blocker — closing it should also add the `Requires18Plus`/`ScheduledCloseAt` toggles deferred
-    above.
+  with resolved names + a ticket-count badge once weighting makes tickets worth showing). DONE:
+  eligibility/weighting/prize-pipeline/`ClosesAt` dialog UI (342230db — `GiveawayFormDialog` now has
+  eligibility filters (sub-only, min standing/watch-minutes/account-age), sub-tier + VIP ticket
+  weighting, a Pipeline prize mode via the reused create-and-bind picker, the deferred
+  `Requires18Plus`/`ScheduledCloseAt (minutes-from-now)` toggles, and the `requires18Plus`/
+  `scheduledCloseAt` Kotlin DTO fields that had been missing since the two backend slices that added
+  them). **Still open:**
   - Platform-generic DM delivery — `GiveawayFulfillment.FulfillCodeAsync` hardcoded to
     `ITwitchWhispersApi`; no `IPlatformDirectMessageSender`; `GiveawayEntry`/`GiveawayWinner` carry no
     `Provider`/`ProviderUserId` — a Kick/YouTube/X-only broadcaster's code-pool winner can never
