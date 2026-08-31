@@ -153,6 +153,7 @@ internal sealed class BillingTierChangeTestDbContext : DbContext, IApplicationDb
     public DbSet<RedemptionTimer> RedemptionTimers => throw new NotSupportedException();
     public DbSet<ChatTrigger> ChatTriggers => throw new NotSupportedException();
     public DbSet<ChatFilter> ChatFilters => throw new NotSupportedException();
+    public DbSet<ModerationQueueItem> ModerationQueueItems => throw new NotSupportedException();
     public DbSet<ChannelModerationStanding> ChannelModerationStandings =>
         throw new NotSupportedException();
     public DbSet<SharedBanSettings> SharedBanSettings => throw new NotSupportedException();

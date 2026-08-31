@@ -6654,6 +6654,75 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.ToTable("ModerationEscalationStates");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.ModerationQueueItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AutoModCategory")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AutoModMessageId")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MessageContentSnapshot")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ResolutionAction")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("ResolvedByUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Source")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("TargetTwitchUserId")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("TargetUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TargetUsernameSnapshot")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "AutoModMessageId");
+
+                    b.HasIndex("BroadcasterId", "Status");
+
+                    b.ToTable("ModerationQueueItems");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.NetworkNukeBatch", b =>
                 {
                     b.Property<Guid>("Id")

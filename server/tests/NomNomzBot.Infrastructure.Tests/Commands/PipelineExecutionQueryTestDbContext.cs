@@ -144,6 +144,8 @@ internal sealed class PipelineExecutionQueryTestDbContext : DbContext, IApplicat
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ChatFilter> ChatFilters =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationQueueItem> ModerationQueueItems =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPoll> ChatPolls =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes =>

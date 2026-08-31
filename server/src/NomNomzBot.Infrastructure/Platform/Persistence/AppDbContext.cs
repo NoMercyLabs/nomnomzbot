@@ -75,6 +75,8 @@ public class AppDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Moderation.Entities.ModerationEscalationState>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ChatFilter> ChatFilters =>
         Set<NomNomzBot.Domain.Moderation.Entities.ChatFilter>();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationQueueItem> ModerationQueueItems =>
+        Set<NomNomzBot.Domain.Moderation.Entities.ModerationQueueItem>();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPoll> ChatPolls =>
         Set<NomNomzBot.Domain.Community.Entities.ChatPoll>();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes =>
@@ -349,8 +351,7 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<WidgetGalleryItem> WidgetGalleryItems => Set<WidgetGalleryItem>();
     public DbSet<WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
         Set<WidgetGallerySubmissionEvent>();
-    public DbSet<Domain.Widgets.Entities.RenderedAlertCapture> RenderedAlertCaptures =>
-        Set<Domain.Widgets.Entities.RenderedAlertCapture>();
+    public DbSet<RenderedAlertCapture> RenderedAlertCaptures => Set<RenderedAlertCapture>();
     public DbSet<Domain.Marketplace.Entities.InstalledBundle> InstalledBundles =>
         Set<Domain.Marketplace.Entities.InstalledBundle>();
 

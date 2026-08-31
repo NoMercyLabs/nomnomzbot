@@ -101,6 +101,8 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
     public DbSet<User> Users => Set<User>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ViewerReport> ViewerReports =>
         Set<NomNomzBot.Domain.Moderation.Entities.ViewerReport>();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationQueueItem> ModerationQueueItems =>
+        Set<NomNomzBot.Domain.Moderation.Entities.ModerationQueueItem>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -178,6 +180,8 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
         typeof(NomNomzBot.Domain.Moderation.Entities.ModerationEscalationState),
         // The custom chat filters (J.6) — nav-free, convention-mapped.
         typeof(NomNomzBot.Domain.Moderation.Entities.ChatFilter),
+        // The AutoMod review queue (J.1) — nav-free, convention-mapped.
+        typeof(NomNomzBot.Domain.Moderation.Entities.ModerationQueueItem),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
