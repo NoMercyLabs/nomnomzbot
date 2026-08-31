@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Economy;
 
@@ -36,6 +37,30 @@ public interface ISavingsJarService
     /// <summary>Jars this channel owns or has an accepted membership in.</summary>
     Task<Result<IReadOnlyList<SavingsJarDto>>> ListJarsForChannelAsync(
         Guid broadcasterId,
+        CancellationToken ct = default
+    );
+
+    /// <summary>Owner-only partial update of a jar's own fields (name/description/goal/icon/open/cap).
+    /// <c>FORBIDDEN</c> for anyone but the owning channel.</summary>
+    Task<Result<SavingsJarDto>> UpdateJarAsync(
+        Guid broadcasterId,
+        Guid jarId,
+        UpdateSavingsJarRequest request,
+        CancellationToken ct = default
+    );
+
+    /// <summary>Owner-only permanent delete of a jar (soft delete). <c>FORBIDDEN</c> for anyone but the
+    /// owning channel; does not touch member balances, which already moved when contributed/withdrawn.</summary>
+    Task<Result> DeleteJarAsync(Guid broadcasterId, Guid jarId, CancellationToken ct = default);
+
+    /// <summary>
+    /// The real, counted blast radius of deleting this jar (S-CONSEQ): the other member channels who lose
+    /// access and the recorded movement history that stops being reachable through the jar. Returns a
+    /// failure when the jar does not exist or the caller is not its owner.
+    /// </summary>
+    Task<Result<BlastRadiusDto>> GetDeleteJarBlastRadiusAsync(
+        Guid broadcasterId,
+        Guid jarId,
         CancellationToken ct = default
     );
 

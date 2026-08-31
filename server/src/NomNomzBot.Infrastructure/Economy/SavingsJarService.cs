@@ -11,6 +11,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Application.Economy.Services;
@@ -90,6 +91,106 @@ public sealed class SavingsJarService(
                 "JAR_MEMBERSHIP_REQUIRED"
             );
         return Result.Success(ToDto(jar));
+    }
+
+    /// <summary>Loads the jar and confirms <paramref name="broadcasterId"/> is its owner — the shared guard
+    /// every owner-only jar mutation (update/delete/delete-preview) opens with.</summary>
+    private async Task<Result<SavingsJar>> FindOwnedJarAsync(
+        Guid broadcasterId,
+        Guid jarId,
+        CancellationToken ct
+    )
+    {
+        SavingsJar? jar = await FindJarAsync(jarId, ct);
+        if (jar is null)
+            return Result.Failure<SavingsJar>("Jar not found.", "NOT_FOUND");
+        if (jar.OwnerBroadcasterId != broadcasterId)
+            return Result.Failure<SavingsJar>("Only the jar owner can do this.", "FORBIDDEN");
+        return Result.Success(jar);
+    }
+
+    public async Task<Result<SavingsJarDto>> UpdateJarAsync(
+        Guid broadcasterId,
+        Guid jarId,
+        UpdateSavingsJarRequest request,
+        CancellationToken ct = default
+    )
+    {
+        Result<SavingsJar> owned = await FindOwnedJarAsync(broadcasterId, jarId, ct);
+        if (owned.IsFailure)
+            return owned.WithValue<SavingsJarDto>(default!);
+        SavingsJar jar = owned.Value;
+        if (request.Name is not null && string.IsNullOrWhiteSpace(request.Name))
+            return Result.Failure<SavingsJarDto>("Jar name is required.", "VALIDATION_FAILED");
+
+        if (request.Name is not null)
+            jar.Name = request.Name;
+        if (request.Description is not null)
+            jar.Description = request.Description;
+        if (request.GoalAmount.HasValue)
+            jar.GoalAmount = request.GoalAmount;
+        if (request.IconUrl is not null)
+            jar.IconUrl = request.IconUrl;
+        if (request.IsOpen.HasValue)
+            jar.IsOpen = request.IsOpen.Value;
+        if (request.MaxWithdrawalPerChannel.HasValue)
+            jar.MaxWithdrawalPerChannel = request.MaxWithdrawalPerChannel;
+
+        await db.SaveChangesAsync(ct);
+        return Result.Success(ToDto(jar));
+    }
+
+    public async Task<Result> DeleteJarAsync(
+        Guid broadcasterId,
+        Guid jarId,
+        CancellationToken ct = default
+    )
+    {
+        Result<SavingsJar> owned = await FindOwnedJarAsync(broadcasterId, jarId, ct);
+        if (owned.IsFailure)
+            return owned;
+
+        owned.Value.DeletedAt = clock.GetUtcNow().UtcDateTime;
+        await db.SaveChangesAsync(ct);
+        return Result.Success();
+    }
+
+    public async Task<Result<BlastRadiusDto>> GetDeleteJarBlastRadiusAsync(
+        Guid broadcasterId,
+        Guid jarId,
+        CancellationToken ct = default
+    )
+    {
+        Result<SavingsJar> owned = await FindOwnedJarAsync(broadcasterId, jarId, ct);
+        if (owned.IsFailure)
+            return owned.WithValue<BlastRadiusDto>(default!);
+
+        // Other member channels (not the owner's own implicit membership) who lose access to the pool.
+        int partnerMemberships = await db.SavingsJarMemberships.CountAsync(
+            m =>
+                m.JarId == jarId
+                && m.MemberBroadcasterId != broadcasterId
+                && m.Status == JarMembershipStatus.Accepted
+                && m.DeletedAt == null,
+            ct
+        );
+        int movements = await db.JarContributions.CountAsync(c => c.JarId == jarId, ct);
+
+        List<BlastRadiusCategoryDto> categories = [];
+        if (partnerMemberships > 0)
+            categories.Add(
+                new BlastRadiusCategoryDto(
+                    BlastRadiusCategoryKeys.JarMemberships,
+                    partnerMemberships,
+                    []
+                )
+            );
+        if (movements > 0)
+            categories.Add(
+                new BlastRadiusCategoryDto(BlastRadiusCategoryKeys.JarMovements, movements, [])
+            );
+
+        return Result<BlastRadiusDto>.Success(new BlastRadiusDto(categories, IsMinimum: false));
     }
 
     public async Task<Result<IReadOnlyList<SavingsJarDto>>> ListJarsForChannelAsync(

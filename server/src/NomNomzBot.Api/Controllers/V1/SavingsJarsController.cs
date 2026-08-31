@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Application.Economy.Services;
@@ -64,6 +65,52 @@ public class SavingsJarsController(ISavingsJarService jars, ICurrentUserService 
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
         return ResultResponse(await jars.GetJarAsync(broadcasterId, jarId, ct));
+    }
+
+    /// <summary>Owner-only partial update of the jar's own fields.</summary>
+    [HttpPatch("{jarId:guid}")]
+    [RequireAction("economy:jars:update")]
+    public async Task<IActionResult> UpdateJar(
+        string channelId,
+        Guid jarId,
+        [FromBody] UpdateSavingsJarRequest request,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+        return ResultResponse(await jars.UpdateJarAsync(broadcasterId, jarId, request, ct));
+    }
+
+    /// <summary>
+    /// Real, counted blast radius for deleting this jar (S-CONSEQ). The dashboard MUST call this and render the
+    /// result before the confirm can proceed.
+    /// </summary>
+    [DestructiveAction(HasCountedBlastRadius = true)]
+    [HttpGet("{jarId:guid}/blast-radius")]
+    [RequireAction("economy:jars:read")]
+    [ProducesResponseType<StatusResponseDto<BlastRadiusDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetDeleteJarBlastRadius(
+        string channelId,
+        Guid jarId,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+        return ResultResponse(await jars.GetDeleteJarBlastRadiusAsync(broadcasterId, jarId, ct));
+    }
+
+    /// <summary>Owner-only permanent delete of the jar. The confirm step calls
+    /// <see cref="GetDeleteJarBlastRadius"/> first and shows the counted dependents before this runs.</summary>
+    [DestructiveAction(HasCountedBlastRadius = true)]
+    [HttpDelete("{jarId:guid}")]
+    [RequireAction("economy:jars:delete")]
+    public async Task<IActionResult> DeleteJar(string channelId, Guid jarId, CancellationToken ct)
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+        return ResultResponse(await jars.DeleteJarAsync(broadcasterId, jarId, ct));
     }
 
     /// <summary>Invite another channel into the jar, binding the jar id from the route.</summary>

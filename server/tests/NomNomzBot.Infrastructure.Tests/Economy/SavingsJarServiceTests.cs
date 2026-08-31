@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Domain.Economy.Entities;
@@ -107,6 +108,105 @@ public sealed class SavingsJarServiceTests
         (await sut.ListJarsForChannelAsync(Partner))
             .Value.Should()
             .ContainSingle(j => j.Id == jarId);
+    }
+
+    [Fact]
+    public async Task UpdateJar_by_the_owner_applies_only_the_provided_fields()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        (SavingsJarService sut, _, _) = New(database);
+        Guid jarId = await CreateJarAsync(sut, goal: 1000, open: true);
+
+        Result<SavingsJarDto> updated = await sut.UpdateJarAsync(
+            Owner,
+            jarId,
+            new(Name: "Renamed Pot", IsOpen: false)
+        );
+
+        updated.IsSuccess.Should().BeTrue();
+        updated.Value.Name.Should().Be("Renamed Pot");
+        updated.Value.IsOpen.Should().BeFalse();
+        updated.Value.GoalAmount.Should().Be(1000); // untouched field survives the partial patch
+    }
+
+    [Fact]
+    public async Task UpdateJar_by_a_non_owner_channel_is_forbidden()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        (SavingsJarService sut, _, _) = New(database);
+        Guid jarId = await CreateJarAsync(sut);
+        Result<SavingsJarMembershipDto> invite = await sut.InviteChannelAsync(
+            Owner,
+            new(jarId, Partner, "Partner", null, null)
+        );
+        await sut.AcceptMembershipAsync(Partner, invite.Value.Id);
+
+        Result<SavingsJarDto> result = await sut.UpdateJarAsync(
+            Partner,
+            jarId,
+            new(Name: "Hijacked")
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("FORBIDDEN");
+    }
+
+    [Fact]
+    public async Task DeleteJar_by_the_owner_soft_deletes_it_and_it_no_longer_lists()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        (SavingsJarService sut, _, _) = New(database);
+        Guid jarId = await CreateJarAsync(sut);
+
+        Result result = await sut.DeleteJarAsync(Owner, jarId);
+
+        result.IsSuccess.Should().BeTrue();
+        (await sut.ListJarsForChannelAsync(Owner)).Value.Should().NotContain(j => j.Id == jarId);
+        (await sut.GetJarAsync(Owner, jarId)).IsFailure.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task DeleteJar_by_a_non_owner_channel_is_forbidden_and_the_jar_survives()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        (SavingsJarService sut, _, _) = New(database);
+        Guid jarId = await CreateJarAsync(sut);
+        Result<SavingsJarMembershipDto> invite = await sut.InviteChannelAsync(
+            Owner,
+            new(jarId, Partner, "Partner", null, null)
+        );
+        await sut.AcceptMembershipAsync(Partner, invite.Value.Id);
+
+        Result result = await sut.DeleteJarAsync(Partner, jarId);
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("FORBIDDEN");
+        (await sut.GetJarAsync(Owner, jarId)).IsSuccess.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task DeleteJar_blast_radius_counts_the_partner_membership_and_the_movement_history()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        (SavingsJarService sut, _, _) = New(database);
+        Guid jarId = await CreateJarAsync(sut);
+        Result<SavingsJarMembershipDto> invite = await sut.InviteChannelAsync(
+            Owner,
+            new(jarId, Partner, "Partner", null, null)
+        );
+        await sut.AcceptMembershipAsync(Partner, invite.Value.Id);
+        await sut.ContributeAsync(Owner, new(jarId, Viewer, 30));
+
+        Result<BlastRadiusDto> radius = await sut.GetDeleteJarBlastRadiusAsync(Owner, jarId);
+
+        radius.IsSuccess.Should().BeTrue();
+        radius.Value.TotalReferences.Should().Be(2); // 1 partner membership + 1 movement
+        radius
+            .Value.Categories.Should()
+            .Contain(c => c.CategoryKey == BlastRadiusCategoryKeys.JarMemberships && c.Count == 1);
+        radius
+            .Value.Categories.Should()
+            .Contain(c => c.CategoryKey == BlastRadiusCategoryKeys.JarMovements && c.Count == 1);
     }
 
     [Fact]
@@ -218,7 +318,7 @@ public sealed class SavingsJarServiceTests
         await sut.WithdrawAsync(Owner, new(jarId, Viewer, 10, Owner)); // jar = 20
 
         PagedList<JarMovementDto> history = (
-            await sut.GetJarHistoryAsync(Owner, jarId, new(1, 25))
+            await sut.GetJarHistoryAsync(Owner, jarId, new())
         ).Value;
 
         history.Items.Should().HaveCount(2);
