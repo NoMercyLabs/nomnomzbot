@@ -396,8 +396,14 @@ later.)
   "empty", and the bundle-import D2 promise ("sync pushes it to Twitch later") — `SyncWithTwitchAsync` now
   actually does that, best-effort per reward.
 - **S065** Giveaways reach — eligibility/weighting/prize pipeline in dialog; `ClosesAt` auto-close;
-  entries endpoint + list; pool picker guard; platform-generic DM delivery (U·B2, spec
-  `giveaways.md`). Done-when: a weighted sub giveaway runs end to end. DONE: code labels (26ee0534 —
+  entries endpoint + list; platform-generic DM delivery (U·B2, spec `giveaways.md`). Done-when: a
+  weighted sub giveaway runs end to end. DONE: pool picker guard (417462d4 — the code-pool picker
+  rendered every pool as selectable regardless of `available`; a broadcaster could bind a prize to an
+  already-exhausted pool. A zero-`available` pool now shows "no codes left" and is disabled, except
+  the currently-selected one so switching away mid-edit doesn't strand the form. The "already-bound
+  to another giveaway" half of this guard was NOT added — no backend concept of it exists yet and two
+  giveaways racing for the same pool's codes is a real but non-fatal foot-gun, not the fulfillment
+  bug the zero-`available` case was). DONE: code labels (26ee0534 —
   the backend always accepted `CodeInput.Label`/`GiveawayCode.Label` but the bulk add-codes textarea
   only ever sent `CodeInput(code)`; a code could never be named from the UI. Each line now optionally
   carries `"CODE | a label"`, parsed in `GiveawaysController.addCodes` before the wire body). DONE:
@@ -416,8 +422,7 @@ later.)
   and spec-accurate; every remaining sub-item above is a dashboard-exposure gap or a genuinely
   missing backend piece — see the full per-sub-item breakdown that should be re-derived from the code
   (`GiveawaysScreen.kt`'s `GiveawayFormDialog` has no eligibility/weighting/pipeline/`ClosesAt` UI at
-  all; no `ClosesAt` auto-close worker exists; no entries list endpoint; pool picker doesn't guard
-  zero-`available`/already-bound pools;
+  all; no `ClosesAt` auto-close worker exists; no entries list endpoint;
   `GiveawayFulfillment.FulfillCodeAsync` is hardcoded to `ITwitchWhispersApi`, no
   `IPlatformDirectMessageSender` exists, `GiveawayEntry`/`GiveawayWinner` carry no `Provider`/
   `ProviderUserId`).
