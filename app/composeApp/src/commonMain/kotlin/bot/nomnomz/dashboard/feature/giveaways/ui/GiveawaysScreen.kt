@@ -49,6 +49,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
+import bot.nomnomz.dashboard.core.designsystem.component.PipelineBindPicker
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
@@ -72,6 +73,7 @@ import bot.nomnomz.dashboard.core.network.GiveawayStatus
 import bot.nomnomz.dashboard.core.network.GiveawayWinner
 import bot.nomnomz.dashboard.core.network.GiveawayWinnerStatus
 import bot.nomnomz.dashboard.core.network.MaskedCode
+import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.UpsertGiveawayBody
 import bot.nomnomz.dashboard.feature.giveaways.state.CodePoolsState
 import bot.nomnomz.dashboard.feature.giveaways.state.GiveawaysAccess
@@ -80,7 +82,18 @@ import bot.nomnomz.dashboard.feature.giveaways.state.GiveawaysState
 import bot.nomnomz.dashboard.feature.giveaways.state.PoolDetailState
 import bot.nomnomz.dashboard.feature.giveaways.state.EntriesState
 import bot.nomnomz.dashboard.feature.giveaways.state.WinnersState
+import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.JsonPrimitive
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.giveaways_action_error
 import nomnomzbot.composeapp.generated.resources.giveaways_cancel
@@ -99,6 +112,8 @@ import nomnomzbot.composeapp.generated.resources.giveaways_delete_action
 import nomnomzbot.composeapp.generated.resources.giveaways_delete_confirm
 import nomnomzbot.composeapp.generated.resources.giveaways_delete_message
 import nomnomzbot.composeapp.generated.resources.giveaways_delete_title
+import nomnomzbot.composeapp.generated.resources.giveaways_dialog_auto_close_help
+import nomnomzbot.composeapp.generated.resources.giveaways_dialog_auto_close_label
 import nomnomzbot.composeapp.generated.resources.giveaways_dialog_claim_window_label
 import nomnomzbot.composeapp.generated.resources.giveaways_dialog_code_pool_label
 import nomnomzbot.composeapp.generated.resources.giveaways_dialog_code_pool_none
@@ -108,6 +123,7 @@ import nomnomzbot.composeapp.generated.resources.giveaways_dialog_create
 import nomnomzbot.composeapp.generated.resources.giveaways_dialog_create_title
 import nomnomzbot.composeapp.generated.resources.giveaways_dialog_currency_amount_label
 import nomnomzbot.composeapp.generated.resources.giveaways_dialog_edit_title
+import nomnomzbot.composeapp.generated.resources.giveaways_dialog_eligibility_label
 import nomnomzbot.composeapp.generated.resources.giveaways_dialog_entry_cost_label
 import nomnomzbot.composeapp.generated.resources.giveaways_dialog_entry_mode_label
 import nomnomzbot.composeapp.generated.resources.giveaways_dialog_exclude_mods_label
@@ -115,9 +131,26 @@ import nomnomzbot.composeapp.generated.resources.giveaways_dialog_from_pot_label
 import nomnomzbot.composeapp.generated.resources.giveaways_dialog_keyword_help
 import nomnomzbot.composeapp.generated.resources.giveaways_dialog_keyword_label
 import nomnomzbot.composeapp.generated.resources.giveaways_dialog_max_entries_label
+import nomnomzbot.composeapp.generated.resources.giveaways_dialog_min_account_age_label
+import nomnomzbot.composeapp.generated.resources.giveaways_dialog_min_standing_label
+import nomnomzbot.composeapp.generated.resources.giveaways_dialog_min_watch_label
+import nomnomzbot.composeapp.generated.resources.giveaways_dialog_pipeline_choose
+import nomnomzbot.composeapp.generated.resources.giveaways_dialog_pipeline_create_confirm
+import nomnomzbot.composeapp.generated.resources.giveaways_dialog_pipeline_create_new
+import nomnomzbot.composeapp.generated.resources.giveaways_dialog_pipeline_label
+import nomnomzbot.composeapp.generated.resources.giveaways_dialog_pipeline_new_name
 import nomnomzbot.composeapp.generated.resources.giveaways_dialog_prize_mode_label
+import nomnomzbot.composeapp.generated.resources.giveaways_dialog_require_sub_label
+import nomnomzbot.composeapp.generated.resources.giveaways_dialog_requires_18plus_help
+import nomnomzbot.composeapp.generated.resources.giveaways_dialog_requires_18plus_label
 import nomnomzbot.composeapp.generated.resources.giveaways_dialog_save
 import nomnomzbot.composeapp.generated.resources.giveaways_dialog_title_label
+import nomnomzbot.composeapp.generated.resources.giveaways_dialog_weight_sub_t1_label
+import nomnomzbot.composeapp.generated.resources.giveaways_dialog_weight_sub_t2_label
+import nomnomzbot.composeapp.generated.resources.giveaways_dialog_weight_sub_t3_label
+import nomnomzbot.composeapp.generated.resources.giveaways_dialog_weight_vip_label
+import nomnomzbot.composeapp.generated.resources.giveaways_dialog_weighting_help
+import nomnomzbot.composeapp.generated.resources.giveaways_dialog_weighting_label
 import nomnomzbot.composeapp.generated.resources.giveaways_dialog_winner_count_label
 import nomnomzbot.composeapp.generated.resources.giveaways_draw_action
 import nomnomzbot.composeapp.generated.resources.giveaways_draw_confirm
@@ -163,6 +196,7 @@ import nomnomzbot.composeapp.generated.resources.giveaways_pools_title
 import nomnomzbot.composeapp.generated.resources.giveaways_prize_announce
 import nomnomzbot.composeapp.generated.resources.giveaways_prize_code_pool
 import nomnomzbot.composeapp.generated.resources.giveaways_prize_currency
+import nomnomzbot.composeapp.generated.resources.giveaways_prize_pipeline
 import nomnomzbot.composeapp.generated.resources.giveaways_requires_write
 import nomnomzbot.composeapp.generated.resources.giveaways_retry
 import nomnomzbot.composeapp.generated.resources.giveaways_row_type
@@ -220,6 +254,7 @@ fun GiveawaysScreen(controller: GiveawaysController, heldActionKeys: Set<String>
     val codePools: CodePoolsState by controller.codePools.collectAsStateWithLifecycle()
     val winners: WinnersState by controller.winners.collectAsStateWithLifecycle()
     val entries: EntriesState by controller.entries.collectAsStateWithLifecycle()
+    val pipelines: List<PipelineSummary> by controller.pipelines.collectAsStateWithLifecycle()
     val poolDetail: PoolDetailState by controller.poolDetail.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val spacing = LocalSpacing.current
@@ -251,7 +286,7 @@ fun GiveawaysScreen(controller: GiveawaysController, heldActionKeys: Set<String>
     // to the confirm dialog; Winners opens the controller's winner panel; edit/delete open their dialogs.
     val rowCallbacks =
         GiveawayRowCallbacks(
-            onEdit = { editor = GiveawayEditor.edit(it) },
+            onEdit = { editor = GiveawayEditor.edit(it, Clock.System.now()) },
             onDelete = { pendingDelete = it },
             onOpen = { giveaway -> scope.launch { controller.openGiveaway(giveaway.id) } },
             onConfirmLifecycle = { giveaway, kind -> pendingLifecycle = LifecycleConfirm(giveaway, kind) },
@@ -325,6 +360,8 @@ fun GiveawaysScreen(controller: GiveawaysController, heldActionKeys: Set<String>
         GiveawayFormDialog(
             editor = open,
             pools = (codePools as? CodePoolsState.Ready)?.pools ?: emptyList(),
+            pipelines = pipelines,
+            onCreatePipeline = { name -> controller.createPipelineReturning(name) },
             onDismiss = { editor = null },
             onSubmit = { body ->
                 editor = null
@@ -929,13 +966,14 @@ private data class RedrawConfirm(val giveaway: Giveaway, val winner: GiveawayWin
 
 // One composable for both create and edit (DRY): an empty [editor] = create, a pre-filled one = edit. The
 // affirmative button is disabled until the title is non-blank (and, in keyword mode, the keyword). The prize
-// picker offers the three self-contained modes (announce / currency / code pool); a giveaway created elsewhere in
-// `pipeline` mode keeps that mode + its pipeline reference untouched (they pass through the seed) unless the
-// operator picks a different prize here.
+// picker offers all four modes (announce / currency / pipeline / code pool) — pipeline mode uses the shared
+// create-and-bind [PipelineBindPicker] (S046), same as rewards/commands/timers.
 @Composable
 private fun GiveawayFormDialog(
     editor: GiveawayEditor,
     pools: List<CodePool>,
+    pipelines: List<PipelineSummary>,
+    onCreatePipeline: suspend (name: String) -> PipelineSummary?,
     onDismiss: () -> Unit,
     onSubmit: (UpsertGiveawayBody) -> Unit,
 ) {
@@ -954,9 +992,25 @@ private fun GiveawayFormDialog(
     var currencyAmount: String by remember { mutableStateOf(editor.prizeCurrencyAmount) }
     var fromPot: Boolean by remember { mutableStateOf(editor.prizeFromPot) }
     var codePoolId: String? by remember { mutableStateOf(editor.prizeCodePoolId) }
+    var pipelineId: String? by remember { mutableStateOf(editor.prizePipelineId) }
+    var requires18: Boolean by remember { mutableStateOf(editor.requires18Plus) }
+    var requireSub: Boolean by remember { mutableStateOf(editor.requireSub) }
+    var minStanding: String by remember { mutableStateOf(editor.minStandingLevel) }
+    var minWatch: String by remember { mutableStateOf(editor.minWatchMinutes) }
+    var minAccountAge: String by remember { mutableStateOf(editor.minAccountAgeDays) }
+    var subT1: String by remember { mutableStateOf(editor.subT1) }
+    var subT2: String by remember { mutableStateOf(editor.subT2) }
+    var subT3: String by remember { mutableStateOf(editor.subT3) }
+    var vip: String by remember { mutableStateOf(editor.vipMultiplier) }
+    var autoCloseMinutes: String by remember { mutableStateOf(editor.autoCloseMinutes) }
+
+    // A paid code_pool giveaway needs the 18+ gate on, or the backend refuses VALUE_OUT_PAID_ENTRY (D5) — shown
+    // only when it's actually relevant so the form isn't cluttered with a toggle that does nothing otherwise.
+    val needsAgeGate: Boolean = prizeMode == GiveawayPrizeMode.CodePool && entryCost.toLongOrNull()?.let { it > 0 } == true
 
     val keywordMode: Boolean = entryMode == GiveawayEntryMode.Keyword
-    val canSubmit: Boolean = title.isNotBlank() && (!keywordMode || keyword.isNotBlank())
+    val canSubmit: Boolean =
+        title.isNotBlank() && (!keywordMode || keyword.isNotBlank()) && (!needsAgeGate || requires18)
     val dialogTitle: String =
         stringResource(if (editor.isEdit) Res.string.giveaways_dialog_edit_title else Res.string.giveaways_dialog_create_title)
     val submitLabel: String =
@@ -1023,13 +1077,77 @@ private fun GiveawayFormDialog(
                     onValueChange = { claimWindow = it },
                     label = stringResource(Res.string.giveaways_dialog_claim_window_label),
                 )
+                NumberField(
+                    value = autoCloseMinutes,
+                    onValueChange = { autoCloseMinutes = it },
+                    label = stringResource(Res.string.giveaways_dialog_auto_close_label),
+                )
+                Text(
+                    text = stringResource(Res.string.giveaways_dialog_auto_close_help),
+                    style = LocalTypography.current.xs,
+                    color = tokens.mutedForeground,
+                )
                 ToggleRow(
                     label = stringResource(Res.string.giveaways_dialog_exclude_mods_label),
                     checked = excludeMods,
                     onCheckedChange = { excludeMods = it },
                 )
 
-                // Prize mode — a three-option segmented picker, with the mode-specific config below it.
+                // Eligibility (D3) — opt-in filters; empty/unset = everyone.
+                Separator()
+                FieldLabel(stringResource(Res.string.giveaways_dialog_eligibility_label))
+                ToggleRow(
+                    label = stringResource(Res.string.giveaways_dialog_require_sub_label),
+                    checked = requireSub,
+                    onCheckedChange = { requireSub = it },
+                )
+                NumberField(
+                    value = minStanding,
+                    onValueChange = { minStanding = it },
+                    label = stringResource(Res.string.giveaways_dialog_min_standing_label),
+                )
+                NumberField(
+                    value = minWatch,
+                    onValueChange = { minWatch = it },
+                    label = stringResource(Res.string.giveaways_dialog_min_watch_label),
+                )
+                NumberField(
+                    value = minAccountAge,
+                    onValueChange = { minAccountAge = it },
+                    label = stringResource(Res.string.giveaways_dialog_min_account_age_label),
+                )
+
+                // Weighting (D4) — sub-luck ticket multipliers; "1" (unweighted) is the no-op default.
+                Separator()
+                FieldLabel(stringResource(Res.string.giveaways_dialog_weighting_label))
+                Text(
+                    text = stringResource(Res.string.giveaways_dialog_weighting_help),
+                    style = LocalTypography.current.xs,
+                    color = tokens.mutedForeground,
+                )
+                NumberField(
+                    value = subT1,
+                    onValueChange = { subT1 = it },
+                    label = stringResource(Res.string.giveaways_dialog_weight_sub_t1_label),
+                )
+                NumberField(
+                    value = subT2,
+                    onValueChange = { subT2 = it },
+                    label = stringResource(Res.string.giveaways_dialog_weight_sub_t2_label),
+                )
+                NumberField(
+                    value = subT3,
+                    onValueChange = { subT3 = it },
+                    label = stringResource(Res.string.giveaways_dialog_weight_sub_t3_label),
+                )
+                NumberField(
+                    value = vip,
+                    onValueChange = { vip = it },
+                    label = stringResource(Res.string.giveaways_dialog_weight_vip_label),
+                )
+
+                // Prize mode — a four-option segmented picker, with the mode-specific config below it.
+                Separator()
                 FieldLabel(stringResource(Res.string.giveaways_dialog_prize_mode_label))
                 TabsList {
                     TabsTrigger(
@@ -1040,6 +1158,10 @@ private fun GiveawayFormDialog(
                         selected = prizeMode == GiveawayPrizeMode.Currency,
                         onClick = { prizeMode = GiveawayPrizeMode.Currency },
                     ) { Text(stringResource(Res.string.giveaways_prize_currency), maxLines = 1) }
+                    TabsTrigger(
+                        selected = prizeMode == GiveawayPrizeMode.Pipeline,
+                        onClick = { prizeMode = GiveawayPrizeMode.Pipeline },
+                    ) { Text(stringResource(Res.string.giveaways_prize_pipeline), maxLines = 1) }
                     TabsTrigger(
                         selected = prizeMode == GiveawayPrizeMode.CodePool,
                         onClick = { prizeMode = GiveawayPrizeMode.CodePool },
@@ -1057,11 +1179,37 @@ private fun GiveawayFormDialog(
                         onCheckedChange = { fromPot = it },
                     )
                 }
+                if (prizeMode == GiveawayPrizeMode.Pipeline) {
+                    PipelineBindPicker(
+                        pipelines = pipelines,
+                        selectedId = pipelineId,
+                        onSelect = { pipelineId = it },
+                        onCreate = { name -> onCreatePipeline(name) },
+                        pickLabel = stringResource(Res.string.giveaways_dialog_pipeline_label),
+                        choosePlaceholder = stringResource(Res.string.giveaways_dialog_pipeline_choose),
+                        createNewLabel = stringResource(Res.string.giveaways_dialog_pipeline_create_new),
+                        newNameLabel = stringResource(Res.string.giveaways_dialog_pipeline_new_name),
+                        createLabel = stringResource(Res.string.giveaways_dialog_pipeline_create_confirm),
+                        cancelLabel = stringResource(Res.string.giveaways_cancel),
+                    )
+                }
                 if (prizeMode == GiveawayPrizeMode.CodePool) {
                     CodePoolPicker(
                         pools = pools,
                         selectedId = codePoolId,
                         onSelect = { codePoolId = it },
+                    )
+                }
+                if (needsAgeGate) {
+                    ToggleRow(
+                        label = stringResource(Res.string.giveaways_dialog_requires_18plus_label),
+                        checked = requires18,
+                        onCheckedChange = { requires18 = it },
+                    )
+                    Text(
+                        text = stringResource(Res.string.giveaways_dialog_requires_18plus_help),
+                        style = LocalTypography.current.xs,
+                        color = if (requires18) tokens.mutedForeground else tokens.destructive,
                     )
                 }
             }
@@ -1083,6 +1231,18 @@ private fun GiveawayFormDialog(
                             currencyAmount = currencyAmount,
                             fromPot = fromPot,
                             codePoolId = codePoolId,
+                            pipelineId = pipelineId,
+                            requires18 = requires18,
+                            requireSub = requireSub,
+                            minStanding = minStanding,
+                            minWatch = minWatch,
+                            minAccountAge = minAccountAge,
+                            subT1 = subT1,
+                            subT2 = subT2,
+                            subT3 = subT3,
+                            vip = vip,
+                            autoCloseMinutes = autoCloseMinutes,
+                            now = Clock.System.now(),
                         )
                     )
                 },
@@ -1681,13 +1841,27 @@ private data class GiveawayEditor(
     val prizeCurrencyAmount: String,
     val prizeFromPot: Boolean,
     val prizeCodePoolId: String?,
-    val eligibilityJson: String?,
-    val weightingJson: String?,
     val prizePipelineId: String?,
+    val requires18Plus: Boolean,
+    // Eligibility (D3) — opt-in filters; require_follower is deliberately absent, the backend rejects it
+    // (unverifiable truthfully) so the dialog never offers a toggle that can only fail.
+    val requireSub: Boolean,
+    val minStandingLevel: String,
+    val minWatchMinutes: String,
+    val minAccountAgeDays: String,
+    // Weighting (D4) — sub-luck ticket multipliers; "1" (the backend default) means unweighted.
+    val subT1: String,
+    val subT2: String,
+    val subT3: String,
+    val vipMultiplier: String,
+    // Auto-close (ClosesAt schedule) — minutes from NOW the dialog is open/submitted, not an absolute time, so
+    // editing an existing schedule always shows "how long is left" rather than a stale clock-face value.
+    val autoCloseMinutes: String,
 ) {
-    // Build the wire body from the dialog's current inputs plus the passed-through (unedited) fields. Keyword is
-    // sent only in keyword mode; the currency / code-pool references only in their prize mode — so switching mode
-    // never leaves a stale reference behind.
+    // Build the wire body from the dialog's current inputs. Keyword is sent only in keyword mode; the currency /
+    // code-pool / pipeline references only in their prize mode — so switching mode never leaves a stale reference
+    // behind. Eligibility/weighting collapse to null when every field is at its no-op default (empty json is
+    // functionally identical to "everyone" / "unweighted" per D3/D4, so an unedited form sends null, not `{}`).
     fun toBody(
         title: String,
         entryMode: String,
@@ -1701,6 +1875,18 @@ private data class GiveawayEditor(
         currencyAmount: String,
         fromPot: Boolean,
         codePoolId: String?,
+        pipelineId: String?,
+        requires18: Boolean,
+        requireSub: Boolean,
+        minStanding: String,
+        minWatch: String,
+        minAccountAge: String,
+        subT1: String,
+        subT2: String,
+        subT3: String,
+        vip: String,
+        autoCloseMinutes: String,
+        now: Instant,
     ): UpsertGiveawayBody =
         UpsertGiveawayBody(
             title = title.trim(),
@@ -1708,16 +1894,18 @@ private data class GiveawayEditor(
             keyword = if (entryMode == GiveawayEntryMode.Keyword) keyword.trim().takeIf { it.isNotBlank() } else null,
             entryCost = entryCost.toLongOrNull(),
             maxEntriesPerUser = maxEntries.toIntOrNull() ?: 1,
-            eligibilityJson = eligibilityJson,
-            weightingJson = weightingJson,
+            eligibilityJson = buildEligibilityJson(requireSub, minStanding, minWatch, minAccountAge),
+            weightingJson = buildWeightingJson(subT1, subT2, subT3, vip),
             winnerCount = winnerCount.toIntOrNull() ?: 1,
             excludeModerators = excludeMods,
             claimWindowMinutes = claimWindow.toIntOrNull(),
             prizeMode = prizeMode,
             prizeCurrencyAmount = if (prizeMode == GiveawayPrizeMode.Currency) currencyAmount.toLongOrNull() else null,
             prizeFromPot = prizeMode == GiveawayPrizeMode.Currency && fromPot,
-            prizePipelineId = prizePipelineId,
+            prizePipelineId = if (prizeMode == GiveawayPrizeMode.Pipeline) pipelineId else null,
             prizeCodePoolId = if (prizeMode == GiveawayPrizeMode.CodePool) codePoolId else null,
+            requires18Plus = requires18,
+            scheduledCloseAt = autoCloseMinutes.toLongOrNull()?.takeIf { it > 0 }?.let { (now + it.minutes).toString() },
         )
 
     companion object {
@@ -1737,13 +1925,31 @@ private data class GiveawayEditor(
                 prizeCurrencyAmount = "",
                 prizeFromPot = false,
                 prizeCodePoolId = null,
-                eligibilityJson = null,
-                weightingJson = null,
                 prizePipelineId = null,
+                requires18Plus = false,
+                requireSub = false,
+                minStandingLevel = "",
+                minWatchMinutes = "",
+                minAccountAgeDays = "",
+                subT1 = "1",
+                subT2 = "1",
+                subT3 = "1",
+                vipMultiplier = "1",
+                autoCloseMinutes = "",
             )
 
-        fun edit(giveaway: Giveaway): GiveawayEditor =
-            GiveawayEditor(
+        fun edit(giveaway: Giveaway, now: Instant): GiveawayEditor {
+            val eligibility: JsonObject? = parseJsonObjectOrNull(giveaway.eligibilityJson)
+            val weighting: JsonObject? = parseJsonObjectOrNull(giveaway.weightingJson)
+            // How many whole minutes remain until the existing target, or blank if there is none (or it already
+            // passed) — never a stale absolute instant the operator would have to mentally convert.
+            val remainingMinutes: String =
+                giveaway.scheduledCloseAt
+                    ?.let { runCatching { Instant.parse(it) }.getOrNull() }
+                    ?.let { target -> (target - now).inWholeMinutes.takeIf { it > 0 } }
+                    ?.toString()
+                    .orEmpty()
+            return GiveawayEditor(
                 isEdit = true,
                 id = giveaway.id,
                 title = giveaway.title,
@@ -1758,9 +1964,53 @@ private data class GiveawayEditor(
                 prizeCurrencyAmount = giveaway.prizeCurrencyAmount?.toString().orEmpty(),
                 prizeFromPot = giveaway.prizeFromPot,
                 prizeCodePoolId = giveaway.prizeCodePoolId,
-                eligibilityJson = giveaway.eligibilityJson,
-                weightingJson = giveaway.weightingJson,
                 prizePipelineId = giveaway.prizePipelineId,
+                requires18Plus = giveaway.requires18Plus,
+                requireSub = eligibility?.get("require_sub")?.jsonPrimitive?.booleanOrNull ?: false,
+                minStandingLevel = eligibility?.get("min_standing_level")?.jsonPrimitive?.intOrNull?.toString().orEmpty(),
+                minWatchMinutes = eligibility?.get("min_watch_minutes")?.jsonPrimitive?.intOrNull?.toString().orEmpty(),
+                minAccountAgeDays = eligibility?.get("min_account_age_days")?.jsonPrimitive?.intOrNull?.toString().orEmpty(),
+                subT1 = (weighting?.get("sub_t1")?.jsonPrimitive?.intOrNull ?: 1).toString(),
+                subT2 = (weighting?.get("sub_t2")?.jsonPrimitive?.intOrNull ?: 1).toString(),
+                subT3 = (weighting?.get("sub_t3")?.jsonPrimitive?.intOrNull ?: 1).toString(),
+                vipMultiplier = (weighting?.get("vip")?.jsonPrimitive?.intOrNull ?: 1).toString(),
+                autoCloseMinutes = remainingMinutes,
             )
+        }
     }
+}
+
+private fun parseJsonObjectOrNull(json: String?): JsonObject? =
+    json?.takeIf(String::isNotBlank)?.let { runCatching { Json.parseToJsonElement(it).jsonObject }.getOrNull() }
+
+private fun buildEligibilityJson(
+    requireSub: Boolean,
+    minStanding: String,
+    minWatch: String,
+    minAccountAge: String,
+): String? {
+    val standing: Int? = minStanding.toIntOrNull()
+    val watch: Int? = minWatch.toIntOrNull()
+    val age: Int? = minAccountAge.toIntOrNull()
+    if (!requireSub && standing == null && watch == null && age == null) return null
+    return buildJsonObject {
+        if (requireSub) put("require_sub", JsonPrimitive(true))
+        standing?.let { put("min_standing_level", JsonPrimitive(it)) }
+        watch?.let { put("min_watch_minutes", JsonPrimitive(it)) }
+        age?.let { put("min_account_age_days", JsonPrimitive(it)) }
+    }.toString()
+}
+
+private fun buildWeightingJson(subT1: String, subT2: String, subT3: String, vip: String): String? {
+    val t1: Int = subT1.toIntOrNull() ?: 1
+    val t2: Int = subT2.toIntOrNull() ?: 1
+    val t3: Int = subT3.toIntOrNull() ?: 1
+    val v: Int = vip.toIntOrNull() ?: 1
+    if (t1 <= 1 && t2 <= 1 && t3 <= 1 && v <= 1) return null
+    return buildJsonObject {
+        put("sub_t1", JsonPrimitive(t1))
+        put("sub_t2", JsonPrimitive(t2))
+        put("sub_t3", JsonPrimitive(t3))
+        put("vip", JsonPrimitive(v))
+    }.toString()
 }

@@ -235,6 +235,11 @@ data class UpsertGiveawayBody(
     val prizeFromPot: Boolean = false,
     val prizePipelineId: String? = null,
     val prizeCodePoolId: String? = null,
+    // The value-out gate (D5): must be true for a paid code_pool giveaway, or the backend refuses it with
+    // VALUE_OUT_PAID_ENTRY. Ignored by every other prize mode / free entry.
+    val requires18Plus: Boolean = false,
+    // An optional auto-close target (ISO-8601 instant) — must be strictly in the future. Null = manual close only.
+    val scheduledCloseAt: String? = null,
 )
 
 /**
@@ -261,9 +266,11 @@ data class Giveaway(
     val prizeFromPot: Boolean = false,
     val prizePipelineId: String? = null,
     val prizeCodePoolId: String? = null,
+    val requires18Plus: Boolean = false,
     val status: String = GiveawayStatus.Draft,
     val openedAt: String? = null,
     val closesAt: String? = null,
+    val scheduledCloseAt: String? = null,
     val drawnAt: String? = null,
     val entryCount: Int = 0,
     val createdAt: String = "",

@@ -14,15 +14,22 @@ import bot.nomnomz.dashboard.core.feedback.Feedback
 import bot.nomnomz.dashboard.core.feedback.NoOpFeedback
 import bot.nomnomz.dashboard.core.network.AddCodesBody
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.ChannelSummary
+import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CodeInput
 import bot.nomnomz.dashboard.core.network.CodePool
 import bot.nomnomz.dashboard.core.network.CodePoolDetail
 import bot.nomnomz.dashboard.core.network.CreateCodePoolBody
+import bot.nomnomz.dashboard.core.network.CreatePipelineBody
 import bot.nomnomz.dashboard.core.network.Giveaway
 import bot.nomnomz.dashboard.core.network.GiveawayStatus
 import bot.nomnomz.dashboard.core.network.GiveawayEntry
 import bot.nomnomz.dashboard.core.network.GiveawayWinner
 import bot.nomnomz.dashboard.core.network.GiveawaysApi
+import bot.nomnomz.dashboard.core.network.PipelineDetail
+import bot.nomnomz.dashboard.core.network.PipelineGraph
+import bot.nomnomz.dashboard.core.network.PipelineSummary
+import bot.nomnomz.dashboard.core.network.PipelinesApi
 import bot.nomnomz.dashboard.core.network.UpsertGiveawayBody
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -53,12 +60,21 @@ import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 // code is ever decrypted for the operator — keyed by winner id and dropped when the panel closes.
 class GiveawaysController(
     private val giveawaysApi: GiveawaysApi,
+    private val channelsApi: ChannelsApi,
+    private val pipelinesApi: PipelinesApi,
     private val feedback: Feedback = NoOpFeedback,
 ) {
     private val _state: MutableStateFlow<GiveawaysState> = MutableStateFlow(GiveawaysState.Loading)
 
     /** The campaign list render state: loading / ready (with the giveaways) / empty / error. */
     val state: StateFlow<GiveawaysState> = _state.asStateFlow()
+
+    private val _pipelines: MutableStateFlow<List<PipelineSummary>> = MutableStateFlow(emptyList())
+
+    /** The channel's pipelines, for the prize dialog's pipeline-mode bind picker. */
+    val pipelines: StateFlow<List<PipelineSummary>> = _pipelines.asStateFlow()
+
+    private var channelId: String? = null
 
     private val _codePools: MutableStateFlow<CodePoolsState> = MutableStateFlow(CodePoolsState.Loading)
 
@@ -94,6 +110,39 @@ class GiveawaysController(
                 _state.value =
                     if (result.value.isEmpty()) GiveawaysState.Empty
                     else GiveawaysState.Ready(result.value)
+        }
+
+        // Pipelines are supplementary (the pipeline-prize picker's data source) — giveaways routes resolve their
+        // own channel from the auth token, but PipelinesApi needs it explicitly, so it's resolved here once and
+        // a failure degrades to an empty pipeline list rather than blanking the giveaways page that DID load.
+        when (val channel: ApiResult<ChannelSummary> = channelsApi.primaryChannel()) {
+            is ApiResult.Ok -> {
+                channelId = channel.value.id
+                when (val result: ApiResult<List<PipelineSummary>> = pipelinesApi.list(channel.value.id)) {
+                    is ApiResult.Ok -> _pipelines.value = result.value
+                    is ApiResult.Failure -> _pipelines.value = emptyList()
+                }
+            }
+            is ApiResult.Failure -> _pipelines.value = emptyList()
+        }
+    }
+
+    /**
+     * Create a new (empty) pipeline named [pipelineName] — the create-and-bind flow the prize dialog's pipeline
+     * picker offers, so binding a pipeline prize never requires leaving this dialog to make one first on the
+     * Pipelines page. Returns the created [PipelineSummary], or null on failure (surfaced as a load warning).
+     */
+    suspend fun createPipelineReturning(pipelineName: String): PipelineSummary? {
+        val channel: String = channelId ?: return null
+        return when (
+            val result: ApiResult<PipelineDetail> =
+                pipelinesApi.createReturning(
+                    channel,
+                    CreatePipelineBody(name = pipelineName, graph = PipelineGraph().toJson()),
+                )
+        ) {
+            is ApiResult.Ok -> PipelineSummary(id = result.value.id, name = result.value.name)
+            is ApiResult.Failure -> null
         }
     }
 
