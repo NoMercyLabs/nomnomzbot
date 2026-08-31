@@ -1201,6 +1201,16 @@
     <string name="settings_channel_bot_scopes_title">Broadcaster scopes</string>
     <string name="settings_channel_bot_scopes_granted">%1$d / %2$d granted</string>
     <string name="settings_channel_bot_scopes_empty">No scope data available</string>
+    <string name="settings_permissions_section">Permissions</string>
+    <string name="settings_permissions_subtitle">Every Twitch permission a feature can use, and whether your connection already grants it.</string>
+    <string name="settings_permissions_load_error">Could not load your permissions: %1$s</string>
+    <string name="settings_permissions_granted">Granted</string>
+    <string name="settings_permissions_missing">Not granted</string>
+    <string name="settings_permissions_regrant">Grant missing permissions</string>
+    <string name="settings_permissions_regrant_error">Could not start the re-grant: %1$s</string>
+    <string name="settings_permissions_regrant_code">Enter this code at %2$s: %1$s</string>
+    <string name="settings_permissions_regrant_cancel">Cancel</string>
+    <string name="settings_permissions_all_granted">Every permission is granted.</string>
     <string name="economy_loading">Loading your economy…</string>
     <string name="economy_error">Could not load your economy: %1$s</string>
     <string name="economy_retry">Retry</string>

@@ -1005,6 +1005,8 @@ private class FakeTwitchDiagnosticsApi(
     var missingAfter: MissingScopes? = null
     var lastRegrantRequestedScopes: List<String>? = null
 
+    override suspend fun scopeDiagnostics() = error("stub")
+
     override suspend fun missingScopes(): ApiResult<MissingScopes> = ApiResult.Ok(missingAfter ?: missing)
 
     override suspend fun startRegrant(): ApiResult<ScopeRegrantStart> {

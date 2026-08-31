@@ -16,6 +16,7 @@ import kotlinx.serialization.Serializable
 // token is missing" and the one-click additive re-grant.
 //
 // Backend routes (TwitchDiagnosticsController, Authorization: Bearer):
+//   GET  /api/v1/twitch/diagnostics/scopes          →  StatusResponseDto<TwitchScopeDiagnosticsDto>
 //   GET  /api/v1/twitch/diagnostics/missing-scopes  →  StatusResponseDto<MissingScopesDto>
 //   POST /api/v1/twitch/diagnostics/regrant         →  StatusResponseDto<ScopeRegrantStartDto>
 //
@@ -23,6 +24,12 @@ import kotlinx.serialization.Serializable
 // code + verification URL and polls the NORMAL streamer device poll (AuthApi.pollDeviceLogin) — on approval the
 // widened grant reconciles server-side and the gaps clear. No new poll endpoint, no manual back-fill.
 interface TwitchDiagnosticsApi {
+    /**
+     * The full scope/feature matrix (S070): every declared+residual scope, the feature(s) it gates, and
+     * whether the connection currently holds it — the read model behind the Settings "Permissions" section.
+     */
+    suspend fun scopeDiagnostics(): ApiResult<TwitchScopeDiagnostics>
+
     /** The channel's outstanding Twitch scope gaps; an empty list means the token holds everything offered. */
     suspend fun missingScopes(): ApiResult<MissingScopes>
 
@@ -37,6 +44,9 @@ interface TwitchDiagnosticsApi {
 }
 
 class RestTwitchDiagnosticsApi(private val client: ApiClient) : TwitchDiagnosticsApi {
+    override suspend fun scopeDiagnostics(): ApiResult<TwitchScopeDiagnostics> =
+        client.getEnvelope("api/v1/twitch/diagnostics/scopes")
+
     override suspend fun missingScopes(): ApiResult<MissingScopes> =
         client.getEnvelope("api/v1/twitch/diagnostics/missing-scopes")
 
@@ -53,6 +63,30 @@ class RestTwitchDiagnosticsApi(private val client: ApiClient) : TwitchDiagnostic
     override suspend fun reconcile(channelId: String): ApiResult<EventSubReconcileReport> =
         client.postEnvelope("api/v1/channels/$channelId/eventsub/reconcile")
 }
+
+/**
+ * The full scope/feature matrix (`TwitchScopeDiagnosticsDto`): the connection status, every scope the
+ * connection currently holds, and one requirement row per (feature, scope) pair.
+ */
+@Serializable
+data class TwitchScopeDiagnostics(
+    val connectionStatus: String = "",
+    val grantedScopes: List<String> = emptyList(),
+    val requirements: List<TwitchScopeRequirement> = emptyList(),
+)
+
+/**
+ * One row of the scope/feature matrix (`TwitchScopeRequirementDto`): a scope a feature needs, whether the
+ * connection currently holds it, and the feature that gates its request.
+ */
+@Serializable
+data class TwitchScopeRequirement(
+    val scope: String,
+    val feature: String,
+    val granted: Boolean,
+    val isProgressive: Boolean = true,
+    val gatedByFeature: String? = null,
+)
 
 /**
  * The channel's outstanding Twitch scope gaps (`MissingScopesDto`). [scopes] is the deduplicated set the

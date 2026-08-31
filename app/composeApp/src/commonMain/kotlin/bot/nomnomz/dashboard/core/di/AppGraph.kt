@@ -200,6 +200,7 @@ import bot.nomnomz.dashboard.feature.settings.state.JournalPortabilityController
 import bot.nomnomz.dashboard.feature.settings.state.EngagementController
 import bot.nomnomz.dashboard.feature.settings.state.BasicsController
 import bot.nomnomz.dashboard.feature.settings.state.PersonalityController
+import bot.nomnomz.dashboard.feature.settings.state.PermissionsController
 import bot.nomnomz.dashboard.feature.settings.state.SettingsController
 import bot.nomnomz.dashboard.feature.shell.state.ChannelSwitcherController
 import bot.nomnomz.dashboard.feature.shell.state.ShellAccessController
@@ -534,6 +535,9 @@ class AppGraph {
         BasicsController(channelsApi = channelsApi, settingsApi = channelSettingsApi)
 
     val engagementController: EngagementController = EngagementController(api = engagementApi)
+
+    val permissionsController: PermissionsController =
+        PermissionsController(diagnosticsApi = twitchDiagnosticsApi, authApi = authApi)
 
     val channelBotController: ChannelBotController = ChannelBotController(channelsApi = channelsApi)
 

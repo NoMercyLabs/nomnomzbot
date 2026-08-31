@@ -994,6 +994,9 @@ private class FakeTwitchDiagnosticsApi(
     var connectionStatus: String = "connected",
     private val fail: Boolean = false,
 ) : TwitchDiagnosticsApi {
+    override suspend fun scopeDiagnostics() =
+        ApiResult.Failure(ApiError(0, "UNUSED", "scope diagnostics not exercised in these tests"))
+
     override suspend fun missingScopes(): ApiResult<MissingScopes> =
         if (fail) ApiResult.Failure(ApiError(404, "NOT_FOUND", "no twitch connection"))
         else ApiResult.Ok(MissingScopes(connectionStatus = connectionStatus))

@@ -1198,6 +1198,16 @@
     <string name="settings_channel_bot_scopes_title">Broadcaster-machtigingen</string>
     <string name="settings_channel_bot_scopes_granted">%1$d / %2$d verleend</string>
     <string name="settings_channel_bot_scopes_empty">Geen machtigingsgegevens beschikbaar</string>
+    <string name="settings_permissions_section">Rechten</string>
+    <string name="settings_permissions_subtitle">Elk Twitch-recht dat een functie kan gebruiken, en of je verbinding dit al toestaat.</string>
+    <string name="settings_permissions_load_error">Kon je rechten niet laden: %1$s</string>
+    <string name="settings_permissions_granted">Toegestaan</string>
+    <string name="settings_permissions_missing">Niet toegestaan</string>
+    <string name="settings_permissions_regrant">Ontbrekende rechten toekennen</string>
+    <string name="settings_permissions_regrant_error">Kon opnieuw toekennen niet starten: %1$s</string>
+    <string name="settings_permissions_regrant_code">Voer deze code in op %2$s: %1$s</string>
+    <string name="settings_permissions_regrant_cancel">Annuleren</string>
+    <string name="settings_permissions_all_granted">Alle rechten zijn toegekend.</string>
     <string name="economy_loading">Je economie laden…</string>
     <string name="economy_error">Kon je economie niet laden: %1$s</string>
     <string name="economy_retry">Opnieuw proberen</string>

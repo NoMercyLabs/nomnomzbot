@@ -665,6 +665,7 @@ private fun ShellContent(
                     basicsController = graph.basicsController,
                     engagementController = graph.engagementController,
                     emojiStyleController = graph.emojiStyleController,
+                    permissionsController = graph.permissionsController,
                     role = role,
                     onChannelDeleted = onChannelDeleted,
                 )
