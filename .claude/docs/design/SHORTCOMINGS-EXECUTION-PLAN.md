@@ -544,10 +544,15 @@ later.)
   reporting a platform failure cleanly if that call fails. 5 new tests, all assert the real row/reply,
   not "no exception".
 - **S069** Bot voice everywhere — tone applied to custom commands/timers/event responses/chat triggers/
-  `send_message`; tone slots for usage/errors; one reply-or-mention helper;
-  permit via identity path; whisper-with-fallback for GDPR + inbound whisper handler; `announce`
-  action/toggle; tone catalogue per locale (U·C7, K copy). Done-when: same `!sr` sounds the same from
+  `send_message`; tone slots for usage/errors;
+  permit via identity path; whisper-with-fallback for GDPR + inbound whisper handler;
+  tone catalogue per locale (U·C7, K copy). Done-when: same `!sr` sounds the same from
   builtin and pipeline; sassy channel has sassy errors.
+  **One reply-or-mention helper DONE, verified (e3463e7e)**: only 2 real duplicate call sites found
+  (`SendReplyAction.cs`, `ChatMessageHandler.SendResponseAsync`) — both already used the identical
+  fallback format and shape, no inconsistency to resolve, pure consolidation. New
+  `ReplyOrMentionComposer.Compose` (mirrors the `MentionParser` static-helper pattern) repoints both. 3
+  new tests + 46 existing regression tests unmodified and passing.
   **One `ParseUserMention` DONE, verified (2a05e4de)**: found 10 independent inline mention-parsing call
   sites (not 3-4 as guessed), all consistent behavior (trim + strip one leading `@`), extracted into
   `NomNomzBot.Application.Commands.Builtin.MentionParser.ParseUserMention` and repointed every site 1:1
