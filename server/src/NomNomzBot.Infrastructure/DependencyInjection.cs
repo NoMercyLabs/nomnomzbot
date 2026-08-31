@@ -969,6 +969,9 @@ public static class DependencyInjection
         // IEnumerable<IBuiltinCommand> from the DI container within each request scope.
         services.AddScoped<IBuiltinCommand, Commands.Builtins.UptimeBuiltin>();
         services.AddScoped<IBuiltinCommand, Commands.Builtins.UpdateUserInfoBuiltin>();
+        services.AddScoped<IBuiltinCommand, Commands.Builtins.LurkBuiltin>();
+        services.AddScoped<IBuiltinCommand, Commands.Builtins.UnlurkBuiltin>();
+        services.AddScoped<IBuiltinCommand, Commands.Builtins.AccountAgeBuiltin>();
         services.AddScoped<IBuiltinCommand, Quotes.Builtins.QuoteBuiltin>();
         services.AddScoped<IBuiltinCommand, Commands.Builtins.SongRequestBuiltin>();
         services.AddScoped<IBuiltinCommand, Commands.Builtins.SkipBuiltin>();

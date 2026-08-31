@@ -109,5 +109,9 @@ public class User : BaseEntity
 
     public bool PronounManualOverride { get; set; }
 
+    // Session-local chat flag: the viewer typed !lurk and is watching without chatting. Toggled by
+    // the !lurk/!unlurk builtins; not persisted history, just the current state (legacy-parity S068a).
+    public bool IsLurking { get; set; }
+
     public virtual Channel? Channel { get; set; }
 }
