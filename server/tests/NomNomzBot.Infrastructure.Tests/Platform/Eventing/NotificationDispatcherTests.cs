@@ -17,9 +17,11 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.EventStore;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.DTOs.Twitch.EventSub;
+using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Twitch.Events;
 using NomNomzBot.Infrastructure.EventStore;
 using NomNomzBot.Infrastructure.Platform.Eventing;
+using NomNomzBot.Infrastructure.Platform.Eventing.Translators;
 using NomNomzBot.Infrastructure.Tests.EventStore;
 using NomNomzBot.Infrastructure.Tests.Platform.Transport.Helix;
 using NSubstitute;
@@ -232,6 +234,72 @@ public sealed class NotificationDispatcherTests
         // The redelivery is deduped (same message-id ⇒ same EventId) and must NOT fan out a second time.
         await dispatcher.DispatchAsync(Notification(tenant, "follow-msg"));
         translator.Calls.Should().Be(1, "a duplicate already fanned out on its first delivery");
+    }
+
+    [Fact]
+    public async Task Dispatch_InboundWhisper_IsJournaled_AndPublishesWhisperReceivedEvent()
+    {
+        // The bot can only SEND whispers via IPlatformDirectMessageSender/!whisper; there is no chat-channel
+        // handler for a whisper a viewer sends TO the bot. This proves the generic dispatcher still journals
+        // it (never silently dropped) and fans out to the typed domain event, using the real Twitch sample
+        // payload shape (EventSamplePayloads["chat.whisper.received"]).
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        Guid tenant = Guid.NewGuid();
+        CapturingEventBus bus = new();
+        UserWhisperMessageTranslator translator = new(bus, Clock);
+
+        await using EventStoreTestDbContext db = database.NewContext();
+        NotificationDispatcher dispatcher = new(
+            NewJournal(db),
+            bus,
+            new EventSubTranslatorRegistry([translator]),
+            Clock,
+            NullLogger<NotificationDispatcher>.Instance
+        );
+
+        Result<NotificationDispatchResult> result = await dispatcher.DispatchAsync(
+            Notification(
+                tenant,
+                "whisper-msg-1",
+                type: "user.whisper.message",
+                payload: """
+                {
+                    "from_user_id": "12826",
+                    "from_user_login": "twitch",
+                    "from_user_name": "Twitch",
+                    "to_user_id": "141981764",
+                    "to_user_login": "twitchdev",
+                    "to_user_name": "TwitchDev",
+                    "whisper_id": "3c4719ba-fe16-4c75-8f00-78142a375cf1",
+                    "whisper": { "text": "I have a secret to tell you!" }
+                }
+                """
+            )
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+
+        // The raw whisper payload is a real, queryable journal row — not silently dropped.
+        Result<EventRecord> stored = await NewJournal(db).GetByEventIdAsync(result.Value.EventId);
+        stored.IsSuccess.Should().BeTrue();
+        stored.Value.EventType.Should().Be("user.whisper.message");
+        stored.Value.BroadcasterId.Should().Be(tenant);
+        JsonDocument
+            .Parse(stored.Value.PayloadJson)
+            .RootElement.GetProperty("whisper")
+            .GetProperty("text")
+            .GetString()
+            .Should()
+            .Be("I have a secret to tell you!", "the raw whisper body is persisted verbatim");
+
+        // It also fans out to the typed domain event carrying the whisper content.
+        WhisperReceivedEvent whisper = bus.EventsOf<WhisperReceivedEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject;
+        whisper.WhisperId.Should().Be("3c4719ba-fe16-4c75-8f00-78142a375cf1");
+        whisper.FromUserLogin.Should().Be("twitch");
+        whisper.Text.Should().Be("I have a secret to tell you!");
     }
 
     /// <summary>A translator that records how often it was invoked, for the fan-out routing test.</summary>
