@@ -576,8 +576,13 @@ later.)
   Remaining S069 scope (custom commands/timers/event responses/chat triggers tone, usage/error tone
   slots, reply-or-mention helper, GDPR whisper-with-fallback, inbound whisper handler, per-locale tone
   catalogue) is still open.
-- **S070** Settings + onboarding truth —
-  swallowed regrant/reconcile failures (U·B6).
+- **S070** Settings + onboarding truth (U·B6) — fully CLOSED this session.
+  **Swallowed regrant/reconcile failures DONE, verified (f8930c74)**:
+  `IntegrationTokenVault.StoreTokensAsync` awaited `IScopeGrantService.ReconcileGrantedScopesAsync` and
+  discarded the `Result` — a reconcile failure (connection vanished mid-refresh, `NOT_FOUND`) was
+  invisible, `StoreTokensAsync` always fell through to `Result.Success()`. Now captures and propagates
+  the real failure; no refreshed-token event fires on a failed store. Frontend was already correct — no
+  fix needed there. Test proved red before, green after.
   **Copy fixes CLOSED — verified clean, no changes needed**: audited `SetupWizardScreen.kt`,
   `SettingsScreen.kt`, both `strings.xml` files against all 5 sibling behavior changes this session
   (botLinePrefix, applyBasics failure, timezone, scope-feature-map/regrant, auto-join) — every string
