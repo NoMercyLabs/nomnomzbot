@@ -104,6 +104,9 @@
     <string name="setup_basics_locale_hint">BCP-47 code, e.g. en or nl. Leave blank to use the channel default.</string>
     <string name="setup_basics_timezone">Timezone</string>
     <string name="setup_basics_timezone_hint">IANA name, e.g. Europe/Amsterdam. Optional.</string>
+    <string name="setup_basics_bot_line_prefix">Bot line prefix</string>
+    <string name="setup_basics_bot_line_prefix_hint">Marks lines the bot sends through your own account while it has no dedicated bot account connected, e.g. * before a bot-sent message. Optional.</string>
+    <string name="setup_basics_bot_line_prefix_disabled_note">A dedicated bot account is connected, so it types as itself — the line prefix no longer applies.</string>
     <string name="setup_review_status_done">Configured</string>
     <string name="setup_review_status_skipped">Skipped (optional)</string>
     <string name="setup_review_status_pending">Not configured</string>

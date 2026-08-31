@@ -273,6 +273,13 @@ class SetupController(
     // Resolve the signed-in streamer's channel and PUT the collected basics. A blank prefix falls back to the
     // conventional "!" so onboarding never persists an empty (match-everything) prefix; blank locale/timezone
     // are sent as null (leave unchanged). Silent on failure — this is a nice-to-have, not a setup gate.
+    //
+    // The bot-line marker (D5: "the bot types as the streamer's own account with a user-defined line prefix"
+    // until a dedicated bot account connects) is a SEPARATE field from the command prefix above — it must
+    // never be conflated with it. Mirrors the same "connected ⇒ marker is meaningless" rule the Settings
+    // "Bot basics" tab enforces (SettingsScreen.kt BasicsForm): once the platform_bot step is complete, the
+    // marker is left unchanged (null) rather than overwritten with whatever the user typed before connecting;
+    // otherwise the trimmed value the user entered on the review step is persisted as the actual line prefix.
     private suspend fun applyBasics() {
         val channel: ChannelSummary =
             when (val result: ApiResult<ChannelSummary> = channelsApi.primaryChannel()) {
@@ -280,12 +287,14 @@ class SetupController(
                 is ApiResult.Ok -> result.value
             }
         val prefix: String = basics.prefix.trim().ifEmpty { "!" }
+        val platformBotConnected: Boolean = (_state.value as? SetupState.Steps)?.platformBotConnected == true
         channelSettingsApi.updateBasics(
             channel.id,
             UpdateBasicsBody(
                 prefix = prefix,
                 locale = basics.locale.trim().ifEmpty { null },
                 timezone = basics.timezone.trim().ifEmpty { null },
+                botLinePrefix = if (platformBotConnected) null else basics.botLinePrefix.trim(),
             ),
         )
     }
@@ -313,6 +322,11 @@ class SetupController(
         val lastIndex: Int = wizard.steps.size // backend steps + 1 review step ⇒ last valid index == size
         val currentStep: Int = priorStep.coerceIn(0, lastIndex)
 
+        // The backend's re-read truth for whether a dedicated bot account is connected (never an optimistic
+        // flip) — used at applyBasics() time to decide whether the bot-line prefix the user typed still
+        // applies (D5), the same "connected ⇒ marker is meaningless" rule the Settings "Bot basics" tab uses.
+        val platformBotConnected: Boolean = wizard.steps.find { it.key == STEP_PLATFORM_BOT }?.complete == true
+
         _state.value =
             SetupState.Steps(
                 steps = wizard.steps,
@@ -322,6 +336,7 @@ class SetupController(
                 error = error,
                 currentStep = currentStep,
                 basics = basics,
+                platformBotConnected = platformBotConnected,
             )
     }
 
@@ -383,6 +398,11 @@ sealed interface SetupState {
         // The in-flight bot device login (user code + verification link) while [connectBot] polls; null
         // when no bot login is in progress.
         val botDevice: BotDeviceState? = null,
+        // The backend's re-read truth (never an optimistic flip) for whether a dedicated bot account is
+        // connected — the "platform_bot" step's [SetupStep.complete]. Gates whether the review step's
+        // bot-line-prefix field is meaningful (D5): once a dedicated bot is connected it types as itself
+        // and the marker no longer applies.
+        val platformBotConnected: Boolean = false,
     ) : SetupState {
         /** The index of the trailing review/finish step (one past the last backend step). */
         val reviewIndex: Int get() = steps.size
@@ -413,13 +433,16 @@ sealed interface SetupState {
 
 /**
  * The onboarding "basics" a new streamer fills on the review step: the command [prefix] (defaults to the
- * conventional "!"), the bot's default [locale], and the streamer's [timezone]. Applied to the channel at
- * finish() once signed in.
+ * conventional "!"), the bot's default [locale], the streamer's [timezone], and the [botLinePrefix] (D5) —
+ * the marker prepended to bot-typed lines while the bot posts through the streamer's own account (blank ⇒
+ * no marker). Applied to the channel at finish() once signed in; [botLinePrefix] is ignored (left unchanged)
+ * once a dedicated bot account is connected, since the marker no longer means anything at that point.
  */
 data class SetupBasics(
     val prefix: String = "!",
     val locale: String = "",
     val timezone: String = "",
+    val botLinePrefix: String = "",
 )
 
 /** Why a setup action failed — mapped to a localized message in the screen. */
