@@ -485,12 +485,28 @@ later.)
   enum lists from API, rate policy, `RequestedBy`, hub-driven reloads, polling fan-out, cost/duration/
   cooldown) are still open — tracker stays open for those.
 - **S068** Legacy builtins — `!leaderboard`, `!songhistory`,
-  `!playlist`, `!bansong`, `!whisper`, `!discord` + seeded fun-command preset pack +
+  `!playlist`, `!discord` + seeded fun-command preset pack +
   on-connect announcement (U·C7). Done-when: a fresh channel has every legacy command or a seed for it.
+  **`!bansong`/`!whisper` DONE, verified (001aed7b)**: both reuse existing domain capability
+  (`IBlockedTrackService.BlockAsync` off the real `GetNowPlayingAsync` track, `IPlatformDirectMessageSender`
+  via `ITwitchUsersApi.GetUsersByLoginsAsync`-resolved id) — no new domain state invented. `!discord`
+  found genuinely unbuildable: no invite-link concept exists anywhere in the Discord domain
+  (`IDiscordGuildService`/`DiscordGuildDirectoryService` have no invite-URL field), tracked as its own
+  future backend gap, not a chat-builtin task. 5 tests, real side effects asserted.
   **`!help`/`!commands` DONE, verified (1ac80938)**: both reuse the existing `ICommandService`/
   `IBuiltinCommandService` read paths (no duplicated query logic); `!commands` merges enabled custom +
   builtin command names; `!help <name>` resolves the real `CommandDto.Description`, falls back sanely
-  for builtins/unknowns. 5 tests, real service data not hardcoded strings.
+  for builtins/unknowns. 5 tests, real service data not hardcoded strings. **Caught + fixed in the same
+  session**: neither was actually registered in DI, so both were unreachable from real chat despite
+  green tests — `CommandsBuiltin`/`HelpBuiltin` added to `DependencyInjection.cs`'s
+  `IBuiltinCommand` registrations (ae2629e0). Lesson: a builtin's test suite passing does not prove it's
+  wired — always confirm the DI registration line exists too.
+  **Bot-voice tone parity for all 4 legacy builtins DONE, verified (d5905b10)**: `CommandsBuiltin`/
+  `HelpBuiltin`/`LurkBuiltins`/`AccountAgeBuiltin` replied with hardcoded, tone-less strings; now routed
+  through the same `IBuiltinResponseComposer` pipeline actions use, with new `ToneTemplateCatalog` slots
+  for each (5 tone variants each). Error/unresolved-account strings stay neutral per the codebase's own
+  convention. 14 tests, sassy-vs-informative variants asserted as real catalog content not the old
+  literal string.
   **`!lurk`/`!unlurk`/`!accountage` DONE, verified (042a3b1f)**: `User.IsLurking` (new field, both
   migration projects) flipped by the two new builtins with a confirming reply; `!accountage` resolves
   `created_at` from an already-hydrated row or falls back to a live Helix Get Users call and persists it,
