@@ -1986,6 +1986,7 @@
     <string name="giveaways_dialog_code_pool_label">Codevoorraad</string>
     <string name="giveaways_dialog_code_pool_none">Nog geen codevoorraden — maak er een aan in de sectie hieronder.</string>
     <string name="giveaways_dialog_code_pool_placeholder">Kies een codevoorraad.</string>
+    <string name="giveaways_dialog_code_pool_exhausted">%1$s (geen codes meer over)</string>
     <string name="giveaways_dialog_create">Aanmaken</string>
     <string name="giveaways_dialog_save">Opslaan</string>
     <string name="giveaways_winners_title">%1$s — winnaars</string>
