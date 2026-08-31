@@ -341,15 +341,13 @@ later.)
   used to cite no longer exists. **Chat variants DONE, verified (4de105a4)**: `chat_box.vue` now
   renders role accent/badge (broadcaster/mod/vip/sub, highest wins), cheer/bits amount + gold accent,
   a reply quote preview, and a platform badge for non-Twitch messages — all from fields already on
-  `DashboardChatMessageDto`. `/me` action messages found genuinely unbuildable this pass: the DTO
-  carries no `IsAction`/action flag anywhere in the chat pipeline (confirmed via grep, zero hits) —
-  tracked as **S060-action-messages**, now BLOCKED 🔒: verified against live Twitch EventSub docs that
-  `channel.chat.message`'s `message_type` enum has no action/CTCP-ACTION value at all (`text |
-  channel_points_highlighted | channel_points_sub_only | user_intro | power_ups_message_effect |
-  power_ups_gigantified_emote`) — Twitch dropped `/me` action-message signaling when IRC was retired for
-  this bot; there is nothing to thread from Twitch. Owner call needed: (a) accept `/me` styling is N/A
-  for Twitch and close this, or (b) point to another upstream signal once Kick/YouTube chat-read exists.
-  **Confirmed still open**: desktop (JVM) parity — the desktop `ProjectEditor` is a Swing dialog with no live
+  `DashboardChatMessageDto`. **`/me` action-message styling CLOSED N/A for Twitch (owner call
+  2026-08-31)**: Twitch EventSub's `channel.chat.message` `message_type` enum has no action/CTCP-ACTION
+  value at all (`text | channel_points_highlighted | channel_points_sub_only | user_intro |
+  power_ups_message_effect | power_ups_gigantified_emote`) — Twitch dropped `/me` action-message
+  signaling when IRC was retired for this bot; nothing to thread. Revisit only if Kick/YouTube
+  chat-read ships and carries an equivalent.
+  **Desktop (JVM) fire-bar parity — DEFERRED, not a priority (owner call 2026-08-31)**: the desktop `ProjectEditor` is a Swing dialog with no live
   preview/DOM to fire into at all, needs a product decision on what "desktop gets the bar" even means
   before it's buildable, not a mechanical port (🔒 owner call).
   **Also found and fixed, not part of this plan item but critical**: `PipelinesController.kt` used
