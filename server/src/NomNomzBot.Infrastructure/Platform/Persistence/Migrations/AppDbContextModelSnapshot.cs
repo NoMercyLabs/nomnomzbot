@@ -4117,6 +4117,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<Guid?>("PrizePipelineId")
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("Requires18Plus")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)

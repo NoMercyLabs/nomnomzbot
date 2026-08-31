@@ -49,6 +49,7 @@ public sealed class GiveawayService : IGiveawayService
     private readonly IEventBus _bus;
     private readonly ICurrencyAccountService _accounts;
     private readonly IGiveawayFulfillment _fulfillment;
+    private readonly IAgeConsentService _ageConsent;
     private readonly TimeProvider _clock;
     private readonly ILogger<GiveawayService> _logger;
 
@@ -58,6 +59,7 @@ public sealed class GiveawayService : IGiveawayService
         IEventBus bus,
         ICurrencyAccountService accounts,
         IGiveawayFulfillment fulfillment,
+        IAgeConsentService ageConsent,
         TimeProvider clock,
         ILogger<GiveawayService> logger
     )
@@ -67,6 +69,7 @@ public sealed class GiveawayService : IGiveawayService
         _bus = bus;
         _accounts = accounts;
         _fulfillment = fulfillment;
+        _ageConsent = ageConsent;
         _clock = clock;
         _logger = logger;
     }
@@ -280,6 +283,25 @@ public sealed class GiveawayService : IGiveawayService
         );
         if (eligible.IsFailure)
             return Result.Failure<GiveawayEntryDto>(eligible.ErrorMessage!, eligible.ErrorCode);
+
+        // The value-out gate (D5) engages ONLY when the broadcaster turned it on — Validate() already
+        // refused a paid code_pool giveaway that didn't, so reaching here with EntryCost > 0 on a code_pool
+        // giveaway means Requires18Plus is true.
+        if (giveaway.Requires18Plus)
+        {
+            Result<bool> granted = await _ageConsent.HasGrantedAsync(
+                broadcasterId,
+                viewerUserId,
+                ct
+            );
+            if (granted.IsFailure)
+                return Result.Failure<GiveawayEntryDto>(granted.ErrorMessage, granted.ErrorCode);
+            if (!granted.Value)
+                return Result.Failure<GiveawayEntryDto>(
+                    "This giveaway requires confirming you are 18 or older.",
+                    "AGE_CONSENT_REQUIRED"
+                );
+        }
 
         // MaxEntriesPerUser is a config surface, but the unique (GiveawayId, ViewerUserId) key means one
         // ROW per viewer — the cap gates whether a repeat attempt is an error or a friendly no-op.
@@ -860,6 +882,18 @@ public sealed class GiveawayService : IGiveawayService
         if (request is { PrizeMode: GiveawayPrizeMode.CodePool, PrizeCodePoolId: null })
             return Result.Failure("Code-pool mode needs a code pool.", "VALIDATION_FAILED");
 
+        // Value-out gate (D5, same rule as economy.md §3.5 / live-games.md D8): a code_pool prize has
+        // real-world value, so charging entry for a chance at it is gambling. Refuse unless the broadcaster
+        // explicitly turned the 18+ gate on for this giveaway — free code_pool giveaways stay ungated.
+        if (
+            request is
+            { PrizeMode: GiveawayPrizeMode.CodePool, EntryCost: > 0, Requires18Plus: false }
+        )
+            return Result.Failure(
+                "A paid code-pool giveaway has real-world value — turn on the 18+ gate or make entry free.",
+                "VALUE_OUT_PAID_ENTRY"
+            );
+
         // require_follower cannot be verified truthfully yet (no follower standing and no single-user
         // Helix follow check in the client) — reject loudly instead of silently ignoring it.
         if (
@@ -895,6 +929,7 @@ public sealed class GiveawayService : IGiveawayService
         giveaway.PrizeFromPot = request.PrizeFromPot;
         giveaway.PrizePipelineId = request.PrizePipelineId;
         giveaway.PrizeCodePoolId = request.PrizeCodePoolId;
+        giveaway.Requires18Plus = request.Requires18Plus;
     }
 
     private Task<Giveaway?> FindAsync(Guid broadcasterId, Guid giveawayId, CancellationToken ct) =>
@@ -951,6 +986,7 @@ public sealed class GiveawayService : IGiveawayService
             g.PrizeFromPot,
             g.PrizePipelineId,
             g.PrizeCodePoolId,
+            g.Requires18Plus,
             g.Status,
             g.OpenedAt,
             g.ClosesAt,

@@ -63,6 +63,14 @@ public class Giveaway : SoftDeletableEntity, ITenantScoped
 
     public Guid? PrizeCodePoolId { get; set; }
 
+    /// <summary>
+    /// The value-out gate (D5, same rule as economy.md §3.5 / live-games.md D8): a <c>code_pool</c> prize has
+    /// real-world value, so a <c>code_pool</c> giveaway with <c>EntryCost &gt; 0</c> is refused at create/update
+    /// unless this is explicitly turned on, and every entrant must then pass the 18+ age-consent gate. Free-entry
+    /// <c>code_pool</c> giveaways and every other prize mode ignore this flag entirely.
+    /// </summary>
+    public bool Requires18Plus { get; set; }
+
     /// <summary><c>draft</c> | <c>open</c> | <c>closed</c> | <c>drawn</c> | <c>archived</c>.</summary>
     public string Status { get; set; } = GiveawayStatus.Draft;
 

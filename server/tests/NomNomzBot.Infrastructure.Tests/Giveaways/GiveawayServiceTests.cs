@@ -46,10 +46,13 @@ public sealed class GiveawayServiceTests
         AuthDbContext Db,
         ICurrencyAccountService Accounts,
         IGiveawayFulfillment Fulfillment,
-        IEventBus Bus
+        IEventBus Bus,
+        IAgeConsentService AgeConsent
     );
 
-    private static Harness Build()
+    // Defaults to a passing age-consent gate so every test that doesn't care about D5 stays unaffected;
+    // the value-out-gate tests override this per case.
+    private static Harness Build(bool ageConsentGranted = true)
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Channels.Add(
@@ -81,6 +84,10 @@ public sealed class GiveawayServiceTests
         IGiveawayFulfillment fulfillment = Substitute.For<IGiveawayFulfillment>();
         IEventBus bus = Substitute.For<IEventBus>();
         IUnitOfWork unitOfWork = new PassThroughUnitOfWork();
+        IAgeConsentService ageConsent = Substitute.For<IAgeConsentService>();
+        ageConsent
+            .HasGrantedAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(ageConsentGranted));
 
         GiveawayService service = new(
             db,
@@ -88,10 +95,11 @@ public sealed class GiveawayServiceTests
             bus,
             accounts,
             fulfillment,
+            ageConsent,
             TimeProvider.System,
             NullLogger<GiveawayService>.Instance
         );
-        return new(service, db, accounts, fulfillment, bus);
+        return new(service, db, accounts, fulfillment, bus, ageConsent);
     }
 
     private static CurrencyLedgerEntryDto LedgerEntry(long id) =>
@@ -214,6 +222,108 @@ public sealed class GiveawayServiceTests
 
         created.IsFailure.Should().BeTrue("an unenforceable filter must never be silently ignored");
         created.ErrorCode.Should().Be("VALIDATION_FAILED");
+    }
+
+    [Fact]
+    public async Task A_paid_code_pool_giveaway_is_refused_unless_the_18plus_gate_is_on()
+    {
+        Harness harness = Build();
+
+        Result<GiveawayDto> refused = await harness.Service.CreateAsync(
+            Tenant,
+            new(
+                "Keys For Points",
+                GiveawayEntryMode.Keyword,
+                Keyword: "!win",
+                EntryCost: 25,
+                PrizeMode: GiveawayPrizeMode.CodePool,
+                PrizeCodePoolId: Guid.CreateVersion7()
+            ),
+            CancellationToken.None
+        );
+
+        refused
+            .IsFailure.Should()
+            .BeTrue("a code_pool prize has real-world value — charging entry for it is gambling");
+        refused.ErrorCode.Should().Be("VALUE_OUT_PAID_ENTRY");
+
+        Result<GiveawayDto> accepted = await harness.Service.CreateAsync(
+            Tenant,
+            new(
+                "Keys For Points (gated)",
+                GiveawayEntryMode.Keyword,
+                Keyword: "!win2",
+                EntryCost: 25,
+                PrizeMode: GiveawayPrizeMode.CodePool,
+                PrizeCodePoolId: Guid.CreateVersion7(),
+                Requires18Plus: true
+            ),
+            CancellationToken.None
+        );
+
+        accepted.IsSuccess.Should().BeTrue(accepted.ErrorMessage);
+        accepted.Value.Requires18Plus.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Entering_a_gated_giveaway_without_age_consent_is_rejected()
+    {
+        Harness harness = Build(ageConsentGranted: false);
+        Guid giveawayId = await SeedOpenGiveawayAsync(
+            harness,
+            new(
+                "Keys For Points",
+                GiveawayEntryMode.Keyword,
+                Keyword: "!win",
+                EntryCost: 25,
+                PrizeMode: GiveawayPrizeMode.CodePool,
+                PrizeCodePoolId: Guid.CreateVersion7(),
+                Requires18Plus: true
+            )
+        );
+        Guid viewer = SeedViewer(harness.Db, "111");
+
+        Result<GiveawayEntryDto> entered = await harness.Service.EnterAsync(
+            Tenant,
+            giveawayId,
+            viewer,
+            CancellationToken.None
+        );
+
+        entered.IsFailure.Should().BeTrue();
+        entered.ErrorCode.Should().Be("AGE_CONSENT_REQUIRED");
+        harness
+            .Db.GiveawayEntries.Any()
+            .Should()
+            .BeFalse("a gated entry must never be minted without consent");
+    }
+
+    [Fact]
+    public async Task Entering_a_gated_giveaway_with_age_consent_succeeds()
+    {
+        Harness harness = Build(ageConsentGranted: true);
+        Guid giveawayId = await SeedOpenGiveawayAsync(
+            harness,
+            new(
+                "Keys For Points",
+                GiveawayEntryMode.Keyword,
+                Keyword: "!win",
+                EntryCost: 25,
+                PrizeMode: GiveawayPrizeMode.CodePool,
+                PrizeCodePoolId: Guid.CreateVersion7(),
+                Requires18Plus: true
+            )
+        );
+        Guid viewer = SeedViewer(harness.Db, "111");
+
+        Result<GiveawayEntryDto> entered = await harness.Service.EnterAsync(
+            Tenant,
+            giveawayId,
+            viewer,
+            CancellationToken.None
+        );
+
+        entered.IsSuccess.Should().BeTrue(entered.ErrorMessage);
     }
 
     [Fact]

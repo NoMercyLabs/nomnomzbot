@@ -714,6 +714,7 @@ public class ExpandedBlastRadiusTests
             Substitute.For<IEventBus>(),
             Substitute.For<ICurrencyAccountService>(),
             Substitute.For<IGiveawayFulfillment>(),
+            Substitute.For<IAgeConsentService>(),
             Clock,
             NullLogger<GiveawayService>.Instance
         );
