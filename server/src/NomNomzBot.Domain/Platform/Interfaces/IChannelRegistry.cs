@@ -104,6 +104,14 @@ public class ChannelContext
     public string CommandPrefix { get; set; } = "!";
 
     /// <summary>
+    /// The channel owner's IANA/Windows timezone id (<c>User.Timezone</c>, set in the setup wizard /
+    /// Settings → Bot basics), or null when unset. Read by <c>TemplateResolver</c> to render
+    /// <c>{time}</c>/<c>{date}</c> in the streamer's local time instead of UTC; refresh via
+    /// <see cref="IChannelRegistry.InvalidateSettingsAsync"/>.
+    /// </summary>
+    public string? Timezone { get; set; }
+
+    /// <summary>
     /// Per-channel built-in response-template overrides: key = the built-in's bare catalog key (lowercase,
     /// no leading "!"), value = the override template parsed from <c>ChannelBuiltinCommand.OverridesJson</c>.
     /// Absence = no override (fall back to the tone template). Populated by <c>ChannelRegistry</c> alongside
