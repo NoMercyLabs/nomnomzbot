@@ -9,10 +9,13 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Commands.Builtins;
 using NSubstitute;
 
@@ -21,11 +24,15 @@ namespace NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 /// <summary>
 /// <c>!help</c> (legacy parity, S068b) with a command name must answer from that command's REAL, queried
 /// <see cref="CommandDto.Description"/> — not a hardcoded string — and fall back sanely (to the generic
-/// enabled-trigger listing) for an unknown name.
+/// enabled-trigger listing) for an unknown name. Both branches render in the channel's personality tone
+/// (S069a).
 /// </summary>
 public sealed class HelpBuiltinTests
 {
-    private static BuiltinCommandContext Context(string args = "") =>
+    private static BuiltinCommandContext Context(
+        string args = "",
+        string personality = PersonalityTone.Informative
+    ) =>
         new()
         {
             BroadcasterId = Guid.CreateVersion7(),
@@ -33,7 +40,30 @@ public sealed class HelpBuiltinTests
             TriggeringUserDisplayName = "Stoney_Eagle",
             TriggeringUserLogin = "stoney_eagle",
             Args = args,
+            Personality = personality,
         };
+
+    private static IBuiltinResponseComposer FakeComposer()
+    {
+        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
+        resolver
+            .ResolveAsync(
+                Arg.Any<string>(),
+                Arg.Any<IDictionary<string, string>>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(call =>
+            {
+                string template = call.ArgAt<string>(0);
+                foreach (
+                    KeyValuePair<string, string> kvp in call.ArgAt<IDictionary<string, string>>(1)
+                )
+                    template = template.Replace($"{{{kvp.Key}}}", kvp.Value);
+                return Task.FromResult(template);
+            });
+        return new BuiltinResponseComposer(resolver);
+    }
 
     private static CommandDto FakeCommand(string name, string? description) =>
         new(
@@ -76,7 +106,11 @@ public sealed class HelpBuiltinTests
             .GetAsync(Arg.Any<string>(), "sr", Arg.Any<CancellationToken>())
             .Returns(Result.Success(FakeCommand("sr", "Request a song by title or link.")));
 
-        HelpBuiltin help = new(commands, new CommandsBuiltin(commands, EmptyBuiltins()));
+        HelpBuiltin help = new(
+            commands,
+            new CommandsBuiltin(commands, EmptyBuiltins(), FakeComposer()),
+            FakeComposer()
+        );
 
         Result<string> result = await help.ExecuteAsync(Context("sr"));
 
@@ -126,7 +160,11 @@ public sealed class HelpBuiltinTests
                 )
             );
 
-        HelpBuiltin help = new(commands, new CommandsBuiltin(commands, EmptyBuiltins()));
+        HelpBuiltin help = new(
+            commands,
+            new CommandsBuiltin(commands, EmptyBuiltins(), FakeComposer()),
+            FakeComposer()
+        );
 
         Result<string> result = await help.ExecuteAsync(Context("nosuchcommand"));
 
@@ -173,11 +211,58 @@ public sealed class HelpBuiltinTests
                 )
             );
 
-        HelpBuiltin help = new(commands, new CommandsBuiltin(commands, EmptyBuiltins()));
+        HelpBuiltin help = new(
+            commands,
+            new CommandsBuiltin(commands, EmptyBuiltins(), FakeComposer()),
+            FakeComposer()
+        );
 
         Result<string> result = await help.ExecuteAsync(Context());
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().Contain("hug");
+    }
+
+    [Fact]
+    public async Task Sassy_tone_produces_the_sassy_described_variant_not_the_raw_hardcoded_string()
+    {
+        ICommandService commands = Substitute.For<ICommandService>();
+        commands
+            .GetAsync(Arg.Any<string>(), "sr", Arg.Any<CancellationToken>())
+            .Returns(Result.Success(FakeCommand("sr", "Request a song by title or link.")));
+
+        HelpBuiltin help = new(
+            commands,
+            new CommandsBuiltin(commands, EmptyBuiltins(), FakeComposer()),
+            FakeComposer()
+        );
+
+        Result<string> sassy = await help.ExecuteAsync(
+            Context("sr", personality: PersonalityTone.Sassy)
+        );
+        Result<string> informative = await help.ExecuteAsync(
+            Context("sr", personality: PersonalityTone.Informative)
+        );
+
+        string oldHardcodedString = "@Stoney_Eagle !sr: Request a song by title or link.";
+        sassy.Value.Should().NotBe(oldHardcodedString);
+        HashSet<string> sassyVariants =
+        [
+            .. ToneTemplateCatalog
+                .Get(
+                    PersonalityTone.Sassy,
+                    BuiltinResponseSlots.Help.Key,
+                    BuiltinResponseSlots.Help.Described
+                )
+                .Select(t =>
+                    t.Replace("{user}", "Stoney_Eagle")
+                        .Replace("{command}", "sr")
+                        .Replace("{description}", "Request a song by title or link.")
+                ),
+        ];
+        sassyVariants.Should().Contain(sassy.Value);
+
+        // Default tone still reads exactly as it did before this slice (regression).
+        informative.Value.Should().Be(oldHardcodedString);
     }
 }

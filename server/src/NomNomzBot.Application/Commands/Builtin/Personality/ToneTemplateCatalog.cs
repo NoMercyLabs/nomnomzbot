@@ -513,6 +513,86 @@ public static class ToneTemplateCatalog
             ]
         );
 
+        // ── !commands / !help (generic) / list ({user} {commands}) ─────────────
+        Add(
+            catalog,
+            BuiltinResponseSlots.Commands.Key,
+            BuiltinResponseSlots.Commands.List,
+            informative: ["@{user} available commands: {commands}"],
+            friendly:
+            [
+                "@{user} here's what you can use: {commands}",
+                "@{user} happy to help — try one of these: {commands}",
+            ],
+            sassy:
+            [
+                "@{user} the commands are: {commands}. Yes, all of them. Read the whole list this time.",
+                "@{user} here's every command, since apparently that wasn't obvious: {commands}",
+            ],
+            hype: ["@{user} HERE'S THE FULL ARSENAL: {commands}"],
+            chill: ["@{user} commands: {commands}"]
+        );
+
+        // ── !commands / !help (generic) / empty ({user}) ────────────────────────
+        Add(
+            catalog,
+            BuiltinResponseSlots.Commands.Key,
+            BuiltinResponseSlots.Commands.Empty,
+            informative: ["@{user} there are no commands enabled in this channel yet."],
+            friendly: ["@{user} nothing enabled yet — check back soon!"],
+            sassy: ["@{user} no commands enabled. It's quiet. Too quiet."],
+            hype: ["@{user} NOTHING ENABLED YET. THE STREAMER IS SLEEPING ON THIS."],
+            chill: ["@{user} nothing enabled yet."]
+        );
+
+        // ── !help <name> / described ({user} {command} {description}) ───────────
+        Add(
+            catalog,
+            BuiltinResponseSlots.Help.Key,
+            BuiltinResponseSlots.Help.Described,
+            informative: ["@{user} !{command}: {description}"],
+            friendly: ["@{user} good question! !{command}: {description}"],
+            sassy: ["@{user} !{command}: {description}. You could've read the pins, but sure."],
+            hype: ["@{user} !{command}: {description}. NOW GO USE IT."],
+            chill: ["@{user} !{command} — {description}"]
+        );
+
+        // ── !lurk / lurking ({user}) ─────────────────────────────────────────────
+        Add(
+            catalog,
+            BuiltinResponseSlots.Lurk.Key,
+            BuiltinResponseSlots.Lurk.Lurking,
+            informative: ["@{user} is now lurking. Enjoy the stream!"],
+            friendly: ["@{user} is lurking now — thanks for still being here!"],
+            sassy: ["@{user} has entered lurk mode. Silent, watching, judging. Respect."],
+            hype: ["@{user} IS LURKING. STILL COUNTS. STILL LEGENDARY."],
+            chill: ["@{user} is lurking now."]
+        );
+
+        // ── !unlurk / notlurking ({user}) ────────────────────────────────────────
+        Add(
+            catalog,
+            BuiltinResponseSlots.Lurk.Key,
+            BuiltinResponseSlots.Lurk.NotLurking,
+            informative: ["@{user} is no longer lurking. Welcome back!"],
+            friendly: ["@{user} is back! Great to see you again!"],
+            sassy: ["@{user} has emerged from the shadows. We saw nothing. We assume the worst."],
+            hype: ["@{user} IS BACK. THE CHAT IS COMPLETE AGAIN."],
+            chill: ["@{user} is back."]
+        );
+
+        // ── !accountage / age ({user} {age}) ─────────────────────────────────────
+        Add(
+            catalog,
+            BuiltinResponseSlots.AccountAge.Key,
+            BuiltinResponseSlots.AccountAge.Age,
+            informative: ["@{user} your Twitch account is {age} old."],
+            friendly: ["@{user} your account has been around for {age} — nice!"],
+            sassy: ["@{user} {age} old and still typing this into chat. Respect the commitment."],
+            hype: ["@{user} {age} STRONG ON THIS PLATFORM. VETERAN STATUS EARNED."],
+            chill: ["@{user} account's {age} old."]
+        );
+
         return catalog;
     }
 

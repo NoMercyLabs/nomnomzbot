@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
@@ -19,17 +20,24 @@ namespace NomNomzBot.Infrastructure.Commands.Builtins;
 /// <c>!commands</c> (legacy parity, S068b) — lists the channel's currently enabled trigger words, both
 /// authored custom commands (<see cref="ICommandService"/>) and code-defined built-ins
 /// (<see cref="IBuiltinCommandService"/>). Reuses the same two read paths the dashboard's Commands screen
-/// already queries — this never maintains its own copy of "what commands exist".
+/// already queries — this never maintains its own copy of "what commands exist". Renders in the channel's
+/// personality tone via <see cref="IBuiltinResponseComposer"/>, same as every other response built-in.
 /// </summary>
 public sealed class CommandsBuiltin : IBuiltinCommand
 {
     private readonly ICommandService _commands;
     private readonly IBuiltinCommandService _builtins;
+    private readonly IBuiltinResponseComposer _composer;
 
-    public CommandsBuiltin(ICommandService commands, IBuiltinCommandService builtins)
+    public CommandsBuiltin(
+        ICommandService commands,
+        IBuiltinCommandService builtins,
+        IBuiltinResponseComposer composer
+    )
     {
         _commands = commands;
         _builtins = builtins;
+        _composer = composer;
     }
 
     public string BuiltinKey => "commands";
@@ -46,13 +54,56 @@ public sealed class CommandsBuiltin : IBuiltinCommand
             ct
         );
 
+        string reply = await ComposeListingAsync(context, triggers, ct);
+        return Result.Success(reply);
+    }
+
+    /// <summary>
+    /// Renders the tone-styled listing reply (or empty-state reply) for a resolved trigger set — shared by
+    /// <see cref="CommandsBuiltin"/> and <see cref="HelpBuiltin"/>'s generic fallback so both phrase
+    /// identically.
+    /// </summary>
+    internal Task<string> ComposeListingAsync(
+        BuiltinCommandContext context,
+        IReadOnlyList<string> triggers,
+        CancellationToken ct
+    )
+    {
         if (triggers.Count == 0)
-            return Result.Success(
-                $"@{context.TriggeringUserDisplayName} there are no commands enabled in this channel yet."
+            return _composer.ComposeAsync(
+                new()
+                {
+                    BroadcasterId = context.BroadcasterId,
+                    Personality = context.Personality,
+                    BuiltinKey = BuiltinResponseSlots.Commands.Key,
+                    Slot = BuiltinResponseSlots.Commands.Empty,
+                    NeutralFallback =
+                        $"@{context.TriggeringUserDisplayName} there are no commands enabled in this channel yet.",
+                    Variables = new Dictionary<string, string>
+                    {
+                        ["user"] = context.TriggeringUserDisplayName,
+                    },
+                },
+                ct
             );
 
-        return Result.Success(
-            $"@{context.TriggeringUserDisplayName} available commands: {string.Join(", ", triggers)}"
+        return _composer.ComposeAsync(
+            new()
+            {
+                BroadcasterId = context.BroadcasterId,
+                Personality = context.Personality,
+                BuiltinKey = BuiltinResponseSlots.Commands.Key,
+                Slot = BuiltinResponseSlots.Commands.List,
+                OverrideTemplate = context.CustomResponseTemplate,
+                NeutralFallback =
+                    $"@{context.TriggeringUserDisplayName} available commands: {string.Join(", ", triggers)}",
+                Variables = new Dictionary<string, string>
+                {
+                    ["user"] = context.TriggeringUserDisplayName,
+                    ["commands"] = string.Join(", ", triggers),
+                },
+            },
+            ct
         );
     }
 

@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
@@ -20,17 +21,24 @@ namespace NomNomzBot.Infrastructure.Commands.Builtins;
 /// <see cref="CommandsBuiltin"/>. With a command name argument (<c>!help sr</c>), looks that authored command
 /// up via <see cref="ICommandService.GetAsync"/> and replies with its real <see cref="CommandDto.Description"/>
 /// when one is set; a built-in has no description field on <see cref="BuiltinCommandDto"/>, and an unknown or
-/// undescribed name falls back to the same generic listing rather than answering with nothing useful.
+/// undescribed name falls back to the same generic listing rather than answering with nothing useful. Both
+/// branches render in the channel's personality tone via <see cref="IBuiltinResponseComposer"/>.
 /// </summary>
 public sealed class HelpBuiltin : IBuiltinCommand
 {
     private readonly ICommandService _commands;
     private readonly CommandsBuiltin _commandsListing;
+    private readonly IBuiltinResponseComposer _composer;
 
-    public HelpBuiltin(ICommandService commands, CommandsBuiltin commandsListing)
+    public HelpBuiltin(
+        ICommandService commands,
+        CommandsBuiltin commandsListing,
+        IBuiltinResponseComposer composer
+    )
     {
         _commands = commands;
         _commandsListing = commandsListing;
+        _composer = composer;
     }
 
     public string BuiltinKey => "help";
@@ -52,9 +60,27 @@ public sealed class HelpBuiltin : IBuiltinCommand
                 ct
             );
             if (lookup.IsSuccess && !string.IsNullOrWhiteSpace(lookup.Value.Description))
-                return Result.Success(
-                    $"@{context.TriggeringUserDisplayName} !{lookup.Value.Name}: {lookup.Value.Description}"
+            {
+                string described = await _composer.ComposeAsync(
+                    new()
+                    {
+                        BroadcasterId = context.BroadcasterId,
+                        Personality = context.Personality,
+                        BuiltinKey = BuiltinResponseSlots.Help.Key,
+                        Slot = BuiltinResponseSlots.Help.Described,
+                        NeutralFallback =
+                            $"@{context.TriggeringUserDisplayName} !{lookup.Value.Name}: {lookup.Value.Description}",
+                        Variables = new Dictionary<string, string>
+                        {
+                            ["user"] = context.TriggeringUserDisplayName,
+                            ["command"] = lookup.Value.Name,
+                            ["description"] = lookup.Value.Description,
+                        },
+                    },
+                    ct
                 );
+                return Result.Success(described);
+            }
         }
 
         IReadOnlyList<string> triggers = await _commandsListing.ResolveEnabledTriggersAsync(
@@ -62,13 +88,7 @@ public sealed class HelpBuiltin : IBuiltinCommand
             ct
         );
 
-        if (triggers.Count == 0)
-            return Result.Success(
-                $"@{context.TriggeringUserDisplayName} there are no commands enabled in this channel yet."
-            );
-
-        return Result.Success(
-            $"@{context.TriggeringUserDisplayName} available commands: {string.Join(", ", triggers)}"
-        );
+        string reply = await _commandsListing.ComposeListingAsync(context, triggers, ct);
+        return Result.Success(reply);
     }
 }

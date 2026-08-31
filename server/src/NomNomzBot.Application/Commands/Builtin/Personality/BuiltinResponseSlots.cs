@@ -104,4 +104,46 @@ public static class BuiltinResponseSlots
         /// <summary>The composed profile line; <c>{stats.*}</c> variables are set.</summary>
         public const string Profile = "profile";
     }
+
+    /// <summary><c>!commands</c>/<c>!help</c> (generic fallback) — the enabled-trigger listing.</summary>
+    public static class Commands
+    {
+        public const string Key = "commands";
+
+        /// <summary>At least one trigger is enabled; <c>{user}</c>/<c>{commands}</c> are set.</summary>
+        public const string List = "list";
+
+        /// <summary>No triggers are enabled in the channel; <c>{user}</c> is set.</summary>
+        public const string Empty = "empty";
+    }
+
+    /// <summary><c>!help &lt;name&gt;</c> — an authored command's own description.</summary>
+    public static class Help
+    {
+        public const string Key = "help";
+
+        /// <summary>A described command was found; <c>{user}</c>/<c>{command}</c>/<c>{description}</c> are set.</summary>
+        public const string Described = "described";
+    }
+
+    /// <summary><c>!lurk</c>/<c>!unlurk</c> — the caller's lurking-flag flip.</summary>
+    public static class Lurk
+    {
+        public const string Key = "lurk";
+
+        /// <summary>The caller is now marked lurking; <c>{user}</c> is set.</summary>
+        public const string Lurking = "lurking";
+
+        /// <summary>The caller's lurking flag was cleared; <c>{user}</c> is set.</summary>
+        public const string NotLurking = "notlurking";
+    }
+
+    /// <summary><c>!accountage</c> — how long the caller's Twitch account has existed.</summary>
+    public static class AccountAge
+    {
+        public const string Key = "accountage";
+
+        /// <summary>The age was resolved; <c>{user}</c>/<c>{age}</c> are set.</summary>
+        public const string Age = "age";
+    }
 }
