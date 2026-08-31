@@ -487,6 +487,49 @@ class SetupControllerTest {
         assertFalse(api.setupCompleted)
     }
 
+    @Test
+    fun finish_surfaces_the_backend_error_and_does_not_silently_succeed_when_saving_basics_fails() = runTest {
+        // S070: applyBasics() must not swallow a rejected/failed basics write. Sign-in and setup completion
+        // both succeed here (they already ran before applyBasics), but the basics PUT itself is rejected —
+        // the resulting state must carry the real backend error, not silence.
+        val api = FakeSystemApi(wizard = wizard(twitch = true, bot = true), ready = true)
+        val settings =
+            FakeSetupChannelSettingsApi(
+                updateBasicsResult = ApiResult.Failure(ApiError(status = 422, code = "INVALID_TIMEZONE", message = "Unknown timezone")),
+            )
+        val controller = controller(api, settingsApi = settings, onReadyToSignIn = { true })
+        controller.load()
+
+        val currentStepBefore: Int = (controller.state.value as SetupState.Steps).currentStep
+        controller.onBasicsChange(SetupBasics(prefix = "!", timezone = "Not/AZone"))
+        controller.finish()
+
+        val steps: SetupState.Steps = controller.state.value as SetupState.Steps
+        // The write was attempted (proves this isn't dead code)...
+        assertEquals("ch1", settings.lastBasicsChannelId)
+        // ...but the failure is surfaced verbatim, never a generic message...
+        assertEquals(SetupError.Basics("Unknown timezone"), steps.error)
+        // ...and the wizard's step position did NOT move as if the save had succeeded.
+        assertEquals(currentStepBefore, steps.currentStep)
+    }
+
+    @Test
+    fun finish_clears_the_error_when_saving_basics_succeeds_after_a_prior_failure() = runTest {
+        // Regression guard alongside the failure case: the success path (already covered by the other
+        // finish() tests above) must still end with a clean, error-free state.
+        val api = FakeSystemApi(wizard = wizard(twitch = true, bot = true), ready = true)
+        val settings = FakeSetupChannelSettingsApi()
+        val controller = controller(api, settingsApi = settings, onReadyToSignIn = { true })
+        controller.load()
+
+        controller.onBasicsChange(SetupBasics(prefix = "!", timezone = "Europe/Amsterdam"))
+        controller.finish()
+
+        val steps: SetupState.Steps = controller.state.value as SetupState.Steps
+        assertNull(steps.error)
+        assertEquals("Europe/Amsterdam", settings.lastBasics?.timezone)
+    }
+
     // ── Stepper navigation ──────────────────────────────────────────────────────
 
     @Test
@@ -787,8 +830,12 @@ internal class FakeSetupChannelsApi(private val primary: ApiResult<ChannelSummar
     override suspend fun disconnectChannelBot(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 }
 
-// Records the exact basics PUT so a test can assert finish() persisted them (channel id + body).
-internal class FakeSetupChannelSettingsApi : ChannelSettingsApi {
+// Records the exact basics PUT so a test can assert finish() persisted them (channel id + body). S070:
+// [updateBasicsResult] lets a test inject a rejected/failed write to prove applyBasics() surfaces it
+// instead of swallowing it.
+internal class FakeSetupChannelSettingsApi(
+    private val updateBasicsResult: ApiResult<ChannelBasics>? = null,
+) : ChannelSettingsApi {
     var lastBasicsChannelId: String? = null
         private set
 
@@ -808,7 +855,7 @@ internal class FakeSetupChannelSettingsApi : ChannelSettingsApi {
     ): ApiResult<ChannelBasics> {
         lastBasicsChannelId = channelId
         lastBasics = body
-        return ApiResult.Ok(
+        return updateBasicsResult ?: ApiResult.Ok(
             ChannelBasics(
                 prefix = body.prefix ?: "!",
                 locale = body.locale,

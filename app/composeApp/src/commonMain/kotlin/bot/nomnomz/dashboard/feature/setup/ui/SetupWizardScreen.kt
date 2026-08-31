@@ -92,6 +92,7 @@ import nomnomzbot.composeapp.generated.resources.setup_error_bot
 import nomnomzbot.composeapp.generated.resources.setup_error_bot_unreachable
 import nomnomzbot.composeapp.generated.resources.setup_error_missing_fields
 import nomnomzbot.composeapp.generated.resources.setup_error_save
+import nomnomzbot.composeapp.generated.resources.setup_error_basics
 import nomnomzbot.composeapp.generated.resources.setup_error_signin
 import nomnomzbot.composeapp.generated.resources.setup_nav_back
 import nomnomzbot.composeapp.generated.resources.setup_nav_next
@@ -370,6 +371,9 @@ private fun ReviewPanel(controller: SetupController, state: SetupState.Steps) {
         }
         if (state.error is SetupError.SignIn) {
             ErrorText(stringResource(Res.string.setup_error_signin))
+        }
+        if (state.error is SetupError.Basics) {
+            ErrorText(stringResource(Res.string.setup_error_basics, state.error.detail))
         }
     }
 }
