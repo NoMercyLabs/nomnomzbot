@@ -620,8 +620,13 @@ later.)
   (previously `load()`-only) `IntegrationsState.Error` and returns early; the screen renders a
   destructive-toned retry card instead of plain text. Test covers failure → `Error` state → retry →
   real `Ready` state, i18n en+nl.
-- **S076** Multi-chat as a tool — mod-log pushes need a `ModeratorDisplayName`/`Timestamp` on
-  `ModActionDto` first (backend gap, see below) (U·B3).
+- **S076** Multi-chat as a tool (U·B3) — fully CLOSED this session.
+  **Mod-log names+time DONE, verified (c2e4d481)**: `ModActionDto` gained `ModeratorDisplayName`/
+  `Timestamp`; no new lookup needed — `UserBannedEvent`/`UserTimedOutEvent`/`UserUnbannedEvent` already
+  carried `ModeratorDisplayName` and inherited `OccurredAt` from `DomainEventBase`, simply never plumbed
+  through at the 3 `BanBroadcastHandlers.cs` construction sites (ban/timeout/unban). Distinct from
+  `TargetDisplayName`, which genuinely needs the `IHubUserEnricher` DB lookup since the source event only
+  carries the target's raw id. 4 tests assert the real resolved name + matching timestamp.
   **Shield mode pushes consumed DONE, verified (9395077b)**: `MultiChatController` now handles
   `HubEvent.ChannelEvent` for `shield_mode_begin`/`shield_mode_end` (wire shape confirmed against
   `ShieldModeBeganBroadcastHandler`/`ShieldModeEndedBroadcastHandler` — no new DTO needed, already
