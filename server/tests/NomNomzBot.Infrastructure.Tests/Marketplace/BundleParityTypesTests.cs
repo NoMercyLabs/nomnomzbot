@@ -136,6 +136,49 @@ public sealed class BundleParityTypesTests
                 Arg.Any<CancellationToken>()
             )
             .Returns(Result.Success<IReadOnlyList<TwitchCustomReward>>([]));
+        channelPoints
+            .CreateCustomRewardAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<CreateCustomRewardRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(call =>
+            {
+                CreateCustomRewardRequest request = call.Arg<CreateCustomRewardRequest>();
+                return Result.Success(
+                    new TwitchCustomReward(
+                        BroadcasterId: call.Arg<Guid>().ToString(),
+                        BroadcasterLogin: "tester",
+                        BroadcasterName: "tester",
+                        Id: Guid.NewGuid().ToString(),
+                        Title: request.Title,
+                        Prompt: request.Prompt ?? "",
+                        Cost: request.Cost,
+                        Image: null,
+                        DefaultImage: new("1x", "2x", "4x"),
+                        BackgroundColor: request.BackgroundColor ?? "#000000",
+                        IsEnabled: request.IsEnabled ?? true,
+                        IsUserInputRequired: request.IsUserInputRequired ?? false,
+                        MaxPerStreamSetting: new(
+                            request.IsMaxPerStreamEnabled ?? false,
+                            request.MaxPerStream ?? 0
+                        ),
+                        MaxPerUserPerStreamSetting: new(
+                            request.IsMaxPerUserPerStreamEnabled ?? false,
+                            request.MaxPerUserPerStream ?? 0
+                        ),
+                        GlobalCooldownSetting: new(
+                            request.IsGlobalCooldownEnabled ?? false,
+                            request.GlobalCooldownSeconds ?? 0
+                        ),
+                        IsPaused: false,
+                        IsInStock: true,
+                        ShouldRedemptionsSkipRequestQueue: false,
+                        RedemptionsRedeemedCurrentStream: null,
+                        CooldownExpiresAt: null
+                    )
+                );
+            });
         RewardService rewards = new(db, channelPoints, NullLogger<RewardService>.Instance);
         TimerManagementService timers = new(
             db,

@@ -8040,6 +8040,10 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("BackgroundColor")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
                     b.Property<Guid>("BroadcasterId")
                         .HasColumnType("TEXT");
 
@@ -8059,6 +8063,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("GlobalCooldownSeconds")
+                        .HasColumnType("INTEGER");
+
                     b.Property<bool>("IsEnabled")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
@@ -8074,6 +8081,12 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<bool>("IsUserInputRequired")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("MaxPerStream")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("MaxPerUserPerStream")
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime?>("PendingMigrationRequestedAt")

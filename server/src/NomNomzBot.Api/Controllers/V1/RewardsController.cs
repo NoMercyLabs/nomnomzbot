@@ -207,7 +207,11 @@ public class RewardsController : BaseController
         CancellationToken ct
     )
     {
-        Result<RewardDetail> result = await _rewardService.CreateAsync(channelId, request, ct);
+        Result<RewardDetail> result = await _rewardService.CreateAsync(
+            channelId,
+            request,
+            cancellationToken: ct
+        );
         if (result.IsFailure)
             return ResultResponse(result);
 

@@ -19,10 +19,17 @@ namespace NomNomzBot.Application.Rewards.Services;
 /// </summary>
 public interface IRewardService
 {
-    /// <summary>Create a new reward.</summary>
+    /// <summary>
+    /// Create a new reward. By default this creates it on Twitch too (Helix first, fail closed on refusal) —
+    /// a reward that only ever exists in our own table is never redeemable. Set <paramref name="pushToTwitch"/>
+    /// to <c>false</c> only for a bulk/offline path (bundle import) that deliberately trades "live immediately"
+    /// for "never blocked by Helix being down"; that path is responsible for getting the reward onto Twitch
+    /// itself afterward (e.g. via the channel's existing sync/recreate action).
+    /// </summary>
     Task<Result<RewardDetail>> CreateAsync(
         string broadcasterId,
         CreateRewardRequest request,
+        bool pushToTwitch = true,
         CancellationToken cancellationToken = default
     );
 
