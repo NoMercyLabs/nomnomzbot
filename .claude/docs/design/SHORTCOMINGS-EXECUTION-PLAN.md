@@ -522,10 +522,16 @@ later.)
   reporting a platform failure cleanly if that call fails. 5 new tests, all assert the real row/reply,
   not "no exception".
 - **S069** Bot voice everywhere — tone applied to custom commands/timers/event responses/chat triggers/
-  `send_message`; tone slots for usage/errors; one reply-or-mention helper; one `ParseUserMention`;
+  `send_message`; tone slots for usage/errors; one reply-or-mention helper;
   permit via identity path; whisper-with-fallback for GDPR + inbound whisper handler; `announce`
   action/toggle; tone catalogue per locale (U·C7, K copy). Done-when: same `!sr` sounds the same from
   builtin and pipeline; sassy channel has sassy errors.
+  **One `ParseUserMention` DONE, verified (2a05e4de)**: found 10 independent inline mention-parsing call
+  sites (not 3-4 as guessed), all consistent behavior (trim + strip one leading `@`), extracted into
+  `NomNomzBot.Application.Commands.Builtin.MentionParser.ParseUserMention` and repointed every site 1:1
+  with no behavior change. 7 new unit tests; existing call-site tests confirmed unaffected for the sites
+  buildable in isolation (2 unrelated concurrent WIP branches briefly blocked a full-tree regression run
+  — not a defect in this slice, re-verify once the tree is clear).
   **Legacy-builtin tone parity DONE, verified (d5905b10)** — see S068 for detail: `CommandsBuiltin`/
   `HelpBuiltin`/`LurkBuiltins`/`AccountAgeBuiltin` now route through `IBuiltinResponseComposer` like
   pipeline `send_message` does. Remaining S069 scope (custom commands/timers/event responses/chat
