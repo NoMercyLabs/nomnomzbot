@@ -56,7 +56,9 @@ public sealed class UserBannedBroadcastHandler : IEventHandler<UserBannedEvent>
             enrichment?.DisplayName,
             enrichment?.AvatarUrl,
             enrichment?.Pronouns,
-            enrichment?.CommunityStanding
+            enrichment?.CommunityStanding,
+            @event.ModeratorDisplayName,
+            @event.OccurredAt
         );
 
         await _notifier.SendModActionAsync(@event.BroadcasterId.ToString(), dto, ct);
@@ -114,7 +116,9 @@ public sealed class UserTimedOutBroadcastHandler : IEventHandler<UserTimedOutEve
             enrichment?.DisplayName,
             enrichment?.AvatarUrl,
             enrichment?.Pronouns,
-            enrichment?.CommunityStanding
+            enrichment?.CommunityStanding,
+            @event.ModeratorDisplayName,
+            @event.OccurredAt
         );
 
         await _notifier.SendModActionAsync(@event.BroadcasterId.ToString(), dto, ct);
@@ -172,7 +176,9 @@ public sealed class UserUnbannedBroadcastHandler : IEventHandler<UserUnbannedEve
             enrichment?.DisplayName,
             enrichment?.AvatarUrl,
             enrichment?.Pronouns,
-            enrichment?.CommunityStanding
+            enrichment?.CommunityStanding,
+            @event.ModeratorDisplayName,
+            @event.OccurredAt
         );
 
         await _notifier.SendModActionAsync(@event.BroadcasterId.ToString(), dto, ct);
