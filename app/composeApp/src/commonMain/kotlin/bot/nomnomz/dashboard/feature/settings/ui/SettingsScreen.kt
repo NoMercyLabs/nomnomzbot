@@ -85,10 +85,14 @@ import bot.nomnomz.dashboard.feature.settings.state.JournalPortabilityController
 import bot.nomnomz.dashboard.feature.settings.state.JournalPortabilityState
 import bot.nomnomz.dashboard.feature.settings.state.EngagementController
 import bot.nomnomz.dashboard.feature.settings.state.EngagementState
+import bot.nomnomz.dashboard.feature.settings.state.PermissionsController
+import bot.nomnomz.dashboard.feature.settings.state.PermissionsState
 import bot.nomnomz.dashboard.feature.settings.state.PersonalityController
 import bot.nomnomz.dashboard.feature.settings.state.PersonalityState
 import bot.nomnomz.dashboard.feature.settings.state.SettingsController
 import bot.nomnomz.dashboard.feature.settings.state.SettingsState
+import bot.nomnomz.dashboard.core.network.TwitchScopeDiagnostics
+import bot.nomnomz.dashboard.core.network.TwitchScopeRequirement
 import bot.nomnomz.dashboard.feature.emoji.state.EmojiStyleController
 import bot.nomnomz.dashboard.feature.emoji.ui.EmojiStylePicker
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
@@ -251,6 +255,16 @@ import nomnomzbot.composeapp.generated.resources.settings_basics_autojoin_desc
 import nomnomzbot.composeapp.generated.resources.settings_basics_bot_line_prefix
 import nomnomzbot.composeapp.generated.resources.settings_basics_bot_line_prefix_hint
 import nomnomzbot.composeapp.generated.resources.settings_basics_bot_line_prefix_disabled_note
+import nomnomzbot.composeapp.generated.resources.settings_permissions_section
+import nomnomzbot.composeapp.generated.resources.settings_permissions_subtitle
+import nomnomzbot.composeapp.generated.resources.settings_permissions_load_error
+import nomnomzbot.composeapp.generated.resources.settings_permissions_granted
+import nomnomzbot.composeapp.generated.resources.settings_permissions_missing
+import nomnomzbot.composeapp.generated.resources.settings_permissions_regrant
+import nomnomzbot.composeapp.generated.resources.settings_permissions_regrant_error
+import nomnomzbot.composeapp.generated.resources.settings_permissions_regrant_code
+import nomnomzbot.composeapp.generated.resources.settings_permissions_regrant_cancel
+import nomnomzbot.composeapp.generated.resources.settings_permissions_all_granted
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -270,6 +284,7 @@ fun SettingsScreen(
     basicsController: BasicsController,
     engagementController: EngagementController,
     emojiStyleController: EmojiStyleController,
+    permissionsController: PermissionsController,
     role: ManagementRole?,
     onChannelDeleted: () -> Unit = {},
 ) {
@@ -356,6 +371,8 @@ fun SettingsScreen(
         }
 
         ChannelBotSection(controller = channelBotController, manage = ownerManage)
+
+        PermissionsSection(controller = permissionsController, manage = ownerManage)
 
         BillingSection(controller = billingController, manage = ownerManage)
 
@@ -2207,6 +2224,160 @@ private fun BillingInviteSection(onRedeem: (String) -> Unit) {
                 scope.launch { onRedeem(code); code = "" }
             },
             onDismiss = { pendingRedeem = false },
+        )
+    }
+}
+
+// The Permissions section (S070): the real backend scope/feature matrix, one row per (feature, scope) pair,
+// each showing whether the connection currently holds it — from [PermissionsController], never hardcoded.
+// The re-grant button reuses the EXACT device-code re-grant mechanism the Integrations missing-scope banner
+// uses (POST /twitch/diagnostics/regrant + the normal streamer device poll); it gates at the Broadcaster
+// floor, matching the other Twitch-connection-affecting sections on this page.
+@Composable
+private fun PermissionsSection(controller: PermissionsController, manage: ManageDecision) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    val scope = rememberCoroutineScope()
+
+    val state: PermissionsState by controller.state.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) { controller.load() }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(spacing.s4),
+            verticalArrangement = Arrangement.spacedBy(spacing.s3),
+        ) {
+            Text(
+                text = stringResource(Res.string.settings_permissions_section),
+                style = typography.xl,
+                color = tokens.cardForeground,
+            )
+            Text(
+                text = stringResource(Res.string.settings_permissions_subtitle),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+            )
+
+            when (val current: PermissionsState = state) {
+                PermissionsState.Loading ->
+                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        Spinner(modifier = Modifier.size(spacing.s6))
+                    }
+
+                is PermissionsState.Error ->
+                    Text(
+                        text = stringResource(Res.string.settings_permissions_load_error, current.detail),
+                        style = typography.sm,
+                        color = tokens.destructive,
+                    )
+
+                is PermissionsState.Ready ->
+                    PermissionsMatrix(
+                        state = current,
+                        manage = manage,
+                        onRegrant = { scope.launch { controller.regrant() } },
+                        onCancelRegrant = controller::cancelRegrant,
+                    )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PermissionsMatrix(
+    state: PermissionsState.Ready,
+    manage: ManageDecision,
+    onRegrant: () -> Unit,
+    onCancelRegrant: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    val matrix: TwitchScopeDiagnostics = state.matrix
+    val hasMissing: Boolean = matrix.requirements.any { !it.granted }
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+        matrix.requirements.forEach { requirement: TwitchScopeRequirement ->
+            PermissionRow(requirement = requirement)
+        }
+
+        if (matrix.requirements.isEmpty()) {
+            Text(
+                text = stringResource(Res.string.settings_channel_bot_scopes_empty),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+            )
+        }
+
+        if (!hasMissing && matrix.requirements.isNotEmpty()) {
+            Text(
+                text = stringResource(Res.string.settings_permissions_all_granted),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+            )
+        }
+
+        if (state.regrantError != null) {
+            ActionErrorBanner(
+                message = stringResource(Res.string.settings_permissions_regrant_error, state.regrantError),
+            )
+        }
+
+        val regrant = state.regrant
+        if (regrant != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(
+                        Res.string.settings_permissions_regrant_code,
+                        regrant.userCode,
+                        regrant.verificationUri,
+                    ),
+                    style = typography.sm,
+                    color = tokens.cardForeground,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onCancelRegrant) {
+                    Text(stringResource(Res.string.settings_permissions_regrant_cancel))
+                }
+            }
+        } else if (hasMissing) {
+            ManageGate(decision = manage) { enabled ->
+                Button(onClick = onRegrant, enabled = enabled, modifier = Modifier.wrapContentWidth()) {
+                    Text(stringResource(Res.string.settings_permissions_regrant))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PermissionRow(requirement: TwitchScopeRequirement) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s0_5)) {
+            Text(text = requirement.scope, style = typography.base, color = tokens.cardForeground)
+            Text(text = requirement.feature, style = typography.sm, color = tokens.mutedForeground)
+        }
+        Text(
+            text = stringResource(
+                if (requirement.granted) Res.string.settings_permissions_granted
+                else Res.string.settings_permissions_missing
+            ),
+            style = typography.sm,
+            color = if (requirement.granted) tokens.primary else tokens.destructive,
         )
     }
 }
