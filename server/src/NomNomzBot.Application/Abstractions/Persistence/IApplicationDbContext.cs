@@ -54,6 +54,7 @@ public interface IApplicationDbContext
     DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationEscalationPolicy> ModerationEscalationPolicies { get; }
     DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationEscalationState> ModerationEscalationStates { get; }
     DbSet<NomNomzBot.Domain.Moderation.Entities.ChatFilter> ChatFilters { get; }
+    DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationQueueItem> ModerationQueueItems { get; }
     DbSet<NomNomzBot.Domain.Community.Entities.ChatPoll> ChatPolls { get; }
     DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes { get; }
     DbSet<Quote> Quotes { get; }
@@ -68,7 +69,7 @@ public interface IApplicationDbContext
     DbSet<WidgetVersion> WidgetVersions { get; }
     DbSet<WidgetGalleryItem> WidgetGalleryItems { get; }
     DbSet<WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents { get; }
-    DbSet<NomNomzBot.Domain.Widgets.Entities.RenderedAlertCapture> RenderedAlertCaptures { get; }
+    DbSet<RenderedAlertCapture> RenderedAlertCaptures { get; }
     DbSet<EventSubSubscription> EventSubSubscriptions { get; }
     DbSet<EventSubConduit> EventSubConduits { get; }
     DbSet<EventSubConduitShard> EventSubConduitShards { get; }

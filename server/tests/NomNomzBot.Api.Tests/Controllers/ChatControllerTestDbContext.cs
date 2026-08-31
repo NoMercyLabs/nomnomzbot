@@ -176,6 +176,8 @@ internal sealed class ChatControllerTestDbContext : DbContext, IApplicationDbCon
         throw new NotSupportedException();
     public DbSet<Domain.Moderation.Entities.ChatFilter> ChatFilters =>
         throw new NotSupportedException();
+    public DbSet<Domain.Moderation.Entities.ModerationQueueItem> ModerationQueueItems =>
+        throw new NotSupportedException();
     public DbSet<Domain.Community.Entities.ChatPoll> ChatPolls => throw new NotSupportedException();
     public DbSet<Domain.Community.Entities.ChatPollVote> ChatPollVotes =>
         throw new NotSupportedException();

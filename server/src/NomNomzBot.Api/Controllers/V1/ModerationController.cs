@@ -40,6 +40,7 @@ public class ModerationController : BaseController
     private readonly IModerationService _moderationService;
     private readonly IOperatorNetworkBanService _networkBan;
     private readonly IViewerReportService _reports;
+    private readonly IModerationQueueService _queue;
     private readonly ISharedBanService _sharedBans;
     private readonly INetworkNukeService _nuke;
     private readonly IModerationEscalationService _escalation;
@@ -53,6 +54,7 @@ public class ModerationController : BaseController
         IModerationService moderationService,
         IOperatorNetworkBanService networkBan,
         IViewerReportService reports,
+        IModerationQueueService queue,
         ISharedBanService sharedBans,
         INetworkNukeService nuke,
         IModerationEscalationService escalation,
@@ -66,6 +68,7 @@ public class ModerationController : BaseController
         _moderationService = moderationService;
         _networkBan = networkBan;
         _reports = reports;
+        _queue = queue;
         _sharedBans = sharedBans;
         _nuke = nuke;
         _escalation = escalation;
@@ -1087,6 +1090,50 @@ public class ModerationController : BaseController
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<ViewerReportDto> { Data = result.Value });
+    }
+
+    // ─── AutoMod review queue ───────────────────────────────────────────────────
+
+    /// <summary>List the channel's AutoMod review queue (default: pending) — held messages awaiting a mod's approve/deny.</summary>
+    [RequireAction("moderation:queue:read")]
+    [HttpGet("automod/queue")]
+    [ProducesResponseType<StatusResponseDto<List<ModerationQueueItemDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListAutoModQueue(
+        string channelId,
+        [FromQuery] string status,
+        CancellationToken ct
+    )
+    {
+        Result<List<ModerationQueueItemDto>> result = await _queue.ListAsync(
+            channelId,
+            string.IsNullOrWhiteSpace(status) ? "pending" : status,
+            ct
+        );
+        return ResultResponse(result);
+    }
+
+    /// <summary>Resolve a held AutoMod message — <c>approve</c> releases it to chat, <c>deny</c> drops it.</summary>
+    [RequireAction("moderation:queue:resolve")]
+    [HttpPost("automod/queue/{queueItemId:guid}/resolve")]
+    [ProducesResponseType<StatusResponseDto<ModerationQueueItemDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ResolveAutoModQueueItem(
+        string channelId,
+        Guid queueItemId,
+        [FromBody] ResolveModerationQueueItemRequest request,
+        CancellationToken ct
+    )
+    {
+        string actorId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+        Result<ModerationQueueItemDto> result = await _queue.ResolveAsync(
+            channelId,
+            queueItemId,
+            request.Action,
+            actorId,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<ModerationQueueItemDto> { Data = result.Value });
     }
 
     // ─── Stats ────────────────────────────────────────────────────────────────
