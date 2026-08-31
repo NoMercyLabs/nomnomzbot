@@ -9,10 +9,13 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Commands.Builtins;
 using NSubstitute;
 
@@ -21,20 +24,39 @@ namespace NomNomzBot.Infrastructure.Tests.Music;
 /// <summary>
 /// Proves <c>!volume</c> reports the current volume when called with no argument (it used to just
 /// print the usage string and do nothing), while <c>!volume &lt;n&gt;</c> keeps setting it — asserted
-/// against the exact chat reply text a fake <see cref="IChatProvider"/> would send.
+/// against the exact chat reply text a fake <see cref="IChatProvider"/> would send. Also proves the
+/// missing/unparsable-argument usage copy is tone-styled (S069h).
 /// </summary>
 public sealed class VolumeBuiltinTests
 {
     private static readonly Guid Broadcaster = Guid.Parse("0192a000-0000-7000-8000-0000000ac001");
 
-    private static BuiltinCommandContext Ctx(string args) =>
+    private static BuiltinCommandContext Ctx(
+        string args,
+        string personality = PersonalityTone.Informative
+    ) =>
         new()
         {
             BroadcasterId = Broadcaster,
             TriggeringUserId = "twitch-42",
             TriggeringUserDisplayName = "Bamo",
             Args = args,
+            Personality = personality,
         };
+
+    private static IBuiltinResponseComposer FakeComposer()
+    {
+        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
+        resolver
+            .ResolveAsync(
+                Arg.Any<string>(),
+                Arg.Any<IDictionary<string, string>>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(call => Task.FromResult(call.ArgAt<string>(0)));
+        return new BuiltinResponseComposer(resolver);
+    }
 
     private static NowPlaying Playing(int volume) =>
         new(
@@ -57,7 +79,7 @@ public sealed class VolumeBuiltinTests
         music
             .GetNowPlayingAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>())
             .Returns(Playing(40));
-        VolumeBuiltin sut = new(music);
+        VolumeBuiltin sut = new(music, FakeComposer());
 
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty));
 
@@ -86,7 +108,7 @@ public sealed class VolumeBuiltinTests
         music
             .GetNowPlayingAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>())
             .Returns((NowPlaying?)null);
-        VolumeBuiltin sut = new(music);
+        VolumeBuiltin sut = new(music, FakeComposer());
 
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty));
 
@@ -102,7 +124,7 @@ public sealed class VolumeBuiltinTests
         music
             .SetVolumeAsync(Broadcaster.ToString(), 55, Arg.Any<CancellationToken>())
             .Returns(Result.Success());
-        VolumeBuiltin sut = new(music);
+        VolumeBuiltin sut = new(music, FakeComposer());
 
         Result<string> result = await sut.ExecuteAsync(Ctx("55"));
 
@@ -111,5 +133,27 @@ public sealed class VolumeBuiltinTests
         await music
             .Received(1)
             .SetVolumeAsync(Broadcaster.ToString(), 55, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Sassy_tone_produces_a_different_usage_message_than_the_default_tone()
+    {
+        VolumeBuiltin sut = new(Substitute.For<IMusicService>(), FakeComposer());
+
+        Result<string> sassy = await sut.ExecuteAsync(Ctx("not-a-number", PersonalityTone.Sassy));
+        Result<string> informative = await sut.ExecuteAsync(
+            Ctx("not-a-number", PersonalityTone.Informative)
+        );
+
+        informative.Value.Should().Be("Usage: !volume <0-100>");
+        sassy.Value.Should().NotBe(informative.Value);
+        ToneTemplateCatalog
+            .Get(
+                PersonalityTone.Sassy,
+                BuiltinResponseSlots.Volume.Key,
+                BuiltinResponseSlots.Volume.Usage
+            )
+            .Should()
+            .Contain(sassy.Value);
     }
 }

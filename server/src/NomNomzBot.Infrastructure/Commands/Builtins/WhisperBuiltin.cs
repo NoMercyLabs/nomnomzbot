@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Platform;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -28,14 +29,17 @@ public sealed class WhisperBuiltin : IBuiltinCommand
 {
     private readonly ITwitchUsersApi _twitchUsers;
     private readonly IReadOnlyDictionary<string, IPlatformDirectMessageSender> _dmSendersByProvider;
+    private readonly IBuiltinResponseComposer _composer;
 
     public WhisperBuiltin(
         ITwitchUsersApi twitchUsers,
-        IEnumerable<IPlatformDirectMessageSender> dmSenders
+        IEnumerable<IPlatformDirectMessageSender> dmSenders,
+        IBuiltinResponseComposer composer
     )
     {
         _twitchUsers = twitchUsers;
         _dmSendersByProvider = dmSenders.ToDictionary(s => s.Provider);
+        _composer = composer;
     }
 
     public string BuiltinKey => "whisper";
@@ -52,7 +56,20 @@ public sealed class WhisperBuiltin : IBuiltinCommand
     {
         string[] parts = context.Args.Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length < 2)
-            return Result.Success("Usage: !whisper <user> <message>");
+        {
+            string usage = await _composer.ComposeAsync(
+                new()
+                {
+                    BroadcasterId = context.BroadcasterId,
+                    Personality = context.Personality,
+                    BuiltinKey = BuiltinResponseSlots.Whisper.Key,
+                    Slot = BuiltinResponseSlots.Whisper.Usage,
+                    NeutralFallback = "Usage: !whisper <user> <message>",
+                },
+                ct
+            );
+            return Result.Success(usage);
+        }
 
         string targetLogin = MentionParser.ParseUserMention(parts[0]).ToLowerInvariant();
         string message = parts[1];
@@ -66,7 +83,21 @@ public sealed class WhisperBuiltin : IBuiltinCommand
 
         TwitchUser? target = lookup.Value.FirstOrDefault();
         if (target is null)
-            return Result.Success($"Could not find a Twitch user named \"{targetLogin}\".");
+        {
+            string notFound = await _composer.ComposeAsync(
+                new()
+                {
+                    BroadcasterId = context.BroadcasterId,
+                    Personality = context.Personality,
+                    BuiltinKey = BuiltinResponseSlots.Whisper.Key,
+                    Slot = BuiltinResponseSlots.Whisper.NotFound,
+                    NeutralFallback = $"Could not find a Twitch user named \"{targetLogin}\".",
+                    Variables = new Dictionary<string, string> { ["user"] = targetLogin },
+                },
+                ct
+            );
+            return Result.Success(notFound);
+        }
 
         if (
             !_dmSendersByProvider.TryGetValue(

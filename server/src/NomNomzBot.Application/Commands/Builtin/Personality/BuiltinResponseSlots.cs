@@ -14,7 +14,11 @@ namespace NomNomzBot.Application.Commands.Builtin.Personality;
 /// The response "slots" a built-in can render — a slot is the response CASE (e.g. "live" vs "offline" for
 /// uptime), each with its own tone variation-set in <see cref="ToneTemplateCatalog"/>. Grouped by built-in
 /// key so the catalog authoring and the built-in code reference one shared set of tokens (no drift). Only
-/// slots that carry PERSONALITY appear here — pure usage/error strings stay neutral in the built-in itself.
+/// slots that carry PERSONALITY appear here — pure usage/error strings stay neutral in the built-in itself,
+/// UNLESS the slot is one of the system-owned usage/error slots below (S069h) — those are the bot's OWN
+/// usage/error copy for a built-in it owns end to end, so tone applies there too. This is distinct from a
+/// streamer's own custom command/pipeline template text, which is never tone-styled (owner directive,
+/// S069h): tone only touches copy the SYSTEM authors, never copy a streamer writes themselves.
 /// </summary>
 public static class BuiltinResponseSlots
 {
@@ -145,5 +149,47 @@ public static class BuiltinResponseSlots
 
         /// <summary>The age was resolved; <c>{user}</c>/<c>{age}</c> are set.</summary>
         public const string Age = "age";
+    }
+
+    /// <summary>
+    /// <c>!whisper &lt;user&gt; &lt;message&gt;</c> — usage/error tone slots (S069h). Success has no slot of
+    /// its own (the reply just names who got whispered — plain confirmation, not worth tone-styling).
+    /// </summary>
+    public static class Whisper
+    {
+        public const string Key = "whisper";
+
+        /// <summary>Too few arguments were given — no variables.</summary>
+        public const string Usage = "usage";
+
+        /// <summary>No Twitch user matched the given login; <c>{user}</c> is set.</summary>
+        public const string NotFound = "notfound";
+    }
+
+    /// <summary><c>!bansong</c> — usage/error tone slots (S069h).</summary>
+    public static class BanSong
+    {
+        public const string Key = "bansong";
+
+        /// <summary>Nothing is currently playing, so there is no track to ban — no variables.</summary>
+        public const string Nothing = "nothing";
+    }
+
+    /// <summary><c>!update</c> — usage/error tone slots (S069h).</summary>
+    public static class UpdateUserInfo
+    {
+        public const string Key = "update";
+
+        /// <summary>No Twitch user matched the given login; <c>{user}</c> is set.</summary>
+        public const string NotFound = "notfound";
+    }
+
+    /// <summary><c>!volume</c> — usage/error tone slots (S069h).</summary>
+    public static class Volume
+    {
+        public const string Key = "volume";
+
+        /// <summary>An unparsable argument was given — no variables.</summary>
+        public const string Usage = "usage";
     }
 }

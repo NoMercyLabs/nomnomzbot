@@ -9,12 +9,15 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Commands.Builtins;
 using NSubstitute;
 
@@ -24,11 +27,34 @@ namespace NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 /// <c>!update</c> re-reads a viewer's Twitch profile so a rename or a new avatar shows everywhere. These
 /// hold what it must actually DO (write the fresh profile onto the row) and what it must SAY when the
 /// platform is the thing that failed — reporting a Helix timeout as "no such user" tells a viewer their
-/// account is gone when Twitch simply did not answer.
+/// account is gone when Twitch simply did not answer. Also proves the "not found" copy is tone-styled
+/// (S069h).
 /// </summary>
 public sealed class UpdateUserInfoBuiltinTests
 {
     private const string Login = "stoney_eagle";
+
+    private static IBuiltinResponseComposer FakeComposer()
+    {
+        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
+        resolver
+            .ResolveAsync(
+                Arg.Any<string>(),
+                Arg.Any<IDictionary<string, string>>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(call =>
+            {
+                string template = call.ArgAt<string>(0);
+                foreach (
+                    KeyValuePair<string, string> kvp in call.ArgAt<IDictionary<string, string>>(1)
+                )
+                    template = template.Replace($"{{{kvp.Key}}}", kvp.Value);
+                return Task.FromResult(template);
+            });
+        return new BuiltinResponseComposer(resolver);
+    }
 
     private static TwitchUser Profile(string avatar) =>
         new(
@@ -44,7 +70,11 @@ public sealed class UpdateUserInfoBuiltinTests
             CreatedAt: new DateTimeOffset(2019, 3, 14, 8, 0, 0, TimeSpan.Zero)
         );
 
-    private static BuiltinCommandContext Context(string args = "", int roleLevel = 0) =>
+    private static BuiltinCommandContext Context(
+        string args = "",
+        int roleLevel = 0,
+        string personality = PersonalityTone.Informative
+    ) =>
         new()
         {
             BroadcasterId = Guid.CreateVersion7(),
@@ -53,6 +83,7 @@ public sealed class UpdateUserInfoBuiltinTests
             TriggeringUserLogin = Login,
             RoleLevel = roleLevel,
             Args = args,
+            Personality = personality,
         };
 
     [Fact]
@@ -101,7 +132,7 @@ public sealed class UpdateUserInfoBuiltinTests
                 )
             );
 
-        UpdateUserInfoBuiltin builtin = new(twitch, users, db);
+        UpdateUserInfoBuiltin builtin = new(twitch, users, db, FakeComposer());
 
         Result<string> result = await builtin.ExecuteAsync(Context());
 
@@ -127,7 +158,12 @@ public sealed class UpdateUserInfoBuiltinTests
                 )
             );
 
-        UpdateUserInfoBuiltin builtin = new(twitch, Substitute.For<IUserService>(), db);
+        UpdateUserInfoBuiltin builtin = new(
+            twitch,
+            Substitute.For<IUserService>(),
+            db,
+            FakeComposer()
+        );
 
         Result<string> result = await builtin.ExecuteAsync(Context());
 
@@ -147,11 +183,52 @@ public sealed class UpdateUserInfoBuiltinTests
         await using CommandsTestDbContext db = CommandsTestDbContext.New();
         ITwitchUsersApi twitch = Substitute.For<ITwitchUsersApi>();
 
-        UpdateUserInfoBuiltin builtin = new(twitch, Substitute.For<IUserService>(), db);
+        UpdateUserInfoBuiltin builtin = new(
+            twitch,
+            Substitute.For<IUserService>(),
+            db,
+            FakeComposer()
+        );
 
         Result<string> result = await builtin.ExecuteAsync(Context("@someone_else", roleLevel: 0));
 
         result.Value.Should().Contain("only update your own info");
         await twitch.DidNotReceiveWithAnyArgs().GetUsersByLoginsAsync(default!);
+    }
+
+    [Fact]
+    public async Task Sassy_tone_produces_a_different_not_found_message_than_the_default_tone()
+    {
+        await using CommandsTestDbContext db = CommandsTestDbContext.New();
+        ITwitchUsersApi twitch = Substitute.For<ITwitchUsersApi>();
+        twitch
+            .GetUsersByLoginsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchUser>>([]));
+
+        UpdateUserInfoBuiltin builtin = new(
+            twitch,
+            Substitute.For<IUserService>(),
+            db,
+            FakeComposer()
+        );
+
+        Result<string> sassy = await builtin.ExecuteAsync(
+            Context(personality: PersonalityTone.Sassy)
+        );
+        Result<string> informative = await builtin.ExecuteAsync(
+            Context(personality: PersonalityTone.Informative)
+        );
+
+        informative.Value.Should().Be($"Could not find user '{Login}' on Twitch.");
+        sassy.Value.Should().NotBe(informative.Value);
+        ToneTemplateCatalog
+            .Get(
+                PersonalityTone.Sassy,
+                BuiltinResponseSlots.UpdateUserInfo.Key,
+                BuiltinResponseSlots.UpdateUserInfo.NotFound
+            )
+            .Select(t => t.Replace("{user}", Login))
+            .Should()
+            .Contain(sassy.Value);
     }
 }

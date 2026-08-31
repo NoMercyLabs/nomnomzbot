@@ -9,10 +9,13 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Commands.Builtins;
 using NSubstitute;
 
@@ -21,19 +24,37 @@ namespace NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 /// <summary>
 /// <c>!bansong</c> (legacy parity, S068c) proves the REAL side effect: the currently playing track is
 /// actually handed to <see cref="IBlockedTrackService"/> with the right provider/URI/title, not merely
-/// "no exception" — and that nothing is banned when nothing is playing.
+/// "no exception" — and that nothing is banned when nothing is playing. Also proves the "nothing playing"
+/// copy is tone-styled (S069h).
 /// </summary>
 public sealed class BanSongBuiltinTests
 {
     private static readonly Guid Broadcaster = Guid.Parse("0192a000-0000-7000-8000-000000009902");
 
-    private static BuiltinCommandContext Context() =>
+    private static BuiltinCommandContext Context(
+        string personality = PersonalityTone.Informative
+    ) =>
         new()
         {
             BroadcasterId = Broadcaster,
             TriggeringUserId = "mod-1",
             TriggeringUserDisplayName = "SomeMod",
+            Personality = personality,
         };
+
+    private static IBuiltinResponseComposer FakeComposer()
+    {
+        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
+        resolver
+            .ResolveAsync(
+                Arg.Any<string>(),
+                Arg.Any<IDictionary<string, string>>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(call => Task.FromResult(call.ArgAt<string>(0)));
+        return new BuiltinResponseComposer(resolver);
+    }
 
     [Fact]
     public async Task Banning_the_playing_track_calls_BlockAsync_with_its_real_provider_uri_and_title()
@@ -74,7 +95,7 @@ public sealed class BanSongBuiltinTests
                 )
             );
 
-        BanSongBuiltin sut = new(music, blockedTracks);
+        BanSongBuiltin sut = new(music, blockedTracks, FakeComposer());
 
         Result<string> result = await sut.ExecuteAsync(Context());
 
@@ -105,7 +126,7 @@ public sealed class BanSongBuiltinTests
 
         IBlockedTrackService blockedTracks = Substitute.For<IBlockedTrackService>();
 
-        BanSongBuiltin sut = new(music, blockedTracks);
+        BanSongBuiltin sut = new(music, blockedTracks, FakeComposer());
 
         Result<string> result = await sut.ExecuteAsync(Context());
 
@@ -119,5 +140,29 @@ public sealed class BanSongBuiltinTests
                 Arg.Any<BlockTrackRequest>(),
                 Arg.Any<CancellationToken>()
             );
+    }
+
+    [Fact]
+    public async Task Sassy_tone_produces_a_different_nothing_playing_message_than_the_default_tone()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetNowPlayingAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>())
+            .Returns((NowPlaying?)null);
+        BanSongBuiltin sut = new(music, Substitute.For<IBlockedTrackService>(), FakeComposer());
+
+        Result<string> sassy = await sut.ExecuteAsync(Context(PersonalityTone.Sassy));
+        Result<string> informative = await sut.ExecuteAsync(Context(PersonalityTone.Informative));
+
+        informative.Value.Should().Be("Nothing is playing right now — there's no track to ban.");
+        sassy.Value.Should().NotBe(informative.Value);
+        ToneTemplateCatalog
+            .Get(
+                PersonalityTone.Sassy,
+                BuiltinResponseSlots.BanSong.Key,
+                BuiltinResponseSlots.BanSong.Nothing
+            )
+            .Should()
+            .Contain(sassy.Value);
     }
 }

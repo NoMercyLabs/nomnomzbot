@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
@@ -21,8 +22,11 @@ namespace NomNomzBot.Infrastructure.Commands.Builtins;
 /// <see cref="IBlockedTrackService"/>, the existing legacy <c>!bansong</c> list (music-sr.md) already
 /// enforced on the song-request admission path — this builtin only adds the chat trigger, no new state.
 /// </summary>
-public sealed class BanSongBuiltin(IMusicService music, IBlockedTrackService blockedTracks)
-    : IBuiltinCommand
+public sealed class BanSongBuiltin(
+    IMusicService music,
+    IBlockedTrackService blockedTracks,
+    IBuiltinResponseComposer composer
+) : IBuiltinCommand
 {
     public string BuiltinKey => "bansong";
     public int DefaultCooldownSeconds => 5;
@@ -41,7 +45,20 @@ public sealed class BanSongBuiltin(IMusicService music, IBlockedTrackService blo
         );
 
         if (nowPlaying is null || string.IsNullOrWhiteSpace(nowPlaying.TrackUri))
-            return Result.Success("Nothing is playing right now — there's no track to ban.");
+        {
+            string nothing = await composer.ComposeAsync(
+                new()
+                {
+                    BroadcasterId = context.BroadcasterId,
+                    Personality = context.Personality,
+                    BuiltinKey = BuiltinResponseSlots.BanSong.Key,
+                    Slot = BuiltinResponseSlots.BanSong.Nothing,
+                    NeutralFallback = "Nothing is playing right now — there's no track to ban.",
+                },
+                ct
+            );
+            return Result.Success(nothing);
+        }
 
         Result<BlockedTrackDto> blocked = await blockedTracks.BlockAsync(
             context.BroadcasterId,

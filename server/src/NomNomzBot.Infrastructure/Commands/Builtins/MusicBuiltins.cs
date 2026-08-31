@@ -111,8 +111,12 @@ public sealed class QueueBuiltin(IMusicService music, IBuiltinResponseComposer c
     }
 }
 
-/// <summary>!volume [0–100] — gets or sets the playback volume (mods+). Functional/numeric — stays neutral.</summary>
-public sealed class VolumeBuiltin(IMusicService music) : IBuiltinCommand
+/// <summary>
+/// !volume [0–100] — gets or sets the playback volume (mods+). The set path stays neutral (a plain numeric
+/// confirmation); the missing/unparsable-argument usage message is tone-styled (S069h).
+/// </summary>
+public sealed class VolumeBuiltin(IMusicService music, IBuiltinResponseComposer composer)
+    : IBuiltinCommand
 {
     public string BuiltinKey => "volume";
     public int DefaultCooldownSeconds => 5;
@@ -143,7 +147,20 @@ public sealed class VolumeBuiltin(IMusicService music) : IBuiltinCommand
         }
 
         if (!int.TryParse(context.Args.Trim(), out int level))
-            return Result.Success("Usage: !volume <0-100>");
+        {
+            string usage = await composer.ComposeAsync(
+                new()
+                {
+                    BroadcasterId = context.BroadcasterId,
+                    Personality = context.Personality,
+                    BuiltinKey = BuiltinResponseSlots.Volume.Key,
+                    Slot = BuiltinResponseSlots.Volume.Usage,
+                    NeutralFallback = "Usage: !volume <0-100>",
+                },
+                ct
+            );
+            return Result.Success(usage);
+        }
 
         level = Math.Clamp(level, 0, 100);
         Result volume = await music.SetVolumeAsync(context.BroadcasterId.ToString(), level, ct);

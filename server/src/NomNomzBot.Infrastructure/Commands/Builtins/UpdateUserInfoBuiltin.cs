@@ -11,6 +11,7 @@
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Services;
@@ -34,16 +35,19 @@ public sealed class UpdateUserInfoBuiltin : IBuiltinCommand
     private readonly ITwitchUsersApi _twitchUsers;
     private readonly IUserService _users;
     private readonly IApplicationDbContext _db;
+    private readonly IBuiltinResponseComposer _composer;
 
     public UpdateUserInfoBuiltin(
         ITwitchUsersApi twitchUsers,
         IUserService users,
-        IApplicationDbContext db
+        IApplicationDbContext db,
+        IBuiltinResponseComposer composer
     )
     {
         _twitchUsers = twitchUsers;
         _users = users;
         _db = db;
+        _composer = composer;
     }
 
     public string BuiltinKey => "update";
@@ -87,7 +91,21 @@ public sealed class UpdateUserInfoBuiltin : IBuiltinCommand
 
         TwitchUser? twitchUser = lookup.Value.FirstOrDefault();
         if (twitchUser is null)
-            return Result.Success($"Could not find user '{login}' on Twitch.");
+        {
+            string notFound = await _composer.ComposeAsync(
+                new()
+                {
+                    BroadcasterId = context.BroadcasterId,
+                    Personality = context.Personality,
+                    BuiltinKey = BuiltinResponseSlots.UpdateUserInfo.Key,
+                    Slot = BuiltinResponseSlots.UpdateUserInfo.NotFound,
+                    NeutralFallback = $"Could not find user '{login}' on Twitch.",
+                    Variables = new Dictionary<string, string> { ["user"] = login },
+                },
+                ct
+            );
+            return Result.Success(notFound);
+        }
 
         // GetOrCreate first so a viewer nobody has seen yet still gets a row to refresh.
         Result<Application.Identity.Dtos.UserDto> refreshed = await _users.GetOrCreateAsync(
