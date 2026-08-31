@@ -484,9 +484,18 @@ later.)
   sub-items above (queue promote/ban-track/refund, public page polish, token→URL, bounded steppers,
   enum lists from API, rate policy, `RequestedBy`, hub-driven reloads, polling fan-out, cost/duration/
   cooldown) are still open — tracker stays open for those.
-- **S068** Legacy builtins — `!leaderboard`, `!songhistory`,
-  `!playlist`, `!discord` + seeded fun-command preset pack +
-  on-connect announcement (U·C7). Done-when: a fresh channel has every legacy command or a seed for it.
+- **S068** Legacy builtins — `!discord` (needs a Discord invite-link concept first — backend gap, not a
+  chat-builtin task) + seeded fun-command preset pack + on-connect announcement (U·C7). Done-when: a
+  fresh channel has every legacy command or a seed for it.
+  **`!leaderboard`/`!playlist` DONE, verified (f1d4f0e9)**: `!leaderboard` reads
+  `IEconomyLeaderboardService.ListConfigsAsync`/`GetRankingAsync` (first public config, no
+  dashboard-default flag exists yet); `!playlist` reads `IMusicService.GetQueueAsync` (current track +
+  up to 5 upcoming — no shareable playlist URL exists on the service, stays a chat summary). Both route
+  through `IBuiltinResponseComposer`; new `"leaderboard"`/`"playlist"` keys fall through cleanly to
+  neutral fallback since `ToneTemplateCatalog.cs` wasn't in this slice's touch-list (own follow-up).
+  `!songhistory` OUT-OF-SCOPE FOUND: no recently-played/song-history read path exists anywhere in the
+  Music module (`IMusicService.GetQueueAsync` only returns current + forward queue) — real gap, not
+  built. 4 tests, real seeded data asserted including a truthful empty-state case.
   **`!bansong`/`!whisper` DONE, verified (001aed7b)**: both reuse existing domain capability
   (`IBlockedTrackService.BlockAsync` off the real `GetNowPlayingAsync` track, `IPlatformDirectMessageSender`
   via `ITwitchUsersApi.GetUsersByLoginsAsync`-resolved id) — no new domain state invented. `!discord`
