@@ -389,9 +389,13 @@ public sealed partial class TemplateResolver : ITemplateResolver
         // ── Time variables (no DB needed) ──────────────────────────────────
         if (NeedsAny(needed, "time", "time.utc", "date"))
         {
-            vars.TryAdd("time", now.ToString("HH:mm:ss"));
+            // {time}/{date} render in the channel owner's timezone (Users.Timezone, set in Settings → Bot
+            // basics) when one is configured; an unset or unrecognized zone id falls back to UTC. {time.utc}
+            // is always UTC regardless of the channel's setting.
+            DateTimeOffset local = ResolveChannelLocalTime(now, channelCtx?.Timezone);
+            vars.TryAdd("time", local.ToString("HH:mm:ss"));
             vars.TryAdd("time.utc", now.UtcDateTime.ToString("HH:mm:ss") + " UTC");
-            vars.TryAdd("date", now.ToString("yyyy-MM-dd"));
+            vars.TryAdd("date", local.ToString("yyyy-MM-dd"));
         }
 
         // ── Stream/channel variables (from ChannelRegistry) ────────────────
@@ -1278,6 +1282,31 @@ public sealed partial class TemplateResolver : ITemplateResolver
 
     private static string CapitalizeFirst(string value) =>
         string.IsNullOrEmpty(value) ? value : char.ToUpperInvariant(value[0]) + value[1..];
+
+    /// <summary>
+    /// Converts <paramref name="utcNow"/> into <paramref name="timezoneId"/> for the <c>{time}</c>/<c>{date}</c>
+    /// variables. Returns UTC unchanged when the channel has no timezone configured, or when the stored id is
+    /// no longer a recognized IANA/Windows zone (never throws on a stale/bad value).
+    /// </summary>
+    private static DateTimeOffset ResolveChannelLocalTime(DateTimeOffset utcNow, string? timezoneId)
+    {
+        if (string.IsNullOrWhiteSpace(timezoneId))
+            return utcNow;
+
+        try
+        {
+            TimeZoneInfo zone = TimeZoneInfo.FindSystemTimeZoneById(timezoneId);
+            return TimeZoneInfo.ConvertTime(utcNow, zone);
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            return utcNow;
+        }
+        catch (InvalidTimeZoneException)
+        {
+            return utcNow;
+        }
+    }
 
     private static string FormatUptime(TimeSpan uptime)
     {

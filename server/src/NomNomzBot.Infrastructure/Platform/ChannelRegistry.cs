@@ -610,7 +610,12 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
 
         var settings = await db
             .Channels.Where(c => c.Id == ctx.BroadcasterId)
-            .Select(c => new { c.Personality, c.CommandPrefix })
+            .Select(c => new
+            {
+                c.Personality,
+                c.CommandPrefix,
+                c.User.Timezone,
+            })
             .FirstOrDefaultAsync(ct);
 
         ctx.Personality = PersonalityTone.Normalize(settings?.Personality);
@@ -619,6 +624,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
         ctx.CommandPrefix = string.IsNullOrWhiteSpace(settings?.CommandPrefix)
             ? "!"
             : settings.CommandPrefix;
+        ctx.Timezone = settings?.Timezone;
     }
 
     /// <summary>
