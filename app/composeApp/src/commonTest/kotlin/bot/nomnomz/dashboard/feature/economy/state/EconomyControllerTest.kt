@@ -32,7 +32,9 @@ import bot.nomnomz.dashboard.core.network.SavingsJarDetail
 import bot.nomnomz.dashboard.core.network.SavingsJarMembership
 import bot.nomnomz.dashboard.core.network.TransferBody
 import bot.nomnomz.dashboard.core.network.UpdateCatalogItemBody
+import bot.nomnomz.dashboard.core.network.UpsertLeaderboardConfigBody
 import bot.nomnomz.dashboard.core.network.EconomyApi
+import bot.nomnomz.dashboard.core.network.LeaderboardConfig
 import bot.nomnomz.dashboard.core.network.LeaderboardEntry
 import bot.nomnomz.dashboard.core.network.SavingsJar
 import bot.nomnomz.dashboard.core.network.UpsertCurrencyConfig
@@ -398,6 +400,66 @@ class EconomyControllerTest {
     }
 
     @Test
+    fun upserting_a_leaderboard_config_sends_the_full_body_then_reloads() = runTest {
+        val economyApi =
+            FakeEconomyApi(configResult = ApiResult.Ok(loadedConfig), leaderboardResult = ApiResult.Ok(leaderboard))
+        val controller =
+            EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi, FakeUsersApi())
+        controller.load()
+
+        controller.upsertLeaderboardConfig(
+            UpsertLeaderboardConfigBody(
+                id = "cfg1",
+                metric = "earned",
+                scope = "jar",
+                period = "weekly",
+                isPublic = false,
+                topN = 25,
+                jarId = "jar1",
+            )
+        )
+
+        val request: UpsertLeaderboardConfigBody = economyApi.lastLeaderboardConfigUpsert!!
+        assertEquals("cfg1", request.id)
+        assertEquals("earned", request.metric)
+        assertEquals("jar", request.scope)
+        assertEquals("weekly", request.period)
+        assertFalse(request.isPublic)
+        assertEquals(25, request.topN)
+        assertEquals("jar1", request.jarId)
+        assertTrue(controller.state.value is EconomyState.Ready) // reloaded; page intact
+    }
+
+    @Test
+    fun deleting_a_leaderboard_config_addresses_it_by_id_then_reloads() = runTest {
+        val economyApi =
+            FakeEconomyApi(configResult = ApiResult.Ok(loadedConfig), leaderboardResult = ApiResult.Ok(leaderboard))
+        val controller =
+            EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi, FakeUsersApi())
+        controller.load()
+
+        controller.deleteLeaderboardConfig("cfg1")
+
+        assertEquals("cfg1", economyApi.lastDeletedLeaderboardConfigId)
+        assertTrue(controller.state.value is EconomyState.Ready) // reloaded; page intact
+    }
+
+    @Test
+    fun opting_a_viewer_out_then_back_in_addresses_the_real_viewer_id() = runTest {
+        val economyApi =
+            FakeEconomyApi(configResult = ApiResult.Ok(loadedConfig), leaderboardResult = ApiResult.Ok(leaderboard))
+        val controller =
+            EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi, FakeUsersApi())
+        controller.load()
+
+        controller.optOutOfLeaderboards("viewer1")
+        assertEquals("viewer1", economyApi.lastLeaderboardOptOut)
+
+        controller.optInToLeaderboards("viewer1")
+        assertEquals("viewer1", economyApi.lastLeaderboardOptIn)
+    }
+
+    @Test
     fun load_seeds_a_default_form_when_the_economy_is_not_configured() = runTest {
         // A null config means the economy was never set up — the page must still render a (default) form so the
         // operator can create it, flagged not-configured, with whatever leaderboard exists (empty here).
@@ -622,6 +684,51 @@ private class FakeEconomyApi(
     ): ApiResult<List<LeaderboardEntry>> {
         lastLeaderboardChannelId = channelId
         return leaderboardResult
+    }
+
+    private val leaderboardConfigsResult: ApiResult<List<LeaderboardConfig>> = ApiResult.Ok(emptyList())
+
+    override suspend fun leaderboardConfigs(channelId: String): ApiResult<List<LeaderboardConfig>> =
+        leaderboardConfigsResult
+
+    var lastLeaderboardConfigUpsert: UpsertLeaderboardConfigBody? = null
+        private set
+
+    override suspend fun upsertLeaderboardConfig(
+        channelId: String,
+        request: UpsertLeaderboardConfigBody,
+    ): ApiResult<LeaderboardConfig> {
+        lastLeaderboardConfigUpsert = request
+        return ApiResult.Ok(LeaderboardConfig())
+    }
+
+    var lastDeletedLeaderboardConfigId: String? = null
+        private set
+
+    override suspend fun deleteLeaderboardConfig(channelId: String, configId: String): ApiResult<Unit> {
+        lastDeletedLeaderboardConfigId = configId
+        return ApiResult.Ok(Unit)
+    }
+
+    override suspend fun leaderboardConfigBlastRadius(
+        channelId: String,
+        configId: String,
+    ): ApiResult<BlastRadiusSummary> = ApiResult.Ok(BlastRadiusSummary())
+
+    var lastLeaderboardOptOut: String? = null
+        private set
+
+    override suspend fun optOutOfLeaderboards(channelId: String, viewerUserId: String): ApiResult<Unit> {
+        lastLeaderboardOptOut = viewerUserId
+        return ApiResult.Ok(Unit)
+    }
+
+    var lastLeaderboardOptIn: String? = null
+        private set
+
+    override suspend fun optInToLeaderboards(channelId: String, viewerUserId: String): ApiResult<Unit> {
+        lastLeaderboardOptIn = viewerUserId
+        return ApiResult.Ok(Unit)
     }
 
     val accountsPagesRequested: MutableList<Int> = mutableListOf()
