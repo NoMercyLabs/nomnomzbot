@@ -83,6 +83,7 @@ public sealed class PublicSongRequestControllerTests
                 Channel.ToString(),
                 "never gonna give you up",
                 Arg.Any<string?>(),
+                Arg.Any<int?>(),
                 Arg.Any<CancellationToken>()
             )
             .Returns(
@@ -112,6 +113,7 @@ public sealed class PublicSongRequestControllerTests
                 Channel.ToString(),
                 "never gonna give you up",
                 Arg.Any<string?>(),
+                Arg.Any<int?>(),
                 Arg.Any<CancellationToken>()
             );
     }

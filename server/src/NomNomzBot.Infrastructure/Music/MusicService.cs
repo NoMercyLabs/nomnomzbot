@@ -13,7 +13,9 @@ using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Integrations.Services;
+using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.Exceptions;
 using NomNomzBot.Domain.Music.Interfaces;
@@ -42,6 +44,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
     private readonly ISongRequestQueuePersistence _queuePersistence;
     private readonly ILogger<MusicService> _logger;
     private readonly IIntegrationCapabilityStore _capabilities;
+    private readonly IMusicConfigService _config;
 
     public MusicService(
         IEnumerable<IMusicProvider> providers,
@@ -51,13 +54,15 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         ISongRequestQueueStore queueStore,
         ISongRequestQueuePersistence queuePersistence,
         ILogger<MusicService> logger,
-        IIntegrationCapabilityStore capabilities
+        IIntegrationCapabilityStore capabilities,
+        IMusicConfigService config
     )
     {
         _providers = providers;
         _db = db;
         _eventBus = eventBus;
         _blockedTracks = blockedTracks;
+        _config = config;
         _queueStore = queueStore;
         _queuePersistence = queuePersistence;
         _logger = logger;
@@ -325,11 +330,36 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         string broadcasterId,
         string query,
         string? requestedBy = null,
+        int? requesterRoleLevel = null,
         CancellationToken cancellationToken = default
     )
     {
         if (!Guid.TryParse(broadcasterId, out Guid tenantId))
             return InvalidChannelId<MusicTrack>();
+
+        Result<MusicConfigDto> configResult = await _config.GetConfigAsync(
+            broadcasterId,
+            cancellationToken
+        );
+        if (configResult.IsSuccess)
+        {
+            MusicConfigDto config = configResult.Value;
+            if (!config.IsEnabled)
+                return Result.Failure<MusicTrack>(
+                    "Song requests are turned off in this channel.",
+                    "SR_DISABLED"
+                );
+
+            if (requesterRoleLevel is { } roleLevel)
+            {
+                PermissionLevel floor = ParseMinTrustLevel(config.MinTrustLevel);
+                if (roleLevel < floor.ToLevelValue())
+                    return Result.Failure<MusicTrack>(
+                        $"Song requests need at least {config.MinTrustLevel} right now.",
+                        "MIN_TRUST_LEVEL"
+                    );
+            }
+        }
 
         IMusicProvider? provider = await GetActiveProviderAsync(tenantId, cancellationToken);
         if (provider is null)
@@ -767,6 +797,24 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
     /// Validates that a user's trust tier permits queuing music.
     /// Returns null if allowed, or an error message if blocked.
     /// </summary>
+    /// <summary>
+    /// Maps a <c>MusicConfigDto.MinTrustLevel</c> token (<c>everyone|subscribers|vip|moderators|broadcaster</c>,
+    /// validated by <c>UpdateMusicConfigDto</c>'s regex) onto the canonical <see cref="PermissionLevel"/> ladder.
+    /// Deliberately NOT <c>ChatRole.Parse</c>: that parser's plural-free vocabulary (<c>subscriber</c>,
+    /// <c>moderator</c>) would silently default this config's plural tokens (<c>subscribers</c>,
+    /// <c>moderators</c>) to <see cref="PermissionLevel.Everyone"/> — a floor that reads as configured but
+    /// gates nothing.
+    /// </summary>
+    private static PermissionLevel ParseMinTrustLevel(string minTrustLevel) =>
+        minTrustLevel.Trim().ToLowerInvariant() switch
+        {
+            "subscribers" => PermissionLevel.Subscriber,
+            "vip" => PermissionLevel.Vip,
+            "moderators" => PermissionLevel.Moderator,
+            "broadcaster" => PermissionLevel.Broadcaster,
+            _ => PermissionLevel.Everyone,
+        };
+
     public string? CheckTrustPermission(double trustScore, bool isYouTubeContent)
     {
         TrustTier tier = TrustScoreCalculator.GetTier(trustScore);

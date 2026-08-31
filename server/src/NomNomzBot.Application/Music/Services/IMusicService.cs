@@ -63,7 +63,12 @@ public interface IMusicService
     /// link/URI/id OR a free-text search phrase — to one track and admits it into the queue. Tries an
     /// authoritative link/id resolve first, so a pasted Spotify/YouTube link lands the exact track instead
     /// of being run through text search (where it would find nothing); falls back to the provider's search
-    /// when the input isn't a resolvable link. Fails <c>NOT_FOUND</c> when nothing resolves, plus every
+    /// when the input isn't a resolvable link. Enforces the channel's <c>MusicConfig</c> gate first:
+    /// <c>SR_DISABLED</c> when <c>IsEnabled</c> is off; <c>MIN_TRUST_LEVEL</c> when
+    /// <paramref name="requesterRoleLevel"/> is supplied and sits below the configured
+    /// <c>MinTrustLevel</c> floor — a null <paramref name="requesterRoleLevel"/> (dashboard/public-page/
+    /// script callers, which have their own authorization boundary) skips the floor check, never the
+    /// <c>IsEnabled</c> check. Fails <c>NOT_FOUND</c> when nothing resolves, plus every
     /// <see cref="AddToQueueAsync"/> failure mode (<c>SERVICE_UNAVAILABLE</c>, <c>TRACK_BLOCKED</c>,
     /// <c>VALIDATION_FAILED</c>). On success, returns the resolved track for the caller's confirmation message.
     /// </summary>
@@ -71,6 +76,7 @@ public interface IMusicService
         string broadcasterId,
         string query,
         string? requestedBy = null,
+        int? requesterRoleLevel = null,
         CancellationToken cancellationToken = default
     );
 

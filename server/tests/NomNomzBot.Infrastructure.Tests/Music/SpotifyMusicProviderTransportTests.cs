@@ -249,7 +249,8 @@ public sealed class SpotifyMusicProviderTransportTests
             new SongRequestQueueStore(),
             new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
-            store
+            store,
+            PermissiveMusicConfigService.Instance
         );
         return (sut, bus, handler, store);
     }

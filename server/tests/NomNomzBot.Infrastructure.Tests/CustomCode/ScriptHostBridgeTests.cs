@@ -163,6 +163,7 @@ public sealed class ScriptHostBridgeTests
                 Channel.ToString(),
                 "lofi beats",
                 Arg.Any<string?>(),
+                Arg.Any<int?>(),
                 Arg.Any<CancellationToken>()
             )
             .Returns(

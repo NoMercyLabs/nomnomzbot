@@ -170,7 +170,7 @@ public class MusicController : BaseController
             channelId,
             request.Query,
             request.RequestedBy,
-            ct
+            cancellationToken: ct
         );
         if (requested.IsFailure)
             return ResultResponse(requested);

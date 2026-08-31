@@ -52,6 +52,7 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
             context.BroadcasterId.ToString(),
             query,
             context.TriggeringUserDisplayName,
+            context.RoleLevel,
             ct
         );
 
@@ -116,6 +117,8 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
             return Result.Success(
                 requested.ErrorCode switch
                 {
+                    "SR_DISABLED" => requested.ErrorMessage!,
+                    "MIN_TRUST_LEVEL" => requested.ErrorMessage!,
                     "TRACK_BLOCKED" => requested.ErrorMessage!,
                     "DUPLICATE_TRACK" => requested.ErrorMessage!,
                     "SERVICE_UNAVAILABLE" => NoProviderMessage(context.RoleLevel),

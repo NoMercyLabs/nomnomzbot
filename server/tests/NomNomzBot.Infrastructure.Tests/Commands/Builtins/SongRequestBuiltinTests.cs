@@ -195,6 +195,7 @@ public sealed class SongRequestBuiltinTests
                 Broadcaster.ToString(),
                 Arg.Any<string>(),
                 Arg.Any<string?>(),
+                Arg.Any<int?>(),
                 Arg.Any<CancellationToken>()
             )
             .Returns(requestResult);

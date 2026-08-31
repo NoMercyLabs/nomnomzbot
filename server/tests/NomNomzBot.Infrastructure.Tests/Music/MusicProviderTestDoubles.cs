@@ -21,12 +21,40 @@ using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Application.Music.Dtos;
+using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Infrastructure.Integrations.YouTube;
 using NomNomzBot.Infrastructure.Music;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
+
+/// <summary>
+/// A permissive <see cref="IMusicConfigService"/> double: enabled, "everyone" trust floor — the same
+/// defaults <c>MusicConfigService</c> itself falls back to for a channel with no config row. The admission
+/// tests for <c>IsEnabled</c>/<c>MinTrustLevel</c> (S067) construct their own configured double instead;
+/// every other <see cref="MusicService"/> test harness that isn't exercising the config gate uses this one
+/// so the gate never becomes a silent extra dependency those tests have to reason about.
+/// </summary>
+internal sealed class PermissiveMusicConfigService : IMusicConfigService
+{
+    public static readonly PermissiveMusicConfigService Instance = new();
+
+    public Task<Result<MusicConfigDto>> GetConfigAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    ) =>
+        Task.FromResult(
+            Result.Success(new MusicConfigDto(true, "auto", 50, 5, true, true, "everyone"))
+        );
+
+    public Task<Result<MusicConfigDto>> UpdateConfigAsync(
+        string broadcasterId,
+        UpdateMusicConfigDto request,
+        CancellationToken cancellationToken = default
+    ) => throw new NotSupportedException("Not exercised by the MusicService test surface.");
+}
 
 /// <summary>Round-trips plaintext unchanged — provider-seam tests exercise the music plumbing,
 /// not the envelope-encryption stack, which has its own dedicated tests elsewhere.</summary>

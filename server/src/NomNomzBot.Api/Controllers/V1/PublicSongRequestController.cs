@@ -27,7 +27,7 @@ namespace NomNomzBot.Api.Controllers.V1;
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/public/sr")]
 [AllowAnonymous]
-[EnableRateLimiting(NomNomzBot.Api.RateLimiting.RateLimitPolicyNames.Anonymous)]
+[EnableRateLimiting(RateLimiting.RateLimitPolicyNames.Anonymous)]
 public sealed class PublicSongRequestController(
     ISongRequestPageTokenService pageTokens,
     IMusicService music
@@ -94,7 +94,7 @@ public sealed class PublicSongRequestController(
             page.Value.BroadcasterId.ToString(),
             request.Query,
             string.IsNullOrWhiteSpace(request.RequestedBy) ? "Anonymous" : request.RequestedBy,
-            cancellationToken
+            cancellationToken: cancellationToken
         );
         if (requested.IsFailure)
             // NOT_FOUND → 404; TRACK_BLOCKED → 409 with its typed reason; provider-less → 503; etc.
