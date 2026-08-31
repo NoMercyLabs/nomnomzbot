@@ -15,9 +15,12 @@ import bot.nomnomz.dashboard.core.feedback.RecordingFeedback
 import bot.nomnomz.dashboard.core.network.AddCodesBody
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.ChannelSummary
+import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.CodePool
 import bot.nomnomz.dashboard.core.network.CodePoolDetail
 import bot.nomnomz.dashboard.core.network.CreateCodePoolBody
+import bot.nomnomz.dashboard.core.network.CreatePipelineBody
 import bot.nomnomz.dashboard.core.network.Giveaway
 import bot.nomnomz.dashboard.core.network.GiveawayCodeStatus
 import bot.nomnomz.dashboard.core.network.GiveawayEntry
@@ -27,6 +30,12 @@ import bot.nomnomz.dashboard.core.network.GiveawayWinner
 import bot.nomnomz.dashboard.core.network.GiveawayWinnerStatus
 import bot.nomnomz.dashboard.core.network.GiveawaysApi
 import bot.nomnomz.dashboard.core.network.MaskedCode
+import bot.nomnomz.dashboard.core.network.ModeratedChannel
+import bot.nomnomz.dashboard.core.network.PipelineCatalogueRemote
+import bot.nomnomz.dashboard.core.network.PipelineDetail
+import bot.nomnomz.dashboard.core.network.PipelineSummary
+import bot.nomnomz.dashboard.core.network.PipelinesApi
+import bot.nomnomz.dashboard.core.network.UpdatePipelineBody
 import bot.nomnomz.dashboard.core.network.UpsertGiveawayBody
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -65,7 +74,9 @@ class GiveawaysControllerTest {
                             )
                         )
                     )
-                )
+                ),
+                FakeChannelsApi(),
+                FakePipelinesApi(),
             )
 
         controller.load()
@@ -81,7 +92,8 @@ class GiveawaysControllerTest {
 
     @Test
     fun load_is_empty_when_the_channel_has_no_giveaways() = runTest {
-        val controller = GiveawaysController(RecordingGiveawaysApi(ApiResult.Ok(emptyList())))
+        val controller =
+            GiveawaysController(RecordingGiveawaysApi(ApiResult.Ok(emptyList())), FakeChannelsApi(), FakePipelinesApi())
 
         controller.load()
 
@@ -91,7 +103,11 @@ class GiveawaysControllerTest {
     @Test
     fun load_errors_when_the_list_call_fails() = runTest {
         val controller =
-            GiveawaysController(RecordingGiveawaysApi(ApiResult.Failure(ApiError(500, "ERR", "boom"))))
+            GiveawaysController(
+                RecordingGiveawaysApi(ApiResult.Failure(ApiError(500, "ERR", "boom"))),
+                FakeChannelsApi(),
+                FakePipelinesApi(),
+            )
 
         controller.load()
 
@@ -103,7 +119,7 @@ class GiveawaysControllerTest {
     @Test
     fun create_posts_the_body_then_reloads_with_the_new_row() = runTest {
         val api = RecordingGiveawaysApi(ApiResult.Ok(emptyList()))
-        val controller = GiveawaysController(api)
+        val controller = GiveawaysController(api, FakeChannelsApi(), FakePipelinesApi())
         controller.load()
         assertTrue(controller.state.value is GiveawaysState.Empty)
 
@@ -133,7 +149,7 @@ class GiveawaysControllerTest {
     fun open_flips_the_status_to_open_and_announces_it() = runTest {
         val feedback = RecordingFeedback()
         val api = RecordingGiveawaysApi(ApiResult.Ok(listOf(draft("g1"))))
-        val controller = GiveawaysController(api, feedback)
+        val controller = GiveawaysController(api, FakeChannelsApi(), FakePipelinesApi(), feedback)
         controller.load()
 
         controller.openGiveaway("g1")
@@ -148,7 +164,7 @@ class GiveawaysControllerTest {
     @Test
     fun close_flips_an_open_giveaway_to_closed() = runTest {
         val api = RecordingGiveawaysApi(ApiResult.Ok(listOf(draft("g1").copy(status = GiveawayStatus.Open))))
-        val controller = GiveawaysController(api)
+        val controller = GiveawaysController(api, FakeChannelsApi(), FakePipelinesApi())
         controller.load()
 
         controller.closeGiveaway("g1")
@@ -164,7 +180,7 @@ class GiveawaysControllerTest {
         val winners: List<GiveawayWinner> =
             listOf(winner("w1", "g1", "alice"), winner("w2", "g1", "bob"))
         val api = RecordingGiveawaysApi(ApiResult.Ok(listOf(closed)), drawWinners = winners)
-        val controller = GiveawaysController(api, feedback)
+        val controller = GiveawaysController(api, FakeChannelsApi(), FakePipelinesApi(), feedback)
         controller.load()
 
         controller.drawGiveaway(closed)
@@ -185,7 +201,7 @@ class GiveawaysControllerTest {
         val g: Giveaway = draft("g1").copy(status = GiveawayStatus.Drawn)
         val api = RecordingGiveawaysApi(ApiResult.Ok(listOf(g)))
         api.seedWinners("g1", listOf(winner("w1", "g1", "carol")))
-        val controller = GiveawaysController(api)
+        val controller = GiveawaysController(api, FakeChannelsApi(), FakePipelinesApi())
         controller.load()
 
         controller.showWinners(g)
@@ -206,7 +222,7 @@ class GiveawaysControllerTest {
                 ApiResult.Ok(listOf(g)),
                 entriesResult = ApiResult.Ok(listOf(entry("e1", "g1", "frank", tickets = 3))),
             )
-        val controller = GiveawaysController(api)
+        val controller = GiveawaysController(api, FakeChannelsApi(), FakePipelinesApi())
         controller.load()
 
         controller.showEntries(g)
@@ -226,7 +242,7 @@ class GiveawaysControllerTest {
         val g: Giveaway = draft("g1").copy(status = GiveawayStatus.Drawn)
         val api = RecordingGiveawaysApi(ApiResult.Ok(listOf(g)))
         api.seedWinners("g1", listOf(winner("w1", "g1", "dave")))
-        val controller = GiveawaysController(api)
+        val controller = GiveawaysController(api, FakeChannelsApi(), FakePipelinesApi())
         controller.load()
         controller.showWinners(g)
 
@@ -246,7 +262,7 @@ class GiveawaysControllerTest {
         val api =
             RecordingGiveawaysApi(ApiResult.Ok(listOf(g)), revealResult = ApiResult.Ok("PROMO-SECRET-9"))
         api.seedWinners("g1", listOf(winner("w1", "g1", "erin").copy(assignedCodeId = "c1", whisperDelivered = false)))
-        val controller = GiveawaysController(api)
+        val controller = GiveawaysController(api, FakeChannelsApi(), FakePipelinesApi())
         controller.load()
         controller.showWinners(g)
 
@@ -261,7 +277,7 @@ class GiveawaysControllerTest {
     fun delete_removes_the_giveaway_then_reloads_to_empty() = runTest {
         val feedback = RecordingFeedback()
         val api = RecordingGiveawaysApi(ApiResult.Ok(listOf(draft("g9"))))
-        val controller = GiveawaysController(api, feedback)
+        val controller = GiveawaysController(api, FakeChannelsApi(), FakePipelinesApi(), feedback)
         controller.load()
         assertTrue(controller.state.value is GiveawaysState.Ready)
 
@@ -280,7 +296,7 @@ class GiveawaysControllerTest {
                 ApiResult.Ok(listOf(draft("g1").copy(title = "keep me"))),
                 writeResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "no permission")),
             )
-        val controller = GiveawaysController(api, feedback)
+        val controller = GiveawaysController(api, FakeChannelsApi(), FakePipelinesApi(), feedback)
         controller.load()
 
         controller.openGiveaway("g1")
@@ -297,7 +313,7 @@ class GiveawaysControllerTest {
     @Test
     fun code_pools_load_create_and_delete_reflect_the_store() = runTest {
         val api = RecordingGiveawaysApi(ApiResult.Ok(emptyList()), poolsInitial = ApiResult.Ok(emptyList()))
-        val controller = GiveawaysController(api)
+        val controller = GiveawaysController(api, FakeChannelsApi(), FakePipelinesApi())
 
         controller.loadCodePools()
         assertTrue(controller.codePools.value is CodePoolsState.Empty)
@@ -320,7 +336,7 @@ class GiveawaysControllerTest {
                 ApiResult.Ok(emptyList()),
                 poolsInitial = ApiResult.Ok(listOf(CodePool(id = "p1", name = "keys", total = 0))),
             )
-        val controller = GiveawaysController(api)
+        val controller = GiveawaysController(api, FakeChannelsApi(), FakePipelinesApi())
         controller.loadCodePools()
         controller.showPoolDetail(CodePool(id = "p1", name = "keys"))
 
@@ -343,7 +359,7 @@ class GiveawaysControllerTest {
                 ApiResult.Ok(emptyList()),
                 poolsInitial = ApiResult.Ok(listOf(CodePool(id = "p1", name = "keys", total = 0))),
             )
-        val controller = GiveawaysController(api)
+        val controller = GiveawaysController(api, FakeChannelsApi(), FakePipelinesApi())
         controller.loadCodePools()
         controller.showPoolDetail(CodePool(id = "p1", name = "keys"))
 
@@ -402,6 +418,7 @@ private class RecordingGiveawaysApi(
     private val writeResult: ApiResult<Unit> = ApiResult.Ok(Unit),
     private val drawWinners: List<GiveawayWinner> = emptyList(),
     private val revealResult: ApiResult<String> = ApiResult.Ok("PLAINTEXT-CODE"),
+    var entriesResult: ApiResult<List<GiveawayEntry>> = ApiResult.Ok(emptyList()),
 ) : GiveawaysApi {
     // Not exercised here: the counted delete preview has its own tests (DeleteBlastRadiusDialogTest and the
     // backend's blast-radius suites). The seam is implemented so the double stays a real implementation.
@@ -506,8 +523,6 @@ private class RecordingGiveawaysApi(
     override suspend fun winners(id: String): ApiResult<List<GiveawayWinner>> =
         ApiResult.Ok(winnersStore[id]?.toList() ?: emptyList())
 
-    var entriesResult: ApiResult<List<GiveawayEntry>> = ApiResult.Ok(emptyList())
-
     override suspend fun entries(id: String): ApiResult<List<GiveawayEntry>> = entriesResult
 
     override suspend fun revealCode(id: String, winnerId: String): ApiResult<String> = revealResult
@@ -550,4 +565,35 @@ private class RecordingGiveawaysApi(
         val index: Int = store.indexOfFirst { it.id == id }
         if (index >= 0) store[index] = store[index].copy(status = status)
     }
+}
+
+private class FakeChannelsApi : ChannelsApi {
+    override suspend fun primaryChannel(): ApiResult<ChannelSummary> = ApiResult.Ok(ChannelSummary(id = "ch1"))
+    override suspend fun list(): ApiResult<List<ChannelSummary>> = ApiResult.Ok(emptyList())
+    override suspend fun join(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun leave(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun reset(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun deleteChannel(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun channelScopes(channelId: String) = error("stub")
+    override suspend fun startChannelBotConnect(channelId: String) = error("stub")
+    override suspend fun channelBotStatus(channelId: String) = error("stub")
+    override suspend fun disconnectChannelBot(channelId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun moderatedChannels(): ApiResult<List<ModeratedChannel>> = ApiResult.Ok(emptyList())
+}
+
+private class FakePipelinesApi : PipelinesApi {
+    override suspend fun list(channelId: String): ApiResult<List<PipelineSummary>> = ApiResult.Ok(emptyList())
+    override suspend fun catalogue(channelId: String): ApiResult<PipelineCatalogueRemote> =
+        ApiResult.Ok(PipelineCatalogueRemote())
+    override suspend fun get(channelId: String, id: String): ApiResult<PipelineDetail> =
+        ApiResult.Ok(PipelineDetail(id = id))
+    override suspend fun create(channelId: String, body: CreatePipelineBody): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun createReturning(channelId: String, body: CreatePipelineBody): ApiResult<PipelineDetail> =
+        ApiResult.Ok(PipelineDetail(id = "new-pipe", name = body.name))
+    override suspend fun update(channelId: String, id: String, body: UpdatePipelineBody): ApiResult<Unit> =
+        ApiResult.Ok(Unit)
+    override suspend fun delete(channelId: String, id: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun blastRadius(channelId: String, id: String) = error("stub")
+    override suspend fun testRun(channelId: String, id: String, body: bot.nomnomz.dashboard.core.network.PipelineTestRunBody) =
+        error("stub")
 }
