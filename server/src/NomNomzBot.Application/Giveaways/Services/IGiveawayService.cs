@@ -75,6 +75,15 @@ public interface IGiveawayService
         CancellationToken ct = default
     );
 
+    /// <summary>The entrants so far, newest first, paginated — lets a broadcaster inspect who's entered
+    /// before drawing (keyword-mode entries only; <c>active_viewers</c> giveaways have no entry rows).</summary>
+    Task<Result<PagedList<GiveawayEntryDto>>> GetEntriesAsync(
+        Guid broadcasterId,
+        Guid giveawayId,
+        PaginationParams pagination,
+        CancellationToken ct = default
+    );
+
     /// <summary>Draws <c>WinnerCount</c> DISTINCT winners with a CSPRNG over the ticket-weighted pool
     /// (entries, or the eligible active-viewer set), never the broadcaster (mods iff excluded), fulfills
     /// per <c>PrizeMode</c> (§4), appends winner rows, and publishes <c>GiveawayDrawnEvent</c> — one

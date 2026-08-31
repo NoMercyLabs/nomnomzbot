@@ -180,6 +180,30 @@ public class GiveawaysController : BaseController
         return ResultResponse(await _giveaways.RedrawAsync(broadcasterId, id, winnerId, ct));
     }
 
+    /// <summary>Entries so far, newest first, paginated — lets a broadcaster inspect who's entered before drawing.</summary>
+    [RequireAction("giveaways:read")]
+    [HttpGet("{id:guid}/entries")]
+    [ProducesResponseType<PaginatedResponse<GiveawayEntryDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> Entries(
+        Guid id,
+        [FromQuery] PageRequestDto request,
+        CancellationToken ct
+    )
+    {
+        if (_tenant.BroadcasterId is not { } broadcasterId)
+            return UnauthenticatedResponse("No tenant resolved.");
+
+        Result<PagedList<GiveawayEntryDto>> result = await _giveaways.GetEntriesAsync(
+            broadcasterId,
+            id,
+            new(request.Page, request.Take, request.Sort, request.Order),
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return GetPaginatedResponse(result.Value, request);
+    }
+
     /// <summary>Winner history (append-only), paginated.</summary>
     [RequireAction("giveaways:read")]
     [HttpGet("{id:guid}/winners")]

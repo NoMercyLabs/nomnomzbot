@@ -76,7 +76,14 @@ public sealed class GiveawayChatFlowTests
             )
             .Returns(
                 Result.Success(
-                    new GiveawayEntryDto(Guid.NewGuid(), Guid.NewGuid(), Viewer, 1, DateTime.UtcNow)
+                    new GiveawayEntryDto(
+                        Guid.NewGuid(),
+                        Guid.NewGuid(),
+                        Viewer,
+                        "Viewer",
+                        1,
+                        DateTime.UtcNow
+                    )
                 )
             );
         IUserService users = Substitute.For<IUserService>();
