@@ -539,7 +539,14 @@ later.)
   whisper-with-fallback, inbound whisper handler, `announce` action/toggle, per-locale tone catalogue)
   is still open.
 - **S070** Settings + onboarding truth —
-  scope→feature map + re-grant on Settings; swallowed regrant/reconcile failures; copy fixes (U·B6).
+  swallowed regrant/reconcile failures; copy fixes (U·B6).
+  **Scope→feature map + re-grant on Settings DONE, verified (fe5762ec)**: backend already had the full
+  matrix (`GET /twitch/diagnostics/scopes` → `TwitchScopeDiagnosticsDto`) and the additive device-code
+  re-grant endpoint — pure frontend wiring. New "Permissions" section on Settings shows one row per
+  (scope, feature, granted), a Broadcaster-gated re-grant button reusing the exact
+  `startRegrant()`/`AuthApi.pollDeviceLogin` mechanism Integrations already uses (no new OAuth flow).
+  Test proves the matrix reflects the real backend response and re-grant drives the real device-code
+  flow, re-reading only after backend-reported approval.
   **Timezone DONE, verified (772e5b69)**: `User.Timezone` was saved but only ever read back for
   display — genuinely dead. Now loaded into `ChannelContext` (`ChannelRegistry`, refreshed on
   `InvalidateSettingsAsync`); `TemplateResolver`'s `{time}`/`{date}` convert from UTC into the channel's
