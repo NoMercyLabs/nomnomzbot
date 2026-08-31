@@ -54,7 +54,8 @@ public sealed class WidgetServiceCompileTests
             Clock,
             Substitute.For<IMusicService>(),
             Substitute.For<IScriptStorageService>(),
-            new PipelineStepReferenceScanner(db)
+            new PipelineStepReferenceScanner(db),
+            Substitute.For<IOverlayPresenceRegistry>()
         );
 
     private static Result<WidgetBuildOutput> Ok(

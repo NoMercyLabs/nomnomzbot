@@ -280,6 +280,7 @@ public sealed class WidgetSettingsSchemaTests
             new FakeTimeProvider(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero)),
             Substitute.For<IMusicService>(),
             Substitute.For<IScriptStorageService>(),
-            new PipelineStepReferenceScanner(db)
+            new PipelineStepReferenceScanner(db),
+            Substitute.For<IOverlayPresenceRegistry>()
         );
 }

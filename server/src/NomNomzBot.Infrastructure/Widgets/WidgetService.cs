@@ -41,6 +41,7 @@ public class WidgetService : IWidgetService
     private readonly IMusicService _musicService;
     private readonly IScriptStorageService _scriptStorage;
     private readonly IPipelineStepReferenceScanner _stepReferences;
+    private readonly IOverlayPresenceRegistry _presence;
 
     public WidgetService(
         IApplicationDbContext db,
@@ -51,7 +52,8 @@ public class WidgetService : IWidgetService
         TimeProvider timeProvider,
         IMusicService musicService,
         IScriptStorageService scriptStorage,
-        IPipelineStepReferenceScanner stepReferences
+        IPipelineStepReferenceScanner stepReferences,
+        IOverlayPresenceRegistry presence
     )
     {
         _db = db;
@@ -68,6 +70,7 @@ public class WidgetService : IWidgetService
         _musicService = musicService;
         _scriptStorage = scriptStorage;
         _stepReferences = stepReferences;
+        _presence = presence;
     }
 
     public async Task<Result<WidgetDetail>> CreateAsync(
@@ -1431,7 +1434,7 @@ public class WidgetService : IWidgetService
         };
     }
 
-    private static WidgetDetail ToDetail(
+    private WidgetDetail ToDetail(
         Widget w,
         string overlayToken,
         string overlayBaseUrl,
@@ -1456,7 +1459,8 @@ public class WidgetService : IWidgetService
             w.UpdatedAt,
             w.GalleryItemId is not null
                 && currentGalleryRevision is { } rev
-                && rev > (w.InstalledSourceRevision ?? 0)
+                && rev > (w.InstalledSourceRevision ?? 0),
+            _presence.IsWidgetAttached(w.BroadcasterId, w.Id)
         );
     }
 

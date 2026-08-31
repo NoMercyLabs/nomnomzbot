@@ -1373,6 +1373,8 @@
     <string name="widgets_test_action_short">Test</string>
     <string name="widgets_test_result">Test: %1$s</string>
     <string name="widgets_test_error">Test failed: %1$s</string>
+    <string name="widgets_overlay_live">Live in OBS</string>
+    <string name="widgets_overlay_not_connected">Not connected</string>
     <string name="widgets_update_action">Update overlay %1$s from the gallery</string>
     <string name="widgets_update_action_short">Update</string>
     <string name="widgets_settings_action">Settings for overlay %1$s</string>

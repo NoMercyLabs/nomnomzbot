@@ -46,6 +46,7 @@ public sealed class SystemWidgetSeedOnOnboardingHandlerTests
             null,
             DateTime.UtcNow,
             DateTime.UtcNow,
+            false,
             false
         );
 

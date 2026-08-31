@@ -52,7 +52,8 @@ public sealed class WidgetServiceOverlayTests
             Clock,
             musicService ?? Substitute.For<IMusicService>(),
             scriptStorage ?? Substitute.For<IScriptStorageService>(),
-            new PipelineStepReferenceScanner(db)
+            new PipelineStepReferenceScanner(db),
+            Substitute.For<IOverlayPresenceRegistry>()
         );
 
     private static IWidgetBuildService BuildReturning(string bundle, string hash)

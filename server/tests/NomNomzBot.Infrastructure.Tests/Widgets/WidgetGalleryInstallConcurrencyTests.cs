@@ -111,7 +111,8 @@ public sealed class WidgetGalleryInstallConcurrencyTests : IDisposable
             Clock,
             musicService,
             scriptStorage,
-            new PipelineStepReferenceScanner(db)
+            new PipelineStepReferenceScanner(db),
+            Substitute.For<IOverlayPresenceRegistry>()
         );
     }
 

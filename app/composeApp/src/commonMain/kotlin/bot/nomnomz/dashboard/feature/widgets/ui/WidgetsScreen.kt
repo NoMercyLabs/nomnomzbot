@@ -118,6 +118,8 @@ import nomnomzbot.composeapp.generated.resources.widgets_update_badge
 import nomnomzbot.composeapp.generated.resources.widgets_never_ran
 import nomnomzbot.composeapp.generated.resources.widgets_last_ran
 import nomnomzbot.composeapp.generated.resources.widgets_runtime_error
+import nomnomzbot.composeapp.generated.resources.widgets_overlay_live
+import nomnomzbot.composeapp.generated.resources.widgets_overlay_not_connected
 import nomnomzbot.composeapp.generated.resources.widgets_settings_action
 import nomnomzbot.composeapp.generated.resources.widgets_settings_action_short
 import nomnomzbot.composeapp.generated.resources.widgets_test_action
@@ -627,6 +629,19 @@ private fun WidgetRow(
                     color = if (widget.isEnabled) tokens.primary else tokens.mutedForeground,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                )
+                // "Overlay last-seen": whether a live browser source has this widget open right now
+                // (backend IOverlayPresenceRegistry) — proof the overlay is actually loaded in OBS, without
+                // having to fire a test event first.
+                Text(
+                    text =
+                        stringResource(
+                            if (widget.isAttached) Res.string.widgets_overlay_live
+                            else Res.string.widgets_overlay_not_connected
+                        ),
+                    style = typography.xs,
+                    color = if (widget.isAttached) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
                 )
                 if (widget.lastRuntimeError != null) {
                     Text(
