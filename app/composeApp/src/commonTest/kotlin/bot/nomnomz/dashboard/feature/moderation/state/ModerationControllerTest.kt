@@ -25,6 +25,7 @@ import bot.nomnomz.dashboard.core.network.CreateModerationRuleBody
 import bot.nomnomz.dashboard.core.network.EscalationLadderStep
 import bot.nomnomz.dashboard.core.network.EscalationPolicy
 import bot.nomnomz.dashboard.core.network.ModLogEntry
+import bot.nomnomz.dashboard.core.network.ModerationQueueItem
 import bot.nomnomz.dashboard.core.network.ModerationRule
 import bot.nomnomz.dashboard.core.network.ModerationStanding
 import bot.nomnomz.dashboard.core.network.ModerationStats
@@ -620,6 +621,48 @@ class ModerationControllerTest {
     }
 
     @Test
+    fun load_surfaces_the_pending_automod_queue() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(emptyList()))
+        api.automodQueueResult =
+            ApiResult.Ok(
+                listOf(
+                    ModerationQueueItem(
+                        id = "q1",
+                        source = "automod",
+                        status = "pending",
+                        targetUsernameSnapshot = "chatter",
+                        messageContentSnapshot = "you are all idiots",
+                        autoModCategory = "aggression",
+                    )
+                )
+            )
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
+
+        controller.load()
+
+        // The page renders (not Empty) because there's a pending held message, and it carries the item.
+        assertEquals(
+            listOf("q1"),
+            (controller.state.value as? ModerationState.Ready)?.automodQueue?.map { it.id },
+        )
+    }
+
+    @Test
+    fun resolve_automod_queue_item_records_the_action_and_reloads() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(emptyList()))
+        api.automodQueueResult =
+            ApiResult.Ok(listOf(ModerationQueueItem(id = "q1", status = "pending")))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
+        controller.load()
+
+        controller.resolveAutomodQueueItem("q1", "approve")
+
+        // The resolve hit the API with exactly the item id + action, and the queue reloaded so an approved
+        // item drops off the pending list — the S066 done-when: a mod approved a held message from the dashboard.
+        assertEquals(listOf("q1" to "approve"), api.resolvedAutomodQueueItems)
+    }
+
+    @Test
     fun open_user_context_loads_notes_alongside_the_rap_sheet() = runTest {
         val api = FakeModerationApi(ApiResult.Ok(emptyList()))
         api.userContextResult = ApiResult.Ok(UserModerationContext(userId = "u1"))
@@ -1120,6 +1163,26 @@ private class FakeModerationApi(
     ): ApiResult<Unit> {
         resolvedReports.add(reportId to action)
         return ApiResult.Ok(Unit)
+    }
+
+    var automodQueueResult: ApiResult<List<ModerationQueueItem>> =
+        ApiResult.Ok(emptyList<ModerationQueueItem>())
+    var resolveAutomodQueueItemResult: ApiResult<ModerationQueueItem> =
+        ApiResult.Ok(ModerationQueueItem())
+    val resolvedAutomodQueueItems: MutableList<Pair<String, String>> = mutableListOf()
+
+    override suspend fun automodQueue(
+        channelId: String,
+        status: String?,
+    ): ApiResult<List<ModerationQueueItem>> = automodQueueResult
+
+    override suspend fun resolveAutomodQueueItem(
+        channelId: String,
+        queueItemId: String,
+        action: String,
+    ): ApiResult<ModerationQueueItem> {
+        resolvedAutomodQueueItems.add(queueItemId to action)
+        return resolveAutomodQueueItemResult
     }
 
     var escalationResult: ApiResult<EscalationPolicy> = ApiResult.Ok(EscalationPolicy())

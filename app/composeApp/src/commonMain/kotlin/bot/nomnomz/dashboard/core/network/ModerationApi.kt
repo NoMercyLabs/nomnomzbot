@@ -274,6 +274,18 @@ interface ModerationApi {
 
     /** Delete a chat filter (204). */
     suspend fun deleteChatFilter(channelId: String, filterId: String): ApiResult<Unit>
+
+    // ── AutoMod review queue (J.1, S066) ─────────────────────────────────────────────────────────────
+
+    /** The channel's AutoMod held-message queue, filtered by [status] (defaults to `pending` on the backend). */
+    suspend fun automodQueue(channelId: String, status: String? = null): ApiResult<List<ModerationQueueItem>>
+
+    /** Resolve queue item [queueItemId] — [action] is `approve` (release to chat) or `deny` (drop it). */
+    suspend fun resolveAutomodQueueItem(
+        channelId: String,
+        queueItemId: String,
+        action: String,
+    ): ApiResult<ModerationQueueItem>
 }
 
 class RestModerationApi(private val client: ApiClient) : ModerationApi {
@@ -604,6 +616,26 @@ class RestModerationApi(private val client: ApiClient) : ModerationApi {
 
     override suspend fun deleteChatFilter(channelId: String, filterId: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/moderation/chat-filters/$filterId")
+
+    // Single-value StatusResponseDto envelope ({ data: [ ... ] }) — getEnvelope reads the queue list.
+    override suspend fun automodQueue(
+        channelId: String,
+        status: String?,
+    ): ApiResult<List<ModerationQueueItem>> =
+        client.getEnvelope(
+            "api/v1/channels/$channelId/moderation/automod/queue" +
+                (status?.let { "?status=${it.encodeURLQueryComponent()}" } ?: "")
+        )
+
+    override suspend fun resolveAutomodQueueItem(
+        channelId: String,
+        queueItemId: String,
+        action: String,
+    ): ApiResult<ModerationQueueItem> =
+        client.postEnvelope(
+            "api/v1/channels/$channelId/moderation/automod/queue/$queueItemId/resolve",
+            ResolveModerationQueueItemBody(action = action),
+        )
 }
 
 /** Today's moderation counters (backend `GET /moderation/stats` anonymous object). */
@@ -922,6 +954,29 @@ data class ViewerReport(
 /** Request body to resolve a report (backend `ResolveViewerReportRequest`). [action] is `dismiss` or `escalate`. */
 @Serializable
 data class ResolveReportBody(val action: String)
+
+/**
+ * One item in the AutoMod review queue (backend `ModerationQueueItemDto`, J.1, S066) — a held message awaiting
+ * a moderator's approve/deny. camelCase mirror (the contract test guards this).
+ */
+@Serializable
+data class ModerationQueueItem(
+    val id: String = "",
+    val source: String = "",
+    val status: String = "",
+    val targetTwitchUserId: String? = null,
+    val targetUsernameSnapshot: String? = null,
+    val messageContentSnapshot: String? = null,
+    val autoModCategory: String? = null,
+    val createdAt: String = "",
+    val resolvedAt: String? = null,
+    val resolvedByName: String? = null,
+    val resolutionAction: String? = null,
+)
+
+/** Request body to resolve a queue item (backend `ResolveModerationQueueItemRequest`). [action] is `approve` or `deny`. */
+@Serializable
+data class ResolveModerationQueueItemBody(val action: String)
 
 /**
  * A mod-team note on a viewer (backend `UserNoteDto`). Free-text the moderators share about [subjectUserId];
