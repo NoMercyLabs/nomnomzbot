@@ -381,6 +381,74 @@ public class ModerationController : BaseController
         return ResultResponse(result);
     }
 
+    // ─── Moderator roster ────────────────────────────────────────────────────
+
+    /// <summary>List the channel's current Twitch moderators, live from the Twitch moderation API.</summary>
+    [RequireAction("moderation:read")]
+    [HttpGet("moderators")]
+    [ProducesResponseType<StatusResponseDto<List<ModeratorDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetModerators(string channelId, CancellationToken ct)
+    {
+        Result<List<ModeratorDto>> result = await _moderationService.GetModeratorsAsync(
+            channelId,
+            ct
+        );
+        return ResultResponse(result);
+    }
+
+    /// <summary>Grant a viewer moderator privileges via the Twitch moderation API.</summary>
+    [RequireAction("moderation:moderator:write")]
+    [HttpPost("moderators")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> AddModerator(
+        string channelId,
+        [FromBody] ModeratorRequest request,
+        CancellationToken ct
+    )
+    {
+        Result result = await _moderationService.AddModeratorAsync(
+            channelId,
+            request.TargetTwitchUserId,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return NoContent();
+    }
+
+    /// <summary>Revoke a viewer's moderator privileges via the Twitch moderation API.</summary>
+    [RequireAction("moderation:moderator:write")]
+    [NotDestructive(
+        "Revokes moderator privileges on Twitch; no local row is deleted and the grant is re-appliable."
+    )]
+    [HttpDelete("moderators/{userId}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> RemoveModerator(
+        string channelId,
+        string userId,
+        CancellationToken ct
+    )
+    {
+        Result result = await _moderationService.RemoveModeratorAsync(channelId, userId, ct);
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return NoContent();
+    }
+
+    // ─── Clear chat ──────────────────────────────────────────────────────────
+
+    /// <summary>Clear every message from the channel's chat room via the Twitch moderation API.</summary>
+    [RequireAction("moderation:delete_message")]
+    [HttpPost("chat/clear")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> ClearChat(string channelId, CancellationToken ct)
+    {
+        Result result = await _moderationService.ClearChatAsync(channelId, ct);
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return NoContent();
+    }
+
     // ─── Mod Log ─────────────────────────────────────────────────────────────
 
     /// <summary>Get the channel's moderation action log, paginated, with moderator and target usernames resolved.</summary>

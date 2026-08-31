@@ -60,6 +60,7 @@ public sealed class ModerationServiceTwitchReadsTests
         return new(
             db,
             moderation,
+            Substitute.For<ITwitchModeratorsApi>(),
             Substitute.For<IChannelRegistry>(),
             TimeProvider.System,
             NullLogger<ModerationService>.Instance,
@@ -739,6 +740,7 @@ public sealed class ModerationServiceTwitchReadsTests
             new(
                 db,
                 moderation,
+                Substitute.For<ITwitchModeratorsApi>(),
                 Substitute.For<IChannelRegistry>(),
                 TimeProvider.System,
                 NullLogger<ModerationService>.Instance,
@@ -985,6 +987,7 @@ public sealed class ModerationServiceTwitchReadsTests
         ModerationService service = new(
             db,
             Substitute.For<ITwitchModerationApi>(),
+            Substitute.For<ITwitchModeratorsApi>(),
             Substitute.For<IChannelRegistry>(),
             TimeProvider.System,
             NullLogger<ModerationService>.Instance,

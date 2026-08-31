@@ -34,6 +34,7 @@ public class ModerationService : IModerationService
 
     private readonly IApplicationDbContext _db;
     private readonly ITwitchModerationApi _moderation;
+    private readonly ITwitchModeratorsApi _moderators;
     private readonly IChannelRegistry _registry;
     private readonly TimeProvider _clock;
     private readonly ILogger<ModerationService> _logger;
@@ -42,6 +43,7 @@ public class ModerationService : IModerationService
     public ModerationService(
         IApplicationDbContext db,
         ITwitchModerationApi moderation,
+        ITwitchModeratorsApi moderators,
         IChannelRegistry registry,
         TimeProvider clock,
         ILogger<ModerationService> logger,
@@ -50,6 +52,7 @@ public class ModerationService : IModerationService
     {
         _db = db;
         _moderation = moderation;
+        _moderators = moderators;
         _registry = registry;
         _clock = clock;
         _logger = logger;
@@ -1816,6 +1819,115 @@ public class ModerationService : IModerationService
             cancellationToken
         );
         return Result.Success();
+    }
+
+    // ─── Moderator roster ───────────────────────────────────────────────────────
+
+    public async Task<Result<List<ModeratorDto>>> GetModeratorsAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return Errors.ChannelNotFound<List<ModeratorDto>>(broadcasterId);
+
+        List<ModeratorDto> moderators = [];
+        string? cursor = null;
+        int pageGuard = 0;
+        do
+        {
+            Result<TwitchPage<TwitchModerator>> page = await _moderators.GetModeratorsAsync(
+                tenantId,
+                new(After: cursor),
+                cancellationToken
+            );
+            if (page.IsFailure)
+                return Result.Failure<List<ModeratorDto>>(
+                    page.ErrorMessage ?? "Twitch rejected the moderators read.",
+                    page.ErrorCode ?? "TWITCH_ERROR"
+                );
+
+            moderators.AddRange(
+                page.Value.Items.Select(m => new ModeratorDto(
+                    m.UserId,
+                    string.IsNullOrEmpty(m.UserName) ? m.UserLogin : m.UserName
+                ))
+            );
+
+            cursor = page.Value.NextCursor;
+        } while (!string.IsNullOrEmpty(cursor) && ++pageGuard < 100);
+
+        return Result.Success(moderators.OrderBy(m => m.Username).ToList());
+    }
+
+    public async Task<Result> AddModeratorAsync(
+        string broadcasterId,
+        string targetTwitchUserId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return Errors.ChannelNotFound(broadcasterId);
+
+        // Add Channel Moderator requires the BROADCASTER's OWN token (channel:manage:moderators is not
+        // delegable to a moderator's own token the way ban/timeout/warn are) — always the tenant's stored
+        // token, never the operator's, unlike most of this service's other Helix calls.
+        Result added = await _moderators.AddModeratorAsync(
+            tenantId,
+            targetTwitchUserId,
+            cancellationToken
+        );
+        if (added.IsFailure)
+            return added;
+
+        await PublishConfigChangedAsync(
+            tenantId,
+            "moderators",
+            targetTwitchUserId,
+            "added",
+            cancellationToken
+        );
+        return Result.Success();
+    }
+
+    public async Task<Result> RemoveModeratorAsync(
+        string broadcasterId,
+        string targetTwitchUserId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return Errors.ChannelNotFound(broadcasterId);
+
+        Result removed = await _moderators.RemoveModeratorAsync(
+            tenantId,
+            targetTwitchUserId,
+            cancellationToken
+        );
+        if (removed.IsFailure)
+            return removed;
+
+        await PublishConfigChangedAsync(
+            tenantId,
+            "moderators",
+            targetTwitchUserId,
+            "removed",
+            cancellationToken
+        );
+        return Result.Success();
+    }
+
+    // ─── Clear chat ──────────────────────────────────────────────────────────────
+
+    public async Task<Result> ClearChatAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return Errors.ChannelNotFound(broadcasterId);
+
+        return await _moderation.DeleteAllChatMessagesAsync(tenantId, cancellationToken);
     }
 
     private static Result<string> ValidateNoteContent(string? content)

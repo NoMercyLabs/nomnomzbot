@@ -37,6 +37,7 @@ public sealed class ModerationServiceAutomodConfigTests
         new(
             db,
             Substitute.For<ITwitchModerationApi>(), // never touched by the read path
+            Substitute.For<ITwitchModeratorsApi>(), // never touched by the read path
             Substitute.For<IChannelRegistry>(),
             TimeProvider.System,
             NullLogger<ModerationService>.Instance,

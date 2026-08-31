@@ -190,6 +190,17 @@ public sealed record BannedUserDto(
     DateTime BannedAt
 );
 
+// ─── Moderator roster ──────────────────────────────────────────────────────────
+
+/// <summary>One Twitch moderator currently granted on the channel.</summary>
+public sealed record ModeratorDto(string UserId, string Username);
+
+/// <summary>Grant or revoke a viewer's moderator privileges, identified by their Twitch user id.</summary>
+public sealed record ModeratorRequest
+{
+    public required string TargetTwitchUserId { get; init; }
+}
+
 // ─── Unban requests ────────────────────────────────────────────────────────────
 
 /// <summary>One unban request in the channel's queue, read live from Twitch — the requesting viewer, their

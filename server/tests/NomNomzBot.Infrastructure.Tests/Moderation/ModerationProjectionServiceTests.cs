@@ -188,6 +188,7 @@ public sealed class ModerationProjectionServiceTests
         ModerationService moderation = new(
             db,
             Substitute.For<Application.Contracts.Twitch.ITwitchModerationApi>(),
+            Substitute.For<Application.Contracts.Twitch.ITwitchModeratorsApi>(),
             Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
             TimeProvider.System,
             NullLogger<ModerationService>.Instance,

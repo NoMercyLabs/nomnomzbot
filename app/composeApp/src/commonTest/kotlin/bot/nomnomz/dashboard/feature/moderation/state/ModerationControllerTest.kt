@@ -46,6 +46,7 @@ import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.ModerationActionLog
 import bot.nomnomz.dashboard.core.network.ModerationApi
 import bot.nomnomz.dashboard.core.network.ModerationActionResult
+import bot.nomnomz.dashboard.core.network.Moderator
 import bot.nomnomz.dashboard.core.network.NetworkBanResult
 import bot.nomnomz.dashboard.core.network.UnbanRequest
 import bot.nomnomz.dashboard.core.network.ViewerReport
@@ -985,6 +986,67 @@ private class FakeCommunityApi(
     override suspend fun shoutout(channelId: String, targetTwitchUserId: String) = error("stub")
 }
 
+// S066-mod-actions: the moderator roster loads into state, and add/remove/clear-chat each call the
+// corresponding client method with the right arguments and reload (add/remove) or leave state be (clear
+// chat, which is not part of this screen's own state).
+class ModerationControllerModeratorTests {
+
+    @Test
+    fun load_surfaces_the_channels_current_moderators() = runTest {
+        val api =
+            FakeModerationApi(bansResults = listOf(ApiResult.Ok(emptyList())))
+        api.moderatorsResult = ApiResult.Ok(listOf(Moderator(userId = "u9", username = "modperson")))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
+
+        controller.load()
+
+        val state: ModerationState = controller.state.value
+        assertTrue(state is ModerationState.Ready)
+        val moderators: List<Moderator> = (state as ModerationState.Ready).moderators
+        assertEquals(1, moderators.size)
+        assertEquals("modperson", moderators.first().username)
+    }
+
+    @Test
+    fun addModerator_callsTheApiWithTheTargetId_thenReloads() = runTest {
+        val api = FakeModerationApi(bansResults = listOf(ApiResult.Ok(emptyList())))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
+        controller.load()
+
+        api.moderatorsResult = ApiResult.Ok(listOf(Moderator(userId = "u9", username = "newmod")))
+        controller.addModerator("u9")
+
+        assertEquals(listOf("u9"), api.addedModerators)
+        // load() ran again after the write (afterWrite reloads on success) — proven by the reloaded
+        // roster reflecting the newly-granted moderator rather than the pre-write (empty) snapshot.
+        val state: ModerationState = controller.state.value
+        assertTrue(state is ModerationState.Ready)
+        assertEquals(listOf("newmod"), (state as ModerationState.Ready).moderators.map { it.username })
+    }
+
+    @Test
+    fun removeModerator_callsTheApiWithTheUserId_thenReloads() = runTest {
+        val api = FakeModerationApi(bansResults = listOf(ApiResult.Ok(emptyList())))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
+        controller.load()
+
+        controller.removeModerator("u9")
+
+        assertEquals(listOf("u9"), api.removedModerators)
+    }
+
+    @Test
+    fun clearChat_callsTheApi() = runTest {
+        val api = FakeModerationApi(bansResults = listOf(ApiResult.Ok(emptyList())))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
+        controller.load()
+
+        controller.clearChat()
+
+        assertEquals(1, api.clearChatCalls)
+    }
+}
+
 private class FakeModerationApi(
     private val bansResults: List<ApiResult<List<BannedUser>>>,
     private val unbanResult: ApiResult<Unit> = ApiResult.Ok(Unit),
@@ -1367,6 +1429,28 @@ private class FakeModerationApi(
         provider: String,
     ): ApiResult<Unit> {
         standingsCleared.add(userId to provider)
+        return ApiResult.Ok(Unit)
+    }
+
+    var moderatorsResult: ApiResult<List<Moderator>> = ApiResult.Ok(emptyList<Moderator>())
+    val addedModerators: MutableList<String> = mutableListOf()
+    val removedModerators: MutableList<String> = mutableListOf()
+    var clearChatCalls: Int = 0
+
+    override suspend fun moderators(channelId: String): ApiResult<List<Moderator>> = moderatorsResult
+
+    override suspend fun addModerator(channelId: String, targetTwitchUserId: String): ApiResult<Unit> {
+        addedModerators.add(targetTwitchUserId)
+        return ApiResult.Ok(Unit)
+    }
+
+    override suspend fun removeModerator(channelId: String, userId: String): ApiResult<Unit> {
+        removedModerators.add(userId)
+        return ApiResult.Ok(Unit)
+    }
+
+    override suspend fun clearChat(channelId: String): ApiResult<Unit> {
+        clearChatCalls++
         return ApiResult.Ok(Unit)
     }
 }

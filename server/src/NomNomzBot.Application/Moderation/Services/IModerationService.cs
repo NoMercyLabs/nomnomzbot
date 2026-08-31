@@ -277,4 +277,36 @@ public interface IModerationService
         int noteId,
         CancellationToken cancellationToken = default
     );
+
+    // ─── Moderator roster ───────────────────────────────────────────────────────
+
+    /// <summary>List the channel's current Twitch moderators, read live from the Twitch moderation API.</summary>
+    Task<Result<List<ModeratorDto>>> GetModeratorsAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Grant a viewer moderator privileges on Twitch. Twitch's Add Channel Moderator requires the
+    /// BROADCASTER'S OWN token (not delegable to an operator's), so this always signs with the channel's
+    /// own stored token, unlike most other actions on this interface.
+    /// </summary>
+    Task<Result> AddModeratorAsync(
+        string broadcasterId,
+        string targetTwitchUserId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Revoke a moderator's privileges on Twitch. Same broadcaster-token requirement as <see cref="AddModeratorAsync"/>.</summary>
+    Task<Result> RemoveModeratorAsync(
+        string broadcasterId,
+        string targetTwitchUserId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>Clear every message from the channel's chat room via the Twitch moderation API (Clear Chat).</summary>
+    Task<Result> ClearChatAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    );
 }

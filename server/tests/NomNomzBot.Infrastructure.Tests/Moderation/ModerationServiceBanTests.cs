@@ -49,6 +49,7 @@ public sealed class ModerationServiceBanTests
         new(
             db,
             moderation,
+            Substitute.For<ITwitchModeratorsApi>(),
             Substitute.For<IChannelRegistry>(),
             TimeProvider.System,
             NullLogger<ModerationService>.Instance,

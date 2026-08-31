@@ -87,6 +87,7 @@ import bot.nomnomz.dashboard.core.network.UpsertEscalationPolicyBody
 import bot.nomnomz.dashboard.core.network.ModerationQueueItem
 import bot.nomnomz.dashboard.core.network.ViewerReport
 import bot.nomnomz.dashboard.core.network.ChatFilter
+import bot.nomnomz.dashboard.core.network.Moderator
 import bot.nomnomz.dashboard.core.network.ModerationActionLog
 import bot.nomnomz.dashboard.core.network.ModerationRule
 import bot.nomnomz.dashboard.core.network.ModerationStanding
@@ -110,6 +111,19 @@ import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecisionAtFloor
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.moderation_action_error
+import nomnomzbot.composeapp.generated.resources.moderation_moderators_title
+import nomnomzbot.composeapp.generated.resources.moderation_moderators_add_label
+import nomnomzbot.composeapp.generated.resources.moderation_moderators_add
+import nomnomzbot.composeapp.generated.resources.moderation_moderators_remove_action
+import nomnomzbot.composeapp.generated.resources.moderation_moderators_remove_title
+import nomnomzbot.composeapp.generated.resources.moderation_moderators_remove_message
+import nomnomzbot.composeapp.generated.resources.moderation_moderators_remove_confirm
+import nomnomzbot.composeapp.generated.resources.moderation_moderators_remove_dismiss
+import nomnomzbot.composeapp.generated.resources.moderation_clear_chat_action
+import nomnomzbot.composeapp.generated.resources.moderation_clear_chat_title
+import nomnomzbot.composeapp.generated.resources.moderation_clear_chat_message
+import nomnomzbot.composeapp.generated.resources.moderation_clear_chat_confirm
+import nomnomzbot.composeapp.generated.resources.moderation_clear_chat_dismiss
 import nomnomzbot.composeapp.generated.resources.moderation_stats_automod
 import nomnomzbot.composeapp.generated.resources.moderation_stats_bans_today
 import nomnomzbot.composeapp.generated.resources.moderation_stats_deleted
@@ -428,6 +442,7 @@ fun ModerationScreen(
                     blockedTerms = current.blockedTerms,
                     automod = current.automod,
                     rules = current.rules,
+                    moderators = current.moderators,
                     chatFilters = current.chatFilters,
                     stats = current.stats,
                     actionError = current.actionError,
@@ -472,6 +487,9 @@ fun ModerationScreen(
                         scope.launch { controller.performAction(action, userId, duration, reason) }
                     },
                     onToggleShield = { on -> scope.launch { controller.setShieldMode(on) } },
+                    onAddModerator = { id -> scope.launch { controller.addModerator(id) } },
+                    onRemoveModerator = { id -> scope.launch { controller.removeModerator(id) } },
+                    onClearChat = { scope.launch { controller.clearChat() } },
                     onAddTerm = { term -> scope.launch { controller.addBlockedTerm(term) } },
                     onRemoveTerm = { term -> scope.launch { controller.removeBlockedTerm(term) } },
                     onToggleFilter = { f -> scope.launch { controller.toggleAutomodFilter(f) } },
@@ -556,6 +574,7 @@ private fun BansList(
     blockedTerms: List<String>,
     automod: AutomodConfig,
     rules: List<ModerationRule>,
+    moderators: List<Moderator>,
     chatFilters: List<ChatFilter>,
     stats: ModerationStats,
     actionError: String?,
@@ -588,6 +607,9 @@ private fun BansList(
     searchChannels: suspend (query: String) -> List<PickerOption>,
     onPerformAction: (action: String, targetUserId: String, durationSeconds: Int?, reason: String?) -> Unit,
     onToggleShield: (Boolean) -> Unit,
+    onAddModerator: (targetTwitchUserId: String) -> Unit,
+    onRemoveModerator: (userId: String) -> Unit,
+    onClearChat: () -> Unit,
     onAddTerm: (String) -> Unit,
     onRemoveTerm: (String) -> Unit,
     onToggleFilter: (AutomodFilter) -> Unit,
@@ -644,6 +666,10 @@ private fun BansList(
     var showCreateChatFilterDialog: Boolean by remember { mutableStateOf(false) }
     // Whether the "send announcement" dialog is open.
     var showAnnounceDialog: Boolean by remember { mutableStateOf(false) }
+    // The moderator awaiting a remove confirmation, if any.
+    var pendingRemoveModerator: Moderator? by remember { mutableStateOf(null) }
+    // Whether the "clear chat" confirmation is open (irreversible — every message is gone).
+    var showClearChatConfirm: Boolean by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -695,6 +721,46 @@ private fun BansList(
                             text = stringResource(Res.string.moderation_announce_action),
                             color = if (enabled) tokens.primary else tokens.mutedForeground,
                         )
+                    }
+                }
+                // Clear Chat is irreversible (every message in the room is gone, no undo) — gated behind a
+                // confirmation like every other destructive action on this page.
+                ManageGate(decision = manage) { enabled ->
+                    TextButton(
+                        onClick = { showClearChatConfirm = true },
+                        enabled = enabled,
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.moderation_clear_chat_action),
+                            color = if (enabled) tokens.destructive else tokens.mutedForeground,
+                        )
+                    }
+                }
+            }
+        }
+        item(key = "moderators-header") {
+            Text(
+                text = stringResource(Res.string.moderation_moderators_title),
+                style = typography.lg,
+                color = tokens.cardForeground,
+                maxLines = 1,
+            )
+        }
+        item(key = "moderators-add") { AddModeratorRow(manage = manage, onAdd = onAddModerator) }
+        if (moderators.isNotEmpty()) {
+            item(key = "moderators-card") {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column {
+                        moderators.forEachIndexed { index, moderator ->
+                            ModeratorRow(
+                                moderator = moderator,
+                                manage = manage,
+                                onRemove = { pendingRemoveModerator = moderator },
+                            )
+                            if (index < moderators.lastIndex) {
+                                Separator()
+                            }
+                        }
                     }
                 }
             }
@@ -1249,6 +1315,36 @@ private fun BansList(
                 pendingDeleteChatFilter = null
             },
             onDismiss = { pendingDeleteChatFilter = null },
+        )
+    }
+
+    pendingRemoveModerator?.let { moderator ->
+        ConfirmDialog(
+            title = stringResource(Res.string.moderation_moderators_remove_title),
+            message = stringResource(Res.string.moderation_moderators_remove_message, moderator.username),
+            confirmLabel = stringResource(Res.string.moderation_moderators_remove_confirm),
+            dismissLabel = stringResource(Res.string.moderation_moderators_remove_dismiss),
+            destructive = true,
+            onConfirm = {
+                onRemoveModerator(moderator.userId)
+                pendingRemoveModerator = null
+            },
+            onDismiss = { pendingRemoveModerator = null },
+        )
+    }
+
+    if (showClearChatConfirm) {
+        ConfirmDialog(
+            title = stringResource(Res.string.moderation_clear_chat_title),
+            message = stringResource(Res.string.moderation_clear_chat_message),
+            confirmLabel = stringResource(Res.string.moderation_clear_chat_confirm),
+            dismissLabel = stringResource(Res.string.moderation_clear_chat_dismiss),
+            destructive = true,
+            onConfirm = {
+                onClearChat()
+                showClearChatConfirm = false
+            },
+            onDismiss = { showClearChatConfirm = false },
         )
     }
 
@@ -2753,6 +2849,88 @@ private fun AddTermRow(manage: ManageDecision, onAdd: (String) -> Unit) {
                     maxLines = 1,
                 )
             }
+        }
+    }
+}
+
+// Add-moderator row: a Twitch user id + a Grant action. Add Channel Moderator requires the CHANNEL's own
+// broadcaster token (Twitch does not allow a moderator to grant moderator status on their own token), so
+// this always targets the channel — same manage floor as the rest of this page.
+@Composable
+private fun AddModeratorRow(manage: ManageDecision, onAdd: (targetTwitchUserId: String) -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    var targetTwitchUserId: String by remember { mutableStateOf("") }
+
+    ManageGate(decision = manage) { enabled ->
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+        ) {
+            AppTextField(
+                value = targetTwitchUserId,
+                onValueChange = { targetTwitchUserId = it },
+                label = stringResource(Res.string.moderation_moderators_add_label),
+                enabled = enabled,
+                modifier = Modifier.weight(1f),
+            )
+            val canSubmit: Boolean = enabled && targetTwitchUserId.isNotBlank()
+            TextButton(
+                onClick = {
+                    val trimmed: String = targetTwitchUserId.trim()
+                    if (trimmed.isNotEmpty()) {
+                        onAdd(trimmed)
+                        targetTwitchUserId = ""
+                    }
+                },
+                enabled = canSubmit,
+            ) {
+                Text(
+                    text = stringResource(Res.string.moderation_moderators_add),
+                    color = if (canSubmit) tokens.primary else tokens.mutedForeground,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+}
+
+// One moderator row: their username + a Remove action (revokes on Twitch; the backend re-checks
+// moderation:moderator:write). A Broadcaster-tier action — the backend gates it at the same floor
+// regardless of what [manage] shows here.
+@Composable
+private fun ModeratorRow(moderator: Moderator, manage: ManageDecision, onRemove: () -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val removeLabel: String =
+        stringResource(Res.string.moderation_moderators_remove_action, moderator.username)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        Text(
+            text = moderator.username,
+            style = typography.base,
+            color = tokens.cardForeground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        ManageGate(decision = manage) { enabled ->
+            GlyphButton(
+                icon = TrashGlyph,
+                label = removeLabel,
+                onClick = onRemove,
+                enabled = enabled,
+                tint = tokens.destructive,
+            )
         }
     }
 }
