@@ -219,6 +219,8 @@ import nomnomzbot.composeapp.generated.resources.economy_jars_invite_broadcaster
 import nomnomzbot.composeapp.generated.resources.economy_jars_invite_cancel
 import nomnomzbot.composeapp.generated.resources.economy_jars_invite_confirm
 import nomnomzbot.composeapp.generated.resources.economy_jars_invite_role
+import nomnomzbot.composeapp.generated.resources.economy_jars_invite_role_partner
+import nomnomzbot.composeapp.generated.resources.economy_jars_invite_role_viewer
 import nomnomzbot.composeapp.generated.resources.economy_jars_invite_title
 import nomnomzbot.composeapp.generated.resources.economy_jars_manage
 import nomnomzbot.composeapp.generated.resources.economy_jars_membership_accept
@@ -2754,8 +2756,11 @@ private fun JarInviteDialog(
     val spacing = LocalSpacing.current
 
     var picked: PickerRef? by remember { mutableStateOf(null) }
-    var role: String by remember { mutableStateOf("member") }
-    val isValid: Boolean = picked != null && role.isNotBlank()
+    // The JarRole values invite actually offers (economy.md K.5) — Owner is implicit to the jar's creator, so
+    // only Partner (can contribute/withdraw) and Viewer (read-only) are meaningful invite targets.
+    var role: String by remember { mutableStateOf("Partner") }
+    var roleMenuOpen: Boolean by remember { mutableStateOf(false) }
+    val isValid: Boolean = picked != null
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -2770,12 +2775,25 @@ private fun JarInviteDialog(
                     label = stringResource(Res.string.economy_jars_invite_broadcaster),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                AppTextField(
-                    value = role,
-                    onValueChange = { role = it },
+                EconomyPickerField(
                     label = stringResource(Res.string.economy_jars_invite_role),
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                    value =
+                        stringResource(
+                            if (role == "Viewer") Res.string.economy_jars_invite_role_viewer
+                            else Res.string.economy_jars_invite_role_partner
+                        ),
+                    expanded = roleMenuOpen,
+                    onExpandedChange = { roleMenuOpen = it },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(Res.string.economy_jars_invite_role_partner), color = tokens.cardForeground) },
+                        onClick = { role = "Partner"; roleMenuOpen = false },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(Res.string.economy_jars_invite_role_viewer), color = tokens.cardForeground) },
+                        onClick = { role = "Viewer"; roleMenuOpen = false },
+                    )
+                }
             }
         },
         confirmButton = {

@@ -1280,7 +1280,9 @@
     <string name="economy_jars_invite">Invite channel</string>
     <string name="economy_jars_invite_title">Invite channel to jar</string>
     <string name="economy_jars_invite_broadcaster">Broadcaster ID</string>
-    <string name="economy_jars_invite_role">Role (owner / member)</string>
+    <string name="economy_jars_invite_role">Role</string>
+    <string name="economy_jars_invite_role_partner">Partner (can contribute and withdraw)</string>
+    <string name="economy_jars_invite_role_viewer">Viewer (read-only)</string>
     <string name="economy_jars_invite_confirm">Invite</string>
     <string name="economy_jars_invite_cancel">Cancel</string>
     <string name="economy_jars_membership_pending">Pending</string>
