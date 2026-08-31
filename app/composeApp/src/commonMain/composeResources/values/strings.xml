@@ -918,6 +918,7 @@
     <string name="rewards_delete_action">Delete %1$s</string>
     <string name="rewards_delete_action_short">Delete</string>
     <string name="rewards_action_error">Action failed: %1$s</string>
+    <string name="rewards_load_warning">Some data could not be loaded (%1$s) — retry to try again.</string>
     <string name="rewards_dialog_create_title">New reward</string>
     <string name="rewards_dialog_edit_title">Edit reward</string>
     <string name="rewards_dialog_title_label">Title</string>

@@ -184,6 +184,42 @@ class RewardsControllerTest {
     }
 
     @Test
+    fun load_surfaces_a_load_warning_when_a_supplementary_section_fails() = runTest {
+        val reward = RewardSummary(id = "r1", title = "Hydrate!", cost = 100, isEnabled = true)
+        val controller =
+            makeRewardsController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                RecordingRewardsApi(ApiResult.Ok(listOf(reward)), redemptionTimersFails = true),
+            )
+
+        controller.load()
+
+        val state: RewardsState = controller.state.value
+        assertTrue(state is RewardsState.Ready)
+        assertEquals(listOf(reward), (state as RewardsState.Ready).rewards)
+        assertTrue(state.timers.isEmpty())
+        assertEquals("timers", state.loadWarning)
+    }
+
+    @Test
+    fun load_does_not_report_empty_when_the_only_reason_lists_are_empty_is_a_failed_fetch() = runTest {
+        // Rewards genuinely has none, AND the timers fetch failed — the page must not collapse this into
+        // "the channel has nothing" (RewardsState.Empty): that would hide the failure behind a state that
+        // looks intentional. It has to stay Ready with a loadWarning so the failure is visible.
+        val controller =
+            makeRewardsController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                RecordingRewardsApi(ApiResult.Ok(emptyList()), redemptionTimersFails = true),
+            )
+
+        controller.load()
+
+        val state: RewardsState = controller.state.value
+        assertTrue(state is RewardsState.Ready)
+        assertEquals("timers", (state as RewardsState.Ready).loadWarning)
+    }
+
+    @Test
     fun create_posts_the_body_then_reloads_with_the_new_reward() = runTest {
         // The fake starts empty; the create appends the new reward to its backing store, so the controller's
         // post-write reload must surface it — proving create actually calls the api AND re-lists.
@@ -502,6 +538,9 @@ private class RecordingRewardsApi(
     // The EXTERNAL rewards a successful import() pulls into the store (isManageable = false), modelling the
     // backend bringing rewards created outside the bot into the read model.
     private val importedRewards: List<RewardSummary> = emptyList(),
+    // Models the redemption-timers fetch failing independently of the reward list, so `load` degrades that
+    // one section instead of erroring the whole page — while still surfacing it as a loadWarning.
+    private val redemptionTimersFails: Boolean = false,
 ) : RewardsApi {
     private val listFailure: ApiError? = (initial as? ApiResult.Failure)?.error
     private val store: MutableList<RewardSummary> =
@@ -612,7 +651,9 @@ private class RecordingRewardsApi(
 
     override suspend fun redemptionTimers(
         channelId: String
-    ): ApiResult<List<bot.nomnomz.dashboard.core.network.RedemptionTimer>> = ApiResult.Ok(emptyList())
+    ): ApiResult<List<bot.nomnomz.dashboard.core.network.RedemptionTimer>> =
+        if (redemptionTimersFails) ApiResult.Failure(ApiError(500, "ERR", "timers down"))
+        else ApiResult.Ok(emptyList())
 
     override suspend fun pauseTimer(channelId: String, timerId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
     override suspend fun resumeTimer(channelId: String, timerId: String): ApiResult<Unit> = ApiResult.Ok(Unit)

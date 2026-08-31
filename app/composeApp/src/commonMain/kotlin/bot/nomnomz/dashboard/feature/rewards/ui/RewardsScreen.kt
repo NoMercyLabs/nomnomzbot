@@ -81,6 +81,7 @@ import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.rewards_action_error
+import nomnomzbot.composeapp.generated.resources.rewards_load_warning
 import nomnomzbot.composeapp.generated.resources.rewards_cost
 import nomnomzbot.composeapp.generated.resources.rewards_delete_action
 import nomnomzbot.composeapp.generated.resources.rewards_delete_action_short
@@ -154,6 +155,9 @@ import bot.nomnomz.dashboard.core.consequences.DeleteBlastRadiusDialog
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
 
+private const val REWARD_TIMER_POLL_BASE_MS = 3000L
+private const val REWARD_TIMER_POLL_MAX_MS = 30000L
+
 // The Rewards page (frontend-ia.md §3): the channel's channel-point rewards — every reward is real data from
 // [RewardsController] (the backend sources it from Twitch's Helix Custom Rewards endpoint). The screen is a pure
 // projection of the controller's state; it loads on first composition. This is the full management surface —
@@ -187,14 +191,20 @@ fun RewardsScreen(
         LaunchedEffect(hubEvents) { controller.subscribeToHub(hubEvents) }
     }
     // Keep the live countdowns fresh: while any timer is running, re-fetch the (clock-derived) remaining seconds
-    // every few seconds so the displayed values stay accurate without a full page reload.
+    // every few seconds so the displayed values stay accurate without a full page reload. Backs off on repeated
+    // failures (doubling up to a cap) instead of hammering a backend that's down or erroring every 3 seconds
+    // forever; resets to the base interval the moment a fetch succeeds again.
     val hasRunningTimer: Boolean =
         (state as? RewardsState.Ready)?.timers?.any { it.status == "running" } == true
     if (hasRunningTimer) {
         LaunchedEffect(Unit) {
+            var intervalMs = REWARD_TIMER_POLL_BASE_MS
             while (true) {
-                delay(3000)
-                controller.refreshTimers()
+                delay(intervalMs)
+                val succeeded: Boolean = controller.refreshTimers()
+                intervalMs =
+                    if (succeeded) REWARD_TIMER_POLL_BASE_MS
+                    else (intervalMs * 2).coerceAtMost(REWARD_TIMER_POLL_MAX_MS)
             }
         }
     }
@@ -210,6 +220,7 @@ fun RewardsScreen(
                     redemptions = emptyList(),
                     timers = emptyList(),
                     actionError = null,
+                    loadWarning = null,
                     edit = edit,
                     lifecycle = lifecycle,
                     onNew = { editor = RewardEditor.create() },
@@ -235,6 +246,7 @@ fun RewardsScreen(
                     redemptions = current.redemptions,
                     timers = current.timers,
                     actionError = current.actionError,
+                    loadWarning = current.loadWarning,
                     edit = edit,
                     lifecycle = lifecycle,
                     onNew = { editor = RewardEditor.create() },
@@ -354,6 +366,7 @@ private fun ManagedContent(
     redemptions: List<RedemptionSummary>,
     timers: List<RedemptionTimer>,
     actionError: String?,
+    loadWarning: String?,
     edit: ManageDecision,
     lifecycle: ManageDecision,
     onNew: () -> Unit,
@@ -376,6 +389,7 @@ private fun ManagedContent(
         // Creating/syncing/importing rewards are Broadcaster-only lifecycle actions — New + Sync + Import gate on [lifecycle].
         Header(lifecycle = lifecycle, onNew = onNew, onSync = onSync, onImport = onImport)
         actionError?.let { ActionErrorBanner(message = stringResource(Res.string.rewards_action_error, it)) }
+        loadWarning?.let { ActionErrorBanner(message = stringResource(Res.string.rewards_load_warning, it)) }
 
         if (rewards.isEmpty() && redemptions.isEmpty() && timers.isEmpty()) {
             CenteredMessage(stringResource(Res.string.rewards_empty))
