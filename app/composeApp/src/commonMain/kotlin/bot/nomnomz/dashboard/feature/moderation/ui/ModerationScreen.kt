@@ -86,6 +86,7 @@ import bot.nomnomz.dashboard.core.network.UnbanRequest
 import bot.nomnomz.dashboard.core.network.UpsertEscalationPolicyBody
 import bot.nomnomz.dashboard.core.network.ModerationQueueItem
 import bot.nomnomz.dashboard.core.network.ViewerReport
+import bot.nomnomz.dashboard.core.network.ChatFilter
 import bot.nomnomz.dashboard.core.network.ModerationActionLog
 import bot.nomnomz.dashboard.core.network.ModerationRule
 import bot.nomnomz.dashboard.core.network.ModerationStanding
@@ -223,6 +224,33 @@ import nomnomzbot.composeapp.generated.resources.moderation_rules_create_name_re
 import nomnomzbot.composeapp.generated.resources.moderation_rules_create_title
 import nomnomzbot.composeapp.generated.resources.moderation_rules_create_type
 import nomnomzbot.composeapp.generated.resources.moderation_rules_title
+import nomnomzbot.composeapp.generated.resources.moderation_chat_filters_title
+import nomnomzbot.composeapp.generated.resources.moderation_chat_filters_add
+import nomnomzbot.composeapp.generated.resources.moderation_chat_filters_enable
+import nomnomzbot.composeapp.generated.resources.moderation_chat_filters_disable
+import nomnomzbot.composeapp.generated.resources.moderation_chat_filters_enable_action
+import nomnomzbot.composeapp.generated.resources.moderation_chat_filters_disable_action
+import nomnomzbot.composeapp.generated.resources.moderation_chat_filters_delete_action
+import nomnomzbot.composeapp.generated.resources.moderation_chat_filters_delete_title
+import nomnomzbot.composeapp.generated.resources.moderation_chat_filters_delete_message
+import nomnomzbot.composeapp.generated.resources.moderation_chat_filters_delete_confirm
+import nomnomzbot.composeapp.generated.resources.moderation_chat_filters_delete_dismiss
+import nomnomzbot.composeapp.generated.resources.moderation_chat_filters_create_title
+import nomnomzbot.composeapp.generated.resources.moderation_chat_filters_create_name
+import nomnomzbot.composeapp.generated.resources.moderation_chat_filters_create_name_required
+import nomnomzbot.composeapp.generated.resources.moderation_chat_filters_create_type
+import nomnomzbot.composeapp.generated.resources.moderation_chat_filters_create_type_pattern
+import nomnomzbot.composeapp.generated.resources.moderation_chat_filters_create_type_blocklist
+import nomnomzbot.composeapp.generated.resources.moderation_chat_filters_create_pattern
+import nomnomzbot.composeapp.generated.resources.moderation_chat_filters_create_pattern_required
+import nomnomzbot.composeapp.generated.resources.moderation_chat_filters_create_terms
+import nomnomzbot.composeapp.generated.resources.moderation_chat_filters_create_terms_required
+import nomnomzbot.composeapp.generated.resources.moderation_chat_filters_create_action
+import nomnomzbot.composeapp.generated.resources.moderation_chat_filters_create_confirm
+import nomnomzbot.composeapp.generated.resources.moderation_chat_filters_create_dismiss
+import nomnomzbot.composeapp.generated.resources.moderation_action_type_hold
+import nomnomzbot.composeapp.generated.resources.moderation_action_type_flag
+import nomnomzbot.composeapp.generated.resources.moderation_action_type_escalate
 import nomnomzbot.composeapp.generated.resources.moderation_action_apply
 import nomnomzbot.composeapp.generated.resources.moderation_action_confirm
 import nomnomzbot.composeapp.generated.resources.moderation_action_dialog_title
@@ -400,6 +428,7 @@ fun ModerationScreen(
                     blockedTerms = current.blockedTerms,
                     automod = current.automod,
                     rules = current.rules,
+                    chatFilters = current.chatFilters,
                     stats = current.stats,
                     actionError = current.actionError,
                     unbanRequests = current.unbanRequests,
@@ -456,6 +485,13 @@ fun ModerationScreen(
                     onDeleteRule = { id -> scope.launch { controller.deleteRule(id) } },
                     onCreateRule = { name, type, action, duration, reason ->
                         scope.launch { controller.createRule(name, type, action, duration, reason) }
+                    },
+                    onToggleChatFilter = { id, on -> scope.launch { controller.toggleChatFilter(id, on) } },
+                    onDeleteChatFilter = { id -> scope.launch { controller.deleteChatFilter(id) } },
+                    onCreateChatFilter = { filterType, name, action, pattern, terms, duration ->
+                        scope.launch {
+                            controller.createChatFilter(filterType, name, action, pattern, terms, duration)
+                        }
                     },
                     onSendAnnouncement = { msg, color ->
                         scope.launch { controller.sendAnnouncement(msg, color) }
@@ -520,6 +556,7 @@ private fun BansList(
     blockedTerms: List<String>,
     automod: AutomodConfig,
     rules: List<ModerationRule>,
+    chatFilters: List<ChatFilter>,
     stats: ModerationStats,
     actionError: String?,
     unbanRequests: List<UnbanRequest>,
@@ -563,6 +600,16 @@ private fun BansList(
     onToggleRule: (Int, Boolean) -> Unit,
     onDeleteRule: (Int) -> Unit,
     onCreateRule: (name: String, type: String, action: String, durationSeconds: Int?, reason: String?) -> Unit,
+    onToggleChatFilter: (filterId: String, enabled: Boolean) -> Unit,
+    onDeleteChatFilter: (filterId: String) -> Unit,
+    onCreateChatFilter: (
+        filterType: String,
+        name: String,
+        action: String,
+        pattern: String?,
+        terms: List<String>?,
+        timeoutSeconds: Int?,
+    ) -> Unit,
     onSendAnnouncement: (message: String, color: String?) -> Unit,
     onSaveShoutoutTemplate: (String) -> Unit,
     onSaveShoutoutOverride: (targetTwitchUserId: String, targetDisplayName: String, messageTemplate: String) -> Unit,
@@ -591,6 +638,10 @@ private fun BansList(
     var showActionDialog: Boolean by remember { mutableStateOf(false) }
     // Whether the "add filter rule" dialog is open.
     var showCreateRuleDialog: Boolean by remember { mutableStateOf(false) }
+    // The chat filter awaiting delete confirmation, if any.
+    var pendingDeleteChatFilter: ChatFilter? by remember { mutableStateOf(null) }
+    // Whether the "add chat filter" dialog is open.
+    var showCreateChatFilterDialog: Boolean by remember { mutableStateOf(false) }
     // Whether the "send announcement" dialog is open.
     var showAnnounceDialog: Boolean by remember { mutableStateOf(false) }
 
@@ -1070,6 +1121,48 @@ private fun BansList(
                 }
             }
         }
+        item(key = "chat-filters-header") {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(Res.string.moderation_chat_filters_title),
+                    style = typography.lg,
+                    color = tokens.cardForeground,
+                    maxLines = 1,
+                )
+                ManageGate(manage) {
+                    TextButton(onClick = { showCreateChatFilterDialog = true }) {
+                        Text(
+                            text = stringResource(Res.string.moderation_chat_filters_add),
+                            style = typography.sm,
+                            color = tokens.primary,
+                        )
+                    }
+                }
+            }
+        }
+        if (chatFilters.isNotEmpty()) {
+            item(key = "chat-filters-card") {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column {
+                        chatFilters.forEachIndexed { index, filter ->
+                            ChatFilterRow(
+                                filter = filter,
+                                manage = manage,
+                                onToggle = { onToggleChatFilter(filter.id, !filter.isEnabled) },
+                                onDelete = { pendingDeleteChatFilter = filter },
+                            )
+                            if (index < chatFilters.lastIndex) {
+                                Separator()
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     pendingUnban?.let { ban ->
@@ -1144,6 +1237,21 @@ private fun BansList(
         )
     }
 
+    pendingDeleteChatFilter?.let { filter ->
+        ConfirmDialog(
+            title = stringResource(Res.string.moderation_chat_filters_delete_title),
+            message = stringResource(Res.string.moderation_chat_filters_delete_message, filter.name),
+            confirmLabel = stringResource(Res.string.moderation_chat_filters_delete_confirm),
+            dismissLabel = stringResource(Res.string.moderation_chat_filters_delete_dismiss),
+            destructive = true,
+            onConfirm = {
+                onDeleteChatFilter(filter.id)
+                pendingDeleteChatFilter = null
+            },
+            onDismiss = { pendingDeleteChatFilter = null },
+        )
+    }
+
     if (showActionDialog) {
         ModerateViewerDialog(
             searchViewers = searchViewers,
@@ -1162,6 +1270,16 @@ private fun BansList(
                 showCreateRuleDialog = false
             },
             onDismiss = { showCreateRuleDialog = false },
+        )
+    }
+
+    if (showCreateChatFilterDialog) {
+        CreateChatFilterDialog(
+            onConfirm = { filterType, name, action, pattern, terms, duration ->
+                onCreateChatFilter(filterType, name, action, pattern, terms, duration)
+                showCreateChatFilterDialog = false
+            },
+            onDismiss = { showCreateChatFilterDialog = false },
         )
     }
 
@@ -2281,6 +2399,91 @@ private fun RuleRow(
     }
 }
 
+// One chat filter row: the filter name + its match type, with Enable/Disable + Delete actions (Editor floor;
+// the backend re-checks moderation:filter:write). Delete is confirmed via a dialog.
+@Composable
+private fun ChatFilterRow(
+    filter: ChatFilter,
+    manage: ManageDecision,
+    onToggle: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val displayName: String =
+        resolveRowLabel(
+            filter.name,
+            secondary = filter.filterType,
+            typeLabel = "Filter",
+            discriminatorSource = filter.id,
+        )
+    val toggleLabel: String =
+        stringResource(
+            if (filter.isEnabled) Res.string.moderation_chat_filters_disable_action
+            else Res.string.moderation_chat_filters_enable_action,
+            displayName,
+        )
+    val deleteLabel: String = stringResource(Res.string.moderation_chat_filters_delete_action, displayName)
+    val rowDescription: String = "$displayName, ${filter.filterType}, ${filter.action}"
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+    ) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .clearAndSetSemantics { contentDescription = rowDescription },
+            verticalArrangement = Arrangement.spacedBy(spacing.s1),
+        ) {
+            Text(
+                text = displayName,
+                style = typography.base,
+                color = tokens.cardForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = "${filter.filterType} · ${filter.action}",
+                style = typography.sm,
+                color = tokens.mutedForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        ManageGate(decision = manage) { enabled ->
+            GlyphButton(
+                icon = TrashGlyph,
+                label = deleteLabel,
+                onClick = onDelete,
+                enabled = enabled,
+                tint = tokens.destructive,
+            )
+        }
+        ManageGate(decision = manage) { enabled ->
+            TextButton(
+                onClick = onToggle,
+                enabled = enabled,
+                modifier = Modifier.semantics { contentDescription = toggleLabel },
+            ) {
+                Text(
+                    text =
+                        stringResource(
+                            if (filter.isEnabled) Res.string.moderation_chat_filters_disable
+                            else Res.string.moderation_chat_filters_enable
+                        ),
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+}
+
 // One AutoMod filter row: the filter name + an On/Off status (with the caps % / emote max detail when enabled)
 // plus an Enable/Disable action; the per-filter threshold / list editing is a follow-up.
 @Composable
@@ -2856,6 +3059,159 @@ private fun CreateRuleDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(stringResource(Res.string.moderation_rules_create_dismiss))
+            }
+        },
+    )
+}
+
+// Dialog to create a new chat filter (J.6, S066): a regex pattern or a literal word list, with an action.
+// The wire enum values (ChatFilterType / ChatFilterAction) are sent by their exact C# member name — the
+// backend's built-in System.Text.Json enum reader accepts a quoted member-name string on write, even though
+// it always serializes reads back as the underlying ordinal (no JsonStringEnumConverter is registered on
+// either enum) — the row above renders whatever the backend returns either way.
+@Composable
+private fun CreateChatFilterDialog(
+    onConfirm: (
+        filterType: String,
+        name: String,
+        action: String,
+        pattern: String?,
+        terms: List<String>?,
+        timeoutSeconds: Int?,
+    ) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val types: List<Pair<String, String>> = listOf(
+        "Regex" to stringResource(Res.string.moderation_chat_filters_create_type_pattern),
+        "Blocklist" to stringResource(Res.string.moderation_chat_filters_create_type_blocklist),
+    )
+    val actions: List<Pair<String, String>> = listOf(
+        "Delete" to stringResource(Res.string.moderation_action_type_delete),
+        "Timeout" to stringResource(Res.string.moderation_action_type_timeout),
+        "Hold" to stringResource(Res.string.moderation_action_type_hold),
+        "Flag" to stringResource(Res.string.moderation_action_type_flag),
+        "Escalate" to stringResource(Res.string.moderation_action_type_escalate),
+    )
+
+    var name: String by remember { mutableStateOf("") }
+    var selectedType: String by remember { mutableStateOf(types.first().first) }
+    var selectedAction: String by remember { mutableStateOf(actions.first().first) }
+    var pattern: String by remember { mutableStateOf("") }
+    var termsInput: String by remember { mutableStateOf("") }
+    var durationInput: String by remember { mutableStateOf("600") }
+    var nameError: Boolean by remember { mutableStateOf(false) }
+    var patternError: Boolean by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = stringResource(Res.string.moderation_chat_filters_create_title),
+                style = typography.lg,
+                color = tokens.cardForeground,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                AppTextField(
+                    value = name,
+                    onValueChange = { name = it; nameError = false },
+                    label = stringResource(Res.string.moderation_chat_filters_create_name),
+                    isError = nameError,
+                    errorText =
+                        if (nameError) stringResource(Res.string.moderation_chat_filters_create_name_required)
+                        else null,
+                )
+                Text(
+                    text = stringResource(Res.string.moderation_chat_filters_create_type),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                    types.forEach { (key, label) ->
+                        Badge(
+                            selected = selectedType == key,
+                            onClick = { selectedType = key },
+                        ) { Text(label, style = typography.xs) }
+                    }
+                }
+                if (selectedType == "Regex") {
+                    AppTextField(
+                        value = pattern,
+                        onValueChange = { pattern = it; patternError = false },
+                        label = stringResource(Res.string.moderation_chat_filters_create_pattern),
+                        isError = patternError,
+                        errorText =
+                            if (patternError)
+                                stringResource(Res.string.moderation_chat_filters_create_pattern_required)
+                            else null,
+                    )
+                } else {
+                    AppTextField(
+                        value = termsInput,
+                        onValueChange = { termsInput = it; patternError = false },
+                        label = stringResource(Res.string.moderation_chat_filters_create_terms),
+                        isError = patternError,
+                        errorText =
+                            if (patternError)
+                                stringResource(Res.string.moderation_chat_filters_create_terms_required)
+                            else null,
+                    )
+                }
+                Text(
+                    text = stringResource(Res.string.moderation_chat_filters_create_action),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                    actions.forEach { (key, label) ->
+                        Badge(
+                            selected = selectedAction == key,
+                            onClick = { selectedAction = key },
+                        ) { Text(label, style = typography.xs) }
+                    }
+                }
+                if (selectedAction == "Timeout") {
+                    AppTextField(
+                        value = durationInput,
+                        onValueChange = { durationInput = it },
+                        label = stringResource(Res.string.moderation_action_duration),
+                        isError = false,
+                        errorText = null,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (name.isBlank()) { nameError = true; return@Button }
+                    val terms: List<String> =
+                        termsInput.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                    if (selectedType == "Regex" && pattern.isBlank()) { patternError = true; return@Button }
+                    if (selectedType == "Blocklist" && terms.isEmpty()) { patternError = true; return@Button }
+                    val duration: Int? =
+                        if (selectedAction == "Timeout") durationInput.trim().toIntOrNull() else null
+                    onConfirm(
+                        selectedType,
+                        name.trim(),
+                        selectedAction,
+                        pattern.trim().takeIf { selectedType == "Regex" },
+                        terms.takeIf { selectedType == "Blocklist" },
+                        duration,
+                    )
+                },
+            ) {
+                Text(stringResource(Res.string.moderation_chat_filters_create_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(Res.string.moderation_chat_filters_create_dismiss))
             }
         },
     )

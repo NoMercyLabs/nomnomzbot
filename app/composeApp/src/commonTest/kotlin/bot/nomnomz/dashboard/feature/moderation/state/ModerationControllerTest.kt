@@ -862,6 +862,76 @@ class ModerationControllerTest {
         assertEquals(listOf("u1" to "twitch"), api.standingsCleared)
         assertEquals(2, api.userContextCalls.size)
     }
+
+    @Test
+    fun load_surfaces_the_channels_chat_filters_on_success() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(emptyList()))
+        api.chatFiltersResult =
+            ApiResult.Ok(
+                listOf(
+                    ChatFilter(id = "f1", filterType = "Regex", name = "No links", action = "Delete", isEnabled = true)
+                )
+            )
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
+
+        controller.load()
+
+        val state: ModerationState = controller.state.value
+        assertTrue(state is ModerationState.Ready)
+        val filters: List<ChatFilter> = (state as ModerationState.Ready).chatFilters
+        assertEquals(1, filters.size)
+        assertEquals("No links", filters.first().name)
+        assertTrue(filters.first().isEnabled)
+    }
+
+    @Test
+    fun create_chat_filter_sends_the_pattern_and_reloads_the_list() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(emptyList()))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
+        controller.load()
+        api.chatFiltersResult =
+            ApiResult.Ok(listOf(ChatFilter(id = "f1", filterType = "Regex", name = "No links", action = "Delete")))
+
+        controller.createChatFilter(
+            filterType = "Regex",
+            name = "No links",
+            action = "Delete",
+            pattern = "https?://",
+            terms = null,
+            timeoutSeconds = null,
+        )
+
+        assertEquals(1, api.createdChatFilters.size)
+        assertEquals("https?://", api.createdChatFilters.first().pattern)
+        assertEquals("Regex", api.createdChatFilters.first().filterType)
+        val state: ModerationState = controller.state.value
+        assertTrue(state is ModerationState.Ready)
+        assertEquals(1, (state as ModerationState.Ready).chatFilters.size)
+    }
+
+    @Test
+    fun toggle_chat_filter_flips_enabled_and_reloads() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(emptyList()))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
+        controller.load()
+
+        controller.toggleChatFilter("f1", enabled = false)
+
+        assertEquals(1, api.updatedChatFilters.size)
+        assertEquals("f1", api.updatedChatFilters.first().first)
+        assertEquals(false, api.updatedChatFilters.first().second.isEnabled)
+    }
+
+    @Test
+    fun delete_chat_filter_removes_it_and_reloads() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(emptyList()))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
+        controller.load()
+
+        controller.deleteChatFilter("f1")
+
+        assertEquals(listOf("f1"), api.deletedChatFilters)
+    }
 }
 
 private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
@@ -924,22 +994,39 @@ private class FakeModerationApi(
     private val automodResult: ApiResult<AutomodConfig> = ApiResult.Ok(AutomodConfig()),
     private val rulesResult: ApiResult<List<ModerationRule>> = ApiResult.Ok(emptyList()),
 ) : ModerationApi {
-    override suspend fun chatFilters(channelId: String): ApiResult<List<ChatFilter>> =
-        ApiResult.Ok(emptyList())
+    var chatFiltersResult: ApiResult<List<ChatFilter>> = ApiResult.Ok(emptyList())
+
+    override suspend fun chatFilters(channelId: String): ApiResult<List<ChatFilter>> = chatFiltersResult
+
+    val createdChatFilters: MutableList<CreateChatFilterBody> = mutableListOf()
+    var createChatFilterResult: ApiResult<ChatFilter> = ApiResult.Ok(ChatFilter())
 
     override suspend fun createChatFilter(
         channelId: String,
         body: CreateChatFilterBody,
-    ): ApiResult<ChatFilter> = ApiResult.Ok(ChatFilter())
+    ): ApiResult<ChatFilter> {
+        createdChatFilters.add(body)
+        return createChatFilterResult
+    }
+
+    val updatedChatFilters: MutableList<Pair<String, UpdateChatFilterBody>> = mutableListOf()
+    var updateChatFilterResult: ApiResult<ChatFilter> = ApiResult.Ok(ChatFilter())
 
     override suspend fun updateChatFilter(
         channelId: String,
         filterId: String,
         body: UpdateChatFilterBody,
-    ): ApiResult<ChatFilter> = ApiResult.Ok(ChatFilter())
+    ): ApiResult<ChatFilter> {
+        updatedChatFilters.add(filterId to body)
+        return updateChatFilterResult
+    }
 
-    override suspend fun deleteChatFilter(channelId: String, filterId: String): ApiResult<Unit> =
-        ApiResult.Ok(Unit)
+    val deletedChatFilters: MutableList<String> = mutableListOf()
+
+    override suspend fun deleteChatFilter(channelId: String, filterId: String): ApiResult<Unit> {
+        deletedChatFilters.add(filterId)
+        return ApiResult.Ok(Unit)
+    }
 
     override suspend fun shoutoutTemplate(channelId: String): ApiResult<String?> = ApiResult.Ok(null)
 
