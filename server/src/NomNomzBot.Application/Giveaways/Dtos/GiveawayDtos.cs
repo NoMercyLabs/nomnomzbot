@@ -32,6 +32,7 @@ public sealed record GiveawayDto(
     string Status,
     DateTime? OpenedAt,
     DateTime? ClosesAt,
+    DateTime? ScheduledCloseAt,
     DateTime? DrawnAt,
     int EntryCount,
     DateTime CreatedAt
@@ -56,7 +57,10 @@ public sealed record UpsertGiveawayRequest(
     Guid? PrizeCodePoolId = null,
     // The value-out gate (D5): must be explicitly true for a paid code_pool giveaway, or Validate() refuses it
     // with VALUE_OUT_PAID_ENTRY. Ignored by every other prize mode / free entry.
-    bool Requires18Plus = false
+    bool Requires18Plus = false,
+    // An optional auto-close target — must be strictly in the future, or Validate() refuses it with
+    // VALIDATION_FAILED. Null = manual close only (the giveaway stays open until CloseAsync is called).
+    DateTime? ScheduledCloseAt = null
 );
 
 /// <summary>List filter — null status = all live (non-archived) giveaways.</summary>

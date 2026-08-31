@@ -266,6 +266,52 @@ public sealed class GiveawayServiceTests
     }
 
     [Fact]
+    public async Task A_scheduled_close_time_in_the_past_is_refused()
+    {
+        Harness harness = Build();
+
+        Result<GiveawayDto> refused = await harness.Service.CreateAsync(
+            Tenant,
+            new(
+                "Backwards Schedule",
+                GiveawayEntryMode.Keyword,
+                Keyword: "!win",
+                ScheduledCloseAt: DateTime.UtcNow.AddMinutes(-5)
+            ),
+            CancellationToken.None
+        );
+
+        refused
+            .IsFailure.Should()
+            .BeTrue("a target that already passed can never auto-close anything");
+        refused.ErrorCode.Should().Be("VALIDATION_FAILED");
+    }
+
+    [Fact]
+    public async Task A_scheduled_close_time_in_the_future_round_trips()
+    {
+        Harness harness = Build();
+        DateTime target = DateTime.UtcNow.AddHours(1);
+
+        Result<GiveawayDto> created = await harness.Service.CreateAsync(
+            Tenant,
+            new(
+                "Timed Giveaway",
+                GiveawayEntryMode.Keyword,
+                Keyword: "!win",
+                ScheduledCloseAt: target
+            ),
+            CancellationToken.None
+        );
+
+        created.IsSuccess.Should().BeTrue(created.ErrorMessage);
+        created.Value.ScheduledCloseAt.Should().Be(target);
+        created
+            .Value.ClosesAt.Should()
+            .BeNull("ClosesAt records an ACTUAL close, never the still-pending target");
+    }
+
+    [Fact]
     public async Task Entering_a_gated_giveaway_without_age_consent_is_rejected()
     {
         Harness harness = Build(ageConsentGranted: false);

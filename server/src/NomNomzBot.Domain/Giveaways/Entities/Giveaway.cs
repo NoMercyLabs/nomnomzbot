@@ -76,7 +76,16 @@ public class Giveaway : SoftDeletableEntity, ITenantScoped
 
     public DateTime? OpenedAt { get; set; }
 
+    /// <summary>When the giveaway actually closed (stamped by a manual <c>CloseAsync</c> or the auto-close
+    /// sweep) — a lifecycle record, not a target. See <see cref="ScheduledCloseAt"/> for the target.</summary>
     public DateTime? ClosesAt { get; set; }
+
+    /// <summary>
+    /// An optional target close time the broadcaster sets at create/update; the auto-close sweep
+    /// (<c>GiveawayAutoCloseWorker</c>) closes any <c>open</c> giveaway once this passes, exactly like a
+    /// manual close (stamps <see cref="ClosesAt"/> to the real close moment). Null = manual close only.
+    /// </summary>
+    public DateTime? ScheduledCloseAt { get; set; }
 
     public DateTime? DrawnAt { get; set; }
 
