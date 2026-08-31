@@ -593,8 +593,16 @@ later.)
   (previously `load()`-only) `IntegrationsState.Error` and returns early; the screen renders a
   destructive-toned retry card instead of plain text. Test covers failure → `Error` state → retry →
   real `Ready` state, i18n en+nl.
-- **S076** Multi-chat as a tool — `joinedChannels` preserved on
-  reconnect; watch list persisted; mod-log pushes with names + time; shield pushes consumed (U·B3).
+- **S076** Multi-chat as a tool — mod-log pushes with names + time; shield pushes consumed (U·B3).
+  **`joinedChannels` preserved on reconnect DONE, verified (be76f6e5)**: `DashboardHubClient` already
+  replayed its own transport-level joined set on reconnect — the raw symptom wasn't reproducible there —
+  but `MultiChatController` gained its own controller-owned guarantee anyway: a `Reconnecting→Connected`
+  edge now re-invokes `joinChannel` for every id in the current watched set, never a default. **Watch
+  list persisted PARTIALLY DONE**: `WatchListStore` interface added (mirrors the existing
+  `EmojiStyleStore` contract) with a `NoOp` default so nothing regresses; a real persistent
+  implementation (new expect/actual store + `AppGraph.kt` DI wiring) is OUT-OF-SCOPE for this slice —
+  needs its own follow-up to actually survive an app restart. 2 new tests (reconnect rejoins the real
+  watched set not `c`; a second controller instance sharing a fake store restores the persisted set).
   **Moderation actions + composer DONE, verified (9648b235)**: `MultiChatController` gained
   `sendMessage`/`deleteMessage`/`timeoutUser`/`banUser`, all delegating to the existing `ChatApi` (same
   calls the single-channel Chat page uses — no duplicated network logic). Screen gained a composer
