@@ -207,6 +207,23 @@ public sealed class FairQueue<T> : IFairQueue<T>
         }
     }
 
+    public bool MoveToFront(int position)
+    {
+        lock (_lock)
+        {
+            if (position < 0 || position >= _queue.Count)
+                return false;
+            if (position == 0)
+                return true;
+
+            QueueEntry entry = _queue[position];
+            _queue.RemoveAt(position);
+            _queue.Insert(0, entry);
+            RecalculateRanks();
+            return true;
+        }
+    }
+
     /// <summary>
     /// Returns a snapshot of the queue as (item, rank, ownerKey) tuples.
     /// </summary>

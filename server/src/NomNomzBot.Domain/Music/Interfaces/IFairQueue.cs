@@ -55,6 +55,15 @@ public interface IFairQueue<T>
     /// <summary>Removes the item at the specified zero-based position. Returns false if position is out of range.</summary>
     bool RemoveAt(int position);
 
+    /// <summary>
+    /// Moves the item at <paramref name="position"/> to the front of the queue — a moderator's
+    /// "play this one next" override, outside the fair-scheduler's normal rank ordering. Every
+    /// owner's rank is recalculated afterward so the invariant (rank = that owner's 1-based position
+    /// among their own remaining items) still holds. Returns false when the position is out of range;
+    /// a no-op promote of the item already at position 0 returns true.
+    /// </summary>
+    bool MoveToFront(int position);
+
     /// <summary>Returns a snapshot of all items in fair-schedule order.</summary>
     IReadOnlyList<(T Item, int Rank, string OwnerKey)> GetSnapshot();
 }

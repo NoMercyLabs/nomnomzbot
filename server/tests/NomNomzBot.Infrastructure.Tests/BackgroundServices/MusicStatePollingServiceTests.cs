@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.Interfaces;
@@ -599,6 +600,19 @@ public sealed class MusicStatePollingServiceTests
             string query,
             string? requestedBy = null,
             int? requesterRoleLevel = null,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
+        public Task<bool> PromoteToTopAsync(
+            string broadcasterId,
+            int position,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
+        public Task<Result<BlockedTrackDto>> BanQueuedTrackAsync(
+            string broadcasterId,
+            int position,
+            string? blockedByUserId = null,
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();
 
