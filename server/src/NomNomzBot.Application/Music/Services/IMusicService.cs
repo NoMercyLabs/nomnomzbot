@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Domain.Music.Interfaces;
 
 namespace NomNomzBot.Application.Music.Services;
@@ -119,6 +120,31 @@ public interface IMusicService
     Task<bool> RemoveFromQueueAsync(
         string broadcasterId,
         int position,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Moves the queued item at <paramref name="position"/> to the front of the queue — a moderator's
+    /// "play this one next" dashboard action. Returns false when there is no queue for the channel or
+    /// <paramref name="position"/> is out of range.
+    /// </summary>
+    Task<bool> PromoteToTopAsync(
+        string broadcasterId,
+        int position,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Bans the queued (or historical) track at <paramref name="position"/> from future song requests —
+    /// the dashboard counterpart to <c>!bansong</c> (which only bans whatever is currently playing).
+    /// Reuses <see cref="IBlockedTrackService.BlockAsync"/> so the block is enforced by the same
+    /// admission gate, then removes the now-blocked entry from the live queue. Fails <c>NOT_FOUND</c>
+    /// when <paramref name="position"/> is out of range.
+    /// </summary>
+    Task<Result<BlockedTrackDto>> BanQueuedTrackAsync(
+        string broadcasterId,
+        int position,
+        string? blockedByUserId = null,
         CancellationToken cancellationToken = default
     );
 

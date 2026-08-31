@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Security.Claims;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -194,6 +195,47 @@ public class MusicController : BaseController
             return NotFoundResponse($"No queue item at position {position}.");
 
         return NoContent();
+    }
+
+    /// <summary>Move a queued song to the front of the queue — play this one next.</summary>
+    [RequireAction("music:queue:moderate")]
+    [HttpPost("queue/{position:int}/promote")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> PromoteToTop(
+        string channelId,
+        int position,
+        CancellationToken ct
+    )
+    {
+        bool moved = await _musicService.PromoteToTopAsync(channelId, position, ct);
+        if (!moved)
+            return NotFoundResponse($"No queue item at position {position}.");
+
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Ban the queued song at the given position from future song requests — the dashboard
+    /// counterpart to <c>!bansong</c> (which only bans whatever is currently playing). Removes it
+    /// from the live queue too.
+    /// </summary>
+    [RequireAction("music:queue:moderate")]
+    [HttpPost("queue/{position:int}/ban")]
+    [ProducesResponseType<StatusResponseDto<BlockedTrackDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> BanQueuedTrack(
+        string channelId,
+        int position,
+        CancellationToken ct
+    )
+    {
+        string? moderatorId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        Result<BlockedTrackDto> result = await _musicService.BanQueuedTrackAsync(
+            channelId,
+            position,
+            moderatorId,
+            ct
+        );
+        return ResultResponse(result);
     }
 
     // ─── Blocked tracks (legacy !bansong) ─────────────────────────────────────

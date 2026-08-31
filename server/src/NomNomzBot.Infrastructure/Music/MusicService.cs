@@ -1006,6 +1006,75 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         return removed;
     }
 
+    public async Task<bool> PromoteToTopAsync(
+        string broadcasterId,
+        int position,
+        CancellationToken cancellationToken = default
+    )
+    {
+        FairQueue<SongRequestEntry>? queue = _queueStore.TryGet(broadcasterId);
+        bool moved = queue is not null && queue.MoveToFront(position);
+
+        if (moved)
+        {
+            await SyncPersistedQueueAsync(broadcasterId, queue!, cancellationToken);
+            if (Guid.TryParse(broadcasterId, out Guid tenantId))
+                await PublishQueueChangedAsync(tenantId, broadcasterId, cancellationToken);
+        }
+
+        return moved;
+    }
+
+    public async Task<Result<BlockedTrackDto>> BanQueuedTrackAsync(
+        string broadcasterId,
+        int position,
+        string? blockedByUserId = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return Result.Failure<BlockedTrackDto>("Invalid channel id.", "VALIDATION_FAILED");
+
+        FairQueue<SongRequestEntry>? queue = _queueStore.TryGet(broadcasterId);
+        IReadOnlyList<(SongRequestEntry Item, int Rank, string OwnerKey)> snapshot =
+            queue?.GetSnapshot() ?? [];
+        if (position < 0 || position >= snapshot.Count)
+            return Result.Failure<BlockedTrackDto>(
+                $"No queue item at position {position}.",
+                "NOT_FOUND"
+            );
+
+        SongRequestEntry target = snapshot[position].Item;
+
+        // A queued request carries no provider tag of its own (SongRequestEntry), so the ban is filed
+        // against the channel's currently active provider — the same provider every queued track in a
+        // channel's single fair queue was resolved against.
+        string provider =
+            await GetActiveProviderKeyAsync(broadcasterId, cancellationToken) ?? "unknown";
+
+        Result<BlockedTrackDto> blocked = await _blockedTracks.BlockAsync(
+            tenantId,
+            new BlockTrackRequest(
+                provider,
+                target.TrackUri,
+                target.TrackName,
+                Reason: "Banned from dashboard queue",
+                BlockedByUserId: blockedByUserId
+            ),
+            cancellationToken
+        );
+        if (blocked.IsFailure)
+            return blocked;
+
+        // Now-blocked entries have no business staying queued — remove it before it's ever handed to
+        // the provider.
+        queue!.RemoveAt(position);
+        await SyncPersistedQueueAsync(broadcasterId, queue, cancellationToken);
+        await PublishQueueChangedAsync(tenantId, broadcasterId, cancellationToken);
+
+        return blocked;
+    }
+
     // ── Remote controls (capability-gated §3.5 members) ─────────────────────────
 
     public async Task<Result> SeekAsync(
