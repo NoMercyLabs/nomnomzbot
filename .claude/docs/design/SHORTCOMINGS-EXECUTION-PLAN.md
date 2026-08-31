@@ -433,19 +433,23 @@ later.)
   `POST /moderation/automod/message`; a pending-queue panel on the Moderation screen lets a mod
   approve/deny, mirroring the viewer-reports panel. Remaining sub-items above are still open — the
   tracker item stays until they're picked up.
-- **S067** Music UX — one config editor (two duplicate config editors still coexist on the dashboard —
-  consolidate); queue promote/ban-track/refund; public `/sr/` page built; token → URL; bounded steppers;
-  enum lists from API; `public-sr` rate policy; `RequestedBy` not the owner key; hub-driven reloads;
-  polling fan-out bound (U·B4). 🔒 cost/max-duration/cooldown fields. Done-when: every SR toggle changes
-  what `!sr` does (test per setting).
+- **S067** Music UX — queue promote/ban-track/refund; public `/sr/` page built; token → URL; bounded
+  steppers; enum lists from API; `public-sr` rate policy; `RequestedBy` not the owner key; hub-driven
+  reloads; polling fan-out bound (U·B4). 🔒 cost/max-duration/cooldown fields. Done-when: every SR toggle
+  changes what `!sr` does (test per setting).
   DONE (8604498a, ac02cc52): all 7 `MusicConfigDto` admission settings now enforced in `MusicService` —
   `IsEnabled`/`MinTrustLevel` refuse before ever resolving a provider (both the chat command and the
   pipeline action pass their resolved role level); `PreferredProvider`/`AllowSpotify`/`AllowYouTube`
   steer `GetActiveProviderAsync`'s selection; `MaxQueueSize`/`MaxRequestsPerUser` gate the shared
   `EnqueueResolvedAsync` enqueue point both `AddToQueueAsync` and `RequestTrackAsync` fold into. Every
-  admission setting now changes `!sr` behavior — remaining sub-items above (duplicate config editor,
-  queue promote/ban-track/refund, public page polish, cost/max-duration/cooldown) are dashboard/UX work,
-  not admission enforcement — tracker stays open for those.
+  admission setting now changes `!sr` behavior.
+  DONE (b30bf452): the duplicate config editor is consolidated — Music's out-of-place 7-field editor
+  (frontend-ia.md puts config ownership on Song Requests, not Music) is removed; Song Requests' editor
+  gained the 4 fields it was missing (`PreferredProvider`/`MaxQueueSize`/`MaxRequestsPerUser`/
+  `MinTrustLevel`), so exactly one screen edits `MusicConfig` now, with all 7 settings. Remaining
+  sub-items above (queue promote/ban-track/refund, public page polish, token→URL, bounded steppers,
+  enum lists from API, rate policy, `RequestedBy`, hub-driven reloads, polling fan-out, cost/duration/
+  cooldown) are still open — tracker stays open for those.
 - **S068** Legacy builtins — `!help`, `!commands`, `!lurk`/`!unlurk`, `!leaderboard`, `!songhistory`,
   `!playlist`, `!bansong`, `!whisper`, `!discord`, `!accountage` + seeded fun-command preset pack +
   on-connect announcement (U·C7). Done-when: a fresh channel has every legacy command or a seed for it.
