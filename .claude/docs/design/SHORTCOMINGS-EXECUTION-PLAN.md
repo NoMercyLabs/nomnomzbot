@@ -587,9 +587,13 @@ later.)
   assumed; manifest regenerated + real en/nl strings added (cf959b9e). Lesson: a new pipeline action's
   help-text/description fields need BOTH a manifest entry AND real strings.xml translations, or the
   drift guard fails — always run `SchemaLocalizationManifestTests` for any new `ICommandAction`.
-  Remaining S069 scope (custom commands/timers/event responses/chat triggers tone, usage/error tone
-  slots, reply-or-mention helper, GDPR whisper-with-fallback, inbound whisper handler, per-locale tone
-  catalogue) is still open.
+  **Inbound whisper handler DONE, verified (8fb98c69)**: `user.whisper.message` EventSub subscription +
+  translator already existed (`UserWhisperMessageTranslator` → `WhisperReceivedEvent`), and the generic
+  `NotificationDispatcher` already journals every raw notification before fan-out — an inbound whisper
+  was never actually silently dropped, it just had no test proving that end-to-end for this topic. New
+  test proves a real whisper payload journals + publishes correctly; no production code was missing.
+  Remaining S069 scope: usage/error tone slots (for the bot's own system messages), per-locale tone
+  catalogue. Everything else in this item is now closed (see above).
 - **S070** Settings + onboarding truth (U·B6) — fully CLOSED this session.
   **Swallowed regrant/reconcile failures DONE, verified (f8930c74)**:
   `IntegrationTokenVault.StoreTokensAsync` awaited `IScopeGrantService.ReconcileGrantedScopesAsync` and
