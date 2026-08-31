@@ -4270,6 +4270,8 @@
     <string name="pipeline_adjust_viewer_data_delta_help">How much to add to the viewer's stored numeric value (use a negative number to subtract).</string>
     <string name="pipeline_adjust_viewer_data_key_help">The name of the per-viewer data field to adjust.</string>
     <string name="pipeline_adjust_viewer_data_target_help">Which viewer's data to adjust. Blank targets the user who triggered this pipeline.</string>
+    <string name="pipeline_announce_color_help">The announcement's highlight color in chat. Leave blank for the default color.</string>
+    <string name="pipeline_announce_message_help">The message to post as a chat announcement. Supports template variables (e.g. {{user.name}}).</string>
     <string name="pipeline_check_balance_min_help">The minimum balance the condition checks for. Leave blank to just read the balance without comparing it.</string>
     <string name="pipeline_check_balance_set_var_help">The variable name the viewer's currency balance is stored in, for later steps to read (e.g. {{balance}}).</string>
     <string name="pipeline_clear_viewer_data_key_help">The per-viewer data field to clear for every viewer in the channel at once.</string>
@@ -4430,6 +4432,7 @@
     <string name="pipeline_category_condition">Condition</string>
     <string name="pipeline_adjust_counter_description">Increase or decrease a named counter by an amount</string>
     <string name="pipeline_adjust_viewer_data_description">Increase or decrease a stored numeric value on a viewer&apos;s profile</string>
+    <string name="pipeline_announce_description">Post a highlighted chat announcement</string>
     <string name="pipeline_ban_description">Ban a viewer from chat</string>
     <string name="pipeline_break_description">Break out of the enclosing loop</string>
     <string name="pipeline_cancel_live_game_description">Cancel the currently running live game</string>
