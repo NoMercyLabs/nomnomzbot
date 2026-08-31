@@ -338,9 +338,13 @@ later.)
   back to the old `.on('x')` source scan only when that list is empty (a widget with no declared
   subscriptions yet). The regex-scan code itself moved from the old `ProjectEditor.wasmJs.kt` DOM
   build into `preview.js` during the served-page migration (S-CODE-EDITOR) — the file:line this note
-  used to cite no longer exists. **Confirmed still open, each its own follow-up**: chat variants (only
-  one generic chat-message shape — no sub/mod/vip tiers, reply/mention, bits, `/me`, multi-platform
-  variants); desktop (JVM) parity — the desktop `ProjectEditor` is a Swing dialog with no live
+  used to cite no longer exists. **Chat variants DONE, verified (4de105a4)**: `chat_box.vue` now
+  renders role accent/badge (broadcaster/mod/vip/sub, highest wins), cheer/bits amount + gold accent,
+  a reply quote preview, and a platform badge for non-Twitch messages — all from fields already on
+  `DashboardChatMessageDto`. `/me` action messages found genuinely unbuildable this pass: the DTO
+  carries no `IsAction`/action flag anywhere in the chat pipeline (confirmed via grep, zero hits) —
+  needs its own backend slice to add the field first, tracked as **S060-action-messages**.
+  **Confirmed still open**: desktop (JVM) parity — the desktop `ProjectEditor` is a Swing dialog with no live
   preview/DOM to fire into at all, needs a product decision on what "desktop gets the bar" even means
   before it's buildable, not a mechanical port (🔒 owner call).
   **Also found and fixed, not part of this plan item but critical**: `PipelinesController.kt` used
