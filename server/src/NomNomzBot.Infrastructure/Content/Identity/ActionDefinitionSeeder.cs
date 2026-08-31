@@ -201,8 +201,6 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("moderation:note:write", Mod);
         M("moderation:automod:read", Mod);
         M("moderation:automod:write", LeadModerator);
-        M("moderation:queue:read", Mod);
-        M("moderation:queue:resolve", LeadModerator);
         M("moderation:filter:read", Mod);
         M("moderation:filter:write", LeadModerator);
         M("moderation:nuke", LeadModerator, DangerTier.Critical, grant: false);
