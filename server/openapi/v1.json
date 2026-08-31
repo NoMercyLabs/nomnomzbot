@@ -44737,6 +44737,239 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/moderation/automod/queue": {
+      "get": {
+        "tags": [
+          "Moderation"
+        ],
+        "summary": "List the channel's AutoMod review queue (default: pending) — held messages awaiting a mod's approve/deny.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfListOfModerationQueueItemDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/moderation/automod/queue/{queueItemId}/resolve": {
+      "post": {
+        "tags": [
+          "Moderation"
+        ],
+        "summary": "Resolve a held AutoMod message — `approve` releases it to chat, `deny` drops it.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "queueItemId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveModerationQueueItemRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveModerationQueueItemRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveModerationQueueItemRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfModerationQueueItemDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/moderation/stats": {
       "get": {
         "tags": [
@@ -84352,6 +84585,83 @@
         },
         "description": "The channel's escalation policy (J.10)."
       },
+      "ModerationQueueItemDto": {
+        "required": [
+          "id",
+          "source",
+          "status",
+          "targetTwitchUserId",
+          "targetUsernameSnapshot",
+          "messageContentSnapshot",
+          "autoModCategory",
+          "createdAt",
+          "resolvedAt",
+          "resolvedByName",
+          "resolutionAction"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "source": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "targetTwitchUserId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "targetUsernameSnapshot": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "messageContentSnapshot": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "autoModCategory": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "resolvedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "resolvedByName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "resolutionAction": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "One item in the moderation review queue (moderation.md J.1) — a held AutoMod message for this slice."
+      },
       "ModerationRuleDetail": {
         "required": [
           "id",
@@ -89553,6 +89863,18 @@
           }
         },
         "description": "The full breakdown of a caller's resolved authorization for a channel (roles-permissions §4) — each\r\nplane's contributing level and the winning source — for the permissions UI and debugging.\r\n`EffectiveLevel` is `MAX(CommunityLevel, ManagementLevel, permit-role level)`.\r\nPermitCapabilities are the caller's per-USER capability grants only. HeldActionKeys is the\r\nbroader, UI-facing set: EVERY action key in the catalogue the caller actually CLEARS on this channel —\r\ntheir EffectiveLevel meets the action's channel-effective required level (which FOLDS IN the\r\nbroadcaster's ChannelActionOverride, unlike the per-plane level fields), OR they hold a direct\r\nper-user capability grant for it. The dashboard gates page/action visibility on this set."
+      },
+      "ResolveModerationQueueItemRequest": {
+        "required": [
+          "action"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string"
+          }
+        },
+        "description": "A moderator resolves a held AutoMod message — `approve` (release it to chat) or `deny` (drop it)."
       },
       "ResolveUnbanRequestRequest": {
         "required": [
@@ -94769,6 +95091,35 @@
           }
         }
       },
+      "StatusResponseDtoOfListOfModerationQueueItemDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ModerationQueueItemDto"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfListOfPermissionDto": {
         "type": "object",
         "properties": {
@@ -95249,6 +95600,36 @@
               },
               {
                 "$ref": "#/components/schemas/ModerationEscalationPolicyDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfModerationQueueItemDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ModerationQueueItemDto"
               }
             ]
           },
