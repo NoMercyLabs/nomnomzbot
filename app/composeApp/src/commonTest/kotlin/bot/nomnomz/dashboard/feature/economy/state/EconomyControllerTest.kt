@@ -37,6 +37,7 @@ import bot.nomnomz.dashboard.core.network.EconomyApi
 import bot.nomnomz.dashboard.core.network.LeaderboardConfig
 import bot.nomnomz.dashboard.core.network.LeaderboardEntry
 import bot.nomnomz.dashboard.core.network.SavingsJar
+import bot.nomnomz.dashboard.core.network.UpdateSavingsJarBody
 import bot.nomnomz.dashboard.core.network.UpsertCurrencyConfig
 import bot.nomnomz.dashboard.core.network.UpsertEarningRuleBody
 import bot.nomnomz.dashboard.core.network.UserSearchResult
@@ -396,6 +397,49 @@ class EconomyControllerTest {
         assertEquals(30, request.cooldownSeconds)
         assertTrue(request.cooldownPerUser == true)
         assertEquals(5, request.stockLimit)
+        assertTrue(controller.state.value is EconomyState.Ready) // reloaded; page intact
+    }
+
+    @Test
+    fun updating_a_jar_sends_the_full_edit_addressed_by_id_then_reloads() = runTest {
+        val economyApi =
+            FakeEconomyApi(configResult = ApiResult.Ok(loadedConfig), leaderboardResult = ApiResult.Ok(leaderboard))
+        val controller =
+            EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi, FakeUsersApi())
+        controller.load()
+
+        controller.updateJar(
+            "jar1",
+            UpdateSavingsJarBody(
+                name = "Community pot",
+                description = "Renamed",
+                goalAmount = 5000,
+                isOpen = false,
+                maxWithdrawalPerChannel = 250,
+            ),
+        )
+
+        val (jarId, request) = economyApi.lastJarUpdate!!
+        assertEquals("jar1", jarId)
+        assertEquals("Community pot", request.name)
+        assertEquals("Renamed", request.description)
+        assertEquals(5000L, request.goalAmount)
+        assertFalse(request.isOpen == true)
+        assertEquals(250L, request.maxWithdrawalPerChannel)
+        assertTrue(controller.state.value is EconomyState.Ready) // reloaded; page intact
+    }
+
+    @Test
+    fun deleting_a_jar_addresses_it_by_id_then_reloads() = runTest {
+        val economyApi =
+            FakeEconomyApi(configResult = ApiResult.Ok(loadedConfig), leaderboardResult = ApiResult.Ok(leaderboard))
+        val controller =
+            EconomyController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), economyApi, FakeUsersApi())
+        controller.load()
+
+        controller.deleteJar("jar1")
+
+        assertEquals("jar1", economyApi.lastDeletedJarId)
         assertTrue(controller.state.value is EconomyState.Ready) // reloaded; page intact
     }
 
@@ -817,6 +861,29 @@ private class FakeEconomyApi(
 
     override suspend fun getJar(channelId: String, jarId: String): ApiResult<SavingsJarDetail> =
         ApiResult.Ok(SavingsJarDetail())
+
+    var lastJarUpdate: Pair<String, UpdateSavingsJarBody>? = null
+        private set
+
+    override suspend fun updateJar(
+        channelId: String,
+        jarId: String,
+        request: UpdateSavingsJarBody,
+    ): ApiResult<SavingsJar> {
+        lastJarUpdate = jarId to request
+        return ApiResult.Ok(SavingsJar())
+    }
+
+    var lastDeletedJarId: String? = null
+        private set
+
+    override suspend fun deleteJar(channelId: String, jarId: String): ApiResult<Unit> {
+        lastDeletedJarId = jarId
+        return ApiResult.Ok(Unit)
+    }
+
+    override suspend fun jarBlastRadius(channelId: String, jarId: String): ApiResult<BlastRadiusSummary> =
+        ApiResult.Ok(BlastRadiusSummary())
 
     override suspend fun inviteChannel(
         channelId: String,

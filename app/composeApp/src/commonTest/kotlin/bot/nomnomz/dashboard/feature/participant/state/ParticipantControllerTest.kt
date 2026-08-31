@@ -63,6 +63,7 @@ import bot.nomnomz.dashboard.core.network.ParticipantApi
 import bot.nomnomz.dashboard.core.network.PronounOption
 import bot.nomnomz.dashboard.core.network.SavingsJar
 import bot.nomnomz.dashboard.core.network.SystemApi
+import bot.nomnomz.dashboard.core.network.UpdateSavingsJarBody
 import bot.nomnomz.dashboard.core.network.TopViewerEntry
 import bot.nomnomz.dashboard.core.network.UpdateMusicConfigBody
 import bot.nomnomz.dashboard.core.network.UpsertCurrencyConfig
@@ -683,6 +684,17 @@ private class FakeEconomyApi(
 
     override suspend fun getJar(channelId: String, jarId: String): ApiResult<SavingsJarDetail> =
         ApiResult.Ok(SavingsJarDetail())
+
+    override suspend fun updateJar(
+        channelId: String,
+        jarId: String,
+        request: UpdateSavingsJarBody,
+    ): ApiResult<SavingsJar> = ApiResult.Ok(SavingsJar())
+
+    override suspend fun deleteJar(channelId: String, jarId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun jarBlastRadius(channelId: String, jarId: String): ApiResult<BlastRadiusSummary> =
+        ApiResult.Ok(BlastRadiusSummary())
 
     override suspend fun inviteChannel(
         channelId: String,
