@@ -428,9 +428,16 @@ later.)
     `ITwitchWhispersApi`; no `IPlatformDirectMessageSender`; `GiveawayEntry`/`GiveawayWinner` carry no
     `Provider`/`ProviderUserId` — a Kick/YouTube/X-only broadcaster's code-pool winner can never
     receive their code today.
-- **S066** Moderation reach — chat-filters screen (the `ChatFilter` API client + DTOs exist but no
-  screen renders them); mod add/remove endpoints + UI; clear chat; full `AutomodConfigDto`;
+- **S066** Moderation reach — mod add/remove endpoints + UI; clear chat; full `AutomodConfigDto`;
   concurrency guard on whole-config POST; chat-settings slow/followers/unique/non-mod fields (U·B3).
+  **Chat-filters screen DONE, verified (ea18f8a4)**: backend (`ChatFiltersController` +
+  `IChatFilterService`) and the KMP client/DTOs already existed but no screen used them; Moderation
+  page now has a full Chat filters section — list/add/toggle/delete, match-type (pattern/regex or word
+  list) + action (delete/timeout/hold/flag/escalate) picker, role-gated the same as other moderation
+  writes, i18n en+nl, `ModerationControllerTest` covers load/create/toggle/delete. Non-blocking follow-up
+  found: `ChatFilterDto.FilterType`/`.Action` enums have no `JsonStringEnumConverter` registered, so GET
+  responses serialize as raw ordinals not names — works today because the dashboard round-trips exact
+  enum names and treats the read value as opaque display text, but is worth a real backend fix later.
   DONE-WHEN MET (f3ca6fa0 backend + e37f028c dashboard): AutoMod held-message queue —
   `ModerationQueueItem` (J.1) enqueued from `automod.message.hold`, resolved via
   `GET/POST .../moderation/automod/queue` relaying through the already-built Helix
