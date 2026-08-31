@@ -389,8 +389,21 @@ later.)
   contract addition first); editable subscriptions (blocked on S085's `domain.action` naming realignment
   landing first — building this against today's ad-hoc event names would need re-doing); gallery
   version/update; sound upload limits (U·B5). Done-when: add → copy → test → live from one row.
-- **S063** Rewards reach — `Response` field in create + update; `ActionType/ActionSettings` exposed or
-  deleted; rewards poll backoff; null-as-empty reads → errors (U·B2).
+- **S063** Rewards reach — DONE: `Response` field in create + update (0940f891 — was write-only, accepted
+  on create but never returned by `ToDetail`; added to `RewardDetail`/`UpdateRewardRequest`, applied in
+  `UpdateAsync`, wired a form field end-to-end); `ActionType`/`ActionSettings` deleted (0940f891 — verified
+  genuinely dead: no `Reward` entity columns, no service code reads them, `RewardRedeemedHandler` only
+  ever dispatches via bound `PipelineId` or `Response` — a create/update request carrying them was silently
+  dropped, not "stored with no UI"). **New, more precise finding from tracing this** — `RewardService.cs`
+  `CreateAsync`/`ToDetail`: `BackgroundColor`/`MaxPerStream`/`MaxPerUserPerStream`/`GlobalCooldownSeconds`
+  are accepted by `CreateRewardRequest` but the `Reward` entity has NO columns for them, so create silently
+  drops all four; `UpdateAsync` DOES push them to Twitch via Helix on an already-synced reward, but never
+  caches the pushed value locally, so `ToDetail` always returns `null` for all four regardless of the real
+  Twitch state — the dashboard can set these but can never see what they currently are. Needs new `Reward`
+  entity columns (both migration assemblies) + `CreateAsync` to persist them locally + `UpdateAsync` to
+  cache the Helix-confirmed value after a successful push. **Still open**: the four-field create/read-back
+  gap above; rewards poll backoff (`RewardsScreen.kt:179-186`, 3s loop, no backoff); null-as-empty reads →
+  errors (`RewardsController.kt:76-95,112`) (U·B2).
 - **S064** Economy reach — catalog item full form + edit; leaderboard config CRUD + opt-outs + display
   names; jar role dropdown + jar update/delete (U·B2). Done-when: the store can sell an item with an
   effect, stock and cooldown from the UI.
