@@ -71,6 +71,7 @@ public sealed record GiveawayEntryDto(
     Guid Id,
     Guid GiveawayId,
     Guid ViewerUserId,
+    string ViewerDisplayName,
     int TicketCount,
     DateTime EnteredAt
 );

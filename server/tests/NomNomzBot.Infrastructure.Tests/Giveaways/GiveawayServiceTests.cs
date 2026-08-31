@@ -444,6 +444,36 @@ public sealed class GiveawayServiceTests
     }
 
     [Fact]
+    public async Task GetEntriesAsync_lists_entrants_newest_first()
+    {
+        Harness harness = Build();
+        Guid giveawayId = await SeedOpenGiveawayAsync(harness);
+        Guid first = SeedViewer(harness.Db, "111");
+        Guid second = SeedViewer(harness.Db, "222");
+        (await harness.Service.EnterAsync(Tenant, giveawayId, first, CancellationToken.None))
+            .IsSuccess.Should()
+            .BeTrue();
+        (await harness.Service.EnterAsync(Tenant, giveawayId, second, CancellationToken.None))
+            .IsSuccess.Should()
+            .BeTrue();
+
+        Result<PagedList<GiveawayEntryDto>> page = await harness.Service.GetEntriesAsync(
+            Tenant,
+            giveawayId,
+            new(),
+            CancellationToken.None
+        );
+
+        page.IsSuccess.Should().BeTrue(page.ErrorMessage);
+        page.Value.TotalCount.Should().Be(2);
+        page.Value.Items.Should().HaveCount(2);
+        page.Value.Items[0]
+            .ViewerUserId.Should()
+            .Be(second, "newest first — the second entrant lists before the first");
+        page.Value.Items.Should().OnlyContain(e => e.GiveawayId == giveawayId);
+    }
+
+    [Fact]
     public async Task Eligibility_rejects_a_non_sub_when_subs_only()
     {
         Harness harness = Build();

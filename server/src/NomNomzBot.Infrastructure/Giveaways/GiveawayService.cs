@@ -315,12 +315,13 @@ public sealed class GiveawayService : IGiveawayService
                 "ALREADY_ENTERED"
             );
 
-        string viewerTwitchId =
-            await _db
-                .Users.Where(u => u.Id == viewerUserId)
-                .Select(u => u.TwitchUserId ?? string.Empty)
-                .FirstOrDefaultAsync(ct)
-            ?? string.Empty;
+        (string viewerTwitchId, string viewerDisplayName) = await _db
+            .Users.Where(u => u.Id == viewerUserId)
+            .Select(u => new ValueTuple<string, string>(
+                u.TwitchUserId ?? string.Empty,
+                u.DisplayName
+            ))
+            .FirstOrDefaultAsync(ct);
 
         long? costLedgerEntryId = null;
         if (giveaway.EntryCost is > 0)
@@ -363,8 +364,37 @@ public sealed class GiveawayService : IGiveawayService
                 entry.Id,
                 giveawayId,
                 viewerUserId,
+                viewerDisplayName,
                 entry.TicketCount,
                 entry.EnteredAt
+            )
+        );
+    }
+
+    public async Task<Result<PagedList<GiveawayEntryDto>>> GetEntriesAsync(
+        Guid broadcasterId,
+        Guid giveawayId,
+        PaginationParams pagination,
+        CancellationToken ct = default
+    )
+    {
+        IQueryable<GiveawayEntry> query = _db
+            .GiveawayEntries.AsNoTracking()
+            .Where(e => e.BroadcasterId == broadcasterId && e.GiveawayId == giveawayId)
+            .OrderByDescending(e => e.Id);
+
+        int total = await query.CountAsync(ct);
+        List<GiveawayEntry> rows = await query
+            .Skip((pagination.Page - 1) * pagination.PageSize)
+            .Take(pagination.PageSize)
+            .ToListAsync(ct);
+
+        return Result.Success(
+            new PagedList<GiveawayEntryDto>(
+                await ToEntryDtosAsync(rows, ct),
+                pagination.Page,
+                pagination.PageSize,
+                total
             )
         );
     }
@@ -950,6 +980,30 @@ public sealed class GiveawayService : IGiveawayService
 
     private Task<int> CountEntriesAsync(Guid giveawayId, CancellationToken ct) =>
         _db.GiveawayEntries.CountAsync(e => e.GiveawayId == giveawayId, ct);
+
+    private async Task<IReadOnlyList<GiveawayEntryDto>> ToEntryDtosAsync(
+        IReadOnlyList<GiveawayEntry> entries,
+        CancellationToken ct
+    )
+    {
+        List<Guid> userIds = [.. entries.Select(e => e.ViewerUserId).Distinct()];
+        Dictionary<Guid, string> names = await _db
+            .Users.AsNoTracking()
+            .Where(u => userIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.DisplayName, ct);
+
+        return
+        [
+            .. entries.Select(e => new GiveawayEntryDto(
+                e.Id,
+                e.GiveawayId,
+                e.ViewerUserId,
+                names.GetValueOrDefault(e.ViewerUserId, "unknown"),
+                e.TicketCount,
+                e.EnteredAt
+            )),
+        ];
+    }
 
     private async Task<IReadOnlyList<GiveawayWinnerDto>> ToWinnerDtosAsync(
         IReadOnlyList<GiveawayWinner> winners,
