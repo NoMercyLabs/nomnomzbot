@@ -396,9 +396,27 @@ later.)
   "empty", and the bundle-import D2 promise ("sync pushes it to Twitch later") — `SyncWithTwitchAsync` now
   actually does that, best-effort per reward.
 - **S065** Giveaways reach — eligibility/weighting/prize pipeline in dialog; `ClosesAt` auto-close;
-  code labels; entries endpoint + list; pool picker guard; zero-value-out gate for code-pool prizes;
-  platform-generic DM delivery (U·B2, spec `giveaways.md`). Done-when: a weighted sub giveaway runs
-  end to end.
+  code labels; entries endpoint + list; pool picker guard; platform-generic DM delivery (U·B2, spec
+  `giveaways.md`). Done-when: a weighted sub giveaway runs end to end. DONE: zero-value-out gate for
+  code-pool prizes (002f9d2e/c132fdd0 — `GiveawayService.Validate()` had NO check at all; a
+  broadcaster could configure and run "pay points → win a real-value game key" with no gate
+  whatsoever, exactly the gambling scenario D5 exists to close. Added `Giveaway.Requires18Plus`
+  mirroring `GameConfig.Requires18Plus`/`GameService`'s existing `IAgeConsentService` gate:
+  `Validate()` refuses a paid `code_pool` giveaway unless it's explicitly on
+  (`VALUE_OUT_PAID_ENTRY`), `EnterAsync()` then requires each entrant to pass the 18+ gate
+  (`AGE_CONSENT_REQUIRED`). Free-entry `code_pool` and every other prize mode stay ungated. **Not yet
+  settable from the dashboard** — the `Requires18Plus` toggle needs adding when the dialog rework
+  below happens; until then the gate fails closed, which is the safe default). Investigation
+  (2026-08-31, not yet acted on) found the backend weighted-draw math (`ComputeTickets`,
+  `BuildCandidatePoolAsync`, CSPRNG weighted pick, currency/pipeline/code-pool fulfillment) is solid
+  and spec-accurate; every remaining sub-item above is a dashboard-exposure gap or a genuinely
+  missing backend piece — see the full per-sub-item breakdown that should be re-derived from the code
+  (`GiveawaysScreen.kt`'s `GiveawayFormDialog` has no eligibility/weighting/pipeline/`ClosesAt` UI at
+  all; no `ClosesAt` auto-close worker exists; code labels never collected on bulk-add; no entries
+  list endpoint; pool picker doesn't guard zero-`available`/already-bound pools;
+  `GiveawayFulfillment.FulfillCodeAsync` is hardcoded to `ITwitchWhispersApi`, no
+  `IPlatformDirectMessageSender` exists, `GiveawayEntry`/`GiveawayWinner` carry no `Provider`/
+  `ProviderUserId`).
 - **S066** Moderation reach — chat-filters screen; AutoMod settings; AutoMod held-message queue; mod
   add/remove endpoints + UI; clear chat; full `AutomodConfigDto`; concurrency guard on whole-config
   POST; chat-settings slow/followers/unique/non-mod fields (U·B3). Done-when: a mod approves a held
