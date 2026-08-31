@@ -485,16 +485,20 @@ later.)
   every owner's rank after) + `IMusicService.PromoteToTopAsync` (real reorder, persists, republishes
   `SongRequestQueueChangedEvent`); `BanQueuedTrackAsync` reuses `IBlockedTrackService.BlockAsync` (same
   one `!bansong` uses) targeted at a QUEUED position, not now-playing, then removes it from the live
-  queue. `POST .../music/queue/{position}/promote` + `/ban` endpoints. **Refund found genuinely
-  blocked**: no cost/currency concept exists anywhere on the song-request path at all (not on
-  `SongRequestEntry`, `MusicConfigDto`, or the persistence entity) — `MediaShare`'s
-  `RefundIfChargedAsync`/`ICurrencyAccountService` pattern is the right one to reuse, but wiring it needs
-  a cost field + migrations in BOTH migration assemblies + config DTO changes first; tracked as its own
-  future slice (**S067b**), not half-built here. Dashboard UI for promote/ban also deferred pending
-  S067b's data model (a "paid" indicator needs the cost field to exist first). 4 new tests, real
-  reorder/block/removal asserted, not "no exception". Remaining sub-items (S067b refund + UI, public
-  page polish, token→URL, bounded steppers, enum lists from API, rate policy, `RequestedBy`, hub-driven
-  reloads, polling fan-out, cost/duration/cooldown) are still open — tracker stays open for those.
+  queue. `POST .../music/queue/{position}/promote` + `/ban` endpoints. 4 new tests, real
+  reorder/block/removal asserted, not "no exception".
+  **S067b refund DONE, verified (a1c1f014)**: built the missing foundation — `Cost` (int, default 0) +
+  `RequesterUserId` (nullable) added to `SongRequestQueueItem` + the in-memory `SongRequestEntry`
+  (both migration assemblies, EF-generated not hand-written); new `RefundSongRequest`/`SongRequest`
+  currency enum entries (no music-specific type existed, minimal addition following the existing
+  per-feature Spend/Refund convention); `MusicService.RefundIfPaidAsync` mirrors `MediaShare`'s
+  `RefundIfChargedAsync` pattern, wired into `RemoveFromQueueAsync` + `BanQueuedTrackAsync` (not
+  `PromoteToTopAsync`) — fires only when `Cost > 0` and a requester is set. No admission path charges for
+  song requests today, so tests seed a paid entry directly to prove the refund MECHANISM independently
+  of the still-nonexistent charge — correctly not fabricating one. Dashboard UI for promote/ban/paid
+  indicator remains its own follow-up. Remaining sub-items (public page polish, token→URL, bounded
+  steppers, enum lists from API, rate policy, `RequestedBy`, hub-driven reloads, polling fan-out,
+  cost/duration/cooldown) are still open — tracker stays open for those.
 - **S068** Legacy builtins — `!discord` (needs a Discord invite-link concept first — backend gap, not a
   chat-builtin task) (U·C7). Done-when: a fresh channel has every legacy command or a seed for it.
   **Seeded fun-command preset pack DONE, verified (27c8b1dc)**: new
@@ -592,8 +596,15 @@ later.)
   `NotificationDispatcher` already journals every raw notification before fan-out — an inbound whisper
   was never actually silently dropped, it just had no test proving that end-to-end for this topic. New
   test proves a real whisper payload journals + publishes correctly; no production code was missing.
-  Remaining S069 scope: usage/error tone slots (for the bot's own system messages), per-locale tone
-  catalogue. Everything else in this item is now closed (see above).
+  **Usage/error tone slots PARTIAL, verified (b5058e7e)**: 16 hardcoded usage/error strings found across
+  builtins not routed through `IBuiltinResponseComposer`; wired the 5 most-commonly-hit
+  (`WhisperBuiltin` usage+notfound, `BanSongBuiltin` nothing-playing, `UpdateUserInfoBuiltin` notfound,
+  `VolumeBuiltin` usage), same `ToneTemplateCatalog` pattern as the prior success-path tone-parity slice.
+  16 tests, sassy-vs-default variants asserted as real content. **11 more strings remain** (own
+  follow-up): `WhisperBuiltin`/`UpdateUserInfoBuiltin`/`VolumeBuiltin` Twitch-didn't-answer/no-answer
+  errors, `GameBuiltins`/`BanSongBuiltin` account/track-resolution failures, `SongRequestBuiltin`
+  disabled-command message.
+  Remaining S069 scope: the 11 leftover usage/error strings above, per-locale tone catalogue.
 - **S070** Settings + onboarding truth (U·B6) — fully CLOSED this session.
   **Swallowed regrant/reconcile failures DONE, verified (f8930c74)**:
   `IntegrationTokenVault.StoreTokensAsync` awaited `IScopeGrantService.ReconcileGrantedScopesAsync` and
