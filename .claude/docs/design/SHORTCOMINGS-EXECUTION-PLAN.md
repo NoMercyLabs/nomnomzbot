@@ -396,8 +396,12 @@ later.)
   "empty", and the bundle-import D2 promise ("sync pushes it to Twitch later") — `SyncWithTwitchAsync` now
   actually does that, best-effort per reward.
 - **S065** Giveaways reach — eligibility/weighting/prize pipeline in dialog; `ClosesAt` auto-close;
-  code labels; entries endpoint + list; pool picker guard; platform-generic DM delivery (U·B2, spec
-  `giveaways.md`). Done-when: a weighted sub giveaway runs end to end. DONE: zero-value-out gate for
+  entries endpoint + list; pool picker guard; platform-generic DM delivery (U·B2, spec
+  `giveaways.md`). Done-when: a weighted sub giveaway runs end to end. DONE: code labels (26ee0534 —
+  the backend always accepted `CodeInput.Label`/`GiveawayCode.Label` but the bulk add-codes textarea
+  only ever sent `CodeInput(code)`; a code could never be named from the UI. Each line now optionally
+  carries `"CODE | a label"`, parsed in `GiveawaysController.addCodes` before the wire body). DONE:
+  zero-value-out gate for
   code-pool prizes (002f9d2e/c132fdd0 — `GiveawayService.Validate()` had NO check at all; a
   broadcaster could configure and run "pay points → win a real-value game key" with no gate
   whatsoever, exactly the gambling scenario D5 exists to close. Added `Giveaway.Requires18Plus`
@@ -412,8 +416,8 @@ later.)
   and spec-accurate; every remaining sub-item above is a dashboard-exposure gap or a genuinely
   missing backend piece — see the full per-sub-item breakdown that should be re-derived from the code
   (`GiveawaysScreen.kt`'s `GiveawayFormDialog` has no eligibility/weighting/pipeline/`ClosesAt` UI at
-  all; no `ClosesAt` auto-close worker exists; code labels never collected on bulk-add; no entries
-  list endpoint; pool picker doesn't guard zero-`available`/already-bound pools;
+  all; no `ClosesAt` auto-close worker exists; no entries list endpoint; pool picker doesn't guard
+  zero-`available`/already-bound pools;
   `GiveawayFulfillment.FulfillCodeAsync` is hardcoded to `ITwitchWhispersApi`, no
   `IPlatformDirectMessageSender` exists, `GiveawayEntry`/`GiveawayWinner` carry no `Provider`/
   `ProviderUserId`).
