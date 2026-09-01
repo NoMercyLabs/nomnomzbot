@@ -32,7 +32,6 @@ when done) — this section is only the intake, not a shortcut around the bar.
 - **S-OWN09** — need proper create/update/delete for system commands, overlays, and pipelines (not just user-authored ones).
 - 🔴 **S-OWN10** — the "extra Spotify section" in Integrations must merge into the one regular Spotify integration; the bot never hosts its own Spotify client — BYOC always, per [[byoc-encouraged-ownership-portability]].
 - **S-OWN13** — Alerts & Events page edit dialog doesn't show the currently-chosen pipeline.
-- 🔴 **S-OWN15** — Spotify overlay widget updates too slowly; the Stream Deck plugin gets updates fine by comparison — compare transports/push paths.
 - **S-OWN16** — template-variable pickers list templates not actually usable in that context; must filter to what's really usable per surface.
 ---
 
