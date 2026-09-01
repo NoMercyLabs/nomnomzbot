@@ -645,7 +645,15 @@ later.)
   registered), `SongRequestBuiltin` (Disabled, `NoProviderMessage` converted to async). Same
   `ToneTemplateCatalog` pattern as before; every string now has real per-tone catalog content. 41 tests
   total across all touched builtins, sassy vs default asserted as real content.
-  Remaining S069 scope: per-locale tone catalogue only.
+  **Per-locale tone catalogue — DEFERRED, needs more product thought (owner call 2026-09-01)**:
+  investigated and found a genuine blocker, not a wiring gap — `ToneTemplateCatalog.Pick(personality,
+  builtinKey, slot)` has no locale parameter at all, no call site passes one, and `Channel.Language`
+  (already confirmed dead for chat-reply purposes by a sibling slice) is read nowhere for bot-reply
+  text. Building Dutch tone content today would be inert — collected but unreachable, the exact trap
+  `Channel.Language` itself already represents. Whether the bot should ever reply in a non-English
+  language, and what would select it, is an unresolved product question — owner deferred rather than
+  deciding today. Revisit later; do not build Dutch tone content until a selection mechanism is decided.
+  Remaining S069 scope: nothing else — everything but this deferred item is closed.
 - **S070** Settings + onboarding truth (U·B6) — fully CLOSED this session.
   **Swallowed regrant/reconcile failures DONE, verified (f8930c74)**:
   `IntegrationTokenVault.StoreTokensAsync` awaited `IScopeGrantService.ReconcileGrantedScopesAsync` and
