@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -23,15 +24,19 @@ namespace NomNomzBot.Infrastructure.Webhooks;
 
 /// <summary>
 /// Post-commit hook that fans-out to every enabled <see cref="OutboundWebhookEndpoint"/> subscribed to the
-/// journaled event type (webhooks.md §9). Runs after the journal row commits, before live bus handlers.
-/// Failures are isolated by the <c>JournalingEventBusDecorator</c> — a delivery failure never rolls back the
-/// journal row or blocks other hooks. Idempotent: <see cref="EventRecord.EventId"/> is the dedupe key inside
-/// the dispatcher.
+/// journaled event type (webhooks.md §9). Runs after the journal row commits, before live bus handlers —
+/// synchronously, as part of the caller's <c>PublishAsync</c> (<c>JournalingEventBusDecorator</c> awaits every
+/// hook). The actual HTTP delivery can be slow or hang, so it is detached onto the thread pool with its own
+/// DI scope (S099a — mirrors <c>EventBus.PublishFireAndForget</c>'s <c>Task.Run</c> pattern) instead of being
+/// awaited here: the event raiser must never block on a third party's webhook endpoint. The detached delivery's
+/// <see cref="Result"/> is still observed — a failure is logged, never silently dropped — even though the
+/// caller of this method has already moved on. Idempotent: <see cref="EventRecord.EventId"/> is the dedupe key
+/// inside the dispatcher.
 /// </summary>
 public sealed class OutboundWebhookFanoutHandler(
     IApplicationDbContext db,
-    IOutboundWebhookDispatcher dispatcher,
-    ILogger<OutboundWebhookFanoutHandler> logger
+    ILogger<OutboundWebhookFanoutHandler> logger,
+    IServiceScopeFactory scopeFactory
 ) : IJournalPostCommitHook
 {
     public async Task<Result> OnCommittedAsync(
@@ -55,24 +60,31 @@ public sealed class OutboundWebhookFanoutHandler(
         // Build a flat variable map from the event payload so templates can reference {{event.*}}.
         IReadOnlyDictionary<string, string> variables = BuildVariables(committed);
 
-        Result<IReadOnlyList<OutboundEnqueueResult>> fanout = await dispatcher.EnqueueForEventAsync(
-            broadcasterId,
-            committed.EventType,
-            variables,
-            committed.EventId,
-            cancellationToken
-        );
-
-        if (fanout.IsFailure)
+        // Detached: a fresh scope (its own DbContext/HttpClient) so the delivery outlives this method call and
+        // never touches the caller's (about-to-be-disposed) scope. CancellationToken.None — the caller's token
+        // is not ours to cancel the background work with once we've returned.
+        _ = Task.Run(async () =>
         {
-            logger.LogError(
-                "Outbound webhook fanout failed for event {EventId} ({EventType}): {Error}",
-                committed.EventId,
-                committed.EventType,
-                fanout.ErrorMessage
-            );
-            return Result.Failure(fanout.ErrorMessage ?? "fanout failed");
-        }
+            await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
+            IOutboundWebhookDispatcher scopedDispatcher =
+                scope.ServiceProvider.GetRequiredService<IOutboundWebhookDispatcher>();
+            Result<IReadOnlyList<OutboundEnqueueResult>> fanout =
+                await scopedDispatcher.EnqueueForEventAsync(
+                    broadcasterId,
+                    committed.EventType,
+                    variables,
+                    committed.EventId,
+                    CancellationToken.None
+                );
+
+            if (fanout.IsFailure)
+                logger.LogError(
+                    "Outbound webhook fanout failed for event {EventId} ({EventType}): {Error}",
+                    committed.EventId,
+                    committed.EventType,
+                    fanout.ErrorMessage
+                );
+        });
 
         return Result.Success();
     }
