@@ -640,20 +640,44 @@ public sealed class GiveawayService : IGiveawayService
         }
         else
         {
-            // active_viewers: distinct chatters within the recency window — real activity, never fabricated.
+            // active_viewers: distinct chatters within the recency window across every connected platform
+            // (D1 — one channel, many simultaneous platform connections) — resolved via UserIdentity, the
+            // same platform-agnostic (Provider, ProviderUserId) identity table IUserIdentityService uses.
             DateTime since = _clock.GetUtcNow().UtcDateTime - ActiveViewerWindow;
-            List<string> chatterTwitchIds = await _db
+            var chatterKeys = await _db
                 .ChatMessages.AsNoTracking()
                 .Where(m => m.BroadcasterId == giveaway.BroadcasterId && m.CreatedAt >= since)
-                .Select(m => m.UserId)
+                .Select(m => new { m.Provider, m.UserId })
                 .Distinct()
                 .ToListAsync(ct);
 
-            var viewers = await _db
-                .Users.AsNoTracking()
-                .Where(u => u.TwitchUserId != null && chatterTwitchIds.Contains(u.TwitchUserId))
-                .Select(u => new { u.Id, u.TwitchUserId })
-                .ToListAsync(ct);
+            Dictionary<string, List<string>> chatterIdsByProvider = chatterKeys
+                .GroupBy(k => k.Provider)
+                .ToDictionary(g => g.Key, g => g.Select(k => k.UserId).Distinct().ToList());
+
+            List<UserIdentity> chatterIdentities = [];
+            foreach ((string provider, List<string> providerUserIds) in chatterIdsByProvider)
+            {
+                List<UserIdentity> matched = await _db
+                    .UserIdentities.AsNoTracking()
+                    .Where(i =>
+                        i.Provider == provider && providerUserIds.Contains(i.ProviderUserId)
+                    )
+                    .ToListAsync(ct);
+                chatterIdentities.AddRange(matched);
+            }
+
+            var viewers = chatterIdentities
+                .GroupBy(i => i.UserId)
+                .Select(g => new
+                {
+                    Id = g.Key,
+                    // The identity that actually chatted recently — prefer Twitch when a viewer chatted on
+                    // multiple connected platforms, otherwise whichever platform they were seen on.
+                    Identity = g.OrderByDescending(i => i.Provider == AuthEnums.Platform.Twitch)
+                        .First(),
+                })
+                .ToList();
 
             Dictionary<Guid, ChannelCommunityStanding> standings = await _db
                 .ChannelCommunityStandings.AsNoTracking()
@@ -676,11 +700,10 @@ public sealed class GiveawayService : IGiveawayService
                 candidates.Add(
                     new(
                         viewer.Id,
-                        viewer.TwitchUserId!,
+                        viewer.Identity.ProviderUserId,
                         ComputeTickets(giveaway.WeightingJson, standing),
-                        // active_viewers only resolves chatters via Twitch chat history today.
-                        AuthEnums.Platform.Twitch,
-                        viewer.TwitchUserId
+                        viewer.Identity.Provider,
+                        viewer.Identity.ProviderUserId
                     )
                 );
             }

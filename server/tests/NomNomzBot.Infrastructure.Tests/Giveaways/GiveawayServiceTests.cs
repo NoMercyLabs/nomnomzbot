@@ -636,6 +636,70 @@ public sealed class GiveawayServiceTests
     }
 
     [Fact]
+    public async Task ActiveViewers_pool_includes_a_viewer_who_only_chatted_on_a_non_twitch_platform()
+    {
+        Harness harness = Build();
+        Guid giveawayId = await SeedOpenGiveawayAsync(
+            harness,
+            new("Chat Drop", GiveawayEntryMode.ActiveViewers, WinnerCount: 1)
+        );
+
+        // A viewer whose ONLY proven identity + chat activity is on Kick — never Twitch.
+        Guid kickViewerId = Guid.CreateVersion7();
+        harness.Db.Users.Add(
+            new()
+            {
+                Id = kickViewerId,
+                Username = "kick-viewer",
+                UsernameNormalized = "kick-viewer",
+                DisplayName = "Kick Viewer",
+            }
+        );
+        harness.Db.UserIdentities.Add(
+            new()
+            {
+                Id = Guid.CreateVersion7(),
+                UserId = kickViewerId,
+                Provider = AuthEnums.Platform.Kick,
+                ProviderUserId = "kick-999",
+                ProviderUsername = "kick-viewer",
+                IsPrimary = true,
+                LinkedAt = DateTime.UtcNow,
+            }
+        );
+        harness.Db.ChatMessages.Add(
+            new()
+            {
+                Id = "kick-msg-1",
+                BroadcasterId = Tenant,
+                Provider = AuthEnums.Platform.Kick,
+                UserId = "kick-999",
+                Username = "kick-viewer",
+                DisplayName = "Kick Viewer",
+                UserType = "viewer",
+                Message = "hi from Kick",
+                CreatedAt = DateTime.UtcNow,
+            }
+        );
+        harness.Db.SaveChanges();
+
+        Result<IReadOnlyList<GiveawayWinnerDto>> drawn = await harness.Service.DrawAsync(
+            Tenant,
+            giveawayId,
+            CancellationToken.None
+        );
+
+        drawn.IsSuccess.Should().BeTrue(drawn.ErrorMessage);
+        drawn.Value.Should().ContainSingle(w => w.ViewerUserId == kickViewerId);
+        GiveawayWinner winnerRow = harness.Db.GiveawayWinners.Single();
+        winnerRow.ViewerUserId.Should().Be(kickViewerId);
+        winnerRow
+            .Provider.Should()
+            .Be(AuthEnums.Platform.Kick, "the entrant chatted on Kick, not Twitch");
+        winnerRow.ProviderUserId.Should().Be("kick-999");
+    }
+
+    [Fact]
     public async Task Redraw_marks_the_target_and_draws_a_replacement_excluding_all_prior_winners()
     {
         Harness harness = Build();
