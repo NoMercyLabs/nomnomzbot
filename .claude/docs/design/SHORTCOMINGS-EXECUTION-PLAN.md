@@ -26,7 +26,56 @@ order. Each still gets the normal treatment (root-cause fix, tested, committed, 
 when done) — this section is only the intake, not a shortcut around the bar.
 
 - **S-OWN05** — code editor import from a separate local file fails (`import SCENES from './scenes';` throws) after extracting an array to its own file.
-- **S-OWN08** — admin pages (SaaS management: users, providers, settings) need a real UX/DX pass, unchanged since introduction.
+- **S-OWN08-remaining** — admin pages (SaaS management: users, providers, settings) UX/DX pass. Owner: "the
+  admin pages have not changed one bit and really need a better ux and dx interface for managing the saas
+  version of the bot. this includes the ability to manage users, providers, and other settings." First slice
+  shipped 2026-09-01 (`fix(admin): surface AdminController load failures as a visible banner`, commit
+  `6c55d7af`) — `AdminState.error` from `AdminController.load()` was set but never rendered
+  (`feature/admin/state/AdminController.kt:147-182`, `feature/admin/ui/AdminScreen.kt`), so a failed initial
+  fetch left the panel silently empty. Verified against current source 2026-09-01 (a prior aitm note claiming
+  the Flags-tab `FeatureFlag` DTO was mismatched, `AdminApi.kt:81` vs `FeatureFlagDtos.cs:14`, is STALE — the
+  Kotlin and C# field names already match). Evidenced gaps still open, by admin screen
+  (`feature/admin/ui/*.kt`, `feature/admin/state/AdminController.kt`):
+  - **Overview/Channels/Users/System/Flags tabs use raw `Row`/`Column`/`Card` list rows with no design-system
+    list primitive** — no search, filter, sort, or pagination on any of them. `UsersTab` (`AdminScreen.kt:383`)
+    and `ChannelsTab` (`AdminScreen.kt:330`) page through `AdminApi.getUsers()`/`getChannels()` with no query
+    params at all (compare `AdminApi.kt` — no page/pageSize/search args on those two calls, unlike
+    `PlatformAdminApi.listTenants(search, status, ...)` which the Tenants tab already uses). On any real SaaS
+    deployment past a handful of channels this is an unbounded, unsearchable list — the single highest-value
+    next slice for "manage users".
+  - **`UsersTab` is read-only** — it lists id/login/role/channel count with no action at all (the code comment
+    at `AdminScreen.kt:423` explicitly defers "manage a user" to the Tenants-tab owner-impersonate flow, which
+    only reaches a tenant's owner, not an arbitrary platform user). There is no suspend/ban/role-change control
+    on this tab; `IamTab` (`feature/admin/ui/AdminIamTab.kt`) covers *principals* (staff/service-accounts) with
+    promote/deactivate/reactivate/assign-role, but that is a different set of people from the SaaS end-user
+    list `UsersTab` shows. Closing "manage users" for real means deciding whether `UsersTab` should gain its
+    own actions or be merged into/cross-linked with `IamTab`.
+  - **No provider/system-credential management screen exists at all** — grep of `feature/admin/**` and
+    `Controllers/V1/*Admin*.cs` turns up no endpoint or tab for viewing/rotating the platform-level OAuth
+    client id/secret pairs (Twitch/Spotify/Discord/YouTube/Kick/Twitter — see the `.env`/`appsettings.json`
+    table in `CLAUDE.md`) that a SaaS operator would need to manage centrally. `SystemTab`
+    (`AdminScreen.kt:442`) is health/version/CPU/memory only. This is the literal "providers" half of the
+    owner's ask and has no backend surface yet — needs its own spec pass (which provider fields are safe to
+    show/rotate from the dashboard vs. env-only) before implementation.
+  - **`FeatureFlagsTab` (`AdminScreen.kt:564`) is read-only in the UI** despite the backend supporting writes —
+    `AdminController.setFeatureFlag`/`setFeatureFlagOverride`/`deleteFeatureFlagOverride` exist and are wired
+    in `AdminController.kt:218-231`, but no dialog/control in `FeatureFlagsTab` calls them; there is no create-
+    flag, no toggle, no per-tenant override editor, no empty/error state distinct from a bare list. This is
+    the "other settings" half of the owner's ask and is the second-highest-value slice (backend already done,
+    pure frontend gap).
+  - **Design-system parity**: none of Overview/Channels/Users/System/Flags/Billing tabs use a shared list-row
+    or empty/loading-state primitive the way `AdminTenantsTab.kt` does (`EmptyLine`, `Spinner`,
+    `ActionErrorBanner`, status filter chips) — `AdminTenantsTab.kt` and `AdminIamTab.kt` are the two tabs that
+    already meet the current catalogue bar; the other five do not (raw `Row`/`Text` lists, no loading state
+    other than the one whole-screen spinner in `AdminScreen.kt:165-170` which blocks ALL tabs on ANY slow call,
+    no per-tab empty-state copy for Channels/Users/System/Flags).
+  - Previously-flagged risk items (impersonation scoping, suspension enforcement, self-host first-principal
+    lockout) were checked against current source 2026-09-01 and are NOT reproduced here as open: suspension is
+    enforced server-side (Gate-1 403, per `AdminTenantsTab.kt:103` comment, matches `PlatformAdminController`
+    gating) and impersonation requires an open, audited support-access grant plus a `NotPermitted`/
+    `NoOpenSupportSession` refusal path (`AdminController.kt:441-492`). Re-verify against `PlatformAdminController.cs`
+    /`PlatformIamController.cs` directly before relying on this — it was not re-audited line-by-line as part of
+    this slice, only cross-checked against the frontend contract.
 - **S-OWN09** — need proper create/update/delete for system commands, overlays, and pipelines (not just user-authored ones).
 - **S-OWN16-remaining** — backend done: `GET /api/v1/templates/helpers` already filtered by broad `context` (command/eventResponse/timer/pipeline/discord/webhook); now also accepts an optional `eventType` (e.g. `channel.raid`) that excludes helpers only some events seed (`tier`/`months`/`bits`/`reward`/etc.) using `TemplateHelperEntry.EventScoped` + `EventResponsePresetCatalog`'s per-event variable list (9f0eeb09). Remaining, frontend (`app/`, out of scope here): the event-response template editor needs to pass its selected `eventType` into `TemplateHelpersApi.helpers(...)` so the picker narrows per event, not just per broad context; the outbound-webhook editor has no template picker at all yet (grep found no `Webhook*` usage of `TemplateHelpersDialog`) and should get one wired to `context=webhook`.
 ---
