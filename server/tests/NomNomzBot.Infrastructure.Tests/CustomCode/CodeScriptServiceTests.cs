@@ -119,4 +119,76 @@ public sealed class CodeScriptServiceTests
         page.Items[0].CurrentValidationStatus.Should().Be("valid");
         page.Items[0].CurrentVersion.Should().Be(1);
     }
+
+    // ─── S-OWN06: delete a saved version + real pagination ─────────────────────────
+
+    [Fact]
+    public async Task DeleteVersionAsync_removes_a_non_published_version_from_a_later_list_call()
+    {
+        (CodeScriptService sut, _, _) = Build();
+        Guid id = (await sut.CreateAsync(new("s", null, "var x = 1;"))).Value.Id; // v1, published
+        Guid v2 = (await sut.CreateVersionAsync(id, new("var x = 2;", Publish: false))).Value.Id; // v2, not published
+
+        Result deleteResult = await sut.DeleteVersionAsync(id, v2);
+
+        deleteResult.IsSuccess.Should().BeTrue();
+        PagedList<CodeScriptVersionDto> after = (await sut.ListVersionsAsync(id, new())).Value;
+        after.Items.Should().NotContain(v => v.Id == v2);
+        after
+            .TotalCount.Should()
+            .Be(1, "the deleted version must drop out of the count, not just the page");
+    }
+
+    [Fact]
+    public async Task DeleteVersionAsync_refuses_to_delete_the_currently_published_version()
+    {
+        (CodeScriptService sut, AuthDbContext db, _) = Build();
+        Guid id = (await sut.CreateAsync(new("s", null, "var x = 1;"))).Value.Id;
+        Guid publishedVersionId = db.CodeScripts.Single().CurrentVersionId!.Value;
+
+        Result r = await sut.DeleteVersionAsync(id, publishedVersionId);
+
+        r.IsFailure.Should().BeTrue();
+        r.ErrorCode.Should().Be("VERSION_IS_PUBLISHED");
+        db.CodeScriptVersions.Single(v => v.Id == publishedVersionId)
+            .Should()
+            .NotBeNull("a refused delete must leave the published version's row untouched");
+    }
+
+    [Fact]
+    public async Task DeleteVersionAsync_returns_not_found_for_an_unknown_version()
+    {
+        (CodeScriptService sut, _, _) = Build();
+        Guid id = (await sut.CreateAsync(new("s", null, "var x = 1;"))).Value.Id;
+
+        Result r = await sut.DeleteVersionAsync(id, Guid.NewGuid());
+
+        r.IsFailure.Should().BeTrue();
+        r.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    [Fact]
+    public async Task ListVersionsAsync_paginates_a_history_larger_than_one_page()
+    {
+        (CodeScriptService sut, _, _) = Build();
+        Guid id = (await sut.CreateAsync(new("s", null, "var x = 1;"))).Value.Id; // v1
+        for (int i = 2; i <= 5; i++)
+            await sut.CreateVersionAsync(id, new($"var x = {i};", Publish: false)); // v2..v5 — 5 total
+
+        PagedList<CodeScriptVersionDto> page1 = (
+            await sut.ListVersionsAsync(id, new(Page: 1, PageSize: 2))
+        ).Value;
+        PagedList<CodeScriptVersionDto> page2 = (
+            await sut.ListVersionsAsync(id, new(Page: 2, PageSize: 2))
+        ).Value;
+        PagedList<CodeScriptVersionDto> page3 = (
+            await sut.ListVersionsAsync(id, new(Page: 3, PageSize: 2))
+        ).Value;
+
+        page1.TotalCount.Should().Be(5);
+        // Newest first: v5, v4 | v3, v2 | v1 — exercises the real Skip/Take slice, not just a total count.
+        page1.Items.Select(v => v.Version).Should().Equal(5, 4);
+        page2.Items.Select(v => v.Version).Should().Equal(3, 2);
+        page3.Items.Select(v => v.Version).Should().Equal(1);
+    }
 }

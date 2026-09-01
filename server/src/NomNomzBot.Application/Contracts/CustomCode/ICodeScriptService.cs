@@ -57,6 +57,16 @@ public interface ICodeScriptService
     );
 
     /// <summary>
+    /// Soft-delete one saved version (S-OWN06). NOT_FOUND if the script or version doesn't exist in this tenant;
+    /// VERSION_IS_PUBLISHED if it's the script's current hot-swap target — publish a different version first.
+    /// </summary>
+    Task<Result> DeleteVersionAsync(
+        Guid codeScriptId,
+        Guid codeScriptVersionId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
     /// Load a script's current multi-file project (its current version's file set + manifest) for the editor
     /// (dev-platform.md §8). A legacy version without a stored project is projected as its one-file scaffold.
     /// </summary>

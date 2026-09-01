@@ -18,6 +18,7 @@ import bot.nomnomz.dashboard.core.network.CodeScriptSummary
 import bot.nomnomz.dashboard.core.network.CodeScriptVersion
 import bot.nomnomz.dashboard.core.network.CodeScriptsApi
 import bot.nomnomz.dashboard.core.network.CreateScriptBody
+import bot.nomnomz.dashboard.core.network.PaginatedEnvelope
 import bot.nomnomz.dashboard.core.network.ProjectDto
 import bot.nomnomz.dashboard.core.network.ScriptTestRunBody
 import bot.nomnomz.dashboard.core.network.SdkTypesApi
@@ -97,12 +98,14 @@ class CodeScriptsController(
                 is ApiResult.Ok -> result.value
                 is ApiResult.Failure -> return failWrite(result.error.message)
             }
-        // The append-only version history (newest first) — best-effort: a fetch failure leaves the editor usable
-        // with an empty history rather than blocking the open (the rollback list simply shows nothing to roll to).
-        val versions: List<CodeScriptVersion> =
-            when (val result: ApiResult<List<CodeScriptVersion>> = api.listVersions(id)) {
+        // The append-only version history (newest first), first page only — best-effort: a fetch failure leaves
+        // the editor usable with an empty history rather than blocking the open (the rollback list simply shows
+        // nothing to roll to). Further pages load on demand via [loadMoreVersions] ("load more"), never dumped
+        // all at once (S-OWN06).
+        val versionsPage: PaginatedEnvelope<CodeScriptVersion>? =
+            when (val result: ApiResult<PaginatedEnvelope<CodeScriptVersion>> = api.listVersions(id, page = 1)) {
                 is ApiResult.Ok -> result.value
-                is ApiResult.Failure -> emptyList()
+                is ApiResult.Failure -> null
             }
 
         _state.value =
@@ -111,8 +114,52 @@ class CodeScriptsController(
                 detail = detail,
                 project = project,
                 selectedPath = project.manifest.entry,
-                versions = versions,
+                versions = versionsPage?.data ?: emptyList(),
+                versionsPage = 1,
+                versionsHasMore = versionsPage?.hasMore ?: false,
             )
+    }
+
+    /**
+     * Load the next page of [id]'s version history and append it to what's already shown ("load more" — the
+     * history is never dumped in one unbounded response, S-OWN06). No-op if the editor for [id] isn't open, a
+     * page is already loading, or there is no further page.
+     */
+    suspend fun loadMoreVersions(id: String) {
+        val current: CodeScriptsState = _state.value
+        if (current !is CodeScriptsState.Editing || current.detail.id != id) return
+        if (current.versionsLoadingMore || !current.versionsHasMore) return
+
+        val nextPage: Int = current.versionsPage + 1
+        _state.value = current.copy(versionsLoadingMore = true)
+        when (val result: ApiResult<PaginatedEnvelope<CodeScriptVersion>> = api.listVersions(id, page = nextPage)) {
+            is ApiResult.Ok ->
+                updateEditing(id) {
+                    it.copy(
+                        versions = it.versions + result.value.data,
+                        versionsPage = nextPage,
+                        versionsHasMore = result.value.hasMore,
+                        versionsLoadingMore = false,
+                    )
+                }
+            is ApiResult.Failure ->
+                updateEditing(id) { it.copy(versionsLoadingMore = false, actionError = result.error.message) }
+        }
+    }
+
+    /**
+     * Delete one saved version from [id]'s history (S-OWN06). The row is removed from the shown list on success;
+     * the backend refuses (and this surfaces the reason) if it's the currently published version. Only applies
+     * while [id]'s editor is open.
+     */
+    suspend fun deleteVersion(id: String, versionId: String) {
+        val current: CodeScriptsState = _state.value
+        if (current !is CodeScriptsState.Editing || current.detail.id != id) return
+        when (val result: ApiResult<Unit> = api.deleteVersion(id, versionId)) {
+            is ApiResult.Ok ->
+                updateEditing(id) { it.copy(versions = it.versions.filterNot { v -> v.id == versionId }) }
+            is ApiResult.Failure -> updateEditing(id) { it.copy(actionError = result.error.message) }
+        }
     }
 
     /**
@@ -320,8 +367,14 @@ sealed interface CodeScriptsState {
         val detail: CodeScriptDetail,
         val project: ProjectDto,
         val selectedPath: String,
-        /** The script's append-only version history (newest first) — backs the rollback list. */
+        /** The script's version history loaded so far (newest first) — backs the rollback list. */
         val versions: List<CodeScriptVersion> = emptyList(),
+        /** The last version-history page fetched (1-based) — [loadMoreVersions] fetches [versionsPage] + 1. */
+        val versionsPage: Int = 1,
+        /** Whether the backend reports a further, not-yet-loaded page of version history. */
+        val versionsHasMore: Boolean = false,
+        /** True while a "load more" fetch for the version history is in flight. */
+        val versionsLoadingMore: Boolean = false,
         val actionError: String? = null,
         val testRunning: Boolean = false,
         val testResult: TestRunResult? = null,

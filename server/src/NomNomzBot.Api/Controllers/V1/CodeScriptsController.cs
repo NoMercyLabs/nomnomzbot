@@ -144,6 +144,19 @@ public class CodeScriptsController(
         return GetPaginatedResponse(result.Value, request);
     }
 
+    /// <summary>
+    /// Delete one saved version (S-OWN06 — remove versions from the history list). Soft-deleted, like every
+    /// other destructible row; the currently published version can't be deleted (publish a different one first).
+    /// </summary>
+    [HttpDelete("{id:guid}/versions/{versionId:guid}")]
+    public async Task<IActionResult> DeleteVersion(Guid id, Guid versionId, CancellationToken ct)
+    {
+        Result gate = await FeatureGateAsync(ct);
+        return gate.IsFailure
+            ? ResultResponse(gate)
+            : ResultResponse(await scripts.DeleteVersionAsync(id, versionId, ct));
+    }
+
     /// <summary>Publish a specific version as the script's live version (the one run_code executes).</summary>
     [HttpPost("{id:guid}/versions/{versionId:guid}/publish")]
     [EnableRateLimiting(RateLimitPolicyNames.WriteExpensive)]

@@ -110,9 +110,16 @@ import nomnomzbot.composeapp.generated.resources.scripts_testrun_running
 import nomnomzbot.composeapp.generated.resources.scripts_testrun_subtitle
 import nomnomzbot.composeapp.generated.resources.scripts_testrun_title
 import nomnomzbot.composeapp.generated.resources.scripts_testrun_vars_label
+import nomnomzbot.composeapp.generated.resources.scripts_version_delete
+import nomnomzbot.composeapp.generated.resources.scripts_version_delete_cancel
+import nomnomzbot.composeapp.generated.resources.scripts_version_delete_confirm
+import nomnomzbot.composeapp.generated.resources.scripts_version_delete_message
+import nomnomzbot.composeapp.generated.resources.scripts_version_delete_title
 import nomnomzbot.composeapp.generated.resources.scripts_version_label
 import nomnomzbot.composeapp.generated.resources.scripts_versions_current
 import nomnomzbot.composeapp.generated.resources.scripts_versions_empty
+import nomnomzbot.composeapp.generated.resources.scripts_versions_load_more
+import nomnomzbot.composeapp.generated.resources.scripts_versions_loading_more
 import nomnomzbot.composeapp.generated.resources.scripts_versions_publish
 import nomnomzbot.composeapp.generated.resources.scripts_versions_rollback_cancel
 import nomnomzbot.composeapp.generated.resources.scripts_versions_rollback_confirm
@@ -188,6 +195,8 @@ fun CodeScriptsScreen(controller: CodeScriptsController, role: ManagementRole?) 
                     selectedPath = current.selectedPath,
                     detail = current.detail,
                     versions = current.versions,
+                    versionsHasMore = current.versionsHasMore,
+                    versionsLoadingMore = current.versionsLoadingMore,
                     manage = manage,
                     testRunning = current.testRunning,
                     testResult = current.testResult,
@@ -198,6 +207,8 @@ fun CodeScriptsScreen(controller: CodeScriptsController, role: ManagementRole?) 
                     },
                     onTestRun = { variables, args -> scope.launch { controller.testRun(current.detail.id, variables, args) } },
                     onRollback = { versionId -> scope.launch { controller.rollback(current.detail.id, versionId) } },
+                    onDeleteVersion = { versionId -> scope.launch { controller.deleteVersion(current.detail.id, versionId) } },
+                    onLoadMoreVersions = { scope.launch { controller.loadMoreVersions(current.detail.id) } },
                 )
             }
             else -> {
@@ -370,6 +381,8 @@ private fun ProjectView(
     selectedPath: String,
     detail: CodeScriptDetail,
     versions: List<CodeScriptVersion>,
+    versionsHasMore: Boolean,
+    versionsLoadingMore: Boolean,
     manage: ManageDecision,
     testRunning: Boolean,
     testResult: TestRunResult?,
@@ -378,6 +391,8 @@ private fun ProjectView(
     onEditCode: () -> Unit,
     onTestRun: (variables: Map<String, String>, args: List<String>) -> Unit,
     onRollback: (versionId: String) -> Unit,
+    onDeleteVersion: (versionId: String) -> Unit,
+    onLoadMoreVersions: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -460,8 +475,12 @@ private fun ProjectView(
         VersionHistorySection(
             versions = versions,
             currentVersionId = detail.currentVersionId,
+            hasMore = versionsHasMore,
+            loadingMore = versionsLoadingMore,
             manage = manage,
             onRollback = onRollback,
+            onDelete = onDeleteVersion,
+            onLoadMore = onLoadMoreVersions,
         )
 
         TestRunSection(
@@ -482,14 +501,19 @@ private fun ProjectView(
 private fun VersionHistorySection(
     versions: List<CodeScriptVersion>,
     currentVersionId: String?,
+    hasMore: Boolean,
+    loadingMore: Boolean,
     manage: ManageDecision,
     onRollback: (versionId: String) -> Unit,
+    onDelete: (versionId: String) -> Unit,
+    onLoadMore: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
     var pendingRollback: CodeScriptVersion? by remember { mutableStateOf(null) }
+    var pendingDelete: CodeScriptVersion? by remember { mutableStateOf(null) }
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -549,11 +573,49 @@ private fun VersionHistorySection(
                                     )
                                 }
                             }
+                            // The published version can never be deleted (backend-enforced too) — no delete
+                            // control on that row, matching the rollback control's own isCurrent gate above.
+                            ManageGate(manage) { enabled ->
+                                GlyphButton(
+                                    icon = TrashGlyph,
+                                    label = stringResource(Res.string.scripts_version_delete),
+                                    onClick = { pendingDelete = version },
+                                    enabled = enabled,
+                                    tint = tokens.destructive,
+                                )
+                            }
                         }
+                    }
+                }
+
+                if (hasMore) {
+                    TextButton(onClick = onLoadMore, enabled = !loadingMore) {
+                        Text(
+                            text = stringResource(
+                                if (loadingMore) Res.string.scripts_versions_loading_more
+                                else Res.string.scripts_versions_load_more,
+                            ),
+                            color = tokens.primary,
+                        )
                     }
                 }
             }
         }
+    }
+
+    pendingDelete?.let { version ->
+        ConfirmDialog(
+            title = stringResource(Res.string.scripts_version_delete_title),
+            message = stringResource(Res.string.scripts_version_delete_message, version.version),
+            confirmLabel = stringResource(Res.string.scripts_version_delete_confirm),
+            dismissLabel = stringResource(Res.string.scripts_version_delete_cancel),
+            onConfirm = {
+                val target: CodeScriptVersion = version
+                pendingDelete = null
+                onDelete(target.id)
+            },
+            onDismiss = { pendingDelete = null },
+        )
     }
 
     pendingRollback?.let { version ->

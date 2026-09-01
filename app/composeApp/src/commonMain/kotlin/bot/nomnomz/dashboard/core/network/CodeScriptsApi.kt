@@ -29,6 +29,7 @@ import kotlinx.serialization.Serializable
 //   POST   /code-scripts                          →  StatusResponseDto<CodeScriptSummaryDto>
 //   POST   /code-scripts/{id}/versions            →  StatusResponseDto<CodeScriptVersionDto>
 //   GET    /code-scripts/{id}/versions            →  PaginatedResponse<CodeScriptVersionDto>
+//   DELETE /code-scripts/{id}/versions/{vid}      →  204 No Content
 //   POST   /code-scripts/{id}/versions/{vid}/publish →  StatusResponseDto<CodeScriptSummaryDto>
 //   PUT    /code-scripts/{id}/enabled             →  StatusResponseDto<CodeScriptSummaryDto>
 //   DELETE /code-scripts/{id}                     →  204 No Content
@@ -48,7 +49,19 @@ interface CodeScriptsApi {
      */
     suspend fun putProject(id: String, project: ProjectDto): ApiResult<CodeScriptVersion>
 
-    suspend fun listVersions(id: String): ApiResult<List<CodeScriptVersion>>
+    /**
+     * One page of the script's version history, newest first (backend `GET .../versions?page=&pageSize=`,
+     * paginated per the API convention — never dumps the whole append-only history in one response). [page] is
+     * 1-based; [pageSize] defaults to a real page size, not everything-at-once.
+     */
+    suspend fun listVersions(id: String, page: Int = 1, pageSize: Int = 20): ApiResult<PaginatedEnvelope<CodeScriptVersion>>
+
+    /**
+     * Delete one saved version (S-OWN06 — prune old versions from the history list). Soft-deleted server-side;
+     * fails with a backend reason if [versionId] is the script's currently published version.
+     */
+    suspend fun deleteVersion(id: String, versionId: String): ApiResult<Unit>
+
     suspend fun publishVersion(id: String, versionId: String): ApiResult<CodeScriptSummary>
     suspend fun setEnabled(id: String, enabled: Boolean): ApiResult<CodeScriptSummary>
     suspend fun delete(id: String): ApiResult<Unit>
@@ -89,11 +102,11 @@ class RestCodeScriptsApi(private val client: ApiClient) : CodeScriptsApi {
     override suspend fun putProject(id: String, project: ProjectDto): ApiResult<CodeScriptVersion> =
         client.putEnvelope("api/v1/code-scripts/$id/project", project)
 
-    override suspend fun listVersions(id: String): ApiResult<List<CodeScriptVersion>> =
-        when (val page: ApiResult<PaginatedEnvelope<CodeScriptVersion>> = client.getDirect("api/v1/code-scripts/$id/versions?page=1&pageSize=50")) {
-            is ApiResult.Failure -> ApiResult.Failure(page.error)
-            is ApiResult.Ok -> ApiResult.Ok(page.value.data)
-        }
+    override suspend fun listVersions(id: String, page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<CodeScriptVersion>> =
+        client.getDirect("api/v1/code-scripts/$id/versions?page=$page&pageSize=$pageSize")
+
+    override suspend fun deleteVersion(id: String, versionId: String): ApiResult<Unit> =
+        client.deleteUnit("api/v1/code-scripts/$id/versions/$versionId")
 
     override suspend fun publishVersion(id: String, versionId: String): ApiResult<CodeScriptSummary> =
         client.postEnvelope("api/v1/code-scripts/$id/versions/$versionId/publish", Unit)

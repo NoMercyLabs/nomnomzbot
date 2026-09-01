@@ -13,12 +13,15 @@ using NomNomzBot.Domain.Platform;
 namespace NomNomzBot.Domain.CustomCode.Entities;
 
 /// <summary>
-/// An immutable, validated version of a <see cref="CodeScript"/> (schema H.6, APPEND-ONLY). Validate-on-save
-/// records the transpiled JS + hash + declared capabilities + the validation outcome; corrections are a NEW
-/// version, never an edit (tamper-evident history). JSON columns are raw strings the service (de)serializes.
-/// One row per <c>(script, version)</c>.
+/// An immutable, validated version of a <see cref="CodeScript"/> (schema H.6, APPEND-ONLY + soft-delete).
+/// Validate-on-save records the transpiled JS + hash + declared capabilities + the validation outcome;
+/// corrections are a NEW version, never an edit (tamper-evident history) — deleting a version never rewrites
+/// or replaces it, it only hides it via <see cref="SoftDeletableEntity.DeletedAt"/> (S-OWN06: the owner needs
+/// to prune old versions from the history list; the row itself is retained for audit like every other
+/// soft-deletable entity). JSON columns are raw strings the service (de)serializes. One row per
+/// <c>(script, version)</c>.
 /// </summary>
-public class CodeScriptVersion : ITenantScoped
+public class CodeScriptVersion : SoftDeletableEntity, ITenantScoped
 {
     public Guid Id { get; set; } = Guid.CreateVersion7();
     public Guid CodeScriptId { get; set; }
@@ -52,5 +55,4 @@ public class CodeScriptVersion : ITenantScoped
     public string DeclaredCapabilitiesJson { get; set; } = "[]";
     public DateTime? PublishedAt { get; set; }
     public Guid? AuthorUserId { get; set; }
-    public DateTime CreatedAt { get; set; }
 }
