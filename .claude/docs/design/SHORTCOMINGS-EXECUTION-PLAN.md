@@ -816,14 +816,13 @@ later.)
 
 ## Phase 5 — new model (D1 one channel / D2 any login) — merged only after Phases 0–4; S023/S024 are the minimum the viewer-identity fixes need
 
-- **S019-remaining** `PlatformConnection` model — S019a DONE, verified (2f6b98d9): entity
-  (ChannelId, Provider, ExternalChannelId, DisplayName, IsPrimary, IsLive) + dual-DB migrations
-  (SQLite + Postgres) + FK/unique-index round-trip proven. Reused existing `AuthEnums.Platform`, no
-  new enum needed. Deliberately NOT wired into `IApplicationDbContext` yet (no consumer exists,
-  avoids ~10-fake-context blast radius) — that wiring lands with the next piece. Remaining: `Channel`
-  loses `Provider`, provisioner creates connections under the owner's one channel, data migration
-  folds existing sibling channels into one (U·C0, spec `platform-identity.md`). Done-when: a
-  Twitch+Kick streamer is ONE `Channel` with two connections; all tenant-scoped reads unchanged.
+- **S019-remaining** `PlatformConnection` model — S019a DONE, verified (2f6b98d9): entity +
+  dual-DB migrations. S019b DONE, verified (d2837246): `PlatformConnection` wired into
+  `IApplicationDbContext` (all ~48 fakes updated) and the Twitch login provisioner now stamps one
+  primary `PlatformConnection` for a brand-new channel. Remaining: `Channel` loses `Provider`,
+  attaching a SECOND platform to an existing channel, data migration folds existing sibling channels
+  into one (U·C0, spec `platform-identity.md`). Done-when: a Twitch+Kick streamer is ONE `Channel`
+  with two connections; all tenant-scoped reads unchanged.
 - **S023** Viewer identity key sweep — `*TwitchUserId` → `*ExternalUserId + *Provider` on the 18
   entities; remove `provider = Twitch` default on `IUserService`; delete `PlatformType` (U·C0).
   Done-when: build + migration green; no call site defaults the provider.
@@ -924,9 +923,13 @@ later.)
 
 - **S099-remaining** Webhooks truth — S099a DONE, verified (940c0ce3): outbound backoff capped
   (1hr ceiling) + jittered, delivery moved off the publishing thread (fanout returns before the HTTP
-  send completes), failed-delivery Result now recorded not swallowed. Remaining: per-delivery
-  dead-letter, auto-disable + attempted events consumed (toast/hub/feed); UI `NextRetryAt`, error vs
-  empty, refresh/paging/replay (U·E3).
+  send completes), failed-delivery Result now recorded not swallowed. Per-delivery dead-letter and
+  auto-disable-after-N-consecutive-failures were already built pre-existing (`WebhookDeliveryStatus.
+  DeadLetter`, `OutboundWebhookAutoDisabledEvent`, `AutoDisableThreshold`). S099b DONE, verified
+  (d302adbf): closed the one real gap found — a delivery still sitting Failed/due-for-retry at the
+  moment its endpoint crosses the auto-disable threshold now dead-letters instead of still being
+  POSTed to the now-disabled endpoint. Remaining: attempted events consumed (toast/hub/feed); UI
+  `NextRetryAt`, error vs empty, refresh/paging/replay (U·E3).
 - **S100** Custom data sources truth — persist last attempt/error/failure count, backoff + auto-disable;
   allowlist checked at save; real JSON field-map parsing with inline errors; key picker from a test fetch;
   drop or wire `InboundWebhookEndpointId` (U·E3).
