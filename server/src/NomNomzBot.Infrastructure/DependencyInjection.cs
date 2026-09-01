@@ -1302,6 +1302,15 @@ public static class DependencyInjection
         // declared-scope set AuthService.RequiredScopes unions with (singleton — reflected once).
         services.AddSingleton<Identity.TwitchScopeRegistry>();
 
+        // Coalesces the missing-scope autonomous-path chat notice across a burst of sibling-job gaps in the same
+        // reconnect/onboarding pass (singleton — the debounce window must span the scoped handler invocations
+        // that create it; see ScopeNotificationDebouncer). Not I<X>Service-named, so not picked up by
+        // AddServicesByConvention.
+        services.AddSingleton<
+            Identity.IScopeNotificationDebouncer,
+            Identity.ScopeNotificationDebouncer
+        >();
+
         // Platform-bot readiness gate (scoped — rides the resolver's DbContext + vault). The single fact the
         // Twitch-dependent background work (EventSub transport, IRC, Helix warmers) checks so it stays dormant
         // on a fresh, un-onboarded install and activates the moment a bot account is authorized — no restart.

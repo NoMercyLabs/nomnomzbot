@@ -33,9 +33,17 @@ namespace NomNomzBot.Infrastructure.Identity.EventHandlers;
 /// The gap is still recorded, so the dashboard banner + re-grant set include it. The chat notice is reserved for
 /// the autonomous path (EventSub handlers, timers, background jobs — no HTTP context), where a live chat line is
 /// the only way to tell a streamer who isn't looking at the dashboard that a running feature needs a grant.
+///
+/// The autonomous path doesn't call <see cref="IScopeNotificationService.NotifyPendingAsync"/> directly — several
+/// proactive jobs (community roster sync, subscriber/VIP standing, banned-user import) can each hit a DIFFERENT
+/// missing scope within the same reconnect/onboarding pass, each via its own handler invocation. A direct call
+/// would send one chat message per job even though each is individually a correct one-shot batch — it just runs
+/// before the sibling job has recorded its own gap. <see cref="IScopeNotificationDebouncer"/> coalesces those
+/// bursts into one flush that re-reads everything pending once the channel goes quiet.
 /// </summary>
 public sealed class MissingScopeRecordingHandler(
     IScopeNotificationService scopeNotifications,
+    IScopeNotificationDebouncer scopeNotificationDebouncer,
     IHttpContextAccessor httpContextAccessor,
     ILogger<MissingScopeRecordingHandler> logger
 ) : IEventHandler<TwitchHelixReauthRequiredEvent>
@@ -79,8 +87,14 @@ public sealed class MissingScopeRecordingHandler(
             if (httpContextAccessor.HttpContext is not null)
                 return;
 
-            // Announce any un-notified gap once (covers this one + any earlier deferred when the bot was offline).
-            await scopeNotifications.NotifyPendingAsync(@event.BroadcasterId, cancellationToken);
+            // Announce any un-notified gap once (covers this one + any earlier deferred when the bot was
+            // offline) — debounced so a burst of sibling-job gaps in the same pass coalesces into one message
+            // instead of one per job. Fire-and-forget: the flush intentionally outlives this handler's own scope
+            // (and CancellationToken), running on a fresh scope once the coalesce window elapses.
+            _ = scopeNotificationDebouncer.RequestFlushAsync(
+                @event.BroadcasterId,
+                CancellationToken.None
+            );
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
