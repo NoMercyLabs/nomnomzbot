@@ -29,7 +29,6 @@ when done) — this section is only the intake, not a shortcut around the bar.
 - **S-OWN05** — code editor import from a separate local file fails (`import SCENES from './scenes';` throws) after extracting an array to its own file.
 - **S-OWN08** — admin pages (SaaS management: users, providers, settings) need a real UX/DX pass, unchanged since introduction.
 - **S-OWN09** — need proper create/update/delete for system commands, overlays, and pipelines (not just user-authored ones).
-- 🔴 **S-OWN10** — the "extra Spotify section" in Integrations must merge into the one regular Spotify integration; the bot never hosts its own Spotify client — BYOC always, per [[byoc-encouraged-ownership-portability]].
 - **S-OWN16-remaining** — backend done: `GET /api/v1/templates/helpers` already filtered by broad `context` (command/eventResponse/timer/pipeline/discord/webhook); now also accepts an optional `eventType` (e.g. `channel.raid`) that excludes helpers only some events seed (`tier`/`months`/`bits`/`reward`/etc.) using `TemplateHelperEntry.EventScoped` + `EventResponsePresetCatalog`'s per-event variable list (9f0eeb09). Remaining, frontend (`app/`, out of scope here): the event-response template editor needs to pass its selected `eventType` into `TemplateHelpersApi.helpers(...)` so the picker narrows per event, not just per broad context; the outbound-webhook editor has no template picker at all yet (grep found no `Webhook*` usage of `TemplateHelpersDialog`) and should get one wired to `context=webhook`.
 ---
 
