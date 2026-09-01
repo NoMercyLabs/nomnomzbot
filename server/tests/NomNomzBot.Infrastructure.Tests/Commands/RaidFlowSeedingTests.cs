@@ -74,7 +74,10 @@ public sealed class RaidFlowSeedingTests
         List<PipelineStep> steps = StepsOf(db);
         steps[0].ActionType.Should().Be("start_raid");
         steps[0].ConfigJson.Should().Contain("{args.1}");
-        steps[1].ActionType.Should().Be("obs_switch_scene");
+        // The scene switch sits inside a detached_step wrapper (see the dedicated detachment test below),
+        // so it is the SECOND top-level step even though its actual "obs_switch_scene" leaf is nested one
+        // level deeper.
+        steps[1].BlockKind.Should().Be("detached_step");
 
         // Nothing may wait or speak ahead of the raid call: Twitch's 90s window only starts once
         // start_raid returns, so a step before it pushes the whole countdown past the fire moment.
@@ -82,6 +85,36 @@ public sealed class RaidFlowSeedingTests
             .TakeWhile(s => s.ActionType != "start_raid")
             .Should()
             .BeEmpty("the raid call starts the clock everything else is timed against");
+    }
+
+    [Fact]
+    public async Task The_ending_scene_switch_is_detached_so_a_slow_or_broken_OBS_never_blocks_the_raid()
+    {
+        (RaidFlowSeeder seeder, SeedTestDbContext db) = Build();
+
+        await seeder.SeedAsync(Tenant);
+
+        // pipeline-tree-and-editor.md §1.1/§3.1 item #4, matching the legacy bot's fire-and-forget
+        // `_ = SwitchToEndingScene(...)` — the scene switch must be wrapped in a detached_step block so
+        // its own failure or a stuck OBS connection can never stall or abort the countdown, "RAID LIVE!",
+        // stopping the stream, or pausing the music (confirmed live 2026-09-01: an "OBS connection closed"
+        // failure on this step used to fail the WHOLE pipeline closed, silently dropping every step after it).
+        List<PipelineStep> steps = StepsOf(db);
+        PipelineStep obsStep = steps.Single(s => s.ActionType == "obs_switch_scene");
+        obsStep
+            .ParentStepId.Should()
+            .NotBeNull("it must live inside a detached_step wrapper, not top-level");
+
+        PipelineStep wrapper = steps.Single(s => s.Id == obsStep.ParentStepId);
+        wrapper.BlockKind.Should().Be("detached_step");
+
+        // Every step downstream of the raid call — countdown, "RAID LIVE!", stop-streaming, pause-music —
+        // must sit as an ordinary TOP-LEVEL sibling (ParentStepId null), never nested under the detached
+        // wrapper, so the engine keeps walking them regardless of what the detached OBS action does.
+        steps
+            .Where(s => s.Id != obsStep.Id && s.Id != wrapper.Id)
+            .Should()
+            .OnlyContain(s => s.ParentStepId == null, "only the OBS scene switch is detached");
     }
 
     [Fact]

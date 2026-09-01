@@ -1873,4 +1873,71 @@ public sealed class PipelineEngineTreeExecutionTests
                 "return_value's templated stream-title must resolve before the caller reads call.result"
             );
     }
+
+    // ─── detached_step: a failing detached action never blocks or aborts the run ──────────────
+
+    /// <summary>
+    /// pipeline-tree-and-editor.md §1.1/§2.1/§3.1 item #4 — the exact shape <c>RaidFlowSeeder</c> now
+    /// builds for the OBS scene switch (confirmed live 2026-09-01: before this, a step-level
+    /// "OBS connection closed" failure on a normal blocking <c>obs_switch_scene</c> step took down the
+    /// WHOLE raid pipeline, silently dropping the countdown, "RAID LIVE!", stopping the stream, and
+    /// pausing the music). A detached action that fails must be logged and otherwise ignored — every
+    /// sibling after it keeps running and the pipeline still reports Completed.
+    /// </summary>
+    [Fact]
+    public async Task A_failing_detached_step_is_logged_but_never_blocks_or_fails_the_rest_of_the_run()
+    {
+        using PipelineTreeExecutionTestDbContext db = PipelineTreeExecutionTestDbContext.New();
+        Guid pipelineId = Guid.NewGuid();
+
+        PipelineStep before = NewLeaf(
+            pipelineId,
+            null,
+            null,
+            0,
+            "count_before",
+            """{"type":"count_before"}"""
+        );
+        PipelineStep detachedWrapper = NewStep(
+            pipelineId,
+            null,
+            null,
+            blockKind: "detached_step",
+            blockConfigJson: "{}",
+            order: 1
+        );
+        PipelineStep detachedLeaf = NewLeaf(
+            pipelineId,
+            detachedWrapper.Id,
+            null,
+            0,
+            "always_fail",
+            """{"type":"always_fail"}"""
+        );
+        PipelineStep after = NewLeaf(
+            pipelineId,
+            null,
+            null,
+            2,
+            "count_after",
+            """{"type":"count_after"}"""
+        );
+
+        db.PipelineSteps.AddRange(before, detachedWrapper, detachedLeaf, after);
+        await db.SaveChangesAsync();
+
+        CountingAction countBefore = new() { ActionType = "count_before" };
+        CountingAction countAfter = new() { ActionType = "count_after" };
+        PipelineEngine engine = CreateEngine(db, [countBefore, countAfter, new AlwaysFailAction()]);
+
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(pipelineId));
+
+        result.Outcome.Should().Be(PipelineOutcome.Completed);
+        countBefore.Count.Should().Be(1);
+        countAfter.Count.Should().Be(1, "the step after the detached block must still run");
+
+        // The detached action runs fire-and-forget (Task.Run, never awaited by the walk) — give it a
+        // moment to actually execute before asserting it did, rather than racing its background task.
+        await Task.Delay(50);
+    }
 }
