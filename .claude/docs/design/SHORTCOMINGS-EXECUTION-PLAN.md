@@ -467,8 +467,17 @@ later.)
   `POST /moderation/automod/message`; a pending-queue panel on the Moderation screen lets a mod
   approve/deny, mirroring the viewer-reports panel. Remaining sub-items above are still open — the
   tracker item stays until they're picked up.
-- **S067** Music UX — `public-sr` rate policy (U·B4). 🔒 cost/max-duration/cooldown fields. Done-when:
-  every SR toggle changes what `!sr` does (test per setting).
+- **S067** Music UX (U·B4) — fully CLOSED this session except 🔒 cost/max-duration/cooldown fields
+  (owner-locked, not to be built without an explicit owner call). Done-when: every SR toggle changes
+  what `!sr` does (test per setting).
+  **`public-sr` rate policy DONE, verified (bbd7c390)**: `PublicSongRequestController` already carried
+  `[EnableRateLimiting(RateLimitPolicyNames.Anonymous)]` (the S114 tiered pattern — 120 req/min sliding
+  window, partitioned per IP, same mechanism webhooks/overlays/OAuth relay already use) — no new policy
+  needed. Real gap was proof: existing unit tests called controller methods directly, bypassing
+  middleware entirely, so nothing actually confirmed the throttle fired. New tests exercise the real
+  `PartitionedRateLimiter<HttpContext>` built from the policy — 200 acquisitions from one IP proves
+  exactly `PermitLimit` (120) succeed and the rest are rejected leases, plus a stays-under-limit
+  regression case.
   **Token → URL DONE, verified (1e272400)**: the dashboard's Music screen already had a login-based
   pretty share link but showed the raw SR-page token as bare text with no URL/copy button — a streamer
   without a resolvable login had no working shareable link. New `buildTokenUrl` (reuses the existing
