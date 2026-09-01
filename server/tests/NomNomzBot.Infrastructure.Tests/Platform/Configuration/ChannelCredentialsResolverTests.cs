@@ -118,6 +118,31 @@ public sealed class ChannelCredentialsResolverTests
     [Fact]
     public async Task ResolveAsync_FallsBackToAppLevel_WhenChannelHasNoCredentials()
     {
+        // A non-Spotify provider (discord) is the regression guard here — Spotify's carve-out (below)
+        // must not have broken the general fallback-to-app-level behavior every other BYOC provider relies on.
+        IConfiguration config = new ConfigurationBuilder()
+            .AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["Discord:ClientId"] = "app-level-id",
+                    ["Discord:ClientSecret"] = "app-level-secret",
+                }
+            )
+            .Build();
+        (ChannelCredentialsResolver resolver, _, _) = Build(config);
+
+        Result<SystemAppCredentials> result = await resolver.ResolveAsync(ChannelA, "discord");
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.ClientId.Should().Be("app-level-id");
+    }
+
+    [Fact]
+    public async Task ResolveAsync_NeverFallsBackToAppLevel_ForSpotify_EvenWhenSystemCredentialIsConfigured()
+    {
+        // Spotify carve-out (owner directive 2026-09-01, S-OWN10): the bot never hosts a shared/system-level
+        // Spotify app. A system-level (app-level) Spotify credential existing must NEVER be used — only the
+        // channel's own BYOC row counts; absent that, resolution fails PROVIDER_NOT_CONFIGURED immediately.
         IConfiguration config = new ConfigurationBuilder()
             .AddInMemoryCollection(
                 new Dictionary<string, string?>
@@ -131,8 +156,13 @@ public sealed class ChannelCredentialsResolverTests
 
         Result<SystemAppCredentials> result = await resolver.ResolveAsync(ChannelA, "spotify");
 
-        result.IsSuccess.Should().BeTrue();
-        result.Value.ClientId.Should().Be("app-level-id");
+        result.IsFailure.Should().BeTrue();
+        result
+            .ErrorCode.Should()
+            .Be(
+                "PROVIDER_NOT_CONFIGURED",
+                "Spotify must never resolve against a system/app-level credential, BYOC only"
+            );
     }
 
     [Fact]
@@ -150,13 +180,15 @@ public sealed class ChannelCredentialsResolverTests
     public async Task ResolveAsync_DoesNotMixChannelClientId_WithAppLevelSecret()
     {
         // Only the channel client id set (no channel secret) — a half-formed channel row must never
-        // silently combine with the app-level secret; the whole channel scope falls through.
+        // silently combine with the app-level secret; the whole channel scope falls through. Uses a
+        // non-Spotify provider (discord) since Spotify never falls back to app-level at all (see the
+        // carve-out tests above).
         IConfiguration config = new ConfigurationBuilder()
             .AddInMemoryCollection(
                 new Dictionary<string, string?>
                 {
-                    ["Spotify:ClientId"] = "app-level-id",
-                    ["Spotify:ClientSecret"] = "app-level-secret",
+                    ["Discord:ClientId"] = "app-level-id",
+                    ["Discord:ClientSecret"] = "app-level-secret",
                 }
             )
             .Build();
@@ -165,13 +197,13 @@ public sealed class ChannelCredentialsResolverTests
             new()
             {
                 BroadcasterId = ChannelA,
-                Key = "spotify.client_id",
+                Key = "discord.client_id",
                 Value = "channel-id-only",
             }
         );
         await db.SaveChangesAsync();
 
-        Result<SystemAppCredentials> result = await resolver.ResolveAsync(ChannelA, "spotify");
+        Result<SystemAppCredentials> result = await resolver.ResolveAsync(ChannelA, "discord");
 
         result.IsSuccess.Should().BeTrue();
         result
