@@ -27,7 +27,6 @@ when done) — this section is only the intake, not a shortcut around the bar.
 
 - **S-OWN02** — permission-request spam in chat must consolidate into one message/notification.
 - **S-OWN03** — code editor needs more themes; at least one Atom One Dark and one light.
-- **S-OWN04** — code formatting in the code editor doesn't apply the configured style rules.
 - **S-OWN05** — code editor import from a separate local file fails (`import SCENES from './scenes';` throws) after extracting an array to its own file.
 - **S-OWN06** — need to delete individual entries from version history, and paginate the history list.
 - **S-OWN08** — admin pages (SaaS management: users, providers, settings) need a real UX/DX pass, unchanged since introduction.
