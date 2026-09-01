@@ -2434,6 +2434,7 @@
     <string name="resource_picker_loading">Loading…</string>
     <string name="resource_picker_unavailable">Could not load this list right now — %1$s</string>
     <string name="resource_picker_empty">None found.</string>
+    <string name="combobox_no_results">No results found.</string>
     <string name="resource_picker_search_placeholder">Search…</string>
     <string name="category_picker_label">Category / game</string>
     <string name="category_picker_placeholder">Search Twitch categories…</string>
@@ -3066,6 +3067,8 @@
     <string name="webhooks_deliveries_close">Close</string>
     <string name="webhooks_deliveries_attempt">Attempt %1$d</string>
     <string name="webhooks_deliveries_code">HTTP %1$d</string>
+    <string name="webhooks_deliveries_next_retry">Next retry: %1$s</string>
+    <string name="webhooks_deliveries_reload">Reload</string>
     <string name="moderation_announce_action">Send Announcement</string>
     <string name="moderation_announce_title">Send Announcement</string>
     <string name="moderation_announce_message_label">Message</string>
