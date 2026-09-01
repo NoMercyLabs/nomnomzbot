@@ -79,7 +79,14 @@ public sealed class ObsBridgeHostControllerTests
                 "ForwardVtsEvent",
                 "subscribed VTS events relay back for the trigger surface"
             )
-            .And.Contain("textContent", "debug text is inserted as text nodes only, never markup");
+            .And.Contain("textContent", "debug text is inserted as text nodes only, never markup")
+            .And.Contain(
+                "evt.code",
+                "the local OBS socket's close event carries obs-websocket's own WebSocketCloseCode "
+                    + "(e.g. 4009 AuthenticationFailed, 4011 SessionInvalidated) — the ONE piece of evidence "
+                    + "for WHY OBS dropped an already-identified connection, so it must reach the ack instead "
+                    + "of being discarded behind a flat 'OBS connection closed' string"
+            );
     }
 
     /// <summary>

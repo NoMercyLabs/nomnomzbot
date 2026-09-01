@@ -134,7 +134,14 @@ public sealed class ObsBridgeHostController : ControllerBase
                       default: break;
                     }
                   };
-                  sock.onclose = function () { reset("OBS connection closed"); };
+                  // The WS close code/reason (obs-websocket's own WebSocketCloseCode, e.g. 4009 AuthenticationFailed,
+                  // 4011 SessionInvalidated) is the ONE piece of evidence that says WHY OBS dropped an already-
+                  // identified connection — surfacing it as a flat "OBS connection closed" string discarded exactly
+                  // the detail needed to diagnose a real-world drop instead of guessing at it blind.
+                  sock.onclose = function (evt) {
+                    var detail = evt && evt.code ? " (code " + evt.code + (evt.reason ? ": " + evt.reason : "") + ")" : "";
+                    reset("OBS connection closed" + detail);
+                  };
                   sock.onerror = function () { try { sock.close(); } catch (_) {} };
                 }
 
