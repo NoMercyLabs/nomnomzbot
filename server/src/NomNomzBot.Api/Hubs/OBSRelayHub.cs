@@ -89,14 +89,17 @@ public class OBSRelayHub : Hub<IOBSRelayClient>
             Context.ConnectionAborted
         );
 
-        // Hand the bridge the channel's OBS-WebSocket password (null when passwordless) so its LOCAL OBS
-        // Identify handshake authenticates. Without this the bridge registers here ("connected") but every
-        // command fails OBS auth ("not reachable") whenever the streamer's OBS-WS has auth on (the default).
+        // Hand the bridge the channel's OBS-WebSocket password (null when passwordless) and LOCAL port so its
+        // OBS leg connects to the right endpoint and Identify handshake authenticates. Without the password the
+        // bridge registers here ("connected") but every command fails OBS auth ("not reachable") whenever the
+        // streamer's OBS-WS has auth on (the default). Without the real port a streamer who moved OBS-WS off its
+        // 4455 default is never reachable — the stored Host is meaningless here (the bridge always runs inside
+        // OBS on the SAME machine, so it is always 127.0.0.1; only a non-default port can genuinely differ).
         string? obsPassword = await _connections.GetPasswordForTransportAsync(
             connection.BroadcasterId,
             Context.ConnectionAborted
         );
-        await Clients.Caller.SetObsCredentials(obsPassword);
+        await Clients.Caller.SetObsCredentials(obsPassword, connection.Port ?? 4455);
 
         _logger.LogInformation(
             "OBS bridge connected for {Channel} ({Connection}).",

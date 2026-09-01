@@ -59,7 +59,15 @@ public sealed class ObsBridgeHostControllerTests
 
         content
             .Content.Should()
-            .Contain("ws://127.0.0.1:4455", "the OBS leg dials the local OBS-WebSocket v5 endpoint")
+            .Contain(
+                "ws://127.0.0.1:\" + obsPort",
+                "the OBS leg dials the local OBS-WebSocket v5 endpoint at the port the server delivers "
+                    + "(4455 by default), never a hardcoded port a streamer may have moved OBS-WS off of"
+            )
+            .And.Contain(
+                "obsPort = 4455",
+                "4455 is only the fallback before SetObsCredentials delivers the channel's real port"
+            )
             .And.Contain(
                 "ForwardObsEvent",
                 "subscribed OBS events relay back for the trigger surface"

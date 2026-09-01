@@ -24,8 +24,9 @@ namespace NomNomzBot.Api.Controllers;
 /// payloadJson)</c> pushes when it is the elected leader and:
 /// <list type="bullet">
 /// <item>OBS leg — for <c>{kind:"request"|"batch"}</c> payloads it opens/maintains a local OBS-WebSocket v5
-/// connection (<c>ws://127.0.0.1:4455</c>; Hello → Identify, mirroring <c>DirectObsTransport</c>'s
-/// <c>base64(sha256(...))</c> auth-hash when the local OBS demands a password — otherwise passwordless),
+/// connection (<c>ws://127.0.0.1:{port}</c>, the port delivered by <c>SetObsCredentials</c> — 4455 until it
+/// arrives; Hello → Identify, mirroring <c>DirectObsTransport</c>'s <c>base64(sha256(...))</c> auth-hash when
+/// the local OBS demands a password — otherwise passwordless),
 /// runs the request/batch, calls <c>AckCommand(commandId, ok, responseDataJson, error)</c>, and forwards
 /// subscribed OBS events via <c>ForwardObsEvent(eventType, eventDataJson)</c>.</item>
 /// <item>VTS leg (same page, one relay — vtube-studio.md D1) — for <c>{kind:"vts_request"}</c> payloads it
@@ -88,7 +89,11 @@ public sealed class ObsBridgeHostController : ControllerBase
 
               // ── OBS leg: a local OBS-WebSocket v5 connection (mirrors DirectObsTransport) ──────────────
               var obs = (function () {
-                var URL = "ws://127.0.0.1:4455";
+                // The bridge always runs INSIDE OBS on the streamer's own machine, so the host is always
+                // 127.0.0.1 — only the port can genuinely differ from OBS-WS's 4455 default. The server hands
+                // over the channel's configured port over the relay (SetObsCredentials -> setPort below) before
+                // the first connect; 4455 is the fallback until that arrives.
+                var obsPort = 4455;
                 // This page carries NO secret in its URL (obs-control.md §4). When the streamer's OBS-WS has auth on
                 // (the OBS default), the server delivers the channel's OBS-WS password over the AUTHENTICATED relay
                 // after connect (SetObsCredentials -> setPassword below), and computeAuth runs the v5 hash with it.
@@ -116,7 +121,7 @@ public sealed class ObsBridgeHostController : ControllerBase
                 function connect() {
                   if (connecting || ready) return;
                   connecting = true;
-                  try { sock = new WebSocket(URL); }
+                  try { sock = new WebSocket("ws://127.0.0.1:" + obsPort); }
                   catch (e) { connecting = false; failAll("OBS socket could not open"); return; }
 
                   sock.onmessage = function (evt) {
@@ -222,9 +227,11 @@ public sealed class ObsBridgeHostController : ControllerBase
                 }
 
                 return {
-                  // The server hands us the channel's OBS-WS password over the relay (SetObsCredentials); apply it
-                  // BEFORE the first connect so the Identify handshake authenticates against an auth-enabled OBS.
+                  // The server hands us the channel's OBS-WS password and port over the relay (SetObsCredentials);
+                  // apply BEFORE the first connect so the socket targets the right endpoint and the Identify
+                  // handshake authenticates against an auth-enabled OBS.
                   setPassword: function (pw) { obsPassword = pw || null; },
+                  setPort: function (port) { if (port > 0 && port < 65536) obsPort = port; },
                   execute: function (commandId, payload) {
                     if (ready && sock && sock.readyState === WebSocket.OPEN) { run(commandId, payload); return; }
                     queue.push({ commandId: commandId, payload: payload });
@@ -390,8 +397,9 @@ public sealed class ObsBridgeHostController : ControllerBase
                 }
 
                 function dispatch(target, args) {
-                  // Server pushes the OBS-WS password on connect (before any command) so the OBS leg can authenticate.
-                  if (target === "SetObsCredentials") { obs.setPassword(args[0]); return; }
+                  // Server pushes the OBS-WS password + port on connect (before any command) so the OBS leg
+                  // opens the right socket and can authenticate.
+                  if (target === "SetObsCredentials") { obs.setPassword(args[0]); obs.setPort(args[1]); return; }
                   if (target !== "ExecuteObsRequest") return;
                   var commandId = args[0], payloadJson = args[1];
                   var payload; try { payload = JSON.parse(payloadJson); }
