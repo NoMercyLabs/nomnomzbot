@@ -72,12 +72,14 @@ public class AdminController : BaseController
     [Authorize(Policy = IamPermissionKeys.TenantRead)]
     [ProducesResponseType<PaginatedResponse<AdminChannelDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListChannels(
+        [FromQuery] string? search,
         [FromQuery] PageRequestDto request,
         CancellationToken ct
     )
     {
         PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
         Result<PagedList<AdminChannelDto>> result = await _adminService.ListChannelsAsync(
+            search,
             pagination,
             ct
         );
@@ -95,12 +97,17 @@ public class AdminController : BaseController
     [Authorize(Policy = IamPermissionKeys.IamManage)]
     [ProducesResponseType<PaginatedResponse<AdminUserDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> ListUsers(
+        [FromQuery] string? search,
         [FromQuery] PageRequestDto request,
         CancellationToken ct
     )
     {
         PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
-        Result<PagedList<AdminUserDto>> result = await _adminService.ListUsersAsync(pagination, ct);
+        Result<PagedList<AdminUserDto>> result = await _adminService.ListUsersAsync(
+            search,
+            pagination,
+            ct
+        );
         if (result.IsFailure)
             return ResultResponse(result);
         return GetPaginatedResponse(result.Value, request);

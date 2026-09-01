@@ -242,11 +242,24 @@ class WebhooksController(
     /**
      * Create an outbound endpoint. Returns the signing secret (shown ONCE) on success, null on failure.
      */
-    suspend fun createOutbound(name: String, fqdn: String, path: String?, events: List<String>): OutboundWebhookCreated? {
+    suspend fun createOutbound(
+        name: String,
+        fqdn: String,
+        path: String?,
+        events: List<String>,
+        bodyTemplate: String? = null,
+    ): OutboundWebhookCreated? {
         val channel: String = channelId ?: run { failWrite("No active channel."); return null }
+        val body =
+            CreateOutboundBody(
+                name = name,
+                fqdn = fqdn,
+                path = path?.takeIf { it.isNotBlank() },
+                subscribedEventTypes = events,
+                bodyTemplate = bodyTemplate?.takeIf { it.isNotBlank() },
+            )
         return when (
-            val result: ApiResult<OutboundWebhookCreated> =
-                webhooksApi.createOutbound(channel, CreateOutboundBody(name, fqdn, path?.takeIf { it.isNotBlank() }, events))
+            val result: ApiResult<OutboundWebhookCreated> = webhooksApi.createOutbound(channel, body)
         ) {
             is ApiResult.Ok -> { load(); result.value }
             is ApiResult.Failure -> { failWrite(result.error.message); null }
@@ -254,9 +267,21 @@ class WebhooksController(
     }
 
     /** Full outbound edit — persists the name, the subscribed-event set, and the enabled flag in one PUT. */
-    suspend fun updateOutbound(endpointId: String, name: String, events: List<String>, isEnabled: Boolean) {
+    suspend fun updateOutbound(
+        endpointId: String,
+        name: String,
+        events: List<String>,
+        isEnabled: Boolean,
+        bodyTemplate: String? = null,
+    ) {
         val channel: String = channelId ?: return failWrite("No active channel.")
-        val body = UpdateOutboundBody(name = name, subscribedEventTypes = events, isEnabled = isEnabled)
+        val body =
+            UpdateOutboundBody(
+                name = name,
+                subscribedEventTypes = events,
+                bodyTemplate = bodyTemplate?.takeIf { it.isNotBlank() },
+                isEnabled = isEnabled,
+            )
         when (val result: ApiResult<OutboundWebhook> = webhooksApi.updateOutbound(channel, endpointId, body)) {
             is ApiResult.Ok -> load()
             is ApiResult.Failure -> failWrite(result.error.message)

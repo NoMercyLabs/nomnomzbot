@@ -274,13 +274,18 @@ data class UpdateInboundBody(
     val isEnabled: Boolean? = null,
 )
 
-/** Create-outbound body (backend `CreateOutboundWebhookRequest`). */
+/**
+ * Create-outbound body (backend `CreateOutboundWebhookRequest`). [bodyTemplate] is optional — null/blank
+ * keeps the backend's default JSON payload; when set it must use only keys valid for
+ * [TemplateHelperContext.Webhook] (validated server-side at save time).
+ */
 @Serializable
 data class CreateOutboundBody(
     val name: String,
     val fqdn: String,
     val path: String? = null,
     val subscribedEventTypes: List<String>,
+    val bodyTemplate: String? = null,
     val isEnabled: Boolean = true,
 )
 

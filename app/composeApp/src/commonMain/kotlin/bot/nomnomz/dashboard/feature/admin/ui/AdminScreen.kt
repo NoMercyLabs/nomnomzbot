@@ -22,9 +22,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
+import androidx.compose.ui.text.input.ImeAction
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
@@ -32,15 +36,19 @@ import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Spinner
+import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.component.TabsList
 import bot.nomnomz.dashboard.core.designsystem.component.TabsTrigger
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
+import bot.nomnomz.dashboard.core.network.AdminSetFeatureFlagOverrideRequest
+import bot.nomnomz.dashboard.core.network.AdminSetFeatureFlagRequest
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -77,12 +85,18 @@ import nomnomzbot.composeapp.generated.resources.admin_channel_live
 import nomnomzbot.composeapp.generated.resources.admin_channel_offline
 import nomnomzbot.composeapp.generated.resources.admin_channel_plan
 import nomnomzbot.composeapp.generated.resources.admin_channel_row_type
+import nomnomzbot.composeapp.generated.resources.admin_channel_search
+import nomnomzbot.composeapp.generated.resources.admin_user_search
 import nomnomzbot.composeapp.generated.resources.admin_service_row_type
 import nomnomzbot.composeapp.generated.resources.admin_user_row_type
 import nomnomzbot.composeapp.generated.resources.admin_event_log
 import nomnomzbot.composeapp.generated.resources.admin_flag_disabled
 import nomnomzbot.composeapp.generated.resources.admin_flag_enabled
 import nomnomzbot.composeapp.generated.resources.admin_flag_enabled_rollout
+import nomnomzbot.composeapp.generated.resources.admin_flag_override_broadcaster_id
+import nomnomzbot.composeapp.generated.resources.admin_flag_override_clear
+import nomnomzbot.composeapp.generated.resources.admin_flag_override_disable
+import nomnomzbot.composeapp.generated.resources.admin_flag_override_enable
 import nomnomzbot.composeapp.generated.resources.admin_grant_founder
 import nomnomzbot.composeapp.generated.resources.admin_grant_tier
 import nomnomzbot.composeapp.generated.resources.admin_health_degraded
@@ -177,7 +191,7 @@ fun AdminScreen(controller: AdminController) {
 
         when (selectedTab) {
             0 -> OverviewTab(state = state)
-            1 -> ChannelsTab(state = state)
+            1 -> ChannelsTab(state = state, controller = controller)
             2 -> UsersTab(state = state, controller = controller)
             3 -> SystemTab(state = state)
             4 -> FeatureFlagsTab(state = state, controller = controller)
@@ -345,17 +359,29 @@ private fun OverviewTab(state: AdminState) {
 }
 
 @Composable
-private fun ChannelsTab(state: AdminState) {
+internal fun ChannelsTab(state: AdminState, controller: AdminController) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+    val scope = rememberCoroutineScope()
+    var searchText: String by remember { mutableStateOf(state.channelSearch) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(spacing.s4),
+        verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
+        AppTextField(
+            value = searchText,
+            onValueChange = { searchText = it },
+            label = stringResource(Res.string.admin_channel_search),
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { scope.launch { controller.loadChannels(search = searchText) } }),
+        )
+
         Card(modifier = Modifier.fillMaxWidth()) {
             Column {
                 state.channels.forEachIndexed { index, channel ->
@@ -398,17 +424,29 @@ private fun ChannelsTab(state: AdminState) {
 }
 
 @Composable
-private fun UsersTab(state: AdminState, controller: AdminController) {
+internal fun UsersTab(state: AdminState, controller: AdminController) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+    val scope = rememberCoroutineScope()
+    var searchText: String by remember { mutableStateOf(state.userSearch) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(spacing.s4),
+        verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
+        AppTextField(
+            value = searchText,
+            onValueChange = { searchText = it },
+            label = stringResource(Res.string.admin_user_search),
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { scope.launch { controller.loadUsers(search = searchText) } }),
+        )
+
         Card(modifier = Modifier.fillMaxWidth()) {
             Column {
                 state.users.forEachIndexed { index, user ->
@@ -578,43 +616,109 @@ private fun SystemTab(state: AdminState) {
     }
 }
 
+/**
+ * The Plane-C feature-flag console: a global on/off [Switch] per flag (calls
+ * [AdminController.setFeatureFlag], preserving the flag's existing rollout percentage / tier / consent /
+ * deployment-mode gates) plus a per-tenant override row (broadcaster id + enable/disable/clear, calling
+ * [AdminController.setFeatureFlagOverride] / [AdminController.deleteFeatureFlagOverride]). The row disables
+ * itself while its own call is in flight so a double-tap can't race two writes for the same flag.
+ */
 @Composable
-private fun FeatureFlagsTab(state: AdminState, controller: AdminController) {
+internal fun FeatureFlagsTab(state: AdminState, controller: AdminController) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+    val scope = rememberCoroutineScope()
+    var pendingFlagKey: String? by remember { mutableStateOf(null) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(spacing.s4),
+        verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
+        state.actionError?.let { ActionErrorBanner(message = it) }
+
         Card(modifier = Modifier.fillMaxWidth()) {
             Column {
                 state.featureFlags.forEachIndexed { index, flag ->
-                    Row(
+                    val rowBusy: Boolean = pendingFlagKey == flag.key
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = spacing.s4, vertical = spacing.s3),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
+                        verticalArrangement = Arrangement.spacedBy(spacing.s2),
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(text = flag.key, style = typography.sm, color = tokens.cardForeground)
-                            flag.description?.takeIf { it.isNotBlank() }?.let { description ->
-                                Text(text = description, style = typography.xs, color = tokens.mutedForeground)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = flag.key, style = typography.sm, color = tokens.cardForeground)
+                                flag.description?.takeIf { it.isNotBlank() }?.let { description ->
+                                    Text(text = description, style = typography.xs, color = tokens.mutedForeground)
+                                }
+                                Text(
+                                    text =
+                                        if (flag.isEnabledGlobally) {
+                                            stringResource(Res.string.admin_flag_enabled_rollout, flag.rolloutPercentage)
+                                        } else {
+                                            stringResource(Res.string.admin_flag_disabled)
+                                        },
+                                    style = typography.xs,
+                                    color = if (flag.isEnabledGlobally) tokens.primary else tokens.mutedForeground,
+                                )
+                            }
+                            if (rowBusy) {
+                                Spinner(color = tokens.primary)
+                            } else {
+                                Switch(
+                                    checked = flag.isEnabledGlobally,
+                                    onCheckedChange = { checked ->
+                                        pendingFlagKey = flag.key
+                                        scope.launch {
+                                            controller.setFeatureFlag(
+                                                AdminSetFeatureFlagRequest(
+                                                    key = flag.key,
+                                                    description = flag.description,
+                                                    isEnabledGlobally = checked,
+                                                    rolloutPercentage = flag.rolloutPercentage,
+                                                    minTierKey = flag.minTierKey,
+                                                    requiresConsent = flag.requiresConsent,
+                                                    deploymentMode = flag.deploymentMode,
+                                                ),
+                                            )
+                                            pendingFlagKey = null
+                                        }
+                                    },
+                                    enabled = !rowBusy,
+                                )
                             }
                         }
-                        Text(
-                            text =
-                                if (flag.isEnabledGlobally) {
-                                    stringResource(Res.string.admin_flag_enabled_rollout, flag.rolloutPercentage)
-                                } else {
-                                    stringResource(Res.string.admin_flag_disabled)
-                                },
-                            style = typography.sm,
-                            color = if (flag.isEnabledGlobally) tokens.primary else tokens.mutedForeground,
+
+                        FeatureFlagOverrideRow(
+                            flagKey = flag.key,
+                            enabled = !rowBusy,
+                            onSetOverride = { broadcasterId, isEnabled ->
+                                pendingFlagKey = flag.key
+                                scope.launch {
+                                    controller.setFeatureFlagOverride(
+                                        flag.key,
+                                        broadcasterId,
+                                        AdminSetFeatureFlagOverrideRequest(isEnabled = isEnabled),
+                                    )
+                                    pendingFlagKey = null
+                                }
+                            },
+                            onClearOverride = { broadcasterId ->
+                                pendingFlagKey = flag.key
+                                scope.launch {
+                                    controller.deleteFeatureFlagOverride(flag.key, broadcasterId)
+                                    pendingFlagKey = null
+                                }
+                            },
                         )
                     }
                     if (index < state.featureFlags.lastIndex) {
@@ -622,6 +726,49 @@ private fun FeatureFlagsTab(state: AdminState, controller: AdminController) {
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun FeatureFlagOverrideRow(
+    flagKey: String,
+    enabled: Boolean,
+    onSetOverride: (broadcasterId: String, isEnabled: Boolean) -> Unit,
+    onClearOverride: (broadcasterId: String) -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    var broadcasterId: String by remember(flagKey) { mutableStateOf("") }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        AppTextField(
+            value = broadcasterId,
+            onValueChange = { broadcasterId = it },
+            label = stringResource(Res.string.admin_flag_override_broadcaster_id),
+            enabled = enabled,
+            modifier = Modifier.weight(1f),
+        )
+        TextButton(
+            onClick = { onSetOverride(broadcasterId, true) },
+            enabled = enabled && broadcasterId.isNotBlank(),
+        ) {
+            Text(text = stringResource(Res.string.admin_flag_override_enable))
+        }
+        TextButton(
+            onClick = { onSetOverride(broadcasterId, false) },
+            enabled = enabled && broadcasterId.isNotBlank(),
+        ) {
+            Text(text = stringResource(Res.string.admin_flag_override_disable))
+        }
+        TextButton(
+            onClick = { onClearOverride(broadcasterId) },
+            enabled = enabled && broadcasterId.isNotBlank(),
+        ) {
+            Text(text = stringResource(Res.string.admin_flag_override_clear))
         }
     }
 }

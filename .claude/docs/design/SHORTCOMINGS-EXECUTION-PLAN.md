@@ -78,12 +78,14 @@ the real cause was the missing native-GIF fragment support above.
   Kotlin and C# field names already match). Evidenced gaps still open, by admin screen
   (`feature/admin/ui/*.kt`, `feature/admin/state/AdminController.kt`):
   - **Overview/Channels/Users/System/Flags tabs use raw `Row`/`Column`/`Card` list rows with no design-system
-    list primitive** — no search, filter, sort, or pagination on any of them. `UsersTab` (`AdminScreen.kt:383`)
-    and `ChannelsTab` (`AdminScreen.kt:330`) page through `AdminApi.getUsers()`/`getChannels()` with no query
-    params at all (compare `AdminApi.kt` — no page/pageSize/search args on those two calls, unlike
-    `PlatformAdminApi.listTenants(search, status, ...)` which the Tenants tab already uses). On any real SaaS
-    deployment past a handful of channels this is an unbounded, unsearchable list — the single highest-value
-    next slice for "manage users".
+    list primitive** — no filter or sort on any of them. **Search: CLOSED 2026-09-02 (`a4e85d02`, S-OWN08b)** —
+    `search` is now threaded end to end (`AdminController.cs` → `IAdminService`/`AdminService` → `AdminApi.kt`
+    → frontend `AdminController.kt` → both tabs), matching login/display-name case-insensitively, with the
+    search box reusing `AdminTenantsTab.kt`'s existing pattern. Proven by
+    `AdminListsSearchTests.ListChannels_search_matches_login_or_owner_display_name_case_insensitively` +
+    `ListUsers_...` (real seeded DB, asserts included AND excluded rows) and
+    `submitting_the_channel_search_calls_get_channels_with_the_typed_value` + the users twin.
+    Still open on these two tabs: no sort, no filter chips, and no visible page controls for deep paging.
   - **`UsersTab` is read-only** — it lists id/login/role/channel count with no action at all (the code comment
     at `AdminScreen.kt:423` explicitly defers "manage a user" to the Tenants-tab owner-impersonate flow, which
     only reaches a tenant's owner, not an arbitrary platform user). There is no suspend/ban/role-change control
@@ -98,12 +100,17 @@ the real cause was the missing native-GIF fragment support above.
     (`AdminScreen.kt:442`) is health/version/CPU/memory only. This is the literal "providers" half of the
     owner's ask and has no backend surface yet — needs its own spec pass (which provider fields are safe to
     show/rotate from the dashboard vs. env-only) before implementation.
-  - **`FeatureFlagsTab` (`AdminScreen.kt:564`) is read-only in the UI** despite the backend supporting writes —
-    `AdminController.setFeatureFlag`/`setFeatureFlagOverride`/`deleteFeatureFlagOverride` exist and are wired
-    in `AdminController.kt:218-231`, but no dialog/control in `FeatureFlagsTab` calls them; there is no create-
-    flag, no toggle, no per-tenant override editor, no empty/error state distinct from a bare list. This is
-    the "other settings" half of the owner's ask and is the second-highest-value slice (backend already done,
-    pure frontend gap).
+  - ~~**`FeatureFlagsTab` is read-only in the UI** despite the backend supporting writes.~~ **CLOSED 2026-09-02
+    (`cb9596fa`, S-OWN08a).** `FeatureFlagsTab` now carries a per-flag toggle calling `setFeatureFlag`, the
+    per-tenant override editor calling `setFeatureFlagOverride`/`deleteFeatureFlagOverride`, in-flight row
+    disabling, and `EmptyLine`/`ActionErrorBanner` states. Proven by
+    `AdminScreenTest.tapping_the_flag_toggle_calls_set_feature_flag_with_the_flipped_value`, which asserts the
+    flipped value AND that the existing `rolloutPercentage` survives the write.
+    Follow-on found and fixed while reviewing it (`3c048a8a`): `setFeatureFlag`, `setFeatureFlagOverride`,
+    `deleteFeatureFlagOverride`, `createInviteCode`, `revokeInviteCode`, `grantTier` and `grantFounderBadge`
+    ALL discarded their `ApiResult` and reloaded regardless, so `ActionErrorBanner` could never fire for them —
+    all seven now share a `writeThenReload` helper that sets `actionError` on failure, covered by
+    `a_rejected_flag_write_surfaces_the_error_instead_of_reloading_silently` (confirmed red before the fix).
   - **Design-system parity**: none of Overview/Channels/Users/System/Flags/Billing tabs use a shared list-row
     or empty/loading-state primitive the way `AdminTenantsTab.kt` does (`EmptyLine`, `Spinner`,
     `ActionErrorBanner`, status filter chips) — `AdminTenantsTab.kt` and `AdminIamTab.kt` are the two tabs that
@@ -147,7 +154,18 @@ the real cause was the missing native-GIF fragment support above.
   plus `GET .../actions` (block palette), test-run, and validate. Nothing found requiring a new create/rename/
   duplicate/delete surface. Not re-verified against the dashboard's `feature/pipelines` UI in this slice — if
   the owner still hits a specific blocked pipeline action, file it as a fresh, concrete slice.
-- **S-OWN16-remaining** — backend done: `GET /api/v1/templates/helpers` already filtered by broad `context` (command/eventResponse/timer/pipeline/discord/webhook); now also accepts an optional `eventType` (e.g. `channel.raid`) that excludes helpers only some events seed (`tier`/`months`/`bits`/`reward`/etc.) using `TemplateHelperEntry.EventScoped` + `EventResponsePresetCatalog`'s per-event variable list (9f0eeb09). Remaining, frontend (`app/`, out of scope here): the event-response template editor needs to pass its selected `eventType` into `TemplateHelpersApi.helpers(...)` so the picker narrows per event, not just per broad context; the outbound-webhook editor has no template picker at all yet (grep found no `Webhook*` usage of `TemplateHelpersDialog`) and should get one wired to `context=webhook`.
+**S-OWN16 — closed 2026-09-02 (`d5040786`).** Backend had already landed the optional `eventType` filter on
+`GET /api/v1/templates/helpers` (9f0eeb09); the frontend half is now done too. `TemplateHelpersApi.helpers`
+takes an optional `eventType` (blank-safe, appended only when set), `EventResponsesScreen`'s `TemplateHelpersLink`
+passes the edited response's own `eventType` so the picker narrows per event rather than per broad context, and
+the outbound-webhook editor gained a `TemplateHelpersDialog` wired to `context=webhook` on its body-template
+field (`WebhooksScreen.kt`, plumbed through `ShellScreen`/`WebhooksController`/`WebhooksApi`). Proven by
+`opening_the_helper_picker_passes_the_edited_event_types_eventType_through` and
+`selecting_a_helper_in_the_outbound_edit_dialog_inserts_its_token_into_the_body_template_field`.
+Note: the slice as first committed did not compile (two generated string-resource imports were missing) —
+fixed in `25620139`. Follow-on gap, NOT fixed: `OutboundWebhookEndpointDto` (`server/src/.../WebhookDtos.cs:70`)
+never returns `BodyTemplate` to the client, so the edit dialog writes it blind with no way to show the current
+value — file as a fresh slice if a "show current template" UX is wanted.
 ---
 
 ## AT A GLANCE — what is open, in one screen

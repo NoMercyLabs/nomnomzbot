@@ -177,6 +177,66 @@ class EventResponsesScreenTest {
         // parent node carrying [Disabled] + stateDescription, so assert there rather than on the leaf.
         onNode(hasAnyChild(hasContentDescription("Test pipeline")), useUnmergedTree = true).assertIsNotEnabled()
     }
+
+    // S-OWN16 — the "All helpers" picker must narrow to the SELECTED event's own variables, not the whole
+    // EventResponse-context grab-bag. Proven by asserting the exact eventType argument the screen's helpers()
+    // call reaches the network with, for a specific event row (channel.raid) — not merely that helpers() ran.
+    @Test
+    fun opening_the_helper_picker_passes_the_edited_event_types_eventType_through() = runComposeUiTest {
+        val summary =
+            EventResponseSummary(
+                id = "er2",
+                eventType = "channel.raid",
+                isEnabled = true,
+                responseType = "chat_message",
+                updatedAt = "2026-06-27T00:00:00Z",
+            )
+        val eventResponsesApi =
+            FakeEventResponsesApi(
+                summaries = listOf(summary),
+                detailResponse = EventResponse(
+                    id = "er2",
+                    eventType = "channel.raid",
+                    isEnabled = true,
+                    responseType = "chat_message",
+                    message = "raiders incoming",
+                ),
+            )
+        val controller =
+            EventResponsesController(
+                channelsApi = FakeChannelsApi(),
+                eventResponsesApi = eventResponsesApi,
+                pipelinesApi = RecordingPipelinesApi(),
+                pickListsApi = FakePickListsApi(),
+                widgetsApi = FakeWidgetsApi(),
+            )
+        runBlocking { controller.load() }
+        val recordingHelpersApi = RecordingTemplateHelpersApi()
+
+        setContent {
+            withLifecycle {
+                NomNomzTheme {
+                    bot.nomnomz.dashboard.core.i18n.AppEnvironment("en") {
+                        EventResponsesScreen(
+                            controller = controller,
+                            role = bot.nomnomz.dashboard.feature.shell.nav.ManagementRole.Broadcaster,
+                            templateHelpersApi = recordingHelpersApi,
+                        )
+                    }
+                }
+            }
+        }
+        waitForIdle()
+
+        onNodeWithContentDescription("Edit Raid").performClick()
+        waitForIdle()
+
+        onNodeWithText("All helpers…").performClick()
+        waitForIdle()
+
+        assertEquals(TemplateHelperContext.EventResponse, recordingHelpersApi.lastContext)
+        assertEquals("channel.raid", recordingHelpersApi.lastEventType)
+    }
 }
 
 @androidx.compose.runtime.Composable
@@ -194,8 +254,21 @@ private fun withLifecycle(content: @androidx.compose.runtime.Composable () -> Un
 }
 
 private class FakeTemplateHelpersApi : TemplateHelpersApi {
-    override suspend fun helpers(context: TemplateHelperContext): ApiResult<List<TemplateHelperDto>> =
+    override suspend fun helpers(context: TemplateHelperContext, eventType: String?): ApiResult<List<TemplateHelperDto>> =
         ApiResult.Ok(emptyList())
+}
+
+// Records the exact (context, eventType) pair the screen's "All helpers" link calls the API with — the proof
+// that narrowing by event type (S-OWN16) actually reaches the network call, not just that helpers() ran.
+private class RecordingTemplateHelpersApi : TemplateHelpersApi {
+    var lastContext: TemplateHelperContext? = null
+    var lastEventType: String? = null
+
+    override suspend fun helpers(context: TemplateHelperContext, eventType: String?): ApiResult<List<TemplateHelperDto>> {
+        lastContext = context
+        lastEventType = eventType
+        return ApiResult.Ok(emptyList())
+    }
 }
 
 private class FakeChannelsApi : ChannelsApi {
