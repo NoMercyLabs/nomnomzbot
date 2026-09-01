@@ -188,6 +188,17 @@ public sealed class OutboundWebhookDispatcher(
         CancellationToken ct
     )
     {
+        // S099b: a delivery can still be sitting Failed/due-for-retry at the moment its endpoint crosses the
+        // auto-disable threshold (e.g. a sibling delivery tipped the counter first). Dead-letter the straggler
+        // instead of sending — a disabled endpoint must never receive another attempt.
+        if (!endpoint.IsEnabled)
+        {
+            delivery.Status = WebhookDeliveryStatus.DeadLetter;
+            delivery.NextRetryAt = null;
+            delivery.Error = "Endpoint is disabled.";
+            return WebhookDeliveryStatus.DeadLetter;
+        }
+
         List<byte[]> secrets = await UnwrapSecretsAsync(endpoint, ct);
         byte[] body = Encoding.UTF8.GetBytes(delivery.RenderedBody);
 

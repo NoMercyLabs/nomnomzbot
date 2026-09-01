@@ -16,6 +16,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Webhooks;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Webhooks.Enums;
@@ -175,6 +176,85 @@ public sealed class OutboundWebhookDispatcherTests
         endpoint.DisabledAt.Should().NotBeNull();
         db.OutboundWebhookDeliveries.Single().Status.Should().Be(WebhookDeliveryStatus.DeadLetter);
         bus.Published.OfType<OutboundWebhookAutoDisabledEvent>().Should().ContainSingle();
+    }
+
+    /// <summary>Fails the test if the dispatcher ever sends a request through it — proves a skipped delivery
+    /// never reaches the transport at all, not merely that its recorded outcome happens to match.</summary>
+    private sealed class UnreachableHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        ) =>
+            throw new InvalidOperationException(
+                "Delivery must not be attempted for a disabled endpoint."
+            );
+    }
+
+    // S099b: a delivery can still be sitting Failed/due-for-retry at the moment its endpoint crosses the
+    // auto-disable threshold (e.g. a sibling delivery tipped the counter first). The retry drain must not
+    // keep POSTing to an endpoint the auto-disable already turned off — it dead-letters the straggler instead.
+    [Fact]
+    public async Task AttemptDelivery_dead_letters_a_stale_retry_without_sending_when_the_endpoint_is_disabled()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        ITokenProtector protector = Substitute.For<ITokenProtector>();
+        protector
+            .TryUnprotectAsync(
+                Arg.Any<string>(),
+                Arg.Any<TokenProtectionContext>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns("whsec_secret");
+        IWebhookBodyTemplateRenderer template = Substitute.For<IWebhookBodyTemplateRenderer>();
+        template
+            .Render(
+                Arg.Any<string?>(),
+                Arg.Any<IReadOnlyDictionary<string, string>>(),
+                Arg.Any<bool>()
+            )
+            .Returns(ci => ci.ArgAt<string?>(0) ?? string.Empty);
+        IHttpClientFactory factory = Substitute.For<IHttpClientFactory>();
+        factory.CreateClient(Arg.Any<string>()).Returns(_ => new(new UnreachableHandler()));
+        OutboundWebhookDispatcher sut = new(
+            db,
+            protector,
+            new OutboundWebhookSigner(),
+            template,
+            factory,
+            new RecordingEventBus(),
+            new FakeTimeProvider(Now)
+        );
+
+        Guid endpointId = await SeedEndpointAsync(db);
+        OutboundWebhookEndpoint endpoint = await db.OutboundWebhookEndpoints.FirstAsync(e =>
+            e.Id == endpointId
+        );
+        endpoint.IsEnabled = false;
+        endpoint.DisabledAt = Now.UtcDateTime;
+        endpoint.DisabledReason = "Too many consecutive delivery failures.";
+        await db.SaveChangesAsync();
+
+        OutboundWebhookDelivery delivery = new()
+        {
+            BroadcasterId = Channel,
+            EndpointId = endpointId,
+            WebhookMessageId = Guid.CreateVersion7(),
+            EventType = "test.event",
+            RenderedBody = "{}",
+            Attempt = 3,
+            Status = WebhookDeliveryStatus.Failed,
+            NextRetryAt = Now.UtcDateTime.AddMinutes(-1),
+            CreatedAt = Now.UtcDateTime,
+        };
+        db.OutboundWebhookDeliveries.Add(delivery);
+        await db.SaveChangesAsync();
+
+        Result<WebhookDeliveryStatus> result = await sut.AttemptDeliveryAsync(delivery);
+
+        result.Value.Should().Be(WebhookDeliveryStatus.DeadLetter);
+        db.OutboundWebhookDeliveries.Single().Status.Should().Be(WebhookDeliveryStatus.DeadLetter);
+        db.OutboundWebhookDeliveries.Single().NextRetryAt.Should().BeNull();
     }
 
     [Fact]
