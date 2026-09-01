@@ -103,6 +103,34 @@ public sealed class SongRequestActionTests
             );
     }
 
+    /// <summary>
+    /// S-OWN12 sibling — the reward/pipeline-triggered song_request action had the same missing case as
+    /// the !sr builtin: PER_USER_LIMIT fell through to the generic "couldn't reach the music service"
+    /// wording instead of carrying MusicService's real over-limit reason into chat.
+    /// </summary>
+    [Fact]
+    public async Task Over_the_per_user_limit_carries_its_real_reason_into_chat()
+    {
+        (SongRequestAction sut, IMusicService music, IChatProvider chat) = Build(
+            Result.Failure<MusicTrack>(
+                "You already have 2 request(s) queued — wait for one to play before adding more.",
+                "PER_USER_LIMIT"
+            )
+        );
+
+        await sut.ExecuteAsync(Ctx(), Def("song q"));
+
+        await chat.Received()
+            .SendMessageAsync(
+                ChannelId,
+                Arg.Is<string>(m =>
+                    m.Contains("You already have 2 request(s) queued")
+                    && !m.Contains("Couldn't reach the music service")
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
     [Fact]
     public async Task A_genuinely_erroring_provider_reads_differently_from_no_provider_and_not_found()
     {

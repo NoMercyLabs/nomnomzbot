@@ -174,6 +174,49 @@ public sealed class SongRequestBuiltinTests
         result.Value.Should().NotContain("reconnected");
     }
 
+    /// <summary>
+    /// S-OWN12 — the owner's exact report: requesting over the per-user queue limit answered with a
+    /// generic "service not available"/"couldn't reach the music service" message instead of the real
+    /// PER_USER_LIMIT reason MusicService.EnqueueResolvedAsync already returns. The switch in
+    /// SongRequestBuiltin was missing this case, so it fell through to the catch-all default.
+    /// </summary>
+    [Fact]
+    public async Task Over_the_per_user_limit_carries_its_real_reason_not_the_generic_fallback()
+    {
+        SongRequestBuiltin sut = Build(
+            requestResult: Result.Failure<MusicTrack>(
+                "You already have 2 request(s) queued — wait for one to play before adding more.",
+                "PER_USER_LIMIT"
+            )
+        );
+
+        Result<string> result = await sut.ExecuteAsync(Context("song q", roleLevel: 0));
+
+        result
+            .Value.Should()
+            .Be("You already have 2 request(s) queued — wait for one to play before adding more.");
+        result.Value.Should().NotContain("Couldn't reach the music service");
+        result.Value.Should().NotContain("currently disabled");
+    }
+
+    /// <summary>Sibling of the PER_USER_LIMIT regression above — the channel-wide queue cap must also
+    /// carry its own reason, not the generic fallback.</summary>
+    [Fact]
+    public async Task Over_the_queue_capacity_carries_its_real_reason_not_the_generic_fallback()
+    {
+        SongRequestBuiltin sut = Build(
+            requestResult: Result.Failure<MusicTrack>(
+                "The queue is full (50 max) — try again once it's shorter.",
+                "QUEUE_FULL"
+            )
+        );
+
+        Result<string> result = await sut.ExecuteAsync(Context("song q", roleLevel: 0));
+
+        result.Value.Should().Be("The queue is full (50 max) — try again once it's shorter.");
+        result.Value.Should().NotContain("Couldn't reach the music service");
+    }
+
     [Fact]
     public async Task A_provider_error_reads_differently_from_no_provider_and_from_not_found()
     {

@@ -107,6 +107,12 @@ public sealed class SongRequestAction : ICommandAction
                 // A real playlist/album/episode/show/artist link — never a search miss.
                 "UNSUPPORTED_CONTENT_TYPE" =>
                     $"@{ctx.TriggeredByDisplayName} {requested.ErrorMessage}",
+                // Admission-gate refusals (MusicService.EnqueueResolvedAsync) — the requester is over a
+                // real, configured limit, not facing an outage. Must never fall through to the generic
+                // "couldn't reach the music service" wording below (S-OWN12).
+                "QUEUE_FULL" => $"@{ctx.TriggeredByDisplayName} {requested.ErrorMessage}",
+                "PER_USER_LIMIT" => $"@{ctx.TriggeredByDisplayName} {requested.ErrorMessage}",
+                "DUPLICATE_TRACK" => $"@{ctx.TriggeredByDisplayName} {requested.ErrorMessage}",
                 _ =>
                     $"@{ctx.TriggeredByDisplayName} Couldn't reach the music service — try again in a moment.",
             };
