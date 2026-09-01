@@ -37,6 +37,8 @@ import bot.nomnomz.dashboard.core.network.ChatApi
 import bot.nomnomz.dashboard.core.network.CommandsApi
 import bot.nomnomz.dashboard.core.network.CommunityApi
 import bot.nomnomz.dashboard.core.network.DashboardApi
+import bot.nomnomz.dashboard.core.network.NotificationsApi
+import bot.nomnomz.dashboard.core.network.RestNotificationsApi
 import bot.nomnomz.dashboard.core.network.AutomationApi
 import bot.nomnomz.dashboard.core.network.DiscordApi
 import bot.nomnomz.dashboard.core.network.ObsApi
@@ -311,6 +313,7 @@ class AppGraph {
     val twitchDiagnosticsApi: TwitchDiagnosticsApi = RestTwitchDiagnosticsApi(apiClient)
     val systemApi: SystemApi = RestSystemApi(apiClient)
     val dashboardApi: DashboardApi = RestDashboardApi(apiClient)
+    val notificationsApi: NotificationsApi = RestNotificationsApi(apiClient)
     val communityApi: CommunityApi = RestCommunityApi(apiClient)
     val usersApi: UsersApi = RestUsersApi(apiClient)
     val viewerDataApi: ViewerDataApi = RestViewerDataApi(apiClient)
@@ -445,6 +448,7 @@ class AppGraph {
             streamApi = streamApi,
             commandsApi = commandsApi,
             communityApi = communityApi,
+            notificationsApi = notificationsApi,
             hubClient = dashboardHubClient,
             baseUrl = sessionStore::baseUrl,
             accessToken = sessionStore::accessToken,

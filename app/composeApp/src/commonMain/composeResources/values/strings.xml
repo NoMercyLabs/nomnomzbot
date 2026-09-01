@@ -283,6 +283,11 @@
     <string name="home_stream_saved">Stream updated</string>
     <string name="home_stream_error">Update failed: %1$s</string>
 
+    <!-- Action-required hero tile on Home (S071b) -->
+    <string name="home_action_required_section">Needs your attention</string>
+    <string name="home_action_required_severity_critical">Critical</string>
+    <string name="home_action_required_severity_warning">Warning</string>
+
     <!-- Recent activity feed on Home -->
     <string name="home_activity_section">Recent Activity</string>
     <string name="home_activity_empty">No events yet — activity appears here when your channel is live.</string>
