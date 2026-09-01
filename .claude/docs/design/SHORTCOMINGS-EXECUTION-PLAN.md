@@ -395,12 +395,23 @@ later.)
   401/403 and the SDK just `console.error`'d and retried silently forever — the OBS browser source
   stayed blank with no indication anything was wrong. SDK now shows an in-overlay banner
   ("Widget token invalid or revoked — reconnect from the dashboard") on 401/403, clears it on the next
-  successful ticket fetch; token validation logic itself untouched. **Still open**: per-widget tokens +
-  staged rotation + post-rotate URL list; inline preview; resume without reload; settings form by schema
-  availability; asset/sound/font field types (no backend field type for these exists yet — needs a schema
-  contract addition first); editable subscriptions (blocked on S085's `domain.action` naming realignment
-  landing first — building this against today's ad-hoc event names would need re-doing); gallery
-  version/update; sound upload limits (U·B5). Done-when: add → copy → test → live from one row.
+  successful ticket fetch; token validation logic itself untouched.
+  **Resume without reload DONE, verified (22a75bc8)**: a REAL bug the banner slice didn't fix — the SDK
+  bootstrap forced `location.reload()` on every join after the first (`hadPriorConnection` flag), so a
+  successful reconnect discarded the whole page instead of resuming. Removed the reload gate;
+  `initialState` (the widget's saved settings) is now re-applied via `applySettings` on every successful
+  join, first connect and reconnect alike. Test asserts the served SDK's join handler calls
+  `applySettings` unconditionally and contains no `location.reload()`.
+  **Sound upload limits DONE, verified (own test-file addition)**: found the 10MB cap already fully
+  enforced in two layers (`[RequestSizeLimit]` at Kestrel + a buffer-length check in
+  `SoundClipService.UploadAsync` returning a clear `SIZE_EXCEEDED` error before any persistence) — no
+  code change needed, just no proving test existed. New `SoundClipServiceUploadLimitTests.cs`: an
+  over-cap upload is rejected and never reaches the DB or blob store; an in-limit upload persists both.
+  **Still open**: per-widget tokens + staged rotation + post-rotate URL list; inline preview; settings
+  form by schema availability; asset/sound/font field types (no backend field type for these exists yet
+  — needs a schema contract addition first); editable subscriptions (blocked on S085's `domain.action`
+  naming realignment landing first — building this against today's ad-hoc event names would need
+  re-doing); gallery version/update (U·B5). Done-when: add → copy → test → live from one row.
 - **S063** Rewards reach — DONE, closed (0940f891, 737d1a7a, bced87e4, 48e93130). Most severe finding: reward
   create never actually pushed to Twitch (`CreateCustomRewardAsync` had exactly one caller in the whole
   codebase) — a dashboard-created reward could never be redeemed. Fixed alongside the `Response`/
