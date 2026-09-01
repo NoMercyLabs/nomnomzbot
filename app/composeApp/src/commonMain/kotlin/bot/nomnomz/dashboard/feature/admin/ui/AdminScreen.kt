@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
+import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
@@ -162,6 +163,11 @@ fun AdminScreen(controller: AdminController) {
             }
         }
 
+        // The top-level load error (stats/channels/users/system) was set on AdminState.error by
+        // AdminController.load() but never rendered anywhere — a failed initial load left the panel silently
+        // empty with no indication anything had gone wrong. Render it here so it is visible under every tab.
+        AdminLoadErrorBanner(error = state.error)
+
         if (state.isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Spinner(color = tokens.primary)
@@ -186,6 +192,18 @@ fun AdminScreen(controller: AdminController) {
 private const val TAB_IAM: Int = 6
 private const val TAB_TENANTS: Int = 7
 private const val TAB_AUDIT: Int = 8
+
+/**
+ * Renders [error] as a destructive banner when set, nothing otherwise. Extracted from [AdminScreen] so it can be
+ * mounted directly in a Compose UI test without constructing a full [AdminController] — see AdminScreenTest.
+ */
+@Composable
+internal fun AdminLoadErrorBanner(error: String?) {
+    val spacing = LocalSpacing.current
+    error?.let {
+        ActionErrorBanner(message = it, modifier = Modifier.padding(horizontal = spacing.s6, vertical = spacing.s2))
+    }
+}
 
 /**
  * A small pill reflecting the AdminHub connection: filled when the live heartbeat is flowing, muted-outline
