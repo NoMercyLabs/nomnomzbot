@@ -29,6 +29,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Spacer
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
@@ -678,7 +679,12 @@ private fun ActionRequiredRow(item: ActionRequiredItem, onClick: () -> Unit) {
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = item.title,
+                text = resolveRowLabel(
+                    primary = item.title,
+                    secondary = item.message,
+                    typeLabel = item.kind.ifBlank { "Notice" },
+                    discriminatorSource = item.deepLinkRoute,
+                ),
                 style = typography.sm,
                 fontWeight = FontWeight.SemiBold,
                 color = tokens.cardForeground,

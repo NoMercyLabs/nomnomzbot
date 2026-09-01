@@ -22,6 +22,12 @@ import kotlin.test.Test
  * retry), a real error message (Failed/DeadLetter), and the plain Delivered row — rather than a
  * stale/fake view. `NextRetryAt` was fetched into [OutboundDelivery] but silently dropped on the
  * floor before this slice (never rendered by `DeliveryRow`); this test would have caught that.
+ *
+ * Assertions target the timestamp/error/status VALUES only, never the translated label prose
+ * around them ("Next retry: ", "Attempt N ·") — that copy is locale-dependent (the JVM's default
+ * locale drives which `strings*.xml` composeResources resolves, and CI/dev machines are not
+ * guaranteed to run under `en`), so asserting on it here would make the test's pass/fail depend on
+ * the runner's locale rather than on the behavior this test exists to prove.
  */
 @OptIn(ExperimentalTestApi::class)
 class WebhooksDeliveryRowS099cTest {
@@ -51,7 +57,7 @@ class WebhooksDeliveryRowS099cTest {
                 DeliveryRow(delivery(status = "Pending", nextRetryAt = "2026-08-30T12:05:00Z"))
             }
         }
-        onNodeWithText("Next retry: 2026-08-30T12:05:00Z").assertExists()
+        onNodeWithText("2026-08-30T12:05:00Z", substring = true).assertExists()
     }
 
     @Test
@@ -68,8 +74,8 @@ class WebhooksDeliveryRowS099cTest {
                 )
             }
         }
-        onNodeWithText("Connection timed out after 5000ms").assertExists()
-        onNodeWithText("Next retry: 2026-08-30T12:10:00Z").assertExists()
+        onNodeWithText("Connection timed out after 5000ms", substring = true).assertExists()
+        onNodeWithText("2026-08-30T12:10:00Z", substring = true).assertExists()
     }
 
     @Test
@@ -86,8 +92,8 @@ class WebhooksDeliveryRowS099cTest {
                 )
             }
         }
-        onNodeWithText("Endpoint disabled after 20 consecutive failures").assertExists()
-        onNodeWithText("DeadLetter").assertExists()
+        onNodeWithText("Endpoint disabled after 20 consecutive failures", substring = true).assertExists()
+        onNodeWithText("DeadLetter", substring = true).assertExists()
     }
 
     @Test
@@ -97,7 +103,7 @@ class WebhooksDeliveryRowS099cTest {
                 DeliveryRow(delivery(status = "Delivered", responseCode = 200))
             }
         }
-        onNodeWithText("Delivered").assertExists()
-        onNodeWithText("HTTP 200").assertExists()
+        onNodeWithText("Delivered", substring = true).assertExists()
+        onNodeWithText("200", substring = true).assertExists()
     }
 }

@@ -38,6 +38,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.AppSelectField
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
@@ -229,7 +230,16 @@ private fun Composer(watched: List<ChannelSummary>, manage: ManageDecision, onSe
                     ) {
                         watched.forEach { channel ->
                             DropdownMenuItem(
-                                text = { Text(text = channel.displayName.ifBlank { channel.login }) },
+                                text = {
+                                    Text(
+                                        text = resolveRowLabel(
+                                            primary = channel.displayName,
+                                            secondary = channel.login,
+                                            typeLabel = "Channel",
+                                            discriminatorSource = channel.id,
+                                        )
+                                    )
+                                },
                                 onClick = {
                                     targetChannelId = channel.id
                                     channelPickerExpanded = false
