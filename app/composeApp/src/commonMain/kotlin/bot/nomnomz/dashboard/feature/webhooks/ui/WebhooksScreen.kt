@@ -101,6 +101,7 @@ import nomnomzbot.composeapp.generated.resources.webhooks_create_inbound_name
 import nomnomzbot.composeapp.generated.resources.webhooks_create_inbound_name_required
 import nomnomzbot.composeapp.generated.resources.webhooks_create_inbound_secret
 import nomnomzbot.composeapp.generated.resources.webhooks_create_inbound_title
+import nomnomzbot.composeapp.generated.resources.webhooks_create_outbound_body_template
 import nomnomzbot.composeapp.generated.resources.webhooks_create_outbound_confirm
 import nomnomzbot.composeapp.generated.resources.webhooks_create_outbound_dismiss
 import nomnomzbot.composeapp.generated.resources.webhooks_create_outbound_events
@@ -126,6 +127,7 @@ import nomnomzbot.composeapp.generated.resources.webhooks_deliveries_retry
 import nomnomzbot.composeapp.generated.resources.webhooks_deliveries_retrying
 import nomnomzbot.composeapp.generated.resources.webhooks_deliveries_title
 import nomnomzbot.composeapp.generated.resources.webhooks_edit
+import nomnomzbot.composeapp.generated.resources.webhooks_edit_body_template
 import nomnomzbot.composeapp.generated.resources.webhooks_edit_confirm
 import nomnomzbot.composeapp.generated.resources.webhooks_edit_dismiss
 import nomnomzbot.composeapp.generated.resources.webhooks_edit_inbound_title
