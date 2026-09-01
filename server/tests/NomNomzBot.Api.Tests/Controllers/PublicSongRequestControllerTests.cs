@@ -8,9 +8,12 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Net;
+using System.Threading.RateLimiting;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Controllers.V1;
+using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
@@ -21,7 +24,10 @@ namespace NomNomzBot.Api.Tests.Controllers;
 /// <summary>
 /// Proves the public (JWT-less) song-request controller: a viewer submission resolves the page token, refuses when
 /// the channel is closed (409) or the token is unknown (404), and otherwise queues the requested track against the
-/// resolved broadcaster.
+/// resolved broadcaster. Also proves the controller's <c>[EnableRateLimiting(Anonymous)]</c> attribute (S067i) is
+/// backed by a real, working per-IP budget — a viewer who has the public token URL but no account still hits a
+/// throttle, exercised through the exact <see cref="PartitionedRateLimiter{TResource}"/> the middleware uses
+/// (mirrors the established <c>RateLimitTierTests</c> pattern; this test project has no WebApplicationFactory).
 /// </summary>
 public sealed class PublicSongRequestControllerTests
 {
@@ -115,6 +121,82 @@ public sealed class PublicSongRequestControllerTests
                 Arg.Any<string?>(),
                 Arg.Any<int?>(),
                 Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task AnonymousRateLimit_RejectsSpamSubmissionsFromOneIpWellBefore200Calls()
+    {
+        // The exact policy the controller carries: [EnableRateLimiting(RateLimitPolicyNames.Anonymous)].
+        // Without a per-IP throttle, anyone holding the public /sr/{token} URL could spam submissions
+        // (the authenticated dashboard/chat paths already enforce MaxRequestsPerUser, which an anonymous
+        // page submitter has no identity for). This exercises the real PartitionedRateLimiter, not a mock.
+        using PartitionedRateLimiter<HttpContext> limiter = PartitionedRateLimiter.Create<
+            HttpContext,
+            string
+        >(AnonymousRateLimitPolicy.Partition);
+
+        HttpContext SubmissionFrom(string ip)
+        {
+            DefaultHttpContext context = new();
+            context.Connection.RemoteIpAddress = IPAddress.Parse(ip);
+            return context;
+        }
+
+        List<bool> acquired = [];
+        for (int i = 0; i < 200; i++)
+        {
+            using RateLimitLease lease = await limiter.AcquireAsync(
+                SubmissionFrom("198.51.100.23")
+            );
+            acquired.Add(lease.IsAcquired);
+        }
+
+        acquired
+            .Count(x => x)
+            .Should()
+            .Be(
+                AnonymousRateLimitPolicy.PermitLimit,
+                "only the anonymous tier's per-minute budget of song-request submissions from one IP may succeed"
+            );
+        acquired
+            .Count(x => !x)
+            .Should()
+            .BeGreaterThan(
+                0,
+                "spamming the public song-request page must be throttled, not accepted forever"
+            );
+    }
+
+    [Fact]
+    public async Task AnonymousRateLimit_StayingUnderTheLimit_NeverRejectsTheSameIp()
+    {
+        using PartitionedRateLimiter<HttpContext> limiter = PartitionedRateLimiter.Create<
+            HttpContext,
+            string
+        >(AnonymousRateLimitPolicy.Partition);
+
+        HttpContext SubmissionFrom(string ip)
+        {
+            DefaultHttpContext context = new();
+            context.Connection.RemoteIpAddress = IPAddress.Parse(ip);
+            return context;
+        }
+
+        List<bool> acquired = [];
+        for (int i = 0; i < AnonymousRateLimitPolicy.PermitLimit; i++)
+        {
+            using RateLimitLease lease = await limiter.AcquireAsync(
+                SubmissionFrom("198.51.100.99")
+            );
+            acquired.Add(lease.IsAcquired);
+        }
+
+        acquired
+            .Should()
+            .AllSatisfy(
+                x => x.Should().BeTrue(),
+                "a viewer submitting song requests within the sane per-minute budget must never be throttled"
             );
     }
 }
