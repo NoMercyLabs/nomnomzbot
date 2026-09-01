@@ -19,6 +19,33 @@ Slice IDs are stable; the order is the queue.
 
 ---
 
+## OWNER REQUEST 2026-09-01 — bug/UX punch list (jump the queue, dispatched immediately)
+
+Owner's own words, filed as slices S-OWN01..S-OWN19. 🔴 = owner-marked priority, worked first, in
+order. Each still gets the normal treatment (root-cause fix, tested, committed, deleted from here
+when done) — this section is only the intake, not a shortcut around the bar.
+
+- 🔴 **S-OWN01** — bot keeps re-asking for scope permissions the user already granted.
+- **S-OWN02** — permission-request spam in chat must consolidate into one message/notification.
+- **S-OWN03** — code editor needs more themes; at least one Atom One Dark and one light.
+- **S-OWN04** — code formatting in the code editor doesn't apply the configured style rules.
+- **S-OWN05** — code editor import from a separate local file fails (`import SCENES from './scenes';` throws) after extracting an array to its own file.
+- **S-OWN06** — need to delete individual entries from version history, and paginate the history list.
+- 🔴 **S-OWN07** — clicking Connect on a provider with no client credentials configured throws an error instead of opening that provider's onboarding/setup.
+- **S-OWN08** — admin pages (SaaS management: users, providers, settings) need a real UX/DX pass, unchanged since introduction.
+- **S-OWN09** — need proper create/update/delete for system commands, overlays, and pipelines (not just user-authored ones).
+- 🔴 **S-OWN10** — the "extra Spotify section" in Integrations must merge into the one regular Spotify integration; the bot never hosts its own Spotify client — BYOC always, per [[byoc-encouraged-ownership-portability]].
+- 🔴 **S-OWN11** — logo-badge overlay shows wrong data for raids/follows/subs; shoutout announcement template isn't interpolating — likely because the pipeline models a single target instead of one usable with `{target}` (raider name); the raid chat message itself is correct.
+- 🔴 **S-OWN12** — song request over the per-user/queue limit responds with a generic "service not available" instead of a real over-limit message.
+- **S-OWN13** — Alerts & Events page edit dialog doesn't show the currently-chosen pipeline.
+- **S-OWN14** — `!quote <N>` doesn't return the Nth quote correctly.
+- 🔴 **S-OWN15** — Spotify overlay widget updates too slowly; the Stream Deck plugin gets updates fine by comparison — compare transports/push paths.
+- **S-OWN16** — template-variable pickers list templates not actually usable in that context; must filter to what's really usable per surface.
+- **S-OWN17** — the "banger" command's response is an uneditable random id; needs to be a normal editable message plus a playlist-id template helper.
+- **S-OWN18** — subscription-event handling needs to carry over the old bot's "thank you" message behavior, including the "they also said" (sub message) part.
+
+---
+
 ## AT A GLANCE — what is open, in one screen
 
 Read this block first. It is the only summary; everything below is detail.
