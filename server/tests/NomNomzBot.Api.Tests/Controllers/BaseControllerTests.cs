@@ -427,4 +427,53 @@ public class BaseControllerTests
         ((StatusResponseDto<object?>)result.Value!).Data.Should().BeNull();
         ((StatusResponseDto<object?>)result.Value!).Status.Should().Be("ok");
     }
+
+    // ─── S-OWN07: the failure's Result.ErrorCode must reach the wire body ──────
+    //
+    // Before this, every ResultResponse/BadRequestResponse/etc. failure answered with
+    // {"status":"error","message":"..."} and NO machine-readable code — the dashboard could only branch on
+    // the bare HTTP status, so a provider connect with no BYOC client (PROVIDER_NOT_CONFIGURED) was
+    // indistinguishable from any other 4xx/5xx and surfaced as a generic error toast instead of opening the
+    // BYOC onboarding dialog. These prove the code actually lands in the response DTO the client parses.
+
+    [Fact]
+    public void ResultResponse_ProviderNotConfigured_CarriesTheErrorCodeInTheResponseBody()
+    {
+        TestController ctrl = CreateController();
+        ObjectResult result = (ObjectResult)
+            ctrl.TestResultResponse(
+                Result.Failure<object>(
+                    "spotify app credentials are not configured.",
+                    "PROVIDER_NOT_CONFIGURED"
+                )
+            );
+
+        StatusResponseDto<object> body = (StatusResponseDto<object>)result.Value!;
+        body.Code.Should().Be("PROVIDER_NOT_CONFIGURED");
+        body.Status.Should().Be("error");
+    }
+
+    [Fact]
+    public void ResultResponse_Success_LeavesTheCodeFieldNull()
+    {
+        TestController ctrl = CreateController();
+        OkObjectResult result = (OkObjectResult)ctrl.TestResultResponse(Result.Success("value"));
+
+        ((StatusResponseDto<string>)result.Value!).Code.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("NOT_FOUND")]
+    [InlineData("RATE_LIMITED")]
+    [InlineData("INTERNAL_ERROR")]
+    public void ResultResponse_EveryStatusClass_StillCarriesTheErrorCode(string code)
+    {
+        // The code must ride along regardless of which HTTP status class the ErrorCode maps to — not just
+        // the one branch S-OWN07 depends on.
+        TestController ctrl = CreateController();
+        ObjectResult result = (ObjectResult)
+            ctrl.TestResultResponse(Result.Failure<object>("failed", code));
+
+        ((StatusResponseDto<object>)result.Value!).Code.Should().Be(code);
+    }
 }

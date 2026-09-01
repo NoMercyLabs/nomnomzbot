@@ -33,59 +33,93 @@ namespace NomNomzBot.Api.Controllers;
 [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status500InternalServerError)]
 public abstract class BaseController : ControllerBase
 {
-    protected IActionResult UnauthenticatedResponse(string? message = null) =>
+    protected IActionResult UnauthenticatedResponse(string? message = null, string? code = null) =>
         Unauthorized(
-            new StatusResponseDto<object> { Status = "error", Message = message ?? "Unauthorized" }
+            new StatusResponseDto<object>
+            {
+                Status = "error",
+                Message = message ?? "Unauthorized",
+                Code = code,
+            }
         );
 
-    protected IActionResult UnauthorizedResponse(string? message = null) =>
+    protected IActionResult UnauthorizedResponse(string? message = null, string? code = null) =>
         StatusCode(
             403,
-            new StatusResponseDto<object> { Status = "error", Message = message ?? "Forbidden" }
+            new StatusResponseDto<object>
+            {
+                Status = "error",
+                Message = message ?? "Forbidden",
+                Code = code,
+            }
         );
 
-    protected IActionResult BadRequestResponse(string? message = null) =>
+    protected IActionResult BadRequestResponse(string? message = null, string? code = null) =>
         BadRequest(
-            new StatusResponseDto<object> { Status = "error", Message = message ?? "Bad request" }
+            new StatusResponseDto<object>
+            {
+                Status = "error",
+                Message = message ?? "Bad request",
+                Code = code,
+            }
         );
 
-    protected IActionResult NotFoundResponse(string? message = null) =>
+    protected IActionResult NotFoundResponse(string? message = null, string? code = null) =>
         NotFound(
-            new StatusResponseDto<object> { Status = "error", Message = message ?? "Not found" }
+            new StatusResponseDto<object>
+            {
+                Status = "error",
+                Message = message ?? "Not found",
+                Code = code,
+            }
         );
 
-    protected IActionResult ConflictResponse(string? message = null) =>
+    protected IActionResult ConflictResponse(string? message = null, string? code = null) =>
         Conflict(
-            new StatusResponseDto<object> { Status = "error", Message = message ?? "Conflict" }
+            new StatusResponseDto<object>
+            {
+                Status = "error",
+                Message = message ?? "Conflict",
+                Code = code,
+            }
         );
 
-    protected IActionResult TooManyRequestsResponse(string? message = null) =>
+    protected IActionResult TooManyRequestsResponse(string? message = null, string? code = null) =>
         StatusCode(
             429,
             new StatusResponseDto<object>
             {
                 Status = "error",
                 Message = message ?? "Too many requests",
+                Code = code,
             }
         );
 
-    protected IActionResult InternalServerErrorResponse(string? message = null) =>
+    protected IActionResult InternalServerErrorResponse(
+        string? message = null,
+        string? code = null
+    ) =>
         StatusCode(
             500,
             new StatusResponseDto<object>
             {
                 Status = "error",
                 Message = message ?? "Internal server error",
+                Code = code,
             }
         );
 
-    protected IActionResult ServiceUnavailableResponse(string? message = null) =>
+    protected IActionResult ServiceUnavailableResponse(
+        string? message = null,
+        string? code = null
+    ) =>
         StatusCode(
             503,
             new StatusResponseDto<object>
             {
                 Status = "error",
                 Message = message ?? "Service unavailable",
+                Code = code,
             }
         );
 
@@ -129,7 +163,8 @@ public abstract class BaseController : ControllerBase
             or "SESSION_NOT_ACTIVE"
             or "UNAUTHENTICATED"
             or TwitchErrorCodes.Unauthorized => UnauthenticatedResponse(
-                WithDetail(result.ErrorMessage, result.ErrorDetail)
+                WithDetail(result.ErrorMessage, result.ErrorDetail),
+                result.ErrorCode
             ),
             "FORBIDDEN"
             or "FEATURE_DISABLED"
@@ -154,7 +189,8 @@ public abstract class BaseController : ControllerBase
             or "PROJECT_DEPENDENCY_NOT_ALLOWED"
             or "WIDGET_DEPENDENCY_NOT_ALLOWED"
             or "TENANT_MISMATCH" => UnauthorizedResponse(
-                WithDetail(result.ErrorMessage, result.ErrorDetail)
+                WithDetail(result.ErrorMessage, result.ErrorDetail),
+                result.ErrorCode
             ),
             "NOT_FOUND"
             or TwitchErrorCodes.NotFound
@@ -176,7 +212,8 @@ public abstract class BaseController : ControllerBase
             or "WIDGET_NO_SETTINGS_SCHEMA"
             or "PROJECT_ENTRY_MISSING"
             or "WIDGET_PROJECT_ENTRY_MISSING" => NotFoundResponse(
-                WithDetail(result.ErrorMessage, result.ErrorDetail)
+                WithDetail(result.ErrorMessage, result.ErrorDetail),
+                result.ErrorCode
             ),
             "VALIDATION_FAILED"
             or "BET_OUT_OF_RANGE"
@@ -206,7 +243,8 @@ public abstract class BaseController : ControllerBase
             or "GAME_NOT_CONFIGURED"
             or "NO_SCOPES"
             or "NO_TENANT" => BadRequestResponse(
-                WithDetail(result.ErrorMessage, result.ErrorDetail)
+                WithDetail(result.ErrorMessage, result.ErrorDetail),
+                result.ErrorCode
             ),
             "ALREADY_EXISTS"
             or "MIGRATION_PENDING_EXTERNAL_REMOVAL"
@@ -255,19 +293,25 @@ public abstract class BaseController : ControllerBase
             or "KEY_DESTROYED"
             or "PROJECTION_RUN_IN_PROGRESS"
             or "FIRST_PARTY_IMMUTABLE" => ConflictResponse(
-                WithDetail(result.ErrorMessage, result.ErrorDetail)
+                WithDetail(result.ErrorMessage, result.ErrorDetail),
+                result.ErrorCode
             ),
             // Discord upstream results are never our fault (500). An invalid/expired bot token or a missing
             // connection is an actionable "reconnect the Discord bot" state → 409, so the client shows a
             // reconnect prompt instead of a generic failure; other upstream conditions map to their true class.
             "DISCORD_UNAUTHORIZED" or "DISCORD_NOT_CONNECTED" => ConflictResponse(
-                WithDetail(result.ErrorMessage, result.ErrorDetail)
+                WithDetail(result.ErrorMessage, result.ErrorDetail),
+                result.ErrorCode
             ),
             "DISCORD_NOT_FOUND" => NotFoundResponse(
-                WithDetail(result.ErrorMessage, result.ErrorDetail)
+                WithDetail(result.ErrorMessage, result.ErrorDetail),
+                result.ErrorCode
             ),
             "RATE_LIMITED" or "DISCORD_RATE_LIMITED" or TwitchErrorCodes.RateLimited =>
-                TooManyRequestsResponse(WithDetail(result.ErrorMessage, result.ErrorDetail)),
+                TooManyRequestsResponse(
+                    WithDetail(result.ErrorMessage, result.ErrorDetail),
+                    result.ErrorCode
+                ),
             "SERVICE_UNAVAILABLE"
             or "MARKETPLACE_UNAVAILABLE"
             or "DISCORD_ERROR"
@@ -293,7 +337,8 @@ public abstract class BaseController : ControllerBase
             or "OBS_WRONG_MODE"
             or "EMOTE_PROVIDER_ERROR"
             or "WIDGET_BUILD_TOOL_UNAVAILABLE" => ServiceUnavailableResponse(
-                WithDetail(result.ErrorMessage, result.ErrorDetail)
+                WithDetail(result.ErrorMessage, result.ErrorDetail),
+                result.ErrorCode
             ),
             // Genuinely internal — our own machinery (journal append, projections, crypto, token exchange,
             // import/export, provisioning) faulted; there is no client action that avoids this, so 500 is the
@@ -315,9 +360,13 @@ public abstract class BaseController : ControllerBase
             or "DEVICE_TRANSFER_FAILED"
             or "UPCASTER_CHAIN_BROKEN"
             or "INTERNAL_ERROR" => InternalServerErrorResponse(
-                WithDetail(result.ErrorMessage, result.ErrorDetail)
+                WithDetail(result.ErrorMessage, result.ErrorDetail),
+                result.ErrorCode
             ),
-            _ => InternalServerErrorResponse(WithDetail(result.ErrorMessage, result.ErrorDetail)),
+            _ => InternalServerErrorResponse(
+                WithDetail(result.ErrorMessage, result.ErrorDetail),
+                result.ErrorCode
+            ),
         };
     }
 

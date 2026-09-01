@@ -387,6 +387,30 @@ public class SystemController : BaseController
         return Ok(new StatusResponseDto<object> { Message = "Spotify credentials saved." });
     }
 
+    /// <summary>
+    /// Save system-level Kick app credentials — the same shared-app slot the generic vaulted OAuth flow
+    /// (<c>ChannelCredentialsResolver</c> / <c>IntegrationOAuthService</c>) reads for both the streamer's own
+    /// Kick connection and the separate Kick bot connection (<c>CredentialsProvider="kick"</c> for both — see
+    /// <c>OAuthProviderRegistry</c>), so registering it here unblocks connecting either row.
+    /// </summary>
+    [HttpPut("setup/credentials/kick")]
+    [EnableRateLimiting("auth")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SaveKickCredentials(
+        [FromBody] SaveCredentialRequest request,
+        CancellationToken ct
+    )
+    {
+        if (await IsSetupCompleteAsync(ct) && !User.IsInRole("admin"))
+            return Forbid();
+
+        await UpsertSystemConfig("kick.client_id", request.ClientId, ct);
+        await UpsertSystemConfig("kick.client_secret", request.ClientSecret, secure: true, ct: ct);
+        await _db.SaveChangesAsync(ct);
+
+        return Ok(new StatusResponseDto<object> { Message = "Kick credentials saved." });
+    }
+
     /// <summary>Save system-level Discord app credentials.</summary>
     [HttpPut("setup/credentials/discord")]
     [EnableRateLimiting("auth")]

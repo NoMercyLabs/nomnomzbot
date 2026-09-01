@@ -99,10 +99,12 @@ public class IntegrationOAuthController : BaseController
             ct
         );
 
-        // A start failure is always a client error (unknown provider / scope-set), not a server fault.
+        // A start failure carries its Result.ErrorCode (e.g. PROVIDER_NOT_CONFIGURED) in the response body so the
+        // dashboard can branch on WHY — opening the BYOC onboarding dialog instead of a generic error toast —
+        // rather than only seeing an opaque HTTP status.
         return result.IsSuccess
             ? Ok(new StatusResponseDto<OAuthStartDto> { Data = result.Value })
-            : BadRequestResponse(result.ErrorMessage);
+            : ResultResponse(result);
     }
 
     /// <summary>

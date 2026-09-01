@@ -23,6 +23,16 @@ public record StatusResponseDto<T>
     [JsonPropertyName("message")]
     public string? Message { get; set; }
 
+    /// <summary>
+    /// The failure's machine-readable <c>Result.ErrorCode</c> (e.g. <c>PROVIDER_NOT_CONFIGURED</c>) — absent on
+    /// success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+    /// into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+    /// generic error toast) reads this field.
+    /// </summary>
+    [JsonPropertyName("code")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Code { get; set; }
+
     [JsonPropertyName("args")]
     public dynamic[]? Args { get; set; } = [];
 }
