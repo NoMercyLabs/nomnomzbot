@@ -4190,6 +4190,7 @@
     <string name="template_helper_months">Cumulative months subscribed</string>
     <string name="template_helper_streak">Consecutive months subscribed</string>
     <string name="template_helper_message">The message attached to the event (a resub or cheer message)</string>
+    <string name="template_helper_also_said">"They also said: ..." — the resub message, pre-formatted with a lead-in and quotes; empty when the resubscriber didn't write one</string>
     <string name="template_helper_event_count">How many were gifted (gift subscriptions)</string>
     <string name="template_helper_anonymous">Whether the sender chose to stay anonymous ("true"/"false")</string>
     <string name="template_helper_bits">How many bits were cheered</string>

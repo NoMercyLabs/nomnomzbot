@@ -47,7 +47,7 @@ public static class EventResponsePresetCatalog
         Preset("channel.subscribe", ["user", "user.id", "tier"]),
         Preset(
             "channel.subscription.message",
-            ["user", "user.id", "tier", "months", "streak", "message"]
+            ["user", "user.id", "tier", "months", "streak", "message", "also_said"]
         ),
         Preset("channel.subscription.gift", ["user", "user.id", "tier", "count", "anonymous"]),
         Preset("channel.cheer", ["user", "user.id", "bits", "message", "anonymous"]),

@@ -90,6 +90,15 @@ public sealed class ResubscriptionEventHandler
             ["months"] = e.CumulativeMonths.ToString(),
             ["streak"] = e.StreakMonths.ToString(),
             ["message"] = e.Message ?? string.Empty,
+            // Pre-formatted "they also said" addendum — the template engine has no {{#if}} block syntax
+            // (TemplateResolver.VariablePattern is flat substitution only), so an optional fragment is
+            // carried as a variable that already resolves to the full clause, or to an empty string when
+            // the resubscriber didn't write anything — matching {tier}/{stream.uptime}'s own pattern of a
+            // fully pre-formatted, never-raw value. Wording matches the old bot's resub/cheer/watch-streak
+            // "They also said: ..." convention (NoMercyBot.Services.Twitch.WatchStreakService).
+            ["also_said"] = string.IsNullOrWhiteSpace(e.Message)
+                ? string.Empty
+                : $" They also said: \"{e.Message}\"",
             ["provider"] = e.Provider,
         };
 

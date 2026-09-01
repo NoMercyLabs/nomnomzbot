@@ -4175,6 +4175,7 @@
     <string name="template_helper_months">Cumulatief aantal maanden geabonneerd</string>
     <string name="template_helper_streak">Aantal opeenvolgende maanden geabonneerd</string>
     <string name="template_helper_message">Het bericht bij de gebeurtenis (een resub- of cheerbericht)</string>
+    <string name="template_helper_also_said">"Ze zeiden ook: ..." — het resub-bericht, al opgemaakt met inleiding en aanhalingstekens; leeg als de resubscriber niets schreef</string>
     <string name="template_helper_event_count">Hoeveel er zijn weggegeven (gift-abonnementen)</string>
     <string name="template_helper_anonymous">Of de gever anoniem wilde blijven ("true"/"false")</string>
     <string name="template_helper_bits">Hoeveel bits er zijn gecheerd</string>
