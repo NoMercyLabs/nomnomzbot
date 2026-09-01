@@ -125,7 +125,7 @@ data class HubChatMessage(
     val provider: String = "twitch",
 )
 
-/** One fragment of a hub chat message — type is "text" | "emote" | "cheermote" | "mention" | "link". */
+/** One fragment of a hub chat message — type is "text" | "emote" | "cheermote" | "mention" | "link" | "gif". */
 @Serializable
 data class HubChatFragment(
     val type: String = "text",
@@ -134,7 +134,15 @@ data class HubChatFragment(
     val cheermote: HubChatCheermote? = null,
     val mention: HubChatMention? = null,
     val linkUrl: String? = null,
+    val gif: HubChatGif? = null,
 )
+
+/**
+ * Twitch's native chat GIF fragment (GIPHY-backed, Tier 2+ subscriber feature): the payload already carries a
+ * directly-fetchable url — no separate resolve step, unlike media-share's clip/video lookups.
+ */
+@Serializable
+data class HubChatGif(val gifId: String = "", val url: String = "")
 
 /** Resolved emote (Twitch + third-party unified). Urls keyed by scale "1".."4". */
 @Serializable

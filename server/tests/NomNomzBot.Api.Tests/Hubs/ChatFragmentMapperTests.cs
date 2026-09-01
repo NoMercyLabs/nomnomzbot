@@ -145,6 +145,30 @@ public sealed class ChatFragmentMapperTests
         dto.Mention.Should().BeNull();
         dto.LinkUrl.Should().BeNull();
         dto.LinkPreview.Should().BeNull();
+        dto.Gif.Should().BeNull();
+    }
+
+    [Fact]
+    public void MapFragment_carries_the_native_gif_s_real_url_not_a_placeholder()
+    {
+        // Regression for the priority bug reported 2026-09-01: Twitch's native chat GIF fragment (GIPHY-backed,
+        // Tier 2+ subscriber feature) already carries a real, directly-fetchable url — the mapper must carry
+        // it straight onto the wire DTO, never drop it or substitute anything else.
+        ChatMessageFragment fragment = new()
+        {
+            Type = "gif",
+            Text = "Cat Festival GIF by W&W",
+            GifId = "abc123",
+            GifUrl = "https://media.giphy.com/media/abc123/giphy.gif",
+        };
+
+        ChatFragmentDto dto = ChatFragmentMapper.MapFragment(fragment);
+
+        dto.Type.Should().Be("gif");
+        dto.Text.Should().Be("Cat Festival GIF by W&W");
+        dto.Gif.Should().NotBeNull();
+        dto.Gif!.GifId.Should().Be("abc123");
+        dto.Gif.Url.Should().Be("https://media.giphy.com/media/abc123/giphy.gif");
     }
 
     [Fact]

@@ -51,7 +51,7 @@ public record DashboardChatMessageDto(
     string Provider = "twitch"
 );
 
-/// <summary>A single fragment of a chat message: text | emote | cheermote | mention | link.</summary>
+/// <summary>A single fragment of a chat message: text | emote | cheermote | mention | link | gif.</summary>
 public record ChatFragmentDto(
     string Type,
     string Text,
@@ -59,8 +59,15 @@ public record ChatFragmentDto(
     ChatCheermoteDto? Cheermote,
     ChatMentionDto? Mention,
     string? LinkUrl,
-    ChatLinkPreviewDto? LinkPreview
+    ChatLinkPreviewDto? LinkPreview,
+    ChatGifDto? Gif = null
 );
+
+/// <summary>
+/// Twitch's native chat GIF fragment data (GIPHY-backed, Tier 2+ subscriber feature): the wire payload already
+/// carries a directly-fetchable url, so — unlike emotes/cheermotes/badges — there is no separate resolve step.
+/// </summary>
+public record ChatGifDto(string GifId, string Url);
 
 /// <summary>OpenGraph link-preview data (chat-decoration spec §3.5); fields are null when the page exposes no tags.</summary>
 public record ChatLinkPreviewDto(string Host, string? Title, string? Description, string? ImageUrl);

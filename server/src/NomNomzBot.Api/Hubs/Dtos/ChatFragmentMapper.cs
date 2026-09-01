@@ -63,6 +63,9 @@ public static class ChatFragmentMapper
                     Description: fragment.LinkPreview.Description,
                     ImageUrl: fragment.LinkPreview.ImageUrl
                 )
+                : null,
+            Gif: fragment.GifUrl is not null
+                ? new ChatGifDto(GifId: fragment.GifId ?? string.Empty, Url: fragment.GifUrl)
                 : null
         );
 

@@ -53,6 +53,7 @@ internal static class ChatPayload
         JsonElement? emote = fragment.GetObject("emote");
         JsonElement? cheermote = fragment.GetObject("cheermote");
         JsonElement? mention = fragment.GetObject("mention");
+        JsonElement? gif = fragment.GetObject("gif");
 
         return new()
         {
@@ -68,6 +69,10 @@ internal static class ChatPayload
             MentionUserId = mention?.GetString("user_id"),
             MentionUserLogin = mention?.GetString("user_login"),
             MentionUserName = mention?.GetString("user_name"),
+            // Native chat GIF (GIPHY-backed, Tier 2+ subscriber feature): unlike media-share, Twitch hands us
+            // the ready-to-render url directly on the fragment — no clip/video lookup needed.
+            GifId = gif?.GetString("gif_id"),
+            GifUrl = gif?.GetString("url"),
         };
     }
 
