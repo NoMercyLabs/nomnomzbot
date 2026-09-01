@@ -30,6 +30,8 @@ const HOST_MESSAGE = Object.freeze({
 // Pinned, and single-sourced: the AMD loader, the module root and the stylesheet must never drift apart.
 // Overridable via `data-monaco-base` on <html> so a deployment can serve Monaco from its own origin instead
 // of a public CDN. Read off the root element, not `document.currentScript` — that is always null in a module.
+const EDITOR_TAB_SIZE = 2;
+
 const MONACO_BASE =
     document.documentElement.dataset.monacoBase ??
     'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs';
@@ -148,6 +150,7 @@ function modelFor(path) {
     const model =
         state.monaco.editor.getModel(uri) ??
         state.monaco.editor.createModel(state.files.get(path) ?? '', languageOf(path), uri);
+    model.updateOptions({ tabSize: EDITOR_TAB_SIZE, insertSpaces: true });
     model.onDidChangeContent(() => state.preview?.schedule());
     state.models.set(path, model);
     return model;
@@ -397,7 +400,7 @@ function createEditor(monaco) {
         inlayHints: { enabled: 'on' },
         occurrencesHighlight: 'singleFile',
         multiCursorModifier: 'ctrlCmd',
-        tabSize: 2,
+        tabSize: EDITOR_TAB_SIZE,
         rulers: [100],
         padding: { top: 10, bottom: 10 },
     });
