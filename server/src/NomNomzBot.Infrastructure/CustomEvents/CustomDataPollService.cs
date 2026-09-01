@@ -37,7 +37,22 @@ internal sealed class CustomDataPollService : ICustomDataPollService
     /// <summary>Fallback cadence when a poll source has no explicit interval (defensive; poll sources set one).</summary>
     private const int DefaultPollIntervalSeconds = 60;
 
+    /// <summary>Consecutive fetch failures at which a source auto-disables — mirrors
+    /// <c>OutboundWebhookDispatcher.AutoDisableThreshold</c> (S099a) for consistency across the two
+    /// egress-reliability surfaces.</summary>
+    private const int AutoDisableThreshold = 20;
+
     private const string SecretProvider = "customdata";
+
+    /// <summary>The outcome of one fetch attempt, used to update the source's reliability fields.</summary>
+    private enum PollOutcome
+    {
+        /// <summary>Config-level reject (malformed URL, non-allowlisted host) — no fetch was attempted, so the
+        /// failure counter and backoff are left untouched.</summary>
+        Skipped,
+        Success,
+        Failure,
+    }
 
     private readonly IApplicationDbContext _db;
     private readonly ITokenProtector _tokenProtector;
@@ -84,13 +99,18 @@ internal sealed class CustomDataPollService : ICustomDataPollService
             // Stamp the attempt BEFORE fetching so a fault (or an SSRF-gate skip) still counts as an attempt —
             // otherwise a source that never reaches a success would be re-attempted every ~5 s scan tick.
             _attempts.RecordAttempt(source.Id, now);
+            source.LastAttemptAt = now.UtcDateTime;
 
+            PollOutcome outcome;
+            string? errorMessage = null;
             try
             {
-                await PollSourceAsync(source, ct);
+                (outcome, errorMessage) = await PollSourceAsync(source, ct);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
+                outcome = PollOutcome.Failure;
+                errorMessage = ex.Message;
                 _logger.LogWarning(
                     ex,
                     "Custom data poll for source '{Source}' on channel {Channel} faulted.",
@@ -98,14 +118,78 @@ internal sealed class CustomDataPollService : ICustomDataPollService
                     source.BroadcasterId
                 );
             }
+
+            ApplyOutcome(source, outcome, errorMessage, now);
+
+            // Success already saved LastReceivedAt via the ingest path (same DbContext instance), but a
+            // Failure/Skipped outcome — and the LastAttemptAt stamp above — still need to be flushed.
+            await _db.SaveChangesAsync(ct);
+        }
+    }
+
+    /// <summary>
+    /// Applies the S100a reliability bookkeeping to the source's tracked entity: resets the failure streak on
+    /// success, or increments it and schedules a capped+jittered backoff on failure — auto-disabling the source
+    /// once <see cref="AutoDisableThreshold"/> consecutive failures is reached, mirroring
+    /// <c>OutboundWebhookDispatcher.ApplyOutcomeAsync</c> (S099a). A <see cref="PollOutcome.Skipped"/> outcome
+    /// (config-level reject, no fetch attempted) leaves the failure counter and backoff untouched.
+    /// </summary>
+    private void ApplyOutcome(
+        CustomDataSource source,
+        PollOutcome outcome,
+        string? errorMessage,
+        DateTimeOffset now
+    )
+    {
+        switch (outcome)
+        {
+            case PollOutcome.Success:
+                source.ConsecutiveFailureCount = 0;
+                source.LastError = null;
+                source.NextRetryAt = null;
+                break;
+
+            case PollOutcome.Failure:
+                source.ConsecutiveFailureCount++;
+                source.LastError = errorMessage is { Length: > 1000 }
+                    ? errorMessage[..1000]
+                    : errorMessage;
+
+                if (source.ConsecutiveFailureCount >= AutoDisableThreshold)
+                {
+                    source.IsEnabled = false;
+                    source.DisabledAt = now.UtcDateTime;
+                    source.DisabledReason = "Too many consecutive fetch failures.";
+                    source.NextRetryAt = null;
+                    _logger.LogWarning(
+                        "Custom data poll source '{Source}' on channel {Channel} auto-disabled after {Count} consecutive failures.",
+                        source.Name,
+                        source.BroadcasterId,
+                        source.ConsecutiveFailureCount
+                    );
+                }
+                else
+                {
+                    source.NextRetryAt = now.UtcDateTime.Add(
+                        CustomDataPollBackoffPolicy.ComputeDelay(source.ConsecutiveFailureCount)
+                    );
+                }
+                break;
+
+            case PollOutcome.Skipped:
+            default:
+                break;
         }
     }
 
     /// <summary>
     /// Due when the configured interval has elapsed since the last <em>attempt</em> — where the last attempt is the
     /// later of the DB <c>LastReceivedAt</c> (stamped only on a successful ingest) and the in-memory last-attempt
-    /// stamp (recorded on every attempt, success or fail). Gating on attempts, not just successes, keeps a
-    /// persistently-failing source on its interval instead of hammering the host every scan tick.
+    /// stamp (recorded on every attempt, success or fail) — AND, when a S100a backoff is pending
+    /// (<see cref="CustomDataSource.NextRetryAt"/> set by a prior failure), the backoff window has also elapsed.
+    /// Gating on attempts, not just successes, keeps a persistently-failing source on its interval instead of
+    /// hammering the host every scan tick; the backoff check on top of that prevents a short poll interval from
+    /// overriding a capped+jittered retry delay after repeated failures.
     /// </summary>
     private bool IsDue(CustomDataSource source, DateTimeOffset now)
     {
@@ -116,11 +200,25 @@ internal sealed class CustomDataPollService : ICustomDataPollService
             );
         DateTimeOffset? lastActivity = Latest(lastReceived, _attempts.LastAttempt(source.Id));
 
+        bool dueByInterval;
         if (lastActivity is null)
+            dueByInterval = true;
+        else
+        {
+            int intervalSeconds = source.PollIntervalSeconds ?? DefaultPollIntervalSeconds;
+            dueByInterval = now - lastActivity.Value >= TimeSpan.FromSeconds(intervalSeconds);
+        }
+
+        if (!dueByInterval)
+            return false;
+
+        if (source.NextRetryAt is null)
             return true;
 
-        int intervalSeconds = source.PollIntervalSeconds ?? DefaultPollIntervalSeconds;
-        return now - lastActivity.Value >= TimeSpan.FromSeconds(intervalSeconds);
+        DateTimeOffset nextRetryAt = new(
+            DateTime.SpecifyKind(source.NextRetryAt.Value, DateTimeKind.Utc)
+        );
+        return now >= nextRetryAt;
     }
 
     /// <summary>The later of two optional instants (either may be null).</summary>
@@ -133,7 +231,10 @@ internal sealed class CustomDataPollService : ICustomDataPollService
         return a.Value >= b.Value ? a : b;
     }
 
-    private async Task PollSourceAsync(CustomDataSource source, CancellationToken ct)
+    private async Task<(PollOutcome Outcome, string? ErrorMessage)> PollSourceAsync(
+        CustomDataSource source,
+        CancellationToken ct
+    )
     {
         if (
             string.IsNullOrWhiteSpace(source.EndpointUrl)
@@ -145,7 +246,7 @@ internal sealed class CustomDataPollService : ICustomDataPollService
                 source.Name,
                 source.BroadcasterId
             );
-            return;
+            return (PollOutcome.Skipped, null);
         }
 
         // ── SSRF gate ──────────────────────────────────────────────────────────────────────────
@@ -169,7 +270,7 @@ internal sealed class CustomDataPollService : ICustomDataPollService
                 source.BroadcasterId,
                 host
             );
-            return;
+            return (PollOutcome.Skipped, null);
         }
 
         // Unseal the optional bearer credential with the exact context CustomDataSourceService sealed it under.
@@ -190,38 +291,45 @@ internal sealed class CustomDataPollService : ICustomDataPollService
 
         if (!response.IsSuccessStatusCode)
         {
+            string message = $"HTTP {(int)response.StatusCode} from the endpoint.";
             _logger.LogWarning(
-                "Custom data poll source '{Source}' on channel {Channel} got HTTP {Status} from the endpoint.",
+                "Custom data poll source '{Source}' on channel {Channel} got {Message}",
                 source.Name,
                 source.BroadcasterId,
-                (int)response.StatusCode
+                message
             );
-            return;
+            return (PollOutcome.Failure, message);
         }
 
         (bool oversize, string body) = await ReadBoundedAsync(response, ct);
         if (oversize)
         {
+            string message = $"Response body exceeded the {MaxResponseBytes} byte cap.";
             _logger.LogWarning(
                 "Custom data poll source '{Source}' on channel {Channel} returned a body over the {Cap} byte cap — skipped.",
                 source.Name,
                 source.BroadcasterId,
                 MaxResponseBytes
             );
-            return;
+            return (PollOutcome.Failure, message);
         }
 
         if (body.Length == 0)
-            return; // empty 2xx — nothing to ingest, just wait for the next interval.
+            return (PollOutcome.Success, null); // empty 2xx — nothing to ingest, just wait for the next interval.
 
         Result ingested = await _ingest.IngestAsync(source.BroadcasterId, source.Name, body, ct);
         if (ingested.IsFailure)
+        {
             _logger.LogWarning(
                 "Custom data poll ingest failed for source '{Source}' on channel {Channel}: {Error}",
                 source.Name,
                 source.BroadcasterId,
                 ingested.ErrorMessage
             );
+            return (PollOutcome.Failure, ingested.ErrorMessage);
+        }
+
+        return (PollOutcome.Success, null);
     }
 
     /// <summary>

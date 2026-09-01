@@ -68,6 +68,27 @@ public class CustomDataSource : SoftDeletableEntity, ITenantScoped
 
     public DateTime? LastReceivedAt { get; set; }
 
+    /// <summary>Instant of the last fetch attempt (success OR failure) — poll sources only (S100a).</summary>
+    public DateTime? LastAttemptAt { get; set; }
+
+    /// <summary>The last fetch/ingest error message, or null after a successful attempt (S100a).</summary>
+    [MaxLength(1000)]
+    public string? LastError { get; set; }
+
+    /// <summary>Consecutive failed attempts since the last success; reset to 0 on success (S100a).</summary>
+    public int ConsecutiveFailureCount { get; set; }
+
+    /// <summary>Earliest instant the next poll attempt may run, set by <c>CustomDataPollBackoffPolicy</c> after a
+    /// failure and cleared on success (S100a). Null when there is no pending backoff.</summary>
+    public DateTime? NextRetryAt { get; set; }
+
+    /// <summary>Set when <see cref="IsEnabled"/> was auto-disabled after crossing the failure threshold (S100a).</summary>
+    public DateTime? DisabledAt { get; set; }
+
+    /// <summary>Human-readable reason the source was auto-disabled (S100a).</summary>
+    [MaxLength(500)]
+    public string? DisabledReason { get; set; }
+
     public Guid CreatedByUserId { get; set; }
 
     // ── Navigations ─────────────────────────────────────────────────────────────
