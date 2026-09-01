@@ -25,7 +25,6 @@ Owner's own words, filed as slices S-OWN01..S-OWN19. 🔴 = owner-marked priorit
 order. Each still gets the normal treatment (root-cause fix, tested, committed, deleted from here
 when done) — this section is only the intake, not a shortcut around the bar.
 
-- **S-OWN05** — code editor import from a separate local file fails (`import SCENES from './scenes';` throws) after extracting an array to its own file.
 - **S-OWN08-remaining** — admin pages (SaaS management: users, providers, settings) UX/DX pass. Owner: "the
   admin pages have not changed one bit and really need a better ux and dx interface for managing the saas
   version of the bot. this includes the ability to manage users, providers, and other settings." First slice
