@@ -129,6 +129,11 @@ class MusicController(
                 channel.login.takeIf { it.isNotBlank() }?.let { login -> "$origin/sr/@$login" }
             }
 
+        // The literal token-backed SR link — `{origin}/sr/{token}` — the URL the raw token actually resolves
+        // to on the public route. Built purely from the resolved origin + the real token (never a hardcoded
+        // scheme/host); null when either is unknown.
+        val tokenUrl: String? = buildTokenUrl(baseUrlProvider(), srToken)
+
         // S003b — the Spotify grant's live auth health, from the same unified status the Integrations card
         // reads. A failure degrades to "healthy" (false) rather than falsely alarming the streamer over an
         // unrelated network hiccup on this read.
@@ -147,6 +152,7 @@ class MusicController(
                     queue = snapshot.queue,
                     srPageToken = srToken,
                     shareLink = shareLink,
+                    tokenUrl = tokenUrl,
                     devices = devices,
                     playlists = playlists,
                     blockedTracks = blocked.data,
@@ -244,7 +250,8 @@ class MusicController(
             is ApiResult.Ok -> {
                 val current: MusicState = _state.value
                 if (current is MusicState.Ready) {
-                    _state.value = current.copy(srPageToken = result.value)
+                    _state.value =
+                        current.copy(srPageToken = result.value, tokenUrl = buildTokenUrl(baseUrlProvider(), result.value))
                 }
             }
         }
@@ -349,6 +356,15 @@ class MusicController(
     }
 }
 
+// The literal token-backed SR link (`{origin}/sr/{token}`) — the URL the raw token itself resolves to on the
+// public route. Built purely from the resolved backend origin and the real token; null when either is missing
+// (never a hardcoded scheme/host).
+private fun buildTokenUrl(baseUrl: String?, token: String?): String? {
+    val origin: String = baseUrl?.trimEnd('/')?.takeIf { it.isNotBlank() } ?: return null
+    val safeToken: String = token?.takeIf { it.isNotBlank() } ?: return null
+    return "$origin/sr/$safeToken"
+}
+
 /** The Music page render state. */
 sealed interface MusicState {
     data object Loading : MusicState
@@ -367,6 +383,10 @@ sealed interface MusicState {
         val srPageToken: String? = null,
         // The absolute, human-friendly public SR link (`{origin}/sr/@name`); null when the origin/login is unknown.
         val shareLink: String? = null,
+        // The absolute, literal token-backed public SR link (`{origin}/sr/{token}`); null when the origin/token
+        // is unknown. This is the URL the raw token actually resolves to — shown with its own copy affordance
+        // alongside the pretty [shareLink] so a streamer without a resolvable login still gets a working link.
+        val tokenUrl: String? = null,
         val devices: List<MusicDevice> = emptyList(),
         val playlists: List<MusicPlaylist> = emptyList(),
         // The blocked song-request tracks — one page of rows plus the paging signals the section's pager needs.

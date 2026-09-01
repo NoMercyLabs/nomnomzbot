@@ -124,6 +124,8 @@ import nomnomzbot.composeapp.generated.resources.music_share_link_copied
 import nomnomzbot.composeapp.generated.resources.music_share_link_copy
 import nomnomzbot.composeapp.generated.resources.music_share_link_value
 import nomnomzbot.composeapp.generated.resources.music_token_value
+import nomnomzbot.composeapp.generated.resources.music_token_link_value
+import nomnomzbot.composeapp.generated.resources.music_token_link_copy
 import nomnomzbot.composeapp.generated.resources.music_token_rotate
 import nomnomzbot.composeapp.generated.resources.music_token_rotate_title
 import nomnomzbot.composeapp.generated.resources.music_token_rotate_message
@@ -205,6 +207,7 @@ fun MusicScreen(
                     queue = current.queue,
                     srPageToken = current.srPageToken,
                     shareLink = current.shareLink,
+                    tokenUrl = current.tokenUrl,
                     devices = current.devices,
                     playlists = current.playlists,
                     blockedTracks = current.blockedTracks,
@@ -242,6 +245,7 @@ private fun ReadyContent(
     queue: List<MusicTrack>,
     srPageToken: String?,
     shareLink: String?,
+    tokenUrl: String?,
     devices: List<MusicDevice>,
     playlists: List<MusicPlaylist>,
     blockedTracks: List<BlockedTrack>,
@@ -340,6 +344,7 @@ private fun ReadyContent(
             SrTokenSection(
                 token = srPageToken,
                 shareLink = shareLink,
+                tokenUrl = tokenUrl,
                 manage = manage,
                 onRotate = { pendingRotate = true },
             )
@@ -864,6 +869,7 @@ private fun AddToQueueSection(manage: ManageDecision, onAdd: (query: String, req
 private fun SrTokenSection(
     token: String,
     shareLink: String?,
+    tokenUrl: String?,
     manage: ManageDecision,
     onRotate: () -> Unit,
 ) {
@@ -888,13 +894,31 @@ private fun SrTokenSection(
                 copiedLabel = stringResource(Res.string.music_share_link_copied),
             )
         }
-        Text(
-            text = stringResource(Res.string.music_token_value, token),
-            style = typography.sm,
-            color = tokens.mutedForeground,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
+        // The literal token-backed link (`/sr/{token}`) — always resolvable once the backend origin is known,
+        // shown with its own copy button so a streamer without a login-based pretty link still gets a working
+        // one-click URL to hand to viewers. Falls back to the bare token string only when the origin is unknown.
+        if (!tokenUrl.isNullOrBlank()) {
+            Text(
+                text = stringResource(Res.string.music_token_link_value, tokenUrl),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            CopyLinkButton(
+                url = tokenUrl,
+                copyLabel = stringResource(Res.string.music_token_link_copy),
+                copiedLabel = stringResource(Res.string.music_share_link_copied),
+            )
+        } else {
+            Text(
+                text = stringResource(Res.string.music_token_value, token),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
         ManageGate(decision = manage) { enabled ->
             GlyphButton(
                 icon = RefreshGlyph,
