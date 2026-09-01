@@ -27,7 +27,6 @@ when done) — this section is only the intake, not a shortcut around the bar.
 
 - **S-OWN03** — code editor needs more themes; at least one Atom One Dark and one light.
 - **S-OWN05** — code editor import from a separate local file fails (`import SCENES from './scenes';` throws) after extracting an array to its own file.
-- **S-OWN06** — need to delete individual entries from version history, and paginate the history list.
 - **S-OWN08** — admin pages (SaaS management: users, providers, settings) need a real UX/DX pass, unchanged since introduction.
 - **S-OWN09** — need proper create/update/delete for system commands, overlays, and pipelines (not just user-authored ones).
 - 🔴 **S-OWN10** — the "extra Spotify section" in Integrations must merge into the one regular Spotify integration; the bot never hosts its own Spotify client — BYOC always, per [[byoc-encouraged-ownership-portability]].
