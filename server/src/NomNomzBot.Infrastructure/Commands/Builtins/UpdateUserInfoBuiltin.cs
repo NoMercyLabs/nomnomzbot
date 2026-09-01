@@ -68,15 +68,47 @@ public sealed class UpdateUserInfoBuiltin : IBuiltinCommand
             );
 
         if (targetsSomeoneElse && context.RoleLevel < ModeratorLevel)
-            return Result.Success(
-                $"@{context.TriggeringUserDisplayName} you can only update your own info, or be a mod to update others."
+        {
+            string ownInfoOnly = await _composer.ComposeAsync(
+                new()
+                {
+                    BroadcasterId = context.BroadcasterId,
+                    Personality = context.Personality,
+                    BuiltinKey = BuiltinResponseSlots.UpdateUserInfo.Key,
+                    Slot = BuiltinResponseSlots.UpdateUserInfo.OwnInfoOnly,
+                    NeutralFallback =
+                        $"@{context.TriggeringUserDisplayName} you can only update your own info, or be a mod to update others.",
+                    Variables = new Dictionary<string, string>
+                    {
+                        ["user"] = context.TriggeringUserDisplayName,
+                    },
+                },
+                ct
             );
+            return Result.Success(ownInfoOnly);
+        }
 
         string login = targetsSomeoneElse ? requestedLogin : context.TriggeringUserLogin;
         if (string.IsNullOrWhiteSpace(login))
-            return Result.Success(
-                $"@{context.TriggeringUserDisplayName} could not resolve your Twitch login."
+        {
+            string loginUnresolved = await _composer.ComposeAsync(
+                new()
+                {
+                    BroadcasterId = context.BroadcasterId,
+                    Personality = context.Personality,
+                    BuiltinKey = BuiltinResponseSlots.UpdateUserInfo.Key,
+                    Slot = BuiltinResponseSlots.UpdateUserInfo.LoginUnresolved,
+                    NeutralFallback =
+                        $"@{context.TriggeringUserDisplayName} could not resolve your Twitch login.",
+                    Variables = new Dictionary<string, string>
+                    {
+                        ["user"] = context.TriggeringUserDisplayName,
+                    },
+                },
+                ct
             );
+            return Result.Success(loginUnresolved);
+        }
 
         Result<IReadOnlyList<TwitchUser>> lookup = await _twitchUsers.GetUsersByLoginsAsync(
             [login],
@@ -85,9 +117,25 @@ public sealed class UpdateUserInfoBuiltin : IBuiltinCommand
         // A failed CALL and a login that genuinely does not exist are different facts. Reporting a Helix
         // timeout as "no such user" tells the viewer their account is gone when Twitch simply did not answer.
         if (lookup.IsFailure)
-            return Result.Success(
-                $"@{context.TriggeringUserDisplayName} Twitch did not answer just now — try again in a moment."
+        {
+            string twitchUnavailable = await _composer.ComposeAsync(
+                new()
+                {
+                    BroadcasterId = context.BroadcasterId,
+                    Personality = context.Personality,
+                    BuiltinKey = BuiltinResponseSlots.UpdateUserInfo.Key,
+                    Slot = BuiltinResponseSlots.UpdateUserInfo.TwitchUnavailable,
+                    NeutralFallback =
+                        $"@{context.TriggeringUserDisplayName} Twitch did not answer just now — try again in a moment.",
+                    Variables = new Dictionary<string, string>
+                    {
+                        ["user"] = context.TriggeringUserDisplayName,
+                    },
+                },
+                ct
             );
+            return Result.Success(twitchUnavailable);
+        }
 
         TwitchUser? twitchUser = lookup.Value.FirstOrDefault();
         if (twitchUser is null)
@@ -116,7 +164,24 @@ public sealed class UpdateUserInfoBuiltin : IBuiltinCommand
             ct
         );
         if (refreshed.IsFailure)
-            return Result.Success($"Something went wrong updating {twitchUser.DisplayName}.");
+        {
+            string updateFailed = await _composer.ComposeAsync(
+                new()
+                {
+                    BroadcasterId = context.BroadcasterId,
+                    Personality = context.Personality,
+                    BuiltinKey = BuiltinResponseSlots.UpdateUserInfo.Key,
+                    Slot = BuiltinResponseSlots.UpdateUserInfo.UpdateFailed,
+                    NeutralFallback = $"Something went wrong updating {twitchUser.DisplayName}.",
+                    Variables = new Dictionary<string, string>
+                    {
+                        ["user"] = twitchUser.DisplayName,
+                    },
+                },
+                ct
+            );
+            return Result.Success(updateFailed);
+        }
 
         // GetOrCreate only carries the names. The avatar, offline image, broadcaster type, description and
         // the refreshed-at stamp come from the shared apply — which is the whole point of !update to a

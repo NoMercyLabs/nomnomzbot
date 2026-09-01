@@ -156,4 +156,32 @@ public sealed class VolumeBuiltinTests
             .Should()
             .Contain(sassy.Value);
     }
+
+    [Fact]
+    public async Task Sassy_tone_produces_a_different_cannot_read_message_than_the_default_tone()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetNowPlayingAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>())
+            .Returns((NowPlaying?)null);
+        VolumeBuiltin sut = new(music, FakeComposer());
+
+        Result<string> sassy = await sut.ExecuteAsync(Ctx(string.Empty, PersonalityTone.Sassy));
+        Result<string> informative = await sut.ExecuteAsync(
+            Ctx(string.Empty, PersonalityTone.Informative)
+        );
+
+        informative
+            .Value.Should()
+            .Be("Can't read the current volume right now — nothing is playing.");
+        sassy.Value.Should().NotBe(informative.Value);
+        ToneTemplateCatalog
+            .Get(
+                PersonalityTone.Sassy,
+                BuiltinResponseSlots.Volume.Key,
+                BuiltinResponseSlots.Volume.CannotRead
+            )
+            .Should()
+            .Contain(sassy.Value);
+    }
 }

@@ -9,12 +9,15 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Commands.Builtins;
 using NSubstitute;
 
@@ -31,7 +34,10 @@ public sealed class GameBuiltinsTests
     private static readonly Guid GameId = Guid.Parse("0192a000-0000-7000-8000-00000000a102");
     private static readonly Guid PlayerId = Guid.Parse("0192a000-0000-7000-8000-00000000a103");
 
-    private static BuiltinCommandContext Context(string args) =>
+    private static BuiltinCommandContext Context(
+        string args,
+        string personality = PersonalityTone.Informative
+    ) =>
         new()
         {
             BroadcasterId = Channel,
@@ -40,7 +46,22 @@ public sealed class GameBuiltinsTests
             TriggeringUserLogin = "viewer",
             RoleLevel = 2,
             Args = args,
+            Personality = personality,
         };
+
+    private static IBuiltinResponseComposer FakeComposer()
+    {
+        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
+        resolver
+            .ResolveAsync(
+                Arg.Any<string>(),
+                Arg.Any<IDictionary<string, string>>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(call => Task.FromResult(call.ArgAt<string>(0)));
+        return new BuiltinResponseComposer(resolver);
+    }
 
     private static GameConfigDto Config(bool enabled) =>
         new(
@@ -97,7 +118,28 @@ public sealed class GameBuiltinsTests
                 )
             );
 
-        return (new(games, users), games);
+        return (new(games, users, FakeComposer()), games);
+    }
+
+    private static (CoinflipBuiltin Sut, IUserService Users) BuildWithUnresolvedAccount()
+    {
+        IGameService games = Substitute.For<IGameService>();
+        games
+            .ListGamesAsync(Channel, Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<GameConfigDto>>([Config(enabled: true)]));
+
+        IUserService users = Substitute.For<IUserService>();
+        users
+            .GetOrCreateAsync(
+                "tw-1",
+                "viewer",
+                "Viewer",
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure<UserDto>("account lookup failed", "ACCOUNT_ERROR"));
+
+        return (new(games, users, FakeComposer()), users);
     }
 
     [Fact]
@@ -210,5 +252,23 @@ public sealed class GameBuiltinsTests
         Result<string> reply = await sut.ExecuteAsync(Context("999999"));
 
         reply.Value.Should().Contain("Bet is outside the allowed range.");
+    }
+
+    [Fact]
+    public async Task Sassy_tone_produces_a_different_account_unresolved_message_than_the_default_tone()
+    {
+        (CoinflipBuiltin sut, _) = BuildWithUnresolvedAccount();
+
+        Result<string> sassy = await sut.ExecuteAsync(Context("50", PersonalityTone.Sassy));
+        Result<string> informative = await sut.ExecuteAsync(
+            Context("50", PersonalityTone.Informative)
+        );
+
+        informative.Value.Should().Be("Could not resolve your account — try again.");
+        sassy.Value.Should().NotBe(informative.Value);
+        ToneTemplateCatalog
+            .Get(PersonalityTone.Sassy, "coinflip", BuiltinResponseSlots.Game.AccountUnresolved)
+            .Should()
+            .Contain(sassy.Value);
     }
 }

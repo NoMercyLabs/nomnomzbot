@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Application.Economy.Services;
@@ -28,11 +29,17 @@ public abstract class GamePlayBuiltinBase : IBuiltinCommand
 {
     private readonly IGameService _games;
     private readonly IUserService _users;
+    private readonly IBuiltinResponseComposer _composer;
 
-    protected GamePlayBuiltinBase(IGameService games, IUserService users)
+    protected GamePlayBuiltinBase(
+        IGameService games,
+        IUserService users,
+        IBuiltinResponseComposer composer
+    )
     {
         _games = games;
         _users = users;
+        _composer = composer;
     }
 
     /// <summary>The <c>GameConfig.GameType</c> this command plays — also the chat trigger word.</summary>
@@ -81,7 +88,20 @@ public abstract class GamePlayBuiltinBase : IBuiltinCommand
             cancellationToken: ct
         );
         if (user.IsFailure || !Guid.TryParse(user.Value.Id, out Guid playerUserId))
-            return Result.Success("Could not resolve your account — try again.");
+        {
+            string unresolved = await _composer.ComposeAsync(
+                new()
+                {
+                    BroadcasterId = context.BroadcasterId,
+                    Personality = context.Personality,
+                    BuiltinKey = BuiltinKey,
+                    Slot = BuiltinResponseSlots.Game.AccountUnresolved,
+                    NeutralFallback = "Could not resolve your account — try again.",
+                },
+                ct
+            );
+            return Result.Success(unresolved);
+        }
 
         Result<GamePlayResultDto> played = await _games.PlayAsync(
             context.BroadcasterId,
@@ -103,22 +123,31 @@ public abstract class GamePlayBuiltinBase : IBuiltinCommand
 }
 
 /// <summary>!coinflip &lt;bet&gt; — 50/50 fun-money flip through the game engine.</summary>
-public sealed class CoinflipBuiltin(IGameService games, IUserService users)
-    : GamePlayBuiltinBase(games, users)
+public sealed class CoinflipBuiltin(
+    IGameService games,
+    IUserService users,
+    IBuiltinResponseComposer composer
+) : GamePlayBuiltinBase(games, users, composer)
 {
     protected override string GameType => "coinflip";
 }
 
 /// <summary>!dice &lt;bet&gt; — dice roll through the game engine.</summary>
-public sealed class DiceBuiltin(IGameService games, IUserService users)
-    : GamePlayBuiltinBase(games, users)
+public sealed class DiceBuiltin(
+    IGameService games,
+    IUserService users,
+    IBuiltinResponseComposer composer
+) : GamePlayBuiltinBase(games, users, composer)
 {
     protected override string GameType => "dice";
 }
 
 /// <summary>!slots &lt;bet&gt; — slot pull through the game engine.</summary>
-public sealed class SlotsBuiltin(IGameService games, IUserService users)
-    : GamePlayBuiltinBase(games, users)
+public sealed class SlotsBuiltin(
+    IGameService games,
+    IUserService users,
+    IBuiltinResponseComposer composer
+) : GamePlayBuiltinBase(games, users, composer)
 {
     protected override string GameType => "slots";
 }

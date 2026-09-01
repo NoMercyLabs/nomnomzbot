@@ -114,6 +114,9 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
             // track carries its typed reason straight through, and anything else (a genuinely erroring
             // provider — auth broken, API down) degrades to the same "try again" wording rather than a
             // confusing internal error code.
+            if (requested.ErrorCode == "SERVICE_UNAVAILABLE")
+                return Result.Success(await NoProviderMessageAsync(context, ct));
+
             return Result.Success(
                 requested.ErrorCode switch
                 {
@@ -121,7 +124,6 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
                     "MIN_TRUST_LEVEL" => requested.ErrorMessage!,
                     "TRACK_BLOCKED" => requested.ErrorMessage!,
                     "DUPLICATE_TRACK" => requested.ErrorMessage!,
-                    "SERVICE_UNAVAILABLE" => NoProviderMessage(context.RoleLevel),
                     "NO_ACTIVE_DEVICE" => requested.ErrorMessage!,
                     "PREMIUM_REQUIRED" => requested.ErrorMessage!,
                     "MUSIC_AUTH_FAILED" => requested.ErrorMessage!,
@@ -169,12 +171,29 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
     /// "connect Spotify" is telling them to do something they cannot do. The broadcaster gets the
     /// actionable instruction; a mod gets told to flag it upward. A viewer gets no internal detail at
     /// all — to them the command simply reads as disabled, same as any other command they don't have
-    /// the reward/config for.
+    /// the reward/config for (that viewer-facing line is tone-styled, S069i).
     /// </summary>
-    private static string NoProviderMessage(int roleLevel) =>
-        roleLevel >= PermissionLevel.Broadcaster.ToLevelValue()
-            ? "Song requests aren't connected yet — connect Spotify or YouTube in the dashboard."
-        : roleLevel >= PermissionLevel.Moderator.ToLevelValue()
-            ? "Song requests aren't connected — let the broadcaster know to connect Spotify or YouTube in the dashboard."
-        : "This command is currently disabled.";
+    private async Task<string> NoProviderMessageAsync(
+        BuiltinCommandContext context,
+        CancellationToken ct
+    )
+    {
+        if (context.RoleLevel >= PermissionLevel.Broadcaster.ToLevelValue())
+            return "Song requests aren't connected yet — connect Spotify or YouTube in the dashboard.";
+
+        if (context.RoleLevel >= PermissionLevel.Moderator.ToLevelValue())
+            return "Song requests aren't connected — let the broadcaster know to connect Spotify or YouTube in the dashboard.";
+
+        return await _composer.ComposeAsync(
+            new()
+            {
+                BroadcasterId = context.BroadcasterId,
+                Personality = context.Personality,
+                BuiltinKey = BuiltinResponseSlots.SongRequest.Key,
+                Slot = BuiltinResponseSlots.SongRequestErrors.Disabled,
+                NeutralFallback = "This command is currently disabled.",
+            },
+            ct
+        );
+    }
 }
