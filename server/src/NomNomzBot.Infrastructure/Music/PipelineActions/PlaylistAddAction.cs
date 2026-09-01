@@ -11,6 +11,7 @@
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Music.Services;
@@ -25,15 +26,23 @@ namespace NomNomzBot.Infrastructure.Music.PipelineActions;
 /// Parameters:
 ///   playlist_id — provider playlist id (required). Supports {variable} substitution.
 ///   track_uri   — track to add (optional; defaults to the CURRENTLY PLAYING track).
+///   message     — chat response template (optional; defaults to <see cref="DefaultMessageTemplate"/>).
+///                 Streamer-editable, resolved through the shared <see cref="ITemplateResolver"/>
+///                 grammar, so it can reference {track_name} and {playlist_id} instead of hardcoding
+///                 the raw provider id.
 ///
 /// Usage example:
-///   { "type": "playlist_add", "playlist_id": "37i9dQZF1DXcBWIGoYBM5M" }
+///   { "type": "playlist_add", "playlist_id": "37i9dQZF1DXcBWIGoYBM5M", "message": "Added {track_name} to the bangers playlist!" }
 /// </summary>
 public sealed class PlaylistAddAction : ICommandAction
 {
+    /// <summary>Used when the streamer has not overridden the "message" field — never exposes the raw playlist/track id.</summary>
+    public const string DefaultMessageTemplate = "Added {track_name} to the playlist.";
+
     private readonly IMusicService _music;
     private readonly IMusicProviderManageApi _manage;
     private readonly IChatProvider _chat;
+    private readonly ITemplateResolver _resolver;
     private readonly ILogger<PlaylistAddAction> _logger;
 
     public string ActionType => "playlist_add";
@@ -41,6 +50,8 @@ public sealed class PlaylistAddAction : ICommandAction
     public LocalizedText Category => new("pipeline.category.music");
 
     public LocalizedText Description => new("pipeline.playlist_add.description");
+
+    public bool ResolvesOwnTemplates => true;
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields =>
         [
@@ -55,18 +66,26 @@ public sealed class PlaylistAddAction : ICommandAction
                 PipelineActionFieldKind.ResourceId,
                 Description: new("pipeline.playlist_add.track_uri.help")
             ),
+            new(
+                "message",
+                PipelineActionFieldKind.Text,
+                Templated: true,
+                Description: new("pipeline.playlist_add.message.help")
+            ),
         ];
 
     public PlaylistAddAction(
         IMusicService music,
         IMusicProviderManageApi manage,
         IChatProvider chat,
+        ITemplateResolver resolver,
         ILogger<PlaylistAddAction> logger
     )
     {
         _music = music;
         _manage = manage;
         _chat = chat;
+        _resolver = resolver;
         _logger = logger;
     }
 
@@ -111,14 +130,21 @@ public sealed class PlaylistAddAction : ICommandAction
         if (added.IsFailure)
             return ActionResult.Failure(added.ErrorMessage ?? "failed to add track to playlist");
 
-        await _chat.SendMessageAsync(
+        string template = action.GetString("message") ?? DefaultMessageTemplate;
+        Dictionary<string, string> seed = new(ctx.Variables, StringComparer.OrdinalIgnoreCase)
+        {
+            ["playlist_id"] = playlistId,
+            ["track_uri"] = trackUri,
+            ["track_name"] = trackName ?? trackUri,
+        };
+        string resolved = await _resolver.ResolveAsync(
+            template,
+            seed,
             ctx.BroadcasterId,
-            trackName is null
-                ? "Track added to the playlist."
-                : $"Added {trackName} to the playlist.",
             ctx.CancellationToken
         );
-        return ActionResult.Success($"playlist_add: {trackUri}");
+        await _chat.SendMessageAsync(ctx.BroadcasterId, resolved, ctx.CancellationToken);
+        return ActionResult.Success(resolved);
     }
 
     private static string ResolveParam(string value, Dictionary<string, string> vars)

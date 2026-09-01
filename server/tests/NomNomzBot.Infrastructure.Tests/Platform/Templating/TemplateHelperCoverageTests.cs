@@ -105,6 +105,8 @@ public sealed partial class TemplateHelperCoverageTests
         "months",
         "streak",
         "message",
+        "also_said", // supplied by ResubscriptionEventHandler.BuildVariables, never assigned inside
+        // TemplateResolver.cs
         "count",
         "anonymous",
         "bits",
@@ -132,6 +134,9 @@ public sealed partial class TemplateHelperCoverageTests
         // shape, no separate entry needed since HashSet<string> membership doesn't distinguish source.
         "obs.event.", // ObsEventTriggerSource.BuildVariables — dynamic per-event-type field prefix
         "vts.event.", // VtsEventTriggerSource.BuildVariables — dynamic per-event-type field prefix
+        "playlist_id",
+        "track_name", // PlaylistAddAction (!banger) seed aliases — S-OWN17, never assigned inside
+        // TemplateResolver.cs
     };
 
     // Resolved via a colon-containing literal (verb:.../user.verb:.../target.verb:...) or a dedicated

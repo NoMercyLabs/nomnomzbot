@@ -41,6 +41,14 @@ public static class TemplateHelperRegistry
     /// seed variables, never resolved by <see cref="TemplateResolver"/> itself.</summary>
     private static readonly TemplateHelperContext[] DiscordOnly = [TemplateHelperContext.Discord];
 
+    /// <summary>Playlist-add (<c>!banger</c>) seed aliases: supplied directly by
+    /// <c>PlaylistAddAction</c> for its own <c>message</c> field, never resolved by
+    /// <see cref="TemplateResolver"/> itself — only meaningful on that action's templated field.</summary>
+    private static readonly TemplateHelperContext[] PlaylistAddOnly =
+    [
+        TemplateHelperContext.Pipeline,
+    ];
+
     private static readonly TemplateHelperContext[] TriggerContexts =
     [
         TemplateHelperContext.Command,
@@ -124,6 +132,7 @@ public static class TemplateHelperRegistry
             Literal("months", EventSourceOnlyContexts, "template.helper.months"),
             Literal("streak", EventSourceOnlyContexts, "template.helper.streak"),
             Literal("message", EventSourceOnlyContexts, "template.helper.message"),
+            Literal("also_said", EventSourceOnlyContexts, "template.helper.also_said"),
             Literal("count", EventSourceOnlyContexts, "template.helper.event_count"),
             Literal("anonymous", EventSourceOnlyContexts, "template.helper.anonymous"),
             Literal("bits", EventSourceOnlyContexts, "template.helper.bits"),
@@ -319,5 +328,8 @@ public static class TemplateHelperRegistry
             Literal("channel.title", DiscordOnly, "template.helper.channel_title"),
             Literal("channel.game", DiscordOnly, "template.helper.channel_game"),
             Literal("raw.message", DiscordOnly, "template.helper.raw_message"),
+            // ── Playlist-add (!banger) seed aliases — Pipeline only, S-OWN17 ──
+            Literal("playlist_id", PlaylistAddOnly, "template.helper.playlist_id"),
+            Literal("track_name", PlaylistAddOnly, "template.helper.track_name"),
         ];
 }
