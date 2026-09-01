@@ -315,7 +315,9 @@ public sealed class OutboundWebhookDispatcher(
             else
             {
                 delivery.Status = WebhookDeliveryStatus.Failed;
-                delivery.NextRetryAt = now.AddSeconds(30 * Math.Pow(2, delivery.Attempt - 1));
+                delivery.NextRetryAt = now.Add(
+                    OutboundWebhookBackoffPolicy.ComputeDelay(delivery.Attempt)
+                );
             }
         }
 
