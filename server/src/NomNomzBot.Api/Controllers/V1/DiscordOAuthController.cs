@@ -85,8 +85,13 @@ public class DiscordOAuthController : BaseController
 
         string? clientId = await GetConfigValueAsync("discord.client_id", ct);
         if (string.IsNullOrEmpty(clientId))
+            // Same distinguishable code as the generic vaulted flow's ChannelCredentialsResolver
+            // (PROVIDER_NOT_CONFIGURED) so the dashboard can route to the BYOC onboarding dialog here too,
+            // instead of surfacing a raw error — Discord is bespoke (guild install), but "no app client yet"
+            // is the same client-actionable state as every other provider.
             return BadRequestResponse(
-                "Discord client ID is not configured. Add a Configuration row with Key='discord.client_id'."
+                "Discord client ID is not configured. Add a Configuration row with Key='discord.client_id'.",
+                "PROVIDER_NOT_CONFIGURED"
             );
 
         string baseUrl = Request.ResolvePublicOrigin(_config);
