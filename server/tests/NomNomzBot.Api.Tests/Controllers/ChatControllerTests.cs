@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Controllers.V1;
@@ -844,5 +845,212 @@ public sealed class ChatControllerTests
         StatusResponseDto<List<DashboardChatMessageDto>> body =
             (StatusResponseDto<List<DashboardChatMessageDto>>)ok.Value!;
         return body.Data!;
+    }
+
+    // ── chat-mode settings — genuinely wired to Helix Update/Get Chat Settings (S066d) ──────────
+
+    private static ChatController BuildWithChatApi(ITwitchChatApi chatApi) =>
+        new(
+            ChatControllerTestDbContext.New(),
+            Substitute.For<IChatProvider>(),
+            chatApi,
+            Substitute.For<IChatMessageDecorator>(),
+            StubCurrentUser(OperatorUserId),
+            Substitute.For<IOperatorChatSender>(),
+            Substitute.For<IOperatorMessageDeleter>(),
+            Substitute.For<IChatEmoteCatalogue>(),
+            Substitute.For<IHubUserEnricher>()
+        );
+
+    [Fact]
+    public async Task GetSettings_maps_the_real_Helix_response_including_unique_and_nonmod_delay()
+    {
+        ITwitchChatApi chatApi = Substitute.For<ITwitchChatApi>();
+        chatApi
+            .GetChatSettingsAsync(Broadcaster, Arg.Any<CancellationToken>())
+            .Returns(
+                Result<TwitchChatSettings>.Success(
+                    new TwitchChatSettings(
+                        BroadcasterId: "998877",
+                        EmoteMode: true,
+                        FollowerMode: true,
+                        FollowerModeDuration: 15,
+                        ModeratorId: "998877",
+                        NonModeratorChatDelay: true,
+                        NonModeratorChatDelayDuration: 6,
+                        SlowMode: true,
+                        SlowModeWaitTime: 12,
+                        SubscriberMode: false,
+                        UniqueChatMode: true
+                    )
+                )
+            );
+        ChatController controller = BuildWithChatApi(chatApi);
+
+        IActionResult result = await controller.GetSettings(Broadcaster.ToString(), default);
+
+        OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        ChatController.ChatSettingsDto dto = (
+            (StatusResponseDto<ChatController.ChatSettingsDto>)ok.Value!
+        ).Data!;
+
+        dto.SlowMode.Should().BeTrue();
+        dto.SlowModeDelay.Should().Be(12);
+        dto.FollowersOnly.Should().BeTrue();
+        dto.FollowersOnlyDuration.Should().Be(15);
+        dto.UniqueChatMode.Should().BeTrue();
+        dto.NonModeratorChatDelay.Should().BeTrue();
+        dto.NonModeratorChatDelayDuration.Should().Be(6);
+    }
+
+    [Fact]
+    public async Task UpdateSettings_sends_slow_followers_unique_and_nonmod_delay_to_the_real_Helix_patch()
+    {
+        ITwitchChatApi chatApi = Substitute.For<ITwitchChatApi>();
+        chatApi
+            .UpdateChatSettingsAsync(
+                Broadcaster,
+                Arg.Any<UpdateChatSettingsRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(callInfo =>
+            {
+                UpdateChatSettingsRequest sent = callInfo.Arg<UpdateChatSettingsRequest>();
+                // Prove the request the controller actually sends to Twitch carries every field —
+                // returning it back as if Twitch echoed the applied settings.
+                return Result<TwitchChatSettings>.Success(
+                    new TwitchChatSettings(
+                        BroadcasterId: "998877",
+                        EmoteMode: sent.EmoteMode ?? false,
+                        FollowerMode: sent.FollowerMode ?? false,
+                        FollowerModeDuration: sent.FollowerModeDuration,
+                        ModeratorId: "998877",
+                        NonModeratorChatDelay: sent.NonModeratorChatDelay,
+                        NonModeratorChatDelayDuration: sent.NonModeratorChatDelayDuration,
+                        SlowMode: sent.SlowMode ?? false,
+                        SlowModeWaitTime: sent.SlowModeWaitTime,
+                        SubscriberMode: sent.SubscriberMode ?? false,
+                        UniqueChatMode: sent.UniqueChatMode ?? false
+                    )
+                );
+            });
+        ChatController controller = BuildWithChatApi(chatApi);
+
+        ChatController.ChatSettingsDto request = new(
+            SlowMode: true,
+            SlowModeDelay: 30,
+            SubscriberOnly: false,
+            EmotesOnly: false,
+            FollowersOnly: true,
+            FollowersOnlyDuration: 10,
+            UniqueChatMode: true,
+            NonModeratorChatDelay: true,
+            NonModeratorChatDelayDuration: 4
+        );
+
+        IActionResult result = await controller.UpdateSettings(
+            Broadcaster.ToString(),
+            request,
+            default
+        );
+
+        await chatApi
+            .Received(1)
+            .UpdateChatSettingsAsync(
+                Broadcaster,
+                Arg.Is<UpdateChatSettingsRequest>(r =>
+                    r.SlowMode == true
+                    && r.SlowModeWaitTime == 30
+                    && r.FollowerMode == true
+                    && r.FollowerModeDuration == 10
+                    && r.UniqueChatMode == true
+                    && r.NonModeratorChatDelay == true
+                    && r.NonModeratorChatDelayDuration == 4
+                ),
+                Arg.Any<CancellationToken>()
+            );
+
+        OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        ChatController.ChatSettingsDto dto = (
+            (StatusResponseDto<ChatController.ChatSettingsDto>)ok.Value!
+        ).Data!;
+        dto.UniqueChatMode.Should().BeTrue();
+        dto.NonModeratorChatDelay.Should().BeTrue();
+        dto.NonModeratorChatDelayDuration.Should().Be(4);
+    }
+
+    [Fact]
+    public async Task PatchSettings_merges_uniqueChatMode_onto_the_live_Helix_settings_before_patching()
+    {
+        ITwitchChatApi chatApi = Substitute.For<ITwitchChatApi>();
+        chatApi
+            .GetChatSettingsAsync(Broadcaster, Arg.Any<CancellationToken>())
+            .Returns(
+                Result<TwitchChatSettings>.Success(
+                    new TwitchChatSettings(
+                        BroadcasterId: "998877",
+                        EmoteMode: false,
+                        FollowerMode: false,
+                        FollowerModeDuration: null,
+                        ModeratorId: "998877",
+                        NonModeratorChatDelay: false,
+                        NonModeratorChatDelayDuration: null,
+                        SlowMode: false,
+                        SlowModeWaitTime: null,
+                        SubscriberMode: false,
+                        UniqueChatMode: false
+                    )
+                )
+            );
+        chatApi
+            .UpdateChatSettingsAsync(
+                Broadcaster,
+                Arg.Any<UpdateChatSettingsRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(callInfo =>
+            {
+                UpdateChatSettingsRequest sent = callInfo.Arg<UpdateChatSettingsRequest>();
+                return Result<TwitchChatSettings>.Success(
+                    new TwitchChatSettings(
+                        BroadcasterId: "998877",
+                        EmoteMode: sent.EmoteMode ?? false,
+                        FollowerMode: sent.FollowerMode ?? false,
+                        FollowerModeDuration: sent.FollowerModeDuration,
+                        ModeratorId: "998877",
+                        NonModeratorChatDelay: sent.NonModeratorChatDelay,
+                        NonModeratorChatDelayDuration: sent.NonModeratorChatDelayDuration,
+                        SlowMode: sent.SlowMode ?? false,
+                        SlowModeWaitTime: sent.SlowModeWaitTime,
+                        SubscriberMode: sent.SubscriberMode ?? false,
+                        UniqueChatMode: sent.UniqueChatMode ?? false
+                    )
+                );
+            });
+        ChatController controller = BuildWithChatApi(chatApi);
+
+        using JsonDocument patchDoc = JsonDocument.Parse("""{ "uniqueChatMode": true }""");
+
+        IActionResult result = await controller.PatchSettings(
+            Broadcaster.ToString(),
+            patchDoc.RootElement,
+            default
+        );
+
+        await chatApi
+            .Received(1)
+            .UpdateChatSettingsAsync(
+                Broadcaster,
+                Arg.Is<UpdateChatSettingsRequest>(r =>
+                    r.UniqueChatMode == true && r.SlowMode == false && r.FollowerMode == false
+                ),
+                Arg.Any<CancellationToken>()
+            );
+
+        OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        ChatController.ChatSettingsDto dto = (
+            (StatusResponseDto<ChatController.ChatSettingsDto>)ok.Value!
+        ).Data!;
+        dto.UniqueChatMode.Should().BeTrue();
     }
 }
