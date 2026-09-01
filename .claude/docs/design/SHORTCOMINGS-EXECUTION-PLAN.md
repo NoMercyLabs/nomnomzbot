@@ -911,9 +911,11 @@ later.)
   profile fields, leaderboard opt-in read, per-jar contributions, own SR requests + public page link,
   preview-as-viewer forces Everyone (U·C5).
 - **S079** Viewer giveaway entry/my-entries endpoint + card (or drop from IA) (U·C5).
-- **S051** Design-system catalogue gap — build the 13 catalogued-but-missing primitives (Alert,
-  Checkbox, Combobox, Input, Label, Popover, RadioGroup, ScrollArea, Select, Skeleton, Table, Toast,
-  Avatar) or re-scope the catalogue; Patterns tier documented (spec `frontend-design-system.md`).
+- **S051-remaining** Design-system catalogue gap — S051a DONE, verified (388777de): Alert, Label,
+  Skeleton built new; Checkbox and Avatar turned out to already exist (catalogue manifest was wrong,
+  corrected). Remaining catalogued-but-missing primitives: Combobox, Input, Popover, RadioGroup,
+  ScrollArea, Select, Table, Toast; or re-scope the catalogue; Patterns tier documented (spec
+  `frontend-design-system.md`).
 
 ## Phase 4B — the surfaces round four found (U·Part E) — existing features, same stability-first rule
 
