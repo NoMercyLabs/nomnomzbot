@@ -50,14 +50,19 @@ in §4.2. Foundation = `androidx.compose.foundation`; M3 = a themed `androidx.co
 
 **Build status (as-built, `core/designsystem/component/`):** built — `Button`, `Textarea`, `Switch`, `DropdownMenu`,
 `Dialog`, `Sheet`, `Tooltip`, `Card`, `Badge`, `Separator`, `Progress`, `Spinner`, `Tabs`, `Slider`, `Stepper`,
-`Alert`, `Label`, `Skeleton` (S051a); `Input`, `RadioGroup` (+ `RadioItem`), `Toast` (S051b). `Checkbox` was
-already built (`SelectionControls.kt`, alongside `RadioButton`) prior to the S051a manifest catching up — it
-satisfies the row above; a follow-up may split it into its own `Checkbox.kt` for one-file-per-component, but
-there is no functional gap to close. `RadioGroup`/`RadioItem` (`RadioGroup.kt`) is a group wrapper over the
-existing `RadioButton` indicator, not a duplicate. `Toast` (`Toast.kt`) is the primitive now rendered by the
-app-shell's `FeedbackHost` (`core/feedback/`), which previously inlined the same banner — `FeedbackHost` was
-refactored onto the catalogued primitive rather than kept as a second, undeclared implementation.
-**To build** (catalogued, no file yet) — `Avatar`, `Combobox`, `Popover`, `ScrollArea`, `Select`, `Table` (6).
+`Alert`, `Label`, `Skeleton` (S051a); `Input`, `RadioGroup` (+ `RadioItem`), `Toast` (S051b); `Popover`,
+`Select`, `Combobox` (S051c). `Checkbox` was already built (`SelectionControls.kt`, alongside `RadioButton`)
+prior to the S051a manifest catching up — it satisfies the row above; a follow-up may split it into its own
+`Checkbox.kt` for one-file-per-component, but there is no functional gap to close. `RadioGroup`/`RadioItem`
+(`RadioGroup.kt`) is a group wrapper over the existing `RadioButton` indicator, not a duplicate. `Toast`
+(`Toast.kt`) is the primitive now rendered by the app-shell's `FeedbackHost` (`core/feedback/`), which
+previously inlined the same banner — `FeedbackHost` was refactored onto the catalogued primitive rather than
+kept as a second, undeclared implementation. `Select` (`Select.kt`) is the closed-catalogue primitive;
+`AppSelectField` (patterns tier, below) remains a separate app composite for free-form menu content rather
+than a flat option list, so it is not superseded. `Combobox` (`Combobox.kt`) is built from `Input` + `Popover`
+per its catalogue row (`Foundation (Popover + Command)`); `EntityPickerField`/`SearchPickerField` (patterns
+tier) remain the id-keyed entity-search composites built on their own chrome, not on this primitive.
+**To build** (catalogued, no file yet) — `Avatar`, `ScrollArea`, `Table` (3).
 
 ---
 
