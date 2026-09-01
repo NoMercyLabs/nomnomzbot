@@ -3069,6 +3069,8 @@
     <string name="webhooks_deliveries_code">HTTP %1$d</string>
     <string name="webhooks_deliveries_next_retry">Next retry: %1$s</string>
     <string name="webhooks_deliveries_reload">Reload</string>
+    <string name="webhooks_deliveries_retry">Retry</string>
+    <string name="webhooks_deliveries_retrying">Retrying…</string>
     <string name="moderation_announce_action">Send Announcement</string>
     <string name="moderation_announce_title">Send Announcement</string>
     <string name="moderation_announce_message_label">Message</string>

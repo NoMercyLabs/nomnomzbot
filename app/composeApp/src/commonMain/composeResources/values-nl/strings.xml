@@ -3055,6 +3055,8 @@
     <string name="webhooks_deliveries_code">HTTP %1$d</string>
     <string name="webhooks_deliveries_next_retry">Volgende poging: %1$s</string>
     <string name="webhooks_deliveries_reload">Vernieuwen</string>
+    <string name="webhooks_deliveries_retry">Opnieuw proberen</string>
+    <string name="webhooks_deliveries_retrying">Bezig met opnieuw proberen…</string>
     <string name="moderation_announce_action">Aankondiging versturen</string>
     <string name="moderation_announce_title">Aankondiging versturen</string>
     <string name="moderation_announce_message_label">Bericht</string>

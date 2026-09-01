@@ -32,6 +32,7 @@ import kotlinx.serialization.Serializable
 //   POST   .../outbound/{id}/reenable               →  204 No Content
 //   POST   .../outbound/{id}/test                   →  StatusResponseDto<WebhookTestResultDto>
 //   GET    .../outbound/{id}/deliveries             →  PaginatedResponse<OutboundWebhookDeliveryDto>
+//   POST   .../outbound/{id}/deliveries/{did}/retry  →  StatusResponseDto<OutboundWebhookDeliveryDto>
 //   DELETE .../outbound/{id}                        →  204 No Content
 interface WebhooksApi {
     suspend fun listInbound(channelId: String): ApiResult<List<InboundWebhook>>
@@ -60,6 +61,13 @@ interface WebhooksApi {
     suspend fun rotateOutboundSecret(channelId: String, endpointId: String): ApiResult<String>
     suspend fun testOutbound(channelId: String, endpointId: String): ApiResult<WebhookTestResult>
     suspend fun outboundDeliveries(channelId: String, endpointId: String): ApiResult<List<OutboundDelivery>>
+
+    /**
+     * Manually replays one delivery using its already-stored rendered body — never a fresh re-render of the
+     * current template. Fails with a clear error (not a silent no-op) when the endpoint is currently disabled;
+     * re-enabling is a separate explicit action.
+     */
+    suspend fun retryOutboundDelivery(channelId: String, endpointId: String, deliveryId: Long): ApiResult<OutboundDelivery>
     suspend fun deleteOutbound(channelId: String, endpointId: String): ApiResult<Unit>
 }
 
@@ -133,6 +141,9 @@ class RestWebhooksApi(private val client: ApiClient) : WebhooksApi {
             is ApiResult.Failure -> ApiResult.Failure(page.error)
             is ApiResult.Ok -> ApiResult.Ok(page.value.data)
         }
+
+    override suspend fun retryOutboundDelivery(channelId: String, endpointId: String, deliveryId: Long): ApiResult<OutboundDelivery> =
+        client.postEnvelope("api/v1/channels/$channelId/webhooks/outbound/$endpointId/deliveries/$deliveryId/retry", Unit)
 
     override suspend fun deleteOutbound(channelId: String, endpointId: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/channels/$channelId/webhooks/outbound/$endpointId")

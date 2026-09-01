@@ -239,6 +239,20 @@ public class WebhooksController(
         CancellationToken ct
     ) => ResultResponse(await outbound.SendTestAsync(channelId, endpointId, ct));
 
+    /// <summary>
+    /// Manually replays one delivery using its already-stored rendered body (never re-rendered from the
+    /// current template). Refused with a clear error when the endpoint is currently disabled — re-enabling is
+    /// a separate explicit action, not implied by retrying one delivery.
+    /// </summary>
+    [HttpPost("outbound/{endpointId:guid}/deliveries/{deliveryId:long}/retry")]
+    [RequireAction("webhooks:outbound:write")]
+    public async Task<IActionResult> RetryOutboundDelivery(
+        Guid channelId,
+        Guid endpointId,
+        long deliveryId,
+        CancellationToken ct
+    ) => ResultResponse(await outbound.RetryDeliveryAsync(channelId, endpointId, deliveryId, ct));
+
     /// <summary>Delete an outbound webhook endpoint, stopping its deliveries.</summary>
     [NotDestructive(
         "Deletes one OutboundWebhookEndpoint row; the endpoint REFERENCES an egress allowlist entry but no entity carries an OutboundWebhookEndpointId FK."

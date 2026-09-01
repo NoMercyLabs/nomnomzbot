@@ -23,6 +23,7 @@ using NomNomzBot.Application.Services;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Webhooks.Entities;
+using NomNomzBot.Domain.Webhooks.Enums;
 
 namespace NomNomzBot.Infrastructure.Webhooks;
 
@@ -39,7 +40,8 @@ public sealed class OutboundWebhookEndpointService(
     ISubjectKeyService subjectKeys,
     TimeProvider clock,
     IEventBus eventBus,
-    ITemplateHelperValidator templateHelperValidator
+    ITemplateHelperValidator templateHelperValidator,
+    IOutboundWebhookDispatcher dispatcher
 ) : IOutboundWebhookEndpointService
 {
     private const string Provider = "webhook:out";
@@ -332,6 +334,45 @@ public sealed class OutboundWebhookEndpointService(
                 "SERVICE_UNAVAILABLE"
             )
         );
+
+    public async Task<Result<OutboundWebhookDeliveryDto>> RetryDeliveryAsync(
+        Guid broadcasterId,
+        Guid endpointId,
+        long deliveryId,
+        CancellationToken ct = default
+    )
+    {
+        OutboundWebhookEndpoint? endpoint = await FindAsync(broadcasterId, endpointId, ct);
+        if (endpoint is null)
+            return Result.Failure<OutboundWebhookDeliveryDto>("Endpoint not found.", "NOT_FOUND");
+
+        OutboundWebhookDelivery? delivery = await db.OutboundWebhookDeliveries.FirstOrDefaultAsync(
+            d =>
+                d.Id == deliveryId
+                && d.EndpointId == endpointId
+                && d.BroadcasterId == broadcasterId,
+            ct
+        );
+        if (delivery is null)
+            return Result.Failure<OutboundWebhookDeliveryDto>("Delivery not found.", "NOT_FOUND");
+
+        // Re-enabling is a separate, explicit action (ReenableAsync) — a manual retry against a disabled
+        // endpoint is refused with a clear reason rather than silently dead-lettering the attempt.
+        if (!endpoint.IsEnabled)
+            return Result.Failure<OutboundWebhookDeliveryDto>(
+                "Endpoint is disabled. Re-enable it before retrying a delivery.",
+                "ENDPOINT_DISABLED"
+            );
+
+        delivery.Attempt++;
+        Result<WebhookDeliveryStatus> attempt = await dispatcher.AttemptDeliveryAsync(delivery, ct);
+        if (attempt.IsFailure)
+            return Result.Failure<OutboundWebhookDeliveryDto>(
+                attempt.ErrorMessage,
+                attempt.ErrorCode
+            );
+        return Result.Success(ToDeliveryDto(delivery));
+    }
 
     /// <summary>E5 dashboard live-sync: fired after every successful write so other open dashboards refetch.</summary>
     private Task PublishConfigChangedAsync(
