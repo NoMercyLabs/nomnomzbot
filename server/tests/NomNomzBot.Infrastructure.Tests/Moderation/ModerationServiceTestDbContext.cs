@@ -10,6 +10,7 @@
 
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Analytics.Entities;
 using NomNomzBot.Domain.Billing.Entities;
@@ -67,16 +68,15 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
     )
         : base(options) => _connection = connection;
 
-    public static ModerationServiceTestDbContext New()
+    public static ModerationServiceTestDbContext New(params IInterceptor[] interceptors)
     {
         SqliteConnection connection = new("Data Source=:memory:");
         connection.Open();
-        ModerationServiceTestDbContext db = new(
-            new DbContextOptionsBuilder<ModerationServiceTestDbContext>()
-                .UseSqlite(connection)
-                .Options,
-            connection
-        );
+        DbContextOptionsBuilder<ModerationServiceTestDbContext> optionsBuilder =
+            new DbContextOptionsBuilder<ModerationServiceTestDbContext>().UseSqlite(connection);
+        if (interceptors.Length > 0)
+            optionsBuilder.AddInterceptors(interceptors);
+        ModerationServiceTestDbContext db = new(optionsBuilder.Options, connection);
         db.Database.EnsureCreated();
         return db;
     }

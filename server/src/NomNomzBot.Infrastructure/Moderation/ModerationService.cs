@@ -10,6 +10,7 @@
 
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
@@ -760,6 +761,36 @@ public class ModerationService : IModerationService
             ]
             : [];
 
+    /// <summary>
+    /// <c>ExecuteUpdateAsync</c> bypasses the change tracker, so a <c>Record</c> instance already tracked in
+    /// this <see cref="_db"/> (e.g. one just inserted by an earlier iteration of the loop in
+    /// <see cref="SaveAutomodConfigAsync"/>, still tracked after <c>SaveChangesAsync</c>) would otherwise keep
+    /// serving its stale pre-update <c>Data</c> to the final <see cref="GetAutomodConfigAsync"/> read-back at
+    /// the end of that same call — EF's identity map always prefers the tracked instance over a fresh row.
+    /// Mirrors <c>CurrencyAccountService.SyncWithoutPersisting</c>: rewrite the tracked entry's ORIGINAL value
+    /// to the freshly-written value (not <c>IsModified = false</c> alone, and not <c>EntityState.Unchanged</c>,
+    /// which would only revert CurrentValue) and clear the modified flag, so CurrentValue reflects what this
+    /// call itself just persisted without re-queuing a redundant write on the next <c>SaveChangesAsync</c>.
+    /// </summary>
+    private void SyncTrackedRecordAfterExecuteUpdate(int recordId, string updatedDataJson)
+    {
+        if (_db is not DbContext dbContext)
+            return;
+
+        Record? tracked = dbContext
+            .ChangeTracker.Entries<Record>()
+            .FirstOrDefault(e => e.Entity.Id == recordId)
+            ?.Entity;
+        if (tracked is null)
+            return;
+
+        EntityEntry<Record> entry = dbContext.Entry(tracked);
+        PropertyEntry<Record, string> dataProperty = entry.Property(r => r.Data);
+        dataProperty.CurrentValue = updatedDataJson;
+        dataProperty.OriginalValue = updatedDataJson;
+        dataProperty.IsModified = false;
+    }
+
     public async Task<Result<AutomodConfigDto>> SaveAutomodConfigAsync(
         string broadcasterId,
         AutomodConfigDto config,
@@ -806,25 +837,45 @@ public class ModerationService : IModerationService
                     && r.RecordType == RuleRecordType
                     && r.Data.Contains(typeJson)
                 )
+                // Read without tracking: the update below is a targeted ExecuteUpdateAsync (see comment
+                // there), not a tracked SaveChangesAsync write, so there is nothing for the change tracker
+                // to do with this instance beyond serving as the optimistic-concurrency snapshot.
+                .AsNoTracking()
                 .FirstOrDefaultAsync(cancellationToken);
-
-            ModerationRuleData ruleData = existing is not null
-                ? JsonSerializer.Deserialize<ModerationRuleData>(existing.Data)
-                    ?? new ModerationRuleData()
-                : new()
-                {
-                    Name = type,
-                    Type = type,
-                    Action = "delete",
-                };
-
-            ruleData.IsEnabled = enabled;
-            ruleData.Settings = settings;
 
             if (existing is not null)
             {
-                existing.Data = JsonSerializer.Serialize(ruleData);
-                // UpdatedAt stamped by AuditableEntityInterceptor on save.
+                ModerationRuleData ruleData =
+                    JsonSerializer.Deserialize<ModerationRuleData>(existing.Data)
+                    ?? new ModerationRuleData();
+                ruleData.IsEnabled = enabled;
+                ruleData.Settings = settings;
+                string updatedDataJson = JsonSerializer.Serialize(ruleData);
+
+                // Optimistic concurrency guard (same shape as CurrencyAccountService.AppendAsync): the
+                // `Record` table is shared by many unrelated RecordTypes, so marking its `Data` column as
+                // a blanket EF concurrency token would gate every other writer's SaveChangesAsync too. This
+                // conditional ExecuteUpdateAsync scopes the guard to only this row, and only this write —
+                // it only overwrites if `Data` still equals the snapshot this method read, so a second
+                // save that raced the read-modify-write window (two mods editing AutoMod settings at once)
+                // gets 0 affected rows instead of silently clobbering the other save's write.
+                int updatedRows = await _db
+                    .Records.Where(r => r.Id == existing.Id && r.Data == existing.Data)
+                    .ExecuteUpdateAsync(
+                        setters =>
+                            setters
+                                .SetProperty(r => r.Data, updatedDataJson)
+                                .SetProperty(r => r.UpdatedAt, _clock.GetUtcNow().UtcDateTime),
+                        cancellationToken
+                    );
+
+                if (updatedRows == 0)
+                    return Result.Failure<AutomodConfigDto>(
+                        "The AutoMod configuration changed while you were editing it. Reload and try again.",
+                        "CONCURRENCY_CONFLICT"
+                    );
+
+                SyncTrackedRecordAfterExecuteUpdate(existing.Id, updatedDataJson);
             }
             else
             {
@@ -833,7 +884,16 @@ public class ModerationService : IModerationService
                     {
                         BroadcasterId = tenantId,
                         RecordType = RuleRecordType,
-                        Data = JsonSerializer.Serialize(ruleData),
+                        Data = JsonSerializer.Serialize(
+                            new ModerationRuleData
+                            {
+                                Name = type,
+                                Type = type,
+                                Action = "delete",
+                                IsEnabled = enabled,
+                                Settings = settings,
+                            }
+                        ),
                         UserId = broadcasterId,
                     }
                 );
