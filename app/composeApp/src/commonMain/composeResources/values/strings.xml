@@ -4183,6 +4183,8 @@
     <string name="widget_custom_data_render_option_number">Number</string>
     <string name="widget_custom_data_render_option_gauge">Gauge</string>
     <string name="widget_custom_data_render_option_text">Text</string>
+    <string name="template_helper_playlist_id">The id of the playlist the track was added to</string>
+    <string name="template_helper_track_name">The name of the track that was added</string>
     <string name="template_helper_ad_duration">The ad break length (e.g. "3 minutes")</string>
     <string name="template_helper_ad_automatic">Whether the ad break was automatic ("true") or requester-triggered ("false")</string>
     <string name="template_helper_followed_at">When the follow happened</string>
@@ -4368,6 +4370,7 @@
     <string name="pipeline_play_sound_handle_help">A name for this playback, so a later stop_sound step can stop this specific clip instead of all clips.</string>
     <string name="pipeline_play_sound_volume_help">The playback volume for this clip, from 0 (silent) to 100 (full volume). Leave blank to use the clip's own default.</string>
     <string name="pipeline_play_sound_wait_for_finish_help">Pauses the rest of the pipeline until this clip finishes playing, instead of continuing immediately.</string>
+    <string name="pipeline_playlist_add_message_help">The chat message sent after the track is added. Blank uses the default.</string>
     <string name="pipeline_playlist_add_playlist_id_help">Which playlist the track is added to.</string>
     <string name="pipeline_playlist_add_track_uri_help">The track to add. Blank adds the currently playing track.</string>
     <string name="pipeline_post_quote_number_help">The quote number to post. Blank posts a random saved quote.</string>

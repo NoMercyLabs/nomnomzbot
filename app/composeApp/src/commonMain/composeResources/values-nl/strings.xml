@@ -4168,6 +4168,8 @@
     <string name="widget_custom_data_render_option_number">Getal</string>
     <string name="widget_custom_data_render_option_gauge">Meter</string>
     <string name="widget_custom_data_render_option_text">Tekst</string>
+    <string name="template_helper_playlist_id">De id van de afspeellijst waaraan het nummer is toegevoegd</string>
+    <string name="template_helper_track_name">De naam van het toegevoegde nummer</string>
     <string name="template_helper_ad_duration">De lengte van de reclamepauze (bijv. "3 minuten")</string>
     <string name="template_helper_ad_automatic">Of de reclamepauze automatisch was ("true") of aangevraagd ("false")</string>
     <string name="template_helper_followed_at">Wanneer de follow gebeurde</string>
@@ -4353,6 +4355,7 @@
     <string name="pipeline_play_sound_handle_help">Een naam voor deze afspeelactie, zodat een latere stop_sound-stap dit specifieke fragment kan stoppen in plaats van alle fragmenten.</string>
     <string name="pipeline_play_sound_volume_help">Het afspeelvolume voor dit fragment, van 0 (stil) tot 100 (volledig volume). Leeg laten om de eigen standaardwaarde van het fragment te gebruiken.</string>
     <string name="pipeline_play_sound_wait_for_finish_help">Pauzeert de rest van de pipeline totdat dit fragment klaar is met afspelen, in plaats van direct door te gaan.</string>
+    <string name="pipeline_playlist_add_message_help">Het chatbericht dat wordt verstuurd nadat het nummer is toegevoegd. Leeg gebruikt de standaardtekst.</string>
     <string name="pipeline_playlist_add_playlist_id_help">Aan welke afspeellijst het nummer wordt toegevoegd.</string>
     <string name="pipeline_playlist_add_track_uri_help">Het nummer dat wordt toegevoegd. Leeg voegt het nummer toe dat nu speelt.</string>
     <string name="pipeline_post_quote_number_help">Het citaatnummer dat wordt geplaatst. Leeg plaatst een willekeurig opgeslagen citaat.</string>
