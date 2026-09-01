@@ -67,12 +67,6 @@ guard used to survive as a captioned, src-less tag instead of being removed outr
 (`RemovingAttribute` + `PostProcessNode` hooks now drop the whole element) and covered by
 `ChatHtmlSanitizerTests.cs`, kept as a standalone correctness fix — NOT attributed to S-OWN20, since
 the real cause was the missing native-GIF fragment support above.
-- 🔴 **S-OWN22** — the OBS control widget (`obs-bridge?token=...`) has never worked: its inline
-  `<script>` is blocked by CSP (`script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' https://esm.sh
-  https://cdn.jsdelivr.net` — no `'unsafe-inline'`, no nonce/hash match) per the owner's DevTools
-  console screenshot 2026-09-01 ("and this is my obs control widget, no wonder it never worked!").
-  Owner: finish other in-flight work first, then take this.
-
 - **S-OWN08-remaining** — admin pages (SaaS management: users, providers, settings) UX/DX pass. Owner: "the
   admin pages have not changed one bit and really need a better ux and dx interface for managing the saas
   version of the bot. this includes the ability to manage users, providers, and other settings." First slice
