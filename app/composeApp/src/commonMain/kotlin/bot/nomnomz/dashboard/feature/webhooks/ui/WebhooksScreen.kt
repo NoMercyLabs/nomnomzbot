@@ -119,6 +119,8 @@ import nomnomzbot.composeapp.generated.resources.webhooks_deliveries_empty
 import nomnomzbot.composeapp.generated.resources.webhooks_deliveries_loading
 import nomnomzbot.composeapp.generated.resources.webhooks_deliveries_next_retry
 import nomnomzbot.composeapp.generated.resources.webhooks_deliveries_reload
+import nomnomzbot.composeapp.generated.resources.webhooks_deliveries_retry
+import nomnomzbot.composeapp.generated.resources.webhooks_deliveries_retrying
 import nomnomzbot.composeapp.generated.resources.webhooks_deliveries_title
 import nomnomzbot.composeapp.generated.resources.webhooks_edit
 import nomnomzbot.composeapp.generated.resources.webhooks_edit_confirm

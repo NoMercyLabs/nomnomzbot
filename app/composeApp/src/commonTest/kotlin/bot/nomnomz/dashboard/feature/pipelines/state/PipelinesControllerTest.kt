@@ -1131,6 +1131,8 @@ private object StubWebhooksApi : WebhooksApi {
         ApiResult.Ok(WebhookTestResult())
     override suspend fun outboundDeliveries(channelId: String, endpointId: String): ApiResult<List<OutboundDelivery>> =
         ApiResult.Ok(emptyList())
+    override suspend fun retryOutboundDelivery(channelId: String, endpointId: String, deliveryId: Long): ApiResult<OutboundDelivery> =
+        ApiResult.Ok(OutboundDelivery())
     override suspend fun deleteOutbound(channelId: String, endpointId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 }
 
