@@ -478,11 +478,13 @@ later.)
   reload was ALREADY correctly implemented (`SongRequestsController.subscribeToHub` reloads on
   `MusicStateChanged`, dedupes redundant same-track pushes), and no polling loop exists at all to bound
   (grepped for `delay`/`Timer`/`poll`, zero matches — screen only loads once + the hub subscription).
-  Added 2 regression tests since the correct-but-untested hub-reload path had no coverage. **Real gap
-  found, not fixed (own follow-up)**: `SongRequestQueueChangedEvent` (add/remove/promote/ban) only
-  reaches the `sr_queue` WIDGET channel (`SrQueueBroadcastHandler.cs`), never `DashboardHub` — pure
-  queue mutations with no track change have no dashboard push at all today; a backend wiring gap outside
-  this slice's frontend-only scope.
+  Added 2 regression tests since the correct-but-untested hub-reload path had no coverage.
+  **Dashboard queue-push DONE, verified (aaf4851b)**: `SongRequestQueueChangedEvent` (add/remove/
+  promote/ban) previously only reached the `sr_queue` WIDGET channel, never `DashboardHub` — a mod
+  acting from the dashboard saw no live update for a pure queue mutation with no track change.
+  `SrQueueBroadcastHandler.cs` now also pushes via `NotifyChannelAsync(..., "sr_queue_changed", ...)`,
+  reusing the exact same `Items` payload already built for the widget push (no recomputation). Test
+  proves BOTH the widget push and the new dashboard push fire with matching item payloads.
   **`RequestedBy` not the owner key DONE, verified (d587c4d5)**: traced all 3 admission paths (chat
   `!sr`, pipeline action, public `/sr/` page) — all 3 already correct. Found the REAL broken path was a
   4th one: the authenticated `POST .../music/queue` endpoint (the dashboard's own participant flow)
