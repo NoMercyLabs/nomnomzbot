@@ -24,7 +24,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.Text
-import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.TabsList
 import bot.nomnomz.dashboard.core.designsystem.component.TabsTrigger
@@ -53,6 +52,7 @@ import bot.nomnomz.dashboard.core.io.copyToClipboard
 import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
+import bot.nomnomz.dashboard.core.designsystem.component.Slider
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
@@ -73,6 +73,7 @@ import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.shell_nav_song_requests
 import nomnomzbot.composeapp.generated.resources.songrequests_action_error
@@ -124,6 +125,22 @@ import org.jetbrains.compose.resources.stringResource
 // The Song Requests page: the channel's live music queue + SR management (config, SR-page token). Loads all
 // three in parallel; the queue + controls render immediately. The config section surfaces the key SR toggles
 // (enabled, providers) with inline saves. The SR-page token section shows the shareable link + rotate action.
+
+// Real backend bounds (`UpdateMusicConfigDto` [Range] attributes, server/src/NomNomzBot.Application/Music/
+// Dtos/MusicConfigDtos.cs) — never invented client-side. A value outside these is rejected server-side, so
+// the stepper below cannot produce a value the backend would refuse.
+internal const val MIN_MAX_QUEUE_SIZE: Int = 1
+internal const val MAX_MAX_QUEUE_SIZE: Int = 500
+internal const val MIN_MAX_REQUESTS_PER_USER: Int = 1
+internal const val MAX_MAX_REQUESTS_PER_USER: Int = 50
+
+/** Clamp a candidate `MaxQueueSize` to the backend-enforced `[1, 500]` range. */
+internal fun clampMaxQueueSize(value: Int): Int = value.coerceIn(MIN_MAX_QUEUE_SIZE, MAX_MAX_QUEUE_SIZE)
+
+/** Clamp a candidate `MaxRequestsPerUser` to the backend-enforced `[1, 50]` range. */
+internal fun clampMaxRequestsPerUser(value: Int): Int =
+    value.coerceIn(MIN_MAX_REQUESTS_PER_USER, MAX_MAX_REQUESTS_PER_USER)
+
 @Composable
 fun SongRequestsScreen(
     controller: SongRequestsController,
@@ -337,8 +354,8 @@ private fun ConfigSection(
     // draft can never clobber a setting nobody meant to change. `remember(config)` re-seeds the draft whenever
     // a fresh config lands (e.g. after Save reloads, or another session's edit arrives over the hub).
     var preferredProvider: String by remember(config) { mutableStateOf(config.preferredProvider) }
-    var maxQueueSize: String by remember(config) { mutableStateOf(config.maxQueueSize.toString()) }
-    var maxPerUser: String by remember(config) { mutableStateOf(config.maxRequestsPerUser.toString()) }
+    var maxQueueSize: Int by remember(config) { mutableStateOf(clampMaxQueueSize(config.maxQueueSize)) }
+    var maxPerUser: Int by remember(config) { mutableStateOf(clampMaxRequestsPerUser(config.maxRequestsPerUser)) }
     var minTrustLevel: String by remember(config) { mutableStateOf(config.minTrustLevel) }
 
     val trustLevels: List<String> = listOf("everyone", "subscribers", "vip", "moderators", "broadcaster")
@@ -401,27 +418,20 @@ private fun ConfigSection(
                 }
             }
 
-            // Max queue / per-user fields
-            Row(horizontalArrangement = Arrangement.spacedBy(spacing.s3)) {
-                AppTextField(
-                    // Digits only: a stray non-digit makes Save send `toIntOrNull()` = null, which the
-                    // partial-patch backend reads as "leave unchanged", so the edit silently vanishes on reload.
-                    value = maxQueueSize,
-                    onValueChange = { maxQueueSize = it.filter { c -> c.isDigit() } },
-                    label = stringResource(Res.string.songrequests_config_max_queue),
-                    isError = false,
-                    errorText = null,
-                    modifier = Modifier.weight(1f),
-                )
-                AppTextField(
-                    value = maxPerUser,
-                    onValueChange = { maxPerUser = it.filter { c -> c.isDigit() } },
-                    label = stringResource(Res.string.songrequests_config_max_per_user),
-                    isError = false,
-                    errorText = null,
-                    modifier = Modifier.weight(1f),
-                )
-            }
+            // Max queue / per-user fields — bounded steppers over the real backend range (`[Range]` on
+            // `UpdateMusicConfigDto`), so the operator can never drag past a value the server would reject.
+            BoundedIntStepper(
+                label = stringResource(Res.string.songrequests_config_max_queue),
+                value = maxQueueSize,
+                onValueChange = { maxQueueSize = clampMaxQueueSize(it) },
+                range = MIN_MAX_QUEUE_SIZE..MAX_MAX_QUEUE_SIZE,
+            )
+            BoundedIntStepper(
+                label = stringResource(Res.string.songrequests_config_max_per_user),
+                value = maxPerUser,
+                onValueChange = { maxPerUser = clampMaxRequestsPerUser(it) },
+                range = MIN_MAX_REQUESTS_PER_USER..MAX_MAX_REQUESTS_PER_USER,
+            )
 
             // Minimum trust level
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
@@ -451,8 +461,8 @@ private fun ConfigSection(
                         onUpdate(
                             UpdateMusicConfigBody(
                                 preferredProvider = preferredProvider,
-                                maxQueueSize = maxQueueSize.toIntOrNull(),
-                                maxRequestsPerUser = maxPerUser.toIntOrNull(),
+                                maxQueueSize = maxQueueSize,
+                                maxRequestsPerUser = maxPerUser,
                                 minTrustLevel = minTrustLevel,
                             )
                         )
@@ -489,6 +499,39 @@ private fun SrToggleRow(
                 enabled = enabled,
             )
         }
+    }
+}
+
+/**
+ * A bounded integer stepper: a label + current-value readout above a [Slider] clamped to [range]. Mirrors
+ * the numeric-field pattern already used for widget settings (`WidgetSettingsForms.kt`'s `"number"` field
+ * type) — a Slider over an integer range rather than a free-text field, so the value can never leave the
+ * bound the backend enforces.
+ */
+@Composable
+private fun BoundedIntStepper(
+    label: String,
+    value: Int,
+    onValueChange: (Int) -> Unit,
+    range: IntRange,
+) {
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    val tokens = LocalTokens.current
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+        Text(
+            text = "$label: $value",
+            style = typography.sm,
+            color = tokens.mutedForeground,
+        )
+        Slider(
+            value = value.toFloat(),
+            onValueChange = { onValueChange(it.roundToInt()) },
+            valueRange = range.first.toFloat()..range.last.toFloat(),
+            steps = (range.last - range.first - 1).coerceAtLeast(0),
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 
