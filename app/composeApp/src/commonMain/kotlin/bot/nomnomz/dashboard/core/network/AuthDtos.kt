@@ -63,11 +63,12 @@ data class CurrentUser(
 /**
  * The `StatusResponseDto` error envelope — the OTHER shape a failing endpoint answers with. Controllers that
  * map a `Result` failure (every `BadRequestResponse`/`ConflictResponse`/… helper in `BaseController`) return
- * `{"status":"error","message":"..."}` rather than problem details, so the reason has to be read from here or
- * it is lost and the user sees only a bare status code.
+ * `{"status":"error","message":"...","code":"..."}` rather than problem details, so the reason — and the
+ * machine-readable `code` (the failing `Result.ErrorCode`, e.g. `PROVIDER_NOT_CONFIGURED`) — has to be read
+ * from here or it is lost and the caller sees only a bare status code.
  */
 @Serializable
-data class ErrorEnvelope(val message: String? = null)
+data class ErrorEnvelope(val message: String? = null, val code: String? = null)
 
 /** RFC-7807 problem details the backend returns for 4xx/5xx. */
 @Serializable

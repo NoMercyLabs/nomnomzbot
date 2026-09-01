@@ -1805,6 +1805,9 @@
     <string name="provider_credentials_save">Save and continue</string>
     <string name="provider_credentials_saving">Saving…</string>
     <string name="provider_credentials_save_error">Couldn't save the credentials: %1$s</string>
+    <!-- The reactive BYOC-onboarding dialog (S-OWN07): opened when a Connect click answers PROVIDER_NOT_CONFIGURED, instead of an error toast. -->
+    <string name="integrations_onboarding_title">Set up %1$s first</string>
+    <string name="integrations_onboarding_cancel">Cancel</string>
 
     <!-- Frame-level feedback for the new pages. -->
     <string name="feedback_quote_saved">Quote saved</string>

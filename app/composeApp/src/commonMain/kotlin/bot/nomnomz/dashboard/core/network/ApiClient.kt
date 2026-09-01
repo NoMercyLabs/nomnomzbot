@@ -552,7 +552,11 @@ class ApiClient(
             }
         return ApiError(
             status = response.status.value,
-            code = problem?.type ?: response.status.value.toString(),
+            // Prefer the StatusResponseDto envelope's `code` (the failing Result.ErrorCode, e.g.
+            // PROVIDER_NOT_CONFIGURED) — this is how a caller branches on WHY a request failed, not just
+            // its HTTP status. Problem-details `type` is the alternate machine-readable slot when THAT shape
+            // is what came back; the bare status number is the last-resort fallback.
+            code = envelope?.code ?: problem?.type ?: response.status.value.toString(),
             message = failureMessage(
                 response.status.value,
                 problem?.detail ?: envelope?.message,
