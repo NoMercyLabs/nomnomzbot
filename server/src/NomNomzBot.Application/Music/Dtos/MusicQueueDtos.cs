@@ -22,14 +22,15 @@ public sealed record SongRequestDto
     public string? RequestedBy { get; init; }
 }
 
-/// <summary>A queue item with its position.</summary>
+/// <summary>A queue item with its position. <paramref name="Cost"/> is 0 for a free request.</summary>
 public sealed record QueueItemDto(
     int Position,
     string TrackName,
     string Artist,
     string? ImageUrl,
     int DurationMs,
-    string? RequestedBy
+    string? RequestedBy,
+    int Cost = 0
 );
 
 /// <summary>Current now-playing state. <paramref name="ShuffleState"/> and <paramref name="RepeatState"/>
