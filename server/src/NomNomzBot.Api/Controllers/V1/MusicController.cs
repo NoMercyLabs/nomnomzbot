@@ -13,6 +13,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Authorization;
+using NomNomzBot.Api.Extensions;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Dtos;
@@ -158,7 +159,14 @@ public class MusicController : BaseController
         return Ok(new StatusResponseDto<MusicQueueDto> { Data = dto });
     }
 
-    /// <summary>Queue a song request by search query, submitted by a viewer or the operator.</summary>
+    /// <summary>
+    /// Queue a song request by search query, submitted by a viewer or the operator. When the caller
+    /// (a viewer using the authenticated dashboard, or a moderator/operator genuinely requesting for
+    /// themselves) does not name a target requester, the request is attributed to the authenticated
+    /// caller's own display name — never left to fall through to an anonymous/unattributed default,
+    /// which would misattribute a real, identifiable requester. An operator queuing on behalf of a
+    /// specific viewer still names that viewer explicitly via <see cref="SongRequestDto.RequestedBy"/>.
+    /// </summary>
     [RequireAction("music:request:submit")]
     [HttpPost("queue")]
     [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
@@ -168,10 +176,14 @@ public class MusicController : BaseController
         CancellationToken ct
     )
     {
+        string? requestedBy = string.IsNullOrWhiteSpace(request.RequestedBy)
+            ? User.GetDisplayName()
+            : request.RequestedBy;
+
         Result<MusicTrack> requested = await _musicService.RequestTrackAsync(
             channelId,
             request.Query,
-            request.RequestedBy,
+            requestedBy,
             cancellationToken: ct
         );
         if (requested.IsFailure)
