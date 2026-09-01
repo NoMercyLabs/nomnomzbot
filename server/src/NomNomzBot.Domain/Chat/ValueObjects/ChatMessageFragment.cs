@@ -16,7 +16,7 @@ namespace NomNomzBot.Domain.Chat.ValueObjects;
 /// </summary>
 public sealed class ChatMessageFragment
 {
-    /// <summary>Fragment type: "text" | "emote" | "cheermote" | "mention"</summary>
+    /// <summary>Fragment type: "text" | "emote" | "cheermote" | "mention" | "gif"</summary>
     public string Type { get; init; } = "text";
 
     /// <summary>The raw text of this fragment.</summary>
@@ -93,4 +93,15 @@ public sealed class ChatMessageFragment
     /// when previews are off, or when the page exposes no OpenGraph tags — the link still renders with its url.
     /// </summary>
     public LinkPreview? LinkPreview { get; set; }
+
+    // ─── GIF fields (when Type == "gif") ───────────────────────────────────────
+    // Twitch's native chat GIF fragment (GIPHY-backed, Tier 2+ subscriber feature, shipped 2026): the
+    // fragment carries the resolved GIF id and a directly-fetchable url — there is no separate resolve step
+    // (unlike media-share's Twitch-clip/YouTube lookups), the wire payload already IS the real media.
+
+    /// <summary>GIPHY-backed GIF id Twitch assigns this fragment (the EventSub payload's <c>gif.gif_id</c>).</summary>
+    public string? GifId { get; init; }
+
+    /// <summary>The GIF's directly-fetchable image url (the EventSub payload's <c>gif.url</c>).</summary>
+    public string? GifUrl { get; init; }
 }

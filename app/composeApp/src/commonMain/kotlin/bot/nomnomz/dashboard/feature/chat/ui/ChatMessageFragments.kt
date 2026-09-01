@@ -85,6 +85,22 @@ internal fun FlowRowScope.ChatMessageFragments(
                     color = mentionColor,
                 )
             }
+            "gif" -> {
+                // Twitch's native chat GIF (GIPHY-backed, Tier 2+ subscriber feature): the fragment already
+                // carries a directly-fetchable url — render it inline like an emote, just bigger, since it's
+                // the message's actual content rather than a small inline glyph. [text] is Twitch's own
+                // alt-text/caption for the GIF, so it doubles as the accessibility description.
+                val url: String? = fragment.gif?.url
+                if (url != null) {
+                    AnimatedNetworkImage(
+                        url = url,
+                        contentDescription = fragment.text,
+                        modifier = Modifier.size(emoteSize * 4).align(Alignment.CenterVertically),
+                    )
+                } else {
+                    PlainRun(text = fragment.text)
+                }
+            }
             "link" -> {
                 // Backend-tagged link fragment — [linkUrl] carries the resolved target (bare `www.` links have no
                 // scheme, so default to https for `openUri`); fall back to the visible text when it's absent.

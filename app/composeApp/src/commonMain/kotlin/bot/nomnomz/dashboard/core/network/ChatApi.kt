@@ -265,7 +265,7 @@ data class ChatMessage(
     val provider: String = "twitch",
 )
 
-/** One decorated fragment — type "text" | "emote" | "cheermote" | "mention" | "link". */
+/** One decorated fragment — type "text" | "emote" | "cheermote" | "mention" | "link" | "gif". */
 @Serializable
 data class ChatFragment(
     val type: String = "text",
@@ -274,7 +274,15 @@ data class ChatFragment(
     val cheermote: ChatCheermote? = null,
     val mention: ChatMention? = null,
     val linkUrl: String? = null,
+    val gif: ChatGif? = null,
 )
+
+/**
+ * Twitch's native chat GIF fragment (GIPHY-backed, Tier 2+ subscriber feature): the payload already carries a
+ * directly-fetchable url — no separate resolve step, unlike media-share's clip/video lookups.
+ */
+@Serializable
+data class ChatGif(val gifId: String = "", val url: String = "")
 
 /** Resolved emote. [urls] keyed by scale "1".."4". */
 @Serializable

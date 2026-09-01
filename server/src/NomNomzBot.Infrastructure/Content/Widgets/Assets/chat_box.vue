@@ -161,6 +161,12 @@ function cheermoteUrl(fr: any): string {
   return firstUrl(fr && fr.cheermote && fr.cheermote.urls, ['2', '1', '3'])
 }
 
+// Twitch's native chat GIF (GIPHY-backed, Tier 2+ subscriber feature): the fragment already carries a
+// directly-fetchable url — no separate resolve step, unlike media-share's clip/video lookups.
+function gifUrl(fr: any): string {
+  return (fr && fr.gif && typeof fr.gif.url === 'string') ? fr.gif.url : ''
+}
+
 // Mention/cheermote may carry a #RRGGBB accent; guard it before binding to style so bad data can't inject CSS.
 function fragColor(c: any): Record<string, string> {
   const hex: string = hexColor(c)
@@ -269,6 +275,10 @@ onUnmounted(() => {
               <img v-if="cfg.showEmotes && cheermoteUrl(fr)" class="cheermote" :src="cheermoteUrl(fr)" :alt="fr.text">
               <span class="cheer-bits" :style="fragColor(fr.cheermote.colorHex)">{{ fr.cheermote.bits }}</span>
             </template>
+            <!-- Twitch native chat GIF (GIPHY-backed, Tier 2+ sub feature): the fragment carries a real,
+                 directly-fetchable url, so it renders inline like an emote — just at GIF scale, since it IS
+                 the message's content rather than a small inline glyph. fr.text is Twitch's own caption/alt. -->
+            <img v-else-if="fr.type === 'gif' && gifUrl(fr)" class="chat-gif" :src="gifUrl(fr)" :alt="fr.text">
             <!-- @mention: a highlighted chip always, additionally tinted with the mentioned user's chat colour
                  when known — a mention must stand out even with no known colour. -->
             <span v-else-if="fr.type === 'mention' && fr.mention" class="mention" :style="fragColor(fr.mention.color)">{{ '@' + (fr.mention.displayName || fr.mention.username || '') }}</span>
@@ -471,6 +481,15 @@ onUnmounted(() => {
 }
 .cheer-bits {
   font-weight: 700;
+}
+.chat-gif {
+  /* Content, not a glyph — big enough to actually read, capped so one GIF can't blow out the chat column. */
+  display: block;
+  max-width: 100%;
+  max-height: 8em;
+  width: auto;
+  border-radius: 6px;
+  margin: 4px 0 0;
 }
 .mention {
   /* A highlighted chip so a mention stands out even when the mentioned user has no known chat colour

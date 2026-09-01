@@ -400,6 +400,58 @@ public sealed class ChatTranslatorsTests
     }
 
     [Fact]
+    public async Task ChatMessage_NativeGif_PublishesGifFragmentWithTheRealUrl()
+    {
+        // Regression for the priority bug reported 2026-09-01: Twitch's native chat GIF (GIPHY-backed, Tier 2+
+        // subscriber feature) delivers a "gif" fragment whose payload already carries a directly-fetchable
+        // url — there is no separate resolve step. The translator must carry that real url straight through,
+        // not drop it or substitute a placeholder.
+        CapturingEventBus bus = new();
+        ChannelChatMessageTranslator translator = new(
+            bus,
+            Clock,
+            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
+            NeverSuppressGuard()
+        );
+
+        await translator.TranslateAsync(
+            Notification(
+                "channel.chat.message",
+                """
+                {
+                    "chatter_user_id": "9001",
+                    "chatter_user_login": "kanawanagasaki",
+                    "chatter_user_name": "Kanawanagasaki",
+                    "message_id": "gif-1",
+                    "message": {
+                        "text": "Cat Festival GIF by W&W",
+                        "fragments": [
+                            {
+                                "type": "gif",
+                                "text": "Cat Festival GIF by W&W",
+                                "gif": { "gif_id": "abc123", "url": "https://media.giphy.com/media/abc123/giphy.gif" }
+                            }
+                        ]
+                    },
+                    "badges": []
+                }
+                """
+            )
+        );
+
+        ChatMessageReceivedEvent published = bus.EventsOf<ChatMessageReceivedEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject;
+
+        ChatMessageFragment gif = published.Fragments.Should().ContainSingle().Subject;
+        gif.Type.Should().Be("gif");
+        gif.Text.Should().Be("Cat Festival GIF by W&W");
+        gif.GifId.Should().Be("abc123");
+        gif.GifUrl.Should().Be("https://media.giphy.com/media/abc123/giphy.gif");
+    }
+
+    [Fact]
     public async Task ChatMessage_Mention_PublishesMentionFragment()
     {
         CapturingEventBus bus = new();

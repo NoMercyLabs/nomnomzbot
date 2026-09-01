@@ -19,6 +19,7 @@ import bot.nomnomz.dashboard.core.network.ChatCheermote
 import bot.nomnomz.dashboard.core.network.ChatEmote
 import bot.nomnomz.dashboard.core.network.ChatEmoteCatalogue
 import bot.nomnomz.dashboard.core.network.ChatFragment
+import bot.nomnomz.dashboard.core.network.ChatGif
 import bot.nomnomz.dashboard.core.network.ChatMention
 import bot.nomnomz.dashboard.core.network.ChatMessage
 import bot.nomnomz.dashboard.core.network.ChatSettings
@@ -332,6 +333,7 @@ internal fun HubChatMessage.toLocalMessage(): ChatMessage =
                     )
                 },
                 linkUrl = f.linkUrl,
+                gif = f.gif?.let { g -> ChatGif(gifId = g.gifId, url = g.url) },
             )
         },
         badges = badges.map { b ->
