@@ -51,7 +51,7 @@ in §4.2. Foundation = `androidx.compose.foundation`; M3 = a themed `androidx.co
 **Build status (as-built, `core/designsystem/component/`):** built — `Button`, `Textarea`, `Switch`, `DropdownMenu`,
 `Dialog`, `Sheet`, `Tooltip`, `Card`, `Badge`, `Separator`, `Progress`, `Spinner`, `Tabs`, `Slider`, `Stepper`,
 `Alert`, `Label`, `Skeleton` (S051a); `Input`, `RadioGroup` (+ `RadioItem`), `Toast` (S051b); `Popover`,
-`Select`, `Combobox` (S051c). `Checkbox` was already built (`SelectionControls.kt`, alongside `RadioButton`)
+`Select`, `Combobox` (S051c); `ScrollArea`, `Table` (S051d). `Checkbox` was already built (`SelectionControls.kt`, alongside `RadioButton`)
 prior to the S051a manifest catching up — it satisfies the row above; a follow-up may split it into its own
 `Checkbox.kt` for one-file-per-component, but there is no functional gap to close. `RadioGroup`/`RadioItem`
 (`RadioGroup.kt`) is a group wrapper over the existing `RadioButton` indicator, not a duplicate. `Toast`
@@ -63,8 +63,12 @@ than a flat option list, so it is not superseded. `Combobox` (`Combobox.kt`) is 
 per its catalogue row (`Foundation (Popover + Command)`); `EntityPickerField`/`SearchPickerField` (patterns
 tier) remain the id-keyed entity-search composites built on their own chrome, not on this primitive.
 `Avatar` (`Avatar.kt`) was also found already built — like `Checkbox` before it, the manifest had not caught
-up; no new file was needed for it, only this correction.
-**To build** (catalogued, no file yet) — `ScrollArea`, `Table` (2).
+up; no new file was needed for it, only this correction. `ScrollArea` (`ScrollArea.kt`) and `Table`
+(`Table.kt`, S051d) close the series — no pre-existing scroll wrapper or data-grid primitive was found
+under another name (only app-composite `DataTable`/`FileTree`-style screens built on raw `Column`/`Row`,
+none of which duplicate this closed-catalogue primitive), so both are new files. This closes the S051
+catalogue-gap series: every row in §4's table now has a built file.
+**To build** — none; the catalogue is closed (all rows built).
 
 ---
 
