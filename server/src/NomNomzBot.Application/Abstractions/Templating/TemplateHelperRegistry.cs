@@ -9,6 +9,8 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Application.Abstractions.Localization;
+using NomNomzBot.Application.Commands.Dtos;
+using NomNomzBot.Application.Commands.Services;
 
 namespace NomNomzBot.Application.Abstractions.Templating;
 
@@ -92,18 +94,45 @@ public static class TemplateHelperRegistry
     public static IReadOnlyList<TemplateHelperEntry> ForContext(TemplateHelperContext context) =>
         [.. All.Where(e => e.Contexts.Contains(context))];
 
+    /// <summary>
+    /// The valid set for one context, narrowed to what a SPECIFIC EventSub-triggered event actually
+    /// seeds (S-OWN16) — e.g. <c>context=eventResponse&amp;eventType=channel.raid</c> excludes
+    /// subscription-only helpers like <c>tier</c>/<c>months</c> even though both are valid somewhere in
+    /// the EventResponse context. Non-<see cref="TemplateHelperEntry.EventScoped"/> helpers (channel,
+    /// time, user identity, etc.) are unaffected — they resolve for every event. <paramref name="eventType"/>
+    /// must be a key from <see cref="EventResponsePresetCatalog.EventTypes"/>; an unknown key throws
+    /// <see cref="ArgumentException"/> — callers validate against that list before calling (see
+    /// <c>TemplatesController</c>).
+    /// </summary>
+    public static IReadOnlyList<TemplateHelperEntry> ForContext(
+        TemplateHelperContext context,
+        string eventType
+    )
+    {
+        EventResponsePresetDto preset =
+            EventResponsePresetCatalog.Presets.FirstOrDefault(p => p.EventType == eventType)
+            ?? throw new ArgumentException($"Unknown event type '{eventType}'.", nameof(eventType));
+
+        return
+        [
+            .. ForContext(context).Where(e => !e.EventScoped || preset.Variables.Any(e.Matches)),
+        ];
+    }
+
     private static TemplateHelperEntry Literal(
         string key,
         TemplateHelperContext[] contexts,
-        string descriptionKey
-    ) => new(key, contexts, new LocalizedText(descriptionKey));
+        string descriptionKey,
+        bool eventScoped = false
+    ) => new(key, contexts, new LocalizedText(descriptionKey), EventScoped: eventScoped);
 
     private static TemplateHelperEntry Prefixed(
         string displayKey,
         string prefix,
         TemplateHelperContext[] contexts,
-        string descriptionKey
-    ) => new(displayKey, contexts, new LocalizedText(descriptionKey), prefix);
+        string descriptionKey,
+        bool eventScoped = false
+    ) => new(displayKey, contexts, new LocalizedText(descriptionKey), prefix, eventScoped);
 
     private static List<TemplateHelperEntry> BuildEntries() =>
         [
@@ -123,74 +152,171 @@ public static class TemplateHelperRegistry
             // ── Delivering platform (event response only; the event that fired the template) ──
             Literal("provider", [TemplateHelperContext.EventResponse], "template.helper.provider"),
             // ── Ad breaks (channel.ad_break.begin only) ─────────────────────
-            Literal("ad.duration", EventSourceOnlyContexts, "template.helper.ad_duration"),
-            Literal("ad.automatic", EventSourceOnlyContexts, "template.helper.ad_automatic"),
+            Literal(
+                "ad.duration",
+                EventSourceOnlyContexts,
+                "template.helper.ad_duration",
+                eventScoped: true
+            ),
+            Literal(
+                "ad.automatic",
+                EventSourceOnlyContexts,
+                "template.helper.ad_automatic",
+                eventScoped: true
+            ),
             // ── Follow (channel.follow) ──────────────────────────────────────
-            Literal("followed_at", EventSourceOnlyContexts, "template.helper.followed_at"),
+            Literal(
+                "followed_at",
+                EventSourceOnlyContexts,
+                "template.helper.followed_at",
+                eventScoped: true
+            ),
             // ── Subscriptions / gifts / cheers (channel.subscribe, .subscription.message/.gift, .cheer) ──
-            Literal("tier", EventSourceOnlyContexts, "template.helper.tier"),
-            Literal("months", EventSourceOnlyContexts, "template.helper.months"),
-            Literal("streak", EventSourceOnlyContexts, "template.helper.streak"),
-            Literal("message", EventSourceOnlyContexts, "template.helper.message"),
-            Literal("also_said", EventSourceOnlyContexts, "template.helper.also_said"),
-            Literal("count", EventSourceOnlyContexts, "template.helper.event_count"),
-            Literal("anonymous", EventSourceOnlyContexts, "template.helper.anonymous"),
-            Literal("bits", EventSourceOnlyContexts, "template.helper.bits"),
+            Literal("tier", EventSourceOnlyContexts, "template.helper.tier", eventScoped: true),
+            Literal("months", EventSourceOnlyContexts, "template.helper.months", eventScoped: true),
+            Literal("streak", EventSourceOnlyContexts, "template.helper.streak", eventScoped: true),
+            Literal(
+                "message",
+                EventSourceOnlyContexts,
+                "template.helper.message",
+                eventScoped: true
+            ),
+            Literal(
+                "also_said",
+                EventSourceOnlyContexts,
+                "template.helper.also_said",
+                eventScoped: true
+            ),
+            Literal(
+                "count",
+                EventSourceOnlyContexts,
+                "template.helper.event_count",
+                eventScoped: true
+            ),
+            Literal(
+                "anonymous",
+                EventSourceOnlyContexts,
+                "template.helper.anonymous",
+                eventScoped: true
+            ),
+            Literal("bits", EventSourceOnlyContexts, "template.helper.bits", eventScoped: true),
             // ── Raids (channel.raid, channel.raid.out) ──────────────────────
-            Literal("viewers", EventSourceOnlyContexts, "template.helper.viewers"),
+            Literal(
+                "viewers",
+                EventSourceOnlyContexts,
+                "template.helper.viewers",
+                eventScoped: true
+            ),
             // ── Reward redemptions + lifecycle (redemption.add, reward.paused/resumed/enabled/disabled) ──
-            Literal("reward", EventSourceOnlyContexts, "template.helper.reward"),
-            Literal("reward.id", EventSourceOnlyContexts, "template.helper.reward_id"),
-            Literal("redemption.id", EventSourceOnlyContexts, "template.helper.redemption_id"),
-            Literal("cost", EventSourceOnlyContexts, "template.helper.cost"),
-            Literal("input", EventSourceOnlyContexts, "template.helper.input"),
+            Literal("reward", EventSourceOnlyContexts, "template.helper.reward", eventScoped: true),
+            Literal(
+                "reward.id",
+                EventSourceOnlyContexts,
+                "template.helper.reward_id",
+                eventScoped: true
+            ),
+            Literal(
+                "redemption.id",
+                EventSourceOnlyContexts,
+                "template.helper.redemption_id",
+                eventScoped: true
+            ),
+            Literal("cost", EventSourceOnlyContexts, "template.helper.cost", eventScoped: true),
+            Literal("input", EventSourceOnlyContexts, "template.helper.input", eventScoped: true),
             // ── Moderation (channel.ban, channel.unban) + stream.offline (shares the "duration" key) ──
-            Literal("moderator", EventSourceOnlyContexts, "template.helper.moderator"),
-            Literal("reason", EventSourceOnlyContexts, "template.helper.reason"),
-            Literal("duration", EventSourceOnlyContexts, "template.helper.event_duration"),
+            Literal(
+                "moderator",
+                EventSourceOnlyContexts,
+                "template.helper.moderator",
+                eventScoped: true
+            ),
+            Literal("reason", EventSourceOnlyContexts, "template.helper.reason", eventScoped: true),
+            Literal(
+                "duration",
+                EventSourceOnlyContexts,
+                "template.helper.event_duration",
+                eventScoped: true
+            ),
             // ── Stream lifecycle (stream.online, stream.offline) ─────────────
             Literal(
                 "broadcaster",
                 StreamLifecycleAndDiscordContexts,
-                "template.helper.broadcaster"
+                "template.helper.broadcaster",
+                eventScoped: true
             ),
-            Literal("title", StreamLifecycleAndDiscordContexts, "template.helper.title"),
-            Literal("game", StreamLifecycleAndDiscordContexts, "template.helper.game"),
+            Literal(
+                "title",
+                StreamLifecycleAndDiscordContexts,
+                "template.helper.title",
+                eventScoped: true
+            ),
+            Literal(
+                "game",
+                StreamLifecycleAndDiscordContexts,
+                "template.helper.game",
+                eventScoped: true
+            ),
             // ── Engagement triggers (engagement.first_time_chatter/.returning_chatter/.watch_streak/.session_first_message) ──
-            Literal("viewer.name", EventSourceOnlyContexts, "template.helper.viewer_name"),
+            Literal(
+                "viewer.name",
+                EventSourceOnlyContexts,
+                "template.helper.viewer_name",
+                eventScoped: true
+            ),
             Literal(
                 "engagement.daysSinceLastSeen",
                 EventSourceOnlyContexts,
-                "template.helper.engagement_days_since_last_seen"
+                "template.helper.engagement_days_since_last_seen",
+                eventScoped: true
             ),
             Literal(
                 "engagement.streak",
                 EventSourceOnlyContexts,
-                "template.helper.engagement_streak"
+                "template.helper.engagement_streak",
+                eventScoped: true
             ),
             // ── Supporter events (supporter.tip/.membership/.merch/.charity/.any) ──
-            Literal("supporter.name", EventSourceOnlyContexts, "template.helper.supporter_name"),
-            Literal("supporter.kind", EventSourceOnlyContexts, "template.helper.supporter_kind"),
+            Literal(
+                "supporter.name",
+                EventSourceOnlyContexts,
+                "template.helper.supporter_name",
+                eventScoped: true
+            ),
+            Literal(
+                "supporter.kind",
+                EventSourceOnlyContexts,
+                "template.helper.supporter_kind",
+                eventScoped: true
+            ),
             Literal(
                 "supporter.amount",
                 EventSourceOnlyContexts,
-                "template.helper.supporter_amount"
+                "template.helper.supporter_amount",
+                eventScoped: true
             ),
             Literal(
                 "supporter.currency",
                 EventSourceOnlyContexts,
-                "template.helper.supporter_currency"
+                "template.helper.supporter_currency",
+                eventScoped: true
             ),
-            Literal("supporter.tier", EventSourceOnlyContexts, "template.helper.supporter_tier"),
+            Literal(
+                "supporter.tier",
+                EventSourceOnlyContexts,
+                "template.helper.supporter_tier",
+                eventScoped: true
+            ),
             Literal(
                 "supporter.quantity",
                 EventSourceOnlyContexts,
-                "template.helper.supporter_quantity"
+                "template.helper.supporter_quantity",
+                eventScoped: true
             ),
             Literal(
                 "supporter.message",
                 EventSourceOnlyContexts,
-                "template.helper.supporter_message"
+                "template.helper.supporter_message",
+                eventScoped: true
             ),
             // ── OBS events (obs.<EventType> — obs-control.md §6): flat payload fields are dynamic per
             // event type, so this is a prefix family like custom.<name>.<field> ──
@@ -198,14 +324,16 @@ public static class TemplateHelperRegistry
                 "obs.event.<field>",
                 "obs.event.",
                 EventSourceOnlyContexts,
-                "template.helper.obs_event_field"
+                "template.helper.obs_event_field",
+                eventScoped: true
             ),
             // ── VTube Studio events (vts.<EventType> — vtube-studio.md §4): same dynamic-field shape ──
             Prefixed(
                 "vts.event.<field>",
                 "vts.event.",
                 EventSourceOnlyContexts,
-                "template.helper.vts_event_field"
+                "template.helper.vts_event_field",
+                eventScoped: true
             ),
             // ── Time / date (all contexts) ──────────────────────────────────
             Literal("time", AllContexts, "template.helper.time"),

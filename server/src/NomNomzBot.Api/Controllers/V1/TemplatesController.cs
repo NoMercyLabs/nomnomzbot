@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Commands.Services;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -29,8 +30,13 @@ namespace NomNomzBot.Api.Controllers.V1;
 public sealed class TemplatesController : BaseController
 {
     /// <summary>
-    /// GET /api/v1/templates/helpers?context=command|eventResponse|timer — the full valid helper set for
-    /// that context. An unknown/missing context fails honestly (400) rather than falling back to "all".
+    /// GET /api/v1/templates/helpers?context=command|eventResponse|timer&amp;eventType=channel.raid — the
+    /// valid helper set for that context, optionally narrowed to one EventSub event type (S-OWN16): a
+    /// helper only ever seeded by SOME events (e.g. <c>tier</c>, subscription-only) is excluded unless
+    /// <paramref name="eventType"/> actually seeds it, while helpers valid for every event (channel,
+    /// user identity, time, ...) are unaffected. An unknown/missing context, or an <paramref
+    /// name="eventType"/> outside <see cref="EventResponsePresetCatalog.EventTypes"/>, fails honestly
+    /// (400) rather than falling back to "all".
     /// </summary>
     [HttpGet("helpers")]
     // Gate 1 is pure entry, so an ungated endpoint is reachable by ANY authenticated user. The helper
@@ -41,7 +47,10 @@ public sealed class TemplatesController : BaseController
     [ProducesResponseType<StatusResponseDto<IReadOnlyList<TemplateHelperDto>>>(
         StatusCodes.Status200OK
     )]
-    public IActionResult GetHelpers([FromQuery] string context)
+    public IActionResult GetHelpers(
+        [FromQuery] string context,
+        [FromQuery] string? eventType = null
+    )
     {
         if (!Enum.TryParse(context, ignoreCase: true, out TemplateHelperContext parsed))
             return BadRequestResponse(
@@ -50,9 +59,20 @@ public sealed class TemplatesController : BaseController
                     + "."
             );
 
+        if (eventType is not null && !EventResponsePresetCatalog.EventTypes.Contains(eventType))
+            return BadRequestResponse(
+                $"Unknown event type '{eventType}'. Valid values: "
+                    + string.Join(", ", EventResponsePresetCatalog.EventTypes)
+                    + "."
+            );
+
         IReadOnlyList<TemplateHelperDto> helpers =
         [
-            .. TemplateHelperRegistry.ForContext(parsed).Select(TemplateHelperDto.FromEntry),
+            .. (
+                eventType is null
+                    ? TemplateHelperRegistry.ForContext(parsed)
+                    : TemplateHelperRegistry.ForContext(parsed, eventType)
+            ).Select(TemplateHelperDto.FromEntry),
         ];
 
         return Ok(new StatusResponseDto<IReadOnlyList<TemplateHelperDto>> { Data = helpers });
