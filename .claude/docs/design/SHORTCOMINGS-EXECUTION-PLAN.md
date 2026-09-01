@@ -75,7 +75,36 @@ when done) — this section is only the intake, not a shortcut around the bar.
     `NoOpenSupportSession` refusal path (`AdminController.kt:441-492`). Re-verify against `PlatformAdminController.cs`
     /`PlatformIamController.cs` directly before relying on this — it was not re-audited line-by-line as part of
     this slice, only cross-checked against the frontend contract.
-- **S-OWN09** — need proper create/update/delete for system commands, overlays, and pipelines (not just user-authored ones).
+- **S-OWN09-remaining** — owner: "i need a proper way to create, update and delete system commands, overlays, and
+  pipelines (not just user-authored ones)." Investigation found the three categories in very different states —
+  pipelines and overlays already have real CRUD; commands had a write-inaccessible mechanism this slice closed.
+  **Commands — CLOSED this slice.** `BuiltinsController` (`server/src/NomNomzBot.Api/Controllers/V1/BuiltinsController.cs`)
+  already had list + enable/disable (`PATCH .../builtins/{key}`, `commands:write`); `ChannelBuiltinCommand.OverridesJson`
+  + `IBuiltinResponseComposer`'s precedence ladder (override → tone template → neutral fallback) and
+  `BuiltinCommandContext.CustomResponseTemplate` were already wired into every built-in's execution path
+  (`ChatMessageHandler.cs`) — but nothing ever wrote `OverridesJson` (confirmed by grep: zero write call sites
+  anywhere in `server/` or `app/`). Added `IBuiltinCommandService.SetResponseOverrideAsync` +
+  `PUT .../builtins/{key}/response` (`commands:write`) to set/clear the `{"responseTemplate":"..."}` payload, threaded
+  through the KMP client (`BuiltinsApi.setResponseOverride`, `CommandsController.setBuiltinResponseOverride`) and the
+  Commands screen (an edit-response dialog per built-in row, `CommandsScreen.kt`'s `BuiltinTableRow` +
+  `BuiltinResponseOverrideDialog`). This generalizes across **every** built-in (not just `!banger`/playlist_add,
+  S-OWN17's one-off) — reserved data-rights built-ins (`IBuiltinCommand.IsReserved`) correctly refuse both enable/disable
+  and response-override writes. Tests: `server/tests/NomNomzBot.Infrastructure.Tests/Commands/BuiltinCommandServiceTests.cs`
+  (persist/round-trip/clear/reserved-refusal/unknown-key on the real SQLite test DB) +
+  `CommandsControllerTest.kt` (2 new cases). Commands still cannot be renamed/deleted/created from scratch (they are
+  compiled `IBuiltinCommand` classes — by design, not a gap) and per-built-in cooldown/permission-floor overrides
+  are still not writable (only the response text) — a possible follow-up, not blocking.
+  **Overlays — mostly already closed, not investigated further.** `WidgetsController.cs` already has full CRUD:
+  `POST` create-from-scratch, `POST /clone`, `POST /install/{galleryItemId}`, `PUT` update config,
+  `PUT .../project` (multi-file source edit + recompile), `DELETE` (with blast-radius preview), version
+  history + rollback. A gallery-installed widget can be fully edited/deleted like any other — there is no
+  separate "system overlay" tier that resists CRUD. Not re-verified against the dashboard's `feature/widgets`
+  UI in this slice — if the owner still hits a specific blocked overlay action, file it as a fresh, concrete slice.
+  **Pipelines — already closed, not investigated further.** `PipelinesController.cs` already has full CRUD:
+  `POST` create, `PUT` update (name/settings/action graph), `DELETE` (with counted blast-radius preview),
+  plus `GET .../actions` (block palette), test-run, and validate. Nothing found requiring a new create/rename/
+  duplicate/delete surface. Not re-verified against the dashboard's `feature/pipelines` UI in this slice — if
+  the owner still hits a specific blocked pipeline action, file it as a fresh, concrete slice.
 - **S-OWN16-remaining** — backend done: `GET /api/v1/templates/helpers` already filtered by broad `context` (command/eventResponse/timer/pipeline/discord/webhook); now also accepts an optional `eventType` (e.g. `channel.raid`) that excludes helpers only some events seed (`tier`/`months`/`bits`/`reward`/etc.) using `TemplateHelperEntry.EventScoped` + `EventResponsePresetCatalog`'s per-event variable list (9f0eeb09). Remaining, frontend (`app/`, out of scope here): the event-response template editor needs to pass its selected `eventType` into `TemplateHelpersApi.helpers(...)` so the picker narrows per event, not just per broad context; the outbound-webhook editor has no template picker at all yet (grep found no `Webhook*` usage of `TemplateHelpersDialog`) and should get one wired to `context=webhook`.
 ---
 
