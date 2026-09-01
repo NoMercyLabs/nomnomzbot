@@ -357,6 +357,102 @@ class IntegrationsControllerTest {
     }
 
     @Test
+    fun connect_provider_routes_to_onboarding_state_not_an_error_toast_when_not_configured() = runTest {
+        // S-OWN07: Kick has no per-provider pre-check in the UI (unlike Spotify/YouTube/Discord's branded
+        // modal), so it hits the backend's PROVIDER_NOT_CONFIGURED reactively. That must land the screen on
+        // the onboardingProvider state — never surface as a generic error, and never open the browser.
+        val integrations =
+            FakeIntegrationsApi(
+                status = listOf(IntegrationStatus("kick", connected = false)),
+                startResult = ApiResult.Failure(
+                    ApiError(400, "PROVIDER_NOT_CONFIGURED", "kick app credentials are not configured.")
+                ),
+            )
+        val launcher = FakeConnectLauncher()
+        val controller =
+            controller(
+                channels = FakeChannelsApi(ApiResult.Ok(channel)),
+                bot = FakeBotAuthApi(BotStatus(connected = false)),
+                integrations = integrations,
+                launcher = launcher,
+            )
+        controller.load()
+
+        controller.connectProvider("kick", "kick.chat")
+
+        // The connect state names the provider that needs onboarding — the screen's contract for opening the
+        // BYOC dialog — never the busy flag left dangling and never an Error/generic-failure state.
+        val ready: IntegrationsState.Ready = controller.state.value as IntegrationsState.Ready
+        assertEquals("kick", ready.onboardingProvider)
+        assertNull(ready.busy)
+        // No browser navigation happened — there is no authorize URL to open yet.
+        assertNull(launcher.openedUrl)
+    }
+
+    @Test
+    fun connect_provider_surfaces_a_real_error_toast_for_a_non_configuration_failure() = runTest {
+        // Only PROVIDER_NOT_CONFIGURED routes to onboarding; every other failure keeps behaving as a normal
+        // error — proven here by the onboarding state staying unset.
+        val integrations =
+            FakeIntegrationsApi(
+                status = listOf(IntegrationStatus("kick", connected = false)),
+                startResult = ApiResult.Failure(ApiError(503, "PROVIDER_UNAVAILABLE", "Kick is down.")),
+            )
+        val controller =
+            controller(
+                channels = FakeChannelsApi(ApiResult.Ok(channel)),
+                bot = FakeBotAuthApi(BotStatus(connected = false)),
+                integrations = integrations,
+                launcher = FakeConnectLauncher(),
+            )
+        controller.load()
+
+        controller.connectProvider("kick", "kick.chat")
+
+        val ready: IntegrationsState.Ready = controller.state.value as IntegrationsState.Ready
+        assertNull(ready.onboardingProvider)
+    }
+
+    @Test
+    fun saving_onboarding_credentials_registers_the_client_then_retries_the_connect() = runTest {
+        // The BYOC save the onboarding dialog drives, followed by the automatic retry that (now the client is
+        // registered) reaches the authorize URL — proven by the launcher actually opening it and the
+        // onboarding state clearing, not an optimistic flip.
+        val integrations =
+            FakeIntegrationsApi(
+                status = listOf(IntegrationStatus("kick", connected = false)),
+                authorizeUrl = "https://kick.com/authorize",
+                startResult = ApiResult.Failure(ApiError(400, "PROVIDER_NOT_CONFIGURED", "not configured")),
+            )
+        val system = FakeSystemApi(twitchSecretConfigured = true)
+        val launcher = FakeConnectLauncher()
+        val controller =
+            controller(
+                channels = FakeChannelsApi(ApiResult.Ok(channel)),
+                bot = FakeBotAuthApi(BotStatus(connected = false)),
+                integrations = integrations,
+                launcher = launcher,
+                system = system,
+            )
+        controller.load()
+        controller.connectProvider("kick", "kick.chat")
+        assertEquals("kick", (controller.state.value as IntegrationsState.Ready).onboardingProvider)
+
+        // The next start call succeeds — the retry after the save reaches OAuth.
+        integrations.startResult = null
+        controller.saveOnboardingCredentialsAndRetry(
+            provider = "kick",
+            scopeSetKey = "kick.chat",
+            clientId = "kick-id",
+            clientSecret = "kick-secret",
+        )
+
+        assertEquals("kick-id" to "kick-secret", system.savedKick)
+        assertNull((controller.state.value as IntegrationsState.Ready).onboardingProvider)
+        assertEquals("https://kick.com/authorize", launcher.openedUrl)
+    }
+
+    @Test
     fun disconnect_provider_calls_through_and_reflects_disconnected() = runTest {
         val integrations =
             FakeIntegrationsApi(status = listOf(IntegrationStatus("spotify", connected = true, accountName = "stoney")))
@@ -825,6 +921,7 @@ private class FakeSystemApi(
     var savedSpotify: Pair<String, String>? = null
     var savedYouTube: Pair<String, String>? = null
     var savedDiscord: Pair<String, String>? = null
+    var savedKick: Pair<String, String>? = null
 
     override suspend fun status(): ApiResult<SystemStatus> =
         ApiResult.Ok(
@@ -865,6 +962,7 @@ private class FakeSystemApi(
                 savedDiscord = clientId to clientSecret
                 discordOk = true
             }
+            "kick" -> savedKick = clientId to clientSecret
         }
         return ApiResult.Ok(Unit)
     }
@@ -887,6 +985,9 @@ private class FakeIntegrationsApi(
     // When set, status() returns this instead of the normal ok/statusAfter value — models a genuine
     // backend failure (network/5xx) reading integration statuses. Cleared to null to model recovery.
     var statusResult: ApiResult<List<IntegrationStatus>>? = null,
+    // When set, startGenericConnect() returns this instead of the normal Ok(authorizeUrl) — models the
+    // backend's PROVIDER_NOT_CONFIGURED (or any other) start failure. Cleared to null so a retry succeeds.
+    var startResult: ApiResult<OAuthStart>? = null,
 ) : IntegrationsApi {
     // Not exercised here: the counted delete preview has its own tests. The seam is implemented so the double
     // stays a real implementation of the interface rather than a partial one.
@@ -918,7 +1019,7 @@ private class FakeIntegrationsApi(
         startedProvider = provider
         startedScopeSet = scopeSetKey
         startedReturnUrl = returnUrl
-        return ApiResult.Ok(OAuthStart(authorizeUrl = authorizeUrl, state = "state-nonce"))
+        return startResult ?: ApiResult.Ok(OAuthStart(authorizeUrl = authorizeUrl, state = "state-nonce"))
     }
 
     override fun discordStartUrl(baseUrl: String, channelId: String): String =

@@ -219,9 +219,15 @@ class IntegrationsController(
         val id: String = clientId.trim()
         if (id.isEmpty()) return false
 
+        // kick_bot has no credential slot of its own — it shares Kick's ("kick") app client
+        // (OAuthProviderRegistry: CredentialsProvider="kick" for both), so its save routes there too.
+        val credentialsProvider: String =
+            if (provider.equals("kick_bot", ignoreCase = true)) "kick" else provider.lowercase()
+
         val result: ApiResult<Unit> =
-            when (provider.lowercase()) {
-                "spotify", "youtube", "discord" -> systemApi.saveCredentials(provider.lowercase(), id, clientSecret.trim())
+            when (credentialsProvider) {
+                "spotify", "youtube", "discord", "kick" ->
+                    systemApi.saveCredentials(credentialsProvider, id, clientSecret.trim())
                 else -> return false
             }
 
@@ -315,21 +321,84 @@ class IntegrationsController(
         cancelBotDevice()
     }
 
-    /** Run a Spotify/YouTube connect for [provider] with [scopeSetKey], then refresh. */
+    /**
+     * Run a generic connect (Spotify/YouTube/Kick/…) for [provider] with [scopeSetKey], then refresh.
+     *
+     * A provider with no app client configured (no BYOC, no shared credentials) answers the start call with
+     * `PROVIDER_NOT_CONFIGURED` (`ChannelCredentialsResolver`/`IntegrationOAuthService.StartConnectAsync`) —
+     * this is a client-actionable "register your own app first" state, never a generic error, so it routes to
+     * [IntegrationsState.Ready.onboardingProvider] (the screen opens the BYOC credential dialog) instead of an
+     * error toast. This is the reactive backstop for providers with no pre-connect registration check in the
+     * UI (Kick/Kick bot; Spotify/YouTube/Discord already pre-check via [clientRegistered] and never hit it).
+     * Any OTHER failure still surfaces as the normal error toast.
+     */
     suspend fun connectProvider(provider: String, scopeSetKey: String) {
         val id: String = channelId ?: return
-        withBusy(BusyTarget.Provider(provider)) {
-            connectLauncher.awaitConnect { redirect ->
-                integrationsApi
-                    .startGenericConnect(
-                        channelId = id,
-                        provider = provider,
-                        scopeSetKey = scopeSetKey,
-                        returnUrl = redirect.ifBlank { null },
-                    )
-                    .mapToAuthorizeUrl()
-            }
+        val ready: IntegrationsState.Ready = _state.value as? IntegrationsState.Ready ?: return
+        _state.value = ready.copy(busy = BusyTarget.Provider(provider))
+
+        val result: ApiResult<OAuthStart> =
+            connectLauncherAwaitOAuthStart(id, provider, scopeSetKey)
+
+        when (result) {
+            is ApiResult.Ok -> Unit // the launcher already opened the authorize URL; nothing else to announce.
+            is ApiResult.Failure ->
+                if (result.error.code == PROVIDER_NOT_CONFIGURED_CODE) {
+                    refresh()
+                    val reOpened: IntegrationsState.Ready =
+                        _state.value as? IntegrationsState.Ready ?: return
+                    _state.value = reOpened.copy(onboardingProvider = provider)
+                    return
+                } else {
+                    feedback.error(Res.string.feedback_connect_failed, result.error.message)
+                }
         }
+        refresh()
+    }
+
+    /** Dismiss the reactive BYOC-onboarding dialog opened by [connectProvider] without connecting. */
+    fun dismissOnboarding() {
+        val ready: IntegrationsState.Ready = _state.value as? IntegrationsState.Ready ?: return
+        _state.value = ready.copy(onboardingProvider = null)
+    }
+
+    /**
+     * Save [provider]'s BYOC credentials from the reactive onboarding dialog, then retry the connect that
+     * triggered it. Delegates the save to [saveProviderCredentials] (the same endpoint the branded modal uses)
+     * so there is exactly one save path; on success the dialog closes and [connectProvider] runs again — this
+     * time the client is registered, so it proceeds straight to OAuth.
+     */
+    suspend fun saveOnboardingCredentialsAndRetry(
+        provider: String,
+        scopeSetKey: String,
+        clientId: String,
+        clientSecret: String,
+    ) {
+        dismissOnboarding()
+        if (saveProviderCredentials(provider, clientId, clientSecret)) connectProvider(provider, scopeSetKey)
+    }
+
+    /** Start the generic OAuth connect and open the authorize URL, returning the raw start result. */
+    private suspend fun connectLauncherAwaitOAuthStart(
+        channelId: String,
+        provider: String,
+        scopeSetKey: String,
+    ): ApiResult<OAuthStart> {
+        var startResult: ApiResult<OAuthStart> = ApiResult.Failure(
+            ApiError(status = 0, code = "NOT_STARTED", message = "Connect did not start.")
+        )
+        connectLauncher.awaitConnect { redirect ->
+            val started: ApiResult<OAuthStart> =
+                integrationsApi.startGenericConnect(
+                    channelId = channelId,
+                    provider = provider,
+                    scopeSetKey = scopeSetKey,
+                    returnUrl = redirect.ifBlank { null },
+                )
+            startResult = started
+            started.mapToAuthorizeUrl()
+        }
+        return startResult
     }
 
     /** Open the Discord connect URL directly (no loopback signal — see class note), then refresh. */
@@ -578,6 +647,10 @@ class IntegrationsController(
         const val DEVICE_EXPIRED = "expired"
         const val DEVICE_DENIED = "denied"
         const val DEVICE_ERROR = "error"
+
+        // ChannelCredentialsResolver / IntegrationOAuthService.StartConnectAsync's Result.ErrorCode when a
+        // provider has no app client (BYOC or shared) configured — see connectProvider's doc.
+        const val PROVIDER_NOT_CONFIGURED_CODE = "PROVIDER_NOT_CONFIGURED"
     }
 }
 
@@ -599,6 +672,10 @@ sealed interface IntegrationsState {
         val botDevice: BotDeviceState? = null,
         // Registered EventSub topics; empty when the read failed (non-fatal).
         val eventSubSubscriptions: List<EventSubSubscription> = emptyList(),
+        // The provider whose connect just answered PROVIDER_NOT_CONFIGURED (null unless one just did): the
+        // screen opens the generic BYOC onboarding dialog for it instead of an error toast (S-OWN07). Set by
+        // IntegrationsController.connectProvider, cleared by dismissOnboarding / a successful save+retry.
+        val onboardingProvider: String? = null,
     ) : IntegrationsState
 
     data class Error(val detail: String) : IntegrationsState

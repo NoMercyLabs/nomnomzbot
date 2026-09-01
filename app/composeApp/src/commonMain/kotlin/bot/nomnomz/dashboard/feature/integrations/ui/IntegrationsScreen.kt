@@ -28,6 +28,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.CopyLinkButton
+import bot.nomnomz.dashboard.core.designsystem.component.Dialog
+import bot.nomnomz.dashboard.core.designsystem.component.DialogFooter
+import bot.nomnomz.dashboard.core.designsystem.component.DialogTitle
 import bot.nomnomz.dashboard.core.designsystem.component.OutlinedButton
 import bot.nomnomz.dashboard.core.designsystem.component.Spinner
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
@@ -95,6 +98,8 @@ import nomnomzbot.composeapp.generated.resources.integrations_discord_title
 import nomnomzbot.composeapp.generated.resources.integrations_kick_subtitle
 import nomnomzbot.composeapp.generated.resources.integrations_kick_title
 import nomnomzbot.composeapp.generated.resources.integrations_load_failed_title
+import nomnomzbot.composeapp.generated.resources.integrations_onboarding_cancel
+import nomnomzbot.composeapp.generated.resources.integrations_onboarding_title
 import nomnomzbot.composeapp.generated.resources.integrations_kick_bot_subtitle
 import nomnomzbot.composeapp.generated.resources.integrations_kick_bot_title
 import nomnomzbot.composeapp.generated.resources.integrations_provider_connected_as
@@ -178,6 +183,28 @@ private fun ConnectModalProvider.displayName(): String =
         ConnectModalProvider.Spotify -> "Spotify"
         ConnectModalProvider.YouTube -> "YouTube"
         ConnectModalProvider.Discord -> "Discord"
+    }
+
+// The generic provider-key → (brand display name, scope-set key) lookup used by the reactive BYOC-onboarding
+// dialog (S-OWN07): unlike the branded ConnectModal (Spotify/YouTube/Discord only, pre-checked), this covers
+// EVERY provider that runs the generic connect flow — Kick and Kick bot included — since it reacts to the
+// backend's PROVIDER_NOT_CONFIGURED result rather than a per-provider pre-check.
+private fun providerDisplayName(provider: String): String =
+    when (provider) {
+        SPOTIFY -> "Spotify"
+        YOUTUBE -> "YouTube"
+        DISCORD -> "Discord"
+        KICK, KICK_BOT -> "Kick"
+        else -> provider.replaceFirstChar(Char::uppercase)
+    }
+
+private fun scopeSetFor(provider: String): String =
+    when (provider) {
+        SPOTIFY -> SPOTIFY_SCOPE_SET
+        YOUTUBE -> YOUTUBE_SCOPE_SET
+        KICK -> KICK_SCOPE_SET
+        KICK_BOT -> KICK_BOT_SCOPE_SET
+        else -> ""
     }
 
 @Composable
@@ -478,6 +505,49 @@ fun IntegrationsScreen(
                             },
                         )
                     }
+            }
+        }
+
+        // The reactive BYOC-onboarding dialog (S-OWN07): a Connect click on ANY generic-flow provider (Kick /
+        // Kick bot included — the branded modal above only pre-checks Spotify/YouTube/Discord) that answers
+        // PROVIDER_NOT_CONFIGURED lands here instead of an error toast. Generic — one dialog, any provider —
+        // built from the same ProviderCredentialsCard the branded modal uses, so there is exactly one BYOC
+        // save path. Saving retries the connect that triggered it.
+        (state as? IntegrationsState.Ready)?.onboardingProvider?.let { onboardingProvider: String ->
+            val onboardingDisplayName: String = providerDisplayName(onboardingProvider)
+            var onboardingSaving: Boolean by remember(onboardingProvider) { mutableStateOf(false) }
+            var onboardingMissingClientId: Boolean by remember(onboardingProvider) { mutableStateOf(false) }
+
+            Dialog(onDismissRequest = { controller.dismissOnboarding() }) {
+                DialogTitle(stringResource(Res.string.integrations_onboarding_title, onboardingDisplayName))
+                ProviderCredentialsCard(
+                    providerDisplayName = onboardingDisplayName,
+                    redirectUrl = controller.integrationRedirectUrl(onboardingProvider),
+                    saving = onboardingSaving,
+                    missingClientId = onboardingMissingClientId,
+                    onSave = { clientId: String, clientSecret: String ->
+                        if (clientId.trim().isEmpty()) {
+                            onboardingMissingClientId = true
+                        } else {
+                            onboardingMissingClientId = false
+                            onboardingSaving = true
+                            scope.launch {
+                                controller.saveOnboardingCredentialsAndRetry(
+                                    provider = onboardingProvider,
+                                    scopeSetKey = scopeSetFor(onboardingProvider),
+                                    clientId = clientId,
+                                    clientSecret = clientSecret,
+                                )
+                                onboardingSaving = false
+                            }
+                        }
+                    },
+                )
+                DialogFooter {
+                    TextButton(onClick = { controller.dismissOnboarding() }) {
+                        Text(stringResource(Res.string.integrations_onboarding_cancel))
+                    }
+                }
             }
         }
     }
