@@ -922,9 +922,11 @@ later.)
 
 ## Phase 4B — the surfaces round four found (U·Part E) — existing features, same stability-first rule
 
-- **S099** Webhooks truth — outbound backoff capped + jittered, per-delivery dead-letter, delivery off the
-  publishing thread, Result checked in the drain; auto-disable + attempted events consumed (toast/hub/
-  feed); UI `NextRetryAt`, error vs empty, refresh/paging/replay (U·E3).
+- **S099-remaining** Webhooks truth — S099a DONE, verified (940c0ce3): outbound backoff capped
+  (1hr ceiling) + jittered, delivery moved off the publishing thread (fanout returns before the HTTP
+  send completes), failed-delivery Result now recorded not swallowed. Remaining: per-delivery
+  dead-letter, auto-disable + attempted events consumed (toast/hub/feed); UI `NextRetryAt`, error vs
+  empty, refresh/paging/replay (U·E3).
 - **S100** Custom data sources truth — persist last attempt/error/failure count, backoff + auto-disable;
   allowlist checked at save; real JSON field-map parsing with inline errors; key picker from a test fetch;
   drop or wire `InboundWebhookEndpointId` (U·E3).
