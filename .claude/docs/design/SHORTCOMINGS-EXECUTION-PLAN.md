@@ -943,10 +943,11 @@ later.)
   POSTed to the now-disabled endpoint. S099c DONE, verified (68f97cac): delivery-list DTO round-trips
   `NextRetryAt`/`Status`/error text end to end (backend test); dashboard `WebhooksScreen` renders the
   real state per row (Pending/Failed/DeadLetter/Delivered), error text, and a genuine empty state —
-  proven by `WebhooksDeliveryRowS099cTest` (4 cases). Found: no replay/retry-single-delivery backend
-  endpoint exists at all (`WebhooksController.cs` — `TestOutbound` only sends a synthetic test event;
-  `RenderedBody` is stored but nothing replays it) — its own future slice, not display-only. Remaining:
-  attempted events consumed (toast/hub/feed); replay-single-delivery endpoint + button (found above).
+  proven by `WebhooksDeliveryRowS099cTest` (4 cases). S099-replay DONE, verified (ad36739c):
+  `RetryDeliveryAsync` resends the already-stored `RenderedBody` (not a re-render) via the existing
+  `IOutboundWebhookDispatcher.AttemptDeliveryAsync`; cross-tenant/non-existent delivery is a real 404;
+  a disabled endpoint refuses with `ENDPOINT_DISABLED` rather than silently dead-lettering. Dashboard
+  Retry button wired on Failed/DeadLetter rows. Remaining: attempted events consumed (toast/hub/feed).
 - **S100-remaining** Custom data sources truth — S100a DONE, verified (3072a24b): persist last
   attempt/error/failure count, capped+jittered backoff, auto-disable after threshold, poller stops
   attempting a disabled source — mirrors the webhook system's already-proven approach. Remaining:
