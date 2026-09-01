@@ -266,6 +266,32 @@ class CommandsControllerTest {
     }
 
     @Test
+    fun setBuiltinResponseOverride_sends_the_trimmed_template_and_reloads() = runTest {
+        val builtinsApi = FakeBuiltinsApi()
+        val feedback = RecordingFeedback()
+        val controller = makeController(builtinsApi = builtinsApi, feedback = feedback)
+        controller.load()
+
+        controller.setBuiltinResponseOverride("lurk", "brb, {{user.name}} is out")
+
+        assertEquals("ch1", builtinsApi.lastResponseOverrideChannel)
+        assertEquals("lurk", builtinsApi.lastResponseOverrideKey)
+        assertEquals("brb, {{user.name}} is out", builtinsApi.lastResponseOverrideTemplate)
+        assertEquals(FeedbackKind.Success, feedback.only.kind)
+    }
+
+    @Test
+    fun setBuiltinResponseOverride_with_a_blank_template_clears_it() = runTest {
+        val builtinsApi = FakeBuiltinsApi()
+        val controller = makeController(builtinsApi = builtinsApi)
+        controller.load()
+
+        controller.setBuiltinResponseOverride("lurk", "   ")
+
+        assertNull(builtinsApi.lastResponseOverrideTemplate)
+    }
+
+    @Test
     fun a_failed_write_announces_an_error_carrying_the_backend_detail() = runTest {
         val feedback = RecordingFeedback()
         val commandsApi =
@@ -426,6 +452,7 @@ private fun makeController(
     channelResult: ApiResult<ChannelSummary> = ApiResult.Ok(ChannelSummary(id = "ch1")),
     commandsResult: ApiResult<List<CommandSummary>> = ApiResult.Ok(emptyList()),
     commandsApi: CommandsApi = RecordingCommandsApi(commandsResult),
+    builtinsApi: BuiltinsApi = FakeBuiltinsApi(),
     feedback: RecordingFeedback = RecordingFeedback(),
     resourceLimits: suspend (String) -> ApiResult<List<bot.nomnomz.dashboard.core.network.ResourceUsage>> =
         { ApiResult.Ok(emptyList()) },
@@ -433,7 +460,7 @@ private fun makeController(
     CommandsController(
         channelsApi = FakeChannelsApi(channelResult),
         commandsApi = commandsApi,
-        builtinsApi = FakeBuiltinsApi(),
+        builtinsApi = builtinsApi,
         pipelinesApi = FakePipelinesApi(),
         pickListsApi = FakePickListsApi(),
         feedback = feedback,
@@ -487,6 +514,10 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
 }
 
 private class FakeBuiltinsApi : BuiltinsApi {
+    var lastResponseOverrideChannel: String? = null
+    var lastResponseOverrideKey: String? = null
+    var lastResponseOverrideTemplate: String? = null
+
     override suspend fun list(channelId: String): ApiResult<List<BuiltinCommand>> =
         ApiResult.Ok(emptyList())
 
@@ -495,6 +526,17 @@ private class FakeBuiltinsApi : BuiltinsApi {
         builtinKey: String,
         enabled: Boolean,
     ): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun setResponseOverride(
+        channelId: String,
+        builtinKey: String,
+        template: String?,
+    ): ApiResult<Unit> {
+        lastResponseOverrideChannel = channelId
+        lastResponseOverrideKey = builtinKey
+        lastResponseOverrideTemplate = template
+        return ApiResult.Ok(Unit)
+    }
 }
 
 private class FakePipelinesApi : PipelinesApi {
