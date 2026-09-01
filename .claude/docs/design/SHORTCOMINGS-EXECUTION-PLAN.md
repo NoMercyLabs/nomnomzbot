@@ -947,9 +947,11 @@ later.)
   endpoint exists at all (`WebhooksController.cs` — `TestOutbound` only sends a synthetic test event;
   `RenderedBody` is stored but nothing replays it) — its own future slice, not display-only. Remaining:
   attempted events consumed (toast/hub/feed); replay-single-delivery endpoint + button (found above).
-- **S100** Custom data sources truth — persist last attempt/error/failure count, backoff + auto-disable;
-  allowlist checked at save; real JSON field-map parsing with inline errors; key picker from a test fetch;
-  drop or wire `InboundWebhookEndpointId` (U·E3).
+- **S100-remaining** Custom data sources truth — S100a DONE, verified (3072a24b): persist last
+  attempt/error/failure count, capped+jittered backoff, auto-disable after threshold, poller stops
+  attempting a disabled source — mirrors the webhook system's already-proven approach. Remaining:
+  allowlist checked at save; real JSON field-map parsing with inline errors; key picker from a test
+  fetch; drop or wire `InboundWebhookEndpointId` (U·E3).
 - **S101** Supporters — provider list + capabilities from the backend (`GET /supporters/sources`),
   mode-correct connect forms (secret / socket token / OAuth connection), error state + reason, staleness-
   derived status, per-connection test; resolve `SupporterUserId` where payloads allow + amount-scaled
