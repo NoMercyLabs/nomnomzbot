@@ -5739,6 +5739,60 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.ToTable("PermitGrants");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.PlatformConnection", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ChannelId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ExternalChannelId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsLive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsPrimary")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChannelId")
+                        .HasDatabaseName("IX_PlatformConnection_ChannelId");
+
+                    b.HasIndex("Provider", "ExternalChannelId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_PlatformConnection_Provider_ExternalChannelId");
+
+                    b.ToTable("PlatformConnections");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.Pronoun", b =>
                 {
                     b.Property<int>("Id")
@@ -10276,6 +10330,17 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Navigation("Channel");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.PlatformConnection", b =>
+                {
+                    b.HasOne("NomNomzBot.Domain.Identity.Entities.Channel", "Channel")
+                        .WithMany("PlatformConnections")
+                        .HasForeignKey("ChannelId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Channel");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Identity.Entities.RefreshToken", b =>
                 {
                     b.HasOne("NomNomzBot.Domain.Identity.Entities.AuthSession", "Session")
@@ -10725,6 +10790,8 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Navigation("Events");
 
                     b.Navigation("Moderators");
+
+                    b.Navigation("PlatformConnections");
 
                     b.Navigation("Streams");
                 });
