@@ -84,9 +84,42 @@ public abstract class TwitchAlertHandlerBase<TEvent>
             EventTypeKey,
             GetUserId(@event),
             GetUserDisplayName(@event),
-            BuildVariables(@event),
+            SeedTargetAlias(BuildVariables(@event)),
             ct
         );
+    }
+
+    /// <summary>
+    /// {target.*} is documented (and, on the command path, wired via <c>ChatMessageHandler
+    /// .BuildInitialVariables</c>) to resolve from a command argument — e.g. <c>!so &lt;name&gt;</c> seeds
+    /// <c>target</c> from <c>{args.1}</c>. An event-response pipeline (raid/follow/sub/…) never has a
+    /// command argument, so a shoutout (or any other action) referencing <c>{target.name}</c> in an
+    /// automated event pipeline silently resolved empty. Since every built-in event trigger already has
+    /// exactly one obvious subject — the triggering user — <c>target</c> transparently aliases to <c>user</c>
+    /// here when the handler didn't set one explicitly, so <c>{target}</c> works the same way in both a
+    /// command and an event-response pipeline without the operator needing to know the distinction.
+    /// </summary>
+    private static Dictionary<string, string> SeedTargetAlias(Dictionary<string, string> variables)
+    {
+        if (!variables.ContainsKey("target") && variables.TryGetValue("user", out string? user))
+            variables["target"] = user;
+        if (
+            !variables.ContainsKey("target.id")
+            && variables.TryGetValue("user.id", out string? userId)
+        )
+            variables["target.id"] = userId;
+        if (
+            !variables.ContainsKey("target.name")
+            && variables.TryGetValue("user.name", out string? userName)
+        )
+            variables["target.name"] = userName;
+        if (
+            !variables.ContainsKey("target.link")
+            && variables.TryGetValue("user.link", out string? userLink)
+        )
+            variables["target.link"] = userLink;
+
+        return variables;
     }
 
     // protected (not private) so the id-convergence + idempotency behavior can be unit-tested in isolation
