@@ -448,8 +448,17 @@ later.)
     cleanup): `PlatformType.cs` is a stale 2-member (Twitch/Discord) enum unrelated to the real
     platform-routing convention; giveaway `active_viewers` entry mode still resolves candidates via
     Twitch-only chat history.
-- **S066** Moderation reach — concurrency guard on whole-config POST; chat-settings slow/followers/
-  unique/non-mod fields (U·B3).
+- **S066** Moderation reach — concurrency guard on whole-config POST (U·B3).
+  **Chat-settings slow/followers/unique/non-mod fields DONE, verified (e63d66d2)**: found a much bigger
+  bug than "missing fields" — `ChatController`'s GET/PUT/PATCH `.../chat/settings` never called Twitch
+  at all, only read/wrote a fake local `Configurations` DB row; every toggle was truthful-data-violating
+  no-op on the real channel. Rewired all three actions to the real Helix
+  `Get/UpdateChatSettingsAsync` (already fully field-complete), removed the dead local-persistence path.
+  Added the 2 fields genuinely missing from `ChatSettingsDto` (`UniqueChatMode`/R9K,
+  `NonModeratorChatDelay`+duration) — slow-mode and followers-only fields already existed on the DTO but
+  were equally never reaching Twitch until this fix. 3 tests assert the real outbound Helix request
+  contents. Dashboard UI exposure for the 2 new fields is its own fast-follow, out of this slice's
+  backend-only scope.
   **Full AutomodConfigDto CLOSED — naming collision, not a gap (75b02798)**: `AutomodConfigDto` is the
   bot's own LOCAL moderation feature (link filter, caps filter, banned phrases, emote spam) — unrelated
   to real Twitch AutoMod. The actual Twitch AutoMod Settings DTO (`TwitchAutoModSettings`/
