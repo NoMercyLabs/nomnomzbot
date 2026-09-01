@@ -449,11 +449,14 @@ public sealed class CodeScriptService(
         return BuildVersionFromProjectAsync(script, versionNumber, files, manifest, ct);
     }
 
-    // Compiles a script version from a multi-file project: the manifest entry's content is what the executor
-    // validate-on-saves, while the WHOLE file set + manifest are stored so a later editor round-trips them. The caller
-    // guarantees the entry exists (ProjectValidation). Compiled output + serving contract are unchanged from the
-    // single-file path — this is the one place a CodeScriptVersion's compiled/validation fields are populated.
-    // CreatedAt/UpdatedAt are stamped by AuditableEntityInterceptor on save, not here.
+    // Compiles a script version from a multi-file project: the manifest entry's RAW content is what is stored/
+    // displayed (SourceCode), while what the executor validate-on-saves is the entry + every relatively-imported
+    // sibling resolved into one flat script by ScriptImportResolver (S-OWN05) — Jint has no ES module loader, so a
+    // project whose entry does `import X from './y'` must be flattened before it ever reaches CompileAsync. A
+    // project with no relative imports resolves byte-for-byte to the entry content, so single-file authoring is
+    // unaffected. The WHOLE file set + manifest are stored so a later editor round-trips them. The caller guarantees
+    // the entry exists (ProjectValidation). This is the one place a CodeScriptVersion's compiled/validation fields
+    // are populated. CreatedAt/UpdatedAt are stamped by AuditableEntityInterceptor on save, not here.
     private async Task<CodeScriptVersion> BuildVersionFromProjectAsync(
         CodeScript script,
         int versionNumber,
@@ -463,8 +466,6 @@ public sealed class CodeScriptService(
     )
     {
         string entryContent = files[manifest.Entry];
-        Result<ScriptCompilation> compiled = await executor.CompileAsync(entryContent, ct);
-
         CodeScriptVersion version = new()
         {
             CodeScriptId = script.Id,
@@ -474,6 +475,26 @@ public sealed class CodeScriptService(
             FilesJson = ProjectJson.SerializeFiles(files),
             ManifestJson = ProjectJson.SerializeManifest(manifest),
         };
+
+        Result<string> resolved = ScriptImportResolver.Resolve(files, manifest.Entry);
+        if (resolved.IsFailure)
+        {
+            version.ValidationStatus = "rejected";
+            version.ValidationErrorsJson = JsonConvert.SerializeObject(
+                new[]
+                {
+                    new ScriptValidationError(
+                        "import",
+                        resolved.ErrorMessage ?? "Invalid import.",
+                        null,
+                        null
+                    ),
+                }
+            );
+            return version;
+        }
+
+        Result<ScriptCompilation> compiled = await executor.CompileAsync(resolved.Value, ct);
         if (compiled.IsSuccess)
         {
             version.ValidationStatus = "valid";
