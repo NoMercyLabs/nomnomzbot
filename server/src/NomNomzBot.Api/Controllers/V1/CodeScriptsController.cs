@@ -148,6 +148,11 @@ public class CodeScriptsController(
     /// Delete one saved version (S-OWN06 — remove versions from the history list). Soft-deleted, like every
     /// other destructible row; the currently published version can't be deleted (publish a different one first).
     /// </summary>
+    [NotDestructive(
+        "No entity holds a real FK to CodeScriptVersion.Id besides the script's own CurrentVersionId, and "
+            + "DeleteVersionAsync already refuses to delete the currently-published version — nothing breaks "
+            + "structurally when a non-published version is deleted."
+    )]
     [HttpDelete("{id:guid}/versions/{versionId:guid}")]
     public async Task<IActionResult> DeleteVersion(Guid id, Guid versionId, CancellationToken ct)
     {
