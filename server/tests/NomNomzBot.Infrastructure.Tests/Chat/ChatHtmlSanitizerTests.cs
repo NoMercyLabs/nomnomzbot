@@ -74,14 +74,44 @@ public sealed class ChatHtmlSanitizerTests
     }
 
     [Fact]
-    public void An_http_media_source_is_dropped_to_keep_urls_https_only()
+    public void An_http_media_source_removes_the_whole_element_instead_of_a_broken_player()
     {
+        // The old behaviour kept a src-less <video>/<source> once the http:// url was stripped, which the widget
+        // rendered as a broken/empty player. A truthful renderer must never keep an element it emptied out.
         string clean = ChatHtmlSanitizer.Sanitize(
             @"<video controls poster=""http://cdn.example/p.jpg""><source src=""http://cdn.example/v.mp4"" type=""video/mp4""></video>"
         );
 
-        clean.ToLowerInvariant().Should().Contain("<video");
         clean.Should().NotContain("http://");
+        clean.ToLowerInvariant().Should().NotContain("<video").And.NotContain("<source");
+    }
+
+    [Fact]
+    public void An_img_with_a_disallowed_scheme_source_is_removed_not_left_captioned_and_blank()
+    {
+        // Regression for the priority bug reported 2026-09-01: a viewer's OS/browser GIF picker pasted an <img>
+        // whose src used a non-https scheme (http:// or otherwise disallowed). AllowedSchemes strips the src, but
+        // the tag used to survive with only its alt text ("Cat Festival GIF by W&W") — the overlay then showed the
+        // caption with a broken image underneath it instead of nothing at all. The whole <img> must go with its src.
+        string clean = ChatHtmlSanitizer.Sanitize(
+            @"<img src=""http://media.example.com/cat-festival.gif"" alt=""Cat Festival GIF by W&amp;W"">"
+        );
+
+        clean.Should().NotContain("http://").And.NotContain("<img");
+    }
+
+    [Fact]
+    public void An_img_with_an_https_source_still_survives_intact()
+    {
+        // Guards the fix above against over-stripping: a genuinely valid https media url must still render.
+        string clean = ChatHtmlSanitizer.Sanitize(
+            @"<img src=""https://media.example.com/cat-festival.gif"" alt=""Cat Festival GIF by W&amp;W"">"
+        );
+
+        clean
+            .Should()
+            .Contain("<img")
+            .And.Contain(@"src=""https://media.example.com/cat-festival.gif""");
     }
 
     [Fact]
