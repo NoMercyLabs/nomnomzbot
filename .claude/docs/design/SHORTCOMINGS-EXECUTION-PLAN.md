@@ -457,12 +457,16 @@ later.)
     sender fails cleanly rather than misdirecting). **YouTube CLOSED — also genuinely impossible**:
     confirmed against `IYouTubeLiveChatClient` (the full real YouTube Data API v3 surface this codebase
     wires) that it exposes only live-chat operations (send/ban/unban/delete, all public) — no
-    private-message resource exists anywhere in the API itself, same shape as Kick. X sender remains
-    genuinely unbuilt (not yet investigated) — its own future item, not fabricated here. Found in
+    private-message resource exists anywhere in the API itself, same shape as Kick. **X BLOCKED, not
+    fabricated (2026-09-01 audit)**: unlike Kick/YouTube this is not "impossible" — X's real API does
+    support DMs — but this codebase has no X API client at all beyond `TwitterLoginProvider` (OAuth
+    login only, scopes `users.read tweet.read offline.access`, no `dm.write`). Building X DM sending
+    needs a whole new Helix-equivalent client plus a new OAuth scope — bigger than a wiring slice, its
+    own future item. Found in
     passing, not fixed (own future
     cleanup): `PlatformType.cs` is a stale 2-member (Twitch/Discord) enum unrelated to the real
     platform-routing convention; giveaway `active_viewers` entry mode still resolves candidates via
-    Twitch-only chat history.
+    Twitch-only chat history (investigation dispatched 2026-09-01).
 - **S066** Moderation reach (U·B3) — fully CLOSED this session.
   **Concurrency guard on whole-config POST DONE, verified (8a245e68)**: the local AutoMod-like config
   (link/caps/banned-phrases/emote-spam filters) has no dedicated entity — it lives as free-form `Record`
