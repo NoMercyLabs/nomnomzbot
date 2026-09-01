@@ -23,6 +23,9 @@ pluginManagement {
         gradlePluginPortal()
     }
 }
+plugins {
+    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
+}
 
 dependencyResolutionManagement {
     // PREFER_PROJECT, not FAIL_ON_PROJECT_REPOS: building the Wasm browser distribution makes the Kotlin
