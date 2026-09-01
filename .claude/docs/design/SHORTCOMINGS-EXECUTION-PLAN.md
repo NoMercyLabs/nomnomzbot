@@ -448,8 +448,16 @@ later.)
     cleanup): `PlatformType.cs` is a stale 2-member (Twitch/Discord) enum unrelated to the real
     platform-routing convention; giveaway `active_viewers` entry mode still resolves candidates via
     Twitch-only chat history.
-- **S066** Moderation reach — full `AutomodConfigDto`;
-  concurrency guard on whole-config POST; chat-settings slow/followers/unique/non-mod fields (U·B3).
+- **S066** Moderation reach — concurrency guard on whole-config POST; chat-settings slow/followers/
+  unique/non-mod fields (U·B3).
+  **Full AutomodConfigDto CLOSED — naming collision, not a gap (75b02798)**: `AutomodConfigDto` is the
+  bot's own LOCAL moderation feature (link filter, caps filter, banned phrases, emote spam) — unrelated
+  to real Twitch AutoMod. The actual Twitch AutoMod Settings DTO (`TwitchAutoModSettings`/
+  `UpdateAutoModSettingsRequest`) was already field-complete (all 9 documented categories). Real gap was
+  test coverage only — existing tests asserted just `OverallLevel`, so a dropped category field would
+  never fail a test. 2 new tests assert every field on both request and response. **No dashboard form
+  exists for the real Twitch AutoMod settings at all** (only the unrelated local-feature DTO has one) —
+  flagged as its own future follow-up, out of this slice's scope.
   **Mod add/remove + clear chat DONE, verified (4391b58b)**: Helix coverage already existed
   (`ITwitchModeratorsApi.AddModeratorAsync/RemoveModeratorAsync`, `ITwitchModerationApi.
   DeleteAllChatMessagesAsync`) — pure wiring. `IModerationService` gained
