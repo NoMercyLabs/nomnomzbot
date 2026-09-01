@@ -689,6 +689,7 @@ private fun ShellContent(
             ShellRoute.Webhooks -> WebhooksScreen(
                     controller = graph.webhooksController,
                     role = role,
+                    templateHelpersApi = graph.templateHelpersApi,
                     hubEvents = graph.dashboardHubClient.events,
                 )
             ShellRoute.Federation -> FederationScreen(controller = graph.federationController, role = role)

@@ -54,6 +54,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ManageGate
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
+import bot.nomnomz.dashboard.core.designsystem.component.TemplateHelpersLink
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import bot.nomnomz.dashboard.core.designsystem.icon.AddGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
@@ -72,6 +73,8 @@ import bot.nomnomz.dashboard.core.network.OutboundEventCatalogueEntry
 import bot.nomnomz.dashboard.core.network.OutboundWebhook
 import bot.nomnomz.dashboard.core.network.OutboundWebhookCreated
 import bot.nomnomz.dashboard.core.network.PipelineSummary
+import bot.nomnomz.dashboard.core.network.TemplateHelperContext
+import bot.nomnomz.dashboard.core.network.TemplateHelpersApi
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
@@ -196,7 +199,12 @@ import bot.nomnomz.dashboard.core.consequences.BlastRadiusLoadState
 // dialogs persist the whole endpoint (not just the enabled flag), custom (generic) inbound adapters expose
 // their signing config, and each outbound endpoint has a delivery log for debugging.
 @Composable
-fun WebhooksScreen(controller: WebhooksController, role: ManagementRole?, hubEvents: SharedFlow<HubEvent>? = null) {
+fun WebhooksScreen(
+    controller: WebhooksController,
+    role: ManagementRole?,
+    templateHelpersApi: TemplateHelpersApi,
+    hubEvents: SharedFlow<HubEvent>? = null,
+) {
     val state: WebhooksState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val tokens = LocalTokens.current
@@ -454,14 +462,16 @@ fun WebhooksScreen(controller: WebhooksController, role: ManagementRole?, hubEve
         OutboundDialog(
             existing = null,
             catalogue = catalogue,
-            onConfirmCreate = { name, fqdn, path, events ->
+            templateHelpersApi = templateHelpersApi,
+            onConfirmCreate = { name, fqdn, path, events, bodyTemplate ->
                 showCreateOutbound = false
                 scope.launch {
-                    val created: OutboundWebhookCreated? = controller.createOutbound(name, fqdn, path, events)
+                    val created: OutboundWebhookCreated? =
+                        controller.createOutbound(name, fqdn, path, events, bodyTemplate)
                     if (created != null) shownSecret = created.signingSecret
                 }
             },
-            onConfirmEdit = { _, _, _ -> },
+            onConfirmEdit = { _, _, _, _ -> },
             onDismiss = { showCreateOutbound = false },
         )
     }
@@ -470,10 +480,11 @@ fun WebhooksScreen(controller: WebhooksController, role: ManagementRole?, hubEve
         OutboundDialog(
             existing = ep,
             catalogue = catalogue,
-            onConfirmCreate = { _, _, _, _ -> },
-            onConfirmEdit = { name, events, enabled ->
+            templateHelpersApi = templateHelpersApi,
+            onConfirmCreate = { _, _, _, _, _ -> },
+            onConfirmEdit = { name, events, enabled, bodyTemplate ->
                 pendingEditOutbound = null
-                scope.launch { controller.updateOutbound(ep.id, name, events, enabled) }
+                scope.launch { controller.updateOutbound(ep.id, name, events, enabled, bodyTemplate) }
             },
             onDismiss = { pendingEditOutbound = null },
         )
@@ -1046,8 +1057,9 @@ private fun routingLabel(routing: InboundRouting): String =
 private fun OutboundDialog(
     existing: OutboundWebhook?,
     catalogue: List<OutboundEventCatalogueEntry>,
-    onConfirmCreate: (name: String, fqdn: String, path: String?, events: List<String>) -> Unit,
-    onConfirmEdit: (name: String, events: List<String>, enabled: Boolean) -> Unit,
+    templateHelpersApi: TemplateHelpersApi,
+    onConfirmCreate: (name: String, fqdn: String, path: String?, events: List<String>, bodyTemplate: String?) -> Unit,
+    onConfirmEdit: (name: String, events: List<String>, enabled: Boolean, bodyTemplate: String?) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val tokens = LocalTokens.current
@@ -1059,6 +1071,9 @@ private fun OutboundDialog(
     var fqdn: String by remember { mutableStateOf(existing?.fqdn ?: "") }
     var path: String by remember { mutableStateOf(existing?.path ?: "") }
     var enabled: Boolean by remember { mutableStateOf(existing?.isEnabled ?: true) }
+    // The list/GET endpoint never returns the stored body template back (only PATCHes it, like the signing
+    // secret) — so on edit this opens blank, meaning "unchanged", exactly like the secret field above it.
+    var bodyTemplate: String by remember { mutableStateOf("") }
     var nameError: Boolean by remember { mutableStateOf(false) }
     var fqdnError: Boolean by remember { mutableStateOf(false) }
     var eventsError: Boolean by remember { mutableStateOf(false) }
@@ -1120,6 +1135,25 @@ private fun OutboundDialog(
                     },
                 )
 
+                // The outbound delivery body — a template rendered against TemplateHelperContext.Webhook
+                // (payload.*, webhook.*) instead of the hardcoded default JSON. The picker inserts a real
+                // helper key from the backend registry rather than a hand-typed guess (S-OWN16).
+                AppTextField(
+                    value = bodyTemplate,
+                    onValueChange = { bodyTemplate = it },
+                    label = if (isEdit) {
+                        stringResource(Res.string.webhooks_edit_body_template)
+                    } else {
+                        stringResource(Res.string.webhooks_create_outbound_body_template)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                TemplateHelpersLink(
+                    context = TemplateHelperContext.Webhook,
+                    api = templateHelpersApi,
+                    onInsert = { token -> bodyTemplate = if (bodyTemplate.isEmpty()) token else "$bodyTemplate$token" },
+                )
+
                 if (isEdit) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s3)) {
                         Switch(checked = enabled, onCheckedChange = { enabled = it })
@@ -1136,10 +1170,17 @@ private fun OutboundDialog(
                 if (!allEvents && selected.isEmpty()) { eventsError = true; valid = false }
                 if (!valid) return@Button
                 val events: List<String> = if (allEvents) listOf("*") else selected.toList()
+                val trimmedBodyTemplate: String? = bodyTemplate.trim().takeIf { it.isNotBlank() }
                 if (isEdit) {
-                    onConfirmEdit(name.trim(), events, enabled)
+                    onConfirmEdit(name.trim(), events, enabled, trimmedBodyTemplate)
                 } else {
-                    onConfirmCreate(name.trim(), fqdn.trim(), path.trim().takeIf { it.isNotBlank() }, events)
+                    onConfirmCreate(
+                        name.trim(),
+                        fqdn.trim(),
+                        path.trim().takeIf { it.isNotBlank() },
+                        events,
+                        trimmedBodyTemplate,
+                    )
                 }
             }) {
                 Text(if (isEdit) stringResource(Res.string.webhooks_edit_confirm) else stringResource(Res.string.webhooks_create_outbound_confirm))

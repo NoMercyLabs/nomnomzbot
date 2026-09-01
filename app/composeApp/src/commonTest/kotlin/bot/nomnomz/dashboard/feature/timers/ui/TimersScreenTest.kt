@@ -175,7 +175,7 @@ private fun withLifecycle(content: @androidx.compose.runtime.Composable () -> Un
 }
 
 private class FakeTemplateHelpersApi : TemplateHelpersApi {
-    override suspend fun helpers(context: TemplateHelperContext): ApiResult<List<TemplateHelperDto>> =
+    override suspend fun helpers(context: TemplateHelperContext, eventType: String?): ApiResult<List<TemplateHelperDto>> =
         ApiResult.Ok(emptyList())
 }
 
