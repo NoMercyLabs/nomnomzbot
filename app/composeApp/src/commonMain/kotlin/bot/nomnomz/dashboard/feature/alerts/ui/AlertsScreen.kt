@@ -83,6 +83,8 @@ import nomnomzbot.composeapp.generated.resources.alerts_edit_action
 import nomnomzbot.composeapp.generated.resources.alerts_empty
 import nomnomzbot.composeapp.generated.resources.alerts_error
 import nomnomzbot.composeapp.generated.resources.alerts_loading
+import nomnomzbot.composeapp.generated.resources.alerts_dialog_pipeline_bound
+import nomnomzbot.composeapp.generated.resources.alerts_dialog_pipeline_unresolved
 import nomnomzbot.composeapp.generated.resources.alerts_new_action
 import nomnomzbot.composeapp.generated.resources.alerts_no_message
 import nomnomzbot.composeapp.generated.resources.alerts_retry
@@ -134,6 +136,8 @@ fun AlertsScreen(controller: AlertsController, role: ManagementRole?) {
                                         eventType = found.eventType,
                                         message = found.message.orEmpty(),
                                         isEnabled = found.isEnabled,
+                                        responseType = found.responseType,
+                                        pipelineName = controller.pipelineName(found.pipelineId),
                                     )
                             }
                         }
@@ -157,6 +161,8 @@ fun AlertsScreen(controller: AlertsController, role: ManagementRole?) {
                                         eventType = found.eventType,
                                         message = found.message.orEmpty(),
                                         isEnabled = found.isEnabled,
+                                        responseType = found.responseType,
+                                        pipelineName = controller.pipelineName(found.pipelineId),
                                     )
                             }
                         }
@@ -373,6 +379,7 @@ private fun AlertFormDialog(
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
 
     var eventType: String by remember { mutableStateOf(editor.eventType) }
     var message: String by remember { mutableStateOf(editor.message) }
@@ -402,6 +409,19 @@ private fun AlertFormDialog(
                     enabled = !editor.isEdit,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                // This dialog only edits chat-message responses (a pipeline binding is built on the Event
+                // Responses / Pipelines pages) — but a row bound to a pipeline must still SHOW that binding
+                // here, by name, rather than opening looking blank/unconfigured (S-OWN13).
+                if (editor.responseType == "pipeline") {
+                    Text(
+                        text =
+                            editor.pipelineName?.let { name ->
+                                stringResource(Res.string.alerts_dialog_pipeline_bound, name)
+                            } ?: stringResource(Res.string.alerts_dialog_pipeline_unresolved),
+                        style = typography.sm,
+                        color = tokens.mutedForeground,
+                    )
+                }
                 AppTextField(
                     value = message,
                     onValueChange = { message = it },
@@ -481,12 +501,30 @@ private data class AlertEditor(
     val eventType: String,
     val message: String,
     val isEnabled: Boolean,
+    // The stored response type ("chat_message"/"overlay"/"pipeline"/"none") and, when it's "pipeline", the
+    // bound pipeline's resolved name — carried so the dialog can SHOW an existing pipeline binding (S-OWN13)
+    // even though this form only edits the chat-message fields.
+    val responseType: String = "chat_message",
+    val pipelineName: String? = null,
 ) {
     companion object {
         fun create(): AlertEditor =
             AlertEditor(isEdit = false, eventType = "", message = "", isEnabled = true)
 
-        fun edit(eventType: String, message: String, isEnabled: Boolean): AlertEditor =
-            AlertEditor(isEdit = true, eventType = eventType, message = message, isEnabled = isEnabled)
+        fun edit(
+            eventType: String,
+            message: String,
+            isEnabled: Boolean,
+            responseType: String,
+            pipelineName: String?,
+        ): AlertEditor =
+            AlertEditor(
+                isEdit = true,
+                eventType = eventType,
+                message = message,
+                isEnabled = isEnabled,
+                responseType = responseType,
+                pipelineName = pipelineName,
+            )
     }
 }

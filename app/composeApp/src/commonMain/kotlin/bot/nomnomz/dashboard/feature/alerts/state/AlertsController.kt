@@ -16,6 +16,8 @@ import bot.nomnomz.dashboard.core.network.AlertsApi
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
+import bot.nomnomz.dashboard.core.network.PipelineSummary
+import bot.nomnomz.dashboard.core.network.PipelinesApi
 import bot.nomnomz.dashboard.core.network.UpdateAlertBody
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -29,6 +31,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class AlertsController(
     private val channelsApi: ChannelsApi,
     private val alertsApi: AlertsApi,
+    private val pipelinesApi: PipelinesApi,
 ) {
     private val _state: MutableStateFlow<AlertsState> = MutableStateFlow(AlertsState.Loading)
 
@@ -38,6 +41,10 @@ class AlertsController(
     // The channel the writes target — resolved by [load] and reused by every mutation so a write never has to
     // re-resolve the channel. Null until the first successful resolve.
     private var channelId: String? = null
+
+    // The channel's pipelines, indexed by id — best-effort, resolved alongside [load] so [detail] can name a
+    // row's bound pipeline (S-OWN13: a pipeline-typed alert must never open its edit dialog looking blank).
+    private var pipelinesById: Map<String, PipelineSummary> = emptyMap()
 
     /** Resolve the active channel, then list its event responses. */
     suspend fun load() {
@@ -55,6 +62,12 @@ class AlertsController(
             }
         channelId = channel.id
 
+        pipelinesById =
+            when (val result: ApiResult<List<PipelineSummary>> = pipelinesApi.list(channel.id)) {
+                is ApiResult.Ok -> result.value.associateBy { it.id }
+                is ApiResult.Failure -> emptyMap()
+            }
+
         when (val result: ApiResult<List<AlertSummary>> = alertsApi.list(channel.id)) {
             is ApiResult.Failure -> _state.value = AlertsState.Error(result.error.message)
             is ApiResult.Ok ->
@@ -63,6 +76,14 @@ class AlertsController(
                     else AlertsState.Ready(result.value)
         }
     }
+
+    /**
+     * The bound pipeline's name for [pipelineId], resolved from the channel's pipelines loaded alongside
+     * [load] — null when unbound or the pipeline isn't found (a stale/deleted binding). The edit dialog shows
+     * this so a pipeline-typed alert reads "bound to <name>" instead of opening blank.
+     */
+    fun pipelineName(pipelineId: String?): String? =
+        pipelineId?.let { id -> pipelinesById[id]?.name }
 
     /**
      * The full configuration for one [eventType] — the edit dialog reads this to pre-fill the message (the

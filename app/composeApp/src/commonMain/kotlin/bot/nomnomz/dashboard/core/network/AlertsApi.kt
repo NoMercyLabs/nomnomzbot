@@ -106,6 +106,11 @@ data class AlertSummary(
 /**
  * An event response's full configuration (backend `EventResponseDto`): the list fields plus the [message]
  * the bot sends. The Alerts edit dialog reads this to pre-fill the message before the operator edits it.
+ *
+ * [pipelineId] is the bound pipeline's id when [responseType] is `pipeline` (backend `EventResponseDto.
+ * PipelineId`) — null for every other response type. The Alerts dialog is a chat-message-only editor (a
+ * pipeline binding is built on the Event Responses / Pipelines pages), but it still resolves and shows this
+ * id's pipeline NAME so a pipeline-bound row never opens looking blank/unconfigured (S-OWN13).
  */
 @Serializable
 data class AlertDetail(
@@ -114,5 +119,6 @@ data class AlertDetail(
     val isEnabled: Boolean = false,
     val responseType: String = "",
     val message: String? = null,
+    val pipelineId: String? = null,
     val updatedAt: String = "",
 )
