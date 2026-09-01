@@ -454,8 +454,12 @@ later.)
     read/update, matching the live Kick public API v1 docs) that Kick has NO whisper/DM endpoint at
     all, only public chat send. A Kick winner staying on the clean-failure path is correct and final,
     not a gap — consistent with the accepted design from the slice that built this mechanism (a missing
-    sender fails cleanly rather than misdirecting). YouTube/X senders remain genuinely unbuilt (not yet
-    investigated) — their own future item, not fabricated here. Found in passing, not fixed (own future
+    sender fails cleanly rather than misdirecting). **YouTube CLOSED — also genuinely impossible**:
+    confirmed against `IYouTubeLiveChatClient` (the full real YouTube Data API v3 surface this codebase
+    wires) that it exposes only live-chat operations (send/ban/unban/delete, all public) — no
+    private-message resource exists anywhere in the API itself, same shape as Kick. X sender remains
+    genuinely unbuilt (not yet investigated) — its own future item, not fabricated here. Found in
+    passing, not fixed (own future
     cleanup): `PlatformType.cs` is a stale 2-member (Twitch/Discord) enum unrelated to the real
     platform-routing convention; giveaway `active_viewers` entry mode still resolves candidates via
     Twitch-only chat history.
