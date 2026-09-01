@@ -264,6 +264,61 @@ public sealed class SongRequestBuiltinTests
             .Contain(sassy.Value);
     }
 
+    /// <summary>
+    /// A successful add carries a real, clickable web link (not Spotify's internal <c>spotify:track:</c> URI
+    /// scheme) so chat's own OG-preview resolution turns the confirmation into a real card — matching what
+    /// the owner's original chat overlay showed for song requests.
+    /// </summary>
+    [Fact]
+    public async Task Spotify_track_link_is_a_real_open_spotify_com_url_not_the_internal_uri_scheme()
+    {
+        SongRequestBuiltin sut = BuildWithRealComposer(
+            requestResult: Result.Success(
+                new MusicTrack(
+                    "spotify:track:4uLU6hMCjMI75M1A2tKUQC",
+                    "Summer Of 69",
+                    "Bryan Adams",
+                    "Reckless",
+                    "https://i.scdn.co/image/abc123",
+                    231000,
+                    "spotify"
+                )
+            )
+        );
+
+        Result<string> result = await sut.ExecuteAsync(Context("summer of 69", roleLevel: 0));
+
+        result.Value.Should().Contain("https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC");
+        result.Value.Should().NotContain("spotify:track:");
+        result.Value.Should().Contain("Summer Of 69");
+        result.Value.Should().Contain("Bryan Adams");
+    }
+
+    /// <summary>YouTube's track URI is already a real watch URL — passed through unchanged, never rewritten.</summary>
+    [Fact]
+    public async Task YouTube_track_link_passes_through_the_real_watch_url_unchanged()
+    {
+        SongRequestBuiltin sut = BuildWithRealComposer(
+            requestResult: Result.Success(
+                new MusicTrack(
+                    "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                    "Never Gonna Give You Up",
+                    "Rick Astley",
+                    null,
+                    "https://i.ytimg.com/vi/dQw4w9WgXcQ/default.jpg",
+                    213000,
+                    "youtube"
+                )
+            )
+        );
+
+        Result<string> result = await sut.ExecuteAsync(
+            Context("never gonna give you up", roleLevel: 0)
+        );
+
+        result.Value.Should().Contain("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+    }
+
     // ─── Harness ──────────────────────────────────────────────────────────────
 
     private static SongRequestBuiltin Build(Result<MusicTrack> requestResult)
@@ -308,7 +363,14 @@ public sealed class SongRequestBuiltinTests
                 Arg.Any<Guid?>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(call => Task.FromResult(call.ArgAt<string>(0)));
+            .Returns(call =>
+            {
+                string template = call.ArgAt<string>(0);
+                IDictionary<string, string> variables = call.ArgAt<IDictionary<string, string>>(1);
+                foreach (KeyValuePair<string, string> variable in variables)
+                    template = template.Replace($"{{{variable.Key}}}", variable.Value);
+                return Task.FromResult(template);
+            });
 
         return new(music, new BuiltinResponseComposer(resolver));
     }
