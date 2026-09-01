@@ -128,6 +128,11 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
                     "PREMIUM_REQUIRED" => requested.ErrorMessage!,
                     "MUSIC_AUTH_FAILED" => requested.ErrorMessage!,
                     "MUSIC_FORBIDDEN" => requested.ErrorMessage!,
+                    // Admission-gate refusals (MusicService.EnqueueResolvedAsync) — the requester is
+                    // over a real, configured limit, not facing an outage. Must never fall through to
+                    // the generic "couldn't reach the music service" wording below (S-OWN12).
+                    "QUEUE_FULL" => requested.ErrorMessage!,
+                    "PER_USER_LIMIT" => requested.ErrorMessage!,
                     // The search/resolve itself never meaningfully ran (dead token/not connected, or a
                     // live provider outage) — this must never be worded as "nothing matched", which would
                     // claim the search ran cleanly and the song simply doesn't exist.

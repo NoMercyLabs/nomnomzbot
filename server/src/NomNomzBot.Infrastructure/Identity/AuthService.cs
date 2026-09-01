@@ -409,6 +409,36 @@ public sealed class AuthService : IAuthService
                 "TWITCH_NOT_CONFIGURED"
             );
 
+        // A plain re-login (no live web session cookie to resolve the channel up front — desktop, a fresh
+        // browser, or an expired session) requests only the base MinimalLoginScopes, NOT the widened set
+        // WidenedStreamerScopesAsync would have asked for. Twitch's token response then carries only that
+        // narrower set — it says nothing about scopes the operator granted in an earlier, separate consent.
+        // Passing tokens.Scopes straight through here used to overwrite (shrink) the connection's Scopes
+        // back down to the base set on every such re-login, which read as ScopesDroppedEvent + the missing-
+        // scope gaps reopening for features the operator had already granted — the "keeps asking for scope
+        // permissions over and over" report. The additive union keeps every previously-granted scope Twitch
+        // did not actively revoke; a scope genuinely revoked by the operator (via Twitch's own app-access
+        // settings) still surfaces the normal way — the next real Helix call against it 403s and the reactive
+        // missing-scope path (MissingScopeRecordingHandler) records the gap from that live failure.
+        List<string> previouslyGranted =
+            await _db
+                .IntegrationConnections.IgnoreQueryFilters()
+                .Where(c =>
+                    c.BroadcasterId == broadcasterId
+                    && c.Provider == AuthEnums.IntegrationProvider.Twitch
+                    && c.DeletedAt == null
+                )
+                .Select(c => c.Scopes)
+                .FirstOrDefaultAsync(cancellationToken)
+            ?? [];
+        string[] effectiveScopes =
+        [
+            .. new SortedSet<string>(previouslyGranted, StringComparer.OrdinalIgnoreCase).Union(
+                tokens.Scopes,
+                StringComparer.OrdinalIgnoreCase
+            ),
+        ];
+
         // Vault the user's Twitch tokens (replaces the flat Service row).
         Result<IntegrationConnectionDto> connection = await _vault.UpsertConnectionAsync(
             new(
@@ -416,7 +446,7 @@ public sealed class AuthService : IAuthService
                 AuthEnums.IntegrationProvider.Twitch,
                 twitchUser.Id,
                 twitchUser.Login,
-                tokens.Scopes,
+                effectiveScopes,
                 clientId,
                 IsByok: false,
                 user.Id,
@@ -428,7 +458,7 @@ public sealed class AuthService : IAuthService
             await _vault.StoreTokensAsync(
                 connection.Value.Id,
                 new(tokens.AccessToken, tokens.RefreshToken, AppToken: null, tokens.ExpiresAt),
-                tokens.Scopes,
+                effectiveScopes,
                 cancellationToken
             );
 
