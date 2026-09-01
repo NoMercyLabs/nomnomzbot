@@ -35,9 +35,6 @@ when done) — this section is only the intake, not a shortcut around the bar.
 - **S-OWN13** — Alerts & Events page edit dialog doesn't show the currently-chosen pipeline.
 - 🔴 **S-OWN15** — Spotify overlay widget updates too slowly; the Stream Deck plugin gets updates fine by comparison — compare transports/push paths.
 - **S-OWN16** — template-variable pickers list templates not actually usable in that context; must filter to what's really usable per surface.
-- **S-OWN17** — the "banger" command's response is an uneditable random id; needs to be a normal editable message plus a playlist-id template helper.
-- **S-OWN18** — subscription-event handling needs to carry over the old bot's "thank you" message behavior, including the "they also said" (sub message) part.
-
 ---
 
 ## AT A GLANCE — what is open, in one screen
