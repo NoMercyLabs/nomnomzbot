@@ -467,10 +467,22 @@ later.)
   `POST /moderation/automod/message`; a pending-queue panel on the Moderation screen lets a mod
   approve/deny, mirroring the viewer-reports panel. Remaining sub-items above are still open — the
   tracker item stays until they're picked up.
-- **S067** Music UX — public `/sr/` page built; token → URL;
-  `public-sr` rate policy; hub-driven
-  reloads; polling fan-out bound (U·B4). 🔒 cost/max-duration/cooldown fields. Done-when: every SR toggle
-  changes what `!sr` does (test per setting).
+- **S067** Music UX — `public-sr` rate policy (U·B4). 🔒 cost/max-duration/cooldown fields. Done-when:
+  every SR toggle changes what `!sr` does (test per setting).
+  **Token → URL DONE, verified (1e272400)**: the dashboard's Music screen already had a login-based
+  pretty share link but showed the raw SR-page token as bare text with no URL/copy button — a streamer
+  without a resolvable login had no working shareable link. New `buildTokenUrl` (reuses the existing
+  `baseUrlProvider`, no hardcoded scheme/host) renders a real `/sr/{token}` URL with a copy button,
+  updating live on rotate. Test proves the URL is built from the real origin + token, not hardcoded.
+  **Hub-driven reloads + polling fan-out DONE, verified (2f5d3434)**: investigated both — hub-driven
+  reload was ALREADY correctly implemented (`SongRequestsController.subscribeToHub` reloads on
+  `MusicStateChanged`, dedupes redundant same-track pushes), and no polling loop exists at all to bound
+  (grepped for `delay`/`Timer`/`poll`, zero matches — screen only loads once + the hub subscription).
+  Added 2 regression tests since the correct-but-untested hub-reload path had no coverage. **Real gap
+  found, not fixed (own follow-up)**: `SongRequestQueueChangedEvent` (add/remove/promote/ban) only
+  reaches the `sr_queue` WIDGET channel (`SrQueueBroadcastHandler.cs`), never `DashboardHub` — pure
+  queue mutations with no track change have no dashboard push at all today; a backend wiring gap outside
+  this slice's frontend-only scope.
   **`RequestedBy` not the owner key DONE, verified (d587c4d5)**: traced all 3 admission paths (chat
   `!sr`, pipeline action, public `/sr/` page) — all 3 already correct. Found the REAL broken path was a
   4th one: the authenticated `POST .../music/queue` endpoint (the dashboard's own participant flow)
