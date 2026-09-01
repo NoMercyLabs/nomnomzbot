@@ -23,7 +23,11 @@ import bot.nomnomz.dashboard.core.network.CommandsApi
 import bot.nomnomz.dashboard.core.network.CommunityApi
 import bot.nomnomz.dashboard.core.network.DashboardApi
 import bot.nomnomz.dashboard.core.network.DashboardStats
+import bot.nomnomz.dashboard.core.network.IntegrationStatus
+import bot.nomnomz.dashboard.core.network.IntegrationsApi
 import bot.nomnomz.dashboard.core.network.NotificationsApi
+import bot.nomnomz.dashboard.core.network.PipelineSummary
+import bot.nomnomz.dashboard.core.network.PipelinesApi
 import bot.nomnomz.dashboard.core.network.ReplayResult
 import bot.nomnomz.dashboard.core.network.StreamApi
 import bot.nomnomz.dashboard.core.network.StreamInfo
@@ -70,6 +74,8 @@ class HomeController(
     private val commandsApi: CommandsApi,
     private val communityApi: CommunityApi,
     private val notificationsApi: NotificationsApi,
+    private val pipelinesApi: PipelinesApi,
+    private val integrationsApi: IntegrationsApi,
     private val hubClient: DashboardHubClient? = null,
     private val baseUrl: () -> String? = { null },
     private val accessToken: () -> String? = { null },
@@ -128,9 +134,10 @@ class HomeController(
                         is ApiResult.Ok -> r.value.filter { it.type in ACTIVITY_EVENT_TYPES }
                         is ApiResult.Failure -> emptyList()
                     }
+                val commandsResult: ApiResult<List<CommandSummary>> = commandsApi.list(channel.id)
                 val topCommands: List<CommandSummary> =
-                    when (val r: ApiResult<List<CommandSummary>> = commandsApi.list(channel.id)) {
-                        is ApiResult.Ok -> r.value.sortedByDescending { it.useCount }.take(5)
+                    when (commandsResult) {
+                        is ApiResult.Ok -> commandsResult.value.sortedByDescending { it.useCount }.take(5)
                         is ApiResult.Failure -> emptyList()
                     }
                 val actionRequired: List<ActionRequiredItem> =
@@ -138,12 +145,37 @@ class HomeController(
                         is ApiResult.Ok -> r.value
                         is ApiResult.Failure -> emptyList()
                     }
+                val pipelinesResult: ApiResult<List<PipelineSummary>> = pipelinesApi.list(channel.id)
+                val integrationsResult: ApiResult<List<IntegrationStatus>> = integrationsApi.status(channel.id)
+
+                // Each dimension counts as "confirmed empty" only on a successful read that came back empty —
+                // a failed read is treated as NOT empty (unknown), so a real read failure never manufactures a
+                // false "you're new here" checklist for an already-configured channel.
+                val commandsConfirmedEmpty: Boolean = commandsResult is ApiResult.Ok && commandsResult.value.isEmpty()
+                val pipelinesConfirmedEmpty: Boolean = pipelinesResult is ApiResult.Ok && pipelinesResult.value.isEmpty()
+                val integrationsConfirmedEmpty: Boolean =
+                    integrationsResult is ApiResult.Ok && integrationsResult.value.none { it.connected }
+
+                // First-run checklist shows only when EVERY dimension is confirmed empty — truthful state: it
+                // disappears the moment the channel has any real commands, pipelines, or a connected integration.
+                val firstRunSteps: List<FirstRunStep> =
+                    if (commandsConfirmedEmpty && pipelinesConfirmedEmpty && integrationsConfirmedEmpty) {
+                        listOf(
+                            FirstRunStep(kind = FirstRunStepKind.ConnectIntegration, deepLinkRoute = "Integrations"),
+                            FirstRunStep(kind = FirstRunStepKind.CreateCommand, deepLinkRoute = "Commands"),
+                            FirstRunStep(kind = FirstRunStepKind.CreatePipeline, deepLinkRoute = "Pipelines"),
+                        )
+                    } else {
+                        emptyList()
+                    }
+
                 _state.value = HomeState.Ready(
                     stats = statsResult.value,
                     streamInfo = streamInfo,
                     activity = activity,
                     topCommands = topCommands,
                     actionRequired = actionRequired,
+                    firstRunSteps = firstRunSteps,
                 )
             }
         }
@@ -325,6 +357,11 @@ sealed interface HomeState {
         /** Real, already-detected conditions needing the streamer's attention — empty when nothing is wrong,
          * never a fabricated "all good" positive. Renders as the Home hero tile only when non-empty. */
         val actionRequired: List<ActionRequiredItem> = emptyList(),
+        /**
+         * Suggested next actions for a channel with no commands, no pipelines, and no connected integration —
+         * empty for any channel with real configured content (truthful state, never a stale "still onboarding").
+         */
+        val firstRunSteps: List<FirstRunStep> = emptyList(),
         /** Non-null when the last [HomeController.updateStreamInfo] call failed. */
         val streamError: String? = null,
         /** Per-[ActivityEvent.id] outcome of the last Replay click on that row — absent = never replayed this session. */
@@ -332,6 +369,20 @@ sealed interface HomeState {
     ) : HomeState
 
     data class Error(val detail: String) : HomeState
+}
+
+/** One suggested first-run next step, shown on Home while the channel has no real configured content yet. */
+data class FirstRunStep(
+    val kind: FirstRunStepKind,
+    /** A [bot.nomnomz.dashboard.feature.shell.nav.ShellRoute] name — navigated to on click. */
+    val deepLinkRoute: String,
+)
+
+/** What the step suggests — the screen resolves each kind to its label/icon. */
+enum class FirstRunStepKind {
+    ConnectIntegration,
+    CreateCommand,
+    CreatePipeline,
 }
 
 /** The Replay-button outcome for one activity row (see [HomeController.replay]). */

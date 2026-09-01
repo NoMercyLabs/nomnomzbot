@@ -449,6 +449,8 @@ class AppGraph {
             commandsApi = commandsApi,
             communityApi = communityApi,
             notificationsApi = notificationsApi,
+            pipelinesApi = pipelinesApi,
+            integrationsApi = integrationsApi,
             hubClient = dashboardHubClient,
             baseUrl = sessionStore::baseUrl,
             accessToken = sessionStore::accessToken,

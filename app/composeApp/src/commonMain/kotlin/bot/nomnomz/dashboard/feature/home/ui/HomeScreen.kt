@@ -83,6 +83,8 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.ActionRequiredItem
 import bot.nomnomz.dashboard.core.network.ActivityEvent
+import bot.nomnomz.dashboard.feature.home.state.FirstRunStep
+import bot.nomnomz.dashboard.feature.home.state.FirstRunStepKind
 import bot.nomnomz.dashboard.core.network.CommandSummary
 import bot.nomnomz.dashboard.core.network.DashboardStats
 import bot.nomnomz.dashboard.core.network.LiveOpsClipStub
@@ -143,6 +145,11 @@ import nomnomzbot.composeapp.generated.resources.home_activity_section
 import nomnomzbot.composeapp.generated.resources.home_activity_subscribe
 import nomnomzbot.composeapp.generated.resources.home_activity_subscription_gift
 import nomnomzbot.composeapp.generated.resources.home_activity_timeout
+import nomnomzbot.composeapp.generated.resources.home_activity_view_all
+import nomnomzbot.composeapp.generated.resources.home_first_run_section
+import nomnomzbot.composeapp.generated.resources.home_first_run_connect_integration
+import nomnomzbot.composeapp.generated.resources.home_first_run_create_command
+import nomnomzbot.composeapp.generated.resources.home_first_run_create_pipeline
 import nomnomzbot.composeapp.generated.resources.home_change_title
 import nomnomzbot.composeapp.generated.resources.home_error
 import nomnomzbot.composeapp.generated.resources.home_game_label
@@ -259,6 +266,7 @@ fun HomeScreen(
                     activity = current.activity,
                     topCommands = current.topCommands,
                     actionRequired = current.actionRequired,
+                    firstRunSteps = current.firstRunSteps,
                     streamError = current.streamError,
                     replayStatus = current.replayStatus,
                     liveOpsController = liveOpsController,
@@ -285,6 +293,7 @@ private fun ReadyContent(
     activity: List<ActivityEvent>,
     topCommands: List<CommandSummary>,
     actionRequired: List<ActionRequiredItem>,
+    firstRunSteps: List<FirstRunStep>,
     streamError: String?,
     replayStatus: Map<String, ReplayStatus>,
     liveOpsController: LiveOpsController,
@@ -343,6 +352,13 @@ private fun ReadyContent(
             ActionRequiredCard(items = actionRequired, onNavigate = onNavigate)
         }
 
+        // Suggested next steps for a channel with no commands, no pipelines, and no connected integration yet —
+        // absent (not a stale "still onboarding" banner) the moment any of those becomes real, per house rule:
+        // never show unenforced/fabricated state. Mirrors ActionRequiredCard's truthful-emptiness pattern.
+        if (firstRunSteps.isNotEmpty()) {
+            FirstRunChecklistCard(steps = firstRunSteps, onNavigate = onNavigate)
+        }
+
         LiveBanner(stats = stats)
         StatTilesRow(stats = stats)
         PlatformsRow(platforms = stats.platformsLive)
@@ -358,6 +374,7 @@ private fun ReadyContent(
                 replayStatus = replayStatus,
                 heldActionKeys = heldActionKeys,
                 onReplay = onReplay,
+                onViewAll = { onNavigate("Analytics") },
                 modifier = Modifier.weight(1.6f),
             )
 
@@ -679,6 +696,69 @@ private fun ActionRequiredRow(item: ActionRequiredItem, onClick: () -> Unit) {
     }
 }
 
+// ─── First-run checklist ──────────────────────────────────────────────────────
+
+// Suggested next actions for a brand-new channel (S071c) — same card/row shape as ActionRequiredCard, but
+// neutral (no severity badge): these are suggestions, not problems.
+@Composable
+private fun FirstRunChecklistCard(steps: List<FirstRunStep>, onNavigate: (String) -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(spacing.s4),
+            verticalArrangement = Arrangement.spacedBy(spacing.s3),
+        ) {
+            Text(
+                text = stringResource(Res.string.home_first_run_section),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+            )
+            steps.forEach { step ->
+                FirstRunStepRow(step = step, onClick = { onNavigate(step.deepLinkRoute) })
+            }
+        }
+    }
+}
+
+@Composable
+private fun FirstRunStepRow(step: FirstRunStep, onClick: () -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    val label: String = when (step.kind) {
+        FirstRunStepKind.ConnectIntegration -> stringResource(Res.string.home_first_run_connect_integration)
+        FirstRunStepKind.CreateCommand -> stringResource(Res.string.home_first_run_create_command)
+        FirstRunStepKind.CreatePipeline -> stringResource(Res.string.home_first_run_create_pipeline)
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(tokens.radius.md))
+            .clickable(onClick = onClick)
+            .padding(vertical = spacing.s2, horizontal = spacing.s1),
+        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(spacing.s2)
+                .clip(CircleShape)
+                .background(tokens.accent),
+        )
+        Text(
+            text = label,
+            style = typography.sm,
+            color = tokens.cardForeground,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
 // ─── Stat tiles ───────────────────────────────────────────────────────────────
 
 // A balanced stat-card grid (owner's home-screen ask): current viewers, followers, subscribers, chatters today,
@@ -782,12 +862,17 @@ private fun StatTile(modifier: Modifier, label: String, value: String) {
 
 // ─── Activity feed ────────────────────────────────────────────────────────────
 
+// Collapsed to a compact preview — a "View all" link opens the Analytics page for the full history, rather
+// than every one of the backend's 20 most-recent rows crowding the Home layout.
+private const val ACTIVITY_PREVIEW_COUNT: Int = 5
+
 @Composable
 private fun ActivityFeedCard(
     events: List<ActivityEvent>,
     replayStatus: Map<String, ReplayStatus>,
     heldActionKeys: Set<String>,
     onReplay: (eventId: String) -> Unit,
+    onViewAll: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val tokens = LocalTokens.current
@@ -799,11 +884,22 @@ private fun ActivityFeedCard(
         modifier = Modifier.padding(spacing.s4),
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
-        Text(
-            text = stringResource(Res.string.home_activity_section),
-            style = typography.sm,
-            color = tokens.mutedForeground,
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(Res.string.home_activity_section),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+            )
+            if (events.size > ACTIVITY_PREVIEW_COUNT) {
+                TextButton(onClick = onViewAll) {
+                    Text(text = stringResource(Res.string.home_activity_view_all))
+                }
+            }
+        }
         if (events.isEmpty()) {
             Text(
                 text = stringResource(Res.string.home_activity_empty),
@@ -813,7 +909,7 @@ private fun ActivityFeedCard(
                 modifier = Modifier.fillMaxWidth().padding(vertical = spacing.s4),
             )
         } else {
-            events.forEach { event ->
+            events.take(ACTIVITY_PREVIEW_COUNT).forEach { event ->
                 ActivityRow(
                     event = event,
                     replayStatus = replayStatus[event.id],
