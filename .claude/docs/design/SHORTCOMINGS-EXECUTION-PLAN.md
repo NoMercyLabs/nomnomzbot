@@ -823,9 +823,18 @@ later.)
   attaching a SECOND platform to an existing channel, data migration folds existing sibling channels
   into one (U·C0, spec `platform-identity.md`). Done-when: a Twitch+Kick streamer is ONE `Channel`
   with two connections; all tenant-scoped reads unchanged.
-- **S023** Viewer identity key sweep — `*TwitchUserId` → `*ExternalUserId + *Provider` on the 18
-  entities; remove `provider = Twitch` default on `IUserService`; delete `PlatformType` (U·C0).
-  Done-when: build + migration green; no call site defaults the provider.
+- **S023-remaining** Viewer identity key sweep — S023a CLOSED, verified: `IUserService.
+  GetOrCreateAsync` already takes a real `Provider` param (no Twitch default), proven by
+  `UserServiceGetOrCreateTests.GetOrCreateAsync_with_a_youtube_provider_mints_a_youtube_identity_not_a_twitch_one`
+  (server/tests/NomNomzBot.Infrastructure.Tests/Identity/UserServiceGetOrCreateTests.cs:88) — no code
+  change needed. Two legitimate Twitch-only defaults found, not bugs: `PermitBuiltins.cs:44,94` +
+  `AccountAgeBuiltin.cs:64` default to Twitch because `BuiltinCommandContext`
+  (`IBuiltinCommand.cs:44`) carries no `Provider` field at all yet — plumbing that through every
+  builtin dispatch is its own future slice, not a one-line fix; `ChannelsController.cs:260`
+  (EnterModeratedChannel) is genuinely Twitch-only today (Helix Get Moderated Channels has no
+  Kick/YouTube equivalent yet). Remaining: `*TwitchUserId` → `*ExternalUserId + *Provider` on the 18
+  entities; delete `PlatformType` (U·C0). Done-when: build + migration green; no call site defaults
+  the provider.
 - **S024** Viewer linking — `LinkAsync` absorption (§3.1a), `IViewerMergeParticipant` + the eight
   participants, `ViewerRowAbsorbedEvent` published (U·C0). Done-when: a viewer who chatted on Kick then
   links Twitch ends with ONE User row and ONE balance (test).
