@@ -3013,6 +3013,8 @@
     <string name="webhooks_create_outbound_fqdn">Target host (e.g. https://example.com)</string>
     <string name="webhooks_create_outbound_fqdn_required">Target host is required.</string>
     <string name="webhooks_create_outbound_path">Path (optional, e.g. /webhook)</string>
+    <string name="webhooks_create_outbound_body_template">Body template (optional — default JSON payload if left blank)</string>
+    <string name="webhooks_edit_body_template">Body template (leave blank to keep the current one)</string>
     <string name="webhooks_create_outbound_events">Subscribed events</string>
     <string name="webhooks_create_outbound_confirm">Create</string>
     <string name="webhooks_create_outbound_dismiss">Cancel</string>
@@ -3259,6 +3261,10 @@
     <string name="admin_flag_enabled">Enabled</string>
     <string name="admin_flag_enabled_rollout">Enabled — %1$d%%</string>
     <string name="admin_flag_disabled">Disabled</string>
+    <string name="admin_flag_override_broadcaster_id">Broadcaster id</string>
+    <string name="admin_flag_override_enable">Override: enable</string>
+    <string name="admin_flag_override_disable">Override: disable</string>
+    <string name="admin_flag_override_clear">Clear override</string>
     <string name="admin_invite_redemptions">%1$d / %2$d redemptions</string>
     <string name="admin_invite_expires">Expires: %1$s</string>
     <string name="admin_invite_no_expiry">No expiry</string>

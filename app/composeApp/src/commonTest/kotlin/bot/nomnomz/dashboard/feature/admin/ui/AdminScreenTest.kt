@@ -13,10 +13,46 @@ package bot.nomnomz.dashboard.feature.admin.ui
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.isToggleable
+import androidx.compose.ui.test.onNode
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
 import bot.nomnomz.dashboard.core.i18n.AppEnvironment
+import bot.nomnomz.dashboard.core.network.AdminApi
+import bot.nomnomz.dashboard.core.network.AdminChannel
+import bot.nomnomz.dashboard.core.network.AdminCreateInviteCodeRequest
+import bot.nomnomz.dashboard.core.network.AdminGrantTierRequest
+import bot.nomnomz.dashboard.core.network.AdminServiceHealth
+import bot.nomnomz.dashboard.core.network.AdminSetFeatureFlagOverrideRequest
+import bot.nomnomz.dashboard.core.network.AdminSetFeatureFlagRequest
+import bot.nomnomz.dashboard.core.network.AdminStats
+import bot.nomnomz.dashboard.core.network.AdminSystem
+import bot.nomnomz.dashboard.core.network.AdminUser
+import bot.nomnomz.dashboard.core.network.ApiError
+import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.AssignRoleBody
+import bot.nomnomz.dashboard.core.network.BeginTenantAccessBody
+import bot.nomnomz.dashboard.core.network.CreatePrincipalBody
+import bot.nomnomz.dashboard.core.network.FeatureFlag
+import bot.nomnomz.dashboard.core.network.IamAuditEntry
+import bot.nomnomz.dashboard.core.network.IamPrincipal
+import bot.nomnomz.dashboard.core.network.IamPrincipalSummary
+import bot.nomnomz.dashboard.core.network.IamRole
+import bot.nomnomz.dashboard.core.network.IamRoleAssignment
+import bot.nomnomz.dashboard.core.network.ImpersonationTokenDto
+import bot.nomnomz.dashboard.core.network.InviteCode
+import bot.nomnomz.dashboard.core.network.PaginatedEnvelope
+import bot.nomnomz.dashboard.core.network.PlatformAdminApi
+import bot.nomnomz.dashboard.core.network.PlatformEvent
+import bot.nomnomz.dashboard.core.network.PlatformIamApi
+import bot.nomnomz.dashboard.core.network.ReinstateTenantBody
+import bot.nomnomz.dashboard.core.network.SuspendTenantBody
+import bot.nomnomz.dashboard.core.network.TenantAccessGrant
+import bot.nomnomz.dashboard.feature.admin.state.AdminController
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 // S-OWN08 regression: AdminController.load() has always set AdminState.error on a failed stats/channels/users/
@@ -61,4 +97,121 @@ class AdminScreenTest {
             "a null error must render no banner at all",
         )
     }
+
+    // S-OWN08a: FeatureFlagsTab used to be read-only despite AdminController already exposing working
+    // setFeatureFlag/setFeatureFlagOverride/deleteFeatureFlagOverride wrappers. Proves the toggle actually
+    // reaches the backend call with the right flag key/value, not just that a switch renders.
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun tapping_the_flag_toggle_calls_set_feature_flag_with_the_flipped_value() {
+        val api = RecordingFeatureFlagAdminApi(
+            initialFlags = listOf(
+                FeatureFlag(key = "new-dashboard", description = "New dashboard UI", isEnabledGlobally = false, rolloutPercentage = 50),
+            ),
+        )
+        val controller = AdminController(api = api, iamApi = NoopPlatformIamApi(), platformAdminApi = NoopPlatformAdminApi())
+        runTest { controller.load() }
+
+        runComposeUiTest {
+            setContent {
+                EnglishContent {
+                    FeatureFlagsTab(state = controller.state.value, controller = controller)
+                }
+            }
+
+            onNode(isToggleable()).performClick()
+            waitForIdle()
+        }
+
+        assertEquals(1, api.setFeatureFlagCalls.size)
+        val request: AdminSetFeatureFlagRequest = api.setFeatureFlagCalls.single()
+        assertEquals("new-dashboard", request.key)
+        assertEquals(true, request.isEnabledGlobally, "tapping the off switch must flip it on")
+        assertEquals(50, request.rolloutPercentage, "the existing rollout percentage must be preserved, not reset")
+    }
+}
+
+// ─── Fakes ─────────────────────────────────────────────────────────────────
+
+private class RecordingFeatureFlagAdminApi(
+    initialFlags: List<FeatureFlag>,
+) : AdminApi {
+    private val flags: MutableList<FeatureFlag> = initialFlags.toMutableList()
+    val setFeatureFlagCalls: MutableList<AdminSetFeatureFlagRequest> = mutableListOf()
+
+    override suspend fun getStats(): ApiResult<AdminStats> = ApiResult.Ok(AdminStats(0, 0, 0, "ok", 0, 0))
+    override suspend fun getChannels(page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<AdminChannel>> =
+        ApiResult.Ok(PaginatedEnvelope(emptyList()))
+    override suspend fun getUsers(page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<AdminUser>> =
+        ApiResult.Ok(PaginatedEnvelope(emptyList()))
+    override suspend fun getSystem(): ApiResult<AdminSystem> = ApiResult.Ok(AdminSystem("ok", emptyList(), "1.0", 0, 0.0))
+    override suspend fun getHealth(): ApiResult<List<AdminServiceHealth>> = ApiResult.Ok(emptyList())
+    override suspend fun getEvents(): ApiResult<List<PlatformEvent>> = ApiResult.Ok(emptyList())
+    override suspend fun getFeatureFlags(): ApiResult<List<FeatureFlag>> = ApiResult.Ok(flags.toList())
+
+    override suspend fun setFeatureFlag(body: AdminSetFeatureFlagRequest): ApiResult<FeatureFlag> {
+        setFeatureFlagCalls += body
+        val updated = FeatureFlag(
+            key = body.key,
+            description = body.description,
+            isEnabledGlobally = body.isEnabledGlobally,
+            rolloutPercentage = body.rolloutPercentage,
+            minTierKey = body.minTierKey,
+            requiresConsent = body.requiresConsent,
+            deploymentMode = body.deploymentMode,
+        )
+        flags.removeAll { it.key == body.key }
+        flags += updated
+        return ApiResult.Ok(updated)
+    }
+
+    override suspend fun setFeatureFlagOverride(flagKey: String, broadcasterId: String, body: AdminSetFeatureFlagOverrideRequest): ApiResult<Unit> =
+        ApiResult.Ok(Unit)
+    override suspend fun deleteFeatureFlagOverride(flagKey: String, broadcasterId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun getInviteCodes(page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<InviteCode>> =
+        ApiResult.Ok(PaginatedEnvelope(emptyList()))
+    override suspend fun createInviteCode(body: AdminCreateInviteCodeRequest): ApiResult<InviteCode> =
+        ApiResult.Ok(InviteCode("id", "code", body.maxRedemptions, 0, body.grantsFoundersBadge))
+    override suspend fun revokeInviteCode(inviteCodeId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun grantTier(broadcasterId: String, body: AdminGrantTierRequest): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun grantFounderBadge(broadcasterId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun impersonate(subjectUserId: String, accessGrantId: String, justification: String): ApiResult<ImpersonationTokenDto> =
+        ApiResult.Failure(ApiError(500, null, "not stubbed"))
+    override suspend fun endImpersonation(accessGrantId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+}
+
+private class NoopPlatformIamApi : PlatformIamApi {
+    override suspend fun listRoles(): ApiResult<List<IamRole>> = ApiResult.Ok(emptyList())
+    override suspend fun listPrincipals(): ApiResult<List<IamPrincipalSummary>> = ApiResult.Ok(emptyList())
+    override suspend fun effectivePermissions(principalId: String, scopeChannelId: String?): ApiResult<List<String>> =
+        ApiResult.Ok(emptyList())
+    override suspend fun createPrincipal(body: CreatePrincipalBody): ApiResult<IamPrincipal> =
+        ApiResult.Ok(IamPrincipal(id = "p", name = body.displayName))
+    override suspend fun deactivatePrincipal(principalId: String, reason: String?): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun reactivatePrincipal(principalId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun assignRole(body: AssignRoleBody): ApiResult<IamRoleAssignment> =
+        ApiResult.Ok(IamRoleAssignment(id = "a", principalId = body.principalId, roleId = body.roleId, roleName = "role", createdAt = "2026-01-01T00:00:00Z"))
+    override suspend fun revokeAssignment(assignmentId: String, reason: String?): ApiResult<Unit> = ApiResult.Ok(Unit)
+}
+
+private class NoopPlatformAdminApi : PlatformAdminApi {
+    override suspend fun listTenants(search: String?, status: String?, isLive: Boolean?, page: Int, pageSize: Int) =
+        ApiResult.Ok(PaginatedEnvelope(emptyList<bot.nomnomz.dashboard.core.network.AdminTenant>()))
+    override suspend fun getTenant(broadcasterId: String): ApiResult<bot.nomnomz.dashboard.core.network.AdminTenantDetail> =
+        ApiResult.Failure(ApiError(404, null, "not stubbed"))
+    override suspend fun suspendTenant(broadcasterId: String, body: SuspendTenantBody): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun reinstateTenant(broadcasterId: String, body: ReinstateTenantBody): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun beginAccess(broadcasterId: String, body: BeginTenantAccessBody): ApiResult<TenantAccessGrant> =
+        ApiResult.Failure(ApiError(500, null, "not stubbed"))
+    override suspend fun endAccess(accessGrantId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun searchAudit(
+        principalId: String?,
+        targetBroadcasterId: String?,
+        permission: String?,
+        outcome: String?,
+        from: String?,
+        to: String?,
+        page: Int,
+        pageSize: Int,
+    ): ApiResult<PaginatedEnvelope<IamAuditEntry>> = ApiResult.Ok(PaginatedEnvelope(emptyList()))
 }

@@ -3000,6 +3000,8 @@
     <string name="webhooks_create_outbound_fqdn">Doelhost (bijv. https://voorbeeld.nl)</string>
     <string name="webhooks_create_outbound_fqdn_required">Doelhost is verplicht.</string>
     <string name="webhooks_create_outbound_path">Pad (optioneel, bijv. /webhook)</string>
+    <string name="webhooks_create_outbound_body_template">Berichttekst-sjabloon (optioneel — standaard JSON-payload indien leeg)</string>
+    <string name="webhooks_edit_body_template">Berichttekst-sjabloon (leeg laten om de huidige te behouden)</string>
     <string name="webhooks_create_outbound_events">Geabonneerde gebeurtenissen</string>
     <string name="webhooks_create_outbound_confirm">Aanmaken</string>
     <string name="webhooks_create_outbound_dismiss">Annuleren</string>
@@ -3245,6 +3247,10 @@
     <string name="admin_flag_enabled">Ingeschakeld</string>
     <string name="admin_flag_enabled_rollout">Ingeschakeld — %1$d%%</string>
     <string name="admin_flag_disabled">Uitgeschakeld</string>
+    <string name="admin_flag_override_broadcaster_id">Uitzender-id</string>
+    <string name="admin_flag_override_enable">Override: inschakelen</string>
+    <string name="admin_flag_override_disable">Override: uitschakelen</string>
+    <string name="admin_flag_override_clear">Override wissen</string>
     <string name="admin_invite_redemptions">%1$d / %2$d inwisselingen</string>
     <string name="admin_invite_expires">Vervalt: %1$s</string>
     <string name="admin_invite_no_expiry">Geen vervaldatum</string>
