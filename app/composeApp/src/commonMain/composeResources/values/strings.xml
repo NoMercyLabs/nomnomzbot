@@ -288,9 +288,17 @@
     <string name="home_action_required_severity_critical">Critical</string>
     <string name="home_action_required_severity_warning">Warning</string>
 
+    <!-- First-run checklist on Home (S071c) — shown only while the channel has no commands, no pipelines,
+         and no connected integration; disappears the moment any real content exists. -->
+    <string name="home_first_run_section">Get started</string>
+    <string name="home_first_run_connect_integration">Connect an integration</string>
+    <string name="home_first_run_create_command">Create your first command</string>
+    <string name="home_first_run_create_pipeline">Build a pipeline</string>
+
     <!-- Recent activity feed on Home -->
     <string name="home_activity_section">Recent Activity</string>
     <string name="home_activity_empty">No events yet — activity appears here when your channel is live.</string>
+    <string name="home_activity_view_all">View all</string>
     <string name="home_activity_follow">%1$s followed</string>
     <string name="home_activity_subscribe">%1$s subscribed</string>
     <string name="home_activity_resub">%1$s resubscribed</string>

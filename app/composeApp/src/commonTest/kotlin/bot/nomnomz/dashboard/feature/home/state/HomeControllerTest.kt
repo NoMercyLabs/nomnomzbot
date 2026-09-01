@@ -27,7 +27,11 @@ import bot.nomnomz.dashboard.core.network.ChannelSearchResult
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.DashboardApi
 import bot.nomnomz.dashboard.core.network.DashboardStats
+import bot.nomnomz.dashboard.core.network.IntegrationStatus
+import bot.nomnomz.dashboard.core.network.IntegrationsApi
 import bot.nomnomz.dashboard.core.network.NotificationsApi
+import bot.nomnomz.dashboard.core.network.PipelineSummary
+import bot.nomnomz.dashboard.core.network.PipelinesApi
 import bot.nomnomz.dashboard.core.network.ReplayResult
 import bot.nomnomz.dashboard.core.network.StreamApi
 import bot.nomnomz.dashboard.core.network.StreamInfo
@@ -73,6 +77,8 @@ class HomeControllerTest {
                 commandsApi = FakeCommandsApi(),
                 communityApi = FakeCommunityApi(),
                 notificationsApi = FakeNotificationsApi(),
+                pipelinesApi = FakePipelinesApi(),
+                integrationsApi = FakeIntegrationsApi(),
             )
 
         controller.load()
@@ -97,6 +103,8 @@ class HomeControllerTest {
                 commandsApi = FakeCommandsApi(),
                 communityApi = FakeCommunityApi(),
                 notificationsApi = FakeNotificationsApi(),
+                pipelinesApi = FakePipelinesApi(),
+                integrationsApi = FakeIntegrationsApi(),
             )
 
         controller.load()
@@ -114,6 +122,8 @@ class HomeControllerTest {
                 commandsApi = FakeCommandsApi(),
                 communityApi = FakeCommunityApi(),
                 notificationsApi = FakeNotificationsApi(),
+                pipelinesApi = FakePipelinesApi(),
+                integrationsApi = FakeIntegrationsApi(),
             )
 
         controller.load()
@@ -139,6 +149,8 @@ class HomeControllerTest {
                 commandsApi = FakeCommandsApi(ApiResult.Ok(commands)),
                 communityApi = FakeCommunityApi(),
                 notificationsApi = FakeNotificationsApi(),
+                pipelinesApi = FakePipelinesApi(),
+                integrationsApi = FakeIntegrationsApi(),
             )
 
         controller.load()
@@ -170,6 +182,8 @@ class HomeControllerTest {
                 commandsApi = FakeCommandsApi(),
                 communityApi = FakeCommunityApi(),
                 notificationsApi = FakeNotificationsApi(),
+                pipelinesApi = FakePipelinesApi(),
+                integrationsApi = FakeIntegrationsApi(),
             )
         controller.load()
 
@@ -198,6 +212,8 @@ class HomeControllerTest {
                 commandsApi = FakeCommandsApi(),
                 communityApi = FakeCommunityApi(),
                 notificationsApi = FakeNotificationsApi(),
+                pipelinesApi = FakePipelinesApi(),
+                integrationsApi = FakeIntegrationsApi(),
             )
         controller.load()
 
@@ -236,6 +252,8 @@ class HomeControllerTest {
                 commandsApi = FakeCommandsApi(),
                 communityApi = FakeCommunityApi(),
                 notificationsApi = FakeNotificationsApi(),
+                pipelinesApi = FakePipelinesApi(),
+                integrationsApi = FakeIntegrationsApi(),
             )
         controller.load()
 
@@ -274,6 +292,8 @@ class HomeControllerTest {
             commandsApi = FakeCommandsApi(),
             communityApi = FakeCommunityApi(),
             notificationsApi = FakeNotificationsApi(),
+            pipelinesApi = FakePipelinesApi(),
+            integrationsApi = FakeIntegrationsApi(),
         )
         controller.load()
 
@@ -299,6 +319,8 @@ class HomeControllerTest {
             commandsApi = FakeCommandsApi(),
             communityApi = FakeCommunityApi(),
             notificationsApi = FakeNotificationsApi(),
+            pipelinesApi = FakePipelinesApi(),
+            integrationsApi = FakeIntegrationsApi(),
         )
         controller.load()
 
@@ -321,6 +343,8 @@ class HomeControllerTest {
             commandsApi = FakeCommandsApi(),
             communityApi = FakeCommunityApi(),
             notificationsApi = FakeNotificationsApi(),
+            pipelinesApi = FakePipelinesApi(),
+            integrationsApi = FakeIntegrationsApi(),
         )
         controller.load()
 
@@ -347,6 +371,8 @@ class HomeControllerTest {
             commandsApi = FakeCommandsApi(),
             communityApi = FakeCommunityApi(),
             notificationsApi = FakeNotificationsApi(),
+            pipelinesApi = FakePipelinesApi(),
+            integrationsApi = FakeIntegrationsApi(),
         )
         controller.load()
 
@@ -372,6 +398,8 @@ class HomeControllerTest {
                 commandsApi = FakeCommandsApi(ApiResult.Failure(ApiError(500, "ERR", "commands unavailable"))),
                 communityApi = FakeCommunityApi(),
                 notificationsApi = FakeNotificationsApi(),
+                pipelinesApi = FakePipelinesApi(),
+                integrationsApi = FakeIntegrationsApi(),
             )
 
         controller.load()
@@ -399,6 +427,8 @@ class HomeControllerTest {
                 commandsApi = FakeCommandsApi(),
                 communityApi = FakeCommunityApi(),
                 notificationsApi = FakeNotificationsApi(ApiResult.Ok(listOf(item))),
+                pipelinesApi = FakePipelinesApi(),
+                integrationsApi = FakeIntegrationsApi(),
             )
 
         controller.load()
@@ -422,6 +452,8 @@ class HomeControllerTest {
                 commandsApi = FakeCommandsApi(),
                 communityApi = FakeCommunityApi(),
                 notificationsApi = FakeNotificationsApi(ApiResult.Ok(emptyList())),
+                pipelinesApi = FakePipelinesApi(),
+                integrationsApi = FakeIntegrationsApi(),
             )
 
         controller.load()
@@ -443,6 +475,8 @@ class HomeControllerTest {
                 notificationsApi = FakeNotificationsApi(
                     ApiResult.Failure(ApiError(500, "ERR", "notifications unavailable"))
                 ),
+                pipelinesApi = FakePipelinesApi(),
+                integrationsApi = FakeIntegrationsApi(),
             )
 
         controller.load()
@@ -450,6 +484,104 @@ class HomeControllerTest {
         val state: HomeState = controller.state.value
         assertTrue(state is HomeState.Ready)
         assertTrue((state as HomeState.Ready).actionRequired.isEmpty())
+    }
+
+    @Test
+    fun load_surfaces_real_recent_activity_content_in_the_feed_state() = runTest {
+        // Proves actual event content reaches HomeState, not merely "no exception" — a follow AND a raid,
+        // with their real fields, must both come through intact.
+        val events: List<ActivityEvent> = listOf(
+            ActivityEvent(id = "e1", type = "channel.follow", username = "QTkittE", timestamp = "2026-09-01T10:00:00Z"),
+            ActivityEvent(id = "e2", type = "channel.raid", username = "BigStreamer", timestamp = "2026-09-01T09:00:00Z"),
+        )
+        val controller =
+            HomeController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                dashboardApi = FakeDashboardApi(
+                    result = ApiResult.Ok(DashboardStats()),
+                    activityResult = ApiResult.Ok(events),
+                ),
+                streamApi = FakeStreamApi(),
+                commandsApi = FakeCommandsApi(),
+                communityApi = FakeCommunityApi(),
+                notificationsApi = FakeNotificationsApi(),
+                pipelinesApi = FakePipelinesApi(),
+                integrationsApi = FakeIntegrationsApi(),
+            )
+
+        controller.load()
+
+        val ready: HomeState.Ready = controller.state.value as HomeState.Ready
+        assertEquals(2, ready.activity.size)
+        assertEquals("channel.follow", ready.activity[0].type)
+        assertEquals("QTkittE", ready.activity[0].username)
+        assertEquals("channel.raid", ready.activity[1].type)
+        assertEquals("BigStreamer", ready.activity[1].username)
+    }
+
+    @Test
+    fun load_surfaces_the_first_run_checklist_when_the_channel_has_no_commands_pipelines_or_integrations() = runTest {
+        val controller =
+            HomeController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                dashboardApi = FakeDashboardApi(ApiResult.Ok(DashboardStats())),
+                streamApi = FakeStreamApi(),
+                commandsApi = FakeCommandsApi(ApiResult.Ok(emptyList())),
+                communityApi = FakeCommunityApi(),
+                notificationsApi = FakeNotificationsApi(),
+                pipelinesApi = FakePipelinesApi(ApiResult.Ok(emptyList())),
+                integrationsApi = FakeIntegrationsApi(ApiResult.Ok(emptyList())),
+            )
+
+        controller.load()
+
+        val ready: HomeState.Ready = controller.state.value as HomeState.Ready
+        assertEquals(3, ready.firstRunSteps.size)
+        assertEquals(FirstRunStepKind.ConnectIntegration, ready.firstRunSteps[0].kind)
+        assertEquals(FirstRunStepKind.CreateCommand, ready.firstRunSteps[1].kind)
+        assertEquals(FirstRunStepKind.CreatePipeline, ready.firstRunSteps[2].kind)
+    }
+
+    @Test
+    fun load_hides_the_first_run_checklist_once_the_channel_has_real_commands() = runTest {
+        val controller =
+            HomeController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                dashboardApi = FakeDashboardApi(ApiResult.Ok(DashboardStats())),
+                streamApi = FakeStreamApi(),
+                commandsApi = FakeCommandsApi(ApiResult.Ok(listOf(CommandSummary(name = "!hello")))),
+                communityApi = FakeCommunityApi(),
+                notificationsApi = FakeNotificationsApi(),
+                pipelinesApi = FakePipelinesApi(ApiResult.Ok(emptyList())),
+                integrationsApi = FakeIntegrationsApi(ApiResult.Ok(emptyList())),
+            )
+
+        controller.load()
+
+        val ready: HomeState.Ready = controller.state.value as HomeState.Ready
+        assertTrue(ready.firstRunSteps.isEmpty())
+    }
+
+    @Test
+    fun load_hides_the_first_run_checklist_once_an_integration_is_connected() = runTest {
+        val controller =
+            HomeController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                dashboardApi = FakeDashboardApi(ApiResult.Ok(DashboardStats())),
+                streamApi = FakeStreamApi(),
+                commandsApi = FakeCommandsApi(ApiResult.Ok(emptyList())),
+                communityApi = FakeCommunityApi(),
+                notificationsApi = FakeNotificationsApi(),
+                pipelinesApi = FakePipelinesApi(ApiResult.Ok(emptyList())),
+                integrationsApi = FakeIntegrationsApi(
+                    ApiResult.Ok(listOf(IntegrationStatus(provider = "spotify", connected = true)))
+                ),
+            )
+
+        controller.load()
+
+        val ready: HomeState.Ready = controller.state.value as HomeState.Ready
+        assertTrue(ready.firstRunSteps.isEmpty())
     }
 }
 
@@ -475,19 +607,65 @@ private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : C
 private class FakeDashboardApi(
     private val result: ApiResult<DashboardStats>,
     private val replayResult: ApiResult<ReplayResult> = ApiResult.Ok(ReplayResult(widgetsNotified = 1)),
+    private val activityResult: ApiResult<List<ActivityEvent>> = ApiResult.Ok(emptyList()),
 ) : DashboardApi {
     /** The (channelId, eventId) pair of the last [replay] call — asserted against to prove the right row fired. */
     var lastReplayCall: Pair<String, String>? = null
         private set
 
     override suspend fun stats(channelId: String): ApiResult<DashboardStats> = result
-    override suspend fun activity(channelId: String): ApiResult<List<ActivityEvent>> =
-        ApiResult.Ok(emptyList())
+    override suspend fun activity(channelId: String): ApiResult<List<ActivityEvent>> = activityResult
 
     override suspend fun replay(channelId: String, eventId: String): ApiResult<ReplayResult> {
         lastReplayCall = channelId to eventId
         return replayResult
     }
+}
+
+private class FakePipelinesApi(
+    private val result: ApiResult<List<PipelineSummary>> = ApiResult.Ok(emptyList()),
+) : PipelinesApi {
+    override suspend fun list(channelId: String): ApiResult<List<PipelineSummary>> = result
+    override suspend fun catalogue(channelId: String) = error("stub")
+    override suspend fun get(channelId: String, id: String) = error("stub")
+    override suspend fun create(channelId: String, body: bot.nomnomz.dashboard.core.network.CreatePipelineBody) =
+        error("stub")
+    override suspend fun createReturning(
+        channelId: String,
+        body: bot.nomnomz.dashboard.core.network.CreatePipelineBody,
+    ) = error("stub")
+    override suspend fun update(
+        channelId: String,
+        id: String,
+        body: bot.nomnomz.dashboard.core.network.UpdatePipelineBody,
+    ) = error("stub")
+    override suspend fun delete(channelId: String, id: String) = error("stub")
+    override suspend fun blastRadius(channelId: String, id: String) = error("stub")
+    override suspend fun testRun(
+        channelId: String,
+        id: String,
+        body: bot.nomnomz.dashboard.core.network.PipelineTestRunBody,
+    ) = error("stub")
+}
+
+private class FakeIntegrationsApi(
+    private val result: ApiResult<List<IntegrationStatus>> = ApiResult.Ok(emptyList()),
+) : IntegrationsApi {
+    override suspend fun status(channelId: String): ApiResult<List<IntegrationStatus>> = result
+    override suspend fun startGenericConnect(
+        channelId: String,
+        provider: String,
+        scopeSetKey: String,
+        returnUrl: String?,
+    ) = error("stub")
+    override fun discordStartUrl(baseUrl: String, channelId: String): String = error("stub")
+    override suspend fun disconnectGeneric(channelId: String, provider: String) = error("stub")
+    override suspend fun disconnectBlastRadius(channelId: String, provider: String) = error("stub")
+    override suspend fun disconnectDiscord(channelId: String) = error("stub")
+    override suspend fun spotifyCredentials(channelId: String) = error("stub")
+    override suspend fun saveSpotifyCredentials(channelId: String, clientId: String, clientSecret: String) =
+        error("stub")
+    override suspend fun clearSpotifyCredentials(channelId: String) = error("stub")
 }
 
 private class FakeStreamApi(
