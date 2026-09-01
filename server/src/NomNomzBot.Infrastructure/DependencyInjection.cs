@@ -978,7 +978,13 @@ public static class DependencyInjection
         services.AddScoped<IBuiltinCommand, Commands.Builtins.QueueBuiltin>();
         services.AddScoped<IBuiltinCommand, Commands.Builtins.VolumeBuiltin>();
         services.AddScoped<IBuiltinCommand, Commands.Builtins.CurrentSongBuiltin>();
-        services.AddScoped<IBuiltinCommand, Commands.Builtins.CommandsBuiltin>();
+        // Registered as its own concrete type too: HelpBuiltin reuses its listing/compose logic
+        // directly (ResolveEnabledTriggersAsync/ComposeListingAsync), and the IBuiltinCommand
+        // registration forwards to the same scoped instance so both call paths share one object.
+        services.AddScoped<Commands.Builtins.CommandsBuiltin>();
+        services.AddScoped<IBuiltinCommand>(sp =>
+            sp.GetRequiredService<Commands.Builtins.CommandsBuiltin>()
+        );
         services.AddScoped<IBuiltinCommand, Commands.Builtins.HelpBuiltin>();
         // Legacy parity (S068c): !bansong (mod+, blocks the playing track) and !whisper (mod+, DMs
         // a viewer) — both reuse existing domain capability (IBlockedTrackService, IPlatformDirectMessageSender).
