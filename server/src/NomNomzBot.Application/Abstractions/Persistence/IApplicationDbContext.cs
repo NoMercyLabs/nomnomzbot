@@ -38,6 +38,7 @@ public interface IApplicationDbContext
     DbSet<UserIdentity> UserIdentities { get; }
     DbSet<ConsentRecord> ConsentRecords { get; }
     DbSet<Channel> Channels { get; }
+    DbSet<PlatformConnection> PlatformConnections { get; }
     DbSet<ChannelModerator> ChannelModerators { get; }
     DbSet<Service> Services { get; }
     DbSet<Command> Commands { get; }

@@ -98,6 +98,7 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
     // Mapped alongside Records for the ban/timeout tests: the broadcaster-guard reads Channel.TwitchChannelId,
     // and recording a successful action resolves the target's username via Users.
     public DbSet<Channel> Channels => Set<Channel>();
+    public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
     public DbSet<User> Users => Set<User>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ViewerReport> ViewerReports =>
         Set<NomNomzBot.Domain.Moderation.Entities.ViewerReport>();

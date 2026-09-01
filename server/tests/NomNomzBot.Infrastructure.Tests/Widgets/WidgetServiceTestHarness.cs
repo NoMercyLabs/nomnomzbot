@@ -109,6 +109,7 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
     public DbSet<Widget> Widgets => Set<Widget>();
     public DbSet<WidgetVersion> WidgetVersions => Set<WidgetVersion>();
     public DbSet<Channel> Channels => Set<Channel>();
+    public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
     public DbSet<NomNomzBot.Domain.Quotes.Entities.Quote> Quotes =>

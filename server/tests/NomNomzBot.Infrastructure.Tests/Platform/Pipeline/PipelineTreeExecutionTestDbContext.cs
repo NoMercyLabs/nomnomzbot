@@ -149,6 +149,7 @@ internal sealed class PipelineTreeExecutionTestDbContext : DbContext, IApplicati
     public DbSet<ConsentRecord> ConsentRecords => throw new NotSupportedException();
     public DbSet<ErasureRequest> ErasureRequests => throw new NotSupportedException();
     public DbSet<Channel> Channels => throw new NotSupportedException();
+    public DbSet<PlatformConnection> PlatformConnections => throw new NotSupportedException();
     public DbSet<ChannelModerator> ChannelModerators => throw new NotSupportedException();
     public DbSet<Service> Services => throw new NotSupportedException();
     public DbSet<Reward> Rewards => throw new NotSupportedException();

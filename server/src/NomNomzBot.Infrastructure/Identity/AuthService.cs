@@ -365,6 +365,7 @@ public sealed class AuthService : IAuthService
                 .FirstOrDefaultAsync(c => c.OwnerUserId == user.Id, cancellationToken);
         }
 
+        bool isNewChannel = channel is null;
         if (channel is null)
         {
             channel = new()
@@ -381,6 +382,23 @@ public sealed class AuthService : IAuthService
         }
 
         Guid broadcasterId = channel.Id;
+
+        // S019b: stamp the channel's first platform connection (D1 — one Channel, many PlatformConnections).
+        // Only the CREATE path for a brand-new channel; attaching a second platform is separate future work.
+        if (isNewChannel)
+        {
+            _db.PlatformConnections.Add(
+                new()
+                {
+                    ChannelId = broadcasterId,
+                    Provider = AuthEnums.Platform.Twitch,
+                    ExternalChannelId = twitchUser.Id,
+                    DisplayName = twitchUser.Login,
+                    IsPrimary = true,
+                }
+            );
+            await _db.SaveChangesAsync(cancellationToken);
+        }
 
         // Stamp the connection with the client id that owns it — read the id alone (the no-secret device login
         // has no secret; this is the shipped public id or a BYOC override).

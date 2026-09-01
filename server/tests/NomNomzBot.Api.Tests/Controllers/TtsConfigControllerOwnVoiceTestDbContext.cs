@@ -83,6 +83,7 @@ internal sealed class TtsConfigControllerOwnVoiceTestDbContext : DbContext, IApp
     }
 
     public DbSet<Channel> Channels => Set<Channel>();
+    public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
     public DbSet<UserIdentity> UserIdentities => Set<UserIdentity>();
     public DbSet<TtsConfig> TtsConfigs => Set<TtsConfig>();
     public DbSet<TtsVoice> TtsVoices => Set<TtsVoice>();
