@@ -448,7 +448,17 @@ later.)
     cleanup): `PlatformType.cs` is a stale 2-member (Twitch/Discord) enum unrelated to the real
     platform-routing convention; giveaway `active_viewers` entry mode still resolves candidates via
     Twitch-only chat history.
-- **S066** Moderation reach — concurrency guard on whole-config POST (U·B3).
+- **S066** Moderation reach (U·B3) — fully CLOSED this session.
+  **Concurrency guard on whole-config POST DONE, verified (8a245e68)**: the local AutoMod-like config
+  (link/caps/banned-phrases/emote-spam filters) has no dedicated entity — it lives as free-form `Record`
+  rows (`RecordType="moderation_rule"`) in a table shared with many unrelated record types, so
+  blanket-marking a concurrency token would silently change behavior for every other writer of that
+  table. Reused the existing `CurrencyAccountService` conditional-`ExecuteUpdateAsync` pattern instead
+  (no new column, no migration): each write is guarded on `Id == existing.Id && Data == existing.Data`
+  from the read it started from; zero matched rows → `Result.Failure(..., "CONCURRENCY_CONFLICT")`
+  instead of silently overwriting. Test-first with a real `DbCommandInterceptor` landing a genuine
+  concurrent write into the exact race window — deterministic, no timing/threading flakiness. 2 tests,
+  stale-version rejected / current-version persists.
   **Chat-settings slow/followers/unique/non-mod fields DONE, verified (e63d66d2)**: found a much bigger
   bug than "missing fields" — `ChatController`'s GET/PUT/PATCH `.../chat/settings` never called Twitch
   at all, only read/wrote a fake local `Configurations` DB row; every toggle was truthful-data-violating
