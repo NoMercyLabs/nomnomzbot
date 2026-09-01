@@ -200,7 +200,16 @@ public sealed class IntegrationOAuthServiceTests
     [Fact]
     public async Task StartConnect_BuildsAuthorizeUrl_WithScopeSetStateAndPkce()
     {
-        (IntegrationOAuthService service, _, _, FakeCache cache) = Build(new());
+        (IntegrationOAuthService service, AuthDbContext db, _, FakeCache cache) = Build(new());
+        // Spotify has no app-level fallback (S-OWN10) — seed the channel's own BYOC credentials so this
+        // generic authorize-URL test still exercises the real resolved path.
+        await SeedChannelSpotifyCredentialsAsync(
+            db,
+            AuthTestBuilder.RealTokenProtector(db, out _),
+            Tenant,
+            "spotify-client",
+            "spotify-secret"
+        );
 
         Result<OAuthStartDto> start = await service.StartConnectAsync(
             Tenant,
@@ -254,7 +263,15 @@ public sealed class IntegrationOAuthServiceTests
     [Fact]
     public async Task StartConnect_CompositeScopeSetKey_RequestsTheUnionOfBothSets()
     {
-        (IntegrationOAuthService service, _, _, _) = Build(new());
+        (IntegrationOAuthService service, AuthDbContext db, _, _) = Build(new());
+        // Spotify has no app-level fallback (S-OWN10) — seed the channel's own BYOC credentials.
+        await SeedChannelSpotifyCredentialsAsync(
+            db,
+            AuthTestBuilder.RealTokenProtector(db, out _),
+            Tenant,
+            "spotify-client",
+            "spotify-secret"
+        );
 
         Result<OAuthStartDto> start = await service.StartConnectAsync(
             Tenant,
@@ -398,6 +415,14 @@ public sealed class IntegrationOAuthServiceTests
         };
         (IntegrationOAuthService service, AuthDbContext db, IIntegrationTokenVault vault, _) =
             Build(handler);
+        // Spotify has no app-level fallback (S-OWN10) — seed the channel's own BYOC credentials.
+        await SeedChannelSpotifyCredentialsAsync(
+            db,
+            AuthTestBuilder.RealTokenProtector(db, out _),
+            Tenant,
+            "spotify-client",
+            "spotify-secret"
+        );
 
         Result<OAuthStartDto> start = await service.StartConnectAsync(
             Tenant,
@@ -681,10 +706,18 @@ public sealed class IntegrationOAuthServiceTests
                 """{"access_token":"spotify-access","refresh_token":"spotify-refresh","expires_in":3600,"scope":"user-read-playback-state"}""",
             IdentityJson = """{"id":"spotify-user-1","display_name":"DJ Test"}""",
         };
-        (IntegrationOAuthService service, _, _, _) = Build(
+        (IntegrationOAuthService service, AuthDbContext db, _, _) = Build(
             handler,
             new FakeDiscordGuildService(),
             kick
+        );
+        // Spotify has no app-level fallback (S-OWN10) — seed the channel's own BYOC credentials.
+        await SeedChannelSpotifyCredentialsAsync(
+            db,
+            AuthTestBuilder.RealTokenProtector(db, out _),
+            Tenant,
+            "spotify-client",
+            "spotify-secret"
         );
 
         Result<OAuthStartDto> start = await service.StartConnectAsync(
@@ -722,6 +755,15 @@ public sealed class IntegrationOAuthServiceTests
             IdentityJson = """{"id":"spotify-user-1","display_name":"DJ Test"}""",
         };
         (IntegrationOAuthService service, AuthDbContext db, _, _) = Build(handler);
+        // Spotify has no app-level fallback (S-OWN10) — seed the channel's own BYOC credentials (same
+        // values the mirror assertions below expect, so this test's behavior is unchanged).
+        await SeedChannelSpotifyCredentialsAsync(
+            db,
+            AuthTestBuilder.RealTokenProtector(db, out _),
+            Tenant,
+            "spotify-client",
+            "spotify-secret"
+        );
 
         Result<OAuthStartDto> start = await service.StartConnectAsync(
             Tenant,
@@ -861,7 +903,15 @@ public sealed class IntegrationOAuthServiceTests
                 """{"access_token":"a","refresh_token":"r","expires_in":3600,"scope":"user-read-playback-state"}""",
             IdentityJson = """{"id":"u","display_name":"n"}""",
         };
-        (IntegrationOAuthService service, _, _, _) = Build(handler);
+        (IntegrationOAuthService service, AuthDbContext db, _, _) = Build(handler);
+        // Spotify has no app-level fallback (S-OWN10) — seed the channel's own BYOC credentials.
+        await SeedChannelSpotifyCredentialsAsync(
+            db,
+            AuthTestBuilder.RealTokenProtector(db, out _),
+            Tenant,
+            "spotify-client",
+            "spotify-secret"
+        );
 
         Result<OAuthStartDto> start = await service.StartConnectAsync(
             Tenant,

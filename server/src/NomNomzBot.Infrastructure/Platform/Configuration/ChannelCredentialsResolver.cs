@@ -24,6 +24,10 @@ namespace NomNomzBot.Infrastructure.Platform.Configuration;
 /// sealed) but scoped per channel (<c>BroadcasterId == channelId</c> instead of <c>null</c>). The AAD subject is
 /// <c>"channel:{channelId}"</c> — distinct from the system rows' <c>"system"</c> subject — so a channel-sealed
 /// secret can never be opened as the system's, or another channel's.
+///
+/// Spotify is a carve-out (owner directive 2026-09-01, S-OWN10): it NEVER falls through to the system/app-level
+/// credentials every other provider does — the bot never hosts a shared Spotify app, so each channel must
+/// register and use its own.
 /// </summary>
 public sealed class ChannelCredentialsResolver(
     IServiceScopeFactory scopeFactory,
@@ -43,6 +47,19 @@ public sealed class ChannelCredentialsResolver(
         );
         if (channelOwn is not null)
             return Result.Success(channelOwn);
+
+        // Spotify carve-out: the bot never hosts a shared/system-level Spotify app — Spotify's OAuth
+        // "Development Mode" apps are capped at ~25 allow-listed users unless Spotify grants Extended
+        // Quota Mode, so one shared app cannot scale across many streamers the way Discord/Kick apps can.
+        // Every channel MUST register and use its own Spotify app; there is no app-level fallback.
+        if (string.Equals(provider, "spotify", StringComparison.OrdinalIgnoreCase))
+        {
+            return Result.Failure<SystemAppCredentials>(
+                "Spotify app credentials are not configured for this channel. Add the channel's own "
+                    + "Spotify client id and secret — Spotify requires each channel to bring its own app.",
+                "PROVIDER_NOT_CONFIGURED"
+            );
+        }
 
         SystemAppCredentials? appLevel = await systemCredentials.GetAsync(
             provider,
