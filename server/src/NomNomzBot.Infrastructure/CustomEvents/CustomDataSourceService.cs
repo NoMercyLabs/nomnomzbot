@@ -139,6 +139,17 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
                 "DUPLICATE_NAME"
             );
 
+        Result egressCheck = await ValidateEgressAllowedAsync(
+            broadcasterId,
+            request.EndpointUrl,
+            ct
+        );
+        if (egressCheck.IsFailure)
+            return Result<CustomDataSourceDto>.Failure(
+                egressCheck.ErrorMessage,
+                egressCheck.ErrorCode
+            );
+
         CustomDataSource source = new()
         {
             BroadcasterId = broadcasterId,
@@ -203,6 +214,17 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
 
             source.Name = request.Name.ToLowerInvariant();
         }
+
+        Result egressCheck = await ValidateEgressAllowedAsync(
+            broadcasterId,
+            request.EndpointUrl,
+            ct
+        );
+        if (egressCheck.IsFailure)
+            return Result<CustomDataSourceDto>.Failure(
+                egressCheck.ErrorMessage,
+                egressCheck.ErrorCode
+            );
 
         source.DisplayName = request.DisplayName;
         source.SourceKind = request.SourceKind;
@@ -317,6 +339,42 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
 
     private static string SerializeFieldMap(IReadOnlyDictionary<string, string> fieldMap) =>
         fieldMap.Count == 0 ? "{}" : JsonConvert.SerializeObject(fieldMap);
+
+    /// <summary>
+    /// Rejects a save whose <c>EndpointUrl</c> host is not an enabled H.7 egress-allowlist row for this channel —
+    /// the same SSRF gate <c>CustomDataPollService</c> re-checks at fetch time, applied here so a disallowed host
+    /// is refused at save time instead of silently persisting and failing later. A missing/unparseable URL is not
+    /// this method's concern (push/socket presets may omit it) — it only judges a URL that is actually present.
+    /// </summary>
+    private async Task<Result> ValidateEgressAllowedAsync(
+        Guid broadcasterId,
+        string? endpointUrl,
+        CancellationToken ct
+    )
+    {
+        if (
+            string.IsNullOrWhiteSpace(endpointUrl)
+            || !Uri.TryCreate(endpointUrl, UriKind.Absolute, out Uri? endpoint)
+        )
+            return Result.Success();
+
+        string host = endpoint.Host;
+        bool allowed = await _db.HttpEgressAllowlists.AnyAsync(
+            a =>
+                a.BroadcasterId == broadcasterId
+                && a.Fqdn == host
+                && a.IsEnabled
+                && a.DeletedAt == null,
+            ct
+        );
+
+        return allowed
+            ? Result.Success()
+            : Result.Failure(
+                $"The target host '{host}' is not in an enabled egress allowlist.",
+                "EGRESS_NOT_ALLOWED"
+            );
+    }
 
     private static int? ClampPollInterval(int? seconds) =>
         seconds is null ? null : Math.Max(MinPollIntervalSeconds, seconds.Value);

@@ -83,6 +83,7 @@ internal sealed class CustomDataSourceServiceTestDbContext : DbContext, IApplica
     }
 
     public DbSet<CustomDataSource> CustomDataSources => Set<CustomDataSource>();
+    public DbSet<HttpEgressAllowlist> HttpEgressAllowlists => Set<HttpEgressAllowlist>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -95,6 +96,12 @@ internal sealed class CustomDataSourceServiceTestDbContext : DbContext, IApplica
             e.HasQueryFilter(x => x.DeletedAt == null);
         });
 
+        b.Entity<HttpEgressAllowlist>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasQueryFilter(x => x.DeletedAt == null);
+        });
+
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
@@ -103,7 +110,11 @@ internal sealed class CustomDataSourceServiceTestDbContext : DbContext, IApplica
         b.ApplySqliteCompatibility();
     }
 
-    private static readonly HashSet<Type> Mapped = [typeof(CustomDataSource)];
+    private static readonly HashSet<Type> Mapped =
+    [
+        typeof(CustomDataSource),
+        typeof(HttpEgressAllowlist),
+    ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
     [
@@ -311,7 +322,6 @@ internal sealed class CustomDataSourceServiceTestDbContext : DbContext, IApplica
         throw new NotSupportedException();
     public DbSet<InboundWebhookEndpoint> InboundWebhookEndpoints =>
         throw new NotSupportedException();
-    public DbSet<HttpEgressAllowlist> HttpEgressAllowlists => throw new NotSupportedException();
     public DbSet<WatchSession> WatchSessions => throw new NotSupportedException();
     public DbSet<MessageActivityDaily> MessageActivityDailies => throw new NotSupportedException();
     public DbSet<ViewerEngagementDaily> ViewerEngagementDailies =>
