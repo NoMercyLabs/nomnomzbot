@@ -127,16 +127,49 @@ public sealed class RaidFlowSeeder : ISeeder
             }
 
             int order = 0;
-            foreach ((string ActionType, string ConfigJson) step in BuildSteps())
+            foreach (SeedNode node in BuildSteps())
             {
+                if (node.Detached is { } detachedLeaf)
+                {
+                    // pipeline-tree-and-editor.md §1.1/§3.1 item #4 — the OBS scene switch rides a
+                    // detached_step wrapper so its own failure or slowness can never block or abort the
+                    // rest of the raid (matches the legacy bot's fire-and-forget `_ = SwitchToEndingScene(...)`).
+                    PipelineStep wrapper = new()
+                    {
+                        Id = Guid.CreateVersion7(),
+                        PipelineId = pipeline.Id,
+                        BroadcasterId = channelId,
+                        BlockKind = "detached_step",
+                        BlockConfigJson = "{}",
+                        ActionType = "detached_step",
+                        Order = order++,
+                        IsEnabled = true,
+                    };
+                    _db.PipelineSteps.Add(wrapper);
+                    _db.PipelineSteps.Add(
+                        new()
+                        {
+                            Id = Guid.CreateVersion7(),
+                            PipelineId = pipeline.Id,
+                            BroadcasterId = channelId,
+                            ParentStepId = wrapper.Id,
+                            ActionType = detachedLeaf.ActionType!,
+                            ConfigJson = detachedLeaf.ConfigJson!,
+                            Order = order++,
+                            IsEnabled = true,
+                        }
+                    );
+                    continue;
+                }
+
                 _db.PipelineSteps.Add(
                     new()
                     {
                         Id = Guid.CreateVersion7(),
                         PipelineId = pipeline.Id,
                         BroadcasterId = channelId,
-                        ActionType = step.ActionType,
-                        ConfigJson = step.ConfigJson,
+                        ActionType = node.ActionType!,
+                        ConfigJson = node.ConfigJson!,
                         Order = order++,
                         IsEnabled = true,
                     }
@@ -174,26 +207,42 @@ public sealed class RaidFlowSeeder : ISeeder
         await _db.SaveChangesAsync(ct);
     }
 
+    /// <summary>One step in the seeded flow — either an ordinary blocking leaf, or a leaf wrapped in a
+    /// <c>detached_step</c> block (fire-and-forget: dispatched but never awaited, its own failure never
+    /// aborts the rest of the run).</summary>
+    private sealed record SeedNode(string? ActionType, string? ConfigJson, SeedNode? Detached)
+    {
+        public static SeedNode Leaf(string actionType, string configJson) =>
+            new(actionType, configJson, null);
+
+        public static SeedNode DetachedLeaf(string actionType, string configJson) =>
+            new(null, null, Leaf(actionType, configJson));
+    }
+
     /// <summary>
     /// The flow, in order. The raid fires first because Twitch's 90s timer starts the moment it returns;
-    /// everything after it is chat theatre timed to land just before Twitch pulls the audience across.
-    /// The OBS scene switch sits second so the ending screen is already up while the countdown runs.
+    /// everything after it is chat theatre timed to land just before Twitch pulls the audience across. The
+    /// OBS scene switch sits second, detached (pipeline-tree-and-editor.md §1.1/§3.1 item #4) — mirroring
+    /// the legacy bot's fire-and-forget `_ = SwitchToEndingScene(...)`, so a slow or unreachable OBS bridge
+    /// can never stall or abort the countdown, the "RAID LIVE!" line, or stopping the stream/music — the
+    /// entire rest of the raid must run regardless of OBS's state, exactly like it did before this flow was
+    /// rebuilt as a pipeline.
     /// </summary>
-    private static IEnumerable<(string ActionType, string ConfigJson)> BuildSteps()
+    private static IEnumerable<SeedNode> BuildSteps()
     {
-        yield return ("start_raid", """{"target":"{args.1}"}""");
-        yield return ("obs_switch_scene", """{"scene":"Ending"}""");
-        yield return (
+        yield return SeedNode.Leaf("start_raid", """{"target":"{args.1}"}""");
+        yield return SeedNode.DetachedLeaf("obs_switch_scene", """{"scene":"Ending"}""");
+        yield return SeedNode.Leaf(
             "send_message",
             $$"""{"message":"RAID INCOMING to {{"{{args.1}}"}}! Raiding in {{TwitchRaidWindowSeconds - 2}} seconds..."}"""
         );
-        yield return ("wait", """{"seconds":1}""");
-        yield return (
+        yield return SeedNode.Leaf("wait", """{"seconds":1}""");
+        yield return SeedNode.Leaf(
             "send_message",
             """{"message":"Big bird raid stoney90Hmmm Big bird raid stoney90Hmmm Big bird raid stoney90Hmmm"}"""
         );
-        yield return ("wait", """{"seconds":1}""");
-        yield return (
+        yield return SeedNode.Leaf("wait", """{"seconds":1}""");
+        yield return SeedNode.Leaf(
             "send_message",
             """{"message":"Big bird raid 🦅 Big bird raid 🦅 Big bird raid 🦅"}"""
         );
@@ -202,23 +251,23 @@ public sealed class RaidFlowSeeder : ISeeder
         // spam, so the earlier waits are silent and the chat only starts counting at 15s.
         // 2s of intro lines have already elapsed, and the announced countdown must open at T+73 so
         // "Raid in 15" is genuinely 15 seconds before Twitch fires at T+90 (less the 2s safety margin).
-        yield return ("wait", """{"seconds":40}""");
-        yield return ("wait", """{"seconds":31}""");
+        yield return SeedNode.Leaf("wait", """{"seconds":40}""");
+        yield return SeedNode.Leaf("wait", """{"seconds":31}""");
         foreach (int secondsLeft in new[] { 15, 10, 5, 3, 2, 1 })
         {
-            yield return (
+            yield return SeedNode.Leaf(
                 "send_message",
                 $$"""{"message":"Raid in {{secondsLeft}} second{{(secondsLeft == 1 ? "" : "s")}}..."}"""
             );
-            yield return ("wait", $$"""{"seconds":{{WaitAfter(secondsLeft)}}}""");
+            yield return SeedNode.Leaf("wait", $$"""{"seconds":{{WaitAfter(secondsLeft)}}}""");
         }
 
-        yield return (
+        yield return SeedNode.Leaf(
             "send_message",
             """{"message":"RAID LIVE! We're heading over now! Let's go!"}"""
         );
-        yield return ("obs_streaming", """{"action":"stop"}""");
-        yield return ("music_pause", "{}");
+        yield return SeedNode.Leaf("obs_streaming", """{"action":"stop"}""");
+        yield return SeedNode.Leaf("music_pause", "{}");
     }
 
     /// <summary>How long to wait after announcing <paramref name="secondsLeft"/> before the next line —
