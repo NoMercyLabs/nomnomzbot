@@ -879,11 +879,16 @@ later.)
   fixing the cycle alone would have just hit this next. Both fixed together: `CommandsBuiltin` now
   registered as itself, with the `IBuiltinCommand` registration forwarding to that same scoped instance.
   Proven by the API actually reaching "Listening on locked port 5080" with migrations/seed/hosted-services
-  all clean (previously crashed before any of that ran) — 4734 tests green. **Still open**: collapsed
-  activity feed + first-run next steps are not yet built (own next sub-slice); the `openapi/v1.json` entry
-  for `ActionRequiredItemDto` was hand-added by the tile builder (API couldn't be started at the time to
-  regenerate it) — now that startup is fixed, worth a follow-up regenerate-and-diff to confirm it matches
-  byte-for-byte.
+  all clean (previously crashed before any of that ran) — 4734 tests green.
+  **Activity feed + first-run checklist DONE, verified (140a121d)**: the recent-activity feed already
+  existed fully built (backend-capped-at-20, rich per-type formatting) — this slice only collapsed the
+  Home display to a 5-item preview + "View all" link (reused the existing Analytics route, no dedicated
+  Activity page exists to link to). New first-run checklist shows when a channel has no
+  commands/pipelines/integrations, hides once any exist — truthful, not a permanent onboarding nag. 19
+  `HomeControllerTest` cases green (real event content + real seeded-data checklist visibility, not
+  smoke). S071 is now fully closed. Still open, own future item: the `openapi/v1.json` entry for
+  `ActionRequiredItemDto` was hand-added (API couldn't start at the time it was written) — worth a
+  follow-up regenerate-and-diff now that startup is fixed, to confirm it matches byte-for-byte.
 - **S072** IA reconciliation — Admin via profile menu + chrome swap; theme + Account in profile menu;
   tabbed Settings; `MyData` on the participant rung; shipped routes listed in `frontend-ia.md`
   (U·B6). 🔒 regroup sidebar vs update spec.
