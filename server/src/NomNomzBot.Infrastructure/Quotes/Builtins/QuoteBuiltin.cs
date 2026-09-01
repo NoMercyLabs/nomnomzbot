@@ -240,7 +240,7 @@ public sealed class QuoteBuiltin : IBuiltinCommand
     {
         string first =
             args.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? string.Empty;
-        return int.TryParse(first, out int number) ? number : null;
+        return TryParseLeadingNumber(first);
     }
 
     /// <summary>Splits "&lt;number&gt; &lt;text…&gt;" into the leading number (or null) and the trailing text.</summary>
@@ -250,6 +250,23 @@ public sealed class QuoteBuiltin : IBuiltinCommand
         int space = trimmed.IndexOf(' ');
         string head = space < 0 ? trimmed : trimmed[..space];
         string tail = space < 0 ? string.Empty : trimmed[(space + 1)..].Trim();
-        return int.TryParse(head, out int number) ? (number, tail) : (null, tail);
+        return (TryParseLeadingNumber(head), tail);
+    }
+
+    /// <summary>
+    /// Parses the leading run of ASCII digits in <paramref name="token"/> as a quote number, ignoring anything
+    /// trailing them. A strict <c>int.TryParse</c> on the whole token fails silently the moment real chat noise
+    /// rides along with it — Twitch's invisible anti-duplicate character some clients append, or a stray
+    /// trailing punctuation mark — and a failed parse here reads as "no number" and falls through to a RANDOM
+    /// quote instead of the one the viewer asked for, which is exactly the "!quote &lt;n&gt; returns the wrong
+    /// quote" symptom: it never errors, it just silently answers a different question.
+    /// </summary>
+    private static int? TryParseLeadingNumber(string token)
+    {
+        int digitCount = 0;
+        while (digitCount < token.Length && char.IsAsciiDigit(token[digitCount]))
+            digitCount++;
+
+        return digitCount > 0 && int.TryParse(token[..digitCount], out int number) ? number : null;
     }
 }

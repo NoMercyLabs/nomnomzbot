@@ -172,6 +172,39 @@ public sealed class QuoteBuiltinTests
         result.Value.Should().Be("#1: \"only one\"");
     }
 
+    /// <summary>
+    /// Reproduces the owner-reported bug: <c>!quote &lt;n&gt;</c> returning the wrong quote. Twitch clients
+    /// (and some bots working around the duplicate-message filter) append an invisible Unicode character after
+    /// the typed text, so the raw arg token is <c>"4\u{E0001}"</c> rather than a clean <c>"4"</c>. A strict
+    /// <c>int.TryParse</c> on that token fails, silently falls through to "no number", and answers with a
+    /// RANDOM quote instead of #4 — which reads in chat as "the bot never gives me the right quote". Seeds five
+    /// quotes with #3 soft-deleted (so the deleted number's gap can never mask an off-by-one) and asserts
+    /// <c>!quote 4</c> with the trailing noise still resolves to exactly quote #4's text, not #3, not random.
+    /// </summary>
+    [Fact]
+    public async Task Quote_WithNumber_TrailingInvisibleCharacter_StillResolvesTheExactQuote()
+    {
+        using QuoteSqliteTestDatabase database = QuoteSqliteTestDatabase.Open();
+        Guid channel = await SeedChannelAsync(database);
+
+        await using QuoteTestDbContext db = database.NewContext();
+        IQuoteService quotes = NewQuoteService(db);
+        await quotes.AddAsync(channel, new("one", null, null, null, null));
+        await quotes.AddAsync(channel, new("two", null, null, null, null));
+        await quotes.AddAsync(channel, new("three - the deleted one", null, null, null, null));
+        await quotes.AddAsync(channel, new("four - the one we want", null, null, null, null));
+        await quotes.AddAsync(channel, new("five", null, null, null, null));
+        await quotes.DeleteAsync(channel, 3);
+
+        QuoteBuiltin builtin = NewBuiltin(quotes);
+
+        // "4" followed by Twitch's invisible anti-duplicate tag character (U+E0001 LANGUAGE TAG).
+        Result<string> result = await builtin.ExecuteAsync(Context(channel, "4󠀁"));
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be("#4: \"four - the one we want\"");
+    }
+
     [Fact]
     public async Task Quote_NumberNotFound_StillReplies_WithAFriendlyMessage()
     {
