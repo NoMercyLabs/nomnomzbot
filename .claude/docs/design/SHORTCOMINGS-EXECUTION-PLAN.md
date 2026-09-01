@@ -25,7 +25,6 @@ Owner's own words, filed as slices S-OWN01..S-OWN19. 🔴 = owner-marked priorit
 order. Each still gets the normal treatment (root-cause fix, tested, committed, deleted from here
 when done) — this section is only the intake, not a shortcut around the bar.
 
-- **S-OWN02** — permission-request spam in chat must consolidate into one message/notification.
 - **S-OWN03** — code editor needs more themes; at least one Atom One Dark and one light.
 - **S-OWN05** — code editor import from a separate local file fails (`import SCENES from './scenes';` throws) after extracting an array to its own file.
 - **S-OWN06** — need to delete individual entries from version history, and paginate the history list.
