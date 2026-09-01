@@ -313,7 +313,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                     e.Item.Artist,
                     e.Item.ImageUrl,
                     e.Item.DurationMs,
-                    e.Item.RequestedBy
+                    e.Item.RequestedBy,
+                    e.Item.Cost
                 ))
                 .ToList();
 

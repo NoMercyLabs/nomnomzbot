@@ -148,7 +148,8 @@ public class MusicController : BaseController
                         item.Artist,
                         item.ImageUrl,
                         item.DurationMs,
-                        item.RequestedBy
+                        item.RequestedBy,
+                        item.Cost
                     )
             ),
         ];

@@ -272,11 +272,12 @@ public sealed record NowPlaying(
 /// <summary>The full playback queue including the current track.</summary>
 public sealed record MusicQueue(NowPlaying? CurrentTrack, IReadOnlyList<MusicQueueItem> Queue);
 
-/// <summary>An item in the music playback queue.</summary>
+/// <summary>An item in the music playback queue. <paramref name="Cost"/> is 0 for a free request.</summary>
 public sealed record MusicQueueItem(
     string TrackName,
     string Artist,
     string? ImageUrl,
     int DurationMs,
-    string? RequestedBy
+    string? RequestedBy,
+    int Cost = 0
 );

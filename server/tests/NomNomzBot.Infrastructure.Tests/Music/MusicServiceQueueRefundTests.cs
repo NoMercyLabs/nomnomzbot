@@ -121,6 +121,22 @@ public sealed class MusicServiceQueueRefundTests
             );
     }
 
+    [Fact]
+    public async Task GetQueueAsync_surfaces_the_real_cost_of_a_paid_entry_and_zero_for_a_free_one()
+    {
+        (MusicService sut, _, ISongRequestQueueStore store) = Build();
+        SeedPaidEntry(store, "spotify:track:paid3", cost: 200, ViewerId, "viewer1");
+        SeedPaidEntry(store, "spotify:track:free3", cost: 0, requesterUserId: null, "viewer2");
+
+        NomNomzBot.Application.Music.Services.MusicQueue queue = await sut.GetQueueAsync(
+            ChannelId.ToString()
+        );
+
+        queue.Queue.Should().HaveCount(2);
+        queue.Queue.Should().ContainSingle(i => i.RequestedBy == "viewer1" && i.Cost == 200);
+        queue.Queue.Should().ContainSingle(i => i.RequestedBy == "viewer2" && i.Cost == 0);
+    }
+
     /// <summary>Seeds a queue entry directly into the store at the given cost/requester — the only way to
     /// get a paid entry into the queue today, since no admission path (<c>RequestTrackAsync</c>/
     /// <c>AddToQueueAsync</c>) charges for a song request yet (S067b ground truth). This proves the
