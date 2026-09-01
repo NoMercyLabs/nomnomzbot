@@ -9,9 +9,12 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Commands.Builtins;
 using NSubstitute;
 
@@ -185,6 +188,39 @@ public sealed class SongRequestBuiltinTests
         result.Value.Should().NotContain("No tracks found");
     }
 
+    /// <summary>
+    /// Proves the viewer-facing "disabled" line (S069i) is actually tone-styled — a sassy channel must
+    /// produce a different sentence than the default tone for the exact same SERVICE_UNAVAILABLE failure.
+    /// </summary>
+    [Fact]
+    public async Task Sassy_tone_produces_a_different_disabled_message_than_the_default_tone_for_a_viewer()
+    {
+        SongRequestBuiltin sut = BuildWithRealComposer(
+            requestResult: Result.Failure<MusicTrack>(
+                "No active music provider.",
+                "SERVICE_UNAVAILABLE"
+            )
+        );
+
+        Result<string> sassy = await sut.ExecuteAsync(
+            Context("lofi beats", roleLevel: 0, personality: PersonalityTone.Sassy)
+        );
+        Result<string> informative = await sut.ExecuteAsync(
+            Context("lofi beats", roleLevel: 0, personality: PersonalityTone.Informative)
+        );
+
+        informative.Value.Should().Be("This command is currently disabled.");
+        sassy.Value.Should().NotBe(informative.Value);
+        ToneTemplateCatalog
+            .Get(
+                PersonalityTone.Sassy,
+                BuiltinResponseSlots.SongRequest.Key,
+                BuiltinResponseSlots.SongRequestErrors.Disabled
+            )
+            .Should()
+            .Contain(sassy.Value);
+    }
+
     // ─── Harness ──────────────────────────────────────────────────────────────
 
     private static SongRequestBuiltin Build(Result<MusicTrack> requestResult)
@@ -208,7 +244,37 @@ public sealed class SongRequestBuiltinTests
         return new(music, composer);
     }
 
-    private static BuiltinCommandContext Context(string args, int roleLevel) =>
+    private static SongRequestBuiltin BuildWithRealComposer(Result<MusicTrack> requestResult)
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .RequestTrackAsync(
+                Broadcaster.ToString(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<int?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(requestResult);
+
+        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
+        resolver
+            .ResolveAsync(
+                Arg.Any<string>(),
+                Arg.Any<IDictionary<string, string>>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(call => Task.FromResult(call.ArgAt<string>(0)));
+
+        return new(music, new BuiltinResponseComposer(resolver));
+    }
+
+    private static BuiltinCommandContext Context(
+        string args,
+        int roleLevel,
+        string personality = PersonalityTone.Informative
+    ) =>
         new()
         {
             BroadcasterId = Broadcaster,
@@ -216,5 +282,6 @@ public sealed class SongRequestBuiltinTests
             TriggeringUserDisplayName = "Viewer",
             RoleLevel = roleLevel,
             Args = args,
+            Personality = personality,
         };
 }

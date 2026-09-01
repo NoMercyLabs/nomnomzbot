@@ -231,4 +231,165 @@ public sealed class UpdateUserInfoBuiltinTests
             .Should()
             .Contain(sassy.Value);
     }
+
+    [Fact]
+    public async Task Sassy_tone_produces_a_different_twitch_unavailable_message_than_the_default_tone()
+    {
+        await using CommandsTestDbContext db = CommandsTestDbContext.New();
+        ITwitchUsersApi twitch = Substitute.For<ITwitchUsersApi>();
+        twitch
+            .GetUsersByLoginsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<IReadOnlyList<TwitchUser>>("TIMEOUT", "TIMEOUT"));
+
+        UpdateUserInfoBuiltin builtin = new(
+            twitch,
+            Substitute.For<IUserService>(),
+            db,
+            FakeComposer()
+        );
+
+        Result<string> sassy = await builtin.ExecuteAsync(
+            Context(personality: PersonalityTone.Sassy)
+        );
+        Result<string> informative = await builtin.ExecuteAsync(
+            Context(personality: PersonalityTone.Informative)
+        );
+
+        informative
+            .Value.Should()
+            .Be("@Stoney_Eagle Twitch did not answer just now — try again in a moment.");
+        sassy.Value.Should().NotBe(informative.Value);
+        ToneTemplateCatalog
+            .Get(
+                PersonalityTone.Sassy,
+                BuiltinResponseSlots.UpdateUserInfo.Key,
+                BuiltinResponseSlots.UpdateUserInfo.TwitchUnavailable
+            )
+            .Select(t => t.Replace("{user}", "Stoney_Eagle"))
+            .Should()
+            .Contain(sassy.Value);
+    }
+
+    [Fact]
+    public async Task Sassy_tone_produces_a_different_update_failed_message_than_the_default_tone()
+    {
+        await using CommandsTestDbContext db = CommandsTestDbContext.New();
+        ITwitchUsersApi twitch = Substitute.For<ITwitchUsersApi>();
+        twitch
+            .GetUsersByLoginsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success<IReadOnlyList<TwitchUser>>([Profile("https://cdn/avatar-v2.png")])
+            );
+
+        IUserService users = Substitute.For<IUserService>();
+        users
+            .GetOrCreateAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure<UserDto>("db write failed", "DB_ERROR"));
+
+        UpdateUserInfoBuiltin builtin = new(twitch, users, db, FakeComposer());
+
+        Result<string> sassy = await builtin.ExecuteAsync(
+            Context(personality: PersonalityTone.Sassy)
+        );
+        Result<string> informative = await builtin.ExecuteAsync(
+            Context(personality: PersonalityTone.Informative)
+        );
+
+        informative.Value.Should().Be("Something went wrong updating Stoney_Eagle.");
+        sassy.Value.Should().NotBe(informative.Value);
+        ToneTemplateCatalog
+            .Get(
+                PersonalityTone.Sassy,
+                BuiltinResponseSlots.UpdateUserInfo.Key,
+                BuiltinResponseSlots.UpdateUserInfo.UpdateFailed
+            )
+            .Select(t => t.Replace("{user}", "Stoney_Eagle"))
+            .Should()
+            .Contain(sassy.Value);
+    }
+
+    [Fact]
+    public async Task Sassy_tone_produces_a_different_login_unresolved_message_than_the_default_tone()
+    {
+        await using CommandsTestDbContext db = CommandsTestDbContext.New();
+        ITwitchUsersApi twitch = Substitute.For<ITwitchUsersApi>();
+
+        UpdateUserInfoBuiltin builtin = new(
+            twitch,
+            Substitute.For<IUserService>(),
+            db,
+            FakeComposer()
+        );
+
+        BuiltinCommandContext EmptyLoginContext(string personality) =>
+            new()
+            {
+                BroadcasterId = Guid.CreateVersion7(),
+                TriggeringUserId = "42",
+                TriggeringUserDisplayName = "Stoney_Eagle",
+                TriggeringUserLogin = string.Empty,
+                RoleLevel = 0,
+                Args = string.Empty,
+                Personality = personality,
+            };
+
+        Result<string> sassy = await builtin.ExecuteAsync(EmptyLoginContext(PersonalityTone.Sassy));
+        Result<string> informative = await builtin.ExecuteAsync(
+            EmptyLoginContext(PersonalityTone.Informative)
+        );
+
+        informative.Value.Should().Be("@Stoney_Eagle could not resolve your Twitch login.");
+        sassy.Value.Should().NotBe(informative.Value);
+        await twitch.DidNotReceiveWithAnyArgs().GetUsersByLoginsAsync(default!);
+        ToneTemplateCatalog
+            .Get(
+                PersonalityTone.Sassy,
+                BuiltinResponseSlots.UpdateUserInfo.Key,
+                BuiltinResponseSlots.UpdateUserInfo.LoginUnresolved
+            )
+            .Select(t => t.Replace("{user}", "Stoney_Eagle"))
+            .Should()
+            .Contain(sassy.Value);
+    }
+
+    [Fact]
+    public async Task Sassy_tone_produces_a_different_own_info_only_message_than_the_default_tone()
+    {
+        await using CommandsTestDbContext db = CommandsTestDbContext.New();
+        ITwitchUsersApi twitch = Substitute.For<ITwitchUsersApi>();
+
+        UpdateUserInfoBuiltin builtin = new(
+            twitch,
+            Substitute.For<IUserService>(),
+            db,
+            FakeComposer()
+        );
+
+        Result<string> sassy = await builtin.ExecuteAsync(
+            Context("@someone_else", roleLevel: 0, personality: PersonalityTone.Sassy)
+        );
+        Result<string> informative = await builtin.ExecuteAsync(
+            Context("@someone_else", roleLevel: 0, personality: PersonalityTone.Informative)
+        );
+
+        informative
+            .Value.Should()
+            .Be("@Stoney_Eagle you can only update your own info, or be a mod to update others.");
+        sassy.Value.Should().NotBe(informative.Value);
+        ToneTemplateCatalog
+            .Get(
+                PersonalityTone.Sassy,
+                BuiltinResponseSlots.UpdateUserInfo.Key,
+                BuiltinResponseSlots.UpdateUserInfo.OwnInfoOnly
+            )
+            .Select(t => t.Replace("{user}", "Stoney_Eagle"))
+            .Should()
+            .Contain(sassy.Value);
+    }
 }

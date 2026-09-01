@@ -653,6 +653,159 @@ public static class ToneTemplateCatalog
             chill: ["usage: !volume <0-100>"]
         );
 
+        // ── !volume / cannotread (no args) ───────────────────────────────────────
+        Add(
+            catalog,
+            BuiltinResponseSlots.Volume.Key,
+            BuiltinResponseSlots.Volume.CannotRead,
+            informative: ["Can't read the current volume right now — nothing is playing."],
+            friendly: ["Can't check the volume right now — nothing's playing to read it from!"],
+            sassy: ["Can't read a volume off of silence. Get a track going first."],
+            hype: ["NOTHING PLAYING. NO VOLUME TO READ. START A TRACK FIRST."],
+            chill: ["can't read the volume — nothing's playing."]
+        );
+
+        // ── !whisper / twitchunavailable (no args) ───────────────────────────────
+        Add(
+            catalog,
+            BuiltinResponseSlots.Whisper.Key,
+            BuiltinResponseSlots.Whisper.TwitchUnavailable,
+            informative: ["Twitch did not answer just now — try again in a moment."],
+            friendly: ["Twitch didn't answer just now — mind trying again in a moment?"],
+            sassy: ["Twitch didn't answer. Not my fault. Try again in a moment."],
+            hype: ["TWITCH WENT QUIET. TRY AGAIN IN A MOMENT."],
+            chill: ["twitch didn't answer — try again in a bit."]
+        );
+
+        // ── !whisper / notavailable (no args) ────────────────────────────────────
+        Add(
+            catalog,
+            BuiltinResponseSlots.Whisper.Key,
+            BuiltinResponseSlots.Whisper.NotAvailable,
+            informative: ["Whispering isn't available right now."],
+            friendly: ["Whispering isn't available right now — sorry about that!"],
+            sassy: ["Whispering isn't available right now. Take it up with the platform, not me."],
+            hype: ["WHISPERING IS DOWN RIGHT NOW. NOTHING TO SEND."],
+            chill: ["whispering isn't available right now."]
+        );
+
+        // ── !bansong / couldnotban (no args) ─────────────────────────────────────
+        Add(
+            catalog,
+            BuiltinResponseSlots.BanSong.Key,
+            BuiltinResponseSlots.BanSong.CouldNotBan,
+            informative: ["Could not ban that track — try again in a moment."],
+            friendly: ["Couldn't ban that track just now — mind trying again in a moment?"],
+            sassy: ["Couldn't ban that track. It lives on. For now. Try again in a moment."],
+            hype: ["COULDN'T BAN THAT TRACK. TRY AGAIN IN A MOMENT."],
+            chill: ["couldn't ban that track — try again in a bit."]
+        );
+
+        // ── !update / twitchunavailable ({user}) ─────────────────────────────────
+        Add(
+            catalog,
+            BuiltinResponseSlots.UpdateUserInfo.Key,
+            BuiltinResponseSlots.UpdateUserInfo.TwitchUnavailable,
+            informative: ["@{user} Twitch did not answer just now — try again in a moment."],
+            friendly: ["@{user} Twitch didn't answer just now — mind trying again in a moment?"],
+            sassy: ["@{user} Twitch didn't answer. Not my fault. Try again in a moment."],
+            hype: ["@{user} TWITCH WENT QUIET. TRY AGAIN IN A MOMENT."],
+            chill: ["@{user} twitch didn't answer — try again in a bit."]
+        );
+
+        // ── !update / updatefailed ({user}) ──────────────────────────────────────
+        Add(
+            catalog,
+            BuiltinResponseSlots.UpdateUserInfo.Key,
+            BuiltinResponseSlots.UpdateUserInfo.UpdateFailed,
+            informative: ["Something went wrong updating {user}."],
+            friendly: ["Hmm, something went wrong updating {user} — mind trying again?"],
+            sassy: ["Something went wrong updating {user}. Not my finest moment. Try again."],
+            hype: ["UPDATE FAILED FOR {user}. TRY AGAIN."],
+            chill: ["something went wrong updating {user}."]
+        );
+
+        // ── !update / loginunresolved ({user}) ───────────────────────────────────
+        Add(
+            catalog,
+            BuiltinResponseSlots.UpdateUserInfo.Key,
+            BuiltinResponseSlots.UpdateUserInfo.LoginUnresolved,
+            informative: ["@{user} could not resolve your Twitch login."],
+            friendly: ["@{user} couldn't figure out your Twitch login there — mind trying again?"],
+            sassy: ["@{user} couldn't resolve your Twitch login. That's on you, not me."],
+            hype: ["@{user} COULDN'T RESOLVE YOUR TWITCH LOGIN. TRY AGAIN."],
+            chill: ["@{user} couldn't resolve your twitch login."]
+        );
+
+        // ── !update / owninfoonly ({user}) ───────────────────────────────────────
+        Add(
+            catalog,
+            BuiltinResponseSlots.UpdateUserInfo.Key,
+            BuiltinResponseSlots.UpdateUserInfo.OwnInfoOnly,
+            informative:
+            [
+                "@{user} you can only update your own info, or be a mod to update others.",
+            ],
+            friendly:
+            [
+                "@{user} you can only refresh your own info for now — mods can update others!",
+            ],
+            sassy:
+            [
+                "@{user} you can only update your own info. Mods get the extra privilege. You don't.",
+            ],
+            hype: ["@{user} YOUR OWN INFO ONLY. MODS GET THE REST."],
+            chill: ["@{user} you can only update your own info."]
+        );
+
+        // ── !coinflip / accountunresolved (no args) ──────────────────────────────
+        Add(
+            catalog,
+            "coinflip",
+            BuiltinResponseSlots.Game.AccountUnresolved,
+            informative: ["Could not resolve your account — try again."],
+            friendly: ["Couldn't find your account there — mind trying again?"],
+            sassy: ["Couldn't resolve your account. Weird. Try again."],
+            hype: ["COULDN'T RESOLVE YOUR ACCOUNT. TRY AGAIN."],
+            chill: ["couldn't resolve your account — try again."]
+        );
+
+        // ── !dice / accountunresolved (no args) ──────────────────────────────────
+        Add(
+            catalog,
+            "dice",
+            BuiltinResponseSlots.Game.AccountUnresolved,
+            informative: ["Could not resolve your account — try again."],
+            friendly: ["Couldn't find your account there — mind trying again?"],
+            sassy: ["Couldn't resolve your account. Weird. Try again."],
+            hype: ["COULDN'T RESOLVE YOUR ACCOUNT. TRY AGAIN."],
+            chill: ["couldn't resolve your account — try again."]
+        );
+
+        // ── !slots / accountunresolved (no args) ─────────────────────────────────
+        Add(
+            catalog,
+            "slots",
+            BuiltinResponseSlots.Game.AccountUnresolved,
+            informative: ["Could not resolve your account — try again."],
+            friendly: ["Couldn't find your account there — mind trying again?"],
+            sassy: ["Couldn't resolve your account. Weird. Try again."],
+            hype: ["COULDN'T RESOLVE YOUR ACCOUNT. TRY AGAIN."],
+            chill: ["couldn't resolve your account — try again."]
+        );
+
+        // ── !sr / disabled (no args) ──────────────────────────────────────────────
+        Add(
+            catalog,
+            BuiltinResponseSlots.SongRequest.Key,
+            BuiltinResponseSlots.SongRequestErrors.Disabled,
+            informative: ["This command is currently disabled."],
+            friendly: ["This command isn't turned on right now — sorry!"],
+            sassy: ["This command is currently disabled. Take it up with the streamer."],
+            hype: ["THIS COMMAND IS OFF RIGHT NOW."],
+            chill: ["this command's disabled right now."]
+        );
+
         return catalog;
     }
 

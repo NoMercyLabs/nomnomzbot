@@ -194,4 +194,61 @@ public sealed class WhisperBuiltinTests
         informative.Value.Should().Be("Could not find a Twitch user named \"ghostuser\".");
         sassy.Value.Should().NotBe(informative.Value);
     }
+
+    [Fact]
+    public async Task Sassy_tone_produces_a_different_twitch_unavailable_message_than_the_default_tone()
+    {
+        ITwitchUsersApi twitchUsers = Substitute.For<ITwitchUsersApi>();
+        twitchUsers
+            .GetUsersByLoginsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<IReadOnlyList<TwitchUser>>("TIMEOUT", "TIMEOUT"));
+        WhisperBuiltin sut = new(twitchUsers, [], FakeComposer());
+
+        Result<string> sassy = await sut.ExecuteAsync(
+            Context("ghostuser hello", PersonalityTone.Sassy)
+        );
+        Result<string> informative = await sut.ExecuteAsync(
+            Context("ghostuser hello", PersonalityTone.Informative)
+        );
+
+        informative.Value.Should().Be("Twitch did not answer just now — try again in a moment.");
+        sassy.Value.Should().NotBe(informative.Value);
+        ToneTemplateCatalog
+            .Get(
+                PersonalityTone.Sassy,
+                BuiltinResponseSlots.Whisper.Key,
+                BuiltinResponseSlots.Whisper.TwitchUnavailable
+            )
+            .Should()
+            .Contain(sassy.Value);
+    }
+
+    [Fact]
+    public async Task Sassy_tone_produces_a_different_not_available_message_than_the_default_tone()
+    {
+        ITwitchUsersApi twitchUsers = Substitute.For<ITwitchUsersApi>();
+        twitchUsers
+            .GetUsersByLoginsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchUser>>([Viewer1()]));
+        // No DM senders bound for any provider -> the "not available" branch.
+        WhisperBuiltin sut = new(twitchUsers, [], FakeComposer());
+
+        Result<string> sassy = await sut.ExecuteAsync(
+            Context("@viewer1 hey", PersonalityTone.Sassy)
+        );
+        Result<string> informative = await sut.ExecuteAsync(
+            Context("@viewer1 hey", PersonalityTone.Informative)
+        );
+
+        informative.Value.Should().Be("Whispering isn't available right now.");
+        sassy.Value.Should().NotBe(informative.Value);
+        ToneTemplateCatalog
+            .Get(
+                PersonalityTone.Sassy,
+                BuiltinResponseSlots.Whisper.Key,
+                BuiltinResponseSlots.Whisper.NotAvailable
+            )
+            .Should()
+            .Contain(sassy.Value);
+    }
 }

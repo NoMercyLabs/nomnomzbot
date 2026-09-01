@@ -79,7 +79,20 @@ public sealed class WhisperBuiltin : IBuiltinCommand
             ct
         );
         if (lookup.IsFailure)
-            return Result.Success("Twitch did not answer just now — try again in a moment.");
+        {
+            string twitchUnavailable = await _composer.ComposeAsync(
+                new()
+                {
+                    BroadcasterId = context.BroadcasterId,
+                    Personality = context.Personality,
+                    BuiltinKey = BuiltinResponseSlots.Whisper.Key,
+                    Slot = BuiltinResponseSlots.Whisper.TwitchUnavailable,
+                    NeutralFallback = "Twitch did not answer just now — try again in a moment.",
+                },
+                ct
+            );
+            return Result.Success(twitchUnavailable);
+        }
 
         TwitchUser? target = lookup.Value.FirstOrDefault();
         if (target is null)
@@ -105,7 +118,20 @@ public sealed class WhisperBuiltin : IBuiltinCommand
                 out IPlatformDirectMessageSender? sender
             )
         )
-            return Result.Success("Whispering isn't available right now.");
+        {
+            string notAvailable = await _composer.ComposeAsync(
+                new()
+                {
+                    BroadcasterId = context.BroadcasterId,
+                    Personality = context.Personality,
+                    BuiltinKey = BuiltinResponseSlots.Whisper.Key,
+                    Slot = BuiltinResponseSlots.Whisper.NotAvailable,
+                    NeutralFallback = "Whispering isn't available right now.",
+                },
+                ct
+            );
+            return Result.Success(notAvailable);
+        }
 
         Result sent = await sender.SendAsync(context.BroadcasterId, target.Id, message, ct);
         return Result.Success(

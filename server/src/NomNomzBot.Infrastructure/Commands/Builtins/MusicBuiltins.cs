@@ -139,11 +139,22 @@ public sealed class VolumeBuiltin(IMusicService music, IBuiltinResponseComposer 
                 context.BroadcasterId.ToString(),
                 ct
             );
-            return Result.Success(
-                nowPlaying is not null
-                    ? $"Volume is at {nowPlaying.Volume}%."
-                    : "Can't read the current volume right now — nothing is playing."
+            if (nowPlaying is not null)
+                return Result.Success($"Volume is at {nowPlaying.Volume}%.");
+
+            string cannotRead = await composer.ComposeAsync(
+                new()
+                {
+                    BroadcasterId = context.BroadcasterId,
+                    Personality = context.Personality,
+                    BuiltinKey = BuiltinResponseSlots.Volume.Key,
+                    Slot = BuiltinResponseSlots.Volume.CannotRead,
+                    NeutralFallback =
+                        "Can't read the current volume right now — nothing is playing.",
+                },
+                ct
             );
+            return Result.Success(cannotRead);
         }
 
         if (!int.TryParse(context.Args.Trim(), out int level))

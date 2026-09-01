@@ -73,9 +73,23 @@ public sealed class BanSongBuiltin(
         );
 
         if (blocked.IsFailure)
-            return Result.Success(
-                blocked.ErrorMessage ?? "Could not ban that track — try again in a moment."
+        {
+            if (blocked.ErrorMessage is not null)
+                return Result.Success(blocked.ErrorMessage);
+
+            string couldNotBan = await composer.ComposeAsync(
+                new()
+                {
+                    BroadcasterId = context.BroadcasterId,
+                    Personality = context.Personality,
+                    BuiltinKey = BuiltinResponseSlots.BanSong.Key,
+                    Slot = BuiltinResponseSlots.BanSong.CouldNotBan,
+                    NeutralFallback = "Could not ban that track — try again in a moment.",
+                },
+                ct
             );
+            return Result.Success(couldNotBan);
+        }
 
         return Result.Success(
             $"@{context.TriggeringUserDisplayName} banned \"{blocked.Value.Title}\" from song requests."

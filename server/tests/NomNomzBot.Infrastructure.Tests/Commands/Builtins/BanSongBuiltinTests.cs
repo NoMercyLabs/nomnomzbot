@@ -165,4 +165,49 @@ public sealed class BanSongBuiltinTests
             .Should()
             .Contain(sassy.Value);
     }
+
+    [Fact]
+    public async Task Sassy_tone_produces_a_different_could_not_ban_message_than_the_default_tone()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetNowPlayingAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>())
+            .Returns(
+                new NowPlaying(
+                    TrackName: "Track",
+                    Artist: "Artist",
+                    Album: null,
+                    ImageUrl: null,
+                    DurationMs: 180_000,
+                    ProgressMs: 1_000,
+                    IsPlaying: true,
+                    Volume: 50,
+                    RequestedBy: null,
+                    Provider: "spotify",
+                    TrackUri: "spotify:track:x"
+                )
+            );
+
+        IBlockedTrackService blockedTracks = Substitute.For<IBlockedTrackService>();
+        blockedTracks
+            .BlockAsync(Broadcaster, Arg.Any<BlockTrackRequest>(), Arg.Any<CancellationToken>())
+            // No service-supplied ErrorMessage -> forces the tone-styled generic fallback.
+            .Returns(Result.Failure<BlockedTrackDto>(null!, "UNKNOWN"));
+
+        BanSongBuiltin sut = new(music, blockedTracks, FakeComposer());
+
+        Result<string> sassy = await sut.ExecuteAsync(Context(PersonalityTone.Sassy));
+        Result<string> informative = await sut.ExecuteAsync(Context(PersonalityTone.Informative));
+
+        informative.Value.Should().Be("Could not ban that track — try again in a moment.");
+        sassy.Value.Should().NotBe(informative.Value);
+        ToneTemplateCatalog
+            .Get(
+                PersonalityTone.Sassy,
+                BuiltinResponseSlots.BanSong.Key,
+                BuiltinResponseSlots.BanSong.CouldNotBan
+            )
+            .Should()
+            .Contain(sassy.Value);
+    }
 }

@@ -164,6 +164,12 @@ public static class BuiltinResponseSlots
 
         /// <summary>No Twitch user matched the given login; <c>{user}</c> is set.</summary>
         public const string NotFound = "notfound";
+
+        /// <summary>The Helix lookup call itself failed (Twitch did not answer) — no variables.</summary>
+        public const string TwitchUnavailable = "twitchunavailable";
+
+        /// <summary>No direct-message sender is bound for the target platform — no variables.</summary>
+        public const string NotAvailable = "notavailable";
     }
 
     /// <summary><c>!bansong</c> — usage/error tone slots (S069h).</summary>
@@ -173,6 +179,9 @@ public static class BuiltinResponseSlots
 
         /// <summary>Nothing is currently playing, so there is no track to ban — no variables.</summary>
         public const string Nothing = "nothing";
+
+        /// <summary>The block write itself failed with no service-supplied reason — no variables.</summary>
+        public const string CouldNotBan = "couldnotban";
     }
 
     /// <summary><c>!update</c> — usage/error tone slots (S069h).</summary>
@@ -182,6 +191,18 @@ public static class BuiltinResponseSlots
 
         /// <summary>No Twitch user matched the given login; <c>{user}</c> is set.</summary>
         public const string NotFound = "notfound";
+
+        /// <summary>The Helix lookup call itself failed (Twitch did not answer); <c>{user}</c> is set.</summary>
+        public const string TwitchUnavailable = "twitchunavailable";
+
+        /// <summary>The refresh write itself failed; <c>{user}</c> is set.</summary>
+        public const string UpdateFailed = "updatefailed";
+
+        /// <summary>The requested login could not be resolved (empty caller login); <c>{user}</c> is set.</summary>
+        public const string LoginUnresolved = "loginunresolved";
+
+        /// <summary>A sub-moderator caller tried to update someone else; <c>{user}</c> is set.</summary>
+        public const string OwnInfoOnly = "owninfoonly";
     }
 
     /// <summary><c>!volume</c> — usage/error tone slots (S069h).</summary>
@@ -191,5 +212,26 @@ public static class BuiltinResponseSlots
 
         /// <summary>An unparsable argument was given — no variables.</summary>
         public const string Usage = "usage";
+
+        /// <summary>The current volume genuinely cannot be read (nothing playing) — no variables.</summary>
+        public const string CannotRead = "cannotread";
+    }
+
+    /// <summary>
+    /// <c>!coinflip</c>/<c>!dice</c>/<c>!slots</c> — usage/error tone slots (S069h). Registered per-game
+    /// under each game's own <c>BuiltinKey</c> (the chat trigger word) since the three share this base but
+    /// are distinct built-ins.
+    /// </summary>
+    public static class Game
+    {
+        /// <summary>The caller's own account could not be resolved/created — no variables.</summary>
+        public const string AccountUnresolved = "accountunresolved";
+    }
+
+    /// <summary><c>!sr</c> — additional usage/error tone slot (S069i), beyond the personality slots above.</summary>
+    public static class SongRequestErrors
+    {
+        /// <summary>Song requests are disabled and the caller is a plain viewer — no variables.</summary>
+        public const string Disabled = "disabled";
     }
 }
