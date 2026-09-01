@@ -31,7 +31,6 @@ when done) — this section is only the intake, not a shortcut around the bar.
 - **S-OWN08** — admin pages (SaaS management: users, providers, settings) need a real UX/DX pass, unchanged since introduction.
 - **S-OWN09** — need proper create/update/delete for system commands, overlays, and pipelines (not just user-authored ones).
 - 🔴 **S-OWN10** — the "extra Spotify section" in Integrations must merge into the one regular Spotify integration; the bot never hosts its own Spotify client — BYOC always, per [[byoc-encouraged-ownership-portability]].
-- **S-OWN13** — Alerts & Events page edit dialog doesn't show the currently-chosen pipeline.
 - **S-OWN16** — template-variable pickers list templates not actually usable in that context; must filter to what's really usable per surface.
 ---
 
