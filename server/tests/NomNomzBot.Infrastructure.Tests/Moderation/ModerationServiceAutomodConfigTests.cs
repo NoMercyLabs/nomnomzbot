@@ -8,7 +8,10 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Data.Common;
 using FluentAssertions;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -182,5 +185,176 @@ public sealed class ModerationServiceAutomodConfigTests
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("CHANNEL_NOT_FOUND");
+    }
+
+    // ─── S066c: two concurrent whole-config saves must not silently clobber ───
+
+    private static AutomodConfigDto Config(int capsThreshold) =>
+        new(
+            new AutomodLinkFilterDto(false, []),
+            new AutomodCapsFilterDto(true, capsThreshold),
+            new AutomodBannedPhrasesDto(false, []),
+            new AutomodEmoteSpamDto(false, 10)
+        );
+
+    /// <summary>
+    /// Fires a raw ADO.NET write against the same open SQLite connection the instant BEFORE a targeted
+    /// non-query command executes — landing a "concurrent" writer's change into the exact gap between
+    /// <c>SaveAutomodConfigAsync</c>'s read of the existing row (already completed and materialized into
+    /// its in-memory <c>existing</c> snapshot by this point) and its guarded <c>ExecuteUpdateAsync</c>
+    /// write (the very command about to run), deterministically, with no threads or timing involved.
+    /// Fires at most once per instance, on the first non-query command whose parameter values contain
+    /// <paramref name="parameterValueContains"/> — the per-rule-type substring EF parameterizes rather
+    /// than inlines, so matching must inspect bound parameter values, not the (parameterized) command text.
+    /// </summary>
+    private sealed class InjectConcurrentWriteInterceptor(
+        string parameterValueContains,
+        Action<SqliteConnection> injectWrite
+    ) : DbCommandInterceptor
+    {
+        private bool _fired;
+
+        /// <summary>Off during seeding (the seed call's own insert/update of the not-yet-existing row must
+        /// not trigger the injection) — the test arms it only once the row it targets already exists.</summary>
+        public bool Armed { get; set; }
+
+        public override InterceptionResult<int> NonQueryExecuting(
+            DbCommand command,
+            CommandEventData eventData,
+            InterceptionResult<int> result
+        )
+        {
+            bool isTargetUpdate =
+                command.CommandText.Contains("UPDATE", StringComparison.OrdinalIgnoreCase)
+                && command
+                    .Parameters.Cast<DbParameter>()
+                    .Any(p =>
+                        p.Value is string s
+                        && s.Contains(parameterValueContains, StringComparison.Ordinal)
+                    );
+
+            if (Armed && !_fired && isTargetUpdate)
+            {
+                _fired = true;
+                injectWrite((SqliteConnection)command.Connection!);
+            }
+            return base.NonQueryExecuting(command, eventData, result);
+        }
+
+        public override ValueTask<InterceptionResult<int>> NonQueryExecutingAsync(
+            DbCommand command,
+            CommandEventData eventData,
+            InterceptionResult<int> result,
+            CancellationToken cancellationToken = default
+        ) => new(NonQueryExecuting(command, eventData, result));
+    }
+
+    /// <summary>
+    /// Simulates two mods editing AutoMod settings at once: Mod B's write (the raw SQL landed by the
+    /// interceptor) commits into the exact window between this call's read of the existing caps-filter row
+    /// and its own guarded write, so this call's in-hand snapshot is stale by the time it tries to save.
+    /// It must fail with the real concurrency error, and the database must still hold Mod B's value — never
+    /// silently overwritten with Mod A's now-outdated edit.
+    /// </summary>
+    [Fact]
+    public async Task SaveAutomodConfigAsync_WithStaleVersion_FailsWithConcurrencyConflictInsteadOfOverwriting()
+    {
+        InjectConcurrentWriteInterceptor interceptor = new(
+            parameterValueContains: "caps_filter",
+            injectWrite: connection =>
+            {
+                using SqliteCommand cmd = connection.CreateCommand();
+                cmd.CommandText =
+                    "UPDATE Records SET Data = @data WHERE RecordType = 'moderation_rule' AND Data LIKE '%caps_filter%'";
+                cmd.Parameters.AddWithValue(
+                    "@data",
+                    """{"Type":"caps_filter","Settings":{"threshold":77},"IsEnabled":true}"""
+                );
+                cmd.ExecuteNonQuery();
+            }
+        );
+
+        await using ModerationServiceTestDbContext db = ModerationServiceTestDbContext.New(
+            interceptor
+        );
+        db.Channels.Add(
+            new()
+            {
+                Id = Channel,
+                TwitchChannelId = "123",
+                Name = "chan",
+                NameNormalized = "chan",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        ModerationService service = NewService(db);
+
+        // Establishes the caps-filter row at threshold 30 (interceptor still disarmed — nothing to read yet).
+        Result<AutomodConfigDto> seeded = await service.SaveAutomodConfigAsync(
+            Channel.ToString(),
+            Config(capsThreshold: 30)
+        );
+        seeded.IsSuccess.Should().BeTrue();
+        interceptor.Armed = true;
+
+        // This save's internal read of the caps-filter row sees threshold 30, then — before its guarded
+        // write executes — the interceptor lands Mod B's concurrent change (threshold 77) directly on the
+        // database. This save's in-hand snapshot (30) no longer matches the live row, so its guarded write
+        // must match zero rows and the whole call must report CONCURRENCY_CONFLICT, not partially apply.
+        Result<AutomodConfigDto> staleSave = await service.SaveAutomodConfigAsync(
+            Channel.ToString(),
+            Config(capsThreshold: 40)
+        );
+
+        staleSave.IsFailure.Should().BeTrue();
+        staleSave.ErrorCode.Should().Be("CONCURRENCY_CONFLICT");
+
+        // Clear this DbContext's identity map before the read-back: the seed save above still has its
+        // inserted Record entities tracked, and the interceptor's raw-SQL write (simulating a totally
+        // separate process/request) bypassed the tracker entirely, same as a real concurrent writer would.
+        // Reading through the still-tracked instances would show this process's own stale in-memory values
+        // rather than proving what actually landed on disk.
+        db.ChangeTracker.Clear();
+
+        // Mod B's concurrently-landed value must still be the one on disk — the stale save never applied.
+        AutomodConfigDto persisted = (
+            await service.GetAutomodConfigAsync(Channel.ToString())
+        ).Value;
+        persisted.CapsFilter.Threshold.Should().Be(77);
+    }
+
+    // ─── Saving against the current row succeeds normally ─────────────────────
+
+    [Fact]
+    public async Task SaveAutomodConfigAsync_WithCurrentVersion_SucceedsAndPersists()
+    {
+        await using ModerationServiceTestDbContext db = ModerationServiceTestDbContext.New();
+        db.Channels.Add(
+            new()
+            {
+                Id = Channel,
+                TwitchChannelId = "123",
+                Name = "chan",
+                NameNormalized = "chan",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        ModerationService service = NewService(db);
+
+        await service.SaveAutomodConfigAsync(Channel.ToString(), Config(capsThreshold: 30));
+        Result<AutomodConfigDto> result = await service.SaveAutomodConfigAsync(
+            Channel.ToString(),
+            Config(capsThreshold: 55)
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.CapsFilter.Threshold.Should().Be(55);
+
+        AutomodConfigDto persisted = (
+            await service.GetAutomodConfigAsync(Channel.ToString())
+        ).Value;
+        persisted.CapsFilter.Threshold.Should().Be(55);
     }
 }
