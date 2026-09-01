@@ -865,6 +865,103 @@ public class TwitchModerationApiTests
     }
 
     [Fact]
+    public async Task GetAutoModSettings_WithScope_MapsEveryDocumentedField()
+    {
+        // Every field Twitch's real Get AutoMod Settings response carries (overall_level plus all eight
+        // per-category levels) — proves the mapping is not silently dropping any of them, not merely the
+        // OverallLevel the older test checked.
+        TwitchAutoModSettings settings = new(
+            BroadcasterId: TwitchId,
+            ModeratorId: TwitchId,
+            OverallLevel: 3,
+            Disability: 1,
+            Aggression: 2,
+            SexualitySexOrGender: 3,
+            Misogyny: 4,
+            Bullying: 1,
+            Swearing: 2,
+            RaceEthnicityOrReligion: 3,
+            SexBasedTerms: 4
+        );
+        CapturingHelixTransport transport = new() { SingleResult = settings };
+        TwitchModerationApi api = Build(transport, TwitchScopes.ModeratorReadAutoModSettings);
+
+        Result<TwitchAutoModSettings> result = await api.GetAutoModSettingsAsync(Tenant);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.BroadcasterId.Should().Be(TwitchId);
+        result.Value.ModeratorId.Should().Be(TwitchId);
+        result.Value.OverallLevel.Should().Be(3);
+        result.Value.Disability.Should().Be(1);
+        result.Value.Aggression.Should().Be(2);
+        result.Value.SexualitySexOrGender.Should().Be(3);
+        result.Value.Misogyny.Should().Be(4);
+        result.Value.Bullying.Should().Be(1);
+        result.Value.Swearing.Should().Be(2);
+        result.Value.RaceEthnicityOrReligion.Should().Be(3);
+        result.Value.SexBasedTerms.Should().Be(4);
+    }
+
+    [Fact]
+    public async Task UpdateAutoModSettings_WithScope_SendsAndMapsEveryDocumentedField()
+    {
+        // Round-trips a request that sets every per-category level (no OverallLevel dial) and asserts the
+        // response carries every field back — the full real Helix AutoMod Settings surface, not a subset.
+        UpdateAutoModSettingsRequest request = new(
+            OverallLevel: null,
+            Aggression: 1,
+            Bullying: 2,
+            Disability: 3,
+            Misogyny: 4,
+            RaceEthnicityOrReligion: 1,
+            SexBasedTerms: 2,
+            SexualitySexOrGender: 3,
+            Swearing: 4
+        );
+        TwitchAutoModSettings echoedSettings = new(
+            BroadcasterId: TwitchId,
+            ModeratorId: TwitchId,
+            OverallLevel: null,
+            Disability: 3,
+            Aggression: 1,
+            SexualitySexOrGender: 3,
+            Misogyny: 4,
+            Bullying: 2,
+            Swearing: 4,
+            RaceEthnicityOrReligion: 1,
+            SexBasedTerms: 2
+        );
+        CapturingHelixTransport transport = new() { SingleResult = echoedSettings };
+        TwitchModerationApi api = Build(transport, TwitchScopes.ModeratorManageAutoModSettings);
+
+        Result<TwitchAutoModSettings> result = await api.UpdateAutoModSettingsAsync(
+            Tenant,
+            request
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        transport.LastRequest!.Body.Should().BeSameAs(request);
+        request.OverallLevel.Should().BeNull();
+        request.Aggression.Should().Be(1);
+        request.Bullying.Should().Be(2);
+        request.Disability.Should().Be(3);
+        request.Misogyny.Should().Be(4);
+        request.RaceEthnicityOrReligion.Should().Be(1);
+        request.SexBasedTerms.Should().Be(2);
+        request.SexualitySexOrGender.Should().Be(3);
+        request.Swearing.Should().Be(4);
+        result.Value.OverallLevel.Should().BeNull();
+        result.Value.Disability.Should().Be(3);
+        result.Value.Aggression.Should().Be(1);
+        result.Value.SexualitySexOrGender.Should().Be(3);
+        result.Value.Misogyny.Should().Be(4);
+        result.Value.Bullying.Should().Be(2);
+        result.Value.Swearing.Should().Be(4);
+        result.Value.RaceEthnicityOrReligion.Should().Be(1);
+        result.Value.SexBasedTerms.Should().Be(2);
+    }
+
+    [Fact]
     public async Task UpdateAutoModSettings_MissingScope_ShortCircuits()
     {
         CapturingHelixTransport transport = new();
