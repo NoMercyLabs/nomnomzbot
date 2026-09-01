@@ -25,14 +25,48 @@ Owner's own words, filed as slices S-OWN01..S-OWN19. 🔴 = owner-marked priorit
 order. Each still gets the normal treatment (root-cause fix, tested, committed, deleted from here
 when done) — this section is only the intake, not a shortcut around the bar.
 
-- 🔴 **S-OWN20** — the media-share/GIF chat overlay renders a broken green-screen placeholder image
-  instead of the real resolved GIF (owner screenshot: viewer "Kanawanagasaki" posts a caption
-  "[Cat Festival GIF by W&W]" then a solid-green background with a brown rock/potato-shaped blob
-  where the GIF should be). Owner: "this is very wrong and is a priority fix." Filed 2026-09-01,
-  investigation dispatched.
 - 🔴 **S-OWN21** — Spotify `!sr` and YouTube `!sr` need "message replacement for its og widget body"
   (owner's words) — the song-request confirmation isn't correctly updating/replacing the
   now-playing widget's original body content. Filed alongside S-OWN20, same dispatch.
+  Investigated 2026-09-01: `SongRequestBuiltin.cs` composes the chat confirmation, `MusicService`
+  mutates the fair queue via the singleton `ISongRequestQueueStore` (not a scoped instance field — an
+  older aitm note describing that bug is stale/already fixed) and publishes
+  `SongRequestQueueChangedEvent` on every mutation, which `SrQueueBroadcastHandler` pushes to the
+  `sr_queue` overlay event, and `now_playing.vue` separately renders the live-playing track from its
+  own `now_playing` event + a `GET /api/v1/overlay/now-playing` seed on mount. This pipeline is fully
+  wired end-to-end with no bug found by code tracing — needs the owner to clarify which widget/body
+  was actually stale (a live screenshot of the wrong content would pin it down) before further code
+  changes are justified.
+
+**S-OWN20 — closed 2026-09-01.** First investigation pass (media-share `MediaSourceResolver.cs` /
+`ChatHtmlSanitizer.cs`) was the WRONG root cause and nothing from it was kept as the fix for this
+slice — the owner corrected the diagnosis mid-investigation: "Cat Festival GIF by W&W" is Twitch's
+own new native chat-GIF feature (announced TwitchCon EU 2026, GIPHY-backed, Tier 2+ subscriber
+perk), not a media-share submission or a pasted HTML `<img>`. Verified against the live Twitch docs
+(`dev.twitch.tv/docs/eventsub/eventsub-reference`, WebFetch 2026-09-01): `channel.chat.message`'s
+`message.fragments[]` now includes a `"gif"` fragment type — `{ type: "gif", text, gif: { gif_id,
+url } }` — alongside the existing text/emote/cheermote/mention types; this bot's translator/domain
+model/wire DTOs had no case for it at all, so the fragment fell through to nothing rendering (the
+green/rock image the owner saw was NOT produced by this codebase — no bundled placeholder graphic
+matching it exists anywhere in the repo; most likely the browser/OBS source's own broken-image
+glyph over a transparent hole). Implemented first-party support end to end: `ChatMessageFragment.cs`
+(`GifId`/`GifUrl`), `ChatTranslators.cs` (`ChatPayload.ReadFragment` parses the `gif` object),
+`ChatDtos.cs`/`ChatFragmentMapper.cs` (new `ChatGifDto`, wired on `ChatFragmentDto`), the Kotlin
+mirrors (`ChatApi.kt` `ChatGif`, `HubEvent.kt` `HubChatGif`, `ChatController.kt`'s hub→REST-shape
+mapper), `chat_box.vue` (renders the fragment's real `gif.url` inline, capped to 8em so one GIF
+can't blow out the overlay), and the dashboard's own chat feed
+(`feature/chat/ui/ChatMessageFragments.kt`, rendered via the existing `AnimatedNetworkImage`).
+`server/openapi/v1.json` regenerated (the DTO gained a field the REST chat-history endpoint
+returns). Regression tests: `ChatTranslatorsTests.ChatMessage_NativeGif_PublishesGifFragmentWithTheRealUrl`
+(asserts the translator carries the real GIPHY url through, using the owner's own reported caption)
+and `ChatFragmentMapperTests.MapFragment_carries_the_native_gif_s_real_url_not_a_placeholder`. Both
+green. Separately, `ChatHtmlSanitizer.cs` — the sanitizer for the *unrelated* opt-in subscriber
+chat-HTML fragment feature — had a genuine, independently-discovered truthful-rendering bug: an
+`<img>`/`<video>`/`<source>` whose `src`/`poster` gets stripped by the https-only `AllowedSchemes`
+guard used to survive as a captioned, src-less tag instead of being removed outright. Fixed
+(`RemovingAttribute` + `PostProcessNode` hooks now drop the whole element) and covered by
+`ChatHtmlSanitizerTests.cs`, kept as a standalone correctness fix — NOT attributed to S-OWN20, since
+the real cause was the missing native-GIF fragment support above.
 - 🔴 **S-OWN22** — the OBS control widget (`obs-bridge?token=...`) has never worked: its inline
   `<script>` is blocked by CSP (`script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' https://esm.sh
   https://cdn.jsdelivr.net` — no `'unsafe-inline'`, no nonce/hash match) per the owner's DevTools
