@@ -19,11 +19,18 @@ import bot.nomnomz.dashboard.core.network.MusicConfig
 import bot.nomnomz.dashboard.core.network.QueuedSong
 import bot.nomnomz.dashboard.core.network.SongRequestsApi
 import bot.nomnomz.dashboard.core.network.UpdateMusicConfigBody
+import bot.nomnomz.dashboard.core.realtime.HubEvent
+import bot.nomnomz.dashboard.core.realtime.HubMusicState
+import bot.nomnomz.dashboard.core.realtime.HubMusicTrack
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.flow.MutableSharedFlow
 
 // Proves the Song Requests page state machine the screen renders: resolve the active channel, surface the real
 // queue (empty as Empty, a failure of either step as Error), and drive the supported playback controls. The
@@ -273,6 +280,57 @@ class SongRequestsControllerTest {
         assertEquals(listOf("A"), (state as SongRequestsState.Ready).queue.map { it.trackName })
         assertEquals("No active music provider.", state.actionError)
         // Only the initial load read the queue; the failed control did not trigger a reload.
+        assertEquals(1, songRequestsApi.queueCalls)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun subscribe_to_hub_reloads_the_queue_when_the_current_track_changes() = runTest {
+        val before = listOf(QueuedSong(position = 0, trackName = "A"))
+        val after = listOf(QueuedSong(position = 0, trackName = "B"))
+        val songRequestsApi =
+            FakeSongRequestsApi(queueResults = listOf(ApiResult.Ok(before), ApiResult.Ok(after)))
+        val controller =
+            SongRequestsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), songRequestsApi)
+
+        controller.load()
+
+        // Collect on an unconfined test dispatcher so the subscription is live immediately and each emission
+        // is processed eagerly, matching the pattern used for the same real-time contract elsewhere
+        // (ChatController.subscribe_to_hub_skips_a_duplicate_message_id).
+        val events: MutableSharedFlow<HubEvent> = MutableSharedFlow(extraBufferCapacity = 16)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.subscribeToHub(events) }
+
+        // A real MusicStateChanged push naming a new current track — this is the event
+        // PlaybackStateBroadcastHandler sends to the dashboard hub when the queue advances.
+        events.emit(HubEvent.MusicStateChanged(HubMusicState(isPlaying = true, currentTrack = HubMusicTrack(trackName = "B"))))
+
+        // The reload actually ran (a second real queue() call) and the state now reflects the fresh queue —
+        // proving the subscription drives a real reload, not just an accepted event.
+        assertEquals(2, songRequestsApi.queueCalls)
+        val state: SongRequestsState = controller.state.value
+        assertTrue(state is SongRequestsState.Ready)
+        assertEquals(listOf("B"), (state as SongRequestsState.Ready).queue.map { it.trackName })
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun subscribe_to_hub_skips_reload_when_the_current_track_is_unchanged() = runTest {
+        val queue = listOf(QueuedSong(position = 0, trackName = "A"))
+        val songRequestsApi = FakeSongRequestsApi(queueResults = listOf(ApiResult.Ok(queue)))
+        val controller =
+            SongRequestsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), songRequestsApi)
+
+        controller.load()
+
+        val events: MutableSharedFlow<HubEvent> = MutableSharedFlow(extraBufferCapacity = 16)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.subscribeToHub(events) }
+
+        // A play/pause toggle on the SAME track does not advance the queue, so it must not trigger a reload.
+        events.emit(HubEvent.MusicStateChanged(HubMusicState(isPlaying = false, currentTrack = null)))
+        events.emit(HubEvent.MusicStateChanged(HubMusicState(isPlaying = false, currentTrack = null)))
+
+        // Only the initial load ever read the queue — no fan-out from the redundant pushes.
         assertEquals(1, songRequestsApi.queueCalls)
     }
 }
