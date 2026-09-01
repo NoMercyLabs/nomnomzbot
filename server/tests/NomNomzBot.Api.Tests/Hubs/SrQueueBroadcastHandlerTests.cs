@@ -20,7 +20,9 @@ namespace NomNomzBot.Api.Tests.Hubs;
 /// <summary>
 /// Proves a song-request queue change reaches the standing <c>sr_queue</c> overlay widget as an
 /// <c>sr_queue</c> widget event carrying the snapshot's { items: [{ title, requestedBy, durationSec }] }
-/// shape — and only reaches widgets subscribed to that type.
+/// shape — and only reaches widgets subscribed to that type — AND reaches the dashboard's channel
+/// group via <c>sr_queue_changed</c> carrying that same snapshot, so a mod acting from the dashboard
+/// (promote/ban/remove) sees the live update too, not just the OBS-facing widget.
 /// </summary>
 public sealed class SrQueueBroadcastHandlerTests
 {
@@ -28,6 +30,7 @@ public sealed class SrQueueBroadcastHandlerTests
     public async Task Queue_change_reaches_a_subscribed_widget_with_the_snapshot_items()
     {
         IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        IDashboardNotifier dashboard = Substitute.For<IDashboardNotifier>();
         await using WidgetTestDbContext db = WidgetTestDbContext.New();
         Guid channel = Guid.CreateVersion7();
         Widget srQueue = new()
@@ -48,7 +51,7 @@ public sealed class SrQueueBroadcastHandlerTests
         };
         db.Widgets.AddRange(srQueue, bystander);
         await db.SaveChangesAsync();
-        SrQueueBroadcastHandler handler = new(db, widgets);
+        SrQueueBroadcastHandler handler = new(db, widgets, dashboard);
 
         await handler.HandleAsync(
             new()
@@ -73,6 +76,16 @@ public sealed class SrQueueBroadcastHandlerTests
                 bystander.Id.ToString(),
                 Arg.Any<WidgetEventDto>(),
                 Arg.Any<CancellationToken>()
+            );
+        await dashboard
+            .Received(1)
+            .NotifyChannelAsync(
+                channel.ToString(),
+                "sr_queue_changed",
+                Arg.Is<object>(data => ItemsMatch(data)),
+                Arg.Any<CancellationToken>(),
+                Arg.Any<string?>(),
+                Arg.Any<string?>()
             );
     }
 

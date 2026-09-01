@@ -15,28 +15,43 @@ using NomNomzBot.Domain.Platform.Interfaces;
 namespace NomNomzBot.Api.Hubs.Broadcasters;
 
 /// <summary>
-/// Song-request queue change → the standing <c>sr_queue</c> overlay widget (music-sr.md). Pushes the event's
-/// fresh top-of-queue snapshot as an <c>sr_queue</c> widget event — <c>{ items: [{ title, requestedBy,
-/// durationSec }] }</c> after the hub's camelCase serialization — through the shared subscription-matched
-/// dispatch, so only widgets that declare <c>sr_queue</c> receive it. Like now-playing, this drives a standing
-/// display rather than a transient alert, so it routes widgets-only (no decorated dashboard equivalent exists;
-/// the raw journaled event already rides the generic feed).
+/// Song-request queue change → the standing <c>sr_queue</c> overlay widget (music-sr.md) AND the dashboard.
+/// Pushes the event's fresh top-of-queue snapshot as an <c>sr_queue</c> widget event — <c>{ items: [{ title,
+/// requestedBy, durationSec }] }</c> after the hub's camelCase serialization — through the shared
+/// subscription-matched dispatch, so only widgets that declare <c>sr_queue</c> receive it. The same
+/// already-built <c>{ items }</c> payload is also pushed to the dashboard's channel group under the
+/// <c>sr_queue_changed</c> method, so a mod promoting/banning/removing a queued track from the dashboard
+/// sees the live update too — not just the OBS-facing widget.
 /// </summary>
-public sealed class SrQueueBroadcastHandler(IApplicationDbContext db, IWidgetNotifier notifier)
-    : IEventHandler<SongRequestQueueChangedEvent>
+public sealed class SrQueueBroadcastHandler(
+    IApplicationDbContext db,
+    IWidgetNotifier widgets,
+    IDashboardNotifier dashboard
+) : IEventHandler<SongRequestQueueChangedEvent>
 {
-    public Task HandleAsync(
+    public async Task HandleAsync(
         SongRequestQueueChangedEvent @event,
         CancellationToken cancellationToken = default
-    ) =>
-        WidgetAlertDispatch.RouteAsync(
+    )
+    {
+        object payload = new { items = @event.Items };
+
+        await WidgetAlertDispatch.RouteAsync(
             db,
-            notifier,
+            widgets,
             @event.BroadcasterId,
             "sr_queue",
-            new { items = @event.Items },
+            payload,
             // Standing queue snapshot — not a ChannelEvent-backed feed item.
             channelEventId: null,
             cancellationToken
         );
+
+        await dashboard.NotifyChannelAsync(
+            @event.BroadcasterId.ToString(),
+            "sr_queue_changed",
+            payload,
+            cancellationToken
+        );
+    }
 }
