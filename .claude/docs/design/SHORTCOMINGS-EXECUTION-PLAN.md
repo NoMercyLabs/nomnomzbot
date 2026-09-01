@@ -608,11 +608,15 @@ later.)
   builtins not routed through `IBuiltinResponseComposer`; wired the 5 most-commonly-hit
   (`WhisperBuiltin` usage+notfound, `BanSongBuiltin` nothing-playing, `UpdateUserInfoBuiltin` notfound,
   `VolumeBuiltin` usage), same `ToneTemplateCatalog` pattern as the prior success-path tone-parity slice.
-  16 tests, sassy-vs-default variants asserted as real content. **11 more strings remain** (own
-  follow-up): `WhisperBuiltin`/`UpdateUserInfoBuiltin`/`VolumeBuiltin` Twitch-didn't-answer/no-answer
-  errors, `GameBuiltins`/`BanSongBuiltin` account/track-resolution failures, `SongRequestBuiltin`
-  disabled-command message.
-  Remaining S069 scope: the 11 leftover usage/error strings above, per-locale tone catalogue.
+  16 tests, sassy-vs-default variants asserted as real content.
+  **Remaining 11 usage/error tone strings DONE, verified (44d4c3bb)**: `WhisperBuiltin`
+  (TwitchUnavailable/NotAvailable), `BanSongBuiltin` (CouldNotBan), `UpdateUserInfoBuiltin`
+  (TwitchUnavailable/UpdateFailed/LoginUnresolved/OwnInfoOnly), `VolumeBuiltin` (CannotRead),
+  `GameBuiltins`/`CoinflipBuiltin`/`DiceBuiltin`/`SlotsBuiltin` (AccountUnresolved, per-game-key
+  registered), `SongRequestBuiltin` (Disabled, `NoProviderMessage` converted to async). Same
+  `ToneTemplateCatalog` pattern as before; every string now has real per-tone catalog content. 41 tests
+  total across all touched builtins, sassy vs default asserted as real content.
+  Remaining S069 scope: per-locale tone catalogue only.
 - **S070** Settings + onboarding truth (U·B6) — fully CLOSED this session.
   **Swallowed regrant/reconcile failures DONE, verified (f8930c74)**:
   `IntegrationTokenVault.StoreTokensAsync` awaited `IScopeGrantService.ReconcileGrantedScopesAsync` and
