@@ -524,6 +524,63 @@ public sealed class OutboundWebhookEndpointServiceTests
     }
 
     [Fact]
+    public async Task ListDeliveries_round_trips_NextRetryAt_status_and_error_text_end_to_end()
+    {
+        (OutboundWebhookEndpointService sut, AuthDbContext db, _) = Build();
+        await SeedAllowlistAsync(db);
+        Guid endpointId = (await sut.CreateAsync(Channel, Actor, Req())).Value.Endpoint.Id;
+        DateTime nextRetryAt = Now.UtcDateTime.AddSeconds(30);
+        OutboundWebhookDelivery pending = Delivery(
+            1,
+            endpointId,
+            "webhook.pending",
+            WebhookDeliveryStatus.Pending
+        );
+        pending.NextRetryAt = nextRetryAt;
+        OutboundWebhookDelivery failed = Delivery(
+            2,
+            endpointId,
+            "webhook.failed",
+            WebhookDeliveryStatus.Failed
+        );
+        failed.Error = "Connection timed out after 5000ms";
+        failed.NextRetryAt = nextRetryAt;
+        OutboundWebhookDelivery deadLettered = Delivery(
+            3,
+            endpointId,
+            "webhook.dead",
+            WebhookDeliveryStatus.DeadLetter
+        );
+        deadLettered.Error = "Endpoint disabled after 20 consecutive failures";
+        db.OutboundWebhookDeliveries.AddRange(pending, failed, deadLettered);
+        await db.SaveChangesAsync();
+
+        Result<PagedList<OutboundWebhookDeliveryDto>> result = await sut.ListDeliveriesAsync(
+            Channel,
+            endpointId,
+            new(1, 10, null, null)
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        OutboundWebhookDeliveryDto pendingDto = result.Value.Items.Single(d => d.Id == pending.Id);
+        pendingDto.Status.Should().Be("Pending");
+        pendingDto.NextRetryAt.Should().Be(nextRetryAt);
+        pendingDto.Error.Should().BeNull();
+
+        OutboundWebhookDeliveryDto failedDto = result.Value.Items.Single(d => d.Id == failed.Id);
+        failedDto.Status.Should().Be("Failed");
+        failedDto.NextRetryAt.Should().Be(nextRetryAt);
+        failedDto.Error.Should().Be("Connection timed out after 5000ms");
+
+        OutboundWebhookDeliveryDto deadDto = result.Value.Items.Single(d =>
+            d.Id == deadLettered.Id
+        );
+        deadDto.Status.Should().Be("DeadLetter");
+        deadDto.NextRetryAt.Should().BeNull(); // dead-lettered: no further retry is scheduled
+        deadDto.Error.Should().Be("Endpoint disabled after 20 consecutive failures");
+    }
+
+    [Fact]
     public async Task ListDeliveries_is_NOT_FOUND_for_an_unknown_endpoint()
     {
         (OutboundWebhookEndpointService sut, AuthDbContext db, _) = Build();

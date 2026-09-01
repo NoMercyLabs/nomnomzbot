@@ -117,6 +117,8 @@ import nomnomzbot.composeapp.generated.resources.webhooks_deliveries_close
 import nomnomzbot.composeapp.generated.resources.webhooks_deliveries_code
 import nomnomzbot.composeapp.generated.resources.webhooks_deliveries_empty
 import nomnomzbot.composeapp.generated.resources.webhooks_deliveries_loading
+import nomnomzbot.composeapp.generated.resources.webhooks_deliveries_next_retry
+import nomnomzbot.composeapp.generated.resources.webhooks_deliveries_reload
 import nomnomzbot.composeapp.generated.resources.webhooks_deliveries_title
 import nomnomzbot.composeapp.generated.resources.webhooks_edit
 import nomnomzbot.composeapp.generated.resources.webhooks_edit_confirm
@@ -1248,8 +1250,10 @@ private fun DeliveriesDialog(
 
     var loading: Boolean by remember { mutableStateOf(true) }
     var deliveries: List<OutboundDelivery> by remember { mutableStateOf(emptyList()) }
+    var reloadKey: Int by remember { mutableStateOf(0) }
 
-    LaunchedEffect(endpoint.id) {
+    LaunchedEffect(endpoint.id, reloadKey) {
+        loading = true
         deliveries = load() ?: emptyList()
         loading = false
     }
@@ -1257,7 +1261,14 @@ private fun DeliveriesDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text(stringResource(Res.string.webhooks_deliveries_title, endpoint.name), style = typography.lg, color = tokens.cardForeground)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(stringResource(Res.string.webhooks_deliveries_title, endpoint.name), style = typography.lg, color = tokens.cardForeground)
+                TextButton(onClick = { reloadKey++ }) { Text(stringResource(Res.string.webhooks_deliveries_reload)) }
+            }
         },
         text = {
             Column(
@@ -1284,7 +1295,7 @@ private fun DeliveriesDialog(
 }
 
 @Composable
-private fun DeliveryRow(delivery: OutboundDelivery) {
+internal fun DeliveryRow(delivery: OutboundDelivery) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -1310,6 +1321,13 @@ private fun DeliveryRow(delivery: OutboundDelivery) {
             Text(text = delivery.status, style = typography.xs, color = statusColor)
         }
         Text(text = meta, style = typography.xs, color = tokens.mutedForeground, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        delivery.nextRetryAt?.takeIf { it.isNotBlank() }?.let {
+            Text(
+                text = stringResource(Res.string.webhooks_deliveries_next_retry, it),
+                style = typography.xs,
+                color = tokens.mutedForeground,
+            )
+        }
         delivery.error?.takeIf { it.isNotBlank() }?.let {
             Text(text = it, style = typography.xs, color = tokens.destructive, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }

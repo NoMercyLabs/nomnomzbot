@@ -2430,6 +2430,7 @@
     <string name="resource_picker_loading">Laden…</string>
     <string name="resource_picker_unavailable">Kon deze lijst nu niet laden — %1$s</string>
     <string name="resource_picker_empty">Niets gevonden.</string>
+    <string name="combobox_no_results">Geen resultaten gevonden.</string>
     <string name="resource_picker_search_placeholder">Zoeken…</string>
     <string name="category_picker_label">Categorie / game</string>
     <string name="category_picker_placeholder">Zoek Twitch-categorieën…</string>
@@ -3052,6 +3053,8 @@
     <string name="webhooks_deliveries_close">Sluiten</string>
     <string name="webhooks_deliveries_attempt">Poging %1$d</string>
     <string name="webhooks_deliveries_code">HTTP %1$d</string>
+    <string name="webhooks_deliveries_next_retry">Volgende poging: %1$s</string>
+    <string name="webhooks_deliveries_reload">Vernieuwen</string>
     <string name="moderation_announce_action">Aankondiging versturen</string>
     <string name="moderation_announce_title">Aankondiging versturen</string>
     <string name="moderation_announce_message_label">Bericht</string>
