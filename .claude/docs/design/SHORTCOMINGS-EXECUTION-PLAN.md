@@ -940,8 +940,13 @@ later.)
   DeadLetter`, `OutboundWebhookAutoDisabledEvent`, `AutoDisableThreshold`). S099b DONE, verified
   (d302adbf): closed the one real gap found — a delivery still sitting Failed/due-for-retry at the
   moment its endpoint crosses the auto-disable threshold now dead-letters instead of still being
-  POSTed to the now-disabled endpoint. Remaining: attempted events consumed (toast/hub/feed); UI
-  `NextRetryAt`, error vs empty, refresh/paging/replay (U·E3).
+  POSTed to the now-disabled endpoint. S099c DONE, verified (68f97cac): delivery-list DTO round-trips
+  `NextRetryAt`/`Status`/error text end to end (backend test); dashboard `WebhooksScreen` renders the
+  real state per row (Pending/Failed/DeadLetter/Delivered), error text, and a genuine empty state —
+  proven by `WebhooksDeliveryRowS099cTest` (4 cases). Found: no replay/retry-single-delivery backend
+  endpoint exists at all (`WebhooksController.cs` — `TestOutbound` only sends a synthetic test event;
+  `RenderedBody` is stored but nothing replays it) — its own future slice, not display-only. Remaining:
+  attempted events consumed (toast/hub/feed); replay-single-delivery endpoint + button (found above).
 - **S100** Custom data sources truth — persist last attempt/error/failure count, backoff + auto-disable;
   allowlist checked at save; real JSON field-map parsing with inline errors; key picker from a test fetch;
   drop or wire `InboundWebhookEndpointId` (U·E3).
