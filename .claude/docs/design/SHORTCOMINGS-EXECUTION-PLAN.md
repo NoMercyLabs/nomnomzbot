@@ -866,9 +866,24 @@ later.)
   not fabricated: missing scopes (every gap is `IsProgressive=true` by design, not an error state), failed
   timers (`Timer` has no run-failure tracking at all), pending unbans (only live-fetchable under an
   operator's own token, not a stored/aggregatable signal). 4 tests, real seeded-row assertions +
-  tenant-isolation proof. **Still open: Home hero tile + collapsed activity feed + first-run next steps**
-  (frontend, next sub-slice) — Done-when ("visible on Home within a minute") isn't met until the tile
-  consumes this endpoint.
+  tenant-isolation proof.
+  **Home hero tile DONE (6eb72fc3)**: new `NotificationsApi`/`ActionRequiredItem` KMP client, `HomeController`
+  loads it best-effort alongside stats (a fetch failure yields empty, never an error state), `HomeScreen`
+  renders an `ActionRequiredCard` above the live banner only when non-empty, severity-styled from existing
+  destructive/accent tokens, each row navigable via its `deepLinkRoute`. 3 new `HomeControllerTest` cases.
+  **CRITICAL regression found + fixed same session (778bce29)**: building this slice surfaced that the API
+  could not start at all — `ServiceProvider` DI validation threw a circular dependency between
+  `CommandsBuiltin`/`HelpBuiltin`/the `IBuiltinCommand` aggregator (pre-existing on `master`, not caused
+  by this slice). A second, previously-masked bug sat right behind it: `HelpBuiltin` depended on the
+  concrete `CommandsBuiltin` type, which was only ever registered as the `IBuiltinCommand` interface —
+  fixing the cycle alone would have just hit this next. Both fixed together: `CommandsBuiltin` now
+  registered as itself, with the `IBuiltinCommand` registration forwarding to that same scoped instance.
+  Proven by the API actually reaching "Listening on locked port 5080" with migrations/seed/hosted-services
+  all clean (previously crashed before any of that ran) — 4734 tests green. **Still open**: collapsed
+  activity feed + first-run next steps are not yet built (own next sub-slice); the `openapi/v1.json` entry
+  for `ActionRequiredItemDto` was hand-added by the tile builder (API couldn't be started at the time to
+  regenerate it) — now that startup is fixed, worth a follow-up regenerate-and-diff to confirm it matches
+  byte-for-byte.
 - **S072** IA reconciliation — Admin via profile menu + chrome swap; theme + Account in profile menu;
   tabbed Settings; `MyData` on the participant rung; shipped routes listed in `frontend-ia.md`
   (U·B6). 🔒 regroup sidebar vs update spec.
