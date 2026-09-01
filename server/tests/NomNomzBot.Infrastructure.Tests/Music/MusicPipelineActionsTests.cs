@@ -19,6 +19,7 @@ using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Music.Entities;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Music.PipelineActions;
+using NomNomzBot.Infrastructure.Tests.Discord;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
@@ -152,7 +153,13 @@ public sealed class MusicPipelineActionsTests
             )
             .Returns(Result.Success());
         IChatProvider chat = Substitute.For<IChatProvider>();
-        PlaylistAddAction action = new(music, manage, chat, NullLogger<PlaylistAddAction>.Instance);
+        PlaylistAddAction action = new(
+            music,
+            manage,
+            chat,
+            DiscordTemplateTestSupport.CreateResolver(),
+            NullLogger<PlaylistAddAction>.Instance
+        );
 
         ActionResult result = await action.ExecuteAsync(
             Ctx(),
@@ -191,7 +198,13 @@ public sealed class MusicPipelineActionsTests
             )
             .Returns(Result.Success());
         IChatProvider chat = Substitute.For<IChatProvider>();
-        PlaylistAddAction action = new(music, manage, chat, NullLogger<PlaylistAddAction>.Instance);
+        PlaylistAddAction action = new(
+            music,
+            manage,
+            chat,
+            DiscordTemplateTestSupport.CreateResolver(),
+            NullLogger<PlaylistAddAction>.Instance
+        );
 
         ActionResult result = await action.ExecuteAsync(
             Ctx(),
@@ -227,7 +240,13 @@ public sealed class MusicPipelineActionsTests
             .Returns((NowPlaying?)null);
         IMusicProviderManageApi manage = Substitute.For<IMusicProviderManageApi>();
         IChatProvider chat = Substitute.For<IChatProvider>();
-        PlaylistAddAction action = new(music, manage, chat, NullLogger<PlaylistAddAction>.Instance);
+        PlaylistAddAction action = new(
+            music,
+            manage,
+            chat,
+            DiscordTemplateTestSupport.CreateResolver(),
+            NullLogger<PlaylistAddAction>.Instance
+        );
 
         ActionResult result = await action.ExecuteAsync(
             Ctx(),
@@ -256,7 +275,13 @@ public sealed class MusicPipelineActionsTests
             .Returns((string?)null);
         IMusicProviderManageApi manage = Substitute.For<IMusicProviderManageApi>();
         IChatProvider chat = Substitute.For<IChatProvider>();
-        PlaylistAddAction action = new(music, manage, chat, NullLogger<PlaylistAddAction>.Instance);
+        PlaylistAddAction action = new(
+            music,
+            manage,
+            chat,
+            DiscordTemplateTestSupport.CreateResolver(),
+            NullLogger<PlaylistAddAction>.Instance
+        );
 
         ActionResult result = await action.ExecuteAsync(
             Ctx(),
@@ -268,12 +293,107 @@ public sealed class MusicPipelineActionsTests
     }
 
     [Fact]
+    public async Task Playlist_add_uses_the_streamer_edited_message_template_instead_of_the_hardcoded_default()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetActiveProviderKeyAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns("spotify");
+        music
+            .GetNowPlayingAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(Playing());
+        IMusicProviderManageApi manage = Substitute.For<IMusicProviderManageApi>();
+        manage
+            .AddPlaylistTracksAsync(
+                ChannelId,
+                "spotify",
+                "playlist-1",
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        PlaylistAddAction action = new(
+            music,
+            manage,
+            chat,
+            DiscordTemplateTestSupport.CreateResolver(),
+            NullLogger<PlaylistAddAction>.Instance
+        );
+
+        ActionResult result = await action.ExecuteAsync(
+            Ctx(),
+            Def(
+                "playlist_add",
+                ("playlist_id", "playlist-1"),
+                ("message", "Yooo {track_name} just joined the bangers list ({playlist_id})!")
+            )
+        );
+
+        result.Succeeded.Should().BeTrue();
+        result.Output.Should().Be("Yooo Current Song just joined the bangers list (playlist-1)!");
+        await chat.Received(1)
+            .SendMessageAsync(
+                ChannelId,
+                "Yooo Current Song just joined the bangers list (playlist-1)!",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Playlist_add_default_message_never_exposes_the_raw_playlist_or_track_id()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetActiveProviderKeyAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns("spotify");
+        music
+            .GetNowPlayingAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(Playing(uri: "spotify:track:37i9dQZF1DXcBWIGoYBM5M"));
+        IMusicProviderManageApi manage = Substitute.For<IMusicProviderManageApi>();
+        manage
+            .AddPlaylistTracksAsync(
+                ChannelId,
+                "spotify",
+                "playlist-1",
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        PlaylistAddAction action = new(
+            music,
+            manage,
+            chat,
+            DiscordTemplateTestSupport.CreateResolver(),
+            NullLogger<PlaylistAddAction>.Instance
+        );
+
+        // No "message" parameter set — the streamer never touched this field.
+        ActionResult result = await action.ExecuteAsync(
+            Ctx(),
+            Def("playlist_add", ("playlist_id", "playlist-1"))
+        );
+
+        result.Succeeded.Should().BeTrue();
+        result.Output.Should().Be("Added Current Song to the playlist.");
+        result.Output.Should().NotContain("playlist-1");
+        result.Output.Should().NotContain("spotify:track:");
+    }
+
+    [Fact]
     public async Task Playlist_add_without_a_playlist_id_fails_typed()
     {
         IMusicService music = Substitute.For<IMusicService>();
         IMusicProviderManageApi manage = Substitute.For<IMusicProviderManageApi>();
         IChatProvider chat = Substitute.For<IChatProvider>();
-        PlaylistAddAction action = new(music, manage, chat, NullLogger<PlaylistAddAction>.Instance);
+        PlaylistAddAction action = new(
+            music,
+            manage,
+            chat,
+            DiscordTemplateTestSupport.CreateResolver(),
+            NullLogger<PlaylistAddAction>.Instance
+        );
 
         ActionResult result = await action.ExecuteAsync(Ctx(), Def("playlist_add"));
 
