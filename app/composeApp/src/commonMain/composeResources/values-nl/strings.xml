@@ -3233,8 +3233,10 @@
     <string name="admin_channel_live">Live</string>
     <string name="admin_channel_offline">Offline</string>
     <string name="admin_channel_plan">Plan: %1$s</string>
+    <string name="admin_channel_search">Kanalen zoeken</string>
     <string name="admin_user_role">Rol: %1$s</string>
     <string name="admin_user_channels">Kanalen: %1$d</string>
+    <string name="admin_user_search">Gebruikers zoeken</string>
     <string name="admin_impersonate">Overnemen</string>
     <string name="admin_impersonate_title">%1$s overnemen?</string>
     <string name="admin_impersonate_desc">Dit maakt een echt, tijdelijk toegangstoken aan en wordt vastgelegd in het auditlog. Geef aan waarom je dit nodig hebt.</string>

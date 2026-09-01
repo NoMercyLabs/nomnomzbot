@@ -59,7 +59,9 @@ import kotlinx.datetime.Instant
 data class AdminState(
     val stats: AdminStats? = null,
     val channels: List<AdminChannel> = emptyList(),
+    val channelSearch: String = "",
     val users: List<AdminUser> = emptyList(),
+    val userSearch: String = "",
     val system: AdminSystem? = null,
     val health: List<AdminServiceHealth> = emptyList(),
     val events: List<PlatformEvent> = emptyList(),
@@ -179,6 +181,28 @@ class AdminController(
                 ?.error
                 ?.message,
         )
+    }
+
+    /** Re-fetches the channel list, narrowed by [search] against the channel's login or its owner's display
+     * name — the last-submitted search when [search] is omitted, so a page-size/status change re-applies it. */
+    suspend fun loadChannels(search: String? = null) {
+        val effectiveSearch: String = search ?: _state.value.channelSearch
+        _state.value = _state.value.copy(channelSearch = effectiveSearch)
+        when (val result = api.getChannels(search = effectiveSearch)) {
+            is ApiResult.Ok -> _state.value = _state.value.copy(channels = result.value.data)
+            is ApiResult.Failure -> _state.value = _state.value.copy(error = result.error.message)
+        }
+    }
+
+    /** Re-fetches the user list, narrowed by [search] against the user's login or display name — the
+     * last-submitted search when [search] is omitted. */
+    suspend fun loadUsers(search: String? = null) {
+        val effectiveSearch: String = search ?: _state.value.userSearch
+        _state.value = _state.value.copy(userSearch = effectiveSearch)
+        when (val result = api.getUsers(search = effectiveSearch)) {
+            is ApiResult.Ok -> _state.value = _state.value.copy(users = result.value.data)
+            is ApiResult.Failure -> _state.value = _state.value.copy(error = result.error.message)
+        }
     }
 
     /**

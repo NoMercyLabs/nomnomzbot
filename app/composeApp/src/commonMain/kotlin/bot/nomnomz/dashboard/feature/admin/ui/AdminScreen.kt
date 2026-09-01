@@ -22,8 +22,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
+import androidx.compose.ui.text.input.ImeAction
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Button
@@ -82,6 +85,8 @@ import nomnomzbot.composeapp.generated.resources.admin_channel_live
 import nomnomzbot.composeapp.generated.resources.admin_channel_offline
 import nomnomzbot.composeapp.generated.resources.admin_channel_plan
 import nomnomzbot.composeapp.generated.resources.admin_channel_row_type
+import nomnomzbot.composeapp.generated.resources.admin_channel_search
+import nomnomzbot.composeapp.generated.resources.admin_user_search
 import nomnomzbot.composeapp.generated.resources.admin_service_row_type
 import nomnomzbot.composeapp.generated.resources.admin_user_row_type
 import nomnomzbot.composeapp.generated.resources.admin_event_log
@@ -186,7 +191,7 @@ fun AdminScreen(controller: AdminController) {
 
         when (selectedTab) {
             0 -> OverviewTab(state = state)
-            1 -> ChannelsTab(state = state)
+            1 -> ChannelsTab(state = state, controller = controller)
             2 -> UsersTab(state = state, controller = controller)
             3 -> SystemTab(state = state)
             4 -> FeatureFlagsTab(state = state, controller = controller)
@@ -354,17 +359,29 @@ private fun OverviewTab(state: AdminState) {
 }
 
 @Composable
-private fun ChannelsTab(state: AdminState) {
+internal fun ChannelsTab(state: AdminState, controller: AdminController) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+    val scope = rememberCoroutineScope()
+    var searchText: String by remember { mutableStateOf(state.channelSearch) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(spacing.s4),
+        verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
+        AppTextField(
+            value = searchText,
+            onValueChange = { searchText = it },
+            label = stringResource(Res.string.admin_channel_search),
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { scope.launch { controller.loadChannels(search = searchText) } }),
+        )
+
         Card(modifier = Modifier.fillMaxWidth()) {
             Column {
                 state.channels.forEachIndexed { index, channel ->
@@ -407,17 +424,29 @@ private fun ChannelsTab(state: AdminState) {
 }
 
 @Composable
-private fun UsersTab(state: AdminState, controller: AdminController) {
+internal fun UsersTab(state: AdminState, controller: AdminController) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+    val scope = rememberCoroutineScope()
+    var searchText: String by remember { mutableStateOf(state.userSearch) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(spacing.s4),
+        verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
+        AppTextField(
+            value = searchText,
+            onValueChange = { searchText = it },
+            label = stringResource(Res.string.admin_user_search),
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { scope.launch { controller.loadUsers(search = searchText) } }),
+        )
+
         Card(modifier = Modifier.fillMaxWidth()) {
             Column {
                 state.users.forEachIndexed { index, user ->

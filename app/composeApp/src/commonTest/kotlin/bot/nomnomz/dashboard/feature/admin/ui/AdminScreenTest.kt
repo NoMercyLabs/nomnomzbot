@@ -12,9 +12,12 @@ package bot.nomnomz.dashboard.feature.admin.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performImeAction
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.runComposeUiTest
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
 import bot.nomnomz.dashboard.core.i18n.AppEnvironment
@@ -128,6 +131,51 @@ class AdminScreenTest {
         assertEquals(true, request.isEnabledGlobally, "tapping the off switch must flip it on")
         assertEquals(50, request.rolloutPercentage, "the existing rollout percentage must be preserved, not reset")
     }
+
+    // S-OWN08b: the admin Channels/Users lists had no search — unbounded, unsearchable on any real deployment.
+    // Proves submitting the search box actually reaches AdminApi.getChannels/getUsers with the typed value, not
+    // just that a text field renders.
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun submitting_the_channel_search_calls_get_channels_with_the_typed_value() {
+        val api = RecordingListSearchAdminApi()
+        val controller = AdminController(api = api, iamApi = NoopPlatformIamApi(), platformAdminApi = NoopPlatformAdminApi())
+
+        runComposeUiTest {
+            setContent {
+                EnglishContent {
+                    ChannelsTab(state = controller.state.value, controller = controller)
+                }
+            }
+
+            onAllNodes(matcher = hasSetTextAction())[0].performTextInput("pixelqueen")
+            onAllNodes(matcher = hasSetTextAction())[0].performImeAction()
+            waitForIdle()
+        }
+
+        assertEquals(listOf<String?>("pixelqueen"), api.channelSearchCalls, "the submitted search text must reach AdminApi.getChannels")
+    }
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun submitting_the_user_search_calls_get_users_with_the_typed_value() {
+        val api = RecordingListSearchAdminApi()
+        val controller = AdminController(api = api, iamApi = NoopPlatformIamApi(), platformAdminApi = NoopPlatformAdminApi())
+
+        runComposeUiTest {
+            setContent {
+                EnglishContent {
+                    UsersTab(state = controller.state.value, controller = controller)
+                }
+            }
+
+            onAllNodes(matcher = hasSetTextAction())[0].performTextInput("rockhound")
+            onAllNodes(matcher = hasSetTextAction())[0].performImeAction()
+            waitForIdle()
+        }
+
+        assertEquals(listOf<String?>("rockhound"), api.userSearchCalls, "the submitted search text must reach AdminApi.getUsers")
+    }
 }
 
 // ─── Fakes ─────────────────────────────────────────────────────────────────
@@ -139,9 +187,9 @@ private class RecordingFeatureFlagAdminApi(
     val setFeatureFlagCalls: MutableList<AdminSetFeatureFlagRequest> = mutableListOf()
 
     override suspend fun getStats(): ApiResult<AdminStats> = ApiResult.Ok(AdminStats(0, 0, 0, "ok", 0, 0))
-    override suspend fun getChannels(page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<AdminChannel>> =
+    override suspend fun getChannels(search: String?, page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<AdminChannel>> =
         ApiResult.Ok(PaginatedEnvelope(emptyList()))
-    override suspend fun getUsers(page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<AdminUser>> =
+    override suspend fun getUsers(search: String?, page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<AdminUser>> =
         ApiResult.Ok(PaginatedEnvelope(emptyList()))
     override suspend fun getSystem(): ApiResult<AdminSystem> = ApiResult.Ok(AdminSystem("ok", emptyList(), "1.0", 0, 0.0))
     override suspend fun getHealth(): ApiResult<List<AdminServiceHealth>> = ApiResult.Ok(emptyList())
@@ -164,6 +212,41 @@ private class RecordingFeatureFlagAdminApi(
         return ApiResult.Ok(updated)
     }
 
+    override suspend fun setFeatureFlagOverride(flagKey: String, broadcasterId: String, body: AdminSetFeatureFlagOverrideRequest): ApiResult<Unit> =
+        ApiResult.Ok(Unit)
+    override suspend fun deleteFeatureFlagOverride(flagKey: String, broadcasterId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun getInviteCodes(page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<InviteCode>> =
+        ApiResult.Ok(PaginatedEnvelope(emptyList()))
+    override suspend fun createInviteCode(body: AdminCreateInviteCodeRequest): ApiResult<InviteCode> =
+        ApiResult.Ok(InviteCode("id", "code", body.maxRedemptions, 0, body.grantsFoundersBadge))
+    override suspend fun revokeInviteCode(inviteCodeId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun grantTier(broadcasterId: String, body: AdminGrantTierRequest): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun grantFounderBadge(broadcasterId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun impersonate(subjectUserId: String, accessGrantId: String, justification: String): ApiResult<ImpersonationTokenDto> =
+        ApiResult.Failure(ApiError(500, null, "not stubbed"))
+    override suspend fun endImpersonation(accessGrantId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+}
+
+/** Records every search value AdminController forwards to [getChannels]/[getUsers] — S-OWN08b. */
+private class RecordingListSearchAdminApi : AdminApi {
+    val channelSearchCalls: MutableList<String?> = mutableListOf()
+    val userSearchCalls: MutableList<String?> = mutableListOf()
+
+    override suspend fun getStats(): ApiResult<AdminStats> = ApiResult.Ok(AdminStats(0, 0, 0, "ok", 0, 0))
+    override suspend fun getChannels(search: String?, page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<AdminChannel>> {
+        channelSearchCalls += search
+        return ApiResult.Ok(PaginatedEnvelope(emptyList()))
+    }
+    override suspend fun getUsers(search: String?, page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<AdminUser>> {
+        userSearchCalls += search
+        return ApiResult.Ok(PaginatedEnvelope(emptyList()))
+    }
+    override suspend fun getSystem(): ApiResult<AdminSystem> = ApiResult.Ok(AdminSystem("ok", emptyList(), "1.0", 0, 0.0))
+    override suspend fun getHealth(): ApiResult<List<AdminServiceHealth>> = ApiResult.Ok(emptyList())
+    override suspend fun getEvents(): ApiResult<List<PlatformEvent>> = ApiResult.Ok(emptyList())
+    override suspend fun getFeatureFlags(): ApiResult<List<FeatureFlag>> = ApiResult.Ok(emptyList())
+    override suspend fun setFeatureFlag(body: AdminSetFeatureFlagRequest): ApiResult<FeatureFlag> =
+        ApiResult.Failure(ApiError(500, null, "not stubbed"))
     override suspend fun setFeatureFlagOverride(flagKey: String, broadcasterId: String, body: AdminSetFeatureFlagOverrideRequest): ApiResult<Unit> =
         ApiResult.Ok(Unit)
     override suspend fun deleteFeatureFlagOverride(flagKey: String, broadcasterId: String): ApiResult<Unit> = ApiResult.Ok(Unit)

@@ -3247,8 +3247,10 @@
     <string name="admin_channel_live">Live</string>
     <string name="admin_channel_offline">Offline</string>
     <string name="admin_channel_plan">Plan: %1$s</string>
+    <string name="admin_channel_search">Search channels</string>
     <string name="admin_user_role">Role: %1$s</string>
     <string name="admin_user_channels">Channels: %1$d</string>
+    <string name="admin_user_search">Search users</string>
     <string name="admin_impersonate">Impersonate</string>
     <string name="admin_impersonate_title">Impersonate %1$s?</string>
     <string name="admin_impersonate_desc">This mints a real, time-boxed access token and is recorded in the audit log. State why you need it.</string>
