@@ -18,7 +18,16 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
+import bot.nomnomz.dashboard.core.network.PipelineBlastRadiusSummary
+import bot.nomnomz.dashboard.core.network.PipelineCatalogueRemote
+import bot.nomnomz.dashboard.core.network.PipelineDetail
+import bot.nomnomz.dashboard.core.network.PipelineSummary
+import bot.nomnomz.dashboard.core.network.PipelineTestRunBody
+import bot.nomnomz.dashboard.core.network.PipelinesApi
+import bot.nomnomz.dashboard.core.network.TestRunResult
 import bot.nomnomz.dashboard.core.network.UpdateAlertBody
+import bot.nomnomz.dashboard.core.network.UpdatePipelineBody
+import bot.nomnomz.dashboard.core.network.CreatePipelineBody
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -49,6 +58,7 @@ class AlertsControllerTest {
                         )
                     )
                 ),
+                FakePipelinesApi(),
             )
 
         controller.load()
@@ -69,6 +79,7 @@ class AlertsControllerTest {
             AlertsController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 RecordingAlertsApi(ApiResult.Ok(emptyList())),
+                FakePipelinesApi(),
             )
 
         controller.load()
@@ -82,6 +93,7 @@ class AlertsControllerTest {
             AlertsController(
                 FakeChannelsApi(ApiResult.Failure(ApiError(404, "NO_CHANNEL", "none onboarded"))),
                 RecordingAlertsApi(ApiResult.Ok(emptyList())),
+                FakePipelinesApi(),
             )
 
         controller.load()
@@ -95,6 +107,7 @@ class AlertsControllerTest {
             AlertsController(
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 RecordingAlertsApi(ApiResult.Failure(ApiError(500, "ERR", "boom"))),
+                FakePipelinesApi(),
             )
 
         controller.load()
@@ -108,7 +121,7 @@ class AlertsControllerTest {
         // post-write reload must surface it — proving create actually calls the api AND re-lists.
         val alertsApi = RecordingAlertsApi(ApiResult.Ok(emptyList()))
         val controller =
-            AlertsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), alertsApi)
+            AlertsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), alertsApi, FakePipelinesApi())
         controller.load()
         assertTrue(controller.state.value is AlertsState.Empty)
 
@@ -145,7 +158,7 @@ class AlertsControllerTest {
                 detailMessage = "old",
             )
         val controller =
-            AlertsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), alertsApi)
+            AlertsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), alertsApi, FakePipelinesApi())
         controller.load()
 
         controller.updateAlert(eventType = "channel.raid", message = "Welcome raiders!", isEnabled = true)
@@ -171,7 +184,7 @@ class AlertsControllerTest {
                 )
             )
         val controller =
-            AlertsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), alertsApi)
+            AlertsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), alertsApi, FakePipelinesApi())
         controller.load()
 
         controller.toggleAlert(eventType = "channel.cheer", enabled = false)
@@ -196,7 +209,7 @@ class AlertsControllerTest {
                 ApiResult.Ok(listOf(AlertSummary(id = "1", eventType = "channel.follow", isEnabled = true)))
             )
         val controller =
-            AlertsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), alertsApi)
+            AlertsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), alertsApi, FakePipelinesApi())
         controller.load()
         assertTrue(controller.state.value is AlertsState.Ready)
 
@@ -215,7 +228,7 @@ class AlertsControllerTest {
                 writeResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "no permission")),
             )
         val controller =
-            AlertsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), alertsApi)
+            AlertsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), alertsApi, FakePipelinesApi())
         controller.load()
 
         controller.deleteAlert(eventType = "channel.follow")
@@ -235,13 +248,70 @@ class AlertsControllerTest {
                 detailMessage = "Thanks for the follow!",
             )
         val controller =
-            AlertsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), alertsApi)
+            AlertsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), alertsApi, FakePipelinesApi())
         controller.load()
 
         val detail: AlertDetail? = controller.detail("channel.follow")
 
         assertEquals("channel.follow", detail?.eventType)
         assertEquals("Thanks for the follow!", detail?.message)
+    }
+
+    // S-OWN13: opening the edit dialog for a row bound to a pipeline must resolve THAT pipeline's real name,
+    // not open blank. detail() now carries the bound pipelineId (previously dropped by the DTO entirely), and
+    // pipelineName() resolves it against the channel's pipelines loaded alongside [load] — proving the fix by
+    // the resolved NAME the dialog would show, not merely that detail() didn't crash.
+    @Test
+    fun detail_carries_the_bound_pipeline_id_and_the_controller_resolves_its_real_name() = runTest {
+        val alertsApi =
+            RecordingAlertsApi(
+                ApiResult.Ok(
+                    listOf(
+                        AlertSummary(
+                            id = "1",
+                            eventType = "channel.raid",
+                            isEnabled = true,
+                            responseType = "pipeline",
+                        )
+                    )
+                ),
+                detailPipelineId = "pipe-42",
+            )
+        val pipelinesApi =
+            FakePipelinesApi(listOf(PipelineSummary(id = "pipe-42", name = "Raid welcome chain")))
+        val controller =
+            AlertsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), alertsApi, pipelinesApi)
+        controller.load()
+
+        val detail: AlertDetail? = controller.detail("channel.raid")
+
+        assertEquals("pipe-42", detail?.pipelineId)
+        assertEquals("Raid welcome chain", controller.pipelineName(detail?.pipelineId))
+    }
+
+    // A stale/deleted binding (the id no longer resolves against the loaded pipelines) must not crash or
+    // silently invent a name — the dialog falls back to an explicit "could not be resolved" state instead.
+    @Test
+    fun pipeline_name_is_null_when_the_bound_pipeline_no_longer_exists() = runTest {
+        val alertsApi =
+            RecordingAlertsApi(
+                ApiResult.Ok(
+                    listOf(AlertSummary(id = "1", eventType = "channel.raid", responseType = "pipeline"))
+                ),
+                detailPipelineId = "pipe-gone",
+            )
+        val controller =
+            AlertsController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                alertsApi,
+                FakePipelinesApi(listOf(PipelineSummary(id = "pipe-42", name = "Raid welcome chain"))),
+            )
+        controller.load()
+
+        val detail: AlertDetail? = controller.detail("channel.raid")
+
+        assertEquals("pipe-gone", detail?.pipelineId)
+        assertNull(controller.pipelineName(detail?.pipelineId))
     }
 
     @Test
@@ -252,7 +322,7 @@ class AlertsControllerTest {
                 detailResult = ApiResult.Failure(ApiError(500, "ERR", "detail boom")),
             )
         val controller =
-            AlertsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), alertsApi)
+            AlertsController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), alertsApi, FakePipelinesApi())
         controller.load()
 
         val detail: AlertDetail? = controller.detail("channel.follow")
@@ -293,6 +363,7 @@ private class RecordingAlertsApi(
     private val writeResult: ApiResult<Unit> = ApiResult.Ok(Unit),
     private val detailResult: ApiResult<AlertDetail>? = null,
     private val detailMessage: String? = null,
+    private val detailPipelineId: String? = null,
 ) : AlertsApi {
     private val listFailure: ApiError? = (initial as? ApiResult.Failure)?.error
     private val store: MutableList<AlertSummary> =
@@ -320,6 +391,7 @@ private class RecordingAlertsApi(
                     id = row.id,
                     eventType = row.eventType,
                     isEnabled = row.isEnabled,
+                    pipelineId = detailPipelineId,
                     responseType = row.responseType,
                     message = messages[eventType],
                 )
@@ -364,4 +436,25 @@ private class RecordingAlertsApi(
         }
         return writeResult
     }
+}
+
+// A minimal fake — [load] returns [pipelines] verbatim; every other member is unreachable from the Alerts
+// controller/dialog (which only resolves a bound pipeline's NAME) and errors loudly if ever called.
+private class FakePipelinesApi(private val pipelines: List<PipelineSummary> = emptyList()) : PipelinesApi {
+    override suspend fun list(channelId: String): ApiResult<List<PipelineSummary>> = ApiResult.Ok(pipelines)
+    override suspend fun catalogue(channelId: String): ApiResult<PipelineCatalogueRemote> = error("stub")
+    override suspend fun get(channelId: String, id: String): ApiResult<PipelineDetail> = error("stub")
+    override suspend fun create(channelId: String, body: CreatePipelineBody): ApiResult<Unit> = error("stub")
+    override suspend fun createReturning(channelId: String, body: CreatePipelineBody): ApiResult<PipelineDetail> =
+        error("stub")
+    override suspend fun update(channelId: String, id: String, body: UpdatePipelineBody): ApiResult<Unit> =
+        error("stub")
+    override suspend fun delete(channelId: String, id: String): ApiResult<Unit> = error("stub")
+    override suspend fun blastRadius(channelId: String, id: String): ApiResult<PipelineBlastRadiusSummary> =
+        error("stub")
+    override suspend fun testRun(
+        channelId: String,
+        id: String,
+        body: PipelineTestRunBody,
+    ): ApiResult<TestRunResult> = error("stub")
 }

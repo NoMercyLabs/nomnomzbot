@@ -1464,6 +1464,8 @@
     <string name="alerts_dialog_edit_title">Melding bewerken</string>
     <string name="alerts_dialog_event_label">Gebeurtenistype</string>
     <string name="alerts_dialog_message_label">Bericht</string>
+    <string name="alerts_dialog_pipeline_bound">Gekoppeld aan pipeline "%1$s" — bewerk de koppeling op de pagina Gebeurtenisreacties of Pipelines.</string>
+    <string name="alerts_dialog_pipeline_unresolved">Gekoppeld aan een pipeline die niet kon worden gevonden — controleer de pagina Gebeurtenisreacties.</string>
     <string name="alerts_dialog_enabled_label">Ingeschakeld</string>
     <string name="alerts_dialog_create">Aanmaken</string>
     <string name="alerts_dialog_save">Opslaan</string>

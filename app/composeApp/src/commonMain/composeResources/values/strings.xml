@@ -1467,6 +1467,8 @@
     <string name="alerts_dialog_edit_title">Edit alert</string>
     <string name="alerts_dialog_event_label">Event type</string>
     <string name="alerts_dialog_message_label">Message</string>
+    <string name="alerts_dialog_pipeline_bound">Bound to pipeline "%1$s" — edit the binding on the Event Responses or Pipelines page.</string>
+    <string name="alerts_dialog_pipeline_unresolved">Bound to a pipeline that could not be resolved — check the Event Responses page.</string>
     <string name="alerts_dialog_enabled_label">Enabled</string>
     <string name="alerts_dialog_create">Create</string>
     <string name="alerts_dialog_save">Save</string>
