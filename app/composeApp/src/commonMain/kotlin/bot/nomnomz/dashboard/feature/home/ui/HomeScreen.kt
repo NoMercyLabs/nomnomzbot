@@ -81,6 +81,7 @@ import bot.nomnomz.dashboard.core.designsystem.icon.RemoveGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.network.ActionRequiredItem
 import bot.nomnomz.dashboard.core.network.ActivityEvent
 import bot.nomnomz.dashboard.core.network.CommandSummary
 import bot.nomnomz.dashboard.core.network.DashboardStats
@@ -106,6 +107,9 @@ import nomnomzbot.composeapp.generated.resources.category_picker_placeholder
 import nomnomzbot.composeapp.generated.resources.channel_picker_empty
 import nomnomzbot.composeapp.generated.resources.channel_picker_label
 import nomnomzbot.composeapp.generated.resources.channel_picker_placeholder
+import nomnomzbot.composeapp.generated.resources.home_action_required_section
+import nomnomzbot.composeapp.generated.resources.home_action_required_severity_critical
+import nomnomzbot.composeapp.generated.resources.home_action_required_severity_warning
 import nomnomzbot.composeapp.generated.resources.home_activity_ban
 import nomnomzbot.composeapp.generated.resources.home_activity_cheer
 import nomnomzbot.composeapp.generated.resources.home_activity_empty
@@ -221,6 +225,9 @@ fun HomeScreen(
     chatPollsController: ChatPollsController,
     heldActionKeys: Set<String> = emptySet(),
     hubEvents: SharedFlow<HubEvent>? = null,
+    /** Navigates to a [bot.nomnomz.dashboard.feature.shell.nav.ShellRoute] name — fired when the streamer taps
+     * an action-required row. No-op by default; the shell wires the real navigation. */
+    onNavigate: (String) -> Unit = {},
 ) {
     val state: HomeState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
@@ -251,6 +258,7 @@ fun HomeScreen(
                     streamInfo = current.streamInfo,
                     activity = current.activity,
                     topCommands = current.topCommands,
+                    actionRequired = current.actionRequired,
                     streamError = current.streamError,
                     replayStatus = current.replayStatus,
                     liveOpsController = liveOpsController,
@@ -262,6 +270,7 @@ fun HomeScreen(
                     onSearchCategories = controller::searchCategories,
                     onSearchRaidTargets = controller::searchRaidTargets,
                     onReplay = { eventId -> scope.launch { controller.replay(eventId) } },
+                    onNavigate = onNavigate,
                 )
         }
     }
@@ -275,6 +284,7 @@ private fun ReadyContent(
     streamInfo: StreamInfo?,
     activity: List<ActivityEvent>,
     topCommands: List<CommandSummary>,
+    actionRequired: List<ActionRequiredItem>,
     streamError: String?,
     replayStatus: Map<String, ReplayStatus>,
     liveOpsController: LiveOpsController,
@@ -284,6 +294,7 @@ private fun ReadyContent(
     onSearchCategories: suspend (String) -> List<PickerOption>,
     onSearchRaidTargets: suspend (String) -> List<PickerOption>,
     onReplay: (eventId: String) -> Unit,
+    onNavigate: (String) -> Unit,
 ) {
     val spacing = LocalSpacing.current
     val scope = rememberCoroutineScope()
@@ -325,6 +336,12 @@ private fun ReadyContent(
             title = stringResource(Res.string.shell_nav_dashboard),
             subtitle = stringResource(Res.string.home_subtitle),
         )
+
+        // Real, already-detected conditions needing the streamer's attention — absent (not a fake "all good"
+        // banner) when nothing is wrong, per house rule: never show unenforced/fabricated positive state.
+        if (actionRequired.isNotEmpty()) {
+            ActionRequiredCard(items = actionRequired, onNavigate = onNavigate)
+        }
 
         LiveBanner(stats = stats)
         StatTilesRow(stats = stats)
@@ -569,6 +586,96 @@ private fun LiveBanner(stats: DashboardStats) {
             }
         }
     }
+    }
+}
+
+// ─── Action-required hero tile ────────────────────────────────────────────────
+
+// Real, already-detected conditions needing the streamer's attention (S071a backend / S071b tile). Every row
+// traces to a real signal (dead integration token, held AutoMod message, …) — never a fabricated positive.
+// Rendered only when [items] is non-empty; the caller skips the whole card on an empty list.
+@Composable
+private fun ActionRequiredCard(items: List<ActionRequiredItem>, onNavigate: (String) -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(spacing.s4),
+            verticalArrangement = Arrangement.spacedBy(spacing.s3),
+        ) {
+            Text(
+                text = stringResource(Res.string.home_action_required_section),
+                style = typography.sm,
+                color = tokens.mutedForeground,
+            )
+            items.forEach { item ->
+                ActionRequiredRow(item = item, onClick = { onNavigate(item.deepLinkRoute) })
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActionRequiredRow(item: ActionRequiredItem, onClick: () -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    // Only "critical" gets the destructive treatment (mirrors ActionErrorBanner's existing failure styling);
+    // every other severity ("warning", and anything the backend adds later) uses the accent highlight — no
+    // new colors invented, both already used elsewhere on this screen (destructive = write failures, accent =
+    // the raid/attention dot in the activity feed).
+    val isCritical: Boolean = item.severity == "critical"
+    val badgeBackground = if (isCritical) tokens.destructive else tokens.accent
+    val badgeForeground = if (isCritical) tokens.destructiveForeground else tokens.accentForeground
+    val severityLabel: String =
+        if (isCritical) {
+            stringResource(Res.string.home_action_required_severity_critical)
+        } else {
+            stringResource(Res.string.home_action_required_severity_warning)
+        }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(tokens.radius.md))
+            .clickable(onClick = onClick)
+            .padding(vertical = spacing.s2, horizontal = spacing.s1),
+        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(tokens.radius.sm))
+                .background(badgeBackground)
+                .padding(horizontal = spacing.s2, vertical = spacing.s0_5),
+        ) {
+            Text(
+                text = severityLabel.uppercase(),
+                style = typography.xs,
+                fontWeight = FontWeight.Bold,
+                color = badgeForeground,
+            )
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = item.title,
+                style = typography.sm,
+                fontWeight = FontWeight.SemiBold,
+                color = tokens.cardForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = item.message,
+                style = typography.xs,
+                color = tokens.mutedForeground,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 

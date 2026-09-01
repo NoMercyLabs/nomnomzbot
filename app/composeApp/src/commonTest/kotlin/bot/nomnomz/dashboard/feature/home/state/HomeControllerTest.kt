@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.feature.home.state
 
+import bot.nomnomz.dashboard.core.network.ActionRequiredItem
 import bot.nomnomz.dashboard.core.network.ActivityEvent
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
@@ -26,6 +27,7 @@ import bot.nomnomz.dashboard.core.network.ChannelSearchResult
 import bot.nomnomz.dashboard.core.network.ModeratedChannel
 import bot.nomnomz.dashboard.core.network.DashboardApi
 import bot.nomnomz.dashboard.core.network.DashboardStats
+import bot.nomnomz.dashboard.core.network.NotificationsApi
 import bot.nomnomz.dashboard.core.network.ReplayResult
 import bot.nomnomz.dashboard.core.network.StreamApi
 import bot.nomnomz.dashboard.core.network.StreamInfo
@@ -70,6 +72,7 @@ class HomeControllerTest {
                 streamApi = FakeStreamApi(),
                 commandsApi = FakeCommandsApi(),
                 communityApi = FakeCommunityApi(),
+                notificationsApi = FakeNotificationsApi(),
             )
 
         controller.load()
@@ -93,6 +96,7 @@ class HomeControllerTest {
                 streamApi = FakeStreamApi(),
                 commandsApi = FakeCommandsApi(),
                 communityApi = FakeCommunityApi(),
+                notificationsApi = FakeNotificationsApi(),
             )
 
         controller.load()
@@ -109,6 +113,7 @@ class HomeControllerTest {
                 streamApi = FakeStreamApi(),
                 commandsApi = FakeCommandsApi(),
                 communityApi = FakeCommunityApi(),
+                notificationsApi = FakeNotificationsApi(),
             )
 
         controller.load()
@@ -133,6 +138,7 @@ class HomeControllerTest {
                 streamApi = FakeStreamApi(),
                 commandsApi = FakeCommandsApi(ApiResult.Ok(commands)),
                 communityApi = FakeCommunityApi(),
+                notificationsApi = FakeNotificationsApi(),
             )
 
         controller.load()
@@ -163,6 +169,7 @@ class HomeControllerTest {
                 ),
                 commandsApi = FakeCommandsApi(),
                 communityApi = FakeCommunityApi(),
+                notificationsApi = FakeNotificationsApi(),
             )
         controller.load()
 
@@ -190,6 +197,7 @@ class HomeControllerTest {
                 streamApi = FakeStreamApi(),
                 commandsApi = FakeCommandsApi(),
                 communityApi = FakeCommunityApi(),
+                notificationsApi = FakeNotificationsApi(),
             )
         controller.load()
 
@@ -227,6 +235,7 @@ class HomeControllerTest {
                 streamApi = FakeStreamApi(),
                 commandsApi = FakeCommandsApi(),
                 communityApi = FakeCommunityApi(),
+                notificationsApi = FakeNotificationsApi(),
             )
         controller.load()
 
@@ -264,6 +273,7 @@ class HomeControllerTest {
             streamApi = FakeStreamApi(),
             commandsApi = FakeCommandsApi(),
             communityApi = FakeCommunityApi(),
+            notificationsApi = FakeNotificationsApi(),
         )
         controller.load()
 
@@ -288,6 +298,7 @@ class HomeControllerTest {
             streamApi = FakeStreamApi(),
             commandsApi = FakeCommandsApi(),
             communityApi = FakeCommunityApi(),
+            notificationsApi = FakeNotificationsApi(),
         )
         controller.load()
 
@@ -309,6 +320,7 @@ class HomeControllerTest {
             streamApi = FakeStreamApi(),
             commandsApi = FakeCommandsApi(),
             communityApi = FakeCommunityApi(),
+            notificationsApi = FakeNotificationsApi(),
         )
         controller.load()
 
@@ -334,6 +346,7 @@ class HomeControllerTest {
             streamApi = FakeStreamApi(),
             commandsApi = FakeCommandsApi(),
             communityApi = FakeCommunityApi(),
+            notificationsApi = FakeNotificationsApi(),
         )
         controller.load()
 
@@ -358,6 +371,7 @@ class HomeControllerTest {
                 streamApi = FakeStreamApi(),
                 commandsApi = FakeCommandsApi(ApiResult.Failure(ApiError(500, "ERR", "commands unavailable"))),
                 communityApi = FakeCommunityApi(),
+                notificationsApi = FakeNotificationsApi(),
             )
 
         controller.load()
@@ -365,6 +379,77 @@ class HomeControllerTest {
         val state: HomeState = controller.state.value
         assertTrue(state is HomeState.Ready)
         assertTrue((state as HomeState.Ready).topCommands.isEmpty())
+    }
+
+    @Test
+    fun load_surfaces_an_action_required_item_for_the_home_tile_to_render() = runTest {
+        val item = ActionRequiredItem(
+            kind = "integration_token_dead",
+            severity = "critical",
+            title = "Spotify token expired",
+            message = "Reconnect Spotify to keep song requests working.",
+            detectedAt = "2026-09-01T12:00:00Z",
+            deepLinkRoute = "Integrations",
+        )
+        val controller =
+            HomeController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                dashboardApi = FakeDashboardApi(ApiResult.Ok(DashboardStats())),
+                streamApi = FakeStreamApi(),
+                commandsApi = FakeCommandsApi(),
+                communityApi = FakeCommunityApi(),
+                notificationsApi = FakeNotificationsApi(ApiResult.Ok(listOf(item))),
+            )
+
+        controller.load()
+
+        val state: HomeState = controller.state.value
+        assertTrue(state is HomeState.Ready)
+        val actionRequired: List<ActionRequiredItem> = (state as HomeState.Ready).actionRequired
+        assertEquals(1, actionRequired.size)
+        assertEquals("Spotify token expired", actionRequired.first().title)
+        assertEquals("critical", actionRequired.first().severity)
+        assertEquals("Integrations", actionRequired.first().deepLinkRoute)
+    }
+
+    @Test
+    fun load_surfaces_no_action_required_items_when_nothing_needs_attention() = runTest {
+        val controller =
+            HomeController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                dashboardApi = FakeDashboardApi(ApiResult.Ok(DashboardStats())),
+                streamApi = FakeStreamApi(),
+                commandsApi = FakeCommandsApi(),
+                communityApi = FakeCommunityApi(),
+                notificationsApi = FakeNotificationsApi(ApiResult.Ok(emptyList())),
+            )
+
+        controller.load()
+
+        val state: HomeState = controller.state.value
+        assertTrue(state is HomeState.Ready)
+        assertTrue((state as HomeState.Ready).actionRequired.isEmpty())
+    }
+
+    @Test
+    fun load_survives_action_required_api_failure_and_shows_no_items() = runTest {
+        val controller =
+            HomeController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                dashboardApi = FakeDashboardApi(ApiResult.Ok(DashboardStats())),
+                streamApi = FakeStreamApi(),
+                commandsApi = FakeCommandsApi(),
+                communityApi = FakeCommunityApi(),
+                notificationsApi = FakeNotificationsApi(
+                    ApiResult.Failure(ApiError(500, "ERR", "notifications unavailable"))
+                ),
+            )
+
+        controller.load()
+
+        val state: HomeState = controller.state.value
+        assertTrue(state is HomeState.Ready)
+        assertTrue((state as HomeState.Ready).actionRequired.isEmpty())
     }
 }
 
@@ -445,6 +530,12 @@ private class FakeCommunityApi : CommunityApi {
 
     override suspend fun member(channelId: String, userId: String) =
         ApiResult.Ok(CommunityMember(id = userId))
+}
+
+private class FakeNotificationsApi(
+    private val result: ApiResult<List<ActionRequiredItem>> = ApiResult.Ok(emptyList()),
+) : NotificationsApi {
+    override suspend fun actionRequired(channelId: String): ApiResult<List<ActionRequiredItem>> = result
 }
 
 private class FakeCommandsApi(

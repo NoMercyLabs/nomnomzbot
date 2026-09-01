@@ -12,6 +12,7 @@ package bot.nomnomz.dashboard.feature.home.state
 
 import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
+import bot.nomnomz.dashboard.core.network.ActionRequiredItem
 import bot.nomnomz.dashboard.core.network.ActivityEvent
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.Category
@@ -22,6 +23,7 @@ import bot.nomnomz.dashboard.core.network.CommandsApi
 import bot.nomnomz.dashboard.core.network.CommunityApi
 import bot.nomnomz.dashboard.core.network.DashboardApi
 import bot.nomnomz.dashboard.core.network.DashboardStats
+import bot.nomnomz.dashboard.core.network.NotificationsApi
 import bot.nomnomz.dashboard.core.network.ReplayResult
 import bot.nomnomz.dashboard.core.network.StreamApi
 import bot.nomnomz.dashboard.core.network.StreamInfo
@@ -67,6 +69,7 @@ class HomeController(
     private val streamApi: StreamApi,
     private val commandsApi: CommandsApi,
     private val communityApi: CommunityApi,
+    private val notificationsApi: NotificationsApi,
     private val hubClient: DashboardHubClient? = null,
     private val baseUrl: () -> String? = { null },
     private val accessToken: () -> String? = { null },
@@ -130,11 +133,17 @@ class HomeController(
                         is ApiResult.Ok -> r.value.sortedByDescending { it.useCount }.take(5)
                         is ApiResult.Failure -> emptyList()
                     }
+                val actionRequired: List<ActionRequiredItem> =
+                    when (val r: ApiResult<List<ActionRequiredItem>> = notificationsApi.actionRequired(channel.id)) {
+                        is ApiResult.Ok -> r.value
+                        is ApiResult.Failure -> emptyList()
+                    }
                 _state.value = HomeState.Ready(
                     stats = statsResult.value,
                     streamInfo = streamInfo,
                     activity = activity,
                     topCommands = topCommands,
+                    actionRequired = actionRequired,
                 )
             }
         }
@@ -313,6 +322,9 @@ sealed interface HomeState {
         val streamInfo: StreamInfo? = null,
         val activity: List<ActivityEvent> = emptyList(),
         val topCommands: List<CommandSummary> = emptyList(),
+        /** Real, already-detected conditions needing the streamer's attention — empty when nothing is wrong,
+         * never a fabricated "all good" positive. Renders as the Home hero tile only when non-empty. */
+        val actionRequired: List<ActionRequiredItem> = emptyList(),
         /** Non-null when the last [HomeController.updateStreamInfo] call failed. */
         val streamError: String? = null,
         /** Per-[ActivityEvent.id] outcome of the last Replay click on that row — absent = never replayed this session. */
