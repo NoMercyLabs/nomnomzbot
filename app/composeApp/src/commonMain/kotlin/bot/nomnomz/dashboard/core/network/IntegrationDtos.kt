@@ -96,8 +96,9 @@ data class IntegrationStatus(
 
 /**
  * A channel's stored Spotify BYOC read-model (`GET …/integrations/spotify/credentials` →
- * StatusResponseDto<ChannelSpotifyCredentialsDto>). [clientId] is safe to show (null when the channel has no
- * own client registered — it then runs on the app-level default); the secret is NEVER returned, only whether
+ * StatusResponseDto<ChannelSpotifyCredentialsDto>). [clientId] is safe to show (null when the channel has not
+ * registered its own client — Spotify has no app-level fallback (S-OWN10: the bot never hosts a shared
+ * Spotify app), so this is the ONLY Spotify credential source); the secret is NEVER returned, only whether
  * one is configured.
  */
 @Serializable

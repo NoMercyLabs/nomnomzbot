@@ -174,7 +174,6 @@ import bot.nomnomz.dashboard.feature.vts.state.VtsController
 import bot.nomnomz.dashboard.feature.economy.state.EconomyController
 import bot.nomnomz.dashboard.feature.home.state.HomeController
 import bot.nomnomz.dashboard.feature.integrations.state.IntegrationsController
-import bot.nomnomz.dashboard.feature.integrations.state.SpotifyChannelCredentialsController
 import bot.nomnomz.dashboard.feature.eventresponses.state.EventResponsesController
 import bot.nomnomz.dashboard.feature.games.state.GamesController
 import bot.nomnomz.dashboard.feature.giveaways.state.GiveawaysController
@@ -420,14 +419,6 @@ class AppGraph {
             // Web = served by an origin; desktop = null. Desktop must route the scope re-grant through the
             // device flow (its system browser carries no dashboard cookie, so a redirect can't widen scopes).
             isWeb = servedOriginProfile() != null,
-        )
-
-    val spotifyChannelCredentialsController: SpotifyChannelCredentialsController =
-        SpotifyChannelCredentialsController(
-            channelsApi = channelsApi,
-            integrationsApi = integrationsApi,
-            sessionStore = sessionStore,
-            feedback = feedbackController,
         )
 
     val channelProvisioningApi: ChannelProvisioningApi = RestChannelProvisioningApi(apiClient)
