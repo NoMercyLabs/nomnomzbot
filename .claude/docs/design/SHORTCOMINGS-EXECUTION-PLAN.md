@@ -25,6 +25,20 @@ Owner's own words, filed as slices S-OWN01..S-OWN19. 🔴 = owner-marked priorit
 order. Each still gets the normal treatment (root-cause fix, tested, committed, deleted from here
 when done) — this section is only the intake, not a shortcut around the bar.
 
+- 🔴 **S-OWN20** — the media-share/GIF chat overlay renders a broken green-screen placeholder image
+  instead of the real resolved GIF (owner screenshot: viewer "Kanawanagasaki" posts a caption
+  "[Cat Festival GIF by W&W]" then a solid-green background with a brown rock/potato-shaped blob
+  where the GIF should be). Owner: "this is very wrong and is a priority fix." Filed 2026-09-01,
+  investigation dispatched.
+- 🔴 **S-OWN21** — Spotify `!sr` and YouTube `!sr` need "message replacement for its og widget body"
+  (owner's words) — the song-request confirmation isn't correctly updating/replacing the
+  now-playing widget's original body content. Filed alongside S-OWN20, same dispatch.
+- 🔴 **S-OWN22** — the OBS control widget (`obs-bridge?token=...`) has never worked: its inline
+  `<script>` is blocked by CSP (`script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' https://esm.sh
+  https://cdn.jsdelivr.net` — no `'unsafe-inline'`, no nonce/hash match) per the owner's DevTools
+  console screenshot 2026-09-01 ("and this is my obs control widget, no wonder it never worked!").
+  Owner: finish other in-flight work first, then take this.
+
 - **S-OWN08-remaining** — admin pages (SaaS management: users, providers, settings) UX/DX pass. Owner: "the
   admin pages have not changed one bit and really need a better ux and dx interface for managing the saas
   version of the bot. this includes the ability to manage users, providers, and other settings." First slice
