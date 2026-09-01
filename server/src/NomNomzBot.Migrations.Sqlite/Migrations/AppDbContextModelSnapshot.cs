@@ -2093,6 +2093,12 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("FilesJson")
                         .HasColumnType("TEXT");
 
@@ -2104,6 +2110,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
 
                     b.Property<string>("SourceCode")
                         .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("ValidationErrorsJson")

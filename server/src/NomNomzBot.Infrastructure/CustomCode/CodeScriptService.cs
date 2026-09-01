@@ -146,7 +146,6 @@ public sealed class CodeScriptService(
             script,
             1,
             request.SourceCode,
-            now,
             cancellationToken
         );
         db.CodeScriptVersions.Add(version);
@@ -186,7 +185,6 @@ public sealed class CodeScriptService(
             script,
             nextVersion + 1,
             request.SourceCode,
-            now,
             cancellationToken
         );
         db.CodeScriptVersions.Add(version);
@@ -278,6 +276,40 @@ public sealed class CodeScriptService(
         );
     }
 
+    /// <summary>
+    /// Soft-deletes one saved version so it drops out of <see cref="ListVersionsAsync"/> (S-OWN06: the owner
+    /// needs to prune old versions from the history list). The row is retained — never hard-deleted, matching
+    /// every other soft-deletable entity — so it stays available via <c>IgnoreQueryFilters</c> for audit. The
+    /// currently published version (<see cref="CodeScript.CurrentVersionId"/>) can never be deleted: that would
+    /// orphan the live hot-swap pointer the <c>run_code</c> pipeline action reads.
+    /// </summary>
+    public async Task<Result> DeleteVersionAsync(
+        Guid codeScriptId,
+        Guid codeScriptVersionId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        CodeScript? script = await LoadAsync(codeScriptId, cancellationToken);
+        if (script is null)
+            return Result.Failure("Script not found.", "NOT_FOUND");
+
+        CodeScriptVersion? version = await db.CodeScriptVersions.FirstOrDefaultAsync(
+            v => v.Id == codeScriptVersionId && v.CodeScriptId == script.Id,
+            cancellationToken
+        );
+        if (version is null)
+            return Result.Failure("Version not found.", "NOT_FOUND");
+        if (script.CurrentVersionId == version.Id)
+            return Result.Failure(
+                "Can't delete the version this script currently runs. Publish a different version first.",
+                "VERSION_IS_PUBLISHED"
+            );
+
+        db.CodeScriptVersions.Remove(version); // soft-delete via SoftDeleteInterceptor
+        await db.SaveChangesAsync(cancellationToken);
+        return Result.Success();
+    }
+
     public async Task<Result<ProjectDto>> GetProjectAsync(
         Guid codeScriptId,
         CancellationToken cancellationToken = default
@@ -345,7 +377,6 @@ public sealed class CodeScriptService(
             nextVersion + 1,
             project.Files,
             manifest,
-            now,
             cancellationToken
         );
         if (version.ValidationStatus != "valid")
@@ -405,7 +436,6 @@ public sealed class CodeScriptService(
         CodeScript script,
         int versionNumber,
         string sourceCode,
-        DateTime now,
         CancellationToken ct
     )
     {
@@ -416,19 +446,19 @@ public sealed class CodeScriptService(
             "typescript",
             sourceCode
         );
-        return BuildVersionFromProjectAsync(script, versionNumber, files, manifest, now, ct);
+        return BuildVersionFromProjectAsync(script, versionNumber, files, manifest, ct);
     }
 
     // Compiles a script version from a multi-file project: the manifest entry's content is what the executor
     // validate-on-saves, while the WHOLE file set + manifest are stored so a later editor round-trips them. The caller
     // guarantees the entry exists (ProjectValidation). Compiled output + serving contract are unchanged from the
     // single-file path — this is the one place a CodeScriptVersion's compiled/validation fields are populated.
+    // CreatedAt/UpdatedAt are stamped by AuditableEntityInterceptor on save, not here.
     private async Task<CodeScriptVersion> BuildVersionFromProjectAsync(
         CodeScript script,
         int versionNumber,
         IReadOnlyDictionary<string, string> files,
         ProjectManifest manifest,
-        DateTime now,
         CancellationToken ct
     )
     {
@@ -443,7 +473,6 @@ public sealed class CodeScriptService(
             SourceCode = entryContent,
             FilesJson = ProjectJson.SerializeFiles(files),
             ManifestJson = ProjectJson.SerializeManifest(manifest),
-            CreatedAt = now,
         };
         if (compiled.IsSuccess)
         {

@@ -26,7 +26,8 @@ public class CodeScriptVersionConfiguration : IEntityTypeConfiguration<CodeScrip
         builder.HasIndex(e => e.BroadcasterId);
         builder.HasIndex(e => e.CompiledHash);
         builder.HasIndex(e => e.ValidationStatus);
-        // One row per (script, version) — append-only, not soft-deletable, so a true unique.
+        // One row per (script, version) — append-only, version numbers are never reused even after a
+        // soft delete, so this stays a true unique regardless of DeletedAt (S-OWN06).
         builder.HasIndex(e => new { e.CodeScriptId, e.Version }).IsUnique();
     }
 }
