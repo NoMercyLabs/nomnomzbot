@@ -50,12 +50,14 @@ in §4.2. Foundation = `androidx.compose.foundation`; M3 = a themed `androidx.co
 
 **Build status (as-built, `core/designsystem/component/`):** built — `Button`, `Textarea`, `Switch`, `DropdownMenu`,
 `Dialog`, `Sheet`, `Tooltip`, `Card`, `Badge`, `Separator`, `Progress`, `Spinner`, `Tabs`, `Slider`, `Stepper`,
-`Alert`, `Label`, `Skeleton` (S051a). `Checkbox` was already built (`SelectionControls.kt`, alongside
-`RadioButton`) prior to this manifest catching up — it satisfies the row above; a follow-up may split it into
-its own `Checkbox.kt` for one-file-per-component, but there is no functional gap to close.
-**To build** (catalogued, no file yet) — `Avatar`, `Combobox`, `Input`, `Popover`,
-`RadioGroup`, `ScrollArea`, `Select`, `Table`, `Toast` (9). Until `Input` lands, `AppTextField`
-(Patterns) is the text-field primitive in use.
+`Alert`, `Label`, `Skeleton` (S051a); `Input`, `RadioGroup` (+ `RadioItem`), `Toast` (S051b). `Checkbox` was
+already built (`SelectionControls.kt`, alongside `RadioButton`) prior to the S051a manifest catching up — it
+satisfies the row above; a follow-up may split it into its own `Checkbox.kt` for one-file-per-component, but
+there is no functional gap to close. `RadioGroup`/`RadioItem` (`RadioGroup.kt`) is a group wrapper over the
+existing `RadioButton` indicator, not a duplicate. `Toast` (`Toast.kt`) is the primitive now rendered by the
+app-shell's `FeedbackHost` (`core/feedback/`), which previously inlined the same banner — `FeedbackHost` was
+refactored onto the catalogued primitive rather than kept as a second, undeclared implementation.
+**To build** (catalogued, no file yet) — `Avatar`, `Combobox`, `Popover`, `ScrollArea`, `Select`, `Table` (6).
 
 ---
 

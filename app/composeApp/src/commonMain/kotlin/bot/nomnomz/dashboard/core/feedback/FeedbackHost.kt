@@ -15,16 +15,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -33,20 +26,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.liveRegion
-import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
-import androidx.compose.material3.Text
+import bot.nomnomz.dashboard.core.designsystem.component.Toast
+import bot.nomnomz.dashboard.core.designsystem.component.ToastVariant
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
-import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
-import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
-import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
 import kotlinx.coroutines.delay
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_dismiss
@@ -62,14 +44,9 @@ import org.jetbrains.compose.resources.stringResource
 // user dismisses it, so a failure is never missed. a11y: the banner is an assertive liveRegion, so a screen
 // reader announces the outcome the moment it appears, and the dismiss control carries its own label.
 //
-// This is a Sonner-style toast (design-system catalogue: `Toast` modeled on shadcn's Sonner). Colors come
-// from tokens only — Success/Info ride the neutral primary surface, Error rides `destructive` — and dp from
-// the spacing scale; no raw hex/dp.
+// This host renders the design-system `Toast` primitive (core/designsystem/component/Toast.kt) —
+// modeled on shadcn's Sonner. Colors, width cap, and dp all come from that primitive's tokens.
 private const val AUTO_DISMISS_MS: Long = 4_000L
-
-// A readability cap on the banner width (a layout constraint, like the shell's CompactBreakpoint — not a
-// spacing token), so a long error doesn't stretch edge-to-edge on a wide desktop window.
-private val MaxBannerWidth: Dp = 480.dp
 
 @Composable
 fun FeedbackHost(
@@ -109,7 +86,7 @@ fun FeedbackHost(
             exit = slideOutVertically { full -> -full } + fadeOut(),
         ) {
             shown?.let { message ->
-                FeedbackBanner(
+                FeedbackToast(
                     message = message,
                     onDismiss = { if (current === message) current = null },
                     modifier = Modifier.padding(spacing.s4),
@@ -120,59 +97,26 @@ fun FeedbackHost(
 }
 
 @Composable
-private fun FeedbackBanner(
+private fun FeedbackToast(
     message: FeedbackMessage,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val tokens: Tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    val container: Color =
+    val variant: ToastVariant =
         when (message.kind) {
-            FeedbackKind.Error -> tokens.destructive
-            FeedbackKind.Success, FeedbackKind.Info -> tokens.primary
-        }
-    val content: Color =
-        when (message.kind) {
-            FeedbackKind.Error -> tokens.destructiveForeground
-            FeedbackKind.Success, FeedbackKind.Info -> tokens.primaryForeground
+            FeedbackKind.Error -> ToastVariant.Destructive
+            FeedbackKind.Success, FeedbackKind.Info -> ToastVariant.Default
         }
 
     // Resolve the localized template + args here (i18n: the bus never carries a rendered string).
     val text: String = stringResource(message.label, *message.formatArgs.toTypedArray())
     val dismissLabel: String = stringResource(Res.string.feedback_dismiss)
 
-    Row(
-        modifier = modifier
-            .widthIn(max = MaxBannerWidth)
-            .clip(RoundedCornerShape(tokens.radius.lg))
-            .background(container)
-            // Assertive so the outcome is announced immediately, regardless of which page is focused.
-            .semantics { liveRegion = LiveRegionMode.Assertive }
-            .padding(horizontal = spacing.s4, vertical = spacing.s3),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
-    ) {
-        Text(
-            text = text,
-            style = typography.sm,
-            color = content,
-            maxLines = 3,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(end = spacing.s1),
-        )
-        Text(
-            text = dismissLabel,
-            style = typography.sm,
-            color = content,
-            maxLines = 1,
-            modifier = Modifier
-                .clip(RoundedCornerShape(tokens.radius.sm))
-                .clickable(onClick = onDismiss)
-                .semantics { contentDescription = dismissLabel }
-                .padding(horizontal = spacing.s2, vertical = spacing.s1),
-        )
-    }
+    Toast(
+        text = text,
+        dismissLabel = dismissLabel,
+        onDismiss = onDismiss,
+        modifier = modifier,
+        variant = variant,
+    )
 }
