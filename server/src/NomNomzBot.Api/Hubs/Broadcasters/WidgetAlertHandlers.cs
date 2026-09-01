@@ -56,6 +56,24 @@ internal static class WidgetAlertDispatch
             .ToListAsync(cancellationToken);
 
         List<Widget> subscribers = WidgetAlertRouting.Subscribers(widgets, eventType).ToList();
+
+        // Push to every subscribed browser source FIRST — before the replay-log write below. The capture is
+        // a fire-and-record concern for the dashboard's later "Replay" action; it has no bearing on what the
+        // viewer sees on stream, but its own SaveChanges + prune-select + prune-delete are three synchronous
+        // DB round-trips. Gating the SignalR push behind those added real, measurable latency to every widget
+        // push — on the SelfHostLite/SQLite dev+default profile, single-writer contention makes it worse
+        // still — while the sibling automation stream (AutomationEventBridgeHandler, S-OWN15) fans the exact
+        // same tick out to the Stream Deck plugin's `song.changed` subscribers with zero DB access, landing
+        // first every time. Reordering costs nothing: the capture is still written every tick it always was,
+        // just after the thing a human is actually watching for.
+        foreach (Widget widget in subscribers)
+            await notifier.SendWidgetEventAsync(
+                broadcasterId.ToString(),
+                widget.Id.ToString(),
+                new(widget.Id.ToString(), eventType, data),
+                cancellationToken
+            );
+
         // Same exclusion DashboardController.GetActivity applies to the feed itself (chat never shows there) —
         // applied here too, one step earlier: a shared per-broadcaster ring buffer that also captured
         // "ChatMessage" filled its 40 slots with ordinary chat traffic within seconds on any active channel,
@@ -71,14 +89,6 @@ internal static class WidgetAlertDispatch
                 eventType,
                 data,
                 channelEventId,
-                cancellationToken
-            );
-
-        foreach (Widget widget in subscribers)
-            await notifier.SendWidgetEventAsync(
-                broadcasterId.ToString(),
-                widget.Id.ToString(),
-                new(widget.Id.ToString(), eventType, data),
                 cancellationToken
             );
     }
