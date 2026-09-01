@@ -85,4 +85,18 @@ public interface IOutboundWebhookEndpointService
         Guid endpointId,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// Manually replays ONE specific delivery using its already-stored <c>RenderedBody</c> (webhooks.md §5.1
+    /// follow-up) — never re-renders from the current template, so the operator resends exactly what was going
+    /// to be sent at the time. NOT_FOUND when the delivery does not exist under this endpoint/tenant. Refused
+    /// with ENDPOINT_DISABLED when the endpoint is currently disabled — re-enabling is a separate explicit
+    /// action (<see cref="ReenableAsync"/>), never implied by retrying one delivery.
+    /// </summary>
+    Task<Result<OutboundWebhookDeliveryDto>> RetryDeliveryAsync(
+        Guid broadcasterId,
+        Guid endpointId,
+        long deliveryId,
+        CancellationToken ct = default
+    );
 }

@@ -15,6 +15,7 @@ using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Webhooks;
 using NomNomzBot.Application.DTOs.Webhooks;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Domain.Platform.Events;
@@ -42,7 +43,8 @@ public sealed class OutboundWebhookEndpointServiceTests
     private static (
         OutboundWebhookEndpointService Sut,
         AuthDbContext Db,
-        RecordingEventBus Bus
+        RecordingEventBus Bus,
+        IOutboundWebhookDispatcher Dispatcher
     ) Build()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
@@ -63,10 +65,32 @@ public sealed class OutboundWebhookEndpointServiceTests
             .Returns(Result.Success(Guid.Parse("0192a000-0000-7000-8000-0000000000cc")));
         RecordingEventBus bus = new();
         ITemplateHelperValidator templateHelperValidator = new TemplateHelperValidator();
+        // The real dispatcher mutates the delivery's Status/NextRetryAt in place AND returns the resulting
+        // status (OutboundWebhookDispatcher.AttemptDeliveryAsync) — the mock mirrors both halves of that
+        // contract so a caller reading either the returned status or the delivery entity sees the same thing.
+        IOutboundWebhookDispatcher dispatcher = Substitute.For<IOutboundWebhookDispatcher>();
+        dispatcher
+            .AttemptDeliveryAsync(Arg.Any<OutboundWebhookDelivery>(), Arg.Any<CancellationToken>())
+            .Returns(ci =>
+            {
+                OutboundWebhookDelivery delivery = ci.ArgAt<OutboundWebhookDelivery>(0);
+                delivery.Status = WebhookDeliveryStatus.Delivered;
+                delivery.NextRetryAt = null;
+                return Task.FromResult(Result.Success(WebhookDeliveryStatus.Delivered));
+            });
         return (
-            new(db, protector, keys, new FakeTimeProvider(Now), bus, templateHelperValidator),
+            new(
+                db,
+                protector,
+                keys,
+                new FakeTimeProvider(Now),
+                bus,
+                templateHelperValidator,
+                dispatcher
+            ),
             db,
-            bus
+            bus,
+            dispatcher
         );
     }
 
@@ -105,7 +129,7 @@ public sealed class OutboundWebhookEndpointServiceTests
     [Fact]
     public async Task Create_fails_closed_without_an_egress_allowlist_row()
     {
-        (OutboundWebhookEndpointService sut, _, RecordingEventBus bus) = Build();
+        (OutboundWebhookEndpointService sut, _, RecordingEventBus bus, _) = Build();
 
         Result<OutboundWebhookEndpointCreatedDto> result = await sut.CreateAsync(
             Channel,
@@ -120,7 +144,7 @@ public sealed class OutboundWebhookEndpointServiceTests
     [Fact]
     public async Task Create_seals_the_secret_pins_the_allowlist_and_reveals_plaintext_once()
     {
-        (OutboundWebhookEndpointService sut, AuthDbContext db, RecordingEventBus bus) = Build();
+        (OutboundWebhookEndpointService sut, AuthDbContext db, RecordingEventBus bus, _) = Build();
         await SeedAllowlistAsync(db);
 
         OutboundWebhookEndpointCreatedDto created = (
@@ -145,7 +169,7 @@ public sealed class OutboundWebhookEndpointServiceTests
     [Fact]
     public async Task Create_rejects_a_JSON_declared_body_template_that_fails_to_parse()
     {
-        (OutboundWebhookEndpointService sut, AuthDbContext db, RecordingEventBus bus) = Build();
+        (OutboundWebhookEndpointService sut, AuthDbContext db, RecordingEventBus bus, _) = Build();
         await SeedAllowlistAsync(db);
         CreateOutboundWebhookRequest request = new()
         {
@@ -173,7 +197,7 @@ public sealed class OutboundWebhookEndpointServiceTests
     [Fact]
     public async Task Create_accepts_a_body_template_declared_as_non_JSON_even_if_malformed_as_JSON()
     {
-        (OutboundWebhookEndpointService sut, AuthDbContext db, _) = Build();
+        (OutboundWebhookEndpointService sut, AuthDbContext db, _, _) = Build();
         await SeedAllowlistAsync(db);
         CreateOutboundWebhookRequest request = new()
         {
@@ -197,7 +221,7 @@ public sealed class OutboundWebhookEndpointServiceTests
     [Fact]
     public async Task Create_rejects_a_body_template_with_an_unknown_helper_key()
     {
-        (OutboundWebhookEndpointService sut, AuthDbContext db, RecordingEventBus bus) = Build();
+        (OutboundWebhookEndpointService sut, AuthDbContext db, RecordingEventBus bus, _) = Build();
         await SeedAllowlistAsync(db);
         CreateOutboundWebhookRequest request = new()
         {
@@ -225,7 +249,7 @@ public sealed class OutboundWebhookEndpointServiceTests
     [Fact]
     public async Task Create_saves_a_body_template_whose_helper_keys_are_all_valid()
     {
-        (OutboundWebhookEndpointService sut, AuthDbContext db, RecordingEventBus bus) = Build();
+        (OutboundWebhookEndpointService sut, AuthDbContext db, RecordingEventBus bus, _) = Build();
         await SeedAllowlistAsync(db);
         CreateOutboundWebhookRequest request = new()
         {
@@ -256,7 +280,7 @@ public sealed class OutboundWebhookEndpointServiceTests
     [Fact]
     public async Task Update_rejects_a_body_template_with_an_unknown_helper_key()
     {
-        (OutboundWebhookEndpointService sut, AuthDbContext db, _) = Build();
+        (OutboundWebhookEndpointService sut, AuthDbContext db, _, _) = Build();
         await SeedAllowlistAsync(db);
         OutboundWebhookEndpointCreatedDto created = (
             await sut.CreateAsync(Channel, Actor, Req())
@@ -284,7 +308,7 @@ public sealed class OutboundWebhookEndpointServiceTests
     [Fact]
     public async Task Update_rejects_a_JSON_declared_body_template_that_fails_to_parse()
     {
-        (OutboundWebhookEndpointService sut, AuthDbContext db, _) = Build();
+        (OutboundWebhookEndpointService sut, AuthDbContext db, _, _) = Build();
         await SeedAllowlistAsync(db);
         OutboundWebhookEndpointCreatedDto created = (
             await sut.CreateAsync(Channel, Actor, Req())
@@ -312,7 +336,7 @@ public sealed class OutboundWebhookEndpointServiceTests
     [Fact]
     public void GetEventCatalogue_returns_curated_subscribable_business_events()
     {
-        (OutboundWebhookEndpointService sut, _, _) = Build();
+        (OutboundWebhookEndpointService sut, _, _, _) = Build();
 
         Result<IReadOnlyList<OutboundWebhookEventCatalogueEntry>> result = sut.GetEventCatalogue();
 
@@ -334,7 +358,7 @@ public sealed class OutboundWebhookEndpointServiceTests
     [Fact]
     public async Task Create_accepts_a_valid_catalogue_subset()
     {
-        (OutboundWebhookEndpointService sut, AuthDbContext db, _) = Build();
+        (OutboundWebhookEndpointService sut, AuthDbContext db, _, _) = Build();
         await SeedAllowlistAsync(db);
 
         Result<OutboundWebhookEndpointCreatedDto> result = await sut.CreateAsync(
@@ -352,7 +376,7 @@ public sealed class OutboundWebhookEndpointServiceTests
     [Fact]
     public async Task Create_accepts_the_wildcard_subscription()
     {
-        (OutboundWebhookEndpointService sut, AuthDbContext db, _) = Build();
+        (OutboundWebhookEndpointService sut, AuthDbContext db, _, _) = Build();
         await SeedAllowlistAsync(db);
 
         Result<OutboundWebhookEndpointCreatedDto> result = await sut.CreateAsync(
@@ -368,7 +392,7 @@ public sealed class OutboundWebhookEndpointServiceTests
     [Fact]
     public async Task Create_rejects_an_unknown_event_type_naming_the_offender()
     {
-        (OutboundWebhookEndpointService sut, AuthDbContext db, RecordingEventBus bus) = Build();
+        (OutboundWebhookEndpointService sut, AuthDbContext db, RecordingEventBus bus, _) = Build();
         await SeedAllowlistAsync(db);
 
         Result<OutboundWebhookEndpointCreatedDto> result = await sut.CreateAsync(
@@ -386,7 +410,7 @@ public sealed class OutboundWebhookEndpointServiceTests
     [Fact]
     public async Task Create_rejects_a_webhook_lifecycle_event_type_deny_list()
     {
-        (OutboundWebhookEndpointService sut, AuthDbContext db, _) = Build();
+        (OutboundWebhookEndpointService sut, AuthDbContext db, _, _) = Build();
         await SeedAllowlistAsync(db);
 
         Result<OutboundWebhookEndpointCreatedDto> result = await sut.CreateAsync(
@@ -404,7 +428,7 @@ public sealed class OutboundWebhookEndpointServiceTests
     [Fact]
     public async Task Update_rejects_an_unknown_event_type()
     {
-        (OutboundWebhookEndpointService sut, AuthDbContext db, _) = Build();
+        (OutboundWebhookEndpointService sut, AuthDbContext db, _, _) = Build();
         await SeedAllowlistAsync(db);
         Guid endpointId = (await sut.CreateAsync(Channel, Actor, Req())).Value.Endpoint.Id;
 
@@ -427,7 +451,7 @@ public sealed class OutboundWebhookEndpointServiceTests
     [Fact]
     public async Task RotateSecret_promotes_the_primary_to_secondary_and_mints_a_new_primary()
     {
-        (OutboundWebhookEndpointService sut, AuthDbContext db, _) = Build();
+        (OutboundWebhookEndpointService sut, AuthDbContext db, _, _) = Build();
         await SeedAllowlistAsync(db);
         OutboundWebhookEndpointCreatedDto created = (
             await sut.CreateAsync(Channel, Actor, Req())
@@ -447,7 +471,7 @@ public sealed class OutboundWebhookEndpointServiceTests
     [Fact]
     public async Task Reenable_clears_the_failure_counters()
     {
-        (OutboundWebhookEndpointService sut, AuthDbContext db, _) = Build();
+        (OutboundWebhookEndpointService sut, AuthDbContext db, _, _) = Build();
         await SeedAllowlistAsync(db);
         OutboundWebhookEndpointCreatedDto created = (
             await sut.CreateAsync(Channel, Actor, Req())
@@ -469,7 +493,7 @@ public sealed class OutboundWebhookEndpointServiceTests
     [Fact]
     public async Task SendTest_is_unavailable_pending_the_egress_client()
     {
-        (OutboundWebhookEndpointService sut, AuthDbContext db, _) = Build();
+        (OutboundWebhookEndpointService sut, AuthDbContext db, _, _) = Build();
         await SeedAllowlistAsync(db);
         OutboundWebhookEndpointCreatedDto created = (
             await sut.CreateAsync(Channel, Actor, Req())
@@ -502,7 +526,7 @@ public sealed class OutboundWebhookEndpointServiceTests
     [Fact]
     public async Task ListDeliveries_returns_the_endpoints_attempts_newest_first()
     {
-        (OutboundWebhookEndpointService sut, AuthDbContext db, _) = Build();
+        (OutboundWebhookEndpointService sut, AuthDbContext db, _, _) = Build();
         await SeedAllowlistAsync(db);
         Guid endpointId = (await sut.CreateAsync(Channel, Actor, Req())).Value.Endpoint.Id;
         db.OutboundWebhookDeliveries.AddRange(
@@ -526,7 +550,7 @@ public sealed class OutboundWebhookEndpointServiceTests
     [Fact]
     public async Task ListDeliveries_round_trips_NextRetryAt_status_and_error_text_end_to_end()
     {
-        (OutboundWebhookEndpointService sut, AuthDbContext db, _) = Build();
+        (OutboundWebhookEndpointService sut, AuthDbContext db, _, _) = Build();
         await SeedAllowlistAsync(db);
         Guid endpointId = (await sut.CreateAsync(Channel, Actor, Req())).Value.Endpoint.Id;
         DateTime nextRetryAt = Now.UtcDateTime.AddSeconds(30);
@@ -583,7 +607,7 @@ public sealed class OutboundWebhookEndpointServiceTests
     [Fact]
     public async Task ListDeliveries_is_NOT_FOUND_for_an_unknown_endpoint()
     {
-        (OutboundWebhookEndpointService sut, AuthDbContext db, _) = Build();
+        (OutboundWebhookEndpointService sut, AuthDbContext db, _, _) = Build();
         await SeedAllowlistAsync(db);
         await sut.CreateAsync(Channel, Actor, Req());
 
@@ -594,5 +618,160 @@ public sealed class OutboundWebhookEndpointServiceTests
         );
 
         result.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    [Fact]
+    public async Task RetryDelivery_re_attempts_using_the_already_stored_RenderedBody_not_a_re_render()
+    {
+        (
+            OutboundWebhookEndpointService sut,
+            AuthDbContext db,
+            _,
+            IOutboundWebhookDispatcher dispatcher
+        ) = Build();
+        await SeedAllowlistAsync(db);
+        OutboundWebhookEndpointCreatedDto created = (
+            await sut.CreateAsync(
+                Channel,
+                Actor,
+                new()
+                {
+                    Name = "endpoint",
+                    Fqdn = "api.example.com",
+                    SubscribedEventTypes = ["*"],
+                    // The template on the endpoint TODAY differs from what was rendered at enqueue time — a
+                    // retry must resend the frozen RenderedBody below, never re-render this current template.
+                    BodyTemplate = """{"who": "{user.name}"}""",
+                    BodyIsJson = true,
+                }
+            )
+        ).Value;
+        OutboundWebhookDelivery delivery = Delivery(
+            1,
+            created.Endpoint.Id,
+            "webhook.retry",
+            WebhookDeliveryStatus.Failed
+        );
+        delivery.RenderedBody = """{"who": "frozen-at-enqueue-time"}""";
+        db.OutboundWebhookDeliveries.Add(delivery);
+        await db.SaveChangesAsync();
+
+        Result<OutboundWebhookDeliveryDto> result = await sut.RetryDeliveryAsync(
+            Channel,
+            created.Endpoint.Id,
+            delivery.Id
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Status.Should().Be(nameof(WebhookDeliveryStatus.Delivered));
+        await dispatcher
+            .Received(1)
+            .AttemptDeliveryAsync(
+                Arg.Is<OutboundWebhookDelivery>(d =>
+                    d.Id == delivery.Id && d.RenderedBody == """{"who": "frozen-at-enqueue-time"}"""
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task RetryDelivery_is_NOT_FOUND_for_a_delivery_that_does_not_exist_under_this_endpoint()
+    {
+        (OutboundWebhookEndpointService sut, AuthDbContext db, _, _) = Build();
+        await SeedAllowlistAsync(db);
+        OutboundWebhookEndpointCreatedDto created = (
+            await sut.CreateAsync(Channel, Actor, Req())
+        ).Value;
+
+        Result<OutboundWebhookDeliveryDto> result = await sut.RetryDeliveryAsync(
+            Channel,
+            created.Endpoint.Id,
+            deliveryId: 999
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    [Fact]
+    public async Task RetryDelivery_is_NOT_FOUND_for_a_delivery_belonging_to_a_different_tenant()
+    {
+        (
+            OutboundWebhookEndpointService sut,
+            AuthDbContext db,
+            _,
+            IOutboundWebhookDispatcher dispatcher
+        ) = Build();
+        await SeedAllowlistAsync(db);
+        OutboundWebhookEndpointCreatedDto created = (
+            await sut.CreateAsync(Channel, Actor, Req())
+        ).Value;
+        Guid otherChannel = Guid.Parse("0192a000-0000-7000-8000-0000000000ff");
+        OutboundWebhookDelivery foreignDelivery = new()
+        {
+            Id = 5,
+            BroadcasterId = otherChannel, // a different tenant than the one calling RetryDeliveryAsync
+            EndpointId = created.Endpoint.Id,
+            WebhookMessageId = Guid.Empty,
+            EventType = "webhook.foreign",
+            RenderedBody = "{}",
+            Attempt = 1,
+            Status = WebhookDeliveryStatus.Failed,
+            CreatedAt = Now.UtcDateTime,
+        };
+        db.OutboundWebhookDeliveries.Add(foreignDelivery);
+        await db.SaveChangesAsync();
+
+        Result<OutboundWebhookDeliveryDto> result = await sut.RetryDeliveryAsync(
+            Channel,
+            created.Endpoint.Id,
+            foreignDelivery.Id
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("NOT_FOUND");
+        await dispatcher
+            .DidNotReceive()
+            .AttemptDeliveryAsync(Arg.Any<OutboundWebhookDelivery>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RetryDelivery_is_refused_with_a_clear_error_when_the_endpoint_is_disabled()
+    {
+        (
+            OutboundWebhookEndpointService sut,
+            AuthDbContext db,
+            _,
+            IOutboundWebhookDispatcher dispatcher
+        ) = Build();
+        await SeedAllowlistAsync(db);
+        OutboundWebhookEndpointCreatedDto created = (
+            await sut.CreateAsync(Channel, Actor, Req())
+        ).Value;
+        OutboundWebhookEndpoint endpoint = db.OutboundWebhookEndpoints.Single();
+        endpoint.IsEnabled = false;
+        endpoint.DisabledAt = Now.UtcDateTime;
+        endpoint.DisabledReason = "Too many consecutive delivery failures.";
+        OutboundWebhookDelivery delivery = Delivery(
+            7,
+            created.Endpoint.Id,
+            "webhook.deadlettered",
+            WebhookDeliveryStatus.DeadLetter
+        );
+        db.OutboundWebhookDeliveries.Add(delivery);
+        await db.SaveChangesAsync();
+
+        Result<OutboundWebhookDeliveryDto> result = await sut.RetryDeliveryAsync(
+            Channel,
+            created.Endpoint.Id,
+            delivery.Id
+        );
+
+        // Refused with a clear, distinct reason — never a silent no-op and never bypassing the disabled guard.
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("ENDPOINT_DISABLED");
+        await dispatcher
+            .DidNotReceive()
+            .AttemptDeliveryAsync(Arg.Any<OutboundWebhookDelivery>(), Arg.Any<CancellationToken>());
     }
 }

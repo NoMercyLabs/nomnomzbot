@@ -481,6 +481,7 @@ fun WebhooksScreen(controller: WebhooksController, role: ManagementRole?, hubEve
         DeliveriesDialog(
             endpoint = ep,
             load = { controller.outboundDeliveries(ep.id) },
+            retry = { deliveryId -> controller.retryOutboundDelivery(ep.id, deliveryId) },
             onDismiss = { deliveriesFor = null },
         )
     }
@@ -1242,15 +1243,18 @@ private fun EventChecklist(
 private fun DeliveriesDialog(
     endpoint: OutboundWebhook,
     load: suspend () -> List<OutboundDelivery>?,
+    retry: suspend (Long) -> OutboundDelivery?,
     onDismiss: () -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+    val scope = rememberCoroutineScope()
 
     var loading: Boolean by remember { mutableStateOf(true) }
     var deliveries: List<OutboundDelivery> by remember { mutableStateOf(emptyList()) }
     var reloadKey: Int by remember { mutableStateOf(0) }
+    var retryingId: Long? by remember { mutableStateOf(null) }
 
     LaunchedEffect(endpoint.id, reloadKey) {
         loading = true
@@ -1282,7 +1286,20 @@ private fun DeliveriesDialog(
                         Text(stringResource(Res.string.webhooks_deliveries_empty), style = typography.sm, color = tokens.mutedForeground)
                     else ->
                         deliveries.forEachIndexed { index, delivery ->
-                            DeliveryRow(delivery)
+                            DeliveryRow(
+                                delivery = delivery,
+                                retrying = retryingId == delivery.id,
+                                onRetry = {
+                                    scope.launch {
+                                        retryingId = delivery.id
+                                        val retried: OutboundDelivery? = retry(delivery.id)
+                                        if (retried != null) {
+                                            deliveries = deliveries.map { if (it.id == retried.id) retried else it }
+                                        }
+                                        retryingId = null
+                                    }
+                                },
+                            )
                             if (index < deliveries.lastIndex) Separator()
                         }
                 }
@@ -1295,16 +1312,23 @@ private fun DeliveriesDialog(
 }
 
 @Composable
-internal fun DeliveryRow(delivery: OutboundDelivery) {
+internal fun DeliveryRow(
+    delivery: OutboundDelivery,
+    retrying: Boolean = false,
+    onRetry: (() -> Unit)? = null,
+) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    val statusColor = when (delivery.status.lowercase()) {
+    val normalizedStatus: String = delivery.status.lowercase()
+    val statusColor = when (normalizedStatus) {
         "delivered" -> tokens.primary
         "failed", "deadletter" -> tokens.destructive
         else -> tokens.mutedForeground
     }
+    // A retry only makes sense for a delivery that did not succeed — Pending/Delivered rows never show it.
+    val canRetry: Boolean = onRetry != null && (normalizedStatus == "failed" || normalizedStatus == "deadletter")
 
     val attemptText: String = stringResource(Res.string.webhooks_deliveries_attempt, delivery.attempt)
     val codeText: String? = delivery.responseCode?.let { stringResource(Res.string.webhooks_deliveries_code, it) }
@@ -1319,6 +1343,16 @@ internal fun DeliveryRow(delivery: OutboundDelivery) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text(text = delivery.eventType, style = typography.sm, color = tokens.cardForeground, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             Text(text = delivery.status, style = typography.xs, color = statusColor)
+            if (canRetry) {
+                TextButton(onClick = { onRetry?.invoke() }, enabled = !retrying) {
+                    Text(
+                        text = stringResource(
+                            if (retrying) Res.string.webhooks_deliveries_retrying else Res.string.webhooks_deliveries_retry
+                        ),
+                        style = typography.xs,
+                    )
+                }
+            }
         }
         Text(text = meta, style = typography.xs, color = tokens.mutedForeground, maxLines = 1, overflow = TextOverflow.Ellipsis)
         delivery.nextRetryAt?.takeIf { it.isNotBlank() }?.let {

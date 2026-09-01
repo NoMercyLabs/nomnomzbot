@@ -128,6 +128,23 @@ class WebhooksController(
         }
     }
 
+    /**
+     * Manually replay one delivery using its already-stored rendered body (never a fresh re-render of the
+     * current template). Returns the retried row so the delivery-log dialog can update it in place, null on
+     * failure — including the disabled-endpoint rejection, which surfaces through [failWrite] like any other
+     * write error rather than as a silent no-op.
+     */
+    suspend fun retryOutboundDelivery(endpointId: String, deliveryId: Long): OutboundDelivery? {
+        val channel: String = channelId ?: run { failWrite("No active channel."); return null }
+        return when (
+            val result: ApiResult<OutboundDelivery> =
+                webhooksApi.retryOutboundDelivery(channel, endpointId, deliveryId)
+        ) {
+            is ApiResult.Ok -> result.value
+            is ApiResult.Failure -> { failWrite(result.error.message); null }
+        }
+    }
+
     // ── Inbound ──────────────────────────────────────────────────────────────
 
     /**
