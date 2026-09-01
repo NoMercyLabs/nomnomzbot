@@ -38,7 +38,10 @@ public sealed class EventResponseSeedOnOnboardingHandler(
         ("channel.follow", "Welcome {user}! Thanks for the follow!"),
         ("channel.subscribe", "{user} just subscribed! Thank you for the support!"),
         ("channel.subscription.gift", "{user} gifted {amount} sub(s)! How generous!"),
-        ("channel.subscription.message", "{user} resubscribed for {months} months! {message}"),
+        (
+            "channel.subscription.message",
+            "{user} resubscribed for {months} months! Thank you!{also_said}"
+        ),
         ("channel.cheer", "{user} cheered {amount} bits! Thank you!"),
         ("channel.raid", "{user} is raiding with {viewers} viewers! Welcome raiders!"),
     ];
