@@ -63,6 +63,34 @@ public sealed class BuiltinsController : BaseController
         Result result = await _builtins.SetEnabledAsync(channelId, builtinKey, body.Enabled, ct);
         return ResultResponse(result);
     }
+
+    /// <summary>
+    /// Sets (or clears, when <c>template</c> is blank/omitted) a built-in's per-channel response-template
+    /// override — the S-OWN09 write path for the precedence ladder <see cref="Application.Commands.Builtin.IBuiltinResponseComposer"/>
+    /// already reads: this override wins over the personality tone template, which wins over the built-in's
+    /// neutral fallback.
+    /// </summary>
+    [RequireAction("commands:write")]
+    [HttpPut("{builtinKey}/response")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SetResponseOverride(
+        string channelId,
+        string builtinKey,
+        [FromBody] SetBuiltinResponseOverrideRequest body,
+        CancellationToken ct
+    )
+    {
+        Result result = await _builtins.SetResponseOverrideAsync(
+            channelId,
+            builtinKey,
+            body.Template,
+            ct
+        );
+        return ResultResponse(result);
+    }
 }
 
 public sealed record SetBuiltinEnabledRequest(bool Enabled);
+
+public sealed record SetBuiltinResponseOverrideRequest(string? Template);

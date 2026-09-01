@@ -82,6 +82,7 @@ internal sealed class CommandsTestDbContext : DbContext, IApplicationDbContext
 
     public DbSet<Command> Commands => Set<Command>();
     public DbSet<DomainTimer> Timers => Set<DomainTimer>();
+    public DbSet<ChannelBuiltinCommand> ChannelBuiltinCommands => Set<ChannelBuiltinCommand>();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Record> Records =>
         Set<NomNomzBot.Domain.Platform.Entities.Record>();
     public DbSet<Channel> Channels => Set<Channel>();
@@ -127,6 +128,12 @@ internal sealed class CommandsTestDbContext : DbContext, IApplicationDbContext
                 );
         });
 
+        b.Entity<ChannelBuiltinCommand>(e =>
+        {
+            e.HasKey(c => c.Id);
+            e.Ignore(c => c.Channel);
+        });
+
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
@@ -139,6 +146,7 @@ internal sealed class CommandsTestDbContext : DbContext, IApplicationDbContext
     [
         typeof(Command),
         typeof(DomainTimer),
+        typeof(ChannelBuiltinCommand),
         typeof(Channel),
         typeof(NomNomzBot.Domain.Platform.Entities.Record),
         typeof(User),
@@ -278,7 +286,6 @@ internal sealed class CommandsTestDbContext : DbContext, IApplicationDbContext
     public DbSet<PipelineExecution> PipelineExecutions => throw new NotSupportedException();
 
     public DbSet<PipelineRunState> PipelineRunStates => throw new NotSupportedException();
-    public DbSet<ChannelBuiltinCommand> ChannelBuiltinCommands => throw new NotSupportedException();
     public DbSet<CommandCooldownState> CommandCooldownStates => throw new NotSupportedException();
     public DbSet<NamedCounter> NamedCounters => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.ViewerData.Entities.ViewerDatum> ViewerData =>

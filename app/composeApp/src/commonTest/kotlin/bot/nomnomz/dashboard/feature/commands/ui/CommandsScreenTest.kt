@@ -191,6 +191,11 @@ private class FakeBuiltinsApi : BuiltinsApi {
     override suspend fun list(channelId: String): ApiResult<List<BuiltinCommand>> = ApiResult.Ok(emptyList())
     override suspend fun setEnabled(channelId: String, builtinKey: String, enabled: Boolean): ApiResult<Unit> =
         ApiResult.Ok(Unit)
+    override suspend fun setResponseOverride(
+        channelId: String,
+        builtinKey: String,
+        template: String?,
+    ): ApiResult<Unit> = ApiResult.Ok(Unit)
 }
 
 private class FakePickListsApi : PickListsApi {

@@ -413,6 +413,13 @@
     <string name="commands_row_type">Opdracht</string>
     <string name="commands_builtins_section">Ingebouwde opdrachten</string>
     <string name="commands_builtins_toggle">%1$s in-/uitschakelen</string>
+    <string name="commands_builtin_edit_response">Reactie van %1$s bewerken</string>
+    <string name="commands_builtin_response_customized">Aangepaste reactie</string>
+    <string name="commands_builtin_response_dialog_title">Reactie van %1$s bewerken</string>
+    <string name="commands_builtin_response_dialog_hint">Overschrijft de persoonlijkheidstoon-tekst voor deze systeemopdracht. Laat leeg voor de standaardtekst.</string>
+    <string name="commands_builtin_response_dialog_field_label">Reactietekst</string>
+    <string name="commands_builtin_response_dialog_save">Opslaan</string>
+    <string name="commands_builtin_response_dialog_cancel">Annuleren</string>
     <string name="timers_loading">Je timers laden…</string>
     <string name="timers_empty">Nog geen timers</string>
     <string name="timers_error">Kon timers niet laden: %1$s</string>

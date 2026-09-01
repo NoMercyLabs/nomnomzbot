@@ -416,6 +416,13 @@
     <string name="commands_row_type">Command</string>
     <string name="commands_builtins_section">Built-in Commands</string>
     <string name="commands_builtins_toggle">Toggle %1$s</string>
+    <string name="commands_builtin_edit_response">Edit %1$s's response</string>
+    <string name="commands_builtin_response_customized">Custom response</string>
+    <string name="commands_builtin_response_dialog_title">Edit %1$s's response</string>
+    <string name="commands_builtin_response_dialog_hint">Overrides the personality-tone phrasing for this built-in. Leave blank to use the default.</string>
+    <string name="commands_builtin_response_dialog_field_label">Response text</string>
+    <string name="commands_builtin_response_dialog_save">Save</string>
+    <string name="commands_builtin_response_dialog_cancel">Cancel</string>
     <string name="timers_loading">Loading your timers…</string>
     <string name="timers_empty">No timers yet</string>
     <string name="timers_error">Could not load timers: %1$s</string>

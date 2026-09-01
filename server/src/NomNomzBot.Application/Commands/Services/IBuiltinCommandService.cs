@@ -31,6 +31,20 @@ public interface IBuiltinCommandService
         bool enabled,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// Sets (or, when <paramref name="template"/> is null/blank, clears) the channel's response-template
+    /// override for a built-in — the same <c>ChannelBuiltinCommand.OverridesJson</c> / <c>{ "responseTemplate": "..." }</c>
+    /// shape the channel registry already loads into <c>BuiltinCommandContext.CustomResponseTemplate</c>
+    /// (<see cref="Builtin.IBuiltinResponseComposer"/> precedence). Generalizes the per-command override write
+    /// path across every built-in, not just one.
+    /// </summary>
+    Task<Result> SetResponseOverrideAsync(
+        string broadcasterId,
+        string builtinKey,
+        string? template,
+        CancellationToken ct = default
+    );
 }
 
 public sealed record BuiltinCommandDto(
@@ -38,5 +52,6 @@ public sealed record BuiltinCommandDto(
     string Name,
     bool IsEnabled,
     int DefaultCooldownSeconds,
-    int DefaultMinPermissionLevel
+    int DefaultMinPermissionLevel,
+    string? ResponseOverride
 );

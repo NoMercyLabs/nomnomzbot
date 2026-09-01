@@ -219,6 +219,16 @@ class CommandsController(
     }
 
     /**
+     * Set (non-blank [template]) or clear (blank) a built-in command's per-channel response-template
+     * override (S-OWN09) — generalizes the S-OWN17 "editable built-in response" pattern to every built-in.
+     * Reloads on success.
+     */
+    suspend fun setBuiltinResponseOverride(builtinKey: String, template: String) {
+        val channel: String = channelId ?: return failWrite(NoChannelError)
+        afterWrite(builtinsApi.setResponseOverride(channel, builtinKey, template.takeIf { it.isNotBlank() }))
+    }
+
+    /**
      * Subscribe to [hubEvents] so the use-count column updates in real-time:
      * - [HubEvent.CommandExecuted]: if the command ran successfully, finds the matching [CommandSummary] by
      *   name (strips the leading `!`) and increments its [CommandSummary.useCount] by 1.

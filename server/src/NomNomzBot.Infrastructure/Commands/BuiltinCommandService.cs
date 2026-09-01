@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Commands.Builtin;
@@ -21,6 +22,11 @@ namespace NomNomzBot.Infrastructure.Commands;
 
 public sealed class BuiltinCommandService : IBuiltinCommandService
 {
+    private static readonly JsonSerializerOptions OverridesJsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    };
+
     private readonly IBuiltinCommandCatalog _catalog;
     private readonly IApplicationDbContext _db;
     private readonly IEventBus _eventBus;
@@ -67,12 +73,20 @@ public sealed class BuiltinCommandService : IBuiltinCommandService
                         || !toggles.TryGetValue(cmd.BuiltinKey, out ChannelBuiltinCommand? toggle)
                         || toggle.IsEnabled;
 
+                    string? responseOverride = toggles.TryGetValue(
+                        cmd.BuiltinKey,
+                        out ChannelBuiltinCommand? row
+                    )
+                        ? ParseResponseOverride(row.OverridesJson)
+                        : null;
+
                     return new BuiltinCommandDto(
                         cmd.BuiltinKey,
                         "!" + cmd.BuiltinKey,
                         isEnabled,
                         cmd.DefaultCooldownSeconds,
-                        cmd.DefaultMinPermissionLevel
+                        cmd.DefaultMinPermissionLevel,
+                        responseOverride
                     );
                 }),
         ];
@@ -137,4 +151,102 @@ public sealed class BuiltinCommandService : IBuiltinCommandService
         );
         return Result.Success();
     }
+
+    public async Task<Result> SetResponseOverrideAsync(
+        string broadcasterId,
+        string builtinKey,
+        string? template,
+        CancellationToken ct = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result.Failure($"Invalid channel ID '{broadcasterId}'.", "VALIDATION_FAILED");
+
+        IBuiltinCommand? command = _catalog.Get(builtinKey);
+        if (command is null)
+            return Result.Failure($"Unknown built-in command '{builtinKey}'.", "NOT_FOUND");
+
+        if (command.IsReserved)
+            return Result.Failure(
+                $"'{builtinKey}' is a reserved data-rights command — its response cannot be overridden.",
+                "VALIDATION_FAILED"
+            );
+
+        // Blank clears the override — the built-in falls back to the tone template, then its neutral string.
+        string? normalized = string.IsNullOrWhiteSpace(template) ? null : template.Trim();
+        string? overridesJson = normalized is null
+            ? null
+            : JsonSerializer.Serialize(
+                new BuiltinOverridesPayload(normalized),
+                OverridesJsonOptions
+            );
+
+        ChannelBuiltinCommand? existing = await _db.ChannelBuiltinCommands.FirstOrDefaultAsync(
+            c => c.BroadcasterId == broadcaster && c.BuiltinKey == builtinKey,
+            ct
+        );
+
+        if (existing is null)
+        {
+            if (overridesJson is null)
+                return Result.Success(); // Nothing to clear — no row exists.
+
+            _db.ChannelBuiltinCommands.Add(
+                new()
+                {
+                    BroadcasterId = broadcaster,
+                    BuiltinKey = builtinKey,
+                    IsEnabled = true,
+                    OverridesJson = overridesJson,
+                }
+            );
+        }
+        else
+        {
+            existing.OverridesJson = overridesJson;
+        }
+
+        await _db.SaveChangesAsync(ct);
+        await _registry.InvalidateBuiltinsAsync(broadcaster, ct);
+        await _eventBus.PublishAsync(
+            new ChannelConfigChangedEvent
+            {
+                BroadcasterId = broadcaster,
+                Domain = "builtins",
+                EntityId = builtinKey,
+                Action = "response_override_set",
+            },
+            ct
+        );
+        return Result.Success();
+    }
+
+    /// <summary>Mirrors the <c>{ "responseTemplate": "..." }</c> shape the channel registry parses.</summary>
+    private static string? ParseResponseOverride(string? overridesJson)
+    {
+        if (string.IsNullOrWhiteSpace(overridesJson))
+            return null;
+
+        try
+        {
+            using JsonDocument doc = JsonDocument.Parse(overridesJson);
+            if (
+                doc.RootElement.ValueKind == JsonValueKind.Object
+                && doc.RootElement.TryGetProperty("responseTemplate", out JsonElement value)
+                && value.ValueKind == JsonValueKind.String
+            )
+            {
+                string? parsed = value.GetString();
+                return string.IsNullOrWhiteSpace(parsed) ? null : parsed;
+            }
+        }
+        catch (JsonException)
+        {
+            // Malformed override — treat as absent, same tolerance as the channel registry loader.
+        }
+
+        return null;
+    }
+
+    private sealed record BuiltinOverridesPayload(string ResponseTemplate);
 }

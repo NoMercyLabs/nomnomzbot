@@ -98,6 +98,13 @@ import nomnomzbot.composeapp.generated.resources.commands_action_error
 import nomnomzbot.composeapp.generated.resources.commands_builtins_section
 import nomnomzbot.composeapp.generated.resources.commands_builtin_row_type
 import nomnomzbot.composeapp.generated.resources.commands_builtins_toggle
+import nomnomzbot.composeapp.generated.resources.commands_builtin_edit_response
+import nomnomzbot.composeapp.generated.resources.commands_builtin_response_customized
+import nomnomzbot.composeapp.generated.resources.commands_builtin_response_dialog_title
+import nomnomzbot.composeapp.generated.resources.commands_builtin_response_dialog_hint
+import nomnomzbot.composeapp.generated.resources.commands_builtin_response_dialog_field_label
+import nomnomzbot.composeapp.generated.resources.commands_builtin_response_dialog_save
+import nomnomzbot.composeapp.generated.resources.commands_builtin_response_dialog_cancel
 import nomnomzbot.composeapp.generated.resources.commands_delete_action
 import nomnomzbot.composeapp.generated.resources.commands_delete_cancel
 import nomnomzbot.composeapp.generated.resources.commands_delete_confirm
@@ -212,6 +219,9 @@ fun CommandsScreen(
                     onToggleBuiltin = { builtinKey, enabled ->
                         scope.launch { controller.toggleBuiltin(builtinKey, enabled) }
                     },
+                    onSetBuiltinResponseOverride = { builtinKey, template ->
+                        scope.launch { controller.setBuiltinResponseOverride(builtinKey, template) }
+                    },
                 )
             is CommandsState.Ready ->
                 ManagedContent(
@@ -229,6 +239,9 @@ fun CommandsScreen(
                     onDelete = { command -> pendingDelete = command },
                     onToggleBuiltin = { builtinKey, enabled ->
                         scope.launch { controller.toggleBuiltin(builtinKey, enabled) }
+                    },
+                    onSetBuiltinResponseOverride = { builtinKey, template ->
+                        scope.launch { controller.setBuiltinResponseOverride(builtinKey, template) }
                     },
                 )
         }
@@ -299,6 +312,7 @@ private fun ManagedContent(
     onToggle: (CommandSummary, Boolean) -> Unit,
     onDelete: (CommandSummary) -> Unit,
     onToggleBuiltin: (builtinKey: String, Boolean) -> Unit,
+    onSetBuiltinResponseOverride: (builtinKey: String, template: String) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -428,6 +442,9 @@ private fun ManagedContent(
                             builtin = builtin,
                             manage = manage,
                             onToggle = { enabled -> onToggleBuiltin(builtin.builtinKey, enabled) },
+                            onSetResponseOverride = { template ->
+                                onSetBuiltinResponseOverride(builtin.builtinKey, template)
+                            },
                         )
                         if (index < filteredBuiltins.lastIndex) {
                             Separator()
@@ -520,12 +537,15 @@ private fun CommandTableRow(
     }
 }
 
-// Built-in command row — toggle only; platform commands can't be edited or deleted.
+// Built-in command row — toggle plus a response-override edit (S-OWN09: every built-in's reply text is
+// editable per channel, the same precedence-ladder override IBuiltinResponseComposer already reads);
+// platform built-ins still can't be renamed or deleted, only enabled/disabled and rephrased.
 @Composable
 private fun BuiltinTableRow(
     builtin: BuiltinCommand,
     manage: ManageDecision,
     onToggle: (Boolean) -> Unit,
+    onSetResponseOverride: (template: String) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -537,6 +557,10 @@ private fun BuiltinTableRow(
             discriminatorSource = builtin.builtinKey,
         )
     val toggleLabel: String = stringResource(Res.string.commands_builtins_toggle, builtinDisplayName)
+    val editResponseLabel: String =
+        stringResource(Res.string.commands_builtin_edit_response, builtinDisplayName)
+
+    var editingResponse: Boolean by remember { mutableStateOf(false) }
 
     Row(
         modifier = Modifier
@@ -553,6 +577,21 @@ private fun BuiltinTableRow(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+        if (!builtin.responseOverride.isNullOrBlank()) {
+            Text(
+                text = stringResource(Res.string.commands_builtin_response_customized),
+                style = typography.xs,
+                color = tokens.mutedForeground,
+            )
+        }
+        ManageGate(decision = manage) { enabled ->
+            GlyphButton(
+                icon = EditGlyph,
+                label = editResponseLabel,
+                onClick = { editingResponse = true },
+                enabled = enabled,
+            )
+        }
         ManageGate(decision = manage) { enabled ->
             Switch(
                 checked = builtin.isEnabled,
@@ -562,6 +601,65 @@ private fun BuiltinTableRow(
             )
         }
     }
+
+    if (editingResponse) {
+        BuiltinResponseOverrideDialog(
+            builtin = builtin,
+            builtinDisplayName = builtinDisplayName,
+            onDismiss = { editingResponse = false },
+            onSubmit = { template ->
+                onSetResponseOverride(template)
+                editingResponse = false
+            },
+        )
+    }
+}
+
+// The per-built-in response-override editor (S-OWN09). A blank field clears the override on submit,
+// falling the built-in back to the channel's personality-tone template, then its neutral fallback — the
+// same precedence IBuiltinResponseComposer already resolves at runtime.
+@Composable
+private fun BuiltinResponseOverrideDialog(
+    builtin: BuiltinCommand,
+    builtinDisplayName: String,
+    onDismiss: () -> Unit,
+    onSubmit: (template: String) -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    var template: String by remember { mutableStateOf(builtin.responseOverride.orEmpty()) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.commands_builtin_response_dialog_title, builtinDisplayName)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                Text(
+                    text = stringResource(Res.string.commands_builtin_response_dialog_hint),
+                    style = LocalTypography.current.xs,
+                    color = LocalTokens.current.mutedForeground,
+                )
+                AppTextField(
+                    value = template,
+                    onValueChange = { template = it },
+                    label = stringResource(Res.string.commands_builtin_response_dialog_field_label),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSubmit(template) }) {
+                Text(text = stringResource(Res.string.commands_builtin_response_dialog_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    text = stringResource(Res.string.commands_builtin_response_dialog_cancel),
+                    color = LocalTokens.current.mutedForeground,
+                )
+            }
+        },
+    )
 }
 
 // One composable for both create and edit — the FULL command surface, at parity with the backend command DTO
