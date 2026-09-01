@@ -950,9 +950,11 @@ later.)
   Retry button wired on Failed/DeadLetter rows. Remaining: attempted events consumed (toast/hub/feed).
 - **S100-remaining** Custom data sources truth — S100a DONE, verified (3072a24b): persist last
   attempt/error/failure count, capped+jittered backoff, auto-disable after threshold, poller stops
-  attempting a disabled source — mirrors the webhook system's already-proven approach. Remaining:
-  allowlist checked at save; real JSON field-map parsing with inline errors; key picker from a test
-  fetch; drop or wire `InboundWebhookEndpointId` (U·E3).
+  attempting a disabled source — mirrors the webhook system's already-proven approach. S100b DONE,
+  verified (d766c9ab): create/update reuses the existing `HttpEgressAllowlist` check (same abstraction
+  the webhook endpoint save path already used, not reinvented) — a disallowed host is rejected with
+  `Result.Failure` and persists nothing, an allowed host saves. Remaining: real JSON field-map parsing
+  with inline errors; key picker from a test fetch; drop or wire `InboundWebhookEndpointId` (U·E3).
 - **S101** Supporters — provider list + capabilities from the backend (`GET /supporters/sources`),
   mode-correct connect forms (secret / socket token / OAuth connection), error state + reason, staleness-
   derived status, per-connection test; resolve `SupporterUserId` where payloads allow + amount-scaled
