@@ -438,10 +438,16 @@ later.)
     migrations, per house rule); `FulfillCodeAsync` now resolves the sender by the winner's `Provider` —
     a Kick/YouTube winner fails cleanly with no sender available (code stays `Assigned`, no Twitch
     whisper attempted) instead of silently misdirecting to Twitch; Twitch winners unchanged (regression
-    covered). Kick/YouTube/X senders themselves are still unbuilt — tracked as their own future item,
-    not fabricated here. Found in passing, not fixed (own future cleanup): `PlatformType.cs` is a stale
-    2-member (Twitch/Discord) enum unrelated to the real platform-routing convention; giveaway
-    `active_viewers` entry mode still resolves candidates via Twitch-only chat history.
+    covered). **Kick CLOSED — genuinely impossible, not unbuilt**: confirmed against `IKickApiClient`'s
+    full real surface (9 operations — chat send/delete, timeout/ban/unban, event subs, channel
+    read/update, matching the live Kick public API v1 docs) that Kick has NO whisper/DM endpoint at
+    all, only public chat send. A Kick winner staying on the clean-failure path is correct and final,
+    not a gap — consistent with the accepted design from the slice that built this mechanism (a missing
+    sender fails cleanly rather than misdirecting). YouTube/X senders remain genuinely unbuilt (not yet
+    investigated) — their own future item, not fabricated here. Found in passing, not fixed (own future
+    cleanup): `PlatformType.cs` is a stale 2-member (Twitch/Discord) enum unrelated to the real
+    platform-routing convention; giveaway `active_viewers` entry mode still resolves candidates via
+    Twitch-only chat history.
 - **S066** Moderation reach — full `AutomodConfigDto`;
   concurrency guard on whole-config POST; chat-settings slow/followers/unique/non-mod fields (U·B3).
   **Mod add/remove + clear chat DONE, verified (4391b58b)**: Helix coverage already existed
