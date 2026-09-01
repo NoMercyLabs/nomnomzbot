@@ -175,6 +175,33 @@ public static class ChatHtmlSanitizer
         // rather than an orphaned "alert(1)" text node.
         sanitizer.KeepChildNodes = false;
 
+        // A media element whose only useful attribute is its URL (img src, audio/video/source src, video poster)
+        // must not survive with that attribute stripped: an http:// (or other disallowed-scheme) GIF/clip URL from
+        // a viewer's paste is dropped by AllowedSchemes above, but HtmlSanitizer's default behaviour is to remove
+        // only the offending attribute and keep the now-src-less tag — which the widget then renders as a broken
+        // image/player under a caption that still reads correctly (the exact "caption resolved, media didn't" bug:
+        // a truthful renderer must never show a captioned placeholder for media that was never actually attached).
+        // Track every element that just lost its src/poster here, and drop the whole element once sanitisation of
+        // that node finishes.
+        HashSet<AngleSharp.Dom.IElement> elementsWithDroppedUrl = [];
+        sanitizer.RemovingAttribute += (_, e) =>
+        {
+            bool isSrcOnMediaTag =
+                e.Attribute.Name == "src"
+                && e.Tag.TagName is "IMG" or "SOURCE" or "VIDEO" or "AUDIO";
+            bool isPosterOnVideo = e.Attribute.Name == "poster" && e.Tag.TagName is "VIDEO";
+            if (isSrcOnMediaTag || isPosterOnVideo)
+                elementsWithDroppedUrl.Add(e.Tag);
+        };
+        sanitizer.PostProcessNode += (_, e) =>
+        {
+            if (
+                e.Node is AngleSharp.Dom.IElement element
+                && elementsWithDroppedUrl.Contains(element)
+            )
+                element.Remove();
+        };
+
         return sanitizer;
     }
 }
