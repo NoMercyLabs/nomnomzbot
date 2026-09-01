@@ -475,17 +475,21 @@ class IntegrationsControllerTest {
 
     @Test
     fun client_registered_reflects_the_backend_per_provider_check() = runTest {
-        // Spotify's client IS registered server-side; Discord's is NOT; YouTube has no check field at all.
+        // Spotify's client IS registered — but CHANNEL-scoped (S-OWN10: no system-level Spotify app), so it
+        // comes from IntegrationsApi.spotifyCredentials, not SystemApi.status(). Discord's is NOT registered;
+        // YouTube has no check field at all.
+        val integrations = FakeIntegrationsApi(emptyList())
+        integrations.spotifyCredentialsResult =
+            ApiResult.Ok(bot.nomnomz.dashboard.core.network.ChannelSpotifyCredentials(clientId = "own-id", hasClientSecret = true))
         val controller =
             controller(
                 channels = FakeChannelsApi(ApiResult.Ok(channel)),
                 bot = FakeBotAuthApi(BotStatus(connected = false)),
-                integrations = FakeIntegrationsApi(emptyList()),
+                integrations = integrations,
                 launcher = FakeConnectLauncher(),
                 system =
                     FakeSystemApi(
                         twitchSecretConfigured = true,
-                        spotifyClientConfigured = true,
                         discordClientConfigured = false,
                     ),
             )
@@ -496,6 +500,34 @@ class IntegrationsControllerTest {
         assertEquals(true, controller.clientRegistered("spotify"))
         assertEquals(false, controller.clientRegistered("discord"))
         assertNull(controller.clientRegistered("youtube"))
+    }
+
+    @Test
+    fun save_provider_credentials_for_spotify_routes_to_the_channel_byoc_endpoint_never_the_system_one() = runTest {
+        // S-OWN10: the bot never hosts a shared/system-level Spotify app — every channel must BYOC. Saving
+        // Spotify credentials from the (single, merged) connect flow must hit the channel-scoped endpoint,
+        // never SystemApi.saveCredentials (the system-level wizard endpoint every other provider here uses).
+        val system = FakeSystemApi(twitchSecretConfigured = true)
+        val integrations = FakeIntegrationsApi(emptyList())
+        val controller =
+            controller(
+                channels = FakeChannelsApi(ApiResult.Ok(channel)),
+                bot = FakeBotAuthApi(BotStatus(connected = false)),
+                integrations = integrations,
+                launcher = FakeConnectLauncher(),
+                system = system,
+            )
+        controller.load()
+        assertEquals(false, controller.clientRegistered("spotify"))
+
+        val saved: Boolean =
+            controller.saveProviderCredentials("spotify", clientId = "own-id", clientSecret = "own-secret")
+
+        assertTrue(saved)
+        assertEquals("own-id" to "own-secret", integrations.savedSpotify)
+        assertNull(system.savedSpotify, "Spotify must never save through the system-level credential endpoint")
+        // The post-save status re-read now reports the channel's own client registered.
+        assertEquals(true, controller.clientRegistered("spotify"))
     }
 
     @Test
@@ -532,36 +564,36 @@ class IntegrationsControllerTest {
 
     @Test
     fun save_provider_credentials_returns_false_and_keeps_unregistered_on_backend_failure() = runTest {
-        val system =
-            FakeSystemApi(twitchSecretConfigured = true, spotifyClientConfigured = false, saveSucceeds = false)
+        val integrations = FakeIntegrationsApi(emptyList())
+        integrations.saveSpotifyResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Not allowed."))
         val controller =
             controller(
                 channels = FakeChannelsApi(ApiResult.Ok(channel)),
                 bot = FakeBotAuthApi(BotStatus(connected = false)),
-                integrations = FakeIntegrationsApi(emptyList()),
+                integrations = integrations,
                 launcher = FakeConnectLauncher(),
-                system = system,
+                system = FakeSystemApi(twitchSecretConfigured = true),
             )
         controller.load()
 
         val saved: Boolean =
             controller.saveProviderCredentials("spotify", clientId = "id", clientSecret = "secret")
 
-        // A backend rejection returns false (the host stays on the credential step), records no save, and the
-        // client stays unregistered — the flow never proceeds to an OAuth it can't complete.
+        // A backend rejection returns false (the host stays on the credential step), and the client stays
+        // unregistered — the flow never proceeds to an OAuth it can't complete.
         assertFalse(saved)
-        assertNull(system.savedSpotify)
         assertEquals(false, controller.clientRegistered("spotify"))
     }
 
     @Test
     fun save_provider_credentials_rejects_a_blank_client_id() = runTest {
         val system = FakeSystemApi(twitchSecretConfigured = true)
+        val integrations = FakeIntegrationsApi(emptyList())
         val controller =
             controller(
                 channels = FakeChannelsApi(ApiResult.Ok(channel)),
                 bot = FakeBotAuthApi(BotStatus(connected = false)),
-                integrations = FakeIntegrationsApi(emptyList()),
+                integrations = integrations,
                 launcher = FakeConnectLauncher(),
                 system = system,
             )
@@ -572,6 +604,7 @@ class IntegrationsControllerTest {
         // A blank id never reaches the backend (client-side guard) and reports failure.
         assertFalse(saved)
         assertNull(system.savedSpotify)
+        assertNull(integrations.savedSpotify)
     }
 
     @Test
@@ -1035,18 +1068,34 @@ private class FakeIntegrationsApi(
         return ApiResult.Ok(Unit)
     }
 
+    // The channel's own Spotify BYOC state (S-OWN10: the ONLY Spotify credential source — every `refresh()`
+    // reads it to drive [IntegrationsController.clientRegistered]("spotify")). Defaults to "not registered";
+    // a test seeds [spotifyCredentialsResult] to model an already-registered channel.
+    var spotifyCredentialsResult: ApiResult<bot.nomnomz.dashboard.core.network.ChannelSpotifyCredentials> =
+        ApiResult.Ok(bot.nomnomz.dashboard.core.network.ChannelSpotifyCredentials(clientId = null, hasClientSecret = false))
+    var savedSpotify: Pair<String, String>? = null
+    var saveSpotifyResult: ApiResult<bot.nomnomz.dashboard.core.network.ChannelSpotifyCredentials>? = null
+
     override suspend fun spotifyCredentials(channelId: String): ApiResult<bot.nomnomz.dashboard.core.network.ChannelSpotifyCredentials> =
-        error("not exercised by the Integrations controller")
+        spotifyCredentialsResult
 
     override suspend fun saveSpotifyCredentials(
         channelId: String,
         clientId: String,
         clientSecret: String,
-    ): ApiResult<bot.nomnomz.dashboard.core.network.ChannelSpotifyCredentials> =
-        error("not exercised by the Integrations controller")
+    ): ApiResult<bot.nomnomz.dashboard.core.network.ChannelSpotifyCredentials> {
+        savedSpotify = clientId to clientSecret
+        saveSpotifyResult?.let { return it }
+        val saved = bot.nomnomz.dashboard.core.network.ChannelSpotifyCredentials(clientId = clientId, hasClientSecret = true)
+        spotifyCredentialsResult = ApiResult.Ok(saved)
+        return ApiResult.Ok(saved)
+    }
 
-    override suspend fun clearSpotifyCredentials(channelId: String): ApiResult<bot.nomnomz.dashboard.core.network.ChannelSpotifyCredentials> =
-        error("not exercised by the Integrations controller")
+    override suspend fun clearSpotifyCredentials(channelId: String): ApiResult<bot.nomnomz.dashboard.core.network.ChannelSpotifyCredentials> {
+        val cleared = bot.nomnomz.dashboard.core.network.ChannelSpotifyCredentials(clientId = null, hasClientSecret = false)
+        spotifyCredentialsResult = ApiResult.Ok(cleared)
+        return ApiResult.Ok(cleared)
+    }
 }
 
 // Drives the authorize-URL provider with a fixed loopback redirect (as the desktop launcher would) and

@@ -651,9 +651,7 @@ private fun ShellContent(
                 IntegrationsScreen(
                     controller = graph.integrationsController,
                     twitchAppController = graph.twitchAppCredentialsController,
-                    spotifyChannelCredentialsController = graph.spotifyChannelCredentialsController,
                     role = role,
-                    heldActionKeys = heldActionKeys,
                 )
             ShellRoute.Settings ->
                 SettingsScreen(

@@ -157,6 +157,16 @@ class IntegrationsController(
                 is ApiResult.Failure -> emptyList()
             }
 
+        // Spotify's own registration signal: channel-scoped, never the system-level `checks.spotify` (S-OWN10
+        // — the bot never hosts a shared Spotify app, so there is no system-level Spotify registration to read
+        // any more). A read failure leaves it null, which the connect flow treats like "not registered".
+        val spotifyOwnCredentialsConfigured: Boolean? =
+            when (val result: ApiResult<bot.nomnomz.dashboard.core.network.ChannelSpotifyCredentials> =
+                integrationsApi.spotifyCredentials(id)) {
+                is ApiResult.Ok -> result.value.clientId != null && result.value.hasClientSecret
+                is ApiResult.Failure -> null
+            }
+
         // Preserve any in-flight panels across a refresh (their poll loops refresh mid-flow).
         val ready: IntegrationsState.Ready? = _state.value as? IntegrationsState.Ready
         _state.value =
@@ -165,6 +175,7 @@ class IntegrationsController(
                 providers = providers,
                 missingScopes = missingScopes,
                 checks = checks,
+                spotifyOwnCredentialsConfigured = spotifyOwnCredentialsConfigured,
                 busy = null,
                 regrant = ready?.regrant,
                 botDevice = ready?.botDevice,
@@ -180,10 +191,15 @@ class IntegrationsController(
      * credential card) so a connect is never launched against a client the bot can't prove is configured.
      */
     fun clientRegistered(provider: String): Boolean? {
-        val checks: SystemChecks = (_state.value as? IntegrationsState.Ready)?.checks ?: return null
+        val ready: IntegrationsState.Ready = (_state.value as? IntegrationsState.Ready) ?: return null
+        if (provider.equals("spotify", ignoreCase = true)) {
+            // Spotify's registration is channel-scoped, not a system check (S-OWN10) — see
+            // [IntegrationsState.Ready.spotifyOwnCredentialsConfigured].
+            return ready.spotifyOwnCredentialsConfigured
+        }
+        val checks: SystemChecks = ready.checks ?: return null
         val check: SystemCheck? =
             when (provider.lowercase()) {
-                "spotify" -> checks.spotify
                 "discord" -> checks.discord
                 // BACKEND GAP: SystemChecks carries no `youtube` field, so YouTube's client registration can't
                 // be read. Until the backend adds it, YouTube reports unknown and always routes through the
@@ -205,11 +221,16 @@ class IntegrationsController(
     }
 
     /**
-     * Register the operator's own BYOC app credentials for [provider] (Spotify/YouTube/Discord) through the
-     * wizard's per-provider credential endpoint, then re-read status so [clientRegistered] reflects the
-     * backend. The client id is required (a blank id is a client-side guard); the secret rides as typed. On
-     * success the feedback host announces it and the caller proceeds to OAuth; a failure surfaces on the host
-     * and leaves the screen on the credential step. Returns whether the save succeeded.
+     * Register the operator's own BYOC app credentials for [provider] (Spotify/YouTube/Discord) then re-read
+     * status so [clientRegistered] reflects the backend. The client id is required (a blank id is a client-
+     * side guard); the secret rides as typed. On success the feedback host announces it and the caller
+     * proceeds to OAuth; a failure surfaces on the host and leaves the screen on the credential step. Returns
+     * whether the save succeeded.
+     *
+     * Spotify is CHANNEL-scoped, not system-scoped (S-OWN10: the bot never hosts a shared/system-level
+     * Spotify app — every channel must register and use its own app), so it routes through
+     * [IntegrationsApi.saveSpotifyCredentials] rather than the wizard's system-level credential endpoint every
+     * other provider here uses.
      */
     suspend fun saveProviderCredentials(
         provider: String,
@@ -219,6 +240,23 @@ class IntegrationsController(
         val id: String = clientId.trim()
         if (id.isEmpty()) return false
 
+        if (provider.equals("spotify", ignoreCase = true)) {
+            val channel: String = channelId ?: return false
+            val spotifyResult: ApiResult<bot.nomnomz.dashboard.core.network.ChannelSpotifyCredentials> =
+                integrationsApi.saveSpotifyCredentials(channel, id, clientSecret.trim())
+            return when (spotifyResult) {
+                is ApiResult.Failure -> {
+                    feedback.error(Res.string.feedback_connect_failed, spotifyResult.error.message)
+                    false
+                }
+                is ApiResult.Ok -> {
+                    feedback.success(Res.string.feedback_credentials_saved)
+                    refresh()
+                    true
+                }
+            }
+        }
+
         // kick_bot has no credential slot of its own — it shares Kick's ("kick") app client
         // (OAuthProviderRegistry: CredentialsProvider="kick" for both), so its save routes there too.
         val credentialsProvider: String =
@@ -226,7 +264,7 @@ class IntegrationsController(
 
         val result: ApiResult<Unit> =
             when (credentialsProvider) {
-                "spotify", "youtube", "discord", "kick" ->
+                "youtube", "discord", "kick" ->
                     systemApi.saveCredentials(credentialsProvider, id, clientSecret.trim())
                 else -> return false
             }
@@ -666,6 +704,11 @@ sealed interface IntegrationsState {
         // register-then-login flow reads (null when the status read failed — every provider then reads
         // "unknown" and routes through the credential card).
         val checks: SystemChecks? = null,
+        // Whether THIS channel has registered its own Spotify BYOC app client (S-OWN10: the bot never hosts
+        // a shared/system-level Spotify app, so unlike [checks], Spotify's registration signal is channel-
+        // scoped, not system-scoped). Null when the read failed — the connect flow then routes through the
+        // credential card same as `false`.
+        val spotifyOwnCredentialsConfigured: Boolean? = null,
         val busy: BusyTarget?,
         val regrant: RegrantState?,
         // The in-flight secret-free bot device login (null unless one is awaiting approval at twitch.tv/activate).

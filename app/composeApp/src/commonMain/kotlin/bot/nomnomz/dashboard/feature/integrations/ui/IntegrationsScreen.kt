@@ -65,11 +65,8 @@ import bot.nomnomz.dashboard.feature.integrations.state.IntegrationsController
 import bot.nomnomz.dashboard.feature.integrations.state.IntegrationsState
 import bot.nomnomz.dashboard.feature.integrations.state.ProviderConnection
 import bot.nomnomz.dashboard.feature.integrations.state.RegrantState
-import bot.nomnomz.dashboard.feature.integrations.state.SpotifyChannelCredentialsAccess
-import bot.nomnomz.dashboard.feature.integrations.state.SpotifyChannelCredentialsController
 import bot.nomnomz.dashboard.feature.settings.state.TwitchAppCredentialsController
 import bot.nomnomz.dashboard.feature.settings.ui.TwitchAppCredentialsCard
-import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecisionForAction
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
@@ -211,9 +208,7 @@ private fun scopeSetFor(provider: String): String =
 fun IntegrationsScreen(
     controller: IntegrationsController,
     twitchAppController: TwitchAppCredentialsController,
-    spotifyChannelCredentialsController: SpotifyChannelCredentialsController,
     role: ManagementRole?,
-    heldActionKeys: Set<String> = emptySet(),
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -350,20 +345,6 @@ fun IntegrationsScreen(
                         onConnect = { openModal = ConnectModalProvider.Spotify; stage = ConnectStage.Intro },
                         onDisconnect = { pendingDisconnect = SPOTIFY },
                     )
-                    // The channel-scoped BYOC override — lets THIS channel run !sr against its own Spotify
-                    // app instead of the app-level default. Hidden entirely below `integration:read`; its
-                    // own write actions are gated (disabled-with-reason, never hidden) on `integration:write`.
-                    if (SpotifyChannelCredentialsAccess.canRead(heldActionKeys)) {
-                        val spotifyCredentialsManage: ManageDecision =
-                            rememberManageDecisionForAction(
-                                heldActionKeys,
-                                SpotifyChannelCredentialsAccess.WriteAction,
-                            )
-                        SpotifyChannelCredentialsCard(
-                            controller = spotifyChannelCredentialsController,
-                            manage = spotifyCredentialsManage,
-                        )
-                    }
                     ProviderRow(
                         title = Res.string.integrations_youtube_title,
                         subtitle = Res.string.integrations_youtube_subtitle,
