@@ -21,6 +21,7 @@ import bot.nomnomz.dashboard.core.network.CodeScriptVersion
 import bot.nomnomz.dashboard.core.network.CodeScriptsApi
 import bot.nomnomz.dashboard.core.network.CreateScriptBody
 import bot.nomnomz.dashboard.core.network.CreateVersionBody
+import bot.nomnomz.dashboard.core.network.PaginatedEnvelope
 import bot.nomnomz.dashboard.core.network.ProjectDto
 import bot.nomnomz.dashboard.core.network.ProjectManifestDto
 import bot.nomnomz.dashboard.core.network.ScriptTestRunBody
@@ -132,7 +133,10 @@ class CodeScriptsControllerTestRunTest {
         override suspend fun putProject(id: String, project: ProjectDto): ApiResult<CodeScriptVersion> =
             ApiResult.Ok(CodeScriptVersion())
 
-        override suspend fun listVersions(id: String): ApiResult<List<CodeScriptVersion>> = ApiResult.Ok(emptyList())
+        override suspend fun listVersions(id: String, page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<CodeScriptVersion>> =
+            ApiResult.Ok(PaginatedEnvelope())
+
+        override suspend fun deleteVersion(id: String, versionId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 
         override suspend fun publishVersion(id: String, versionId: String): ApiResult<CodeScriptSummary> =
             ApiResult.Ok(summary)
