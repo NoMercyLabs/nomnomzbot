@@ -465,8 +465,15 @@ later.)
     own future item. Found in
     passing, not fixed (own future
     cleanup): `PlatformType.cs` is a stale 2-member (Twitch/Discord) enum unrelated to the real
-    platform-routing convention; giveaway `active_viewers` entry mode still resolves candidates via
-    Twitch-only chat history (investigation dispatched 2026-09-01).
+    platform-routing convention. **`active_viewers` multi-platform DONE (e8637331)**: it filtered
+    `ChatMessages` by broadcaster (already platform-agnostic) but then joined only against
+    `Users.TwitchUserId`, silently dropping non-Twitch chatters. Fixed by resolving distinct
+    `(Provider, UserId)` chat keys through the existing `UserIdentity` table (unique on
+    `Provider`+`ProviderUserId`, already used by `IUserIdentityService`) instead of hardcoding Twitch —
+    reused the same identity shape `Keyword`-mode entries already carried. Proven by a test that seeds a
+    viewer with ONLY a Kick identity + Kick chat message (no Twitch at all) and asserts the drawn
+    `GiveawayWinner` row carries the Kick provider/id. S065 is now fully closed — every open sub-item
+    resolved, blocked-and-documented, or explicitly deferred.
 - **S066** Moderation reach (U·B3) — fully CLOSED this session.
   **Concurrency guard on whole-config POST DONE, verified (8a245e68)**: the local AutoMod-like config
   (link/caps/banned-phrases/emote-spam filters) has no dedicated entity — it lives as free-form `Record`
