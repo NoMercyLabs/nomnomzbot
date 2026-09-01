@@ -29,7 +29,6 @@ using NomNomzBot.Domain.Chat.Enums;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Chat.ValueObjects;
-using ConfigEntity = NomNomzBot.Domain.Platform.Entities.Configuration;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -100,28 +99,49 @@ public class ChatController : BaseController
         string? SetId
     );
 
+    // Mirrors Twitch's real Helix chat-settings surface (twitch-helix.md §3.2 / ITwitchChatApi) — every
+    // field here is genuinely sent to and read back from Twitch, never persisted locally. UniqueChatMode
+    // is Twitch's R9K/unique-message mode; NonModeratorChatDelay(Duration) is the "add a delay to chat
+    // for non-moderators" toggle — both were previously missing from this DTO entirely (S066d).
     public record ChatSettingsDto(
         bool SlowMode,
         int SlowModeDelay,
         bool SubscriberOnly,
         bool EmotesOnly,
         bool FollowersOnly,
-        int FollowersOnlyDuration
+        int FollowersOnlyDuration,
+        bool UniqueChatMode,
+        bool NonModeratorChatDelay,
+        int NonModeratorChatDelayDuration
     );
 
-    private static readonly ChatSettingsDto DefaultSettings = new(
-        SlowMode: false,
-        SlowModeDelay: 0,
-        SubscriberOnly: false,
-        EmotesOnly: false,
-        FollowersOnly: false,
-        FollowersOnlyDuration: 0
-    );
+    private static ChatSettingsDto ToDto(TwitchChatSettings settings) =>
+        new(
+            SlowMode: settings.SlowMode,
+            SlowModeDelay: settings.SlowModeWaitTime ?? 0,
+            SubscriberOnly: settings.SubscriberMode,
+            EmotesOnly: settings.EmoteMode,
+            FollowersOnly: settings.FollowerMode,
+            FollowersOnlyDuration: settings.FollowerModeDuration ?? 0,
+            UniqueChatMode: settings.UniqueChatMode,
+            NonModeratorChatDelay: settings.NonModeratorChatDelay ?? false,
+            NonModeratorChatDelayDuration: settings.NonModeratorChatDelayDuration ?? 0
+        );
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-    };
+    private static UpdateChatSettingsRequest ToUpdateRequest(ChatSettingsDto dto) =>
+        new(
+            EmoteMode: dto.EmotesOnly,
+            FollowerMode: dto.FollowersOnly,
+            FollowerModeDuration: dto.FollowersOnly ? dto.FollowersOnlyDuration : null,
+            NonModeratorChatDelay: dto.NonModeratorChatDelay,
+            NonModeratorChatDelayDuration: dto.NonModeratorChatDelay
+                ? dto.NonModeratorChatDelayDuration
+                : null,
+            SlowMode: dto.SlowMode,
+            SlowModeWaitTime: dto.SlowMode ? dto.SlowModeDelay : null,
+            SubscriberMode: dto.SubscriberOnly,
+            UniqueChatMode: dto.UniqueChatMode
+        );
 
     // ── GET messages ──────────────────────────────────────────────────────────
 
@@ -439,30 +459,25 @@ public class ChatController : BaseController
 
     // ── GET settings ─────────────────────────────────────────────────────────
 
-    /// <summary>Get the channel's chat-mode settings (slow mode, sub-only, emote-only, followers-only).</summary>
+    /// <summary>Get the channel's real Twitch chat-mode settings (slow mode, sub-only, emote-only, followers-only, unique/R9K, non-mod delay).</summary>
     [RequireAction("moderation:chat:settings:read")]
     [HttpGet("settings")]
     [ProducesResponseType<StatusResponseDto<ChatSettingsDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetSettings(string channelId, CancellationToken ct)
     {
-        Guid? broadcasterId = Guid.TryParse(channelId, out Guid g) ? g : null;
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
 
-        ConfigEntity? config = await _db.Configurations.FirstOrDefaultAsync(
-            c => c.BroadcasterId == broadcasterId && c.Key == "chat.settings",
-            ct
-        );
+        Result<TwitchChatSettings> result = await _chatApi.GetChatSettingsAsync(broadcasterId, ct);
+        if (result.IsFailure)
+            return TwitchResultResponse(result);
 
-        ChatSettingsDto settings = config?.Value is not null
-            ? JsonSerializer.Deserialize<ChatSettingsDto>(config.Value, JsonOptions)
-                ?? DefaultSettings
-            : DefaultSettings;
-
-        return Ok(new StatusResponseDto<ChatSettingsDto> { Data = settings });
+        return Ok(new StatusResponseDto<ChatSettingsDto> { Data = ToDto(result.Value) });
     }
 
     // ── PUT settings ──────────────────────────────────────────────────────────
 
-    /// <summary>Replace the channel's chat-mode settings.</summary>
+    /// <summary>Replace the channel's chat-mode settings — sent straight to Twitch via Update Chat Settings.</summary>
     [RequireAction("moderation:chat:settings:write")]
     [HttpPut("settings")]
     [ProducesResponseType<StatusResponseDto<ChatSettingsDto>>(StatusCodes.Status200OK)]
@@ -474,7 +489,7 @@ public class ChatController : BaseController
 
     // ── PATCH settings (partial update) ───────────────────────────────────────
 
-    /// <summary>Partially update the channel's chat-mode settings, merging only the supplied fields.</summary>
+    /// <summary>Partially update the channel's chat-mode settings, merging only the supplied fields, then sending the merged result to Twitch.</summary>
     [RequireAction("moderation:chat:settings:write")]
     [HttpPatch("settings")]
     [ProducesResponseType<StatusResponseDto<ChatSettingsDto>>(StatusCodes.Status200OK)]
@@ -484,18 +499,17 @@ public class ChatController : BaseController
         CancellationToken ct
     )
     {
-        Guid? broadcasterId = Guid.TryParse(channelId, out Guid g) ? g : null;
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
 
-        // Load existing, apply partial override from patch body
-        ConfigEntity? config = await _db.Configurations.FirstOrDefaultAsync(
-            c => c.BroadcasterId == broadcasterId && c.Key == "chat.settings",
+        Result<TwitchChatSettings> existing = await _chatApi.GetChatSettingsAsync(
+            broadcasterId,
             ct
         );
+        if (existing.IsFailure)
+            return TwitchResultResponse(existing);
 
-        ChatSettingsDto current = config?.Value is not null
-            ? JsonSerializer.Deserialize<ChatSettingsDto>(config.Value, JsonOptions)
-                ?? DefaultSettings
-            : DefaultSettings;
+        ChatSettingsDto current = ToDto(existing.Value);
 
         bool slowMode = patch.TryGetProperty("slowMode", out JsonElement sm)
             ? sm.GetBoolean()
@@ -518,6 +532,21 @@ public class ChatController : BaseController
         )
             ? fod.GetInt32()
             : current.FollowersOnlyDuration;
+        bool uniqueChatMode = patch.TryGetProperty("uniqueChatMode", out JsonElement ucm)
+            ? ucm.GetBoolean()
+            : current.UniqueChatMode;
+        bool nonModeratorChatDelay = patch.TryGetProperty(
+            "nonModeratorChatDelay",
+            out JsonElement nmcd
+        )
+            ? nmcd.GetBoolean()
+            : current.NonModeratorChatDelay;
+        int nonModeratorChatDelayDuration = patch.TryGetProperty(
+            "nonModeratorChatDelayDuration",
+            out JsonElement nmcdd
+        )
+            ? nmcdd.GetInt32()
+            : current.NonModeratorChatDelayDuration;
 
         ChatSettingsDto merged = new(
             slowMode,
@@ -525,7 +554,10 @@ public class ChatController : BaseController
             subscriberOnly,
             emotesOnly,
             followersOnly,
-            followersOnlyDuration
+            followersOnlyDuration,
+            uniqueChatMode,
+            nonModeratorChatDelay,
+            nonModeratorChatDelayDuration
         );
         return await SaveSettings(channelId, merged, ct);
     }
@@ -536,33 +568,18 @@ public class ChatController : BaseController
         CancellationToken ct
     )
     {
-        Guid? broadcasterId = Guid.TryParse(channelId, out Guid g) ? g : null;
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
 
-        ConfigEntity? config = await _db.Configurations.FirstOrDefaultAsync(
-            c => c.BroadcasterId == broadcasterId && c.Key == "chat.settings",
+        Result<TwitchChatSettings> result = await _chatApi.UpdateChatSettingsAsync(
+            broadcasterId,
+            ToUpdateRequest(settings),
             ct
         );
+        if (result.IsFailure)
+            return TwitchResultResponse(result);
 
-        string json = JsonSerializer.Serialize(settings, JsonOptions);
-
-        if (config is null)
-        {
-            _db.Configurations.Add(
-                new()
-                {
-                    BroadcasterId = broadcasterId,
-                    Key = "chat.settings",
-                    Value = json,
-                }
-            );
-        }
-        else
-        {
-            config.Value = json;
-        }
-
-        await _db.SaveChangesAsync(ct);
-        return Ok(new StatusResponseDto<ChatSettingsDto> { Data = settings });
+        return Ok(new StatusResponseDto<ChatSettingsDto> { Data = ToDto(result.Value) });
     }
 
     // ── Announcement ──────────────────────────────────────────────────────────
