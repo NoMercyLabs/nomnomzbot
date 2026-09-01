@@ -265,6 +265,15 @@ public sealed class BundleServiceTests
     public async Task Export_never_carries_a_data_sources_secret_in_any_form()
     {
         Harness h = Build();
+        h.Db.HttpEgressAllowlists.Add(
+            new()
+            {
+                BroadcasterId = Channel,
+                Fqdn = "api.pulsoid.net",
+                IsEnabled = true,
+            }
+        );
+        await h.Db.SaveChangesAsync();
         CustomDataSourceDto source = (
             await h.DataSources.CreateAsync(
                 Channel,

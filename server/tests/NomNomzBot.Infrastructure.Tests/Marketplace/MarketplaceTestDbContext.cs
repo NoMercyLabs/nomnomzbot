@@ -227,6 +227,12 @@ internal sealed class MarketplaceTestDbContext : DbContext, IApplicationDbContex
         b.Entity<CodeScript>(e => e.HasKey(s => s.Id));
         b.Entity<CodeScriptVersion>(e => e.HasKey(v => v.Id));
 
+        b.Entity<HttpEgressAllowlist>(e =>
+        {
+            e.HasKey(a => a.Id);
+            e.HasQueryFilter(a => a.DeletedAt == null);
+        });
+
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
@@ -253,6 +259,7 @@ internal sealed class MarketplaceTestDbContext : DbContext, IApplicationDbContex
         typeof(CodeScriptVersion),
         typeof(NomNomzBot.Domain.Assets.Entities.ChannelAsset),
         typeof(NomNomzBot.Domain.Platform.Entities.Record),
+        typeof(HttpEgressAllowlist),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -446,7 +453,7 @@ internal sealed class MarketplaceTestDbContext : DbContext, IApplicationDbContex
         throw new NotSupportedException();
     public DbSet<InboundWebhookEndpoint> InboundWebhookEndpoints =>
         throw new NotSupportedException();
-    public DbSet<HttpEgressAllowlist> HttpEgressAllowlists => throw new NotSupportedException();
+    public DbSet<HttpEgressAllowlist> HttpEgressAllowlists => Set<HttpEgressAllowlist>();
     public DbSet<ViewerProfile> ViewerProfiles => throw new NotSupportedException();
     public DbSet<WatchSession> WatchSessions => throw new NotSupportedException();
     public DbSet<MessageActivityDaily> MessageActivityDailies => throw new NotSupportedException();

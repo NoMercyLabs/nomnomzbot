@@ -174,6 +174,9 @@ public static class ChannelBlastRadiusSources
         Of(BlastRadiusCategoryKeys.ChannelIntegrations, db => db.ChannelFederationOptIns),
         Of(BlastRadiusCategoryKeys.ChannelIntegrations, db => db.InstalledBundles),
         Of(BlastRadiusCategoryKeys.ChannelIntegrations, db => db.ChannelBotAuthorizations),
+        // The channel's own platform presences (Twitch/Kick/YouTube/X connections) — same category as its
+        // bot authorization, not "integrations" in the third-party-service sense but the closest curated home.
+        Of(BlastRadiusCategoryKeys.ChannelIntegrations, db => db.PlatformConnections),
         // ── Overlays ──
         Of(BlastRadiusCategoryKeys.ChannelOverlays, db => db.Widgets),
         Of(BlastRadiusCategoryKeys.ChannelOverlays, db => db.WidgetVersions),
