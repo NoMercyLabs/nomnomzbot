@@ -62,7 +62,9 @@ kept as a second, undeclared implementation. `Select` (`Select.kt`) is the close
 than a flat option list, so it is not superseded. `Combobox` (`Combobox.kt`) is built from `Input` + `Popover`
 per its catalogue row (`Foundation (Popover + Command)`); `EntityPickerField`/`SearchPickerField` (patterns
 tier) remain the id-keyed entity-search composites built on their own chrome, not on this primitive.
-**To build** (catalogued, no file yet) — `Avatar`, `ScrollArea`, `Table` (3).
+`Avatar` (`Avatar.kt`) was also found already built — like `Checkbox` before it, the manifest had not caught
+up; no new file was needed for it, only this correction.
+**To build** (catalogued, no file yet) — `ScrollArea`, `Table` (2).
 
 ---
 
