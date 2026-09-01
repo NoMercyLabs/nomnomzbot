@@ -237,42 +237,41 @@ class AdminController(
         }
     }
 
-    // ── Feature flags & billing (unchanged read-then-reload actions) ──────────
+    // ── Feature flags & billing (write, then reload) ──────────────────────────
 
-    suspend fun setFeatureFlag(body: AdminSetFeatureFlagRequest) {
-        api.setFeatureFlag(body)
-        load()
+    /**
+     * Runs one admin write and reloads on success, surfacing a failure as [AdminState.actionError] the way
+     * the IAM actions below already do. Every write in this block used to discard its [ApiResult] outright,
+     * so a rejected flag toggle or tier grant reloaded unchanged with nothing on screen to say it had failed.
+     */
+    private suspend fun <T> writeThenReload(call: suspend () -> ApiResult<T>) {
+        _state.value = _state.value.copy(actionError = null)
+        when (val result: ApiResult<T> = call()) {
+            is ApiResult.Ok -> load()
+            is ApiResult.Failure -> _state.value = _state.value.copy(actionError = result.error.message)
+        }
     }
 
-    suspend fun setFeatureFlagOverride(flagKey: String, broadcasterId: String, body: AdminSetFeatureFlagOverrideRequest) {
-        api.setFeatureFlagOverride(flagKey, broadcasterId, body)
-        load()
-    }
+    suspend fun setFeatureFlag(body: AdminSetFeatureFlagRequest) =
+        writeThenReload { api.setFeatureFlag(body) }
 
-    suspend fun deleteFeatureFlagOverride(flagKey: String, broadcasterId: String) {
-        api.deleteFeatureFlagOverride(flagKey, broadcasterId)
-        load()
-    }
+    suspend fun setFeatureFlagOverride(flagKey: String, broadcasterId: String, body: AdminSetFeatureFlagOverrideRequest) =
+        writeThenReload { api.setFeatureFlagOverride(flagKey, broadcasterId, body) }
 
-    suspend fun createInviteCode(body: AdminCreateInviteCodeRequest) {
-        api.createInviteCode(body)
-        load()
-    }
+    suspend fun deleteFeatureFlagOverride(flagKey: String, broadcasterId: String) =
+        writeThenReload { api.deleteFeatureFlagOverride(flagKey, broadcasterId) }
 
-    suspend fun revokeInviteCode(inviteCodeId: String) {
-        api.revokeInviteCode(inviteCodeId)
-        load()
-    }
+    suspend fun createInviteCode(body: AdminCreateInviteCodeRequest) =
+        writeThenReload { api.createInviteCode(body) }
 
-    suspend fun grantTier(broadcasterId: String, body: AdminGrantTierRequest) {
-        api.grantTier(broadcasterId, body)
-        load()
-    }
+    suspend fun revokeInviteCode(inviteCodeId: String) =
+        writeThenReload { api.revokeInviteCode(inviteCodeId) }
 
-    suspend fun grantFounderBadge(broadcasterId: String) {
-        api.grantFounderBadge(broadcasterId)
-        load()
-    }
+    suspend fun grantTier(broadcasterId: String, body: AdminGrantTierRequest) =
+        writeThenReload { api.grantTier(broadcasterId, body) }
+
+    suspend fun grantFounderBadge(broadcasterId: String) =
+        writeThenReload { api.grantFounderBadge(broadcasterId) }
 
     // ── IAM ───────────────────────────────────────────────────────────────────
 

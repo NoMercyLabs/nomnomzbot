@@ -132,6 +132,30 @@ class AdminScreenTest {
         assertEquals(50, request.rolloutPercentage, "the existing rollout percentage must be preserved, not reset")
     }
 
+    // Every write in AdminController's "feature flags & billing" block discarded its ApiResult and reloaded
+    // regardless, so a 403 on a flag toggle or a tier grant left the panel looking like nothing had happened.
+    // They now share writeThenReload, which sets actionError the way the IAM writes always have.
+    @Test
+    fun a_rejected_flag_write_surfaces_the_error_instead_of_reloading_silently() = runTest {
+        val api = RecordingFeatureFlagAdminApi(
+            initialFlags = listOf(
+                FeatureFlag(key = "new-dashboard", description = "New dashboard UI", isEnabledGlobally = false, rolloutPercentage = 50),
+            ),
+            setFeatureFlagFailure = ApiError(status = 403, code = null, message = "Not permitted on this deployment"),
+        )
+        val controller = AdminController(api = api, iamApi = NoopPlatformIamApi(), platformAdminApi = NoopPlatformAdminApi())
+
+        controller.setFeatureFlag(
+            AdminSetFeatureFlagRequest(key = "new-dashboard", isEnabledGlobally = true, rolloutPercentage = 50),
+        )
+
+        assertEquals(
+            "Not permitted on this deployment",
+            controller.state.value.actionError,
+            "a rejected admin write must surface its error, not be swallowed",
+        )
+    }
+
     // S-OWN08b: the admin Channels/Users lists had no search — unbounded, unsearchable on any real deployment.
     // Proves submitting the search box actually reaches AdminApi.getChannels/getUsers with the typed value, not
     // just that a text field renders.
@@ -182,6 +206,7 @@ class AdminScreenTest {
 
 private class RecordingFeatureFlagAdminApi(
     initialFlags: List<FeatureFlag>,
+    private val setFeatureFlagFailure: ApiError? = null,
 ) : AdminApi {
     private val flags: MutableList<FeatureFlag> = initialFlags.toMutableList()
     val setFeatureFlagCalls: MutableList<AdminSetFeatureFlagRequest> = mutableListOf()
@@ -198,6 +223,7 @@ private class RecordingFeatureFlagAdminApi(
 
     override suspend fun setFeatureFlag(body: AdminSetFeatureFlagRequest): ApiResult<FeatureFlag> {
         setFeatureFlagCalls += body
+        setFeatureFlagFailure?.let { return ApiResult.Failure(it) }
         val updated = FeatureFlag(
             key = body.key,
             description = body.description,
