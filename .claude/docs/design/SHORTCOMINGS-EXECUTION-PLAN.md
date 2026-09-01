@@ -922,14 +922,6 @@ later.)
   profile fields, leaderboard opt-in read, per-jar contributions, own SR requests + public page link,
   preview-as-viewer forces Everyone (U·C5).
 - **S079** Viewer giveaway entry/my-entries endpoint + card (or drop from IA) (U·C5).
-- **S051-remaining** Design-system catalogue gap — S051a DONE (388777de): Alert, Label, Skeleton;
-  Checkbox/Avatar found pre-existing. S051b DONE (a3a0301f): Input, RadioGroup, Toast (FeedbackHost
-  refactored onto the Toast primitive). S051c DONE, verified (ff0bdd17): Combobox, Popover, Select —
-  open/closed transitions, disabled-state guard, selection-updates-value all proven, not just render.
-  Found: the Patterns-tier `AppSelectField` row (catalogue.md:73) still says "stands in for Select
-  until it is built" — now stale, a one-line manifest fix, not done here. Remaining catalogued-but-
-  missing primitives: ScrollArea, Table (2); or re-scope the catalogue; Patterns tier documented
-  (spec `frontend-design-system.md`).
 
 ## Phase 4B — the surfaces round four found (U·Part E) — existing features, same stability-first rule
 
