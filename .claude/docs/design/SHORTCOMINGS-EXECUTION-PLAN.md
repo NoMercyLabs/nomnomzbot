@@ -859,6 +859,16 @@ later.)
 - **S071** Notification centre + Home — action-required inbox (dead tokens, missing scopes, failed
   timers, held messages, pending unbans) with click-through; Home hero tile + collapsed activity feed
   + first-run next steps (U·B6, K). Done-when: a dead Spotify token is visible on Home within a minute.
+  **Backend aggregation DONE, verified (7ee7b065)**: new `IActionRequiredInboxService.GetItemsAsync` +
+  `GET /api/v1/channels/{channelId}/notifications/action-required`. Only 2 of the 5 named categories had
+  a real, honest backing signal today — dead/expired integration tokens (`IntegrationConnection.Status`)
+  and held AutoMod messages (`ModerationQueueItem` pending rows) — both included. The other 3 skipped,
+  not fabricated: missing scopes (every gap is `IsProgressive=true` by design, not an error state), failed
+  timers (`Timer` has no run-failure tracking at all), pending unbans (only live-fetchable under an
+  operator's own token, not a stored/aggregatable signal). 4 tests, real seeded-row assertions +
+  tenant-isolation proof. **Still open: Home hero tile + collapsed activity feed + first-run next steps**
+  (frontend, next sub-slice) — Done-when ("visible on Home within a minute") isn't met until the tile
+  consumes this endpoint.
 - **S072** IA reconciliation — Admin via profile menu + chrome swap; theme + Account in profile menu;
   tabbed Settings; `MyData` on the participant rung; shipped routes listed in `frontend-ia.md`
   (U·B6). 🔒 regroup sidebar vs update spec.
