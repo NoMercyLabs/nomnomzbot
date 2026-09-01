@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.RegularExpressions;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Controllers;
@@ -71,5 +72,49 @@ public sealed class ObsBridgeHostControllerTests
                 "subscribed VTS events relay back for the trigger surface"
             )
             .And.Contain("textContent", "debug text is inserted as text nodes only, never markup");
+    }
+
+    /// <summary>
+    /// S-OWN22: the page's whole logic is one inline &lt;script&gt;, but the SecurityHeadersMiddleware's
+    /// dashboard-wide CSP header carries no 'unsafe-inline' and no nonce, so — before this page owned its own
+    /// per-response nonce policy — that inline script was unconditionally blocked and the bridge never ran at
+    /// all (confirmed via the owner's DevTools console: "Executing inline script violates ... script-src").
+    /// This proves the fix actually closes the gap: the &lt;meta&gt; CSP's nonce and the &lt;script&gt; tag's
+    /// nonce attribute must be the SAME value, and a fresh nonce must be minted per request (never a fixed
+    /// string an attacker could replay into an injected script tag).
+    /// </summary>
+    [Fact]
+    public void The_meta_csp_nonce_matches_the_inline_script_tag_nonce_and_changes_per_request()
+    {
+        ObsBridgeHostController sut = new();
+
+        ContentResult first = sut.Get().Should().BeOfType<ContentResult>().Subject;
+        ContentResult second = sut.Get().Should().BeOfType<ContentResult>().Subject;
+
+        string firstNonce = ExtractMetaCspNonce(first.Content!);
+        string secondNonce = ExtractMetaCspNonce(second.Content!);
+
+        firstNonce.Should().NotBeNullOrEmpty();
+        first
+            .Content.Should()
+            .Contain(
+                $"<script nonce=\"{firstNonce}\">",
+                "the inline <script> must carry the exact nonce the CSP header names, or the browser refuses to run it"
+            );
+        first
+            .Content.Should()
+            .Contain(
+                "script-src 'self' 'nonce-",
+                "the page must own a nonce-scoped script-src, not fall back to the dashboard's stricter default"
+            );
+        secondNonce
+            .Should()
+            .NotBe(firstNonce, "a fixed nonce would let a replayed/injected script tag reuse it");
+    }
+
+    private static string ExtractMetaCspNonce(string html)
+    {
+        Match match = Regex.Match(html, @"script-src 'self' 'nonce-([^']+)'");
+        return match.Success ? match.Groups[1].Value : string.Empty;
     }
 }
