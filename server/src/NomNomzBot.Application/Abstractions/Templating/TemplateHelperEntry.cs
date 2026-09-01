@@ -30,11 +30,19 @@ namespace NomNomzBot.Application.Abstractions.Templating;
 /// parameterized family — the placeholder is valid when it starts with this prefix and has at least one
 /// character after it (e.g. <c>Prefix="args."</c> matches <c>args.1</c>, <c>args.2</c>, ...).
 /// </param>
+/// <param name="EventScoped">
+/// True when this helper is only seeded by SOME EventSub triggers, not every one that reaches
+/// <see cref="TemplateHelperContext.EventResponse"/> — e.g. <c>tier</c> only fires from a subscription
+/// event, never a raid (S-OWN16). <c>TemplateHelperRegistry.ForContext(context, eventType)</c> checks
+/// such an entry against <c>EventResponsePresetCatalog</c>'s per-event variable list; false (the
+/// default) means the helper is valid for every event that context accepts.
+/// </param>
 public sealed record TemplateHelperEntry(
     string Key,
     IReadOnlyList<TemplateHelperContext> Contexts,
     LocalizedText Description,
-    string? Prefix = null
+    string? Prefix = null,
+    bool EventScoped = false
 )
 {
     /// <summary>True when <paramref name="placeholderKey"/> (already trimmed, no braces) matches this entry.</summary>
