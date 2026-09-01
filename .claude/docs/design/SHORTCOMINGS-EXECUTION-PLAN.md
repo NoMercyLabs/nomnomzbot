@@ -25,7 +25,6 @@ Owner's own words, filed as slices S-OWN01..S-OWN19. 🔴 = owner-marked priorit
 order. Each still gets the normal treatment (root-cause fix, tested, committed, deleted from here
 when done) — this section is only the intake, not a shortcut around the bar.
 
-- 🔴 **S-OWN01** — bot keeps re-asking for scope permissions the user already granted.
 - **S-OWN02** — permission-request spam in chat must consolidate into one message/notification.
 - **S-OWN03** — code editor needs more themes; at least one Atom One Dark and one light.
 - **S-OWN04** — code formatting in the code editor doesn't apply the configured style rules.
@@ -36,7 +35,6 @@ when done) — this section is only the intake, not a shortcut around the bar.
 - **S-OWN09** — need proper create/update/delete for system commands, overlays, and pipelines (not just user-authored ones).
 - 🔴 **S-OWN10** — the "extra Spotify section" in Integrations must merge into the one regular Spotify integration; the bot never hosts its own Spotify client — BYOC always, per [[byoc-encouraged-ownership-portability]].
 - 🔴 **S-OWN11** — logo-badge overlay shows wrong data for raids/follows/subs; shoutout announcement template isn't interpolating — likely because the pipeline models a single target instead of one usable with `{target}` (raider name); the raid chat message itself is correct.
-- 🔴 **S-OWN12** — song request over the per-user/queue limit responds with a generic "service not available" instead of a real over-limit message.
 - **S-OWN13** — Alerts & Events page edit dialog doesn't show the currently-chosen pipeline.
 - **S-OWN14** — `!quote <N>` doesn't return the Nth quote correctly.
 - 🔴 **S-OWN15** — Spotify overlay widget updates too slowly; the Stream Deck plugin gets updates fine by comparison — compare transports/push paths.
