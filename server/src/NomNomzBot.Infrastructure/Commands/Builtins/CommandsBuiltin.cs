@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Extensions.DependencyInjection;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Commands.Dtos;
@@ -26,17 +27,24 @@ namespace NomNomzBot.Infrastructure.Commands.Builtins;
 public sealed class CommandsBuiltin : IBuiltinCommand
 {
     private readonly ICommandService _commands;
-    private readonly IBuiltinCommandService _builtins;
+    private readonly IServiceProvider _serviceProvider;
     private readonly IBuiltinResponseComposer _composer;
 
+    // IBuiltinCommandService is resolved lazily from IServiceProvider rather than taken as a
+    // constructor dependency: this built-in is itself collected into IBuiltinCommandCatalog's
+    // IEnumerable<IBuiltinCommand>, which IBuiltinCommandService's own implementation depends on
+    // (catalog -> this builtin -> builtin command service -> catalog). A direct constructor
+    // dependency here creates a circular DI graph that fails ServiceProvider validation at
+    // startup; deferring resolution to call time (this class never sits inside the catalog's own
+    // construction path) breaks the cycle without changing runtime behavior.
     public CommandsBuiltin(
         ICommandService commands,
-        IBuiltinCommandService builtins,
+        IServiceProvider serviceProvider,
         IBuiltinResponseComposer composer
     )
     {
         _commands = commands;
-        _builtins = builtins;
+        _serviceProvider = serviceProvider;
         _composer = composer;
     }
 
@@ -127,7 +135,9 @@ public sealed class CommandsBuiltin : IBuiltinCommand
             ? customResult.Value.Items.Where(c => c.IsEnabled).Select(c => c.Name)
             : [];
 
-        Result<IReadOnlyList<BuiltinCommandDto>> builtinResult = await _builtins.ListAsync(
+        IBuiltinCommandService builtins =
+            _serviceProvider.GetRequiredService<IBuiltinCommandService>();
+        Result<IReadOnlyList<BuiltinCommandDto>> builtinResult = await builtins.ListAsync(
             broadcasterIdText,
             ct
         );

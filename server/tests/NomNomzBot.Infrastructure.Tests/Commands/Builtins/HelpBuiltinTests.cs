@@ -89,13 +89,16 @@ public sealed class HelpBuiltinTests
             DateTime.UtcNow
         );
 
-    private static IBuiltinCommandService EmptyBuiltins()
+    private static IServiceProvider EmptyBuiltins()
     {
         IBuiltinCommandService builtins = Substitute.For<IBuiltinCommandService>();
         builtins
             .ListAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success<IReadOnlyList<BuiltinCommandDto>>([]));
-        return builtins;
+
+        IServiceProvider serviceProvider = Substitute.For<IServiceProvider>();
+        serviceProvider.GetService(typeof(IBuiltinCommandService)).Returns(builtins);
+        return serviceProvider;
     }
 
     [Fact]

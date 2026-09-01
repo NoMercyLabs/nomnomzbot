@@ -63,6 +63,13 @@ public sealed class CommandsBuiltinTests
         return new BuiltinResponseComposer(resolver);
     }
 
+    private static IServiceProvider FakeServiceProvider(IBuiltinCommandService builtins)
+    {
+        IServiceProvider serviceProvider = Substitute.For<IServiceProvider>();
+        serviceProvider.GetService(typeof(IBuiltinCommandService)).Returns(builtins);
+        return serviceProvider;
+    }
+
     private static CommandListItem FakeCommand(string name, bool isEnabled) =>
         new(
             Guid.CreateVersion7(),
@@ -113,7 +120,7 @@ public sealed class CommandsBuiltinTests
                 ])
             );
 
-        CommandsBuiltin builtin = new(commands, builtins, FakeComposer());
+        CommandsBuiltin builtin = new(commands, FakeServiceProvider(builtins), FakeComposer());
 
         Result<string> result = await builtin.ExecuteAsync(Context());
 
@@ -153,7 +160,7 @@ public sealed class CommandsBuiltinTests
                 ])
             );
 
-        CommandsBuiltin builtin = new(commands, builtins, FakeComposer());
+        CommandsBuiltin builtin = new(commands, FakeServiceProvider(builtins), FakeComposer());
 
         Result<string> result = await builtin.ExecuteAsync(Context());
 
@@ -179,7 +186,7 @@ public sealed class CommandsBuiltinTests
             .ListAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success<IReadOnlyList<BuiltinCommandDto>>([]));
 
-        CommandsBuiltin builtin = new(commands, builtins, FakeComposer());
+        CommandsBuiltin builtin = new(commands, FakeServiceProvider(builtins), FakeComposer());
 
         Result<string> sassy = await builtin.ExecuteAsync(Context(PersonalityTone.Sassy));
         Result<string> informative = await builtin.ExecuteAsync(
