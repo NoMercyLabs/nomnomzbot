@@ -816,11 +816,14 @@ later.)
 
 ## Phase 5 — new model (D1 one channel / D2 any login) — merged only after Phases 0–4; S023/S024 are the minimum the viewer-identity fixes need
 
-- **S019** `PlatformConnection` model — entity (ChannelId, Provider, ExternalChannelId, name, connection,
-  IsPrimary, IsLive), `Channel` loses `Provider`, `Platform` enum + `twitter`; migrations (PG + SQLite);
-  provisioner creates connections under the owner's one channel; data migration folds existing sibling
-  channels into one (U·C0, spec `platform-identity.md`). Done-when: a Twitch+Kick streamer is ONE
-  `Channel` with two connections; all tenant-scoped reads unchanged.
+- **S019-remaining** `PlatformConnection` model — S019a DONE, verified (2f6b98d9): entity
+  (ChannelId, Provider, ExternalChannelId, DisplayName, IsPrimary, IsLive) + dual-DB migrations
+  (SQLite + Postgres) + FK/unique-index round-trip proven. Reused existing `AuthEnums.Platform`, no
+  new enum needed. Deliberately NOT wired into `IApplicationDbContext` yet (no consumer exists,
+  avoids ~10-fake-context blast radius) — that wiring lands with the next piece. Remaining: `Channel`
+  loses `Provider`, provisioner creates connections under the owner's one channel, data migration
+  folds existing sibling channels into one (U·C0, spec `platform-identity.md`). Done-when: a
+  Twitch+Kick streamer is ONE `Channel` with two connections; all tenant-scoped reads unchanged.
 - **S023** Viewer identity key sweep — `*TwitchUserId` → `*ExternalUserId + *Provider` on the 18
   entities; remove `provider = Twitch` default on `IUserService`; delete `PlatformType` (U·C0).
   Done-when: build + migration green; no call site defaults the provider.
