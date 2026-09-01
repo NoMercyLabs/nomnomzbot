@@ -295,41 +295,44 @@ public static class ToneTemplateCatalog
             chill: ["queue's empty.", "nothing queued. !sr maybe.", "empty rn."]
         );
 
-        // ── !sr / added ({user} {track.name} {track.artist}) ───────────────────
+        // ── !sr / added ({user} {track.name} {track.artist} {track.link}) ──────
+        // {track.link} is a real, directly-fetchable web URL (never Spotify's internal spotify:track:
+        // scheme) so chat's own OG-preview resolution turns this line into a real card — art, title,
+        // artist — the same as any pasted link, matching the owner's original chat overlay.
         Add(
             catalog,
             BuiltinResponseSlots.SongRequest.Key,
             BuiltinResponseSlots.SongRequest.Added,
             informative:
             [
-                "Added {track.name} by {track.artist} to the queue.",
-                "Queued: {track.name} by {track.artist}.",
-                "{track.name} by {track.artist} is in the queue.",
+                "Added {track.name} by {track.artist} to the queue. {track.link}",
+                "Queued: {track.name} by {track.artist}. {track.link}",
+                "{track.name} by {track.artist} is in the queue. {track.link}",
             ],
             friendly:
             [
-                "Added {track.name} by {track.artist} — great choice!",
-                "Got it! {track.name} by {track.artist} is queued.",
-                "{track.name} by {track.artist} coming up — thanks!",
+                "Added {track.name} by {track.artist} — great choice! {track.link}",
+                "Got it! {track.name} by {track.artist} is queued. {track.link}",
+                "{track.name} by {track.artist} coming up — thanks! {track.link}",
             ],
             sassy:
             [
-                "Fine. {track.name} by {track.artist} is in the queue. I've queued worse. Barely.",
-                "Added {track.name} by {track.artist}. Bold. Noted. Logged forever.",
-                "{track.name} by {track.artist}? Sure. It's in. The queue doesn't judge. I do, but the queue doesn't.",
-                "{track.name} by {track.artist}, queued. Your taste has been entered into evidence.",
+                "Fine. {track.name} by {track.artist} is in the queue. I've queued worse. Barely. {track.link}",
+                "Added {track.name} by {track.artist}. Bold. Noted. Logged forever. {track.link}",
+                "{track.name} by {track.artist}? Sure. It's in. The queue doesn't judge. I do, but the queue doesn't. {track.link}",
+                "{track.name} by {track.artist}, queued. Your taste has been entered into evidence. {track.link}",
             ],
             hype:
             [
-                "{track.name} BY {track.artist} IS LOCKED IN. LET'S GO.",
-                "ADDED {track.name} BY {track.artist}. THE QUEUE JUST GOT BETTER.",
-                "{track.name} BY {track.artist} INCOMING. BRACE.",
+                "{track.name} BY {track.artist} IS LOCKED IN. LET'S GO. {track.link}",
+                "ADDED {track.name} BY {track.artist}. THE QUEUE JUST GOT BETTER. {track.link}",
+                "{track.name} BY {track.artist} INCOMING. BRACE. {track.link}",
             ],
             chill:
             [
-                "added {track.name} by {track.artist}.",
-                "queued {track.name}. nice.",
-                "{track.name} by {track.artist}, in.",
+                "added {track.name} by {track.artist}. {track.link}",
+                "queued {track.name}. nice. {track.link}",
+                "{track.name} by {track.artist}, in. {track.link}",
             ]
         );
 

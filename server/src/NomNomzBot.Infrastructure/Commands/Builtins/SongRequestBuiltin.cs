@@ -149,6 +149,11 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
 
         MusicTrack track = requested.Value;
 
+        // A real, clickable web link (not the provider's internal URI scheme) so chat's own link-preview
+        // resolution — the same OG-preview pipeline any pasted link already gets — turns this confirmation
+        // into a real preview card (art, title, artist) instead of plain text.
+        string trackLink = TrackWebLink(track);
+
         string message = await _composer.ComposeAsync(
             new()
             {
@@ -157,17 +162,32 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
                 BuiltinKey = BuiltinKey,
                 Slot = BuiltinResponseSlots.SongRequest.Added,
                 OverrideTemplate = context.CustomResponseTemplate,
-                NeutralFallback = "Added {track.name} by {track.artist} to the queue.",
+                NeutralFallback = "Added {track.name} by {track.artist} to the queue. {track.link}",
                 Variables = new Dictionary<string, string>
                 {
                     ["user"] = context.TriggeringUserDisplayName,
                     ["track.name"] = track.Name,
                     ["track.artist"] = track.Artist,
+                    ["track.link"] = trackLink,
                 },
             },
             ct
         );
         return Result.Success(message);
+    }
+
+    /// <summary>
+    /// A provider-agnostic, directly-clickable web URL for the track — YouTube's <see cref="MusicTrack.Uri"/>
+    /// is already a real <c>https://</c> watch URL, but Spotify's is the internal <c>spotify:track:&lt;id&gt;</c>
+    /// URI scheme, which chat clients and this bot's own OG-preview resolver can't fetch metadata for. Falls
+    /// back to the raw URI for any other/future provider that already hands back a real link.
+    /// </summary>
+    private static string TrackWebLink(MusicTrack track)
+    {
+        const string spotifyUriPrefix = "spotify:track:";
+        return track.Uri.StartsWith(spotifyUriPrefix, StringComparison.Ordinal)
+            ? $"https://open.spotify.com/track/{track.Uri[spotifyUriPrefix.Length..]}"
+            : track.Uri;
     }
 
     /// <summary>
