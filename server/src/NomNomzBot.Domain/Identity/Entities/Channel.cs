@@ -160,4 +160,5 @@ public class Channel : SoftDeletableEntity
     public virtual ICollection<global::NomNomzBot.Domain.Stream.Entities.Stream> Streams { get; set; } =
     [];
     public virtual ICollection<ChannelEvent> Events { get; set; } = [];
+    public virtual ICollection<PlatformConnection> PlatformConnections { get; set; } = [];
 }

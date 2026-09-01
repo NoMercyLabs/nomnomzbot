@@ -48,6 +48,8 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<UserIdentity> UserIdentities => Set<UserIdentity>();
     public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
     public DbSet<Channel> Channels => Set<Channel>();
+    public DbSet<Domain.Identity.Entities.PlatformConnection> PlatformConnections =>
+        Set<Domain.Identity.Entities.PlatformConnection>();
     public DbSet<ChannelModerator> ChannelModerators => Set<ChannelModerator>();
     public DbSet<Service> Services => Set<Service>();
 
