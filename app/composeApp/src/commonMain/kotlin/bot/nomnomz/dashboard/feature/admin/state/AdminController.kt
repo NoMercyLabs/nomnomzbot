@@ -59,7 +59,9 @@ import kotlinx.datetime.Instant
 data class AdminState(
     val stats: AdminStats? = null,
     val channels: List<AdminChannel> = emptyList(),
+    val channelSearch: String = "",
     val users: List<AdminUser> = emptyList(),
+    val userSearch: String = "",
     val system: AdminSystem? = null,
     val health: List<AdminServiceHealth> = emptyList(),
     val events: List<PlatformEvent> = emptyList(),
@@ -181,6 +183,28 @@ class AdminController(
         )
     }
 
+    /** Re-fetches the channel list, narrowed by [search] against the channel's login or its owner's display
+     * name — the last-submitted search when [search] is omitted, so a page-size/status change re-applies it. */
+    suspend fun loadChannels(search: String? = null) {
+        val effectiveSearch: String = search ?: _state.value.channelSearch
+        _state.value = _state.value.copy(channelSearch = effectiveSearch)
+        when (val result = api.getChannels(search = effectiveSearch)) {
+            is ApiResult.Ok -> _state.value = _state.value.copy(channels = result.value.data)
+            is ApiResult.Failure -> _state.value = _state.value.copy(error = result.error.message)
+        }
+    }
+
+    /** Re-fetches the user list, narrowed by [search] against the user's login or display name — the
+     * last-submitted search when [search] is omitted. */
+    suspend fun loadUsers(search: String? = null) {
+        val effectiveSearch: String = search ?: _state.value.userSearch
+        _state.value = _state.value.copy(userSearch = effectiveSearch)
+        when (val result = api.getUsers(search = effectiveSearch)) {
+            is ApiResult.Ok -> _state.value = _state.value.copy(users = result.value.data)
+            is ApiResult.Failure -> _state.value = _state.value.copy(error = result.error.message)
+        }
+    }
+
     /**
      * Fold live operator-hub pushes into state: the 15 s system heartbeat overwrites the health/stats panel,
      * a registry update lands in the live channel-registry list, and a log push prepends the operator log.
@@ -213,42 +237,41 @@ class AdminController(
         }
     }
 
-    // ── Feature flags & billing (unchanged read-then-reload actions) ──────────
+    // ── Feature flags & billing (write, then reload) ──────────────────────────
 
-    suspend fun setFeatureFlag(body: AdminSetFeatureFlagRequest) {
-        api.setFeatureFlag(body)
-        load()
+    /**
+     * Runs one admin write and reloads on success, surfacing a failure as [AdminState.actionError] the way
+     * the IAM actions below already do. Every write in this block used to discard its [ApiResult] outright,
+     * so a rejected flag toggle or tier grant reloaded unchanged with nothing on screen to say it had failed.
+     */
+    private suspend fun <T> writeThenReload(call: suspend () -> ApiResult<T>) {
+        _state.value = _state.value.copy(actionError = null)
+        when (val result: ApiResult<T> = call()) {
+            is ApiResult.Ok -> load()
+            is ApiResult.Failure -> _state.value = _state.value.copy(actionError = result.error.message)
+        }
     }
 
-    suspend fun setFeatureFlagOverride(flagKey: String, broadcasterId: String, body: AdminSetFeatureFlagOverrideRequest) {
-        api.setFeatureFlagOverride(flagKey, broadcasterId, body)
-        load()
-    }
+    suspend fun setFeatureFlag(body: AdminSetFeatureFlagRequest) =
+        writeThenReload { api.setFeatureFlag(body) }
 
-    suspend fun deleteFeatureFlagOverride(flagKey: String, broadcasterId: String) {
-        api.deleteFeatureFlagOverride(flagKey, broadcasterId)
-        load()
-    }
+    suspend fun setFeatureFlagOverride(flagKey: String, broadcasterId: String, body: AdminSetFeatureFlagOverrideRequest) =
+        writeThenReload { api.setFeatureFlagOverride(flagKey, broadcasterId, body) }
 
-    suspend fun createInviteCode(body: AdminCreateInviteCodeRequest) {
-        api.createInviteCode(body)
-        load()
-    }
+    suspend fun deleteFeatureFlagOverride(flagKey: String, broadcasterId: String) =
+        writeThenReload { api.deleteFeatureFlagOverride(flagKey, broadcasterId) }
 
-    suspend fun revokeInviteCode(inviteCodeId: String) {
-        api.revokeInviteCode(inviteCodeId)
-        load()
-    }
+    suspend fun createInviteCode(body: AdminCreateInviteCodeRequest) =
+        writeThenReload { api.createInviteCode(body) }
 
-    suspend fun grantTier(broadcasterId: String, body: AdminGrantTierRequest) {
-        api.grantTier(broadcasterId, body)
-        load()
-    }
+    suspend fun revokeInviteCode(inviteCodeId: String) =
+        writeThenReload { api.revokeInviteCode(inviteCodeId) }
 
-    suspend fun grantFounderBadge(broadcasterId: String) {
-        api.grantFounderBadge(broadcasterId)
-        load()
-    }
+    suspend fun grantTier(broadcasterId: String, body: AdminGrantTierRequest) =
+        writeThenReload { api.grantTier(broadcasterId, body) }
+
+    suspend fun grantFounderBadge(broadcasterId: String) =
+        writeThenReload { api.grantFounderBadge(broadcasterId) }
 
     // ── IAM ───────────────────────────────────────────────────────────────────
 

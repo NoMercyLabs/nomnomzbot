@@ -22,13 +22,20 @@ import kotlinx.serialization.Serializable
 // Backend route (TemplatesController):
 //   GET /api/v1/templates/helpers?context=<TemplateHelperContext>  →  StatusResponseDto<List<TemplateHelperDto>>
 interface TemplateHelpersApi {
-    /** The full valid helper set for [context] — global namespaces plus whatever that surface seeds. */
-    suspend fun helpers(context: TemplateHelperContext): ApiResult<List<TemplateHelperDto>>
+    /**
+     * The full valid helper set for [context] — global namespaces plus whatever that surface seeds. When
+     * [eventType] is given (e.g. `channel.raid`) the backend narrows the set to that event's own seeded
+     * variables instead of every event-scoped variable across the whole [TemplateHelperContext.EventResponse]
+     * surface.
+     */
+    suspend fun helpers(context: TemplateHelperContext, eventType: String? = null): ApiResult<List<TemplateHelperDto>>
 }
 
 class RestTemplateHelpersApi(private val client: ApiClient) : TemplateHelpersApi {
-    override suspend fun helpers(context: TemplateHelperContext): ApiResult<List<TemplateHelperDto>> =
-        client.getEnvelope("api/v1/templates/helpers?context=${context.wireName}")
+    override suspend fun helpers(context: TemplateHelperContext, eventType: String?): ApiResult<List<TemplateHelperDto>> {
+        val eventTypeQuery: String = eventType?.takeIf { it.isNotBlank() }?.let { "&eventType=$it" } ?: ""
+        return client.getEnvelope("api/v1/templates/helpers?context=${context.wireName}$eventTypeQuery")
+    }
 }
 
 /**

@@ -61,6 +61,7 @@ fun TemplateHelpersLink(
     api: TemplateHelpersApi,
     onInsert: (String) -> Unit,
     modifier: Modifier = Modifier,
+    eventType: String? = null,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -75,6 +76,7 @@ fun TemplateHelpersLink(
         TemplateHelpersDialog(
             context = context,
             api = api,
+            eventType = eventType,
             onInsert = { token ->
                 onInsert(token)
                 open = false
@@ -104,17 +106,18 @@ fun TemplateHelpersDialog(
     api: TemplateHelpersApi,
     onInsert: (String) -> Unit,
     onDismissRequest: () -> Unit,
+    eventType: String? = null,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    var loadState: HelperLoadState by remember(context) { mutableStateOf(HelperLoadState.Loading) }
+    var loadState: HelperLoadState by remember(context, eventType) { mutableStateOf(HelperLoadState.Loading) }
     var query: String by remember { mutableStateOf("") }
 
-    LaunchedEffect(context) {
+    LaunchedEffect(context, eventType) {
         loadState =
-            when (val result = api.helpers(context)) {
+            when (val result = api.helpers(context, eventType)) {
                 is ApiResult.Ok -> HelperLoadState.Loaded(result.value)
                 is ApiResult.Failure -> HelperLoadState.Failed
             }

@@ -427,6 +427,7 @@ private fun EditDialog(
                     TemplateHelpersLink(
                         context = TemplateHelperContext.EventResponse,
                         api = templateHelpersApi,
+                        eventType = response.eventType,
                         onInsert = { token -> message = appendToken(message, token) },
                     )
                     // Insert a random-response token (`{list.pick.<name>}`) — renders only when lists exist.

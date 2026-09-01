@@ -17,12 +17,18 @@ public interface IAdminService
 {
     Task<Result<AdminStatsDto>> GetStatsAsync(CancellationToken ct = default);
 
+    /// <summary>Paged channel listing, optionally narrowed by a case-insensitive [search] match against the
+    /// channel's login/name or its owner's display name.</summary>
     Task<Result<PagedList<AdminChannelDto>>> ListChannelsAsync(
+        string? search,
         PaginationParams pagination,
         CancellationToken ct = default
     );
 
+    /// <summary>Paged user listing, optionally narrowed by a case-insensitive [search] match against the
+    /// user's login or display name.</summary>
     Task<Result<PagedList<AdminUserDto>>> ListUsersAsync(
+        string? search,
         PaginationParams pagination,
         CancellationToken ct = default
     );

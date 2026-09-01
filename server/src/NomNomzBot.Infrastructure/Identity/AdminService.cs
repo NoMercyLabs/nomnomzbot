@@ -69,14 +69,25 @@ public sealed class AdminService : IAdminService
     }
 
     public async Task<Result<PagedList<AdminChannelDto>>> ListChannelsAsync(
+        string? search,
         PaginationParams pagination,
         CancellationToken ct = default
     )
     {
-        int total = await _db.Channels.CountAsync(ct);
+        IQueryable<Channel> channels = _db.Channels;
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            string normalizedSearch = search.Trim().ToLowerInvariant();
+            channels = channels.Where(c =>
+                c.NameNormalized.Contains(normalizedSearch)
+                || c.User.DisplayName.ToLower().Contains(normalizedSearch)
+            );
+        }
+
+        int total = await channels.CountAsync(ct);
 
         List<AdminChannelDto> items = await (
-            from c in _db.Channels
+            from c in channels
             join sub in _db.ChannelSubscriptions on c.Id equals sub.BroadcasterId into subs
             from sub in subs.OrderByDescending(s => s.CreatedAt).Take(1).DefaultIfEmpty()
             orderby c.CreatedAt descending
@@ -101,6 +112,7 @@ public sealed class AdminService : IAdminService
     }
 
     public async Task<Result<PagedList<AdminUserDto>>> ListUsersAsync(
+        string? search,
         PaginationParams pagination,
         CancellationToken ct = default
     )
@@ -118,6 +130,15 @@ public sealed class AdminService : IAdminService
                 || _db.AuthSessions.Any(s => s.UserId == u.Id)
             )
         );
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            string normalizedSearch = search.Trim().ToLowerInvariant();
+            users = users.Where(u =>
+                u.UsernameNormalized.Contains(normalizedSearch)
+                || u.DisplayName.ToLower().Contains(normalizedSearch)
+            );
+        }
 
         int total = await users.CountAsync(ct);
 
