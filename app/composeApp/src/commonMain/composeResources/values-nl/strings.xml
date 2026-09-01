@@ -2469,6 +2469,8 @@
     <!-- Muziek: SR-paginatoken -->
     <string name="music_token_title">SR-paginalink</string>
     <string name="music_token_value">Token: %1$s</string>
+    <string name="music_token_link_value">Tokenlink: %1$s</string>
+    <string name="music_token_link_copy">Link kopiëren</string>
     <string name="music_share_link_value">Deellink: %1$s</string>
     <string name="music_share_link_copy">Deellink kopiëren</string>
     <string name="music_share_link_copied">Gekopieerd!</string>

@@ -379,6 +379,39 @@ class MusicControllerTest {
         assertEquals("track", nowPlaying.repeatState)
     }
 
+    // S067f — the dashboard must hand the streamer a working, copyable `/sr/{token}` URL, not a bare token
+    // string. Proves the displayed URL is built from the REAL resolved backend origin plus the REAL token
+    // (never a hardcoded scheme/host) and that a successful rotate replaces it with a URL carrying the new
+    // token — not just a silent backend change with no updated UI feedback.
+    @Test
+    fun load_builds_the_token_url_from_the_real_origin_and_token_and_rotate_updates_it() = runTest {
+        val musicApi =
+            FakeMusicApi(
+                snapshots =
+                    listOf(ApiResult.Ok(MusicSnapshot(nowPlaying = NowPlaying(trackName = "A", provider = "spotify")))),
+                srPageTokenResult = ApiResult.Ok("abc123"),
+                rotateSrPageTokenResult = ApiResult.Ok("newtoken456"),
+            )
+        val controller =
+            MusicController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1", login = "streamerlogin"))),
+                musicApi = musicApi,
+                baseUrlProvider = { "https://dev.nomnomz.bot" },
+            )
+
+        controller.load()
+
+        val ready: MusicState.Ready = assertNotNull(controller.state.value as? MusicState.Ready)
+        assertEquals("abc123", ready.srPageToken)
+        assertEquals("https://dev.nomnomz.bot/sr/abc123", ready.tokenUrl)
+
+        controller.rotateSrPageToken()
+
+        val afterRotate: MusicState.Ready = assertNotNull(controller.state.value as? MusicState.Ready)
+        assertEquals("newtoken456", afterRotate.srPageToken)
+        assertEquals("https://dev.nomnomz.bot/sr/newtoken456", afterRotate.tokenUrl)
+    }
+
     @Test
     fun set_shuffle_can_turn_it_off_and_reloads() = runTest {
         // The bug: the button could only ever send shuffle=true. Prove the control can send FALSE (turn it
@@ -654,6 +687,8 @@ private class FakeMusicApi(
     private val blockedResult: ApiResult<BlockedTrackPage> = ApiResult.Ok(BlockedTrackPage()),
     private val blockResult: ApiResult<BlockedTrack> = ApiResult.Ok(BlockedTrack()),
     private val unblockResult: ApiResult<Unit> = ApiResult.Ok(Unit),
+    private val srPageTokenResult: ApiResult<String> = ApiResult.Ok(""),
+    private val rotateSrPageTokenResult: ApiResult<String> = ApiResult.Ok(""),
 ) : MusicApi {
     // Single-result convenience for the read-only tests (one queue() result, controls unused).
     constructor(result: ApiResult<MusicSnapshot>) : this(snapshots = listOf(result))
@@ -705,9 +740,9 @@ private class FakeMusicApi(
     override suspend fun updateConfig(channelId: String, body: UpdateMusicConfigBody): ApiResult<MusicConfig> =
         ApiResult.Ok(MusicConfig())
 
-    override suspend fun srPageToken(channelId: String): ApiResult<String> = ApiResult.Ok("")
+    override suspend fun srPageToken(channelId: String): ApiResult<String> = srPageTokenResult
 
-    override suspend fun rotateSrPageToken(channelId: String): ApiResult<String> = ApiResult.Ok("")
+    override suspend fun rotateSrPageToken(channelId: String): ApiResult<String> = rotateSrPageTokenResult
 
     override suspend fun seek(channelId: String, positionMs: Int): ApiResult<Unit> = ApiResult.Ok(Unit)
 
