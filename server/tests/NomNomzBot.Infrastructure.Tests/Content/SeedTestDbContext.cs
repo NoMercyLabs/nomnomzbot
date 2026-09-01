@@ -138,6 +138,7 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
     public DbSet<Pronoun> Pronouns => Set<Pronoun>();
     public DbSet<Configuration> Configurations => Set<Configuration>();
     public DbSet<Channel> Channels => Set<Channel>();
+    public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
     public DbSet<Command> Commands => Set<Command>();
 
     // ── Remaining IApplicationDbContext surface (not mapped — Ignored below) ──

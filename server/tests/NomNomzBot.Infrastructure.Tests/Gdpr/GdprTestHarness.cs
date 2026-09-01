@@ -118,6 +118,7 @@ internal sealed class GdprTestDbContext : DbContext, IApplicationDbContext
     // ── Unmapped IApplicationDbContext surface — never reached by these tests ──
     public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
     public DbSet<Channel> Channels => throw new NotSupportedException();
+    public DbSet<PlatformConnection> PlatformConnections => throw new NotSupportedException();
     public DbSet<ChannelModerator> ChannelModerators => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Command> Commands =>
         throw new NotSupportedException();

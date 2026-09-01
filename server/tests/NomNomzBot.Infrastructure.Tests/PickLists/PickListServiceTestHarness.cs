@@ -37,6 +37,7 @@ internal sealed class PickListTestDbContext : DbContext, IApplicationDbContext
 
     public DbSet<PickList> PickLists => Set<PickList>();
     public DbSet<Channel> Channels => Set<Channel>();
+    public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

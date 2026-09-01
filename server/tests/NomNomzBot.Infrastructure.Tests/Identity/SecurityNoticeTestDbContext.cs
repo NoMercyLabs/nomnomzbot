@@ -81,6 +81,7 @@ internal sealed class SecurityNoticeTestDbContext : DbContext, IApplicationDbCon
     }
 
     public DbSet<Channel> Channels => Set<Channel>();
+    public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
     public DbSet<Command> Commands => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Commands.Entities.Timer> Timers =>
         throw new NotSupportedException();

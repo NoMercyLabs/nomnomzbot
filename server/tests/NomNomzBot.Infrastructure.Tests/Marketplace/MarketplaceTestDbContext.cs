@@ -90,6 +90,7 @@ internal sealed class MarketplaceTestDbContext : DbContext, IApplicationDbContex
     public DbSet<CustomDataSource> CustomDataSources => Set<CustomDataSource>();
     public DbSet<InstalledBundle> InstalledBundles => Set<InstalledBundle>();
     public DbSet<Channel> Channels => Set<Channel>();
+    public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
     public DbSet<EventResponse> EventResponses => Set<EventResponse>();
     public DbSet<Reward> Rewards => Set<Reward>();
     public DbSet<DomainTimer> Timers => Set<DomainTimer>();

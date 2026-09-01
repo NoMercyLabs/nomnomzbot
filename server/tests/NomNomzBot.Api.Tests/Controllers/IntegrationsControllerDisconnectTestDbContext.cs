@@ -86,6 +86,7 @@ internal sealed class IntegrationsControllerDisconnectTestDbContext
     }
 
     public DbSet<Channel> Channels => Set<Channel>();
+    public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
     public DbSet<Service> Services => Set<Service>();
     public DbSet<IntegrationConnection> IntegrationConnections => Set<IntegrationConnection>();
 

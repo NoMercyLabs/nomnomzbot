@@ -88,6 +88,7 @@ internal sealed class PronounGrammarTestDbContext : DbContext, IApplicationDbCon
     // ChatMessage is mapped minimally (navs ignored) for the {*.lastmessage} template variables ──
     public DbSet<User> Users => Set<User>();
     public DbSet<Channel> Channels => Set<Channel>();
+    public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
     public DbSet<Pronoun> Pronouns => Set<Pronoun>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
 
