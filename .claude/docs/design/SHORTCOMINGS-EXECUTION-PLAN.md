@@ -467,10 +467,25 @@ later.)
   `POST /moderation/automod/message`; a pending-queue panel on the Moderation screen lets a mod
   approve/deny, mirroring the viewer-reports panel. Remaining sub-items above are still open — the
   tracker item stays until they're picked up.
-- **S067** Music UX — queue promote/ban-track/refund; public `/sr/` page built; token → URL; bounded
-  steppers; enum lists from API; `public-sr` rate policy; `RequestedBy` not the owner key; hub-driven
+- **S067** Music UX — public `/sr/` page built; token → URL;
+  `public-sr` rate policy; hub-driven
   reloads; polling fan-out bound (U·B4). 🔒 cost/max-duration/cooldown fields. Done-when: every SR toggle
   changes what `!sr` does (test per setting).
+  **`RequestedBy` not the owner key DONE, verified (d587c4d5)**: traced all 3 admission paths (chat
+  `!sr`, pipeline action, public `/sr/` page) — all 3 already correct. Found the REAL broken path was a
+  4th one: the authenticated `POST .../music/queue` endpoint (the dashboard's own participant flow)
+  trusted the request body's `RequestedBy` alone and never consulted the caller's own JWT identity —
+  the dashboard always posts `requestedBy = null`, silently falling through to `"anonymous"` even for a
+  logged-in viewer. Now falls back to `User.GetDisplayName()` only when the body omits it, so a viewer's
+  self-submitted request is attributed to themselves; an operator naming a target viewer explicitly is
+  still honored unchanged. 2 tests, both cases.
+  **Bounded steppers + enum lists DONE, verified (c54d6573)**: `MaxQueueSize`/`MaxRequestsPerUser` were
+  plain unbounded text fields — replaced with a new `BoundedIntStepper` clamped to the REAL backend
+  `[Range]` bounds (1-500, 1-50). `PreferredProvider`/`MinTrustLevel` were already proper pickers, not
+  free text — but no backend pick-list endpoint exists for either, so their options stay hardcoded
+  client-side (matching the backend's fixed `[RegularExpression]` sets exactly); adding a real pick-list
+  endpoint needs backend work, out of this slice's frontend-only scope, own follow-up. 6 tests, real
+  clamp-bound behavior asserted.
   DONE (8604498a, ac02cc52): all 7 `MusicConfigDto` admission settings now enforced in `MusicService` —
   `IsEnabled`/`MinTrustLevel` refuse before ever resolving a provider (both the chat command and the
   pipeline action pass their resolved role level); `PreferredProvider`/`AllowSpotify`/`AllowYouTube`
