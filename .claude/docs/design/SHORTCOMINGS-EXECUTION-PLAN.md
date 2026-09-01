@@ -495,10 +495,18 @@ later.)
   `RefundIfChargedAsync` pattern, wired into `RemoveFromQueueAsync` + `BanQueuedTrackAsync` (not
   `PromoteToTopAsync`) — fires only when `Cost > 0` and a requester is set. No admission path charges for
   song requests today, so tests seed a paid entry directly to prove the refund MECHANISM independently
-  of the still-nonexistent charge — correctly not fabricating one. Dashboard UI for promote/ban/paid
-  indicator remains its own follow-up. Remaining sub-items (public page polish, token→URL, bounded
-  steppers, enum lists from API, rate policy, `RequestedBy`, hub-driven reloads, polling fan-out,
-  cost/duration/cooldown) are still open — tracker stays open for those.
+  of the still-nonexistent charge — correctly not fabricating one.
+  **S067c dashboard UI for promote/ban/paid indicator DONE, verified (77832663 + follow-up fix
+  bd5051df)**: `SongRequestsApi.kt`/`SongRequestsController.kt`/`SongRequestsScreen.kt` gained
+  promote/ban row actions (calling the real backend routes) and a "paid" badge for `Cost > 0` rows, ban
+  gated by a confirm dialog, i18n en+nl. **Caught + fixed same session**: the builder correctly flagged
+  that the backend's `QueueItemDto`/`MusicController.GetQueue` never actually projected `Cost` onto the
+  wire — the domain-level `MusicQueueItem` record itself had no `Cost` field either, one layer deeper
+  than the builder found, so the paid badge would always have read 0 in production despite compiling.
+  Fixed the full chain (`MusicQueueItem` → `QueueItemDto` → the controller's mapping), new test proves
+  `GetQueueAsync` surfaces the real cost for a paid entry and 0 for a free one. Remaining sub-items
+  (public page polish, token→URL, bounded steppers, enum lists from API, rate policy, `RequestedBy`,
+  hub-driven reloads, polling fan-out, cost/duration/cooldown) are still open — tracker stays open.
 - **S068** Legacy builtins — `!discord` (needs a Discord invite-link concept first — backend gap, not a
   chat-builtin task) (U·C7). Done-when: a fresh channel has every legacy command or a seed for it.
   **Seeded fun-command preset pack DONE, verified (27c8b1dc)**: new
