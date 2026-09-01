@@ -13,6 +13,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
+using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Domain.Community.Events;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
@@ -169,6 +170,68 @@ public sealed class WidgetAlertCaptureTests
             );
 
         (await db.RenderedAlertCaptures.CountAsync(c => c.BroadcasterId == channel)).Should().Be(0);
+    }
+
+    /// <summary>
+    /// S-OWN15 regression: the overlay push must reach the widget BEFORE the replay-log write (SaveChanges +
+    /// prune-select + prune-delete) — three synchronous DB round-trips the Stream Deck plugin's automation
+    /// stream never pays (<c>AutomationEventBridgeHandler</c> is pure in-memory fan-out), which is why the
+    /// Spotify overlay widget visibly lagged the plugin even though both consume the same 1s-cadence
+    /// <c>PlaybackStateChangedEvent</c>. Proven by asserting, from inside the notifier's own push, that the
+    /// capture row does not exist yet — if RouteAsync ever regresses to capture-then-push, this fails.
+    /// </summary>
+    [Fact]
+    public async Task Widget_push_happens_before_the_replay_capture_write_lands()
+    {
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid channel = Guid.CreateVersion7();
+        db.Widgets.Add(
+            new()
+            {
+                Id = Guid.NewGuid(),
+                BroadcasterId = channel,
+                Name = "Now Playing",
+                IsEnabled = true,
+                EventSubscriptions = ["now_playing"],
+            }
+        );
+        await db.SaveChangesAsync();
+
+        bool captureExistedAtPushTime = true;
+        bool pushObserved = false;
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        widgets
+            .SendWidgetEventAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<WidgetEventDto>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(_ =>
+            {
+                pushObserved = true;
+                captureExistedAtPushTime = db.RenderedAlertCaptures.Any(c =>
+                    c.BroadcasterId == channel
+                );
+                return Task.CompletedTask;
+            });
+
+        await WidgetAlertDispatch.RouteAsync(
+            db,
+            widgets,
+            channel,
+            "now_playing",
+            new { track = "Test Track", isPlaying = true },
+            channelEventId: null,
+            CancellationToken.None
+        );
+
+        pushObserved.Should().BeTrue();
+        captureExistedAtPushTime.Should().BeFalse();
+        // The capture still lands — just after the push, not before it.
+        (await db.RenderedAlertCaptures.CountAsync(c => c.BroadcasterId == channel))
+            .Should()
+            .Be(1);
     }
 
     /// <summary>S-REPLAY-CORRELATION's done-when proof: a real alert (FollowEvent, routed through the actual
