@@ -44,6 +44,7 @@ public sealed class ModerationQueueService : IModerationQueueService
     private readonly IApplicationDbContext _db;
     private readonly IUserService _users;
     private readonly ITwitchModerationApi _moderation;
+    private readonly IModerationService _actions;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<ModerationQueueService> _logger;
 
@@ -51,6 +52,7 @@ public sealed class ModerationQueueService : IModerationQueueService
         IApplicationDbContext db,
         IUserService users,
         ITwitchModerationApi moderation,
+        IModerationService actions,
         TimeProvider timeProvider,
         ILogger<ModerationQueueService> logger
     )
@@ -58,6 +60,7 @@ public sealed class ModerationQueueService : IModerationQueueService
         _db = db;
         _users = users;
         _moderation = moderation;
+        _actions = actions;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -160,30 +163,57 @@ public sealed class ModerationQueueService : IModerationQueueService
         return Result.Success(items.Select(i => ToDto(i, names)).ToList());
     }
 
-    public async Task<Result<ModerationQueueItemDto>> ResolveAsync(
+    public async Task<Result<ResolveModerationQueueItemResultDto>> ResolveAsync(
         string broadcasterId,
         Guid queueItemId,
-        string action,
+        ResolveModerationQueueItemRequest request,
         string? resolverUserId,
         CancellationToken cancellationToken = default
     )
     {
         if (!Guid.TryParse(broadcasterId, out Guid tenantId))
-            return Errors.NotFound<ModerationQueueItemDto>(
+            return Errors.NotFound<ResolveModerationQueueItemResultDto>(
                 "Moderation queue item",
                 queueItemId.ToString()
             );
 
-        bool approve =
-            action.Trim().ToLowerInvariant() switch
-            {
-                "approve" => true,
-                "deny" => false,
-                _ => (bool?)null,
-            }
-            ?? throw new ArgumentException(
+        bool? approveParsed = request.Action.Trim().ToLowerInvariant() switch
+        {
+            "approve" => true,
+            "deny" => false,
+            _ => null,
+        };
+        if (approveParsed is not bool approve)
+            return Result.Failure<ResolveModerationQueueItemResultDto>(
                 "Unknown action. Supported: approve, deny.",
-                nameof(action)
+                "VALIDATION_FAILED"
+            );
+
+        string followUp = request.FollowUp?.Trim().ToLowerInvariant() ?? "none";
+        if (followUp is not ("none" or "timeout" or "ban"))
+            return Result.Failure<ResolveModerationQueueItemResultDto>(
+                "Unknown follow-up. Supported: none, timeout, ban.",
+                "VALIDATION_FAILED"
+            );
+        if (followUp != "none" && approve)
+            return Result.Failure<ResolveModerationQueueItemResultDto>(
+                "A follow-up action is only valid with a deny.",
+                "VALIDATION_FAILED"
+            );
+        if (followUp == "timeout")
+        {
+            int? seconds = request.TimeoutSeconds;
+            if (seconds is null || seconds < 1 || seconds > 1209600)
+                return Result.Failure<ResolveModerationQueueItemResultDto>(
+                    "Timeout length must be between 1 second and 14 days (1209600 seconds).",
+                    "VALIDATION_FAILED"
+                );
+        }
+        Guid operatorGuid = Guid.Empty;
+        if (followUp != "none" && !Guid.TryParse(resolverUserId, out operatorGuid))
+            return Result.Failure<ResolveModerationQueueItemResultDto>(
+                "A timeout or ban follow-up requires a signed-in operator.",
+                "VALIDATION_FAILED"
             );
 
         ModerationQueueItem? item = await _db.ModerationQueueItems.FirstOrDefaultAsync(
@@ -191,18 +221,23 @@ public sealed class ModerationQueueService : IModerationQueueService
             cancellationToken
         );
         if (item is null)
-            return Errors.NotFound<ModerationQueueItemDto>(
+            return Errors.NotFound<ResolveModerationQueueItemResultDto>(
                 "Moderation queue item",
                 queueItemId.ToString()
             );
         if (item.Status != ModerationQueueStatus.Pending)
-            return Result.Failure<ModerationQueueItemDto>(
+            return Result.Failure<ResolveModerationQueueItemResultDto>(
                 "This item has already been resolved.",
                 "VALIDATION_FAILED"
             );
         if (string.IsNullOrEmpty(item.AutoModMessageId))
-            return Result.Failure<ModerationQueueItemDto>(
+            return Result.Failure<ResolveModerationQueueItemResultDto>(
                 "This queue item has no held message to resolve.",
+                "VALIDATION_FAILED"
+            );
+        if (followUp != "none" && string.IsNullOrEmpty(item.TargetTwitchUserId))
+            return Result.Failure<ResolveModerationQueueItemResultDto>(
+                "This held message has no sender to act on.",
                 "VALIDATION_FAILED"
             );
 
@@ -219,7 +254,10 @@ public sealed class ModerationQueueService : IModerationQueueService
                 item.Id,
                 relay.ErrorMessage
             );
-            return Result.Failure<ModerationQueueItemDto>(relay.ErrorMessage!, relay.ErrorCode!);
+            return Result.Failure<ResolveModerationQueueItemResultDto>(
+                relay.ErrorMessage!,
+                relay.ErrorCode!
+            );
         }
 
         item.Status = approve ? ModerationQueueStatus.Approved : ModerationQueueStatus.Denied;
@@ -230,11 +268,54 @@ public sealed class ModerationQueueService : IModerationQueueService
         item.ResolvedAt = _timeProvider.GetUtcNow().UtcDateTime;
         await _db.SaveChangesAsync(cancellationToken);
 
+        // The deny is now a fact on Twitch and locally. A follow-up failure from here on must never undo
+        // it — the moderator gets the item back as denied plus the follow-up error, and acts again by hand.
+        string? followUpError = null;
+        if (followUp != "none")
+        {
+            Result<ModerationActionResult> followUpResult =
+                followUp == "ban"
+                    ? await _actions.BanAsync(
+                        broadcasterId,
+                        operatorGuid,
+                        item.TargetTwitchUserId!,
+                        request.Reason,
+                        null,
+                        cancellationToken
+                    )
+                    : await _actions.TimeoutAsync(
+                        broadcasterId,
+                        operatorGuid,
+                        item.TargetTwitchUserId!,
+                        request.TimeoutSeconds!.Value,
+                        request.Reason,
+                        null,
+                        cancellationToken
+                    );
+            if (followUpResult.IsSuccess)
+            {
+                item.ResolutionAction = followUp == "ban" ? "denied_banned" : "denied_timeout";
+                await _db.SaveChangesAsync(cancellationToken);
+            }
+            else
+            {
+                followUpError = followUpResult.ErrorMessage ?? "The follow-up action failed.";
+                _logger.LogWarning(
+                    "AutoMod queue follow-up {FollowUp} failed for item {ItemId}: {Error}",
+                    followUp,
+                    item.Id,
+                    followUpError
+                );
+            }
+        }
+
         Dictionary<Guid, string> names = await ResolveNamesAsync(
             [item.ResolvedByUserId],
             cancellationToken
         );
-        return Result.Success(ToDto(item, names));
+        return Result.Success(
+            new ResolveModerationQueueItemResultDto(ToDto(item, names), followUpError)
+        );
     }
 
     private async Task<Dictionary<Guid, string>> ResolveNamesAsync(

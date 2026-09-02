@@ -55,12 +55,15 @@ public interface IModerationQueueService
     /// <summary>
     /// Resolve a pending item — <c>approve</c> releases the held message to chat, <c>deny</c> drops it. Relays
     /// through Helix <c>POST /moderation/automod/message</c> before recording the local resolution; a Helix
-    /// failure leaves the row pending so the moderator can retry.
+    /// failure leaves the row pending so the moderator can retry. A deny may carry a follow-up timeout/ban
+    /// against the sender, executed as the acting operator and recorded like any other mod action. A follow-up
+    /// failure never undoes the deny — the row stays <c>denied</c> and the failure is reported via
+    /// <see cref="ResolveModerationQueueItemResultDto.FollowUpError"/>.
     /// </summary>
-    Task<Result<ModerationQueueItemDto>> ResolveAsync(
+    Task<Result<ResolveModerationQueueItemResultDto>> ResolveAsync(
         string broadcasterId,
         Guid queueItemId,
-        string action,
+        ResolveModerationQueueItemRequest request,
         string? resolverUserId,
         CancellationToken cancellationToken = default
     );

@@ -91191,6 +91191,25 @@
         "properties": {
           "action": {
             "type": "string"
+          },
+          "followUp": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "timeoutSeconds": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "description": "A moderator resolves a held AutoMod message — `approve` (release it to chat) or `deny` (drop it)."
