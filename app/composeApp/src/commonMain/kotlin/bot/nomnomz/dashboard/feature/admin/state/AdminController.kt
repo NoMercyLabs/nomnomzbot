@@ -67,7 +67,9 @@ data class AdminState(
     val events: List<PlatformEvent> = emptyList(),
     val featureFlags: List<FeatureFlag> = emptyList(),
     val inviteCodes: List<InviteCode> = emptyList(),
-    val isLoading: Boolean = false,
+    /** Which of the tabs fed by [AdminController.load] are currently (re)fetching — per-tab, not whole-screen, so
+     * a slow call on one tab never blocks the others or the tab bar. Empty once the initial load settles. */
+    val loadingSections: Set<AdminSection> = emptySet(),
     val error: String? = null,
     // ── Live operator-hub feed (AdminHub) ──
     /** True once the AdminHub WebSocket handshake completes — drives the "live" indicator (not polling). */
@@ -106,6 +108,17 @@ data class AdminState(
      * other failure (network error, unexpected 5xx, …) — those still surface via [actionError] alone. */
     val impersonationRefusal: ImpersonationRefusal? = null,
 )
+
+/** One tab whose data comes from [AdminController.load]/[AdminController.loadChannels]/[AdminController.loadUsers]
+ * — tracked per-tab in [AdminState.loadingSections] so a slow fetch on one tab never spinners the others. */
+enum class AdminSection {
+    Overview,
+    Channels,
+    Users,
+    System,
+    FeatureFlags,
+    Billing,
+}
 
 /** The two refusals the impersonation confirm dialog must explain specifically, per the server contract. */
 enum class ImpersonationRefusal {
@@ -147,7 +160,7 @@ class AdminController(
     val hubEvents: SharedFlow<AdminHubEvent>? = hubClient?.events
 
     suspend fun load() {
-        _state.value = _state.value.copy(isLoading = true, error = null)
+        _state.value = _state.value.copy(loadingSections = LOAD_SECTIONS, error = null)
 
         // Connect the operator hub once — the handshake is gated on the caller's iam:manage grant, so a
         // non-privileged admin simply never establishes and the panel falls back to the REST snapshot.
@@ -174,7 +187,7 @@ class AdminController(
             events = (eventsResult as? ApiResult.Ok)?.value ?: emptyList(),
             featureFlags = (flagsResult as? ApiResult.Ok)?.value ?: emptyList(),
             inviteCodes = (invitesResult as? ApiResult.Ok)?.value?.data ?: emptyList(),
-            isLoading = false,
+            loadingSections = emptySet(),
             error = listOf(statsResult, channelsResult, usersResult, systemResult)
                 .filterIsInstance<ApiResult.Failure>()
                 .firstOrNull()
@@ -187,22 +200,30 @@ class AdminController(
      * name — the last-submitted search when [search] is omitted, so a page-size/status change re-applies it. */
     suspend fun loadChannels(search: String? = null) {
         val effectiveSearch: String = search ?: _state.value.channelSearch
-        _state.value = _state.value.copy(channelSearch = effectiveSearch)
+        _state.value = _state.value.copy(
+            channelSearch = effectiveSearch,
+            loadingSections = _state.value.loadingSections + AdminSection.Channels,
+        )
         when (val result = api.getChannels(search = effectiveSearch)) {
             is ApiResult.Ok -> _state.value = _state.value.copy(channels = result.value.data)
             is ApiResult.Failure -> _state.value = _state.value.copy(error = result.error.message)
         }
+        _state.value = _state.value.copy(loadingSections = _state.value.loadingSections - AdminSection.Channels)
     }
 
     /** Re-fetches the user list, narrowed by [search] against the user's login or display name — the
      * last-submitted search when [search] is omitted. */
     suspend fun loadUsers(search: String? = null) {
         val effectiveSearch: String = search ?: _state.value.userSearch
-        _state.value = _state.value.copy(userSearch = effectiveSearch)
+        _state.value = _state.value.copy(
+            userSearch = effectiveSearch,
+            loadingSections = _state.value.loadingSections + AdminSection.Users,
+        )
         when (val result = api.getUsers(search = effectiveSearch)) {
             is ApiResult.Ok -> _state.value = _state.value.copy(users = result.value.data)
             is ApiResult.Failure -> _state.value = _state.value.copy(error = result.error.message)
         }
+        _state.value = _state.value.copy(loadingSections = _state.value.loadingSections - AdminSection.Users)
     }
 
     /**
@@ -543,6 +564,17 @@ class AdminController(
     private companion object {
         const val REGISTRY_CAP: Int = 50
         const val LOG_CAP: Int = 50
+
+        /** The tabs [load] fetches for in one round-trip — all marked loading together since they share the
+         * same call, and cleared together when it settles. */
+        val LOAD_SECTIONS: Set<AdminSection> = setOf(
+            AdminSection.Overview,
+            AdminSection.Channels,
+            AdminSection.Users,
+            AdminSection.System,
+            AdminSection.FeatureFlags,
+            AdminSection.Billing,
+        )
     }
 }
 
