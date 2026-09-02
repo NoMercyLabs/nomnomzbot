@@ -3248,9 +3248,11 @@
     <string name="admin_channel_offline">Offline</string>
     <string name="admin_channel_plan">Plan: %1$s</string>
     <string name="admin_channel_search">Search channels</string>
+    <string name="admin_channel_empty">No channels match.</string>
     <string name="admin_user_role">Role: %1$s</string>
     <string name="admin_user_channels">Channels: %1$d</string>
     <string name="admin_user_search">Search users</string>
+    <string name="admin_user_empty">No users match.</string>
     <string name="admin_impersonate">Impersonate</string>
     <string name="admin_impersonate_title">Impersonate %1$s?</string>
     <string name="admin_impersonate_desc">This mints a real, time-boxed access token and is recorded in the audit log. State why you need it.</string>
@@ -3273,6 +3275,7 @@
     <string name="admin_invite_grants_founder">Grants founder badge</string>
     <string name="admin_invite_revoke">Revoke</string>
     <string name="admin_invite_create">Create invite code</string>
+    <string name="admin_billing_empty">No invite codes yet.</string>
     <string name="admin_grant_tier">Grant tier</string>
     <string name="admin_grant_founder">Grant founder badge</string>
     <string name="admin_event_log">Recent events</string>
@@ -3281,6 +3284,8 @@
     <string name="admin_health_down">Down</string>
     <string name="admin_health_unhealthy">Unhealthy</string>
     <string name="admin_health_overall">Overall health</string>
+    <string name="admin_system_services_empty">No services reported.</string>
+    <string name="admin_health_empty">No health checks reported.</string>
     <!-- Live operator hub -->
     <string name="admin_tab_iam">IAM</string>
     <string name="admin_tab_tenants">Tenants</string>
@@ -3465,7 +3470,12 @@
     <string name="custom_events_field_endpoint_url">Endpoint URL</string>
     <string name="custom_events_field_auth_secret">Auth token / secret</string>
     <string name="custom_events_secret_placeholder">Auth token (leave blank to keep existing)</string>
-    <string name="custom_events_field_field_map_json">Field map (JSON, e.g. {"bpm":"$.data.heartRate"})</string>
+    <string name="custom_events_field_field_map_json">Field map</string>
+    <string name="custom_events_field_path">Path (e.g. $.data.heartRate)</string>
+    <string name="custom_events_test_fetch_action">Test fetch</string>
+    <string name="custom_events_test_fetch_error">Test fetch failed — check the endpoint URL and egress allowlist.</string>
+    <string name="custom_events_test_fetch_no_keys">The endpoint returned no usable keys.</string>
+    <string name="custom_events_test_fetch_pick_key">Click a key to fill the focused path field:</string>
     <string name="custom_events_field_poll_interval">Poll interval (seconds, min 10)</string>
     <string name="custom_events_field_enabled">Enabled</string>
     <string name="custom_events_save">Save</string>

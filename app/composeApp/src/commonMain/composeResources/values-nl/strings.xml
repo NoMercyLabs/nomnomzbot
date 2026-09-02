@@ -3234,9 +3234,11 @@
     <string name="admin_channel_offline">Offline</string>
     <string name="admin_channel_plan">Plan: %1$s</string>
     <string name="admin_channel_search">Kanalen zoeken</string>
+    <string name="admin_channel_empty">Geen kanalen gevonden.</string>
     <string name="admin_user_role">Rol: %1$s</string>
     <string name="admin_user_channels">Kanalen: %1$d</string>
     <string name="admin_user_search">Gebruikers zoeken</string>
+    <string name="admin_user_empty">Geen gebruikers gevonden.</string>
     <string name="admin_impersonate">Overnemen</string>
     <string name="admin_impersonate_title">%1$s overnemen?</string>
     <string name="admin_impersonate_desc">Dit maakt een echt, tijdelijk toegangstoken aan en wordt vastgelegd in het auditlog. Geef aan waarom je dit nodig hebt.</string>
@@ -3259,6 +3261,7 @@
     <string name="admin_invite_grants_founder">Geeft oprichtersbadge</string>
     <string name="admin_invite_revoke">Intrekken</string>
     <string name="admin_invite_create">Uitnodigingscode aanmaken</string>
+    <string name="admin_billing_empty">Nog geen uitnodigingscodes.</string>
     <string name="admin_grant_tier">Tier toewijzen</string>
     <string name="admin_grant_founder">Oprichtersbadge toewijzen</string>
     <string name="admin_event_log">Recente gebeurtenissen</string>
@@ -3267,6 +3270,8 @@
     <string name="admin_health_down">Neer</string>
     <string name="admin_health_unhealthy">Ongezond</string>
     <string name="admin_health_overall">Algemene status</string>
+    <string name="admin_system_services_empty">Geen services gerapporteerd.</string>
+    <string name="admin_health_empty">Geen statuscontroles gerapporteerd.</string>
     <!-- Live operator hub -->
     <string name="admin_tab_iam">IAM</string>
     <string name="admin_tab_tenants">Tenants</string>
@@ -3451,7 +3456,12 @@
     <string name="custom_events_field_endpoint_url">Endpoint-URL</string>
     <string name="custom_events_field_auth_secret">Auth-token / geheim</string>
     <string name="custom_events_secret_placeholder">Auth-token (leeg laten om bestaande te behouden)</string>
-    <string name="custom_events_field_field_map_json">Veldtoewijzing (JSON, bijv. {"bpm":"$.data.heartRate"})</string>
+    <string name="custom_events_field_field_map_json">Veldtoewijzing</string>
+    <string name="custom_events_field_path">Pad (bijv. $.data.heartRate)</string>
+    <string name="custom_events_test_fetch_action">Test ophalen</string>
+    <string name="custom_events_test_fetch_error">Test ophalen mislukt — controleer de endpoint-URL en de egress-toelatingslijst.</string>
+    <string name="custom_events_test_fetch_no_keys">De endpoint gaf geen bruikbare sleutels terug.</string>
+    <string name="custom_events_test_fetch_pick_key">Klik op een sleutel om het geselecteerde padveld in te vullen:</string>
     <string name="custom_events_field_poll_interval">Pollinterval (seconden, min. 10)</string>
     <string name="custom_events_field_enabled">Ingeschakeld</string>
     <string name="custom_events_save">Opslaan</string>
