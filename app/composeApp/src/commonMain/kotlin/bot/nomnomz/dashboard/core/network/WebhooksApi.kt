@@ -216,6 +216,7 @@ data class OutboundWebhook(
     val fqdn: String = "",
     val path: String? = null,
     val subscribedEventTypes: List<String> = emptyList(),
+    val bodyTemplate: String? = null,
     val isEnabled: Boolean = false,
     val consecutiveFailureCount: Int = 0,
     val disabledAt: String? = null,

@@ -73,6 +73,7 @@ public sealed record OutboundWebhookEndpointDto(
     string Fqdn,
     string? Path,
     IReadOnlyList<string> SubscribedEventTypes,
+    string? BodyTemplate,
     bool BodyIsJson,
     bool IsEnabled,
     int ConsecutiveFailureCount,

@@ -278,6 +278,55 @@ public sealed class OutboundWebhookEndpointServiceTests
     }
 
     [Fact]
+    public async Task GetAsync_returns_the_currently_saved_body_template()
+    {
+        (OutboundWebhookEndpointService sut, AuthDbContext db, _, _) = Build();
+        await SeedAllowlistAsync(db);
+        const string bodyTemplate = /*lang=json,strict*/
+            """{"who": "{user.name}", "channel": "{channel.display}"}""";
+        CreateOutboundWebhookRequest request = new()
+        {
+            Name = "endpoint",
+            Fqdn = "api.example.com",
+            SubscribedEventTypes = ["*"],
+            BodyTemplate = bodyTemplate,
+            BodyIsJson = true,
+        };
+        Guid endpointId = (await sut.CreateAsync(Channel, Actor, request)).Value.Endpoint.Id;
+
+        Result<OutboundWebhookEndpointDto> got = await sut.GetAsync(Channel, endpointId);
+
+        got.IsSuccess.Should().BeTrue();
+        got.Value.BodyTemplate.Should().Be(bodyTemplate);
+    }
+
+    [Fact]
+    public async Task ListAsync_returns_the_currently_saved_body_template()
+    {
+        (OutboundWebhookEndpointService sut, AuthDbContext db, _, _) = Build();
+        await SeedAllowlistAsync(db);
+        const string bodyTemplate = /*lang=json,strict*/
+            """{"who": "{user.name}"}""";
+        CreateOutboundWebhookRequest request = new()
+        {
+            Name = "endpoint",
+            Fqdn = "api.example.com",
+            SubscribedEventTypes = ["*"],
+            BodyTemplate = bodyTemplate,
+            BodyIsJson = true,
+        };
+        await sut.CreateAsync(Channel, Actor, request);
+
+        Result<PagedList<OutboundWebhookEndpointDto>> listed = await sut.ListAsync(
+            Channel,
+            new PaginationParams(1, 25)
+        );
+
+        listed.IsSuccess.Should().BeTrue();
+        listed.Value.Items.Should().ContainSingle(e => e.BodyTemplate == bodyTemplate);
+    }
+
+    [Fact]
     public async Task Update_rejects_a_body_template_with_an_unknown_helper_key()
     {
         (OutboundWebhookEndpointService sut, AuthDbContext db, _, _) = Build();
