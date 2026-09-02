@@ -13,6 +13,7 @@ using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Content.Commands;
+using NomNomzBot.Infrastructure.Stream.PipelineActions;
 using NomNomzBot.Infrastructure.Tests.Content;
 
 namespace NomNomzBot.Infrastructure.Tests.Commands;
@@ -144,7 +145,7 @@ public sealed class RaidFlowSeedingTests
     }
 
     [Fact]
-    public async Task The_countdown_lands_just_before_twitch_fires_the_raid_at_ninety_seconds()
+    public async Task The_countdown_lands_just_before_twitch_fires_the_raid()
     {
         (RaidFlowSeeder seeder, SeedTestDbContext db) = Build();
 
@@ -159,9 +160,16 @@ public sealed class RaidFlowSeedingTests
                     .GetInt32()
             );
 
-        // Twitch auto-fires at T+90s and cannot be committed early. Finishing early leaves viewers
-        // watching silence; overrunning announces a raid that already happened.
-        totalWaitSeconds.Should().BeInRange(80, 90);
+        // Twitch auto-fires at TwitchRaidWindowSeconds and cannot be committed early. Finishing early
+        // leaves viewers watching silence; overrunning announces a raid that already happened.
+        // wait_until_raid_fires closes the last couple of seconds of margin, so the fixed waits alone
+        // land just short of (never at or past) the window.
+        totalWaitSeconds
+            .Should()
+            .BeInRange(
+                StartRaidAction.TwitchRaidWindowSeconds - 10,
+                StartRaidAction.TwitchRaidWindowSeconds - 1
+            );
     }
 
     [Fact]

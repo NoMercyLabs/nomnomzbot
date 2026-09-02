@@ -72,34 +72,34 @@ public sealed class WaitUntilRaidFiresActionTests
     }
 
     [Fact]
-    public void A_deadline_exactly_ninety_one_seconds_out_is_capped_to_ninety()
+    public void A_deadline_one_second_past_the_cap_boundary_is_capped_to_the_window()
     {
         // One second past the cap boundary — proves the clamp actually engages rather than just
         // happening to match an already-in-range value.
-        DateTime firesAt = Now.AddSeconds(91);
+        DateTime firesAt = Now.AddSeconds(StartRaidAction.TwitchRaidWindowSeconds + 1);
         TimeSpan? wait = WaitUntilRaidFiresAction.ComputeWait(Vars(firesAt.Ticks.ToString()), Now);
 
-        wait.Should().Be(TimeSpan.FromSeconds(90));
+        wait.Should().Be(TimeSpan.FromSeconds(StartRaidAction.TwitchRaidWindowSeconds));
     }
 
     [Fact]
-    public void A_deadline_exactly_at_the_ninety_second_cap_is_returned_uncapped()
+    public void A_deadline_exactly_at_the_cap_boundary_is_returned_uncapped()
     {
-        // The boundary itself: must pass through as exactly 90s, not be nudged by an off-by-one in the
-        // clamp comparison (> vs >=).
-        DateTime firesAt = Now.AddSeconds(90);
+        // The boundary itself: must pass through as exactly the window, not be nudged by an off-by-one
+        // in the clamp comparison (> vs >=).
+        DateTime firesAt = Now.AddSeconds(StartRaidAction.TwitchRaidWindowSeconds);
         TimeSpan? wait = WaitUntilRaidFiresAction.ComputeWait(Vars(firesAt.Ticks.ToString()), Now);
 
-        wait.Should().Be(TimeSpan.FromSeconds(90));
+        wait.Should().Be(TimeSpan.FromSeconds(StartRaidAction.TwitchRaidWindowSeconds));
     }
 
     [Fact]
-    public void A_deadline_an_hour_out_is_capped_to_ninety_seconds()
+    public void A_deadline_an_hour_out_is_capped_to_the_raid_window()
     {
         DateTime firesAt = Now.AddHours(1);
         TimeSpan? wait = WaitUntilRaidFiresAction.ComputeWait(Vars(firesAt.Ticks.ToString()), Now);
 
-        wait.Should().Be(TimeSpan.FromSeconds(90));
+        wait.Should().Be(TimeSpan.FromSeconds(StartRaidAction.TwitchRaidWindowSeconds));
     }
 
     // ── ExecuteAsync: proves the computed value is actually what gets awaited, and that the action

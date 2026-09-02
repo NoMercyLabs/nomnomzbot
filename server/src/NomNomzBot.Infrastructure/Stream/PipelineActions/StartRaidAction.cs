@@ -53,9 +53,14 @@ public sealed class StartRaidAction : ICommandAction
 {
     private const int MaxDelaySeconds = 90;
 
-    /// <summary>Twitch's fixed server-side raid window; the raid auto-fires at exactly T+90s and there
-    /// is no API to commit it earlier. Shared with <see cref="WaitUntilRaidFiresAction"/>.</summary>
-    internal const int TwitchRaidWindowSeconds = 90;
+    /// <summary>Twitch's server-side raid window — the raid auto-fires this many seconds after
+    /// <c>POST /raids</c> returns, and there is no API to commit it earlier. Originally assumed 90s
+    /// (the commonly-cited figure); confirmed live 2026-09-02 (raid to skeemer_codes) that the
+    /// countdown built on 90s finished 12-14s before Twitch actually committed the raid, so the real
+    /// window runs longer — 103s until re-measured more precisely. Shared with
+    /// <see cref="WaitUntilRaidFiresAction"/>, which re-anchors to this value at execution time, so a
+    /// future correction only needs to change this one constant.</summary>
+    internal const int TwitchRaidWindowSeconds = 103;
 
     private readonly ITwitchRaidsApi _raids;
     private readonly ITwitchUsersApi _users;

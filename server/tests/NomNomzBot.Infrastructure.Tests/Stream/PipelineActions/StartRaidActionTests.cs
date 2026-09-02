@@ -292,12 +292,12 @@ public sealed class StartRaidActionTests
     }
 
     /// <summary>
-    /// <c>wait_until_raid_fires</c> reads this variable to re-anchor to Twitch's actual 90s auto-fire
+    /// <c>wait_until_raid_fires</c> reads this variable to re-anchor to Twitch's actual auto-fire
     /// deadline instead of trusting a blind sum of fixed waits — proves start_raid actually stamps it,
-    /// close to "now + 90s", the instant the raid call succeeds.
+    /// close to "now + TwitchRaidWindowSeconds", the instant the raid call succeeds.
     /// </summary>
     [Fact]
-    public async Task A_successful_raid_stamps_the_ninety_second_auto_fire_deadline()
+    public async Task A_successful_raid_stamps_the_auto_fire_deadline()
     {
         (StartRaidAction sut, _, _, _, _) = Build();
         PipelineExecutionContext ctx = Ctx();
@@ -311,7 +311,10 @@ public sealed class StartRaidActionTests
             long.Parse(ctx.Variables["raid.fires_at_utc_ticks"]),
             DateTimeKind.Utc
         );
-        firesAt.Should().BeOnOrAfter(before.AddSeconds(90)).And.BeOnOrBefore(after.AddSeconds(91));
+        firesAt
+            .Should()
+            .BeOnOrAfter(before.AddSeconds(StartRaidAction.TwitchRaidWindowSeconds))
+            .And.BeOnOrBefore(after.AddSeconds(StartRaidAction.TwitchRaidWindowSeconds + 1));
     }
 
     [Fact]
