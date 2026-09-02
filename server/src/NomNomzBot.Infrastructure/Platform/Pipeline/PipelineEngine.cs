@@ -1034,7 +1034,14 @@ public sealed class PipelineEngine : IPipelineEngine
                 };
             }
 
-            definition.Steps.Add(new() { Action = action, Condition = condition });
+            definition.Steps.Add(
+                new()
+                {
+                    Action = action,
+                    Condition = condition,
+                    ContinueOnError = row.ContinueOnError,
+                }
+            );
         }
 
         return definition;
@@ -1465,8 +1472,12 @@ public sealed class PipelineEngine : IPipelineEngine
         {
             state.Executed++;
         }
-        else
+        else if (!step.ContinueOnError)
         {
+            // Fail-CLOSED unless the step opts in to continue — mirrors RunStepsAsync's flat-path
+            // handling (S-PIPE-TREE-d3c gap: this tree leaf executor ignored ContinueOnError entirely
+            // until now, so a step like obs_streaming/music_pause with ContinueOnError=true still
+            // aborted the whole tree-shaped run on the first failure).
             state.FailedBreak = true;
             return;
         }
