@@ -265,7 +265,7 @@ private fun LiveIndicator(hubLive: Boolean) {
 }
 
 @Composable
-private fun OverviewTab(state: AdminState) {
+internal fun OverviewTab(state: AdminState) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -531,7 +531,7 @@ internal fun UsersTab(state: AdminState, controller: AdminController) {
 }
 
 @Composable
-private fun SystemTab(state: AdminState) {
+internal fun SystemTab(state: AdminState) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -818,7 +818,7 @@ private fun FeatureFlagOverrideRow(
 }
 
 @Composable
-private fun BillingTab(state: AdminState, controller: AdminController) {
+internal fun BillingTab(state: AdminState, controller: AdminController) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
