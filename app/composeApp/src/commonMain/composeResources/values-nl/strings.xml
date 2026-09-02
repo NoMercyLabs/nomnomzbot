@@ -284,6 +284,30 @@
     <string name="home_action_required_section">Vraagt je aandacht</string>
     <string name="home_action_required_severity_critical">Kritiek</string>
     <string name="home_action_required_severity_warning">Waarschuwing</string>
+    <string name="home_action_required_severity_info">Info</string>
+    <string name="home_attention_count_badge">×%1$d</string>
+    <string name="home_attention_detected_ago">%1$dm geleden</string>
+    <string name="home_attention_review">Beoordelen</string>
+    <string name="home_attention_dismiss">Verbergen</string>
+    <string name="home_held_modal_title">Vastgehouden berichten</string>
+    <string name="home_held_modal_loading">Vastgehouden berichten laden…</string>
+    <string name="home_held_modal_error">Kon vastgehouden berichten niet laden: %1$s</string>
+    <string name="home_held_modal_empty">Er zijn geen vastgehouden berichten meer voor dit item.</string>
+    <string name="home_held_modal_category">AutoMod-categorie: %1$s</string>
+    <string name="home_held_modal_held_ago">%1$dm geleden vastgehouden</string>
+    <string name="home_held_allow">Toestaan</string>
+    <string name="home_held_block">Blokkeren</string>
+    <string name="home_held_timeout">Time-out</string>
+    <string name="home_held_ban">Verbannen</string>
+    <string name="home_held_block_term">Term blokkeren</string>
+    <string name="home_held_ban_reason_label">Reden voor ban (optioneel)</string>
+    <string name="home_held_bulk_title">Alle berichten van deze gebruiker</string>
+    <string name="home_held_timeout_preset_60s">60s</string>
+    <string name="home_held_timeout_preset_10m">10m</string>
+    <string name="home_held_timeout_preset_1h">1u</string>
+    <string name="home_held_timeout_preset_1d">1d</string>
+    <string name="home_held_term_blocked">Term geblokkeerd: %1$s</string>
+    <string name="home_held_close">Sluiten</string>
 
     <!-- Aan-de-slag-checklist op Home (S071c) — alleen zichtbaar zolang het kanaal geen commando's, geen
          pipelines en geen gekoppelde integratie heeft; verdwijnt zodra er echte content is. -->

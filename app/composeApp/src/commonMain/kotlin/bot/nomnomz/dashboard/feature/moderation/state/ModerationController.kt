@@ -31,6 +31,7 @@ import bot.nomnomz.dashboard.core.network.ModerationActionResult
 import bot.nomnomz.dashboard.core.network.ModerationApi
 import bot.nomnomz.dashboard.core.network.EscalationPolicy
 import bot.nomnomz.dashboard.core.network.Moderator
+import bot.nomnomz.dashboard.core.network.ResolvedAutomodQueueItem
 import bot.nomnomz.dashboard.core.network.ModerationRule
 import bot.nomnomz.dashboard.core.network.ModerationQueueItem
 import bot.nomnomz.dashboard.core.network.ModerationStanding
@@ -496,10 +497,15 @@ class ModerationController(
     suspend fun resolveAutomodQueueItem(queueItemId: String, action: String) {
         val channel: String = channelId ?: return
         when (
-            val result: ApiResult<ModerationQueueItem> =
+            val result: ApiResult<ResolvedAutomodQueueItem> =
                 moderationApi.resolveAutomodQueueItem(channel, queueItemId, action)
         ) {
-            is ApiResult.Ok -> load()
+            is ApiResult.Ok -> {
+                load()
+                // A partial outcome (deny stood, follow-up timeout/ban failed) is still a reload-worthy
+                // success — but its failure text must reach the moderator, never be swallowed.
+                result.value.followUpError?.let { setActionError(it) }
+            }
             is ApiResult.Failure -> setActionError(result.error.message)
         }
     }

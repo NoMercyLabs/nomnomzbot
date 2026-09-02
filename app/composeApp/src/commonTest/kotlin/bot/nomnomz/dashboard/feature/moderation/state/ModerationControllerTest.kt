@@ -26,6 +26,7 @@ import bot.nomnomz.dashboard.core.network.EscalationLadderStep
 import bot.nomnomz.dashboard.core.network.EscalationPolicy
 import bot.nomnomz.dashboard.core.network.ModLogEntry
 import bot.nomnomz.dashboard.core.network.ModerationQueueItem
+import bot.nomnomz.dashboard.core.network.ResolvedAutomodQueueItem
 import bot.nomnomz.dashboard.core.network.ModerationRule
 import bot.nomnomz.dashboard.core.network.ModerationStanding
 import bot.nomnomz.dashboard.core.network.ModerationStats
@@ -1316,8 +1317,8 @@ private class FakeModerationApi(
 
     var automodQueueResult: ApiResult<List<ModerationQueueItem>> =
         ApiResult.Ok(emptyList<ModerationQueueItem>())
-    var resolveAutomodQueueItemResult: ApiResult<ModerationQueueItem> =
-        ApiResult.Ok(ModerationQueueItem())
+    var resolveAutomodQueueItemResult: ApiResult<ResolvedAutomodQueueItem> =
+        ApiResult.Ok(ResolvedAutomodQueueItem(item = ModerationQueueItem()))
     val resolvedAutomodQueueItems: MutableList<Pair<String, String>> = mutableListOf()
 
     override suspend fun automodQueue(
@@ -1329,7 +1330,10 @@ private class FakeModerationApi(
         channelId: String,
         queueItemId: String,
         action: String,
-    ): ApiResult<ModerationQueueItem> {
+        followUp: String?,
+        timeoutSeconds: Int?,
+        reason: String?,
+    ): ApiResult<ResolvedAutomodQueueItem> {
         resolvedAutomodQueueItems.add(queueItemId to action)
         return resolveAutomodQueueItemResult
     }

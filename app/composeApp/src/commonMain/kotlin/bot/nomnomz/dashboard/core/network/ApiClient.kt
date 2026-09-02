@@ -145,18 +145,43 @@ class ApiClient(
      * single-value `{ data: <T> }` envelope.
      */
     @PublishedApi
-    internal suspend inline fun <reified T> getDirect(path: String): ApiResult<T> {
+    internal suspend inline fun <reified T> getDirect(path: String): ApiResult<T> =
+        direct(path) { url -> httpClient.get(url) }
+
+    /**
+     * POSTs an optional JSON [body] and deserializes the WHOLE response body to [T] (no
+     * `StatusResponseDto<T>` unwrap) — for the caller that needs the envelope's `message` alongside
+     * `data` (the automod-queue resolve, whose success envelope can carry a partial follow-up failure).
+     */
+    @PublishedApi
+    internal suspend inline fun <reified T> postDirect(path: String, body: Any? = null): ApiResult<T> =
+        direct(path) { url ->
+            httpClient.post(url) {
+                if (body != null) {
+                    contentType(ContentType.Application.Json)
+                    setBody(body)
+                }
+            }
+        }
+
+    // The no-unwrap sibling of [envelope]: same base-URL resolve, transport guard, 401 refresh-retry, and
+    // error mapping — but the whole response body IS the value (flat paginated lists, full envelopes).
+    @PublishedApi
+    internal suspend inline fun <reified T> direct(
+        path: String,
+        send: (url: String) -> HttpResponse,
+    ): ApiResult<T> {
         val base: String = baseUrl() ?: return noConnection()
         var response: HttpResponse =
             try {
-                httpClient.get("$base/$path")
+                send("$base/$path")
             } catch (cause: Throwable) {
                 return networkFailure(cause)
             }
         if (response.status.value == 401 && !path.startsWith("api/v1/auth/refresh")) {
             val refreshed: Boolean = try { tokenRefresher?.invoke() ?: false } catch (_: Exception) { false }
             if (refreshed) {
-                response = try { httpClient.get("$base/$path") } catch (cause: Throwable) { return networkFailure(cause) }
+                response = try { send("$base/$path") } catch (cause: Throwable) { return networkFailure(cause) }
             }
         }
         if (!response.status.isSuccess()) return ApiResult.Failure(parseError(response))
