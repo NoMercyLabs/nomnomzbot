@@ -22,12 +22,17 @@ import bot.nomnomz.dashboard.core.network.VtsRequestResult
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.vts_no_channel_error
+import org.jetbrains.compose.resources.ExperimentalResourceApi
+import org.jetbrains.compose.resources.getString
 
 // The VTube Studio page state-holder (vtube-studio.md §4): the channel's VTS connection config, its plugin-token
 // authorization, and — when authorized — the live model/hotkey/expression inventory for the control pickers. It
 // resolves the active channel, reads the connection row (fatal when it can't), then best-effort reads the
 // inventory. The blocking authorize call (up to ~60s while the streamer clicks Allow in VTS) is a distinct
 // suspend fun returning a typed outcome so the screen surfaces grant / deny / timeout in its own words.
+@OptIn(ExperimentalResourceApi::class)
 class VtsController(
     private val channelsApi: ChannelsApi,
     private val vtsApi: VtsApi,
@@ -86,8 +91,8 @@ class VtsController(
      * success; surfaces the error on failure.
      */
     suspend fun saveConnection(mode: String, endpoint: String?, isEnabled: Boolean) {
-        val id: String = channelId ?: return failWrite(NoChannelError)
-        val current: VtsConnection = (_state.value as? VtsUiState.Ready)?.connection ?: return failWrite(NoChannelError)
+        val id: String = channelId ?: return failWrite(getString(Res.string.vts_no_channel_error))
+        val current: VtsConnection = (_state.value as? VtsUiState.Ready)?.connection ?: return failWrite(getString(Res.string.vts_no_channel_error))
         afterWrite(
             vtsApi.upsertConnection(
                 id,
@@ -108,7 +113,7 @@ class VtsController(
      */
     suspend fun authorize(): VtsAuthorizeOutcome {
         val id: String = channelId ?: run {
-            failWrite(NoChannelError)
+            failWrite(getString(Res.string.vts_no_channel_error))
             return VtsAuthorizeOutcome.Failed
         }
         return when (val result: ApiResult<Boolean> = vtsApi.authorize(id)) {
@@ -128,7 +133,7 @@ class VtsController(
 
     /** Rotate the bridge token (bridge mode). Reloads on success; surfaces the error on failure. */
     suspend fun rotateBridgeToken() {
-        val id: String = channelId ?: return failWrite(NoChannelError)
+        val id: String = channelId ?: return failWrite(getString(Res.string.vts_no_channel_error))
         afterWrite(vtsApi.rotateBridgeToken(id))
     }
 
@@ -139,7 +144,7 @@ class VtsController(
      */
     suspend fun control(requestType: String, payloadJson: String?): VtsRequestResult? {
         val id: String = channelId ?: run {
-            failWrite(NoChannelError)
+            failWrite(getString(Res.string.vts_no_channel_error))
             return null
         }
         return when (
@@ -173,9 +178,6 @@ class VtsController(
             else VtsUiState.Error(detail)
     }
 
-    private companion object {
-        const val NoChannelError: String = "No active channel — reconnect and try again."
-    }
 }
 
 /** The typed result of the blocking authorize call — the screen maps each to a localized message. */
