@@ -1324,6 +1324,82 @@ public sealed class PipelineEngineTreeExecutionTests
         result.Total.Should().Be(2);
     }
 
+    /// <summary>
+    /// Regression, 2026-09-02 raid-commit incident: every real seeder (RaidFlowSeeder,
+    /// RaidCommitFlowSeeder, ...) writes <c>PipelineStep.ConfigJson</c> WITHOUT an embedded
+    /// <c>"type"</c> — the action type always lives in the separate <c>ActionType</c> column, and
+    /// <c>BuildFlatDefinition</c> is documented to backfill it from there. But
+    /// <see cref="ActionDefinition.Type"/> is a `required` member, so deserializing raw
+    /// <c>ConfigJson</c> straight into <c>ActionDefinition</c> threw on the missing member before the
+    /// backfill ever ran — every step in the pipeline silently vanished (caught into a null and
+    /// skipped) and the run reported Completed having executed nothing at all. Confirmed live: the
+    /// reactive raid-commit pipeline (stop stream / pause music / confirm in chat) ran in 7ms with zero
+    /// steps executed. Every test elsewhere in this file embeds <c>"type"</c> in its own ConfigJson
+    /// fixtures, which is exactly why this went undetected — this test deliberately matches the REAL
+    /// seeder shape instead.
+    /// </summary>
+    [Fact]
+    public async Task FlatDbPipeline_ConfigJsonWithoutEmbeddedType_StillExecutes()
+    {
+        using PipelineTreeExecutionTestDbContext db = PipelineTreeExecutionTestDbContext.New();
+        Guid pipelineId = Guid.NewGuid();
+
+        PipelineStep first = NewLeaf(
+            pipelineId,
+            null,
+            null,
+            0,
+            "set_variable",
+            """{"name":"x","value":"1"}"""
+        );
+        PipelineStep second = NewLeaf(pipelineId, null, null, 1, "stop", "{}");
+
+        db.PipelineSteps.AddRange(first, second);
+        await db.SaveChangesAsync();
+
+        PipelineEngine engine = CreateEngine(db, []);
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(pipelineId));
+
+        result.Outcome.Should().Be(PipelineOutcome.Stopped);
+        result
+            .StepsExecuted.Should()
+            .Be(
+                2,
+                "both steps must actually run, not silently vanish for lacking an embedded type"
+            );
+        result.Total.Should().Be(2);
+    }
+
+    /// <summary>Same regression as <see cref="FlatDbPipeline_ConfigJsonWithoutEmbeddedType_StillExecutes"/>
+    /// but for a leaf nested inside a block (RunTreeAsync's leaf executor, a separate deserialize call
+    /// site from the flat path).</summary>
+    [Fact]
+    public async Task TreeLeaf_ConfigJsonWithoutEmbeddedType_StillExecutes()
+    {
+        using PipelineTreeExecutionTestDbContext db = PipelineTreeExecutionTestDbContext.New();
+        Guid pipelineId = Guid.NewGuid();
+
+        PipelineStep ifStep = NewStep(pipelineId, null, null, "if", "{}", 0);
+        PipelineStepCondition alwaysTrue = NewLeafCondition(
+            ifStep.Id,
+            null,
+            0,
+            desiredResult: true
+        );
+        CountingAction counted = new() { ActionType = "counted" };
+        PipelineStep leaf = NewLeaf(pipelineId, ifStep.Id, "then", 0, "counted", "{}");
+
+        db.PipelineSteps.AddRange(ifStep, leaf);
+        db.PipelineStepConditions.Add(alwaysTrue);
+        await db.SaveChangesAsync();
+
+        PipelineEngine engine = CreateEngine(db, [counted]);
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(pipelineId));
+
+        result.Outcome.Should().Be(PipelineOutcome.Completed);
+        counted.Count.Should().Be(1, "the leaf must actually run, not silently vanish");
+    }
+
     /// <summary>Adversarial case the original break/continue slice did not cover: a <c>break</c> inside a
     /// <c>switch</c> that is itself inside a <c>loop</c>. In many engines break is captured by the nearest
     /// enclosing construct, so it would exit only the SWITCH and let the loop keep iterating — the existing
@@ -1939,5 +2015,44 @@ public sealed class PipelineEngineTreeExecutionTests
         // The detached action runs fire-and-forget (Task.Run, never awaited by the walk) — give it a
         // moment to actually execute before asserting it did, rather than racing its background task.
         await Task.Delay(50);
+    }
+
+    /// <summary>Same regression as <see cref="FlatDbPipeline_ConfigJsonWithoutEmbeddedType_StillExecutes"/>
+    /// but for <c>ExecuteDetachedStep</c> — the OBS-switch-scene-style fire-and-forget leaf, the third
+    /// and last call site that used to deserialize <c>ConfigJson</c> straight into
+    /// <see cref="ActionDefinition"/>.</summary>
+    [Fact]
+    public async Task DetachedStep_ConfigJsonWithoutEmbeddedType_StillExecutes()
+    {
+        using PipelineTreeExecutionTestDbContext db = PipelineTreeExecutionTestDbContext.New();
+        Guid pipelineId = Guid.NewGuid();
+
+        PipelineStep detachedWrapper = NewStep(
+            pipelineId,
+            null,
+            null,
+            blockKind: "detached_step",
+            blockConfigJson: "{}",
+            order: 0
+        );
+        CountingAction counted = new() { ActionType = "counted" };
+        PipelineStep detachedLeaf = NewLeaf(
+            pipelineId,
+            detachedWrapper.Id,
+            null,
+            0,
+            "counted",
+            "{}"
+        );
+
+        db.PipelineSteps.AddRange(detachedWrapper, detachedLeaf);
+        await db.SaveChangesAsync();
+
+        PipelineEngine engine = CreateEngine(db, [counted]);
+        await engine.ExecuteAsync(BuildRequest(pipelineId));
+
+        // Fire-and-forget (Task.Run, never awaited by the walk) — give it a moment before asserting.
+        await Task.Delay(50);
+        counted.Count.Should().Be(1, "the detached leaf must actually run, not silently vanish");
     }
 }
