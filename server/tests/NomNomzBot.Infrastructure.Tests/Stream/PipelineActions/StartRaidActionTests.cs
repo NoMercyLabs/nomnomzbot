@@ -291,6 +291,29 @@ public sealed class StartRaidActionTests
             );
     }
 
+    /// <summary>
+    /// <c>wait_until_raid_fires</c> reads this variable to re-anchor to Twitch's actual 90s auto-fire
+    /// deadline instead of trusting a blind sum of fixed waits — proves start_raid actually stamps it,
+    /// close to "now + 90s", the instant the raid call succeeds.
+    /// </summary>
+    [Fact]
+    public async Task A_successful_raid_stamps_the_ninety_second_auto_fire_deadline()
+    {
+        (StartRaidAction sut, _, _, _, _) = Build();
+        PipelineExecutionContext ctx = Ctx();
+        DateTime before = DateTime.UtcNow;
+
+        await sut.ExecuteAsync(ctx, Raid("123456"));
+
+        DateTime after = DateTime.UtcNow;
+        ctx.Variables.Should().ContainKey("raid.fires_at_utc_ticks");
+        DateTime firesAt = new(
+            long.Parse(ctx.Variables["raid.fires_at_utc_ticks"]),
+            DateTimeKind.Utc
+        );
+        firesAt.Should().BeOnOrAfter(before.AddSeconds(90)).And.BeOnOrBefore(after.AddSeconds(91));
+    }
+
     [Fact]
     public async Task The_raid_fires_before_the_post_fire_delay_elapses()
     {

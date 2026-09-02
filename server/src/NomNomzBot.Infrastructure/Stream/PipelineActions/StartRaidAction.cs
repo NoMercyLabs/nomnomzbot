@@ -53,6 +53,10 @@ public sealed class StartRaidAction : ICommandAction
 {
     private const int MaxDelaySeconds = 90;
 
+    /// <summary>Twitch's fixed server-side raid window; the raid auto-fires at exactly T+90s and there
+    /// is no API to commit it earlier. Shared with <see cref="WaitUntilRaidFiresAction"/>.</summary>
+    internal const int TwitchRaidWindowSeconds = 90;
+
     private readonly ITwitchRaidsApi _raids;
     private readonly ITwitchUsersApi _users;
     private readonly ITwitchStreamsApi _streams;
@@ -194,6 +198,14 @@ public sealed class StartRaidAction : ICommandAction
             },
             ctx.CancellationToken
         );
+
+        // Twitch's server-side raid timer starts THIS instant and cannot be committed early — it
+        // auto-fires at exactly +90s. Recording the deadline here lets a later `wait_until_raid_fires`
+        // step correct for any drift accumulated by OBS calls, chat sends, etc. between here and there,
+        // instead of the rest of the flow trusting a blind sum of fixed waits to land on time.
+        ctx.Variables["raid.fires_at_utc_ticks"] = DateTime
+            .UtcNow.AddSeconds(TwitchRaidWindowSeconds)
+            .Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
         int delaySeconds = Math.Clamp(action.GetInt("delay_seconds", 0), 0, MaxDelaySeconds);
         if (delaySeconds > 0)
