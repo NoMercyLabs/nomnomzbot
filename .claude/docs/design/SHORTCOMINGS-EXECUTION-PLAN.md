@@ -1101,8 +1101,13 @@ later.)
   attempting a disabled source — mirrors the webhook system's already-proven approach. S100b DONE,
   verified (d766c9ab): create/update reuses the existing `HttpEgressAllowlist` check (same abstraction
   the webhook endpoint save path already used, not reinvented) — a disallowed host is rejected with
-  `Result.Failure` and persists nothing, an allowed host saves. Remaining: real JSON field-map parsing
-  with inline errors; key picker from a test fetch; drop or wire `InboundWebhookEndpointId` (U·E3).
+  `Result.Failure` and persists nothing, an allowed host saves. **Field-map parsing DONE, verified
+  2026-09-02 (b3c5f9f1)**: JSONPath extraction already existed (Newtonsoft `JObject.SelectToken`); the
+  real gap was silent per-field failure with no save-time validation — `CustomDataFieldMapValidator`
+  now rejects a malformed/non-resolving path at save time, and a poll with one broken path among
+  correct ones still ingests the working fields and records the broken one as a per-field error
+  (`CustomDataSourceServiceFieldMapTests`, `CustomDataIngestServiceFieldMapTests`, both DB migrations
+  added). Remaining: key picker from a test fetch; drop or wire `InboundWebhookEndpointId` (U·E3).
 - **S101** Supporters — provider list + capabilities from the backend (`GET /supporters/sources`),
   mode-correct connect forms (secret / socket token / OAuth connection), error state + reason, staleness-
   derived status, per-connection test; resolve `SupporterUserId` where payloads allow + amount-scaled
