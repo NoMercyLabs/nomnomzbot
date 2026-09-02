@@ -15,6 +15,7 @@ using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Moderation.Dtos;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.Enums;
 using NomNomzBot.Infrastructure.Moderation;
@@ -39,7 +40,7 @@ public sealed class ModerationQueueServiceTests
         ModerationQueueService Service,
         ModerationServiceTestDbContext Db,
         ITwitchModerationApi Moderation
-    )> BuildAsync(Result? relayResult = null)
+    )> BuildAsync(Result? relayResult = null, IModerationService? actions = null)
     {
         ModerationServiceTestDbContext db = ModerationServiceTestDbContext.New();
         db.Channels.Add(
@@ -91,6 +92,7 @@ public sealed class ModerationQueueServiceTests
             db,
             users,
             moderation,
+            actions ?? Substitute.For<IModerationService>(),
             TimeProvider.System,
             Substitute.For<Microsoft.Extensions.Logging.ILogger<ModerationQueueService>>()
         );
@@ -171,15 +173,15 @@ public sealed class ModerationQueueServiceTests
         );
         Guid moderatorId = Guid.NewGuid();
 
-        Result<ModerationQueueItemDto> result = await service.ResolveAsync(
+        Result<ResolveModerationQueueItemResultDto> result = await service.ResolveAsync(
             BroadcasterId,
             enqueued.Value,
-            "approve",
+            new ResolveModerationQueueItemRequest { Action = "approve" },
             moderatorId.ToString()
         );
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Status.Should().Be("approved");
+        result.Value.Item.Status.Should().Be("approved");
         await moderation
             .Received(1)
             .ManageHeldAutoModMessageAsync(Tenant, "amsg-1", true, Arg.Any<CancellationToken>());
@@ -203,15 +205,15 @@ public sealed class ModerationQueueServiceTests
             "swearing"
         );
 
-        Result<ModerationQueueItemDto> result = await service.ResolveAsync(
+        Result<ResolveModerationQueueItemResultDto> result = await service.ResolveAsync(
             BroadcasterId,
             enqueued.Value,
-            "deny",
+            new ResolveModerationQueueItemRequest { Action = "deny" },
             Guid.NewGuid().ToString()
         );
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Status.Should().Be("denied");
+        result.Value.Item.Status.Should().Be("denied");
         await moderation
             .Received(1)
             .ManageHeldAutoModMessageAsync(Tenant, "amsg-2", false, Arg.Any<CancellationToken>());
@@ -232,10 +234,10 @@ public sealed class ModerationQueueServiceTests
             "swearing"
         );
 
-        Result<ModerationQueueItemDto> result = await service.ResolveAsync(
+        Result<ResolveModerationQueueItemResultDto> result = await service.ResolveAsync(
             BroadcasterId,
             enqueued.Value,
-            "approve",
+            new ResolveModerationQueueItemRequest { Action = "approve" },
             Guid.NewGuid().ToString()
         );
 
@@ -260,14 +262,14 @@ public sealed class ModerationQueueServiceTests
         await service.ResolveAsync(
             BroadcasterId,
             enqueued.Value,
-            "approve",
+            new ResolveModerationQueueItemRequest { Action = "approve" },
             Guid.NewGuid().ToString()
         );
 
-        Result<ModerationQueueItemDto> second = await service.ResolveAsync(
+        Result<ResolveModerationQueueItemResultDto> second = await service.ResolveAsync(
             BroadcasterId,
             enqueued.Value,
-            "deny",
+            new ResolveModerationQueueItemRequest { Action = "deny" },
             Guid.NewGuid().ToString()
         );
 
@@ -311,5 +313,257 @@ public sealed class ModerationQueueServiceTests
         await service.ApplyExternalResolutionAsync(Tenant, "no-such-message", "approved");
 
         (await db.ModerationQueueItems.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ResolveAsync_DenyWithBanFollowUp_DeniesOnHelixFirst_ThenBansAsTheOperator()
+    {
+        IModerationService actions = Substitute.For<IModerationService>();
+        actions
+            .BanAsync(
+                Arg.Any<string>(),
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(new ModerationActionResult(true, null)));
+        (
+            ModerationQueueService service,
+            ModerationServiceTestDbContext db,
+            ITwitchModerationApi moderation
+        ) = await BuildAsync(actions: actions);
+        Result<Guid> enqueued = await service.EnqueueHeldMessageAsync(
+            Tenant,
+            "amsg-10",
+            "9001",
+            "chatter",
+            "buy viewers at scam.example",
+            "spam"
+        );
+        Guid moderatorId = Guid.NewGuid();
+
+        Result<ResolveModerationQueueItemResultDto> result = await service.ResolveAsync(
+            BroadcasterId,
+            enqueued.Value,
+            new ResolveModerationQueueItemRequest
+            {
+                Action = "deny",
+                FollowUp = "ban",
+                Reason = "promo spam",
+            },
+            moderatorId.ToString()
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.FollowUpError.Should().BeNull();
+        result.Value.Item.ResolutionAction.Should().Be("denied_banned");
+        Received.InOrder(() =>
+        {
+            moderation.ManageHeldAutoModMessageAsync(
+                Tenant,
+                "amsg-10",
+                false,
+                Arg.Any<CancellationToken>()
+            );
+            actions.BanAsync(
+                BroadcasterId,
+                moderatorId,
+                "9001",
+                "promo spam",
+                null,
+                Arg.Any<CancellationToken>()
+            );
+        });
+        ModerationQueueItem stored = await db.ModerationQueueItems.SingleAsync();
+        stored.Status.Should().Be(ModerationQueueStatus.Denied);
+        stored.ResolutionAction.Should().Be("denied_banned");
+    }
+
+    [Fact]
+    public async Task ResolveAsync_DenyWithTimeoutFollowUp_PassesTheDurationThrough()
+    {
+        IModerationService actions = Substitute.For<IModerationService>();
+        actions
+            .TimeoutAsync(
+                Arg.Any<string>(),
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<int>(),
+                Arg.Any<string?>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(new ModerationActionResult(true, null)));
+        (ModerationQueueService service, ModerationServiceTestDbContext db, _) = await BuildAsync(
+            actions: actions
+        );
+        Result<Guid> enqueued = await service.EnqueueHeldMessageAsync(
+            Tenant,
+            "amsg-11",
+            "9001",
+            "chatter",
+            "text",
+            "swearing"
+        );
+        Guid moderatorId = Guid.NewGuid();
+
+        Result<ResolveModerationQueueItemResultDto> result = await service.ResolveAsync(
+            BroadcasterId,
+            enqueued.Value,
+            new ResolveModerationQueueItemRequest
+            {
+                Action = "deny",
+                FollowUp = "timeout",
+                TimeoutSeconds = 600,
+            },
+            moderatorId.ToString()
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.FollowUpError.Should().BeNull();
+        await actions
+            .Received(1)
+            .TimeoutAsync(
+                BroadcasterId,
+                moderatorId,
+                "9001",
+                600,
+                null,
+                null,
+                Arg.Any<CancellationToken>()
+            );
+        ModerationQueueItem stored = await db.ModerationQueueItems.SingleAsync();
+        stored.ResolutionAction.Should().Be("denied_timeout");
+    }
+
+    [Fact]
+    public async Task ResolveAsync_WhenTheFollowUpFails_TheDenyStands_AndTheErrorIsSurfaced()
+    {
+        IModerationService actions = Substitute.For<IModerationService>();
+        actions
+            .BanAsync(
+                Arg.Any<string>(),
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Failure<ModerationActionResult>(
+                    "The operator has no Twitch token.",
+                    "TWITCH_ERROR"
+                )
+            );
+        (ModerationQueueService service, ModerationServiceTestDbContext db, _) = await BuildAsync(
+            actions: actions
+        );
+        Result<Guid> enqueued = await service.EnqueueHeldMessageAsync(
+            Tenant,
+            "amsg-12",
+            "9001",
+            "chatter",
+            "text",
+            "spam"
+        );
+
+        Result<ResolveModerationQueueItemResultDto> result = await service.ResolveAsync(
+            BroadcasterId,
+            enqueued.Value,
+            new ResolveModerationQueueItemRequest { Action = "deny", FollowUp = "ban" },
+            Guid.NewGuid().ToString()
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.FollowUpError.Should().Be("The operator has no Twitch token.");
+        result.Value.Item.Status.Should().Be("denied");
+        result.Value.Item.ResolutionAction.Should().Be("denied");
+        ModerationQueueItem stored = await db.ModerationQueueItems.SingleAsync();
+        stored.Status.Should().Be(ModerationQueueStatus.Denied);
+        stored.ResolutionAction.Should().Be("denied");
+    }
+
+    [Fact]
+    public async Task ResolveAsync_ApproveWithAFollowUp_FailsValidation_BeforeTouchingHelix()
+    {
+        (ModerationQueueService service, _, ITwitchModerationApi moderation) = await BuildAsync();
+        Result<Guid> enqueued = await service.EnqueueHeldMessageAsync(
+            Tenant,
+            "amsg-13",
+            "9001",
+            "chatter",
+            "text",
+            "spam"
+        );
+
+        Result<ResolveModerationQueueItemResultDto> result = await service.ResolveAsync(
+            BroadcasterId,
+            enqueued.Value,
+            new ResolveModerationQueueItemRequest { Action = "approve", FollowUp = "ban" },
+            Guid.NewGuid().ToString()
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        await moderation
+            .DidNotReceiveWithAnyArgs()
+            .ManageHeldAutoModMessageAsync(default, default!, default, default);
+    }
+
+    [Fact]
+    public async Task ResolveAsync_ATimeoutFollowUpOutOfRange_FailsValidation()
+    {
+        (ModerationQueueService service, _, _) = await BuildAsync();
+        Result<Guid> enqueued = await service.EnqueueHeldMessageAsync(
+            Tenant,
+            "amsg-14",
+            "9001",
+            "chatter",
+            "text",
+            "spam"
+        );
+
+        foreach (int seconds in new[] { 0, 1209601 })
+        {
+            Result<ResolveModerationQueueItemResultDto> result = await service.ResolveAsync(
+                BroadcasterId,
+                enqueued.Value,
+                new ResolveModerationQueueItemRequest
+                {
+                    Action = "deny",
+                    FollowUp = "timeout",
+                    TimeoutSeconds = seconds,
+                },
+                Guid.NewGuid().ToString()
+            );
+            result.IsFailure.Should().BeTrue();
+            result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        }
+    }
+
+    [Fact]
+    public async Task ResolveAsync_AnUnknownAction_FailsValidation_InsteadOfThrowing()
+    {
+        (ModerationQueueService service, _, _) = await BuildAsync();
+        Result<Guid> enqueued = await service.EnqueueHeldMessageAsync(
+            Tenant,
+            "amsg-15",
+            "9001",
+            "chatter",
+            "text",
+            "spam"
+        );
+
+        Result<ResolveModerationQueueItemResultDto> result = await service.ResolveAsync(
+            BroadcasterId,
+            enqueued.Value,
+            new ResolveModerationQueueItemRequest { Action = "yeet" },
+            Guid.NewGuid().ToString()
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
     }
 }
