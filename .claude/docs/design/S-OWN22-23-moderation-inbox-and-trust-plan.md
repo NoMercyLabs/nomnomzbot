@@ -58,10 +58,13 @@ truthful data (never show unenforced state), consequences visible before saving.
 **DONE, verified 2026-09-02 (`d1c45e75`)**: `ReadyContent` now emits `PageHeader` →
 `ActionRequiredCard` (unmoved, per plan — Task 3/4 replace its internals separately) →
 `StatTilesRow` (single row, 8 tiles at `weight(1f)`, intrinsic width below 960dp) → `LiveBanner` →
-`PlatformsRow` → `FirstRunChecklistCard` → the existing two-column Row. Verified by
-`compileKotlinWasmJs` (BUILD SUCCESSFUL) and diff trace; `jvmTest` could not run to green — shared
-gradle build-dir contention from concurrently-running sibling agents (known trap, not a code issue),
-re-verify jvmTest once the shared build dir is free.
+`PlatformsRow` → `FirstRunChecklistCard` → the existing two-column Row. Fully verified 2026-09-02:
+`jvmTest` 966 tests green (style guard passing; one unrelated DashboardHubClientReconnectTest
+coroutine-timeout flake, green on rerun) + `compileKotlinWasmJs` green. The guard initially caught a
+raw `960.dp` in d1c45e75 — fixed in `1b7b3723` by extracting the shared `Breakpoints` token
+(theme/Breakpoints.kt: Compact 720 / Wide 960) consumed by HomeScreen, ShellScreen and
+ParticipantShell (their grandfathered baseline entries removed). The attention card's POSITION move
+(to below the stream-status cluster) intentionally rides with Task 4's new component.
 
 `HomeScreen.kt` `ReadyContent` (`:290-451`). New order inside the scroll Column:
 
@@ -290,3 +293,38 @@ auto-ban; the Twitch AutoMod form works against live Helix.
   attack) as its own slice family? The spec is settled and gated on your word.
 - `ROADMAP.md`'s "Advanced moderation — specced, no backend yet" bullet is stale (all listed items
   exist in code) — fix the line when touching that file.
+
+
+---
+
+## Appendix A — Trust & Automation i18n copy (S-OWN23 Task 4 lifts this verbatim)
+
+Plain-language STE copy for every editable field: short sentences, one idea per sentence, what it
+measures + what moving it costs. Key pattern `moderation_trust_<field>_title` / `_explain`. The
+23-T4 agent copies these into `values/strings.xml` (en) and `values-nl/strings.xml` (nl) verbatim.
+
+| Key stem | en title | en explain | nl title | nl explain |
+|---|---|---|---|---|
+| `weight_request_count` | Activity weight | How much a user's activity here counts. Raise it and active users are trusted faster. All four weights must add up to 1.0. | Activiteitsgewicht | Hoe zwaar iemands activiteit hier meetelt. Hoger = actieve gebruikers worden sneller vertrouwd. De vier gewichten moeten samen 1.0 zijn. |
+| `weight_account_age` | Account age weight | How much the age of the user's account counts. Raise it and older accounts are trusted faster. Lower it and account age matters less. | Gewicht accountleeftijd | Hoe zwaar de leeftijd van het account meetelt. Hoger = oudere accounts worden sneller vertrouwd. Lager = leeftijd telt minder mee. |
+| `weight_content_age` | Content age weight | How much the age of requested content counts. Mostly affects song requests. Raise it and brand-new content is trusted less. | Gewicht content-leeftijd | Hoe zwaar de leeftijd van aangevraagde content meetelt. Geldt vooral voor song requests. Hoger = gloednieuwe content wordt minder vertrouwd. |
+| `weight_content_popularity` | Content popularity weight | How much the popularity of requested content counts. Raise it and obscure content is trusted less. | Gewicht content-populariteit | Hoe zwaar de populariteit van aangevraagde content meetelt. Hoger = onbekende content wordt minder vertrouwd. |
+| `decay` (one explain shared per decay row, suffix per field) | Growth speed | How fast this score part grows toward its maximum. Higher = it maxes out sooner. Lower = users need more history for the same score. | Groeisnelheid | Hoe snel dit scoredeel naar zijn maximum groeit. Hoger = eerder op het maximum. Lager = meer geschiedenis nodig voor dezelfde score. |
+| `not_following_factor` | Not-following penalty | The score multiplier for users who do not follow the channel. 0.75 means their score is cut by a quarter. 1.0 turns this penalty off. | Straf voor niet-volgers | De vermenigvuldiger voor gebruikers die het kanaal niet volgen. 0.75 = score een kwart lager. 1.0 = geen straf. |
+| `reputation_boost` | Reputation boost | Gives mods, VIPs, subscribers and proven regulars a big head start. Turning this off treats them like strangers. | Reputatiebonus | Geeft mods, VIP's, subscribers en vaste kijkers een flinke voorsprong. Uit = zij worden als vreemden behandeld. |
+| `skip_penalty` | Skip penalty | Points removed each time this user's request is skipped. Higher = repeated skips lower trust faster. | Skip-straf | Punten eraf telkens als een verzoek van deze gebruiker wordt geskipt. Hoger = herhaald skippen verlaagt vertrouwen sneller. |
+| `timeout_penalty` | Timeout penalty | Points removed for each timeout on this user. Higher = a timeout hurts their trust more. | Timeout-straf | Punten eraf voor elke timeout van deze gebruiker. Hoger = een timeout schaadt het vertrouwen meer. |
+| `ban_penalty` | Ban penalty | Points removed for each ban on this user. This is the heaviest penalty. | Ban-straf | Punten eraf voor elke ban van deze gebruiker. Dit is de zwaarste straf. |
+| `tier_untrusted_max` | Untrusted ceiling | Scores at or below this are Untrusted. Raise it and more users count as Untrusted. | Grens Onvertrouwd | Scores tot en met deze waarde zijn Onvertrouwd. Hoger = meer gebruikers gelden als Onvertrouwd. |
+| `tier_low_max` | Low-trust ceiling | Scores above the Untrusted ceiling up to this are Low trust. | Grens Laag vertrouwen | Scores boven de Onvertrouwd-grens tot en met deze waarde zijn Laag vertrouwen. |
+| `tier_standard_max` | Standard ceiling | Scores above the Low ceiling up to this are Standard. Everything above is Trusted. | Grens Standaard | Scores boven de Laag-grens tot en met deze waarde zijn Standaard. Alles daarboven is Vertrouwd. |
+| `heat_half_life` | Heat cool-down (hours) | Heat marks recent bad behavior. After this many hours, half of it is gone. Shorter = users are forgiven faster. | Heat-afkoeltijd (uren) | Heat markeert recent wangedrag. Na dit aantal uren is de helft weg. Korter = gebruikers worden sneller vergeven. |
+| `heat_delta_<action>` | Heat per <action> | Heat added when this happens. Higher = this action pushes a user toward the auto-timeout line faster. | Heat per <actie> | Heat die erbij komt als dit gebeurt. Hoger = deze actie duwt een gebruiker sneller richting de auto-timeoutgrens. |
+| `heat_threshold` (J.7, existing) | Auto-timeout line | When a user's heat crosses this line, the bot times them out automatically — if the switch below is on. Mods and the broadcaster are never auto-timed-out. | Auto-timeoutgrens | Als de heat van een gebruiker over deze grens gaat, geeft de bot automatisch een timeout — als de schakelaar hieronder aan staat. Mods en de streamer krijgen nooit een automatische timeout. |
+| `section_blast_radius` | — | These weights also decide who may use song requests. Changing them changes !sr for everyone. | — | Deze gewichten bepalen ook wie song requests mag doen. Aanpassen verandert !sr voor iedereen. |
+| `automation_panel_title` | What happens automatically | This list is computed from your current settings. It shows exactly what the bot does without asking a human. | Wat er automatisch gebeurt | Deze lijst wordt berekend uit je huidige instellingen. Hij toont precies wat de bot doet zonder een mens te vragen. |
+| `automation_can_ban_line` | — | Nothing on this channel auto-bans unless it is listed here. | — | Niets op dit kanaal geeft automatisch een ban, behalve wat hier staat. |
+
+Copy rules honored: users see role/tier NAMES, never numbers, in labels; the numbers appear only as
+the editable values themselves. Dutch uses informal "je". `<action>`/`<actie>` is substituted per
+heat-delta row from the action type's existing display name.
