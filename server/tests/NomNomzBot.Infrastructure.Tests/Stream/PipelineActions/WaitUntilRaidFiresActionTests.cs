@@ -10,6 +10,7 @@
 
 using System.Diagnostics;
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Infrastructure.Stream.PipelineActions;
 
@@ -124,7 +125,7 @@ public sealed class WaitUntilRaidFiresActionTests
     [Fact]
     public async Task Waits_out_the_remaining_time_to_the_recorded_deadline()
     {
-        WaitUntilRaidFiresAction sut = new();
+        WaitUntilRaidFiresAction sut = new(NullLogger<WaitUntilRaidFiresAction>.Instance);
         PipelineExecutionContext ctx = Ctx();
         ctx.Variables["raid.fires_at_utc_ticks"] = DateTime
             .UtcNow.AddMilliseconds(300)
@@ -142,7 +143,7 @@ public sealed class WaitUntilRaidFiresActionTests
     [Fact]
     public async Task A_deadline_already_in_the_past_returns_immediately()
     {
-        WaitUntilRaidFiresAction sut = new();
+        WaitUntilRaidFiresAction sut = new(NullLogger<WaitUntilRaidFiresAction>.Instance);
         PipelineExecutionContext ctx = Ctx();
         ctx.Variables["raid.fires_at_utc_ticks"] = DateTime.UtcNow.AddSeconds(-5).Ticks.ToString();
 
@@ -157,7 +158,7 @@ public sealed class WaitUntilRaidFiresActionTests
     [Fact]
     public async Task No_recorded_deadline_is_a_no_op_not_a_failure()
     {
-        WaitUntilRaidFiresAction sut = new();
+        WaitUntilRaidFiresAction sut = new(NullLogger<WaitUntilRaidFiresAction>.Instance);
 
         Stopwatch stopwatch = Stopwatch.StartNew();
         ActionResult result = await sut.ExecuteAsync(Ctx(), Action);
@@ -170,7 +171,7 @@ public sealed class WaitUntilRaidFiresActionTests
     [Fact]
     public async Task A_corrupt_deadline_value_is_a_no_op_not_a_crash()
     {
-        WaitUntilRaidFiresAction sut = new();
+        WaitUntilRaidFiresAction sut = new(NullLogger<WaitUntilRaidFiresAction>.Instance);
         PipelineExecutionContext ctx = Ctx();
         ctx.Variables["raid.fires_at_utc_ticks"] = "not-a-number";
 
@@ -182,7 +183,7 @@ public sealed class WaitUntilRaidFiresActionTests
     [Fact]
     public async Task A_cancelled_token_during_the_wait_propagates_rather_than_being_swallowed()
     {
-        WaitUntilRaidFiresAction sut = new();
+        WaitUntilRaidFiresAction sut = new(NullLogger<WaitUntilRaidFiresAction>.Instance);
         PipelineExecutionContext ctx = new()
         {
             BroadcasterId = Channel,
