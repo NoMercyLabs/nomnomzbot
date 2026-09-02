@@ -13,6 +13,7 @@ using NomNomzBot.Application.Abstractions.Content;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Infrastructure.Stream.PipelineActions;
 
 namespace NomNomzBot.Infrastructure.Content.Commands;
 
@@ -23,11 +24,12 @@ namespace NomNomzBot.Infrastructure.Content.Commands;
 /// block the pipeline builder already offers, so the streamer can reorder it, retime it, swap the OBS
 /// scene, drop the emote lines, or delete the whole thing.
 /// <para>
-/// The timing is the part that is NOT arbitrary. Twitch's <c>POST /raids</c> starts a fixed
-/// <b>90-second</b> server-side timer and there is no API to commit the raid earlier — it auto-fires at
-/// exactly T+90s. So the raid call goes FIRST and the countdown is built to land just before that
-/// moment; a countdown that finishes early leaves viewers watching silence, and one that overruns
-/// announces a raid that has already happened. The waits below sum to ~88s for that reason.
+/// The timing is the part that is NOT arbitrary. Twitch's <c>POST /raids</c> starts a server-side timer
+/// and there is no API to commit the raid earlier — it auto-fires once that timer elapses. So the raid
+/// call goes FIRST and the countdown is built to land just before that moment; a countdown that
+/// finishes early leaves viewers watching silence, and one that overruns announces a raid that has
+/// already happened. The waits below sum to just under <see cref="TwitchRaidWindowSeconds"/> for that
+/// reason, with <c>wait_until_raid_fires</c> correcting any remaining drift right before commit.
 /// </para>
 /// <para>
 /// Every step is a plain TOP-LEVEL leaf — never a <c>detached_step</c>/<c>try</c> block. Confirmed live
@@ -58,8 +60,12 @@ public sealed class RaidFlowSeeder : ISeeder
 
     private const string CommandName = "raid";
 
-    /// <summary>Twitch's fixed server-side raid window; the raid auto-fires at T+90s.</summary>
-    private const int TwitchRaidWindowSeconds = 90;
+    /// <summary>Twitch's server-side raid window — the raid auto-fires this many seconds after
+    /// <c>start_raid</c> returns. Kept in sync with <see cref="StartRaidAction.TwitchRaidWindowSeconds"/>
+    /// (that constant is the one <c>wait_until_raid_fires</c> actually re-anchors to at runtime; this
+    /// local copy only paces the seeded countdown messages, so a mismatch is cosmetic, not a bug — but
+    /// keep them equal). Confirmed live 2026-09-02: 90s undershot the real window by 12-14s.</summary>
+    private const int TwitchRaidWindowSeconds = StartRaidAction.TwitchRaidWindowSeconds;
 
     /// <summary>The startup <see cref="ISeeder"/> pass: seeds every channel.</summary>
     public Task SeedAsync(CancellationToken ct = default) => SeedAsync(broadcasterId: null, ct);
@@ -228,10 +234,11 @@ public sealed class RaidFlowSeeder : ISeeder
 
         // Countdown. Only the last stretch is announced — a "45 seconds left" line this early reads as
         // spam, so the earlier waits are silent and the chat only starts counting at 15s.
-        // 2s of intro lines have already elapsed, and the announced countdown must open at T+73 so
-        // "Raid in 15" is genuinely 15 seconds before Twitch fires at T+90 (less the 2s safety margin).
+        // 2s of intro lines have already elapsed, and the announced countdown must open 15s (+2s safety
+        // margin) before TwitchRaidWindowSeconds — i.e. at T+(TwitchRaidWindowSeconds-17). With the
+        // window at 103s that's T+86: 2s intro + 40s + 44s = 86s of wait before "Raid in 15" fires.
         yield return new("wait", """{"seconds":40}""");
-        yield return new("wait", """{"seconds":31}""");
+        yield return new("wait", $$"""{"seconds":{{TwitchRaidWindowSeconds - 17 - 42}}}""");
         foreach (int secondsLeft in new[] { 15, 10, 5, 3, 2, 1 })
         {
             yield return new(
