@@ -86,6 +86,7 @@ public static class PipelineGraphBuilder
                     order = step.Order,
                     action = actionJson,
                     condition = conditionNode,
+                    continue_on_error = step.ContinueOnError,
                 }
             );
         }
