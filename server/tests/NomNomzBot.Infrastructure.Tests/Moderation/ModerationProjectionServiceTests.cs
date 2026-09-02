@@ -18,6 +18,7 @@ using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.Events;
+using NomNomzBot.Domain.Trust;
 using NomNomzBot.Infrastructure.Moderation;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
@@ -88,7 +89,7 @@ public sealed class ModerationProjectionServiceTests
 
     /// <summary>The clean-slate score for the same tenure the seeded subject has.</summary>
     private static double CleanScoreAt(DateTime nowUtc) =>
-        Infrastructure.Music.TrustScoreCalculator.Calculate(
+        TrustScoreCalculator.Calculate(
             new() { AccountAgeMonths = (nowUtc - T0.AddYears(-2)).TotalDays / 30.44 }
         );
 

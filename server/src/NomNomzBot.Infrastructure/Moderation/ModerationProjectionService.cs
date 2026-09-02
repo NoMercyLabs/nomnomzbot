@@ -18,7 +18,7 @@ using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
-using NomNomzBot.Infrastructure.Music;
+using NomNomzBot.Domain.Trust;
 
 namespace NomNomzBot.Infrastructure.Moderation;
 
