@@ -47,8 +47,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
+import bot.nomnomz.dashboard.core.designsystem.theme.Breakpoints
 import bot.nomnomz.dashboard.core.connection.SessionUser
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
@@ -105,8 +104,6 @@ import org.jetbrains.compose.resources.stringResource
 // one shell, with a participant page set (gated by Plane-A community standing, not a management role) and
 // read-mostly + self-service screens. A single [ParticipantController], built once from the resolved access
 // (channel + caller's own user GUID + standing + permit capabilities), backs every page.
-private val CompactBreakpoint: Dp = 720.dp
-
 @Composable
 fun ParticipantShell(
     graph: AppGraph,
@@ -144,7 +141,7 @@ fun ParticipantShell(
         onExitPreview?.let { PreviewBanner(onExit = it) }
 
     BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxWidth().background(tokens.background)) {
-        val compact: Boolean = maxWidth < CompactBreakpoint
+        val compact: Boolean = maxWidth < Breakpoints.Compact
         val selectedLabel: String = selected.label()
 
         if (compact) {

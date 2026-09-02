@@ -61,8 +61,6 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
@@ -82,6 +80,7 @@ import bot.nomnomz.dashboard.core.designsystem.icon.CheckCircleGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.RefreshGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.RemoveGlyph
+import bot.nomnomz.dashboard.core.designsystem.theme.Breakpoints
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -773,16 +772,14 @@ private fun FirstRunStepRow(step: FirstRunStep, onClick: () -> Unit) {
 
 // ─── Stat tiles ───────────────────────────────────────────────────────────────
 
-// Below this container width, 8 equal-weight tiles in one row would squeeze each tile too narrow to read — the
+// Below [Breakpoints.Wide], 8 equal-weight tiles in one row would squeeze each tile too narrow to read — the
 // row switches to its intrinsic (wrap-content) tile width and scrolls horizontally instead. Same BoxWithConstraints
-// + private breakpoint-constant idiom ShellScreen.kt/ParticipantShell.kt already use for their compact/full split;
-// HomeScreen.kt itself carried no prior width-based branch to reuse verbatim, so this follows their pattern rather
-// than inventing a new one.
-private val StatTilesBreakpoint: Dp = 960.dp
+// idiom ShellScreen.kt/ParticipantShell.kt use for their compact/full split, on the shared design-system
+// breakpoint scale.
 
 // A single-row stat strip (owner's home-screen ask, S-OWN22 Task 1): current viewers, followers, subscribers,
 // chatters today, donations today, commands, messages, and uptime — all real data from the backend. All 8 tiles
-// share the row at full width; below [StatTilesBreakpoint] the row scrolls horizontally instead of squeezing.
+// share the row at full width; below [Breakpoints.Wide] the row scrolls horizontally instead of squeezing.
 @Composable
 private fun StatTilesRow(stats: DashboardStats) {
     val spacing = LocalSpacing.current
@@ -799,7 +796,7 @@ private fun StatTilesRow(stats: DashboardStats) {
         )
 
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-        if (maxWidth < StatTilesBreakpoint) {
+        if (maxWidth < Breakpoints.Wide) {
             Row(
                 modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(spacing.s3),
