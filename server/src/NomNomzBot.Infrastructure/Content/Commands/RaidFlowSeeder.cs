@@ -162,6 +162,44 @@ public sealed class RaidFlowSeeder : ISeeder
                     continue;
                 }
 
+                if (node.Tried is { } triedLeaf)
+                {
+                    // The legacy bot wraps each of StopStreaming and PauseSpotify in its OWN try/catch
+                    // that only logs a warning — one failing must never block the other, or leave a
+                    // completed raid reporting partially_failed over a step that has nothing left to
+                    // protect downstream of it. A try block with no catch children is the pipeline
+                    // engine's exact match: run synchronously (unlike detached_step, order still matters
+                    // here — stop the stream, THEN pause the music), but swallow a failure and continue
+                    // past the block instead of aborting the run.
+                    PipelineStep wrapper = new()
+                    {
+                        Id = Guid.CreateVersion7(),
+                        PipelineId = pipeline.Id,
+                        BroadcasterId = channelId,
+                        BlockKind = "try",
+                        BlockConfigJson = "{}",
+                        ActionType = "try",
+                        Order = order++,
+                        IsEnabled = true,
+                    };
+                    _db.PipelineSteps.Add(wrapper);
+                    _db.PipelineSteps.Add(
+                        new()
+                        {
+                            Id = Guid.CreateVersion7(),
+                            PipelineId = pipeline.Id,
+                            BroadcasterId = channelId,
+                            ParentStepId = wrapper.Id,
+                            Branch = "then",
+                            ActionType = triedLeaf.ActionType!,
+                            ConfigJson = triedLeaf.ConfigJson!,
+                            Order = order++,
+                            IsEnabled = true,
+                        }
+                    );
+                    continue;
+                }
+
                 _db.PipelineSteps.Add(
                     new()
                     {
@@ -207,16 +245,25 @@ public sealed class RaidFlowSeeder : ISeeder
         await _db.SaveChangesAsync(ct);
     }
 
-    /// <summary>One step in the seeded flow — either an ordinary blocking leaf, or a leaf wrapped in a
+    /// <summary>One step in the seeded flow: an ordinary blocking leaf, a leaf wrapped in a
     /// <c>detached_step</c> block (fire-and-forget: dispatched but never awaited, its own failure never
-    /// aborts the rest of the run).</summary>
-    private sealed record SeedNode(string? ActionType, string? ConfigJson, SeedNode? Detached)
+    /// aborts the rest of the run), or a leaf wrapped in a catch-less <c>try</c> block (runs synchronously
+    /// but a failure is swallowed — logged, never aborts the rest of the run).</summary>
+    private sealed record SeedNode(
+        string? ActionType,
+        string? ConfigJson,
+        SeedNode? Detached,
+        SeedNode? Tried
+    )
     {
         public static SeedNode Leaf(string actionType, string configJson) =>
-            new(actionType, configJson, null);
+            new(actionType, configJson, null, null);
 
         public static SeedNode DetachedLeaf(string actionType, string configJson) =>
-            new(null, null, Leaf(actionType, configJson));
+            new(null, null, Leaf(actionType, configJson), null);
+
+        public static SeedNode TriedLeaf(string actionType, string configJson) =>
+            new(null, null, null, Leaf(actionType, configJson));
     }
 
     /// <summary>
@@ -266,8 +313,11 @@ public sealed class RaidFlowSeeder : ISeeder
             "send_message",
             """{"message":"RAID LIVE! We're heading over now! Let's go!"}"""
         );
-        yield return SeedNode.Leaf("obs_streaming", """{"action":"stop"}""");
-        yield return SeedNode.Leaf("music_pause", "{}");
+        // Each terminal action gets its OWN catch-less try — one failing (e.g. the same OBS bridge drop
+        // that can hit the scene switch earlier) must never stop the other from running, matching the
+        // legacy bot's two separate try/catches around StopStreaming and PauseSpotify.
+        yield return SeedNode.TriedLeaf("obs_streaming", """{"action":"stop"}""");
+        yield return SeedNode.TriedLeaf("music_pause", "{}");
     }
 
     /// <summary>How long to wait after announcing <paramref name="secondsLeft"/> before the next line —
