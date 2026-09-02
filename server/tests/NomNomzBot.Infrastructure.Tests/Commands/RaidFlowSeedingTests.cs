@@ -108,13 +108,54 @@ public sealed class RaidFlowSeedingTests
         PipelineStep wrapper = steps.Single(s => s.Id == obsStep.ParentStepId);
         wrapper.BlockKind.Should().Be("detached_step");
 
-        // Every step downstream of the raid call — countdown, "RAID LIVE!", stop-streaming, pause-music —
-        // must sit as an ordinary TOP-LEVEL sibling (ParentStepId null), never nested under the detached
-        // wrapper, so the engine keeps walking them regardless of what the detached OBS action does.
+        // Every step downstream of the raid call — the countdown, "RAID LIVE!" — must sit as an ordinary
+        // TOP-LEVEL sibling, never nested under the detached wrapper, so the engine keeps walking them
+        // regardless of what the detached OBS action does. Only stop-streaming and pause-music are ALSO
+        // nested (each under its own catch-less try — see the dedicated try-wrapping test below).
+        HashSet<Guid> detachedOrTryIds = [obsStep.Id, wrapper.Id];
         steps
-            .Where(s => s.Id != obsStep.Id && s.Id != wrapper.Id)
+            .Where(s => !detachedOrTryIds.Contains(s.Id))
+            .Where(s =>
+                s.ActionType is not ("obs_streaming" or "music_pause") && s.BlockKind != "try"
+            )
             .Should()
-            .OnlyContain(s => s.ParentStepId == null, "only the OBS scene switch is detached");
+            .OnlyContain(
+                s => s.ParentStepId == null,
+                "only the OBS scene switch, stream-stop and music-pause are wrapped"
+            );
+    }
+
+    [Fact]
+    public async Task Stopping_the_stream_and_pausing_the_music_are_each_wrapped_so_one_failing_never_blocks_the_other()
+    {
+        (RaidFlowSeeder seeder, SeedTestDbContext db) = Build();
+
+        await seeder.SeedAsync(Tenant);
+
+        // The legacy bot wraps StopStreaming and PauseSpotify in their OWN try/catch, each only logging a
+        // warning on failure — one failing must never stop the other from running. A catch-less `try`
+        // block is the pipeline engine's match: swallow the failure, continue past the block (confirmed
+        // live 2026-09-01: without this, a stop-streaming failure on a flaky OBS bridge left music_pause
+        // never running at all).
+        List<PipelineStep> steps = StepsOf(db);
+        foreach (string actionType in new[] { "obs_streaming", "music_pause" })
+        {
+            PipelineStep leaf = steps.Single(s => s.ActionType == actionType);
+            leaf.ParentStepId.Should()
+                .NotBeNull($"{actionType} must live inside its own try wrapper");
+            PipelineStep wrapper = steps.Single(s => s.Id == leaf.ParentStepId);
+            wrapper.BlockKind.Should().Be("try");
+            leaf.Branch.Should()
+                .Be("then", "the leaf is the try's body, never its (absent) catch arm");
+        }
+
+        // Two SEPARATE wrappers, not one try holding both — a try's own catch swallows only ITS body's
+        // failure, so sharing one wrapper would still let a failed stop-streaming skip music-pause.
+        Guid streamingWrapperId = steps
+            .Single(s => s.ActionType == "obs_streaming")
+            .ParentStepId!.Value;
+        Guid musicWrapperId = steps.Single(s => s.ActionType == "music_pause").ParentStepId!.Value;
+        streamingWrapperId.Should().NotBe(musicWrapperId);
     }
 
     [Fact]
