@@ -135,10 +135,29 @@ Write-Host "SHIP: CI green (image job: $imageJob)."
 # networks, base URL, profiles). A committed compose change that never reaches the host silently does
 # nothing, and the host quietly keeps running an older stack definition than the repo says it does.
 # The host's .env is NOT touched - that is the operator's secret custody, not ours.
-Write-Host "SHIP: syncing docker-compose.yml + Caddyfile."
+Write-Host "SHIP: syncing docker-compose.yml + Caddyfile + guard-single-color.sh."
 & scp -i $sshKey -o StrictHostKeyChecking=accept-new `
-    "$repoRoot/docker-compose.yml" "$repoRoot/Caddyfile" "${sshTarget}:$deployDir/" 2>&1 | Out-Null
+    "$repoRoot/docker-compose.yml" "$repoRoot/Caddyfile" "$repoRoot/scripts/guard-single-color.sh" `
+    "${sshTarget}:$deployDir/" 2>&1 | Out-Null
 if ($LASTEXITCODE -ne 0) { Fail "could not copy the stack definition to $sshTarget - nothing deployed" }
+
+# guard-single-color.sh runs ON the host independently of any deploy (cron, every 5 min): the
+# deploy scripts correctly stop the losing blue/green colour at the end of a switchover, but have
+# no say over a manual `docker restart`/`docker start` on the drained colour BETWEEN deploys -
+# exactly what silently ran api-blue and api-green live simultaneously for ~9h on 2026-09-02,
+# duplicating every chat command via two independent EventSub sessions. chmod + install the cron
+# line idempotently (grep-guarded, so re-running ship.ps1 never adds a second copy).
+$guardRemote = @'
+chmod +x /opt/nomnomzbot/guard-single-color.sh
+( crontab -l 2>/dev/null | grep -vF 'guard-single-color.sh' ; echo "*/5 * * * * /opt/nomnomzbot/guard-single-color.sh >> /opt/nomnomzbot/guard-single-color.log 2>&1" ) | crontab -
+'@
+$guardRemote = $guardRemote.TrimStart([char]0xFEFF) -replace "`r`n", "`n"
+$ErrorActionPreference = "Continue"
+$guardOutput = ($guardRemote | & ssh -i $sshKey -o StrictHostKeyChecking=accept-new $sshTarget "bash -s" 2>&1 | Out-String)
+$guardExit = $LASTEXITCODE
+$ErrorActionPreference = "Stop"
+if ($guardExit -ne 0) { Fail "could not install guard-single-color.sh cron job on ${sshTarget}: $guardOutput" }
+Write-Host "SHIP: guard-single-color.sh installed (cron, every 5 min)."
 
 # ── 3. Deploy: blue/green switchover, poll readiness, verify image freshness ─
 # There is no `api` service — docker-compose.yml fronts api-blue/api-green with Caddy, which routes to
