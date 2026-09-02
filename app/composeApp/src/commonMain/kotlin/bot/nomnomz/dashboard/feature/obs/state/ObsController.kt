@@ -29,12 +29,17 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.obs_no_channel_error
+import org.jetbrains.compose.resources.ExperimentalResourceApi
+import org.jetbrains.compose.resources.getString
 
 // The OBS-control page state-holder (obs-control.md §4): the channel's OBS connection config, the browser-source
 // bridge, and — when OBS is reachable — the live scene/output state. It resolves the active channel, reads the
 // connection row (fatal when it can't), then best-effort reads the bridge registry and the live OBS state; a
 // live read failing (OBS not running) is surfaced inline, never blowing the page away. Writes (save config,
 // rotate bridge token, switch scene, toggle streaming/recording) re-read on success so the page reflects truth.
+@OptIn(ExperimentalResourceApi::class)
 class ObsController(
     private val channelsApi: ChannelsApi,
     private val obsApi: ObsApi,
@@ -140,8 +145,8 @@ class ObsController(
         password: String?,
         isEnabled: Boolean,
     ) {
-        val id: String = channelId ?: return failWrite(NoChannelError)
-        val current: ObsConnection = (_state.value as? ObsUiState.Ready)?.connection ?: return failWrite(NoChannelError)
+        val id: String = channelId ?: return failWrite(getString(Res.string.obs_no_channel_error))
+        val current: ObsConnection = (_state.value as? ObsUiState.Ready)?.connection ?: return failWrite(getString(Res.string.obs_no_channel_error))
         afterWrite(
             obsApi.upsertConnection(
                 id,
@@ -159,38 +164,38 @@ class ObsController(
 
     /** Rotate the browser-source bridge token (invalidates the old URL). Reloads on success. */
     suspend fun rotateBridgeToken() {
-        val id: String = channelId ?: return failWrite(NoChannelError)
+        val id: String = channelId ?: return failWrite(getString(Res.string.obs_no_channel_error))
         afterWrite(obsApi.rotateBridgeToken(id))
     }
 
     /** Switch the program scene to [scene], then re-read live state. */
     suspend fun switchScene(scene: String) {
-        val id: String = channelId ?: return failWrite(NoChannelError)
+        val id: String = channelId ?: return failWrite(getString(Res.string.obs_no_channel_error))
         afterLiveAction(obsApi.switchScene(id, scene))
     }
 
     /** Audio mixer — set an input's mute to [muted], then re-read live state so the toggle reflects OBS. */
     suspend fun setInputMute(inputName: String, muted: Boolean) {
-        val id: String = channelId ?: return failWrite(NoChannelError)
+        val id: String = channelId ?: return failWrite(getString(Res.string.obs_no_channel_error))
         afterLiveAction(obsApi.setInputMute(id, inputName, muted))
     }
 
     /** Audio mixer — set an input's volume to [volumeDb] decibels, then re-read live state. */
     suspend fun setInputVolume(inputName: String, volumeDb: Double) {
-        val id: String = channelId ?: return failWrite(NoChannelError)
+        val id: String = channelId ?: return failWrite(getString(Res.string.obs_no_channel_error))
         afterLiveAction(obsApi.setInputVolume(id, inputName, volumeDb))
     }
 
     /** Start or stop the stream based on the current live flag; then re-read live state. */
     suspend fun toggleStreaming() {
-        val id: String = channelId ?: return failWrite(NoChannelError)
+        val id: String = channelId ?: return failWrite(getString(Res.string.obs_no_channel_error))
         val streaming: Boolean = (_state.value as? ObsUiState.Ready)?.live?.state?.streaming == true
         afterLiveAction(obsApi.setStreaming(id, if (streaming) ObsToggle.Stop else ObsToggle.Start))
     }
 
     /** Start or stop recording based on the current live flag; then re-read live state. */
     suspend fun toggleRecording() {
-        val id: String = channelId ?: return failWrite(NoChannelError)
+        val id: String = channelId ?: return failWrite(getString(Res.string.obs_no_channel_error))
         val recording: Boolean = (_state.value as? ObsUiState.Ready)?.live?.state?.recording == true
         afterLiveAction(obsApi.setRecording(id, if (recording) ObsRecordAction.Stop else ObsRecordAction.Start))
     }
@@ -257,8 +262,6 @@ class ObsController(
     }
 
     private companion object {
-        const val NoChannelError: String = "No active channel — reconnect and try again."
-
         /** A forbidden connection/config read (obs:config:read) is non-fatal for a control-only moderator. */
         const val HTTP_FORBIDDEN: Int = 403
     }
