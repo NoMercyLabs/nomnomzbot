@@ -1400,6 +1400,100 @@ public sealed class PipelineEngineTreeExecutionTests
         counted.Count.Should().Be(1, "the leaf must actually run, not silently vanish");
     }
 
+    /// <summary>
+    /// Regression, 2026-09-02 raid-commit incident (part 2): after fixing the ConfigJson-lacking-type
+    /// bug above, the raid-commit pipeline STILL failed live — <c>obs_streaming</c> failed (OBS not
+    /// connected) and aborted the whole run even though its DB row carries
+    /// <c>ContinueOnError=true</c>, because <c>BuildFlatDefinition</c> never copied that column onto
+    /// the translated <see cref="PipelineStepDefinition"/> — every flat DB-backed step ran as if
+    /// ContinueOnError were always false.
+    /// </summary>
+    [Fact]
+    public async Task FlatDbPipeline_ContinueOnErrorIsHonoredNotSilentlyDropped()
+    {
+        using PipelineTreeExecutionTestDbContext db = PipelineTreeExecutionTestDbContext.New();
+        Guid pipelineId = Guid.NewGuid();
+
+        PipelineStep failing = NewLeaf(
+            pipelineId,
+            null,
+            null,
+            0,
+            "always_fail",
+            """{"type":"always_fail"}"""
+        );
+        failing.ContinueOnError = true;
+        CountingAction afterCounter = new() { ActionType = "counted" };
+        PipelineStep after = NewLeaf(
+            pipelineId,
+            null,
+            null,
+            1,
+            "counted",
+            """{"type":"counted"}"""
+        );
+
+        db.PipelineSteps.AddRange(failing, after);
+        await db.SaveChangesAsync();
+
+        PipelineEngine engine = CreateEngine(db, [new AlwaysFailAction(), afterCounter]);
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(pipelineId));
+
+        afterCounter
+            .Count.Should()
+            .Be(1, "the step after a ContinueOnError=true failure must still run");
+        result.Outcome.Should().Be(PipelineOutcome.Completed);
+    }
+
+    /// <summary>Same regression as <see cref="FlatDbPipeline_ContinueOnErrorIsHonoredNotSilentlyDropped"/>
+    /// but for a leaf nested inside a block — <c>ExecuteLeafAsync</c> (the tree walker's leaf executor)
+    /// never consulted <c>step.ContinueOnError</c> at all, so a block-nested step failing always
+    /// aborted the whole run regardless of the flag.</summary>
+    [Fact]
+    public async Task TreeLeaf_ContinueOnErrorIsHonoredNotIgnoredEntirely()
+    {
+        using PipelineTreeExecutionTestDbContext db = PipelineTreeExecutionTestDbContext.New();
+        Guid pipelineId = Guid.NewGuid();
+
+        PipelineStep ifStep = NewStep(pipelineId, null, null, "if", "{}", 0);
+        PipelineStepCondition alwaysTrue = NewLeafCondition(
+            ifStep.Id,
+            null,
+            0,
+            desiredResult: true
+        );
+        PipelineStep failing = NewLeaf(
+            pipelineId,
+            ifStep.Id,
+            "then",
+            0,
+            "always_fail",
+            """{"type":"always_fail"}"""
+        );
+        failing.ContinueOnError = true;
+        CountingAction afterCounter = new() { ActionType = "counted" };
+        PipelineStep after = NewLeaf(
+            pipelineId,
+            ifStep.Id,
+            "then",
+            1,
+            "counted",
+            """{"type":"counted"}"""
+        );
+
+        db.PipelineSteps.AddRange(ifStep, failing, after);
+        db.PipelineStepConditions.Add(alwaysTrue);
+        await db.SaveChangesAsync();
+
+        PipelineEngine engine = CreateEngine(db, [new AlwaysFailAction(), afterCounter]);
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(pipelineId));
+
+        afterCounter
+            .Count.Should()
+            .Be(1, "the sibling after a ContinueOnError=true failure must still run");
+        result.Outcome.Should().Be(PipelineOutcome.Completed);
+    }
+
     /// <summary>Adversarial case the original break/continue slice did not cover: a <c>break</c> inside a
     /// <c>switch</c> that is itself inside a <c>loop</c>. In many engines break is captured by the nearest
     /// enclosing construct, so it would exit only the SWITCH and let the loop keep iterating — the existing
