@@ -108,6 +108,50 @@ class WebhooksOutboundTemplatePickerS_OWN16Test {
 
             onNodeWithText("{payload.name}", substring = true).assertExists()
         }
+
+    // S-OWN16 follow-up gap: OutboundWebhookEndpointDto never returned the saved BodyTemplate, so the edit
+    // dialog always opened blank — the operator had no way to see what was currently configured. Proves the
+    // dialog now PRE-FILLS the body-template field from the fetched endpoint, not blank.
+    @Test
+    fun opening_the_edit_dialog_prefills_the_body_template_field_from_the_fetched_endpoint() = runComposeUiTest {
+        val savedTemplate = """{"who": "{payload.name}"}"""
+        val endpoint =
+            OutboundWebhook(
+                id = "ob-2",
+                name = "Discord notify",
+                fqdn = "https://example.com",
+                subscribedEventTypes = listOf("channel.follow"),
+                bodyTemplate = savedTemplate,
+                isEnabled = true,
+            )
+        val controller =
+            WebhooksController(
+                channelsApi = FakeChannelsApi(),
+                webhooksApi = FakeWebhooksApi(outbound = listOf(endpoint)),
+                pipelinesApi = FakePipelinesApi(),
+            )
+        runBlocking { controller.load() }
+
+        setContent {
+            withLifecycle {
+                NomNomzTheme {
+                    bot.nomnomz.dashboard.core.i18n.AppEnvironment("en") {
+                        WebhooksScreen(
+                            controller = controller,
+                            role = ManagementRole.Broadcaster,
+                            templateHelpersApi = FakeWebhookTemplateHelpersApi(),
+                        )
+                    }
+                }
+            }
+        }
+        waitForIdle()
+
+        onNodeWithContentDescription("Edit").performClick()
+        waitForIdle()
+
+        onNodeWithText(savedTemplate, substring = true).assertExists()
+    }
 }
 
 @androidx.compose.runtime.Composable

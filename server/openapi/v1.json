@@ -1045,6 +1045,13 @@
         "summary": "Returns all channels with their current status.",
         "parameters": [
           {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "Page",
             "in": "query",
             "schema": {
@@ -1192,6 +1199,13 @@
         ],
         "summary": "Returns real bot USERS — operators/streamers/mods who authenticate and use the dashboard, or own a\r\nchannel, plus platform staff. Auto-created chatter rows, bot accounts, and anonymized users are excluded,\r\nso this list (and the \"act as\" support impersonation built on it) targets people who actually use the bot.",
         "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "Page",
             "in": "query",
@@ -87058,6 +87072,7 @@
           "fqdn",
           "path",
           "subscribedEventTypes",
+          "bodyTemplate",
           "bodyIsJson",
           "isEnabled",
           "consecutiveFailureCount",
@@ -87092,6 +87107,12 @@
             "items": {
               "type": "string"
             }
+          },
+          "bodyTemplate": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "bodyIsJson": {
             "type": "boolean"

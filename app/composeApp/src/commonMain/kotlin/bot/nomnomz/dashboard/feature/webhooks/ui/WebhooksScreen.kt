@@ -1073,9 +1073,7 @@ private fun OutboundDialog(
     var fqdn: String by remember { mutableStateOf(existing?.fqdn ?: "") }
     var path: String by remember { mutableStateOf(existing?.path ?: "") }
     var enabled: Boolean by remember { mutableStateOf(existing?.isEnabled ?: true) }
-    // The list/GET endpoint never returns the stored body template back (only PATCHes it, like the signing
-    // secret) — so on edit this opens blank, meaning "unchanged", exactly like the secret field above it.
-    var bodyTemplate: String by remember { mutableStateOf("") }
+    var bodyTemplate: String by remember { mutableStateOf(existing?.bodyTemplate ?: "") }
     var nameError: Boolean by remember { mutableStateOf(false) }
     var fqdnError: Boolean by remember { mutableStateOf(false) }
     var eventsError: Boolean by remember { mutableStateOf(false) }

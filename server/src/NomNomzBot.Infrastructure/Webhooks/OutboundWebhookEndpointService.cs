@@ -523,6 +523,7 @@ public sealed class OutboundWebhookEndpointService(
             e.Fqdn,
             e.Path,
             JsonConvert.DeserializeObject<List<string>>(e.SubscribedEventTypesJson) ?? [],
+            e.BodyTemplate,
             e.BodyIsJson,
             e.IsEnabled,
             e.ConsecutiveFailureCount,
