@@ -19,6 +19,40 @@ Slice IDs are stable; the order is the queue.
 
 ---
 
+## OWNER REQUEST 2026-09-02 — moderation tooling made real (jump the queue, worked FIRST, in order)
+
+Owner: the Home "Needs your attention" items must become real moderation tooling — actionable,
+dismissible, correctly placed — and the user must get full control + plain-language understanding of
+every weight/threshold behind auto-actions. Ties into `spec/spam-defense.md` (our Sery-bar spec) —
+these slices align with its §6 philosophy but do NOT implement it. Full worked-out plan with
+grounding, contracts, defaults, and tests: **`S-OWN22-23-moderation-inbox-and-trust-plan.md`** —
+execute from there.
+
+- 🔴 **S-OWN22** Home layout + actionable attention inbox — stat tiles become ONE row above the
+  stream card (aaoa); attention inbox moves between stream-status cluster and Recent Activity;
+  items get stable ids, per-user grouping, persisted dismissal (`ActionRequiredDismissal`, both
+  migration sets); held-message modal shows the real message + user context with
+  Allow/Block/Timeout/Ban (resolve endpoint extended with deny+follow-up, Helix-first) and
+  Block-term; dead deep link + binarised severity fixed; hub-driven refresh wired end-to-end.
+  Done-when: from Home, a held message is allowed/blocked/timed-out/banned in the modal and
+  disappears from Home AND Moderation surviving reload; Dismiss persists across reload; tiles
+  render one row; every button validated live.
+- 🔴 **S-OWN23** Trust & auto-action transparency + advanced config — trust engine extracted out
+  of Music into its own `Trust` module first (owner 2026-09-02: calculator/context/tier →
+  `Domain/Trust`, Music becomes a consumer, pure move, own commit); `TrustPolicy` entity
+  per channel (weights/decays/penalties/tier ceilings/heat deltas+half-life, defaults = today's
+  consts, sum-to-1.0 validated, both migration sets); `TrustScoreCalculator` takes the policy,
+  BOTH consumers (moderation projection + song-request trust) use it; heat auto-timeout never
+  fires on broadcaster/mod (test-proven); `GET/PUT …/trust/policy` (new `TrustPolicyController`) +
+  `GET/PUT …/moderation/twitch-automod` (real Helix AutoMod settings — closes the S066 leftover
+  gap); Moderation screen "Trust & Automation" section: derived truthful "what happens
+  automatically" panel + every field with default, reset, and plain en+nl explanation of what
+  moving it costs, song-request blast radius named. Done-when: every number influencing automatic
+  action is editable per channel with explained defaults, demonstrably changes enforcement, and
+  persists; the automation panel derives from live config and names exactly what can auto-ban.
+- 🔒 **Owner call filed, not blocking:** queue `spam-defense.md` §9 build order (steps 1–3 stop
+  the motivating attack) as its own slice family next?
+
 ## OWNER REQUEST 2026-09-01 — bug/UX punch list (jump the queue, dispatched immediately)
 
 Owner's own words, filed as slices S-OWN01..S-OWN19. 🔴 = owner-marked priority, worked first, in
@@ -1098,7 +1132,11 @@ later.)
   `RetryDeliveryAsync` resends the already-stored `RenderedBody` (not a re-render) via the existing
   `IOutboundWebhookDispatcher.AttemptDeliveryAsync`; cross-tenant/non-existent delivery is a real 404;
   a disabled endpoint refuses with `ENDPOINT_DISABLED` rather than silently dead-lettering. Dashboard
-  Retry button wired on Failed/DeadLetter rows. Remaining: attempted events consumed (toast/hub/feed).
+  Retry button wired on Failed/DeadLetter rows. **Attempted events consumed DONE, verified 2026-09-02
+  (`80281ac6`, S099-ATTEMPTED-EVENTS-CONSUMED)**: new `WebhookDeliveryBroadcastHandler` pushes real
+  `DashboardHub` notifications on Failed/DeadLetter/AutoDisabled — proven by
+  `WebhookDeliveryBroadcastHandlerTests` asserting the exact `IDashboardNotifier.NotifyChannelAsync`
+  payload per state, not just that an event fired. S099 is now fully closed.
 - **S100-remaining** Custom data sources truth — S100a DONE, verified (3072a24b): persist last
   attempt/error/failure count, capped+jittered backoff, auto-disable after threshold, poller stops
   attempting a disabled source — mirrors the webhook system's already-proven approach. S100b DONE,
