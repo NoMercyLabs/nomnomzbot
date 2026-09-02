@@ -9,9 +9,9 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using NomNomzBot.Infrastructure.Music;
+using NomNomzBot.Domain.Trust;
 
-namespace NomNomzBot.Infrastructure.Tests.Music;
+namespace NomNomzBot.Domain.Tests.Trust;
 
 public class TrustScoreCalculatorTests
 {

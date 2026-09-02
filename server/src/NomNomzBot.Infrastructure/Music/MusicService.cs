@@ -23,6 +23,7 @@ using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.Exceptions;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Domain.Trust;
 
 namespace NomNomzBot.Infrastructure.Music;
 
