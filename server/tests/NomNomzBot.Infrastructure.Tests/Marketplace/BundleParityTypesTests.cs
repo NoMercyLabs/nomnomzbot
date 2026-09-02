@@ -124,6 +124,7 @@ public sealed class BundleParityTypesTests
             db,
             Substitute.For<ITokenProtector>(),
             Substitute.For<ICustomDataIngestService>(),
+            Substitute.For<ICustomDataEgressFetcher>(),
             []
         );
         EventResponseService eventResponses = new(db, bus, new TemplateHelperValidator());

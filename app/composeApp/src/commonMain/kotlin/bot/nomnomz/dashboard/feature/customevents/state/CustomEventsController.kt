@@ -14,6 +14,7 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.CustomDataSource
 import bot.nomnomz.dashboard.core.network.CustomDataSourceOption
 import bot.nomnomz.dashboard.core.network.CustomDataSourcePreset
+import bot.nomnomz.dashboard.core.network.CustomDataSourceTestFetch
 import bot.nomnomz.dashboard.core.network.CustomEventsApi
 import bot.nomnomz.dashboard.core.network.UpsertCustomDataSourceBody
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -130,6 +131,21 @@ class CustomEventsController(private val api: CustomEventsApi) {
             is ApiResult.Failure -> emptyList()
         }
 
+    /**
+     * One-off GET against the source's configured endpoint (S100-KEYPICKER-TESTFETCH) — feeds the field-map key
+     * picker. Returns null and surfaces a page-level action error on failure; this does not reload the source
+     * list (nothing was mutated).
+     */
+    suspend fun testFetch(id: String): CustomDataSourceTestFetch? {
+        return when (val result: ApiResult<CustomDataSourceTestFetch> = api.testFetch(id)) {
+            is ApiResult.Ok -> result.value
+            is ApiResult.Failure -> {
+                failWrite(result.error.message)
+                null
+            }
+        }
+    }
+
     // ── Private helpers ───────────────────────────────────────────────────────
 
     private fun failWrite(detail: String) {
@@ -151,4 +167,31 @@ sealed interface CustomEventsState {
     ) : CustomEventsState
 
     data class Error(val detail: String) : CustomEventsState
+}
+
+// ── Field-map editor (S100-KEYPICKER-TESTFETCH) ─────────────────────────────────
+
+/** One editable row of the field-map editor: a template-var [key] mapped to a JSONPath [path]. */
+data class FieldMapRow(val key: String, val path: String)
+
+/** [rows] as the `{"key":"path", ...}` map the save request needs. Blank keys are dropped. */
+fun List<FieldMapRow>.toFieldMap(): Map<String, String> =
+    filter { it.key.isNotBlank() }.associate { it.key to it.path }
+
+/** The inverse of [toFieldMap] — seeds the editor's rows from a loaded source's field map. */
+fun Map<String, String>.toFieldMapRows(): List<FieldMapRow> =
+    map { (key, path) -> FieldMapRow(key, path) }
+
+/**
+ * Pure state transition backing the test-fetch key picker: clicking a key-path option sets the PATH of the
+ * currently-focused row to [keyPath], leaving every other row untouched. When no row is focused
+ * ([focusedIndex] is null or out of range), [rows] is returned unchanged — the picker has nothing to fill.
+ */
+fun applyKeyPathSelection(
+    rows: List<FieldMapRow>,
+    focusedIndex: Int?,
+    keyPath: String,
+): List<FieldMapRow> {
+    if (focusedIndex == null || focusedIndex !in rows.indices) return rows
+    return rows.mapIndexed { index, row -> if (index == focusedIndex) row.copy(path = keyPath) else row }
 }

@@ -481,7 +481,13 @@ public class ExpandedBlastRadiusTests
         };
 
     private static CustomDataSourceService NewDataSources(BlastRadiusTestDbContext db) =>
-        new(db, Substitute.For<ITokenProtector>(), Substitute.For<ICustomDataIngestService>(), []);
+        new(
+            db,
+            Substitute.For<ITokenProtector>(),
+            Substitute.For<ICustomDataIngestService>(),
+            Substitute.For<ICustomDataEgressFetcher>(),
+            []
+        );
 
     // ── Catalog items and leaderboard configs: plain FK counts ───────────────
 

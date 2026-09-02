@@ -484,7 +484,12 @@ public static class DependencyInjection
         >();
         // play_sound + stop_sound auto-discovered via ICommandAction scan.
 
-        // Custom data sources: management CRUD + the single ingest path + auto-discovered presets.
+        // Custom data sources: management CRUD + the single ingest path + auto-discovered presets. The egress
+        // fetcher is the one SSRF-gated GET seam shared by the poll ingress and the dashboard's test-fetch preview.
+        services.AddScoped<
+            Application.CustomEvents.Services.ICustomDataEgressFetcher,
+            CustomEvents.CustomDataEgressFetcher
+        >();
         services.AddScoped<
             Application.CustomEvents.Services.ICustomDataSourceService,
             CustomEvents.CustomDataSourceService

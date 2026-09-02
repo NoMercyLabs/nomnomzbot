@@ -28,7 +28,13 @@ public sealed class CustomDataSourceServiceSearchTests
     private static readonly Guid Broadcaster = Guid.CreateVersion7();
 
     private static CustomDataSourceService Build(CustomDataSourceServiceTestDbContext db) =>
-        new(db, Substitute.For<ITokenProtector>(), Substitute.For<ICustomDataIngestService>(), []);
+        new(
+            db,
+            Substitute.For<ITokenProtector>(),
+            Substitute.For<ICustomDataIngestService>(),
+            Substitute.For<ICustomDataEgressFetcher>(),
+            []
+        );
 
     [Fact]
     public async Task SearchAsync_matches_on_name_or_display_name_and_scopes_to_the_channel()

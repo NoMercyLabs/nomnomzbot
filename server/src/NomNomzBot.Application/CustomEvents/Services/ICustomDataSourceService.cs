@@ -80,6 +80,19 @@ public interface ICustomDataSourceService
     );
 
     /// <summary>
+    /// One-off GET against the source's configured <c>EndpointUrl</c> (the same SSRF-gated egress seam the poll
+    /// ingress uses) so the operator can see the endpoint's real JSON shape and pick a key instead of typing a
+    /// JSONPath blind. Returns the fetched body (possibly truncated to the response cap) plus a flattened list of
+    /// the leaf key-paths found in it, in <c>$.foo.bar</c> field-map syntax. Fails when the source has no usable
+    /// endpoint URL, the host is not on an enabled egress allowlist, or the fetch itself errors.
+    /// </summary>
+    Task<Result<CustomDataSourceTestFetchDto>> TestFetchAsync(
+        Guid broadcasterId,
+        Guid id,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
     /// The real, counted blast radius of deleting this custom data source (S-CONSEQ). A source has NO foreign
     /// key: it fires the event type <c>custom.{name}</c>, so the automation that breaks is the event responses
     /// bound to that type, plus the widgets whose source reads the same key. Template text and code scripts can
@@ -129,3 +142,14 @@ public sealed record CustomDataSourcePresetDto(string Key, string DisplayName, s
 
 /// <summary>Minimal option projection for pick-list / autocomplete inputs (id + name + display name).</summary>
 public sealed record CustomDataSourceOptionDto(Guid Id, string Name, string DisplayName);
+
+/// <summary>
+/// The result of a one-off test fetch against a source's configured endpoint. <see cref="RawJson"/> is the raw
+/// fetched body (subject to the shared response-byte cap); <see cref="KeyPaths"/> is every leaf field-map path
+/// (<c>$.foo.bar</c> syntax) found in it, capped so a huge/deeply-nested document can't flood the picker.
+/// </summary>
+public sealed record CustomDataSourceTestFetchDto(
+    string RawJson,
+    IReadOnlyList<string> KeyPaths,
+    bool Truncated
+);
