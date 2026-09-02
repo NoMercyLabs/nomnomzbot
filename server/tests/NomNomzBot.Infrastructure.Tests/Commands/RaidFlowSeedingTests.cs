@@ -74,10 +74,7 @@ public sealed class RaidFlowSeedingTests
         List<PipelineStep> steps = StepsOf(db);
         steps[0].ActionType.Should().Be("start_raid");
         steps[0].ConfigJson.Should().Contain("{args.1}");
-        // The scene switch sits inside a detached_step wrapper (see the dedicated detachment test below),
-        // so it is the SECOND top-level step even though its actual "obs_switch_scene" leaf is nested one
-        // level deeper.
-        steps[1].BlockKind.Should().Be("detached_step");
+        steps[1].ActionType.Should().Be("obs_switch_scene");
 
         // Nothing may wait or speak ahead of the raid call: Twitch's 90s window only starts once
         // start_raid returns, so a step before it pushes the whole countdown past the fire moment.
@@ -87,75 +84,63 @@ public sealed class RaidFlowSeedingTests
             .BeEmpty("the raid call starts the clock everything else is timed against");
     }
 
+    /// <summary>
+    /// Confirmed live 2026-09-01: <c>!raid</c> executes through <c>ChatMessageHandler</c>'s FLAT
+    /// <c>Command.PipelineGraphJson</c> graph (built by <c>PipelineGraphBuilder</c> from these very
+    /// rows), never by <c>PipelineId</c> — so a <c>detached_step</c>/<c>try</c> block-kind wrapper is
+    /// dead weight there: the flat reader has no concept of nested blocks, and a wrapper row just reads
+    /// back as an ordinary step whose ActionType is the literal string "detached_step", which has no
+    /// registered action and fails closed immediately (confirmed: this is EXACTLY what happened when an
+    /// earlier version of this seeder used that wrapper — "Unknown action type 'detached_step'", right
+    /// after start_raid, aborting everything after it). Every step here must be a plain top-level leaf;
+    /// only <see cref="PipelineStep.ContinueOnError"/> is honored by the flat runtime.
+    /// </summary>
     [Fact]
-    public async Task The_ending_scene_switch_is_detached_so_a_slow_or_broken_OBS_never_blocks_the_raid()
+    public async Task Every_step_is_a_plain_top_level_leaf_never_a_block_kind_wrapper()
     {
         (RaidFlowSeeder seeder, SeedTestDbContext db) = Build();
 
         await seeder.SeedAsync(Tenant);
 
-        // pipeline-tree-and-editor.md §1.1/§3.1 item #4, matching the legacy bot's fire-and-forget
-        // `_ = SwitchToEndingScene(...)` — the scene switch must be wrapped in a detached_step block so
-        // its own failure or a stuck OBS connection can never stall or abort the countdown, "RAID LIVE!",
-        // stopping the stream, or pausing the music (confirmed live 2026-09-01: an "OBS connection closed"
-        // failure on this step used to fail the WHOLE pipeline closed, silently dropping every step after it).
-        List<PipelineStep> steps = StepsOf(db);
-        PipelineStep obsStep = steps.Single(s => s.ActionType == "obs_switch_scene");
-        obsStep
-            .ParentStepId.Should()
-            .NotBeNull("it must live inside a detached_step wrapper, not top-level");
-
-        PipelineStep wrapper = steps.Single(s => s.Id == obsStep.ParentStepId);
-        wrapper.BlockKind.Should().Be("detached_step");
-
-        // Every step downstream of the raid call — the countdown, "RAID LIVE!" — must sit as an ordinary
-        // TOP-LEVEL sibling, never nested under the detached wrapper, so the engine keeps walking them
-        // regardless of what the detached OBS action does. Only stop-streaming and pause-music are ALSO
-        // nested (each under its own catch-less try — see the dedicated try-wrapping test below).
-        HashSet<Guid> detachedOrTryIds = [obsStep.Id, wrapper.Id];
-        steps
-            .Where(s => !detachedOrTryIds.Contains(s.Id))
-            .Where(s =>
-                s.ActionType is not ("obs_streaming" or "music_pause") && s.BlockKind != "try"
-            )
+        StepsOf(db)
             .Should()
             .OnlyContain(
-                s => s.ParentStepId == null,
-                "only the OBS scene switch, stream-stop and music-pause are wrapped"
+                s => s.ParentStepId == null && s.BlockKind == null,
+                "the flat graph the hot chat path actually executes has no concept of nested blocks"
             );
     }
 
     [Fact]
-    public async Task Stopping_the_stream_and_pausing_the_music_are_each_wrapped_so_one_failing_never_blocks_the_other()
+    public async Task The_ending_scene_switch_continues_on_error_so_a_broken_OBS_never_blocks_the_raid()
+    {
+        (RaidFlowSeeder seeder, SeedTestDbContext db) = Build();
+
+        await seeder.SeedAsync(Tenant);
+
+        // Matches the legacy bot's fire-and-forget `_ = SwitchToEndingScene(...)` — an OBS hiccup here
+        // must never take down the countdown, "RAID LIVE!", or stopping the stream/music (confirmed live
+        // 2026-09-01: "OBS connection closed" on this ONE step killed the entire rest of the raid while
+        // Twitch's clock kept ticking).
+        StepsOf(db)
+            .Single(s => s.ActionType == "obs_switch_scene")
+            .ContinueOnError.Should()
+            .BeTrue();
+    }
+
+    [Fact]
+    public async Task Stopping_the_stream_and_pausing_the_music_each_continue_on_error_independently()
     {
         (RaidFlowSeeder seeder, SeedTestDbContext db) = Build();
 
         await seeder.SeedAsync(Tenant);
 
         // The legacy bot wraps StopStreaming and PauseSpotify in their OWN try/catch, each only logging a
-        // warning on failure — one failing must never stop the other from running. A catch-less `try`
-        // block is the pipeline engine's match: swallow the failure, continue past the block (confirmed
-        // live 2026-09-01: without this, a stop-streaming failure on a flaky OBS bridge left music_pause
-        // never running at all).
+        // warning on failure — one failing must never stop the other from running (confirmed live
+        // 2026-09-01: without ContinueOnError on obs_streaming, a stop-streaming failure on a flaky OBS
+        // bridge left music_pause never running at all).
         List<PipelineStep> steps = StepsOf(db);
-        foreach (string actionType in new[] { "obs_streaming", "music_pause" })
-        {
-            PipelineStep leaf = steps.Single(s => s.ActionType == actionType);
-            leaf.ParentStepId.Should()
-                .NotBeNull($"{actionType} must live inside its own try wrapper");
-            PipelineStep wrapper = steps.Single(s => s.Id == leaf.ParentStepId);
-            wrapper.BlockKind.Should().Be("try");
-            leaf.Branch.Should()
-                .Be("then", "the leaf is the try's body, never its (absent) catch arm");
-        }
-
-        // Two SEPARATE wrappers, not one try holding both — a try's own catch swallows only ITS body's
-        // failure, so sharing one wrapper would still let a failed stop-streaming skip music-pause.
-        Guid streamingWrapperId = steps
-            .Single(s => s.ActionType == "obs_streaming")
-            .ParentStepId!.Value;
-        Guid musicWrapperId = steps.Single(s => s.ActionType == "music_pause").ParentStepId!.Value;
-        streamingWrapperId.Should().NotBe(musicWrapperId);
+        steps.Single(s => s.ActionType == "obs_streaming").ContinueOnError.Should().BeTrue();
+        steps.Single(s => s.ActionType == "music_pause").ContinueOnError.Should().BeTrue();
     }
 
     [Fact]
@@ -204,6 +189,35 @@ public sealed class RaidFlowSeedingTests
 
         // A "45 seconds left" line this early reads as spam — those waits are deliberately silent.
         messages.Should().NotContain(m => m.Contains("Raid in 45") || m.Contains("Raid in 30"));
+    }
+
+    /// <summary>
+    /// Confirmed live 2026-09-01 (raid to jddoesdev): chat actually showed "RAID INCOMING to
+    /// {jddoesdev}!" — a leftover decorative brace pair around the resolved name, from an earlier
+    /// version of this seed line that wrapped the template engine's own single-brace {args.1} token in
+    /// an extra escaped layer. Asserts the RAW, UNRESOLVED config text carries the token exactly once,
+    /// with no brace left over on either side for the resolver to skip past.
+    /// </summary>
+    [Fact]
+    public async Task The_raid_incoming_message_carries_the_args_token_with_no_leftover_braces()
+    {
+        (RaidFlowSeeder seeder, SeedTestDbContext db) = Build();
+
+        await seeder.SeedAsync(Tenant);
+
+        string raidIncoming = StepsOf(db)
+            .Where(s => s.ActionType == "send_message")
+            .Select(s =>
+                System
+                    .Text.Json.JsonDocument.Parse(s.ConfigJson)
+                    .RootElement.GetProperty("message")
+                    .GetString()!
+            )
+            .Single(m => m.Contains("RAID INCOMING"));
+
+        raidIncoming.Should().Contain("RAID INCOMING to {args.1}!");
+        raidIncoming.Should().NotContain("{{args.1}}");
+        raidIncoming.Should().NotContain("{{{args.1}}}");
     }
 
     [Fact]

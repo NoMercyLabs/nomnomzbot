@@ -29,6 +29,19 @@ namespace NomNomzBot.Infrastructure.Content.Commands;
 /// moment; a countdown that finishes early leaves viewers watching silence, and one that overruns
 /// announces a raid that has already happened. The waits below sum to ~88s for that reason.
 /// </para>
+/// <para>
+/// Every step is a plain TOP-LEVEL leaf — never a <c>detached_step</c>/<c>try</c> block. Confirmed live
+/// 2026-09-01: <c>!raid</c> executes through <c>ChatMessageHandler</c>'s flat
+/// <c>Command.PipelineGraphJson</c> graph (never by <c>PipelineId</c>), and that flat reader has NO
+/// concept of nested blocks at all — a <c>detached_step</c> wrapper row there just reads back as an
+/// ordinary step whose <c>ActionType</c> is the literal string <c>"detached_step"</c>, which has no
+/// registered action and fails closed immediately. <see cref="PipelineStep.ContinueOnError"/> is the
+/// ONE thing the flat runtime actually understands for "a failure here must not abort the rest of the
+/// raid" — set directly on the three steps that legitimately can fail without it mattering
+/// (<c>obs_switch_scene</c>, <c>obs_streaming</c>, <c>music_pause</c>), matching the legacy bot's own
+/// per-action try/catch (and, for the scene switch, its fire-and-forget
+/// <c>_ = SwitchToEndingScene(...)</c>) without relying on a block-kind the hot chat path can't run.
+/// </para>
 /// </summary>
 /// <remarks>
 /// Idempotent: upserts by the natural key <c>(BroadcasterId, NameNormalized)</c>. A channel that already
@@ -127,87 +140,17 @@ public sealed class RaidFlowSeeder : ISeeder
             }
 
             int order = 0;
-            foreach (SeedNode node in BuildSteps())
+            foreach (SeedStep step in BuildSteps())
             {
-                if (node.Detached is { } detachedLeaf)
-                {
-                    // pipeline-tree-and-editor.md §1.1/§3.1 item #4 — the OBS scene switch rides a
-                    // detached_step wrapper so its own failure or slowness can never block or abort the
-                    // rest of the raid (matches the legacy bot's fire-and-forget `_ = SwitchToEndingScene(...)`).
-                    PipelineStep wrapper = new()
-                    {
-                        Id = Guid.CreateVersion7(),
-                        PipelineId = pipeline.Id,
-                        BroadcasterId = channelId,
-                        BlockKind = "detached_step",
-                        BlockConfigJson = "{}",
-                        ActionType = "detached_step",
-                        Order = order++,
-                        IsEnabled = true,
-                    };
-                    _db.PipelineSteps.Add(wrapper);
-                    _db.PipelineSteps.Add(
-                        new()
-                        {
-                            Id = Guid.CreateVersion7(),
-                            PipelineId = pipeline.Id,
-                            BroadcasterId = channelId,
-                            ParentStepId = wrapper.Id,
-                            ActionType = detachedLeaf.ActionType!,
-                            ConfigJson = detachedLeaf.ConfigJson!,
-                            Order = order++,
-                            IsEnabled = true,
-                        }
-                    );
-                    continue;
-                }
-
-                if (node.Tried is { } triedLeaf)
-                {
-                    // The legacy bot wraps each of StopStreaming and PauseSpotify in its OWN try/catch
-                    // that only logs a warning — one failing must never block the other, or leave a
-                    // completed raid reporting partially_failed over a step that has nothing left to
-                    // protect downstream of it. A try block with no catch children is the pipeline
-                    // engine's exact match: run synchronously (unlike detached_step, order still matters
-                    // here — stop the stream, THEN pause the music), but swallow a failure and continue
-                    // past the block instead of aborting the run.
-                    PipelineStep wrapper = new()
-                    {
-                        Id = Guid.CreateVersion7(),
-                        PipelineId = pipeline.Id,
-                        BroadcasterId = channelId,
-                        BlockKind = "try",
-                        BlockConfigJson = "{}",
-                        ActionType = "try",
-                        Order = order++,
-                        IsEnabled = true,
-                    };
-                    _db.PipelineSteps.Add(wrapper);
-                    _db.PipelineSteps.Add(
-                        new()
-                        {
-                            Id = Guid.CreateVersion7(),
-                            PipelineId = pipeline.Id,
-                            BroadcasterId = channelId,
-                            ParentStepId = wrapper.Id,
-                            Branch = "then",
-                            ActionType = triedLeaf.ActionType!,
-                            ConfigJson = triedLeaf.ConfigJson!,
-                            Order = order++,
-                            IsEnabled = true,
-                        }
-                    );
-                    continue;
-                }
-
                 _db.PipelineSteps.Add(
                     new()
                     {
                         Id = Guid.CreateVersion7(),
                         PipelineId = pipeline.Id,
                         BroadcasterId = channelId,
-                        ActionType = node.ActionType!,
-                        ConfigJson = node.ConfigJson!,
+                        ActionType = step.ActionType,
+                        ConfigJson = step.ConfigJson,
+                        ContinueOnError = step.ContinueOnError,
                         Order = order++,
                         IsEnabled = true,
                     }
@@ -245,51 +188,40 @@ public sealed class RaidFlowSeeder : ISeeder
         await _db.SaveChangesAsync(ct);
     }
 
-    /// <summary>One step in the seeded flow: an ordinary blocking leaf, a leaf wrapped in a
-    /// <c>detached_step</c> block (fire-and-forget: dispatched but never awaited, its own failure never
-    /// aborts the rest of the run), or a leaf wrapped in a catch-less <c>try</c> block (runs synchronously
-    /// but a failure is swallowed — logged, never aborts the rest of the run).</summary>
-    private sealed record SeedNode(
-        string? ActionType,
-        string? ConfigJson,
-        SeedNode? Detached,
-        SeedNode? Tried
-    )
-    {
-        public static SeedNode Leaf(string actionType, string configJson) =>
-            new(actionType, configJson, null, null);
-
-        public static SeedNode DetachedLeaf(string actionType, string configJson) =>
-            new(null, null, Leaf(actionType, configJson), null);
-
-        public static SeedNode TriedLeaf(string actionType, string configJson) =>
-            new(null, null, null, Leaf(actionType, configJson));
-    }
+    private sealed record SeedStep(
+        string ActionType,
+        string ConfigJson,
+        bool ContinueOnError = false
+    );
 
     /// <summary>
     /// The flow, in order. The raid fires first because Twitch's 90s timer starts the moment it returns;
-    /// everything after it is chat theatre timed to land just before Twitch pulls the audience across. The
-    /// OBS scene switch sits second, detached (pipeline-tree-and-editor.md §1.1/§3.1 item #4) — mirroring
-    /// the legacy bot's fire-and-forget `_ = SwitchToEndingScene(...)`, so a slow or unreachable OBS bridge
-    /// can never stall or abort the countdown, the "RAID LIVE!" line, or stopping the stream/music — the
-    /// entire rest of the raid must run regardless of OBS's state, exactly like it did before this flow was
-    /// rebuilt as a pipeline.
+    /// everything after it is chat theatre timed to land just before Twitch pulls the audience across.
     /// </summary>
-    private static IEnumerable<SeedNode> BuildSteps()
+    private static IEnumerable<SeedStep> BuildSteps()
     {
-        yield return SeedNode.Leaf("start_raid", """{"target":"{args.1}"}""");
-        yield return SeedNode.DetachedLeaf("obs_switch_scene", """{"scene":"Ending"}""");
-        yield return SeedNode.Leaf(
+        yield return new("start_raid", """{"target":"{args.1}"}""");
+        // ContinueOnError=true: matches the legacy bot's fire-and-forget `_ = SwitchToEndingScene(...)` —
+        // an OBS hiccup here must never take down the countdown, "RAID LIVE!", or stopping the
+        // stream/music (confirmed live 2026-09-01: without this, "OBS connection closed" on this ONE
+        // step killed the entire rest of the raid while Twitch's clock kept ticking).
+        yield return new("obs_switch_scene", """{"scene":"Ending"}""", ContinueOnError: true);
+        // {args.1} is the template engine's own single-brace token syntax (matches start_raid's
+        // {"target":"{args.1}"} above) — confirmed live 2026-09-01: an earlier version of this line
+        // wrapped it in an EXTRA decorative brace pair (meant to double-escape it inside this raw C#
+        // interpolated string), which the resolver only stripped the inner layer of, so chat saw the
+        // literal text "RAID INCOMING to {jddoesdev}!" instead of the resolved name.
+        yield return new(
             "send_message",
-            $$"""{"message":"RAID INCOMING to {{"{{args.1}}"}}! Raiding in {{TwitchRaidWindowSeconds - 2}} seconds..."}"""
+            $$"""{"message":"RAID INCOMING to {args.1}! Raiding in {{TwitchRaidWindowSeconds - 2}} seconds..."}"""
         );
-        yield return SeedNode.Leaf("wait", """{"seconds":1}""");
-        yield return SeedNode.Leaf(
+        yield return new("wait", """{"seconds":1}""");
+        yield return new(
             "send_message",
             """{"message":"Big bird raid stoney90Hmmm Big bird raid stoney90Hmmm Big bird raid stoney90Hmmm"}"""
         );
-        yield return SeedNode.Leaf("wait", """{"seconds":1}""");
-        yield return SeedNode.Leaf(
+        yield return new("wait", """{"seconds":1}""");
+        yield return new(
             "send_message",
             """{"message":"Big bird raid 🦅 Big bird raid 🦅 Big bird raid 🦅"}"""
         );
@@ -298,26 +230,26 @@ public sealed class RaidFlowSeeder : ISeeder
         // spam, so the earlier waits are silent and the chat only starts counting at 15s.
         // 2s of intro lines have already elapsed, and the announced countdown must open at T+73 so
         // "Raid in 15" is genuinely 15 seconds before Twitch fires at T+90 (less the 2s safety margin).
-        yield return SeedNode.Leaf("wait", """{"seconds":40}""");
-        yield return SeedNode.Leaf("wait", """{"seconds":31}""");
+        yield return new("wait", """{"seconds":40}""");
+        yield return new("wait", """{"seconds":31}""");
         foreach (int secondsLeft in new[] { 15, 10, 5, 3, 2, 1 })
         {
-            yield return SeedNode.Leaf(
+            yield return new(
                 "send_message",
                 $$"""{"message":"Raid in {{secondsLeft}} second{{(secondsLeft == 1 ? "" : "s")}}..."}"""
             );
-            yield return SeedNode.Leaf("wait", $$"""{"seconds":{{WaitAfter(secondsLeft)}}}""");
+            yield return new("wait", $$"""{"seconds":{{WaitAfter(secondsLeft)}}}""");
         }
 
-        yield return SeedNode.Leaf(
+        yield return new(
             "send_message",
             """{"message":"RAID LIVE! We're heading over now! Let's go!"}"""
         );
-        // Each terminal action gets its OWN catch-less try — one failing (e.g. the same OBS bridge drop
-        // that can hit the scene switch earlier) must never stop the other from running, matching the
-        // legacy bot's two separate try/catches around StopStreaming and PauseSpotify.
-        yield return SeedNode.TriedLeaf("obs_streaming", """{"action":"stop"}""");
-        yield return SeedNode.TriedLeaf("music_pause", "{}");
+        // ContinueOnError on both — one failing (e.g. the same OBS bridge drop that can hit the scene
+        // switch earlier) must never stop the other, matching the legacy bot's two separate try/catches
+        // around StopStreaming and PauseSpotify.
+        yield return new("obs_streaming", """{"action":"stop"}""", ContinueOnError: true);
+        yield return new("music_pause", "{}", ContinueOnError: true);
     }
 
     /// <summary>How long to wait after announcing <paramref name="secondsLeft"/> before the next line —

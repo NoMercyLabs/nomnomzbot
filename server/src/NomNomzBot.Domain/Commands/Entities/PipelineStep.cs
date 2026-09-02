@@ -53,6 +53,16 @@ public class PipelineStep : BaseEntity, ITenantScoped
     public int Order { get; set; }
 
     /// <summary>
+    /// When <c>true</c>, this step's failure does not abort the run — the next step still runs
+    /// (matches <c>PipelineStepDefinition.ContinueOnError</c>, wired through by
+    /// <c>PipelineGraphBuilder</c> for the flat-graph runtime real chat commands actually execute
+    /// through; <c>detached_step</c>/<c>try</c> block-kinds only run via direct PipelineId invocation
+    /// — the flat graph reader has no concept of nested blocks at all). Defaults to <c>false</c>
+    /// (fail-closed).
+    /// </summary>
+    public bool ContinueOnError { get; set; }
+
+    /// <summary>
     /// Snake_case registry key for the action type (e.g. "send_message", "timeout_user").
     /// Unknown values are rejected at save time; the engine hard-fails on unknown types.
     /// </summary>
