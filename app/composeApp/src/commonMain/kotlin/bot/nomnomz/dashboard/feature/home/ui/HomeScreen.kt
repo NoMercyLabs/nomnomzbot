@@ -12,8 +12,10 @@ package bot.nomnomz.dashboard.feature.home.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -27,7 +29,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.Spacer
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
@@ -60,6 +61,8 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
@@ -349,9 +352,16 @@ private fun ReadyContent(
 
         // Real, already-detected conditions needing the streamer's attention — absent (not a fake "all good"
         // banner) when nothing is wrong, per house rule: never show unenforced/fabricated positive state.
+        // S-OWN22 Task 1: left in its current position on purpose — Task 3 replaces this with the real attention
+        // inbox component (which DOES move, to sit after PlatformsRow); moving today's stand-in card there first
+        // would just be shuffled twice.
         if (actionRequired.isNotEmpty()) {
             ActionRequiredCard(items = actionRequired, onNavigate = onNavigate)
         }
+
+        StatTilesRow(stats = stats)
+        LiveBanner(stats = stats)
+        PlatformsRow(platforms = stats.platformsLive)
 
         // Suggested next steps for a channel with no commands, no pipelines, and no connected integration yet —
         // absent (not a stale "still onboarding" banner) the moment any of those becomes real, per house rule:
@@ -359,10 +369,6 @@ private fun ReadyContent(
         if (firstRunSteps.isNotEmpty()) {
             FirstRunChecklistCard(steps = firstRunSteps, onNavigate = onNavigate)
         }
-
-        LiveBanner(stats = stats)
-        StatTilesRow(stats = stats)
-        PlatformsRow(platforms = stats.platformsLive)
 
         // Two-column lower section: activity feed (wider) + right sidebar (actions + top commands).
         Row(
@@ -767,9 +773,16 @@ private fun FirstRunStepRow(step: FirstRunStep, onClick: () -> Unit) {
 
 // ─── Stat tiles ───────────────────────────────────────────────────────────────
 
-// A balanced stat-card grid (owner's home-screen ask): current viewers, followers, subscribers, chatters today,
-// donations today, commands, and uptime — all real data from the backend. Tiles wrap into equal-width columns
-// (padded on the last row) so the row balances itself rather than leaving a ragged trailing gap.
+// Below this container width, 8 equal-weight tiles in one row would squeeze each tile too narrow to read — the
+// row switches to its intrinsic (wrap-content) tile width and scrolls horizontally instead. Same BoxWithConstraints
+// + private breakpoint-constant idiom ShellScreen.kt/ParticipantShell.kt already use for their compact/full split;
+// HomeScreen.kt itself carried no prior width-based branch to reuse verbatim, so this follows their pattern rather
+// than inventing a new one.
+private val StatTilesBreakpoint: Dp = 960.dp
+
+// A single-row stat strip (owner's home-screen ask, S-OWN22 Task 1): current viewers, followers, subscribers,
+// chatters today, donations today, commands, messages, and uptime — all real data from the backend. All 8 tiles
+// share the row at full width; below [StatTilesBreakpoint] the row scrolls horizontally instead of squeezing.
 @Composable
 private fun StatTilesRow(stats: DashboardStats) {
     val spacing = LocalSpacing.current
@@ -784,18 +797,23 @@ private fun StatTilesRow(stats: DashboardStats) {
             stringResource(Res.string.home_stat_messages) to stats.messagesCount.toString(),
             stringResource(Res.string.home_stat_uptime) to uptimeLabel(stats.uptime),
         )
-    val columns = 4
 
-    Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-        tiles.chunked(columns).forEach { rowTiles ->
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        if (maxWidth < StatTilesBreakpoint) {
+            Row(
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+            ) {
+                tiles.forEach { (label, value) -> StatTile(modifier = Modifier, label = label, value = value) }
+            }
+        } else {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(spacing.s3),
             ) {
-                rowTiles.forEach { (label, value) ->
+                tiles.forEach { (label, value) ->
                     StatTile(modifier = Modifier.weight(1f), label = label, value = value)
                 }
-                repeat(columns - rowTiles.size) { Spacer(modifier = Modifier.weight(1f)) }
             }
         }
     }
