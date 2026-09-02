@@ -61,8 +61,10 @@ import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
+import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.feature.admin.state.AdminController
+import bot.nomnomz.dashboard.feature.admin.state.AdminSection
 import bot.nomnomz.dashboard.feature.admin.state.AdminState
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.shell_nav_admin
@@ -182,20 +184,28 @@ fun AdminScreen(controller: AdminController) {
         // empty with no indication anything had gone wrong. Render it here so it is visible under every tab.
         AdminLoadErrorBanner(error = state.error)
 
-        if (state.isLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Spinner(color = tokens.primary)
-            }
-            return@Column
-        }
-
+        // Per-tab loading: only the tab whose data is (re)fetching shows a spinner — the tab bar and every
+        // other tab stay interactive. TAB_IAM/TAB_TENANTS/TAB_AUDIT already render their own loading flag
+        // (iamLoading/tenantsLoading/auditLoading) inside their own composables.
         when (selectedTab) {
-            0 -> OverviewTab(state = state)
-            1 -> ChannelsTab(state = state, controller = controller)
-            2 -> UsersTab(state = state, controller = controller)
-            3 -> SystemTab(state = state)
-            4 -> FeatureFlagsTab(state = state, controller = controller)
-            5 -> BillingTab(state = state, controller = controller)
+            0 -> TabContentOrSpinner(isLoading = AdminSection.Overview in state.loadingSections, tokens = tokens) {
+                OverviewTab(state = state)
+            }
+            1 -> TabContentOrSpinner(isLoading = AdminSection.Channels in state.loadingSections, tokens = tokens) {
+                ChannelsTab(state = state, controller = controller)
+            }
+            2 -> TabContentOrSpinner(isLoading = AdminSection.Users in state.loadingSections, tokens = tokens) {
+                UsersTab(state = state, controller = controller)
+            }
+            3 -> TabContentOrSpinner(isLoading = AdminSection.System in state.loadingSections, tokens = tokens) {
+                SystemTab(state = state)
+            }
+            4 -> TabContentOrSpinner(isLoading = AdminSection.FeatureFlags in state.loadingSections, tokens = tokens) {
+                FeatureFlagsTab(state = state, controller = controller)
+            }
+            5 -> TabContentOrSpinner(isLoading = AdminSection.Billing in state.loadingSections, tokens = tokens) {
+                BillingTab(state = state, controller = controller)
+            }
             TAB_IAM -> IamTab(state = state, controller = controller)
             TAB_TENANTS -> TenantsTab(state = state, controller = controller)
             TAB_AUDIT -> AuditTab(state = state, controller = controller)
@@ -206,6 +216,19 @@ fun AdminScreen(controller: AdminController) {
 private const val TAB_IAM: Int = 6
 private const val TAB_TENANTS: Int = 7
 private const val TAB_AUDIT: Int = 8
+
+/** Renders [content] normally, or a centered [Spinner] in its place while [isLoading] — scoped to the current
+ * tab's content area only, so a sibling tab's fetch never blocks this one. */
+@Composable
+private fun TabContentOrSpinner(isLoading: Boolean, tokens: Tokens, content: @Composable () -> Unit) {
+    if (isLoading) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Spinner(color = tokens.primary)
+        }
+    } else {
+        content()
+    }
+}
 
 /**
  * Renders [error] as a destructive banner when set, nothing otherwise. Extracted from [AdminScreen] so it can be
