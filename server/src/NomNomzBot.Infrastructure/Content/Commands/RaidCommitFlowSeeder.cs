@@ -132,7 +132,9 @@ public sealed class RaidCommitFlowSeeder : ISeeder
 
             response.ResponseType = "pipeline";
             response.PipelineId = pipeline.Id;
-            response.Message = null;
+            // Message is left as-is (only null/whitespace can reach this point — the non-empty branch
+            // above already `continue`d) rather than reassigned, so this write path carries no
+            // TemplatedUserContent content and the guard has nothing to validate here.
             response.IsEnabled = true;
         }
 
