@@ -23,6 +23,16 @@
 # Install (already wired into ship.ps1's stack-definition sync step — this comment documents what
 # that step does, not a separate manual step):
 #   */5 * * * * /opt/nomnomzbot/guard-single-color.sh >> /opt/nomnomzbot/guard-single-color.log 2>&1
+#
+# GRACE_PERIOD_SEC: a legitimate switchover.ps1/ship.ps1/CI deploy starts the idle colour and polls
+# it for up to ~120-150s before it passes /health/ready — that "up but not yet healthy" state is
+# IDENTICAL, from this script's point of view, to the drift condition it exists to fix. Without a
+# grace window this guard races an in-progress deploy and can kill the new colour mid-startup
+# before it ever gets the chance to become healthy (confirmed live 2026-09-02: this exact race
+# fired 39s into a real deploy and stopped api-green, failing that deploy's CI job). A colour
+# younger than this is left alone even if unhealthy; only one that has had a fair, generous chance
+# to become ready and still isn't gets treated as drift.
+GRACE_PERIOD_SEC=180
 
 set -u
 cd /opt/nomnomzbot || exit 1
@@ -40,12 +50,30 @@ ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 blue_code=$(docker exec nomnomzbot-api-blue curl -s -o /dev/null -w '%{http_code}' http://localhost:5000/health/ready 2>/dev/null || echo 000)
 green_code=$(docker exec nomnomzbot-api-green curl -s -o /dev/null -w '%{http_code}' http://localhost:5000/health/ready 2>/dev/null || echo 000)
 
+container_age_sec() {
+  started=$(docker inspect --format '{{.State.StartedAt}}' "$1" 2>/dev/null || echo "")
+  [ -z "$started" ] && { echo 999999; return; }
+  started_epoch=$(date -u -d "$started" +%s 2>/dev/null || echo 0)
+  now_epoch=$(date -u +%s)
+  echo $((now_epoch - started_epoch))
+}
+
 if [ "$blue_code" = "200" ] && [ "$green_code" != "200" ]; then
-  echo "$ts drift detected: both colours running (blue=$blue_code green=$green_code) - stopping api-green"
-  docker compose stop -t 25 api-green
+  age=$(container_age_sec nomnomzbot-api-green)
+  if [ "$age" -lt "$GRACE_PERIOD_SEC" ]; then
+    echo "$ts api-green unhealthy but only ${age}s old (< ${GRACE_PERIOD_SEC}s grace) - likely a deploy in progress, leaving it alone"
+  else
+    echo "$ts drift detected: both colours running (blue=$blue_code green=$green_code, green age=${age}s) - stopping api-green"
+    docker compose stop -t 25 api-green
+  fi
 elif [ "$green_code" = "200" ] && [ "$blue_code" != "200" ]; then
-  echo "$ts drift detected: both colours running (blue=$blue_code green=$green_code) - stopping api-blue"
-  docker compose stop -t 25 api-blue
+  age=$(container_age_sec nomnomzbot-api-blue)
+  if [ "$age" -lt "$GRACE_PERIOD_SEC" ]; then
+    echo "$ts api-blue unhealthy but only ${age}s old (< ${GRACE_PERIOD_SEC}s grace) - likely a deploy in progress, leaving it alone"
+  else
+    echo "$ts drift detected: both colours running (blue=$blue_code green=$green_code, blue age=${age}s) - stopping api-blue"
+    docker compose stop -t 25 api-blue
+  fi
 elif [ "$blue_code" = "200" ] && [ "$green_code" = "200" ]; then
   # Both genuinely healthy - a real mid-switchover overlap (deploy in progress) or a manual start
   # of the idle colour without a code change. Never guess which one to kill while both are

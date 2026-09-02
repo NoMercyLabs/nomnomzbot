@@ -55,12 +55,15 @@ public sealed class StartRaidAction : ICommandAction
 
     /// <summary>Twitch's server-side raid window — the raid auto-fires this many seconds after
     /// <c>POST /raids</c> returns, and there is no API to commit it earlier. Originally assumed 90s
-    /// (the commonly-cited figure); confirmed live 2026-09-02 (raid to skeemer_codes) that the
-    /// countdown built on 90s finished 12-14s before Twitch actually committed the raid, so the real
-    /// window runs longer — 103s until re-measured more precisely. Shared with
-    /// <see cref="WaitUntilRaidFiresAction"/>, which re-anchors to this value at execution time, so a
-    /// future correction only needs to change this one constant.</summary>
-    internal const int TwitchRaidWindowSeconds = 103;
+    /// (the commonly-cited figure); confirmed live 2026-09-02 (raid to skeemer_codes) that a
+    /// countdown built on 90s finished 12-14s early, so it was raised to 103s — confirmed live AGAIN
+    /// the same day (raid to aaoa_) that 103s was STILL 12-14s early, the identical gap, so this is
+    /// now 116s (103 + another 13). Every downstream step — the countdown's own open time (derived
+    /// from this constant in RaidFlowSeeder) AND <see cref="WaitUntilRaidFiresAction"/>'s re-anchor
+    /// deadline — is driven off this ONE constant, so raising it shifts the whole back half of the
+    /// flow (countdown through stop-stream/pause/final-message) later together, never just part of
+    /// it. If 116s is still short, the fix is only ever this one number.</summary>
+    internal const int TwitchRaidWindowSeconds = 116;
 
     private readonly ITwitchRaidsApi _raids;
     private readonly ITwitchUsersApi _users;

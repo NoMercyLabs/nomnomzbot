@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 
@@ -42,22 +43,46 @@ public sealed class WaitUntilRaidFiresAction : ICommandAction
 
     public IReadOnlyList<PipelineActionFieldDescriptor> Fields => [];
 
+    private readonly ILogger<WaitUntilRaidFiresAction> _logger;
+
+    public WaitUntilRaidFiresAction(ILogger<WaitUntilRaidFiresAction> logger) => _logger = logger;
+
     public async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
         ActionDefinition action
     )
     {
+        // Info level, deliberately — the flat chat-command path (!raid) never persists per-step
+        // timing anywhere (confirmed 2026-09-02: PipelineExecutions stays empty for it), so this is
+        // the ONLY record of whether this step actually engaged and by how much. Two prior
+        // recalibrations of TwitchRaidWindowSeconds (90->103->116) each landed with zero visibly
+        // measurable evidence either way — never again without a timestamped log line.
         TimeSpan? wait = ComputeWait(ctx.Variables, DateTime.UtcNow);
 
         if (wait is null)
+        {
+            _logger.LogInformation(
+                "wait_until_raid_fires: no raid.fires_at_utc_ticks recorded in this execution — no-op"
+            );
             return ActionResult.Success(
                 "no start_raid deadline recorded in this run — nothing to wait for"
             );
+        }
 
         if (wait.Value <= TimeSpan.Zero)
+        {
+            _logger.LogInformation(
+                "wait_until_raid_fires: deadline already passed at execution time — no-op"
+            );
             return ActionResult.Success("raid deadline already passed — nothing left to wait for");
+        }
 
+        _logger.LogInformation(
+            "wait_until_raid_fires: waiting {WaitSeconds}s to reach the recorded deadline",
+            wait.Value.TotalSeconds
+        );
         await Task.Delay(wait.Value, ctx.CancellationToken);
+        _logger.LogInformation("wait_until_raid_fires: done waiting, deadline reached");
         return ActionResult.Success("waited out the remaining time to the raid's auto-fire");
     }
 
