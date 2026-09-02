@@ -181,11 +181,11 @@ public sealed class RaidFlowSeedingTests
             )
             .ToList();
 
-        messages.Should().Contain(m => m.Contains("RAID INCOMING"));
+        messages.Should().Contain(m => m.Contains("heading out to"));
         foreach (int mark in new[] { 15, 10, 5, 3, 2 })
             messages.Should().Contain(m => m.Contains($"Raid in {mark} seconds"));
         messages.Should().Contain(m => m.Contains("Raid in 1 second..."));
-        messages.Should().Contain(m => m.Contains("RAID LIVE"));
+        messages.Should().Contain(m => m.Contains("raided out to"));
 
         // A "45 seconds left" line this early reads as spam — those waits are deliberately silent.
         messages.Should().NotContain(m => m.Contains("Raid in 45") || m.Contains("Raid in 30"));
@@ -205,7 +205,7 @@ public sealed class RaidFlowSeedingTests
 
         await seeder.SeedAsync(Tenant);
 
-        string raidIncoming = StepsOf(db)
+        string headingOut = StepsOf(db)
             .Where(s => s.ActionType == "send_message")
             .Select(s =>
                 System
@@ -213,31 +213,36 @@ public sealed class RaidFlowSeedingTests
                     .RootElement.GetProperty("message")
                     .GetString()!
             )
-            .Single(m => m.Contains("RAID INCOMING"));
+            .Single(m => m.Contains("heading out to"));
 
-        raidIncoming.Should().Contain("RAID INCOMING to {args.1}!");
-        raidIncoming.Should().NotContain("{{args.1}}");
-        raidIncoming.Should().NotContain("{{{args.1}}}");
+        headingOut.Should().Contain("heading out to {args.1}");
+        headingOut.Should().NotContain("{{args.1}}");
+        headingOut.Should().NotContain("{{{args.1}}}");
     }
 
+    /// <summary>
+    /// The final "we've raided out" line is the LAST thing said — it confirms the raid actually
+    /// committed, so it must follow the stream stopping and the music pausing, not precede them.
+    /// </summary>
     [Fact]
-    public async Task The_stream_stops_and_the_music_pauses_only_after_the_raid_goes_live()
+    public async Task The_final_raided_out_message_comes_after_the_stream_stops_and_the_music_pauses()
     {
         (RaidFlowSeeder seeder, SeedTestDbContext db) = Build();
 
         await seeder.SeedAsync(Tenant);
 
         List<PipelineStep> steps = StepsOf(db);
-        int liveIndex = steps.FindIndex(s =>
-            s.ActionType == "send_message" && s.ConfigJson.Contains("RAID LIVE")
+        int raidedOutIndex = steps.FindIndex(s =>
+            s.ActionType == "send_message" && s.ConfigJson.Contains("raided out to")
         );
         int stopIndex = steps.FindIndex(s => s.ActionType == "obs_streaming");
         int pauseIndex = steps.FindIndex(s => s.ActionType == "music_pause");
 
-        liveIndex.Should().BeGreaterThan(-1);
-        // Stopping the stream before the audience has actually moved strands them on an offline channel.
-        stopIndex.Should().BeGreaterThan(liveIndex);
-        pauseIndex.Should().BeGreaterThan(liveIndex);
+        raidedOutIndex.Should().BeGreaterThan(-1);
+        // Confirming the raid before the stream has actually stopped tells chat something that hasn't
+        // happened yet.
+        raidedOutIndex.Should().BeGreaterThan(stopIndex);
+        raidedOutIndex.Should().BeGreaterThan(pauseIndex);
         steps[stopIndex].ConfigJson.Should().Contain("stop");
     }
 

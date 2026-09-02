@@ -319,6 +319,7 @@
     "pipeline.wait_for_event.description",
     "pipeline.wait_for_event.event_name.help",
     "pipeline.wait_for_event.timeout_seconds.help",
+    "pipeline.wait_until_raid_fires.description",
     "pipeline.widget_event.data.help",
     "pipeline.widget_event.description",
     "pipeline.widget_event.event_type.help",

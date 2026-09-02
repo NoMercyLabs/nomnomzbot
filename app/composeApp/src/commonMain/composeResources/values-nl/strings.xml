@@ -4551,6 +4551,7 @@
     <string name="pipeline_wait_for_event_description">Pauzeer de pipeline totdat een genoemde gebeurtenis plaatsvindt, of een time-out wordt bereikt</string>
     <string name="pipeline_wait_for_event_event_name_help">De naam van de gebeurtenis waarop deze stap wacht. Een overeenkomende gebeurtenis hervat de pipeline; elke andere gebeurtenis wordt genegeerd.</string>
     <string name="pipeline_wait_for_event_timeout_seconds_help">Hoelang wachten voordat wordt opgegeven, in seconden (standaard 300, maximaal 86400). Bij time-out gaat de pipeline verder met event.timed_out ingesteld op true.</string>
+    <string name="pipeline_wait_until_raid_fires_description">Wacht de resterende tijd af tot een eerdere Start raid-stap daadwerkelijk afgaat, met correctie voor vertraging door de stappen ertussen</string>
     <string name="pipeline_widget_event_description">Stuur een gebeurtenis naar een widget-overlay</string>
 
     <!-- Event-response preset default templates (backend EventResponsePresetCatalog serves the KEY only). -->

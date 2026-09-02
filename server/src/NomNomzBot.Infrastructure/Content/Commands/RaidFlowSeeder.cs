@@ -131,8 +131,8 @@ public sealed class RaidFlowSeeder : ISeeder
                     Name = "Raid out",
                     Description =
                         "Starts a Twitch raid, switches OBS to the ending scene, counts down in chat, "
-                        + "then stops the stream and pauses the music. Every step is an ordinary block — "
-                        + "reorder, retime or remove any of it.",
+                        + "then stops the stream, pauses the music, and confirms the raid in chat. Every "
+                        + "step is an ordinary block — reorder, retime or remove any of it.",
                     TriggerKind = "command",
                     IsEnabled = true,
                 };
@@ -202,8 +202,8 @@ public sealed class RaidFlowSeeder : ISeeder
     {
         yield return new("start_raid", """{"target":"{args.1}"}""");
         // ContinueOnError=true: matches the legacy bot's fire-and-forget `_ = SwitchToEndingScene(...)` —
-        // an OBS hiccup here must never take down the countdown, "RAID LIVE!", or stopping the
-        // stream/music (confirmed live 2026-09-01: without this, "OBS connection closed" on this ONE
+        // an OBS hiccup here must never take down the countdown, the final raided-out line, or stopping
+        // the stream/music (confirmed live 2026-09-01: without this, "OBS connection closed" on this ONE
         // step killed the entire rest of the raid while Twitch's clock kept ticking).
         yield return new("obs_switch_scene", """{"scene":"Ending"}""", ContinueOnError: true);
         // {args.1} is the template engine's own single-brace token syntax (matches start_raid's
@@ -213,7 +213,7 @@ public sealed class RaidFlowSeeder : ISeeder
         // literal text "RAID INCOMING to {jddoesdev}!" instead of the resolved name.
         yield return new(
             "send_message",
-            $$"""{"message":"RAID INCOMING to {args.1}! Raiding in {{TwitchRaidWindowSeconds - 2}} seconds..."}"""
+            """{"message":"We're heading out to {args.1}, thanks for watching!"}"""
         );
         yield return new("wait", """{"seconds":1}""");
         yield return new(
@@ -241,15 +241,24 @@ public sealed class RaidFlowSeeder : ISeeder
             yield return new("wait", $$"""{"seconds":{{WaitAfter(secondsLeft)}}}""");
         }
 
-        yield return new(
-            "send_message",
-            """{"message":"RAID LIVE! We're heading over now! Let's go!"}"""
-        );
+        // The fixed waits above only land on time if nothing in between ran slow — an OBS scene switch
+        // or a chat send that takes an extra second or two pushes everything after it late relative to
+        // Twitch's own 90s server-side timer. This re-anchors to the ACTUAL deadline start_raid recorded
+        // instead of trusting the accumulated total, absorbing any such drift in one shot (matches the
+        // legacy bot's own `twitchFireAt` wall-clock wait before committing the raid).
+        yield return new("wait_until_raid_fires", "{}");
+
         // ContinueOnError on both — one failing (e.g. the same OBS bridge drop that can hit the scene
         // switch earlier) must never stop the other, matching the legacy bot's two separate try/catches
-        // around StopStreaming and PauseSpotify.
+        // around StopStreaming and PauseSpotify. Both run BEFORE the final chat line: the raid is only
+        // truly "committed" once the stream has actually stopped, so the announcement follows that, not
+        // the other way round.
         yield return new("obs_streaming", """{"action":"stop"}""", ContinueOnError: true);
         yield return new("music_pause", "{}", ContinueOnError: true);
+        yield return new(
+            "send_message",
+            """{"message":"We've raided out to {args.1}! Thanks for joining!"}"""
+        );
     }
 
     /// <summary>How long to wait after announcing <paramref name="secondsLeft"/> before the next line —

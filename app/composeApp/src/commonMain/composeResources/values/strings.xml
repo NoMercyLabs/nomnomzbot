@@ -4565,6 +4565,7 @@
     <string name="pipeline_wait_for_event_description">Pause the pipeline until a named event happens, or a timeout is reached</string>
     <string name="pipeline_wait_for_event_event_name_help">The name of the event this step waits for. A matching event resumes the pipeline; any other event is ignored.</string>
     <string name="pipeline_wait_for_event_timeout_seconds_help">How long to wait before giving up, in seconds (default 300, max 86400). On timeout the pipeline continues with event.timed_out set to true.</string>
+    <string name="pipeline_wait_until_raid_fires_description">Wait for whatever time remains until a prior Start raid step actually fires, correcting for any delay from the steps in between</string>
     <string name="pipeline_widget_event_description">Push an event to a widget overlay</string>
 
     <!-- Event-response preset default templates (backend EventResponsePresetCatalog serves the KEY only). -->
