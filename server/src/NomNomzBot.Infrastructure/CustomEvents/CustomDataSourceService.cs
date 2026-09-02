@@ -10,6 +10,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
@@ -23,22 +24,26 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
 {
     private const int MaxSourcesPerChannel = 50;
     private const int MinPollIntervalSeconds = 10; // Tier-scaled floor (safe baseline)
+    private const string SecretProvider = "customdata";
 
     private readonly IApplicationDbContext _db;
     private readonly ITokenProtector _tokenProtector;
     private readonly ICustomDataIngestService _ingest;
+    private readonly ICustomDataEgressFetcher _egressFetcher;
     private readonly IEnumerable<ICustomDataSourcePreset> _presets;
 
     public CustomDataSourceService(
         IApplicationDbContext db,
         ITokenProtector tokenProtector,
         ICustomDataIngestService ingest,
+        ICustomDataEgressFetcher egressFetcher,
         IEnumerable<ICustomDataSourcePreset> presets
     )
     {
         _db = db;
         _tokenProtector = tokenProtector;
         _ingest = ingest;
+        _egressFetcher = egressFetcher;
         _presets = presets;
     }
 
@@ -299,6 +304,71 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
             return Result.Failure("Custom data source not found.", "NOT_FOUND");
 
         return await _ingest.IngestAsync(broadcasterId, source.Name, samplePayload, ct);
+    }
+
+    public async Task<Result<CustomDataSourceTestFetchDto>> TestFetchAsync(
+        Guid broadcasterId,
+        Guid id,
+        CancellationToken ct = default
+    )
+    {
+        CustomDataSource? source = await _db.CustomDataSources.FirstOrDefaultAsync(
+            s => s.BroadcasterId == broadcasterId && s.Id == id,
+            ct
+        );
+
+        if (source is null)
+            return Result<CustomDataSourceTestFetchDto>.Failure(
+                "Custom data source not found.",
+                "NOT_FOUND"
+            );
+
+        string? authSecret = source.AuthSecretCipher is null
+            ? null
+            : await _tokenProtector.TryUnprotectAsync(
+                source.AuthSecretCipher,
+                new(broadcasterId.ToString(), SecretProvider, source.Id.ToString()),
+                ct
+            );
+
+        CustomDataEgressFetchResult fetched = await _egressFetcher.FetchAsync(
+            broadcasterId,
+            source.EndpointUrl,
+            authSecret,
+            ct
+        );
+
+        if (fetched.Outcome != CustomDataEgressFetchOutcome.Success)
+            return Result<CustomDataSourceTestFetchDto>.Failure(
+                fetched.ErrorMessage ?? "The test fetch failed.",
+                fetched.Outcome.ToString()
+            );
+
+        string body = fetched.Body ?? string.Empty;
+        if (body.Length == 0)
+            return Result<CustomDataSourceTestFetchDto>.Success(
+                new CustomDataSourceTestFetchDto(string.Empty, [], Truncated: false)
+            );
+
+        JToken parsed;
+        try
+        {
+            parsed = JToken.Parse(body);
+        }
+        catch (JsonException ex)
+        {
+            return Result<CustomDataSourceTestFetchDto>.Failure(
+                $"The endpoint did not return valid JSON: {ex.Message}",
+                "INVALID_JSON"
+            );
+        }
+
+        IReadOnlyList<string> keyPaths = CustomDataJsonKeyPathFlattener.Flatten(parsed);
+        bool truncated = body.Length >= CustomDataEgressFetcher.MaxResponseBytes;
+
+        return Result<CustomDataSourceTestFetchDto>.Success(
+            new CustomDataSourceTestFetchDto(body, keyPaths, truncated)
+        );
     }
 
     public Task<Result<IReadOnlyList<CustomDataSourcePresetDto>>> ListPresetsAsync(

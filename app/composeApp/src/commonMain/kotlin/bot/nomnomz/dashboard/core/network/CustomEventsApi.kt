@@ -24,6 +24,7 @@ import kotlinx.serialization.Serializable
 //   PUT  /{id}               →  StatusResponseDto<CustomDataSourceDto>
 //   DELETE /{id}             →  StatusResponseDto<bool>
 //   POST /{id}/test          →  StatusResponseDto<bool>
+//   POST /{id}/test-fetch    →  StatusResponseDto<CustomDataSourceTestFetchDto>
 interface CustomEventsApi {
     /** The channel's configured data sources, ordered by display name. */
     suspend fun list(): ApiResult<List<CustomDataSource>>
@@ -58,6 +59,12 @@ interface CustomEventsApi {
      * trigger before deploying the real feed.
      */
     suspend fun test(id: String, samplePayload: String): ApiResult<Unit>
+
+    /**
+     * One-off GET against the source's configured endpoint (S100-KEYPICKER-TESTFETCH) — lets the operator see the
+     * endpoint's real JSON shape and pick a key instead of typing a JSONPath blind.
+     */
+    suspend fun testFetch(id: String): ApiResult<CustomDataSourceTestFetch>
 }
 
 class RestCustomEventsApi(private val client: ApiClient) : CustomEventsApi {
@@ -91,6 +98,9 @@ class RestCustomEventsApi(private val client: ApiClient) : CustomEventsApi {
 
     override suspend fun test(id: String, samplePayload: String): ApiResult<Unit> =
         client.postUnit("api/v1/custom-data-sources/$id/test", TestCustomDataSourceBody(samplePayload))
+
+    override suspend fun testFetch(id: String): ApiResult<CustomDataSourceTestFetch> =
+        client.postEnvelope("api/v1/custom-data-sources/$id/test-fetch")
 }
 
 // ── DTOs ─────────────────────────────────────────────────────────────────────
@@ -150,3 +160,15 @@ data class UpsertCustomDataSourceBody(
 /** Body for the test endpoint. */
 @Serializable
 data class TestCustomDataSourceBody(val samplePayload: String)
+
+/**
+ * The result of a one-off test fetch against a source's configured endpoint (mirrors
+ * `CustomDataSourceTestFetchDto`). [keyPaths] is every leaf field-map path (`$.foo.bar` syntax) found in
+ * [rawJson] — the dashboard renders these as clickable options in the field-map key picker.
+ */
+@Serializable
+data class CustomDataSourceTestFetch(
+    val rawJson: String = "",
+    val keyPaths: List<String> = emptyList(),
+    val truncated: Boolean = false,
+)

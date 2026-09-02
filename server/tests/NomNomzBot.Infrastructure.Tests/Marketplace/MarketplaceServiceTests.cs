@@ -102,6 +102,7 @@ public sealed class MarketplaceServiceTests
             db,
             Substitute.For<ITokenProtector>(),
             Substitute.For<ICustomDataIngestService>(),
+            Substitute.For<ICustomDataEgressFetcher>(),
             []
         );
         BundleExportService export = new(

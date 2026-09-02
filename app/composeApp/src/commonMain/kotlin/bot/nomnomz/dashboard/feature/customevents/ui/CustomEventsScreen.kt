@@ -26,6 +26,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
+import androidx.compose.ui.focus.onFocusChanged
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
@@ -70,9 +71,14 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.CustomDataSource
 import bot.nomnomz.dashboard.core.network.CustomDataSourceOption
 import bot.nomnomz.dashboard.core.network.CustomDataSourcePreset
+import bot.nomnomz.dashboard.core.network.CustomDataSourceTestFetch
 import bot.nomnomz.dashboard.core.network.UpsertCustomDataSourceBody
 import bot.nomnomz.dashboard.feature.customevents.state.CustomEventsController
 import bot.nomnomz.dashboard.feature.customevents.state.CustomEventsState
+import bot.nomnomz.dashboard.feature.customevents.state.FieldMapRow
+import bot.nomnomz.dashboard.feature.customevents.state.applyKeyPathSelection
+import bot.nomnomz.dashboard.feature.customevents.state.toFieldMap
+import bot.nomnomz.dashboard.feature.customevents.state.toFieldMapRows
 import bot.nomnomz.dashboard.feature.shell.nav.ManagementRole
 import bot.nomnomz.dashboard.feature.shell.nav.ShellRoute
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
@@ -94,6 +100,11 @@ import nomnomzbot.composeapp.generated.resources.custom_events_field_enabled
 import nomnomzbot.composeapp.generated.resources.custom_events_field_endpoint_url
 import nomnomzbot.composeapp.generated.resources.custom_events_field_field_map_json
 import nomnomzbot.composeapp.generated.resources.custom_events_field_name
+import nomnomzbot.composeapp.generated.resources.custom_events_field_path
+import nomnomzbot.composeapp.generated.resources.custom_events_test_fetch_action
+import nomnomzbot.composeapp.generated.resources.custom_events_test_fetch_error
+import nomnomzbot.composeapp.generated.resources.custom_events_test_fetch_no_keys
+import nomnomzbot.composeapp.generated.resources.custom_events_test_fetch_pick_key
 import nomnomzbot.composeapp.generated.resources.custom_events_field_poll_interval
 import nomnomzbot.composeapp.generated.resources.custom_events_field_source_kind
 import nomnomzbot.composeapp.generated.resources.custom_events_last_received
@@ -259,6 +270,7 @@ fun CustomEventsScreen(controller: CustomEventsController, role: ManagementRole?
                 title = stringResource(if (isEdit) Res.string.custom_events_edit_title else Res.string.custom_events_create_title),
                 initial = editTarget,
                 presetSeed = presetSeed,
+                onTestFetch = { id -> controller.testFetch(id) },
                 onDismiss = { showCreateDialog = false; editTarget = null; presetSeed = null },
                 onSave = { body ->
                     scope.launch {
@@ -618,12 +630,14 @@ private fun SourceFormDialog(
     title: String,
     initial: CustomDataSource?,
     presetSeed: CustomDataSourcePreset?,
+    onTestFetch: suspend (String) -> CustomDataSourceTestFetch?,
     onDismiss: () -> Unit,
     onSave: (UpsertCustomDataSourceBody) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
+    val scope = rememberCoroutineScope()
 
     var name: String by remember(initial, presetSeed) { mutableStateOf(initial?.name ?: presetSeed?.key ?: "") }
     var displayName: String by remember(initial, presetSeed) {
@@ -634,14 +648,13 @@ private fun SourceFormDialog(
     }
     var endpointUrl: String by remember(initial, presetSeed) { mutableStateOf(initial?.endpointUrl ?: "") }
     var authSecret: String by remember { mutableStateOf("") }
-    var fieldMapJson: String by remember(initial) {
-        mutableStateOf(
-            initial?.fieldMap
-                ?.entries
-                ?.joinToString(",", "{", "}") { (k, v) -> "\"$k\":\"$v\"" }
-                ?: "{}"
-        )
+    var fieldMapRows: List<FieldMapRow> by remember(initial) {
+        mutableStateOf(initial?.fieldMap?.toFieldMapRows() ?: emptyList())
     }
+    // The row whose path input last gained focus — the key picker fills THIS row when a key is clicked.
+    var focusedRowIndex: Int? by remember(initial) { mutableStateOf(null) }
+    var testFetchResult: CustomDataSourceTestFetch? by remember(initial) { mutableStateOf(null) }
+    var testFetchError: Boolean by remember(initial) { mutableStateOf(false) }
     var pollInterval: String by remember(initial) { mutableStateOf(initial?.pollIntervalSeconds?.toString() ?: "") }
     var isEnabled: Boolean by remember(initial) { mutableStateOf(initial?.isEnabled ?: false) }
 
@@ -689,12 +702,25 @@ private fun SourceFormDialog(
                     )
                 }
                 item {
-                    Textarea(
-                        value = fieldMapJson,
-                        onValueChange = { fieldMapJson = it },
-                        label = stringResource(Res.string.custom_events_field_field_map_json),
-                        modifier = Modifier.fillMaxWidth(),
-                        minLines = 2,
+                    FieldMapEditor(
+                        rows = fieldMapRows,
+                        onRowsChange = { fieldMapRows = it },
+                        onRowFocused = { focusedRowIndex = it },
+                        testFetchResult = testFetchResult,
+                        testFetchError = testFetchError,
+                        testFetchEnabled = initial != null && endpointUrl.isNotBlank(),
+                        onTestFetch = {
+                            val id: String = initial?.id ?: return@FieldMapEditor
+                            scope.launch {
+                                testFetchError = false
+                                val result: CustomDataSourceTestFetch? = onTestFetch(id)
+                                testFetchResult = result
+                                testFetchError = result == null
+                            }
+                        },
+                        onKeyPicked = { keyPath ->
+                            fieldMapRows = applyKeyPathSelection(fieldMapRows, focusedRowIndex, keyPath)
+                        },
                     )
                 }
                 if (sourceKind == "poll") {
@@ -738,7 +764,7 @@ private fun SourceFormDialog(
                             presetKey = presetSeed?.key ?: initial?.presetKey,
                             endpointUrl = endpointUrl.trim().takeIf { it.isNotEmpty() },
                             authSecret = authSecret.takeIf { it.isNotEmpty() },
-                            fieldMap = parseFieldMapJson(fieldMapJson),
+                            fieldMap = fieldMapRows.toFieldMap(),
                             pollIntervalSeconds = pollInterval.toIntOrNull(),
                             isEnabled = isEnabled,
                         )
@@ -879,16 +905,128 @@ private fun CenteredMessage(text: String) {
     }
 }
 
-/** Best-effort parse of `{"key":"$.path"}` JSON into a Map. Returns empty map on any parse failure. */
-private fun parseFieldMapJson(json: String): Map<String, String> {
-    return try {
-        val inner: String = json.trim().removePrefix("{").removeSuffix("}").trim()
-        if (inner.isEmpty()) return emptyMap()
-        inner.split(",").associate { pair ->
-            val (k, v) = pair.trim().split(":", limit = 2)
-            k.trim().removeSurrounding("\"") to v.trim().removeSurrounding("\"")
+// ── Field-map editor + test-fetch key picker (S100-KEYPICKER-TESTFETCH) ────────
+
+/**
+ * Per-row key/path editor for the field map, replacing raw-JSON entry: each row maps a template-var key to a
+ * JSONPath. A "Test fetch" action hits the source's real endpoint and renders every leaf key it found as a
+ * clickable option — picking one fills the PATH of whichever row's path input last had focus, instead of making
+ * the operator type JSONPath syntax blind.
+ */
+@Composable
+private fun FieldMapEditor(
+    rows: List<FieldMapRow>,
+    onRowsChange: (List<FieldMapRow>) -> Unit,
+    onRowFocused: (Int) -> Unit,
+    testFetchResult: CustomDataSourceTestFetch?,
+    testFetchError: Boolean,
+    testFetchEnabled: Boolean,
+    onTestFetch: () -> Unit,
+    onKeyPicked: (String) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+        Text(
+            text = stringResource(Res.string.custom_events_field_field_map_json),
+            style = typography.sm,
+            color = tokens.mutedForeground,
+        )
+
+        rows.forEachIndexed { index, row ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                AppTextField(
+                    value = row.key,
+                    onValueChange = { text -> onRowsChange(rows.replaceAt(index, row.copy(key = text))) },
+                    label = stringResource(Res.string.custom_events_field_name),
+                    modifier = Modifier.weight(1f),
+                )
+                AppTextField(
+                    value = row.path,
+                    onValueChange = { text -> onRowsChange(rows.replaceAt(index, row.copy(path = text))) },
+                    label = stringResource(Res.string.custom_events_field_path),
+                    modifier = Modifier.weight(1f).onFocusChanged { state -> if (state.isFocused) onRowFocused(index) },
+                )
+                GlyphButton(
+                    icon = TrashGlyph,
+                    label = stringResource(Res.string.custom_events_delete_confirm),
+                    onClick = { onRowsChange(rows.filterIndexed { rowIndex, _ -> rowIndex != index }) },
+                )
+            }
         }
-    } catch (_: Exception) {
-        emptyMap()
+
+        Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+            TextButton(onClick = { onRowsChange(rows + FieldMapRow(key = "", path = "")) }) {
+                Text(stringResource(Res.string.custom_events_new_source), style = typography.xs)
+            }
+            TextButton(onClick = onTestFetch, enabled = testFetchEnabled) {
+                Text(stringResource(Res.string.custom_events_test_fetch_action), style = typography.xs)
+            }
+        }
+
+        if (testFetchError) {
+            Text(
+                text = stringResource(Res.string.custom_events_test_fetch_error),
+                style = typography.xs,
+                color = tokens.destructive,
+            )
+        }
+
+        testFetchResult?.let { result -> TestFetchKeyPicker(result = result, onKeyPicked = onKeyPicked) }
     }
 }
+
+/** Renders every leaf key-path the test fetch found as a clickable chip; clicking one calls [onKeyPicked]. */
+@Composable
+private fun TestFetchKeyPicker(result: CustomDataSourceTestFetch, onKeyPicked: (String) -> Unit) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    if (result.keyPaths.isEmpty()) {
+        Text(
+            text = stringResource(Res.string.custom_events_test_fetch_no_keys),
+            style = typography.xs,
+            color = tokens.mutedForeground,
+        )
+        return
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(tokens.radius.md))
+            .background(tokens.muted)
+            .padding(spacing.s3),
+        verticalArrangement = Arrangement.spacedBy(spacing.s1),
+    ) {
+        Text(
+            text = stringResource(Res.string.custom_events_test_fetch_pick_key),
+            style = typography.xs,
+            color = tokens.mutedForeground,
+        )
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+            items(items = result.keyPaths, key = { it }) { keyPath ->
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(tokens.radius.sm))
+                        .background(tokens.card)
+                        .padding(horizontal = spacing.s2, vertical = spacing.s1),
+                ) {
+                    TextButton(onClick = { onKeyPicked(keyPath) }) {
+                        Text(text = keyPath, style = typography.xs, color = tokens.cardForeground)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun <T> List<T>.replaceAt(index: Int, value: T): List<T> =
+    mapIndexed { rowIndex, existing -> if (rowIndex == index) value else existing }

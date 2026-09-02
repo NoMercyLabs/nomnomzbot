@@ -295,6 +295,38 @@ public sealed class CustomDataSourcesController : BaseController
             ? Ok(new StatusResponseDto<bool> { Data = true })
             : BadRequest(new StatusResponseDto<object> { Message = result.ErrorMessage });
     }
+
+    // ── POST /custom-data-sources/{id}/test-fetch ────────────────────────────
+
+    /// <summary>
+    /// One-off GET against the source's configured endpoint — lets the operator see the real returned JSON shape
+    /// and pick a key instead of typing a JSONPath blind.
+    /// </summary>
+    [HttpPost("{id:guid}/test-fetch")]
+    [RequireAction("customdata:write")]
+    [ProducesResponseType<StatusResponseDto<CustomDataSourceTestFetchDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> TestFetch(Guid id, CancellationToken ct)
+    {
+        if (!TryGetIds(out Guid broadcasterId, out Guid _))
+            return Unauthorized();
+
+        Result<CustomDataSourceTestFetchDto> result = await _service.TestFetchAsync(
+            broadcasterId,
+            id,
+            ct
+        );
+
+        if (!result.IsSuccess)
+        {
+            return result.ErrorMessage == "Custom data source not found."
+                ? NotFound(new StatusResponseDto<object> { Message = result.ErrorMessage })
+                : BadRequest(new StatusResponseDto<object> { Message = result.ErrorMessage });
+        }
+
+        return Ok(new StatusResponseDto<CustomDataSourceTestFetchDto> { Data = result.Value });
+    }
 }
 
 // ── Request shapes ────────────────────────────────────────────────────────────

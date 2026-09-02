@@ -123,6 +123,7 @@ public sealed class BundleServiceTests
             db,
             protector,
             Substitute.For<ICustomDataIngestService>(),
+            Substitute.For<ICustomDataEgressFetcher>(),
             []
         );
         BundleExportService export = new(
