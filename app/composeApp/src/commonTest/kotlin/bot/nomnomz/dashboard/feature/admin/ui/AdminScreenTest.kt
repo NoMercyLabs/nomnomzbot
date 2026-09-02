@@ -200,6 +200,109 @@ class AdminScreenTest {
 
         assertEquals(listOf<String?>("rockhound"), api.userSearchCalls, "the submitted search text must reach AdminApi.getUsers")
     }
+
+    // S-OWN08-DESIGN-PARITY: Overview/Channels/Users/System/Billing rendered raw Row/Column/Card list markup
+    // with no shared empty-state primitive, unlike AdminTenantsTab/AdminIamTab which use EmptyLine with
+    // tab-specific copy. Proves each of the five tabs now renders EmptyLine (not a bespoke Text) when its list
+    // is empty, matching the reference tabs' pattern.
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun overview_tab_renders_empty_line_for_empty_registry_and_log() {
+        val controller = AdminController(api = RecordingListSearchAdminApi(), iamApi = NoopPlatformIamApi(), platformAdminApi = NoopPlatformAdminApi())
+
+        runComposeUiTest {
+            setContent {
+                EnglishContent {
+                    OverviewTab(state = controller.state.value)
+                }
+            }
+
+            assertTrue(
+                onAllNodesWithText("No live channel updates yet.").fetchSemanticsNodes().isNotEmpty(),
+                "an empty registry must render EmptyLine with registry-specific copy",
+            )
+            assertTrue(
+                onAllNodesWithText("No operator events yet.").fetchSemanticsNodes().isNotEmpty(),
+                "an empty operator log must render EmptyLine with log-specific copy",
+            )
+        }
+    }
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun channels_tab_renders_empty_line_with_channel_specific_copy() {
+        val controller = AdminController(api = RecordingListSearchAdminApi(), iamApi = NoopPlatformIamApi(), platformAdminApi = NoopPlatformAdminApi())
+
+        runComposeUiTest {
+            setContent {
+                EnglishContent {
+                    ChannelsTab(state = controller.state.value, controller = controller)
+                }
+            }
+
+            assertTrue(
+                onAllNodesWithText("No channels match.").fetchSemanticsNodes().isNotEmpty(),
+                "an empty channel list must render EmptyLine with channel-specific copy",
+            )
+        }
+    }
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun users_tab_renders_empty_line_with_user_specific_copy() {
+        val controller = AdminController(api = RecordingListSearchAdminApi(), iamApi = NoopPlatformIamApi(), platformAdminApi = NoopPlatformAdminApi())
+
+        runComposeUiTest {
+            setContent {
+                EnglishContent {
+                    UsersTab(state = controller.state.value, controller = controller)
+                }
+            }
+
+            assertTrue(
+                onAllNodesWithText("No users match.").fetchSemanticsNodes().isNotEmpty(),
+                "an empty user list must render EmptyLine with user-specific copy",
+            )
+        }
+    }
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun system_tab_renders_empty_line_for_empty_health_list() {
+        val controller = AdminController(api = RecordingListSearchAdminApi(), iamApi = NoopPlatformIamApi(), platformAdminApi = NoopPlatformAdminApi())
+
+        runComposeUiTest {
+            setContent {
+                EnglishContent {
+                    SystemTab(state = controller.state.value)
+                }
+            }
+
+            assertTrue(
+                onAllNodesWithText("No health checks reported.").fetchSemanticsNodes().isNotEmpty(),
+                "an empty service health list must render EmptyLine with system-specific copy",
+            )
+        }
+    }
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun billing_tab_renders_empty_line_with_invite_specific_copy() {
+        val controller = AdminController(api = RecordingListSearchAdminApi(), iamApi = NoopPlatformIamApi(), platformAdminApi = NoopPlatformAdminApi())
+
+        runComposeUiTest {
+            setContent {
+                EnglishContent {
+                    BillingTab(state = controller.state.value, controller = controller)
+                }
+            }
+
+            assertTrue(
+                onAllNodesWithText("No invite codes yet.").fetchSemanticsNodes().isNotEmpty(),
+                "an empty invite code list must render EmptyLine with billing-specific copy",
+            )
+        }
+    }
 }
 
 // ─── Fakes ─────────────────────────────────────────────────────────────────

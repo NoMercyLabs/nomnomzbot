@@ -127,6 +127,11 @@ import nomnomzbot.composeapp.generated.resources.admin_tab_system
 import nomnomzbot.composeapp.generated.resources.admin_tab_users
 import nomnomzbot.composeapp.generated.resources.admin_user_channels
 import nomnomzbot.composeapp.generated.resources.admin_user_role
+import nomnomzbot.composeapp.generated.resources.admin_channel_empty
+import nomnomzbot.composeapp.generated.resources.admin_user_empty
+import nomnomzbot.composeapp.generated.resources.admin_system_services_empty
+import nomnomzbot.composeapp.generated.resources.admin_health_empty
+import nomnomzbot.composeapp.generated.resources.admin_billing_empty
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
@@ -322,7 +327,7 @@ private fun OverviewTab(state: AdminState) {
         Spacer(modifier = Modifier.height(spacing.s2))
         Text(text = stringResource(Res.string.admin_registry_title), style = typography.base, color = tokens.foreground)
         if (state.registry.isEmpty()) {
-            Text(text = stringResource(Res.string.admin_registry_empty), style = typography.sm, color = tokens.mutedForeground)
+            EmptyLine(stringResource(Res.string.admin_registry_empty))
         } else {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column {
@@ -357,7 +362,7 @@ private fun OverviewTab(state: AdminState) {
         Spacer(modifier = Modifier.height(spacing.s2))
         Text(text = stringResource(Res.string.admin_log_title), style = typography.base, color = tokens.foreground)
         if (state.logs.isEmpty()) {
-            Text(text = stringResource(Res.string.admin_log_empty), style = typography.sm, color = tokens.mutedForeground)
+            EmptyLine(stringResource(Res.string.admin_log_empty))
         } else {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column {
@@ -405,40 +410,44 @@ internal fun ChannelsTab(state: AdminState, controller: AdminController) {
             keyboardActions = KeyboardActions(onSearch = { scope.launch { controller.loadChannels(search = searchText) } }),
         )
 
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column {
-                state.channels.forEachIndexed { index, channel ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = spacing.s4, vertical = spacing.s3),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-                            val channelDisplayName: String =
-                                resolveRowLabel(
-                                    primary = channel.displayName,
-                                    secondary = channel.login,
-                                    typeLabel = stringResource(Res.string.admin_channel_row_type),
-                                    discriminatorSource = channel.id,
+        if (state.channels.isEmpty()) {
+            EmptyLine(stringResource(Res.string.admin_channel_empty))
+        } else {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    state.channels.forEachIndexed { index, channel ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = spacing.s4, vertical = spacing.s3),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+                                val channelDisplayName: String =
+                                    resolveRowLabel(
+                                        primary = channel.displayName,
+                                        secondary = channel.login,
+                                        typeLabel = stringResource(Res.string.admin_channel_row_type),
+                                        discriminatorSource = channel.id,
+                                    )
+                                Text(text = channelDisplayName, style = typography.sm, color = tokens.cardForeground)
+                                Text(
+                                    text = stringResource(Res.string.admin_channel_plan, channel.plan),
+                                    style = typography.xs,
+                                    color = tokens.mutedForeground,
                                 )
-                            Text(text = channelDisplayName, style = typography.sm, color = tokens.cardForeground)
+                            }
                             Text(
-                                text = stringResource(Res.string.admin_channel_plan, channel.plan),
+                                text = if (channel.isLive) stringResource(Res.string.admin_channel_live)
+                                else stringResource(Res.string.admin_channel_offline),
                                 style = typography.xs,
-                                color = tokens.mutedForeground,
+                                color = if (channel.isLive) tokens.primary else tokens.mutedForeground,
                             )
                         }
-                        Text(
-                            text = if (channel.isLive) stringResource(Res.string.admin_channel_live)
-                            else stringResource(Res.string.admin_channel_offline),
-                            style = typography.xs,
-                            color = if (channel.isLive) tokens.primary else tokens.mutedForeground,
-                        )
-                    }
-                    if (index < state.channels.lastIndex) {
-                        Separator()
+                        if (index < state.channels.lastIndex) {
+                            Separator()
+                        }
                     }
                 }
             }
@@ -470,46 +479,50 @@ internal fun UsersTab(state: AdminState, controller: AdminController) {
             keyboardActions = KeyboardActions(onSearch = { scope.launch { controller.loadUsers(search = searchText) } }),
         )
 
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column {
-                state.users.forEachIndexed { index, user ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = spacing.s4, vertical = spacing.s3),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-                            val userDisplayName: String =
-                                resolveRowLabel(
-                                    primary = user.displayName,
-                                    secondary = user.login,
-                                    typeLabel = stringResource(Res.string.admin_user_row_type),
-                                    discriminatorSource = user.id,
-                                )
-                            Text(text = userDisplayName, style = typography.sm, color = tokens.cardForeground)
-                            Text(
-                                text = stringResource(Res.string.admin_user_role, user.role),
-                                style = typography.xs,
-                                color = tokens.mutedForeground,
-                            )
-                        }
+        if (state.users.isEmpty()) {
+            EmptyLine(stringResource(Res.string.admin_user_empty))
+        } else {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    state.users.forEachIndexed { index, user ->
                         Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = spacing.s4, vertical = spacing.s3),
+                            horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(spacing.s3),
                         ) {
-                            // Act-as is offered from the Tenants tab (a support session is scoped to a tenant, not
-                            // a bare user id) — see TenantDetailDrawer's "Impersonate owner" in AdminTenantsTab.kt.
-                            Text(
-                                text = stringResource(Res.string.admin_user_channels, user.channelCount),
-                                style = typography.xs,
-                                color = tokens.mutedForeground,
-                            )
+                            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+                                val userDisplayName: String =
+                                    resolveRowLabel(
+                                        primary = user.displayName,
+                                        secondary = user.login,
+                                        typeLabel = stringResource(Res.string.admin_user_row_type),
+                                        discriminatorSource = user.id,
+                                    )
+                                Text(text = userDisplayName, style = typography.sm, color = tokens.cardForeground)
+                                Text(
+                                    text = stringResource(Res.string.admin_user_role, user.role),
+                                    style = typography.xs,
+                                    color = tokens.mutedForeground,
+                                )
+                            }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+                            ) {
+                                // Act-as is offered from the Tenants tab (a support session is scoped to a tenant, not
+                                // a bare user id) — see TenantDetailDrawer's "Impersonate owner" in AdminTenantsTab.kt.
+                                Text(
+                                    text = stringResource(Res.string.admin_user_channels, user.channelCount),
+                                    style = typography.xs,
+                                    color = tokens.mutedForeground,
+                                )
+                            }
                         }
-                    }
-                    if (index < state.users.lastIndex) {
-                        Separator()
+                        if (index < state.users.lastIndex) {
+                            Separator()
+                        }
                     }
                 }
             }
@@ -560,23 +573,69 @@ private fun SystemTab(state: AdminState) {
             StatCard(label = stringResource(Res.string.admin_system_cpu), value = "${(sys.cpuPercent * 10).toLong().let { t -> "${t / 10}.${t % 10}" }}%")
 
             Spacer(modifier = Modifier.height(spacing.s2))
+            if (sys.services.isEmpty()) {
+                EmptyLine(stringResource(Res.string.admin_system_services_empty))
+            } else {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column {
+                        sys.services.forEachIndexed { index, svc ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = spacing.s4, vertical = spacing.s3),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                val svcDisplayName: String =
+                                    resolveRowLabel(
+                                        primary = svc.name,
+                                        secondary = svc.status,
+                                        typeLabel = stringResource(Res.string.admin_service_row_type),
+                                        discriminatorSource = svc.status,
+                                    )
+                                Text(text = svcDisplayName, style = typography.sm, color = tokens.cardForeground)
+                                Text(
+                                    text = when (svc.status.lowercase()) {
+                                        "ok", "healthy" -> stringResource(Res.string.admin_health_ok)
+                                        "degraded" -> stringResource(Res.string.admin_health_degraded)
+                                        else -> stringResource(Res.string.admin_health_down)
+                                    },
+                                    style = typography.sm,
+                                    color = when (svc.status.lowercase()) {
+                                        "ok", "healthy" -> tokens.primary
+                                        "degraded" -> tokens.accent
+                                        else -> tokens.destructive
+                                    },
+                                )
+                            }
+                            if (index < sys.services.lastIndex) {
+                                Separator()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (state.health.isEmpty()) {
+            EmptyLine(stringResource(Res.string.admin_health_empty))
+        } else {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column {
-                    sys.services.forEachIndexed { index, svc ->
+                    state.health.forEachIndexed { index, svc ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = spacing.s4, vertical = spacing.s3),
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
-                            val svcDisplayName: String =
+                            val healthSvcDisplayName: String =
                                 resolveRowLabel(
                                     primary = svc.name,
                                     secondary = svc.status,
                                     typeLabel = stringResource(Res.string.admin_service_row_type),
                                     discriminatorSource = svc.status,
                                 )
-                            Text(text = svcDisplayName, style = typography.sm, color = tokens.cardForeground)
+                            Text(text = healthSvcDisplayName, style = typography.sm, color = tokens.cardForeground)
                             Text(
                                 text = when (svc.status.lowercase()) {
                                     "ok", "healthy" -> stringResource(Res.string.admin_health_ok)
@@ -591,47 +650,9 @@ private fun SystemTab(state: AdminState) {
                                 },
                             )
                         }
-                        if (index < sys.services.lastIndex) {
+                        if (index < state.health.lastIndex) {
                             Separator()
                         }
-                    }
-                }
-            }
-        }
-
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column {
-                state.health.forEachIndexed { index, svc ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = spacing.s4, vertical = spacing.s3),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        val healthSvcDisplayName: String =
-                            resolveRowLabel(
-                                primary = svc.name,
-                                secondary = svc.status,
-                                typeLabel = stringResource(Res.string.admin_service_row_type),
-                                discriminatorSource = svc.status,
-                            )
-                        Text(text = healthSvcDisplayName, style = typography.sm, color = tokens.cardForeground)
-                        Text(
-                            text = when (svc.status.lowercase()) {
-                                "ok", "healthy" -> stringResource(Res.string.admin_health_ok)
-                                "degraded" -> stringResource(Res.string.admin_health_degraded)
-                                else -> stringResource(Res.string.admin_health_down)
-                            },
-                            style = typography.sm,
-                            color = when (svc.status.lowercase()) {
-                                "ok", "healthy" -> tokens.primary
-                                "degraded" -> tokens.accent
-                                else -> tokens.destructive
-                            },
-                        )
-                    }
-                    if (index < state.health.lastIndex) {
-                        Separator()
                     }
                 }
             }
@@ -834,52 +855,56 @@ private fun BillingTab(state: AdminState, controller: AdminController) {
             }
         }
 
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column {
-                state.inviteCodes.forEachIndexed { index, invite ->
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = spacing.s4, vertical = spacing.s3),
-                        verticalArrangement = Arrangement.spacedBy(spacing.s1),
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
+        if (state.inviteCodes.isEmpty()) {
+            EmptyLine(stringResource(Res.string.admin_billing_empty))
+        } else {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    state.inviteCodes.forEachIndexed { index, invite ->
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = spacing.s4, vertical = spacing.s3),
+                            verticalArrangement = Arrangement.spacedBy(spacing.s1),
                         ) {
-                            Text(text = invite.code, style = typography.sm, color = tokens.cardForeground)
-                            GlyphButton(
-                                icon = TrashGlyph,
-                                label = stringResource(Res.string.admin_invite_revoke),
-                                onClick = { scope.launch { controller.revokeInviteCode(invite.id) } },
-                                tint = tokens.destructive,
-                            )
-                        }
-                        Text(
-                            text = stringResource(
-                                Res.string.admin_invite_redemptions,
-                                invite.redemptionCount,
-                                invite.maxRedemptions,
-                            ),
-                            style = typography.xs,
-                            color = tokens.mutedForeground,
-                        )
-                        if (invite.grantsFoundersBadge) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(text = invite.code, style = typography.sm, color = tokens.cardForeground)
+                                GlyphButton(
+                                    icon = TrashGlyph,
+                                    label = stringResource(Res.string.admin_invite_revoke),
+                                    onClick = { scope.launch { controller.revokeInviteCode(invite.id) } },
+                                    tint = tokens.destructive,
+                                )
+                            }
                             Text(
-                                text = stringResource(Res.string.admin_invite_grants_founder),
+                                text = stringResource(
+                                    Res.string.admin_invite_redemptions,
+                                    invite.redemptionCount,
+                                    invite.maxRedemptions,
+                                ),
                                 style = typography.xs,
-                                color = tokens.primary,
+                                color = tokens.mutedForeground,
+                            )
+                            if (invite.grantsFoundersBadge) {
+                                Text(
+                                    text = stringResource(Res.string.admin_invite_grants_founder),
+                                    style = typography.xs,
+                                    color = tokens.primary,
+                                )
+                            }
+                            Text(
+                                text = invite.expiresAt?.let { it } ?: stringResource(Res.string.admin_invite_no_expiry),
+                                style = typography.xs,
+                                color = tokens.mutedForeground,
                             )
                         }
-                        Text(
-                            text = invite.expiresAt?.let { it } ?: stringResource(Res.string.admin_invite_no_expiry),
-                            style = typography.xs,
-                            color = tokens.mutedForeground,
-                        )
-                    }
-                    if (index < state.inviteCodes.lastIndex) {
-                        Separator()
+                        if (index < state.inviteCodes.lastIndex) {
+                            Separator()
+                        }
                     }
                 }
             }
