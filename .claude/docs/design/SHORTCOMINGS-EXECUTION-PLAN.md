@@ -114,9 +114,12 @@ the real cause was the missing native-GIF fragment support above.
   - **Design-system parity**: none of Overview/Channels/Users/System/Flags/Billing tabs use a shared list-row
     or empty/loading-state primitive the way `AdminTenantsTab.kt` does (`EmptyLine`, `Spinner`,
     `ActionErrorBanner`, status filter chips) — `AdminTenantsTab.kt` and `AdminIamTab.kt` are the two tabs that
-    already meet the current catalogue bar; the other five do not (raw `Row`/`Text` lists, no loading state
-    other than the one whole-screen spinner in `AdminScreen.kt:165-170` which blocks ALL tabs on ANY slow call,
-    no per-tab empty-state copy for Channels/Users/System/Flags).
+    already meet the current catalogue bar; the other five do not (raw `Row`/`Text` lists, no per-tab
+    empty-state copy for Channels/Users/System/Flags). **Whole-screen spinner: CLOSED 2026-09-02 (`79ed90e1`,
+    S-OWN08-SPINNER)** — `AdminState.loadingSections` now tracks loading per `AdminSection`; each tab renders
+    its own `Spinner` independently via `TabContentOrSpinner`, proven by
+    `AdminControllerTest.loading_one_tab_does_not_mark_other_tabs_as_loading` (a Users-tab search in flight
+    does not mark Overview/Channels/System/FeatureFlags/Billing as loading).
   - Previously-flagged risk items (impersonation scoping, suspension enforcement, self-host first-principal
     lockout) were checked against current source 2026-09-01 and are NOT reproduced here as open: suspension is
     enforced server-side (Gate-1 403, per `AdminTenantsTab.kt:103` comment, matches `PlatformAdminController`
