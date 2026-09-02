@@ -280,12 +280,22 @@ interface ModerationApi {
     /** The channel's AutoMod held-message queue, filtered by [status] (defaults to `pending` on the backend). */
     suspend fun automodQueue(channelId: String, status: String? = null): ApiResult<List<ModerationQueueItem>>
 
-    /** Resolve queue item [queueItemId] — [action] is `approve` (release to chat) or `deny` (drop it). */
+    /**
+     * Resolve queue item [queueItemId] — [action] is `approve` (release to chat) or `deny` (drop it).
+     * A `deny` may carry a [followUp] (`none` | `timeout` | `ban`): the deny relays to Helix first, then the
+     * follow-up moderation action fires ([timeoutSeconds] for `timeout`, optional [reason] for both). When the
+     * deny stood but the follow-up Helix call failed, the result is still Ok and
+     * [ResolvedAutomodQueueItem.followUpError] carries the backend's verbatim failure text — surface it, never
+     * swallow it ("message blocked, but the ban failed: …").
+     */
     suspend fun resolveAutomodQueueItem(
         channelId: String,
         queueItemId: String,
         action: String,
-    ): ApiResult<ModerationQueueItem>
+        followUp: String? = null,
+        timeoutSeconds: Int? = null,
+        reason: String? = null,
+    ): ApiResult<ResolvedAutomodQueueItem>
 
     // ── Moderator roster (S066-mod-actions) ──────────────────────────────────────────────────────────
 
@@ -641,15 +651,38 @@ class RestModerationApi(private val client: ApiClient) : ModerationApi {
                 (status?.let { "?status=${it.encodeURLQueryComponent()}" } ?: "")
         )
 
+    // Read as a FULL StatusResponse (postDirect, no data-unwrap): on a partial outcome — the deny stood but
+    // the follow-up timeout/ban failed — the 2xx envelope's `message` carries the follow-up failure text,
+    // which the plain data-unwrapping helper would silently drop.
     override suspend fun resolveAutomodQueueItem(
         channelId: String,
         queueItemId: String,
         action: String,
-    ): ApiResult<ModerationQueueItem> =
-        client.postEnvelope(
-            "api/v1/channels/$channelId/moderation/automod/queue/$queueItemId/resolve",
-            ResolveModerationQueueItemBody(action = action),
-        )
+        followUp: String?,
+        timeoutSeconds: Int?,
+        reason: String?,
+    ): ApiResult<ResolvedAutomodQueueItem> =
+        when (
+            val raw: ApiResult<StatusResponse<ModerationQueueItem>> =
+                client.postDirect(
+                    "api/v1/channels/$channelId/moderation/automod/queue/$queueItemId/resolve",
+                    ResolveModerationQueueItemBody(
+                        action = action,
+                        followUp = followUp,
+                        timeoutSeconds = timeoutSeconds,
+                        reason = reason,
+                    ),
+                )
+        ) {
+            is ApiResult.Failure -> ApiResult.Failure(raw.error)
+            is ApiResult.Ok ->
+                ApiResult.Ok(
+                    ResolvedAutomodQueueItem(
+                        item = raw.value.data ?: ModerationQueueItem(),
+                        followUpError = raw.value.message?.takeIf { it.isNotBlank() },
+                    )
+                )
+        }
 
     // Single-value StatusResponseDto envelope ({ data: [ ... ] }) — getEnvelope reads the roster.
     override suspend fun moderators(channelId: String): ApiResult<List<Moderator>> =
@@ -1004,9 +1037,28 @@ data class ModerationQueueItem(
     val resolutionAction: String? = null,
 )
 
-/** Request body to resolve a queue item (backend `ResolveModerationQueueItemRequest`). [action] is `approve` or `deny`. */
+/**
+ * Request body to resolve a queue item (backend `ResolveModerationQueueItemRequest`). [action] is `approve` or
+ * `deny`; [followUp] (`none` | `timeout` | `ban`) rides only with `deny` — [timeoutSeconds] is required for
+ * `timeout` (Twitch range 1s–1209600s), [reason] is optional for both follow-ups.
+ */
 @Serializable
-data class ResolveModerationQueueItemBody(val action: String)
+data class ResolveModerationQueueItemBody(
+    val action: String,
+    val followUp: String? = null,
+    val timeoutSeconds: Int? = null,
+    val reason: String? = null,
+)
+
+/**
+ * The resolve outcome: the resolved queue [item], plus [followUpError] when the deny stood but the follow-up
+ * timeout/ban Helix call failed (the envelope's verbatim failure text — "message blocked, but the ban
+ * failed: …"). Null on a clean resolve.
+ */
+data class ResolvedAutomodQueueItem(
+    val item: ModerationQueueItem,
+    val followUpError: String? = null,
+)
 
 /**
  * A mod-team note on a viewer (backend `UserNoteDto`). Free-text the moderators share about [subjectUserId];

@@ -75832,7 +75832,10 @@
           "title",
           "message",
           "detectedAt",
-          "deepLinkRoute"
+          "deepLinkRoute",
+          "id",
+          "count",
+          "queueItemIds"
         ],
         "type": "object",
         "properties": {
@@ -75854,6 +75857,28 @@
           },
           "deepLinkRoute": {
             "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "sourceUserId": {
+            "type": "string",
+            "nullable": true
+          },
+          "sourceUserName": {
+            "type": "string",
+            "nullable": true
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "queueItemIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         },
         "description": "One row of the dashboard's action-required inbox (S071a) — a real, already-detected condition that needs\r\nthe streamer's attention, surfaced from an existing signal (never fabricated). string ActionRequiredItemDto.Kind is a\r\nstable machine key the dashboard groups/icons by (e.g. `integration_token_dead`,\r\n`held_chat_message`); string ActionRequiredItemDto.Severity is `critical` | `warning` | `info`."

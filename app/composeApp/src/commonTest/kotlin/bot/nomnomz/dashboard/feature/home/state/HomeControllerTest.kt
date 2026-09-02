@@ -29,7 +29,10 @@ import bot.nomnomz.dashboard.core.network.DashboardApi
 import bot.nomnomz.dashboard.core.network.DashboardStats
 import bot.nomnomz.dashboard.core.network.IntegrationStatus
 import bot.nomnomz.dashboard.core.network.IntegrationsApi
+import bot.nomnomz.dashboard.core.network.ModerationApi
+import bot.nomnomz.dashboard.core.network.ModerationQueueItem
 import bot.nomnomz.dashboard.core.network.NotificationsApi
+import bot.nomnomz.dashboard.core.network.ResolvedAutomodQueueItem
 import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.PipelinesApi
 import bot.nomnomz.dashboard.core.network.ReplayResult
@@ -78,6 +81,7 @@ class HomeControllerTest {
                 communityApi = FakeCommunityApi(),
                 notificationsApi = FakeNotificationsApi(),
                 pipelinesApi = FakePipelinesApi(),
+                moderationApi = FakeModerationApi(),
                 integrationsApi = FakeIntegrationsApi(),
             )
 
@@ -104,6 +108,7 @@ class HomeControllerTest {
                 communityApi = FakeCommunityApi(),
                 notificationsApi = FakeNotificationsApi(),
                 pipelinesApi = FakePipelinesApi(),
+                moderationApi = FakeModerationApi(),
                 integrationsApi = FakeIntegrationsApi(),
             )
 
@@ -123,6 +128,7 @@ class HomeControllerTest {
                 communityApi = FakeCommunityApi(),
                 notificationsApi = FakeNotificationsApi(),
                 pipelinesApi = FakePipelinesApi(),
+                moderationApi = FakeModerationApi(),
                 integrationsApi = FakeIntegrationsApi(),
             )
 
@@ -150,6 +156,7 @@ class HomeControllerTest {
                 communityApi = FakeCommunityApi(),
                 notificationsApi = FakeNotificationsApi(),
                 pipelinesApi = FakePipelinesApi(),
+                moderationApi = FakeModerationApi(),
                 integrationsApi = FakeIntegrationsApi(),
             )
 
@@ -183,6 +190,7 @@ class HomeControllerTest {
                 communityApi = FakeCommunityApi(),
                 notificationsApi = FakeNotificationsApi(),
                 pipelinesApi = FakePipelinesApi(),
+                moderationApi = FakeModerationApi(),
                 integrationsApi = FakeIntegrationsApi(),
             )
         controller.load()
@@ -213,6 +221,7 @@ class HomeControllerTest {
                 communityApi = FakeCommunityApi(),
                 notificationsApi = FakeNotificationsApi(),
                 pipelinesApi = FakePipelinesApi(),
+                moderationApi = FakeModerationApi(),
                 integrationsApi = FakeIntegrationsApi(),
             )
         controller.load()
@@ -253,6 +262,7 @@ class HomeControllerTest {
                 communityApi = FakeCommunityApi(),
                 notificationsApi = FakeNotificationsApi(),
                 pipelinesApi = FakePipelinesApi(),
+                moderationApi = FakeModerationApi(),
                 integrationsApi = FakeIntegrationsApi(),
             )
         controller.load()
@@ -293,6 +303,7 @@ class HomeControllerTest {
             communityApi = FakeCommunityApi(),
             notificationsApi = FakeNotificationsApi(),
             pipelinesApi = FakePipelinesApi(),
+            moderationApi = FakeModerationApi(),
             integrationsApi = FakeIntegrationsApi(),
         )
         controller.load()
@@ -320,6 +331,7 @@ class HomeControllerTest {
             communityApi = FakeCommunityApi(),
             notificationsApi = FakeNotificationsApi(),
             pipelinesApi = FakePipelinesApi(),
+            moderationApi = FakeModerationApi(),
             integrationsApi = FakeIntegrationsApi(),
         )
         controller.load()
@@ -344,6 +356,7 @@ class HomeControllerTest {
             communityApi = FakeCommunityApi(),
             notificationsApi = FakeNotificationsApi(),
             pipelinesApi = FakePipelinesApi(),
+            moderationApi = FakeModerationApi(),
             integrationsApi = FakeIntegrationsApi(),
         )
         controller.load()
@@ -372,6 +385,7 @@ class HomeControllerTest {
             communityApi = FakeCommunityApi(),
             notificationsApi = FakeNotificationsApi(),
             pipelinesApi = FakePipelinesApi(),
+            moderationApi = FakeModerationApi(),
             integrationsApi = FakeIntegrationsApi(),
         )
         controller.load()
@@ -399,6 +413,7 @@ class HomeControllerTest {
                 communityApi = FakeCommunityApi(),
                 notificationsApi = FakeNotificationsApi(),
                 pipelinesApi = FakePipelinesApi(),
+                moderationApi = FakeModerationApi(),
                 integrationsApi = FakeIntegrationsApi(),
             )
 
@@ -428,6 +443,7 @@ class HomeControllerTest {
                 communityApi = FakeCommunityApi(),
                 notificationsApi = FakeNotificationsApi(ApiResult.Ok(listOf(item))),
                 pipelinesApi = FakePipelinesApi(),
+                moderationApi = FakeModerationApi(),
                 integrationsApi = FakeIntegrationsApi(),
             )
 
@@ -453,6 +469,7 @@ class HomeControllerTest {
                 communityApi = FakeCommunityApi(),
                 notificationsApi = FakeNotificationsApi(ApiResult.Ok(emptyList())),
                 pipelinesApi = FakePipelinesApi(),
+                moderationApi = FakeModerationApi(),
                 integrationsApi = FakeIntegrationsApi(),
             )
 
@@ -476,6 +493,7 @@ class HomeControllerTest {
                     ApiResult.Failure(ApiError(500, "ERR", "notifications unavailable"))
                 ),
                 pipelinesApi = FakePipelinesApi(),
+                moderationApi = FakeModerationApi(),
                 integrationsApi = FakeIntegrationsApi(),
             )
 
@@ -506,6 +524,7 @@ class HomeControllerTest {
                 communityApi = FakeCommunityApi(),
                 notificationsApi = FakeNotificationsApi(),
                 pipelinesApi = FakePipelinesApi(),
+                moderationApi = FakeModerationApi(),
                 integrationsApi = FakeIntegrationsApi(),
             )
 
@@ -530,6 +549,7 @@ class HomeControllerTest {
                 communityApi = FakeCommunityApi(),
                 notificationsApi = FakeNotificationsApi(),
                 pipelinesApi = FakePipelinesApi(ApiResult.Ok(emptyList())),
+                moderationApi = FakeModerationApi(),
                 integrationsApi = FakeIntegrationsApi(ApiResult.Ok(emptyList())),
             )
 
@@ -553,6 +573,7 @@ class HomeControllerTest {
                 communityApi = FakeCommunityApi(),
                 notificationsApi = FakeNotificationsApi(),
                 pipelinesApi = FakePipelinesApi(ApiResult.Ok(emptyList())),
+                moderationApi = FakeModerationApi(),
                 integrationsApi = FakeIntegrationsApi(ApiResult.Ok(emptyList())),
             )
 
@@ -573,6 +594,7 @@ class HomeControllerTest {
                 communityApi = FakeCommunityApi(),
                 notificationsApi = FakeNotificationsApi(),
                 pipelinesApi = FakePipelinesApi(ApiResult.Ok(emptyList())),
+                moderationApi = FakeModerationApi(),
                 integrationsApi = FakeIntegrationsApi(
                     ApiResult.Ok(listOf(IntegrationStatus(provider = "spotify", connected = true)))
                 ),
@@ -583,6 +605,284 @@ class HomeControllerTest {
         val ready: HomeState.Ready = controller.state.value as HomeState.Ready
         assertTrue(ready.firstRunSteps.isEmpty())
     }
+
+    // ─── Attention inbox (S-OWN22 Task 4) ─────────────────────────────────────
+
+    @Test
+    fun openHeldReview_loads_the_pending_queue_rows_for_exactly_the_items_queue_ids() = runTest {
+        val moderationApi = FakeModerationApi()
+        moderationApi.automodQueueResult = ApiResult.Ok(
+            listOf(
+                ModerationQueueItem(
+                    id = "q1",
+                    status = "pending",
+                    messageContentSnapshot = "buy followers at spam.example",
+                    autoModCategory = "spam",
+                    createdAt = "2026-09-02T10:00:00Z",
+                ),
+                ModerationQueueItem(id = "q2", status = "pending", messageContentSnapshot = "second message"),
+                ModerationQueueItem(id = "q-other", status = "pending", messageContentSnapshot = "someone else"),
+            )
+        )
+        val controller = attentionController(moderationApi = moderationApi)
+        controller.load()
+
+        controller.openHeldReview(heldItem(queueItemIds = listOf("q1", "q2")))
+
+        val review: HeldReviewState.Ready = controller.heldReview.value as HeldReviewState.Ready
+        assertEquals(2, review.messages.size)
+        assertEquals("q1", review.messages[0].id)
+        assertEquals("buy followers at spam.example", review.messages[0].messageContentSnapshot)
+        assertEquals("spam", review.messages[0].autoModCategory)
+        assertEquals("q2", review.messages[1].id)
+    }
+
+    @Test
+    fun resolveHeldMessage_allow_sends_approve_and_removes_the_single_message_item() = runTest {
+        val moderationApi = FakeModerationApi()
+        moderationApi.automodQueueResult =
+            ApiResult.Ok(listOf(ModerationQueueItem(id = "q1", status = "pending")))
+        val notificationsApi = FakeNotificationsApi(ApiResult.Ok(listOf(heldItem(queueItemIds = listOf("q1")))))
+        val controller = attentionController(notificationsApi = notificationsApi, moderationApi = moderationApi)
+        controller.load()
+        controller.openHeldReview(heldItem(queueItemIds = listOf("q1")))
+
+        controller.resolveHeldMessage("q1", "approve")
+
+        assertEquals(
+            listOf(ResolveCall("q1", "approve", null, null, null)),
+            moderationApi.resolveCalls,
+        )
+        assertTrue((controller.state.value as HomeState.Ready).actionRequired.isEmpty())
+        assertNull(controller.heldReview.value)
+    }
+
+    @Test
+    fun resolveHeldMessage_block_sends_deny() = runTest {
+        val moderationApi = FakeModerationApi()
+        moderationApi.automodQueueResult =
+            ApiResult.Ok(listOf(ModerationQueueItem(id = "q1", status = "pending")))
+        val controller = attentionController(moderationApi = moderationApi)
+        controller.load()
+        controller.openHeldReview(heldItem(queueItemIds = listOf("q1")))
+
+        controller.resolveHeldMessage("q1", "deny")
+
+        assertEquals(listOf(ResolveCall("q1", "deny", null, null, null)), moderationApi.resolveCalls)
+    }
+
+    @Test
+    fun resolveHeldMessage_timeout_sends_deny_with_the_timeout_follow_up_and_seconds() = runTest {
+        val moderationApi = FakeModerationApi()
+        moderationApi.automodQueueResult =
+            ApiResult.Ok(listOf(ModerationQueueItem(id = "q1", status = "pending")))
+        val controller = attentionController(moderationApi = moderationApi)
+        controller.load()
+        controller.openHeldReview(heldItem(queueItemIds = listOf("q1")))
+
+        controller.resolveHeldMessage("q1", "deny", followUp = "timeout", timeoutSeconds = 600)
+
+        assertEquals(listOf(ResolveCall("q1", "deny", "timeout", 600, null)), moderationApi.resolveCalls)
+    }
+
+    @Test
+    fun resolveHeldMessage_ban_sends_deny_with_the_ban_follow_up_and_reason() = runTest {
+        val moderationApi = FakeModerationApi()
+        moderationApi.automodQueueResult =
+            ApiResult.Ok(listOf(ModerationQueueItem(id = "q1", status = "pending")))
+        val controller = attentionController(moderationApi = moderationApi)
+        controller.load()
+        controller.openHeldReview(heldItem(queueItemIds = listOf("q1")))
+
+        controller.resolveHeldMessage("q1", "deny", followUp = "ban", reason = "spam bot")
+
+        assertEquals(listOf(ResolveCall("q1", "deny", "ban", null, "spam bot")), moderationApi.resolveCalls)
+    }
+
+    @Test
+    fun resolveHeldMessage_follow_up_failure_keeps_the_item_visible_with_the_verbatim_error() = runTest {
+        val moderationApi = FakeModerationApi()
+        moderationApi.automodQueueResult =
+            ApiResult.Ok(listOf(ModerationQueueItem(id = "q1", status = "pending")))
+        moderationApi.resolveResult = ApiResult.Ok(
+            ResolvedAutomodQueueItem(
+                item = ModerationQueueItem(id = "q1", status = "resolved"),
+                followUpError = "message blocked, but the ban failed: missing scope",
+            )
+        )
+        val notificationsApi = FakeNotificationsApi(ApiResult.Ok(listOf(heldItem(queueItemIds = listOf("q1")))))
+        val controller = attentionController(notificationsApi = notificationsApi, moderationApi = moderationApi)
+        controller.load()
+        controller.openHeldReview(heldItem(queueItemIds = listOf("q1")))
+
+        controller.resolveHeldMessage("q1", "deny", followUp = "ban")
+
+        // The partial outcome is NOT a clean success: the item stays visible and the error shows verbatim.
+        assertEquals(1, (controller.state.value as HomeState.Ready).actionRequired.size)
+        val review: HeldReviewState.Ready = controller.heldReview.value as HeldReviewState.Ready
+        assertEquals("message blocked, but the ban failed: missing scope", review.actionError)
+        assertEquals(1, review.messages.size)
+    }
+
+    @Test
+    fun resolveHeldMessage_failure_keeps_everything_and_surfaces_the_backend_error_verbatim() = runTest {
+        val moderationApi = FakeModerationApi()
+        moderationApi.automodQueueResult =
+            ApiResult.Ok(listOf(ModerationQueueItem(id = "q1", status = "pending")))
+        moderationApi.resolveResult = ApiResult.Failure(ApiError(409, "CONFLICT", "already resolved by ModBot"))
+        val notificationsApi = FakeNotificationsApi(ApiResult.Ok(listOf(heldItem(queueItemIds = listOf("q1")))))
+        val controller = attentionController(notificationsApi = notificationsApi, moderationApi = moderationApi)
+        controller.load()
+        controller.openHeldReview(heldItem(queueItemIds = listOf("q1")))
+
+        controller.resolveHeldMessage("q1", "approve")
+
+        assertEquals(1, (controller.state.value as HomeState.Ready).actionRequired.size)
+        val review: HeldReviewState.Ready = controller.heldReview.value as HeldReviewState.Ready
+        assertEquals("already resolved by ModBot", review.actionError)
+    }
+
+    @Test
+    fun resolveAllHeldMessages_resolves_every_message_and_removes_the_group() = runTest {
+        val moderationApi = FakeModerationApi()
+        moderationApi.automodQueueResult = ApiResult.Ok(
+            listOf(
+                ModerationQueueItem(id = "q1", status = "pending"),
+                ModerationQueueItem(id = "q2", status = "pending"),
+            )
+        )
+        val group: ActionRequiredItem = heldItem(id = "held-user:u9", queueItemIds = listOf("q1", "q2"), count = 2)
+        val notificationsApi = FakeNotificationsApi(ApiResult.Ok(listOf(group)))
+        val controller = attentionController(notificationsApi = notificationsApi, moderationApi = moderationApi)
+        controller.load()
+        controller.openHeldReview(group)
+
+        controller.resolveAllHeldMessages("deny", followUp = "ban", reason = "spam wave")
+
+        assertEquals(
+            listOf(
+                ResolveCall("q1", "deny", "ban", null, "spam wave"),
+                ResolveCall("q2", "deny", "ban", null, "spam wave"),
+            ),
+            moderationApi.resolveCalls,
+        )
+        assertTrue((controller.state.value as HomeState.Ready).actionRequired.isEmpty())
+        assertNull(controller.heldReview.value)
+    }
+
+    @Test
+    fun blockTermFromHeldMessage_sends_the_message_text_to_the_blocked_terms_endpoint() = runTest {
+        val moderationApi = FakeModerationApi()
+        moderationApi.automodQueueResult =
+            ApiResult.Ok(listOf(ModerationQueueItem(id = "q1", status = "pending")))
+        val controller = attentionController(moderationApi = moderationApi)
+        controller.load()
+        controller.openHeldReview(heldItem(queueItemIds = listOf("q1")))
+
+        controller.blockTermFromHeldMessage("buy followers at spam.example")
+
+        assertEquals(listOf("ch1" to "buy followers at spam.example"), moderationApi.blockedTerms)
+        val review: HeldReviewState.Ready = controller.heldReview.value as HeldReviewState.Ready
+        assertEquals("buy followers at spam.example", review.blockedTerm)
+    }
+
+    @Test
+    fun dismissAttentionItem_removes_the_item_and_it_stays_gone_after_a_reload() = runTest {
+        val item: ActionRequiredItem = tokenItem(id = "token:conn1:123")
+        val notificationsApi = FakeNotificationsApi(ApiResult.Ok(listOf(item)))
+        val controller = attentionController(notificationsApi = notificationsApi)
+        controller.load()
+        assertEquals(1, (controller.state.value as HomeState.Ready).actionRequired.size)
+
+        controller.dismissAttentionItem(item)
+
+        assertEquals(listOf(listOf("token:conn1:123")), notificationsApi.dismissedIds)
+        assertTrue((controller.state.value as HomeState.Ready).actionRequired.isEmpty())
+
+        // A reload re-fetches — the backend excludes the dismissed key, so the item stays gone.
+        notificationsApi.result = ApiResult.Ok(emptyList())
+        controller.load()
+        assertTrue((controller.state.value as HomeState.Ready).actionRequired.isEmpty())
+    }
+
+    @Test
+    fun dismissAttentionItem_failure_keeps_the_item_with_the_backend_error() = runTest {
+        val item: ActionRequiredItem = tokenItem(id = "token:conn1:123")
+        val notificationsApi = FakeNotificationsApi(
+            result = ApiResult.Ok(listOf(item)),
+            dismissResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "below the dismiss floor")),
+        )
+        val controller = attentionController(notificationsApi = notificationsApi)
+        controller.load()
+
+        controller.dismissAttentionItem(item)
+
+        val ready: HomeState.Ready = controller.state.value as HomeState.Ready
+        assertEquals(1, ready.actionRequired.size)
+        assertEquals("below the dismiss floor", ready.attentionError)
+    }
+
+    @Test
+    fun attention_severity_maps_three_ways_not_binarised() {
+        assertEquals(AttentionSeverity.Critical, attentionSeverityFor("critical"))
+        assertEquals(AttentionSeverity.Warning, attentionSeverityFor("warning"))
+        assertEquals(AttentionSeverity.Info, attentionSeverityFor("info"))
+    }
+
+    @Test
+    fun attention_kind_maps_to_the_shell_route_names() {
+        assertEquals("Moderation", attentionRouteFor("held_chat_message"))
+        assertEquals("Integrations", attentionRouteFor("integration_token_dead"))
+        assertNull(attentionRouteFor("some_future_kind"))
+    }
+
+    // ─── Attention-inbox test helpers ─────────────────────────────────────────
+
+    private fun attentionController(
+        notificationsApi: FakeNotificationsApi = FakeNotificationsApi(),
+        moderationApi: FakeModerationApi = FakeModerationApi(),
+    ): HomeController =
+        HomeController(
+            channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+            dashboardApi = FakeDashboardApi(ApiResult.Ok(DashboardStats())),
+            streamApi = FakeStreamApi(),
+            commandsApi = FakeCommandsApi(),
+            communityApi = FakeCommunityApi(),
+            notificationsApi = notificationsApi,
+            pipelinesApi = FakePipelinesApi(),
+            moderationApi = moderationApi,
+            integrationsApi = FakeIntegrationsApi(),
+        )
+
+    private fun heldItem(
+        id: String = "held:q1",
+        queueItemIds: List<String>,
+        count: Int = queueItemIds.size,
+    ): ActionRequiredItem =
+        ActionRequiredItem(
+            kind = "held_chat_message",
+            severity = "warning",
+            title = "$count messages from spammy held for review",
+            message = "AutoMod is holding messages from spammy.",
+            detectedAt = "2026-09-02T10:00:00Z",
+            deepLinkRoute = "/moderation/queue",
+            id = id,
+            sourceUserId = "u9",
+            sourceUserName = "spammy",
+            count = count,
+            queueItemIds = queueItemIds,
+        )
+
+    private fun tokenItem(id: String): ActionRequiredItem =
+        ActionRequiredItem(
+            kind = "integration_token_dead",
+            severity = "critical",
+            title = "Spotify token expired",
+            message = "Reconnect Spotify to keep song requests working.",
+            detectedAt = "2026-09-01T12:00:00Z",
+            deepLinkRoute = "/settings/integrations",
+            id = id,
+        )
 }
 
 private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
@@ -711,9 +1011,20 @@ private class FakeCommunityApi : CommunityApi {
 }
 
 private class FakeNotificationsApi(
-    private val result: ApiResult<List<ActionRequiredItem>> = ApiResult.Ok(emptyList()),
+    /** Mutable so a test can change what the NEXT load returns (a reload after a dismissal, where the
+     * backend excludes the dismissed key). */
+    var result: ApiResult<List<ActionRequiredItem>> = ApiResult.Ok(emptyList()),
+    var dismissResult: ApiResult<Unit> = ApiResult.Ok(Unit),
 ) : NotificationsApi {
+    /** Every dismiss call's id list — asserted against to prove the right item keys were sent. */
+    val dismissedIds: MutableList<List<String>> = mutableListOf()
+
     override suspend fun actionRequired(channelId: String): ApiResult<List<ActionRequiredItem>> = result
+
+    override suspend fun dismissActionRequired(channelId: String, ids: List<String>): ApiResult<Unit> {
+        dismissedIds.add(ids)
+        return dismissResult
+    }
 }
 
 private class FakeCommandsApi(
@@ -729,4 +1040,166 @@ private class FakeCommandsApi(
     ): ApiResult<Unit> = ApiResult.Ok(Unit)
     override suspend fun delete(channelId: String, commandName: String): ApiResult<Unit> =
         ApiResult.Ok(Unit)
+}
+
+/** One recorded resolve call — asserted against to prove the exact wire payload each action sends. */
+private data class ResolveCall(
+    val queueItemId: String,
+    val action: String,
+    val followUp: String?,
+    val timeoutSeconds: Int?,
+    val reason: String?,
+)
+
+// Only the surface the Home attention inbox touches is real (queue read, resolve, blocked terms, user
+// context, automod config); everything else stubs out like the other fakes in this file.
+private class FakeModerationApi : ModerationApi {
+    var automodQueueResult: ApiResult<List<ModerationQueueItem>> = ApiResult.Ok(emptyList())
+    var resolveResult: ApiResult<ResolvedAutomodQueueItem> =
+        ApiResult.Ok(ResolvedAutomodQueueItem(item = ModerationQueueItem()))
+    var addBlockedTermResult: ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    /** Every resolve call, in order — the exact wire payload each action sent. */
+    val resolveCalls: MutableList<ResolveCall> = mutableListOf()
+
+    /** Every (channelId, term) pair sent to the blocked-terms endpoint. */
+    val blockedTerms: MutableList<Pair<String, String>> = mutableListOf()
+
+    override suspend fun automodQueue(
+        channelId: String,
+        status: String?,
+    ): ApiResult<List<ModerationQueueItem>> = automodQueueResult
+
+    override suspend fun resolveAutomodQueueItem(
+        channelId: String,
+        queueItemId: String,
+        action: String,
+        followUp: String?,
+        timeoutSeconds: Int?,
+        reason: String?,
+    ): ApiResult<ResolvedAutomodQueueItem> {
+        resolveCalls.add(ResolveCall(queueItemId, action, followUp, timeoutSeconds, reason))
+        return resolveResult
+    }
+
+    override suspend fun addBlockedTerm(channelId: String, term: String): ApiResult<Unit> {
+        blockedTerms.add(channelId to term)
+        return addBlockedTermResult
+    }
+
+    // Enrichment reads the dialog folds to null/default on failure — failing here proves that fold.
+    override suspend fun userContext(channelId: String, userId: String) =
+        ApiResult.Failure(ApiError(404, "NOT_FOUND", "no context"))
+
+    override suspend fun automod(channelId: String) =
+        ApiResult.Failure(ApiError(403, "FORBIDDEN", "no automod read"))
+
+    override suspend fun bans(channelId: String) = error("stub")
+    override suspend fun unban(channelId: String, userId: String) = error("stub")
+    override suspend fun modLog(channelId: String) = error("stub")
+    override suspend fun shieldMode(channelId: String) = error("stub")
+    override suspend fun setShieldMode(channelId: String, enabled: Boolean) = error("stub")
+    override suspend fun blockedTerms(channelId: String) = error("stub")
+    override suspend fun removeBlockedTerm(channelId: String, term: String) = error("stub")
+    override suspend fun saveAutomod(
+        channelId: String,
+        config: bot.nomnomz.dashboard.core.network.AutomodConfig,
+    ) = error("stub")
+    override suspend fun rules(channelId: String) = error("stub")
+    override suspend fun createRule(
+        channelId: String,
+        body: bot.nomnomz.dashboard.core.network.CreateModerationRuleBody,
+    ) = error("stub")
+    override suspend fun setRuleEnabled(channelId: String, ruleId: Int, enabled: Boolean) = error("stub")
+    override suspend fun deleteRule(channelId: String, ruleId: Int) = error("stub")
+    override suspend fun performAction(
+        channelId: String,
+        action: String,
+        targetUserId: String,
+        durationSeconds: Int?,
+        reason: String?,
+    ) = error("stub")
+    override suspend fun stats(channelId: String) = error("stub")
+    override suspend fun shoutoutTemplate(channelId: String) = error("stub")
+    override suspend fun setShoutoutTemplate(channelId: String, template: String?) = error("stub")
+    override suspend fun shoutoutOverrides(channelId: String) = error("stub")
+    override suspend fun setShoutoutOverride(
+        channelId: String,
+        targetTwitchUserId: String,
+        targetDisplayName: String,
+        messageTemplate: String,
+    ) = error("stub")
+    override suspend fun deleteShoutoutOverride(channelId: String, targetTwitchUserId: String) = error("stub")
+    override suspend fun notesFor(channelId: String, userId: String) = error("stub")
+    override suspend fun createNote(
+        channelId: String,
+        userId: String,
+        content: String,
+        pinned: Boolean,
+    ) = error("stub")
+    override suspend fun updateNote(
+        channelId: String,
+        noteId: String,
+        content: String?,
+        pinned: Boolean?,
+    ) = error("stub")
+    override suspend fun deleteNote(channelId: String, noteId: String) = error("stub")
+    override suspend fun announce(channelId: String, message: String, color: String?) = error("stub")
+    override suspend fun warn(channelId: String, userId: String, reason: String) = error("stub")
+    override suspend fun setSuspicious(channelId: String, userId: String, status: String) = error("stub")
+    override suspend fun clearSuspicious(channelId: String, userId: String) = error("stub")
+    override suspend fun unbanRequests(channelId: String) = error("stub")
+    override suspend fun resolveUnbanRequest(
+        channelId: String,
+        requestId: String,
+        approve: Boolean,
+        note: String?,
+    ) = error("stub")
+    override suspend fun networkUnban(
+        channelId: String,
+        targetTwitchUserId: String,
+        scope: String,
+    ) = error("stub")
+    override suspend fun reports(channelId: String) = error("stub")
+    override suspend fun resolveReport(channelId: String, reportId: String, action: String) = error("stub")
+    override suspend fun escalationPolicy(channelId: String) = error("stub")
+    override suspend fun saveEscalationPolicy(
+        channelId: String,
+        body: bot.nomnomz.dashboard.core.network.UpsertEscalationPolicyBody,
+    ) = error("stub")
+    override suspend fun resetEscalation(channelId: String, userId: String) = error("stub")
+    override suspend fun nukeBatches(channelId: String) = error("stub")
+    override suspend fun networkNuke(
+        channelId: String,
+        body: bot.nomnomz.dashboard.core.network.NetworkNukeBody,
+    ) = error("stub")
+    override suspend fun revertNuke(channelId: String, batchId: String) = error("stub")
+    override suspend fun sharedBanSettings(channelId: String) = error("stub")
+    override suspend fun saveSharedBanSettings(
+        channelId: String,
+        body: bot.nomnomz.dashboard.core.network.SaveSharedBanSettingsBody,
+    ) = error("stub")
+    override suspend fun addTrustedChannel(channelId: String, trustedChannelId: String) = error("stub")
+    override suspend fun removeTrustedChannel(channelId: String, trustedChannelId: String) = error("stub")
+    override suspend fun setStanding(
+        channelId: String,
+        userId: String,
+        body: bot.nomnomz.dashboard.core.network.SetModerationStandingBody,
+    ) = error("stub")
+    override suspend fun clearStanding(channelId: String, userId: String, provider: String) = error("stub")
+    override suspend fun chatFilters(channelId: String) = error("stub")
+    override suspend fun createChatFilter(
+        channelId: String,
+        body: bot.nomnomz.dashboard.core.network.CreateChatFilterBody,
+    ) = error("stub")
+    override suspend fun updateChatFilter(
+        channelId: String,
+        filterId: String,
+        body: bot.nomnomz.dashboard.core.network.UpdateChatFilterBody,
+    ) = error("stub")
+    override suspend fun deleteChatFilter(channelId: String, filterId: String) = error("stub")
+    override suspend fun moderators(channelId: String) = error("stub")
+    override suspend fun addModerator(channelId: String, targetTwitchUserId: String) = error("stub")
+    override suspend fun removeModerator(channelId: String, userId: String) = error("stub")
+    override suspend fun clearChat(channelId: String) = error("stub")
 }
