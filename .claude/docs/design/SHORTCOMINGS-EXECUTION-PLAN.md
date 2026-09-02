@@ -166,9 +166,12 @@ field (`WebhooksScreen.kt`, plumbed through `ShellScreen`/`WebhooksController`/`
 `opening_the_helper_picker_passes_the_edited_event_types_eventType_through` and
 `selecting_a_helper_in_the_outbound_edit_dialog_inserts_its_token_into_the_body_template_field`.
 Note: the slice as first committed did not compile (two generated string-resource imports were missing) —
-fixed in `25620139`. Follow-on gap, NOT fixed: `OutboundWebhookEndpointDto` (`server/src/.../WebhookDtos.cs:70`)
-never returns `BodyTemplate` to the client, so the edit dialog writes it blind with no way to show the current
-value — file as a fresh slice if a "show current template" UX is wanted.
+fixed in `25620139`. **Follow-on gap CLOSED 2026-09-02 (`a6bf4a7a`, S-OWN16-WEBHOOK-TEMPLATE-ROUNDTRIP)**:
+`OutboundWebhookEndpointDto` now returns the currently-saved `BodyTemplate` on GET/list, the KMP mirror
++ `WebhooksScreen.kt`'s edit dialog pre-fill the field from it instead of opening blank; proven by
+`GetAsync_returns_the_currently_saved_body_template`, `ListAsync_returns_the_currently_saved_body_template`
+(backend) and `opening_the_edit_dialog_prefills_the_body_template_field_from_the_fetched_endpoint`
+(Kotlin, all three re-verified green 2026-09-02 after a shared-tree gradle build-dir contention delay).
 ---
 
 ## AT A GLANCE — what is open, in one screen
@@ -1107,7 +1110,13 @@ later.)
   now rejects a malformed/non-resolving path at save time, and a poll with one broken path among
   correct ones still ingests the working fields and records the broken one as a per-field error
   (`CustomDataSourceServiceFieldMapTests`, `CustomDataIngestServiceFieldMapTests`, both DB migrations
-  added). Remaining: key picker from a test fetch; drop or wire `InboundWebhookEndpointId` (U·E3).
+  added). **Key picker from a test fetch DONE, verified 2026-09-02 (f9a8a05e)**: new
+  `POST .../test-fetch` endpoint (reuses the poller's `HttpEgressAllowlist`/HTTP seam via
+  `ICustomDataEgressFetcher`) returns the raw fetched body + a flattened leaf key-path list
+  (`CustomDataJsonKeyPathFlattener`); the data-source editor's "Test fetch" action renders the keys as
+  a picker that fills the focused field-map path input on selection — proven by
+  `CustomDataSourceServiceTestFetchTests` (backend) and `CustomEventsControllerFieldMapTest` (Kotlin).
+  Remaining: drop or wire `InboundWebhookEndpointId` (U·E3).
 - **S101** Supporters — provider list + capabilities from the backend (`GET /supporters/sources`),
   mode-correct connect forms (secret / socket token / OAuth connection), error state + reason, staleness-
   derived status, per-connection test; resolve `SupporterUserId` where payloads allow + amount-scaled
