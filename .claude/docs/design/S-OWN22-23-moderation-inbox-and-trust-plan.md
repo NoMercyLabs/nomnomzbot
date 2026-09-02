@@ -55,6 +55,14 @@ truthful data (never show unenforced state), consequences visible before saving.
 
 ### Task 1 — Home layout reorder (aaoa's bonus included) — own commit, `app/` only
 
+**DONE, verified 2026-09-02 (`d1c45e75`)**: `ReadyContent` now emits `PageHeader` →
+`ActionRequiredCard` (unmoved, per plan — Task 3/4 replace its internals separately) →
+`StatTilesRow` (single row, 8 tiles at `weight(1f)`, intrinsic width below 960dp) → `LiveBanner` →
+`PlatformsRow` → `FirstRunChecklistCard` → the existing two-column Row. Verified by
+`compileKotlinWasmJs` (BUILD SUCCESSFUL) and diff trace; `jvmTest` could not run to green — shared
+gradle build-dir contention from concurrently-running sibling agents (known trap, not a code issue),
+re-verify jvmTest once the shared build dir is free.
+
 `HomeScreen.kt` `ReadyContent` (`:290-451`). New order inside the scroll Column:
 
 1. `PageHeader`
