@@ -13,23 +13,23 @@ using NomNomzBot.Application.Abstractions.Content;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Identity.Enums;
-using NomNomzBot.Infrastructure.Stream.PipelineActions;
 
 namespace NomNomzBot.Infrastructure.Content.Commands;
 
 /// <summary>
 /// Seeds the <c>!raid</c> raid-out flow as an ORDINARY editable pipeline built purely from generic
-/// blocks — <c>start_raid</c>, <c>obs_switch_scene</c>, <c>send_message</c>, <c>wait</c>,
-/// <c>obs_streaming</c>, <c>music_pause</c>. Nothing here is a bespoke "raid feature": every step is a
-/// block the pipeline builder already offers, so the streamer can reorder it, retime it, swap the OBS
-/// scene, drop the emote lines, or delete the whole thing.
+/// blocks — <c>start_raid</c>, <c>obs_switch_scene</c>, <c>send_message</c>, <c>wait</c>. Nothing here
+/// is a bespoke "raid feature": every step is a block the pipeline builder already offers, so the
+/// streamer can reorder it, retime it, swap the OBS scene, drop the emote lines, or delete the whole
+/// thing.
 /// <para>
-/// The timing is the part that is NOT arbitrary. Twitch's <c>POST /raids</c> starts a server-side timer
-/// and there is no API to commit the raid earlier — it auto-fires once that timer elapses. So the raid
-/// call goes FIRST and the countdown is built to land just before that moment; a countdown that
-/// finishes early leaves viewers watching silence, and one that overruns announces a raid that has
-/// already happened. The waits below sum to just under <see cref="TwitchRaidWindowSeconds"/> for that
-/// reason, with <c>wait_until_raid_fires</c> correcting any remaining drift right before commit.
+/// Deliberately does NOT try to predict when Twitch actually commits the raid (a fixed countdown):
+/// three live recalibrations of that guessed offset (90s -> 103s -> 116s) each came back reported as
+/// still wrong by the same margin, because there is no way to observe Twitch's internal timer from the
+/// outside. Stopping the stream, pausing the music, and the final "we've raided out" line instead fire
+/// REACTIVELY off the <c>channel.raid.out</c> event response — see <see cref="RaidCommitFlowSeeder"/> —
+/// which needs no predicted offset at all, since Twitch redirects viewers on its own clock regardless
+/// of when this bot stops its own stream.
 /// </para>
 /// <para>
 /// Every step is a plain TOP-LEVEL leaf — never a <c>detached_step</c>/<c>try</c> block. Confirmed live
@@ -39,10 +39,9 @@ namespace NomNomzBot.Infrastructure.Content.Commands;
 /// ordinary step whose <c>ActionType</c> is the literal string <c>"detached_step"</c>, which has no
 /// registered action and fails closed immediately. <see cref="PipelineStep.ContinueOnError"/> is the
 /// ONE thing the flat runtime actually understands for "a failure here must not abort the rest of the
-/// raid" — set directly on the three steps that legitimately can fail without it mattering
-/// (<c>obs_switch_scene</c>, <c>obs_streaming</c>, <c>music_pause</c>), matching the legacy bot's own
-/// per-action try/catch (and, for the scene switch, its fire-and-forget
-/// <c>_ = SwitchToEndingScene(...)</c>) without relying on a block-kind the hot chat path can't run.
+/// raid" — set directly on <c>obs_switch_scene</c>, the one step in THIS pipeline that legitimately can
+/// fail without it mattering, matching the legacy bot's own fire-and-forget
+/// <c>_ = SwitchToEndingScene(...)</c> without relying on a block-kind the hot chat path can't run.
 /// </para>
 /// </summary>
 /// <remarks>
@@ -59,13 +58,6 @@ public sealed class RaidFlowSeeder : ISeeder
     public int Order => 82;
 
     private const string CommandName = "raid";
-
-    /// <summary>Twitch's server-side raid window — the raid auto-fires this many seconds after
-    /// <c>start_raid</c> returns. Kept in sync with <see cref="StartRaidAction.TwitchRaidWindowSeconds"/>
-    /// (that constant is the one <c>wait_until_raid_fires</c> actually re-anchors to at runtime; this
-    /// local copy only paces the seeded countdown messages, so a mismatch is cosmetic, not a bug — but
-    /// keep them equal). Confirmed live 2026-09-02: 90s undershot the real window by 12-14s.</summary>
-    private const int TwitchRaidWindowSeconds = StartRaidAction.TwitchRaidWindowSeconds;
 
     /// <summary>The startup <see cref="ISeeder"/> pass: seeds every channel.</summary>
     public Task SeedAsync(CancellationToken ct = default) => SeedAsync(broadcasterId: null, ct);
@@ -136,9 +128,10 @@ public sealed class RaidFlowSeeder : ISeeder
                     BroadcasterId = channelId,
                     Name = "Raid out",
                     Description =
-                        "Starts a Twitch raid, switches OBS to the ending scene, counts down in chat, "
-                        + "then stops the stream, pauses the music, and confirms the raid in chat. Every "
-                        + "step is an ordinary block — reorder, retime or remove any of it.",
+                        "Starts a Twitch raid, switches OBS to the ending scene, then says goodbye in "
+                        + "chat. Every step is an ordinary block — reorder, retime or remove any of it. "
+                        + "Stopping the stream, pausing the music and confirming the raid happen "
+                        + "separately once Twitch reports the raid as under way (see \"Raid committed\").",
                     TriggerKind = "command",
                     IsEnabled = true,
                 };
@@ -180,7 +173,7 @@ public sealed class RaidFlowSeeder : ISeeder
                     BroadcasterId = channelId,
                     Name = CommandName,
                     NameNormalized = CommandName,
-                    Description = "Raid another live channel with a chat countdown.",
+                    Description = "Raid another live channel.",
                     Tier = "pipeline",
                     PipelineId = pipeline.Id,
                     // Raiding hands your entire audience to someone else and ends the stream — the
@@ -201,16 +194,16 @@ public sealed class RaidFlowSeeder : ISeeder
     );
 
     /// <summary>
-    /// The flow, in order. The raid fires first because Twitch's 90s timer starts the moment it returns;
-    /// everything after it is chat theatre timed to land just before Twitch pulls the audience across.
+    /// The flow, in order. The raid call goes first; everything after it is chat theatre — no timing is
+    /// predicted anywhere in this pipeline (see the class doc comment for why).
     /// </summary>
     private static IEnumerable<SeedStep> BuildSteps()
     {
         yield return new("start_raid", """{"target":"{args.1}"}""");
         // ContinueOnError=true: matches the legacy bot's fire-and-forget `_ = SwitchToEndingScene(...)` —
-        // an OBS hiccup here must never take down the countdown, the final raided-out line, or stopping
-        // the stream/music (confirmed live 2026-09-01: without this, "OBS connection closed" on this ONE
-        // step killed the entire rest of the raid while Twitch's clock kept ticking).
+        // an OBS hiccup here must never take down the rest of the intro (confirmed live 2026-09-01:
+        // without this, "OBS connection closed" on this ONE step killed the entire rest of the raid
+        // while Twitch's clock kept ticking).
         yield return new("obs_switch_scene", """{"scene":"Ending"}""", ContinueOnError: true);
         // {args.1} is the template engine's own single-brace token syntax (matches start_raid's
         // {"target":"{args.1}"} above) — confirmed live 2026-09-01: an earlier version of this line
@@ -232,49 +225,13 @@ public sealed class RaidFlowSeeder : ISeeder
             """{"message":"Big bird raid 🦅 Big bird raid 🦅 Big bird raid 🦅"}"""
         );
 
-        // Countdown. Only the last stretch is announced — a "45 seconds left" line this early reads as
-        // spam, so the earlier waits are silent and the chat only starts counting at 15s.
-        // 2s of intro lines have already elapsed, and the announced countdown must open 15s (+2s safety
-        // margin) before TwitchRaidWindowSeconds — i.e. at T+(TwitchRaidWindowSeconds-17). With the
-        // window at 103s that's T+86: 2s intro + 40s + 44s = 86s of wait before "Raid in 15" fires.
-        yield return new("wait", """{"seconds":40}""");
-        yield return new("wait", $$"""{"seconds":{{TwitchRaidWindowSeconds - 17 - 42}}}""");
-        foreach (int secondsLeft in new[] { 15, 10, 5, 3, 2, 1 })
-        {
-            yield return new(
-                "send_message",
-                $$"""{"message":"Raid in {{secondsLeft}} second{{(secondsLeft == 1 ? "" : "s")}}..."}"""
-            );
-            yield return new("wait", $$"""{"seconds":{{WaitAfter(secondsLeft)}}}""");
-        }
-
-        // The fixed waits above only land on time if nothing in between ran slow — an OBS scene switch
-        // or a chat send that takes an extra second or two pushes everything after it late relative to
-        // Twitch's own 90s server-side timer. This re-anchors to the ACTUAL deadline start_raid recorded
-        // instead of trusting the accumulated total, absorbing any such drift in one shot (matches the
-        // legacy bot's own `twitchFireAt` wall-clock wait before committing the raid).
-        yield return new("wait_until_raid_fires", "{}");
-
-        // ContinueOnError on both — one failing (e.g. the same OBS bridge drop that can hit the scene
-        // switch earlier) must never stop the other, matching the legacy bot's two separate try/catches
-        // around StopStreaming and PauseSpotify. Both run BEFORE the final chat line: the raid is only
-        // truly "committed" once the stream has actually stopped, so the announcement follows that, not
-        // the other way round.
-        yield return new("obs_streaming", """{"action":"stop"}""", ContinueOnError: true);
-        yield return new("music_pause", "{}", ContinueOnError: true);
-        yield return new(
-            "send_message",
-            """{"message":"We've raided out to {args.1}! Thanks for joining!"}"""
-        );
+        // That's it — no countdown, no wait_until_raid_fires. Twitch's own server-side timer commits
+        // the raid on ITS clock, independent of anything this pipeline does; stopping the stream
+        // earlier or later doesn't change when viewers actually get redirected. Stopping the stream,
+        // pausing the music and the final chat line all happen REACTIVELY instead — wired to the
+        // channel.raid.out event response (see RaidCommitFlowSeeder) so they fire off Twitch's own
+        // signal that the raid is under way, not a guessed elapsed-time offset. Three separate live
+        // recalibrations of that offset (90s -> 103s -> 116s) each came back still wrong by the same
+        // reported margin — the fixed-wait approach was the wrong tool, not an under-tuned constant.
     }
-
-    /// <summary>How long to wait after announcing <paramref name="secondsLeft"/> before the next line —
-    /// the gap to the following countdown mark, and for the final "1" the last second itself.</summary>
-    private static int WaitAfter(int secondsLeft) =>
-        secondsLeft switch
-        {
-            15 or 10 => 5,
-            5 => 2,
-            _ => 1,
-        };
 }

@@ -49,7 +49,11 @@ public sealed class StartRaidActionTests
         return ctx;
     }
 
-    private static ActionDefinition Raid(string target, int? delaySeconds = null)
+    private static ActionDefinition Raid(
+        string target,
+        int? delaySeconds = null,
+        int? raidWindowSeconds = null
+    )
     {
         Dictionary<string, JsonElement> parameters = new()
         {
@@ -57,6 +61,8 @@ public sealed class StartRaidActionTests
         };
         if (delaySeconds is { } delay)
             parameters["delay_seconds"] = JsonSerializer.SerializeToElement(delay);
+        if (raidWindowSeconds is { } window)
+            parameters["raid_window_seconds"] = JsonSerializer.SerializeToElement(window);
         return new() { Type = "start_raid", Parameters = parameters };
     }
 
@@ -158,7 +164,7 @@ public sealed class StartRaidActionTests
 
         result.Succeeded.Should().BeTrue();
         await raids.Received(1).StartRaidAsync(Channel, "123456", Arg.Any<CancellationToken>());
-        await users.DidNotReceiveWithAnyArgs().GetUsersByLoginsAsync(default!, default);
+        await users.DidNotReceiveWithAnyArgs().GetUsersByLoginsAsync(default!);
     }
 
     [Fact]
@@ -173,7 +179,7 @@ public sealed class StartRaidActionTests
 
         result.Succeeded.Should().BeFalse();
         result.ErrorMessage.Should().Contain("ghost_channel").And.Contain("not found");
-        await raids.DidNotReceiveWithAnyArgs().StartRaidAsync(default, default!, default);
+        await raids.DidNotReceiveWithAnyArgs().StartRaidAsync(default, default!);
     }
 
     [Fact]
@@ -194,7 +200,7 @@ public sealed class StartRaidActionTests
             .Contain("could not look up")
             .And.Contain("Twitch is unreachable");
         result.ErrorMessage.Should().NotContain("not found");
-        await raids.DidNotReceiveWithAnyArgs().StartRaidAsync(default, default!, default);
+        await raids.DidNotReceiveWithAnyArgs().StartRaidAsync(default, default!);
     }
 
     [Fact]
@@ -206,7 +212,7 @@ public sealed class StartRaidActionTests
 
         result.Succeeded.Should().BeFalse();
         result.ErrorMessage.Should().Contain("target");
-        await raids.DidNotReceiveWithAnyArgs().StartRaidAsync(default, default!, default);
+        await raids.DidNotReceiveWithAnyArgs().StartRaidAsync(default, default!);
     }
 
     [Fact]
@@ -225,7 +231,7 @@ public sealed class StartRaidActionTests
 
         result.Succeeded.Should().BeFalse();
         result.ErrorMessage.Should().Contain("not currently live");
-        await raids.DidNotReceiveWithAnyArgs().StartRaidAsync(default, default!, default);
+        await raids.DidNotReceiveWithAnyArgs().StartRaidAsync(default, default!);
     }
 
     [Fact]
@@ -273,7 +279,7 @@ public sealed class StartRaidActionTests
 
         result.Succeeded.Should().BeFalse();
         result.ErrorMessage.Should().Contain("re-grant").And.Contain("re-authorize");
-        await eventBus.DidNotReceiveWithAnyArgs().PublishAsync(Arg.Any<RaidSentEvent>(), default);
+        await eventBus.DidNotReceiveWithAnyArgs().PublishAsync(Arg.Any<RaidSentEvent>());
     }
 
     [Fact]
@@ -315,6 +321,54 @@ public sealed class StartRaidActionTests
             .Should()
             .BeOnOrAfter(before.AddSeconds(StartRaidAction.TwitchRaidWindowSeconds))
             .And.BeOnOrBefore(after.AddSeconds(StartRaidAction.TwitchRaidWindowSeconds + 1));
+    }
+
+    /// <summary>
+    /// The whole reason this is a parameter and not just the constant: three live recalibrations of
+    /// the DEFAULT (90->103->116) each came back reported wrong, because there is no way to observe
+    /// Twitch's real timer from the outside — the person who can actually watch a raid complete needs
+    /// to be able to correct it without a code deploy. Proves the pipeline-authored override actually
+    /// takes effect instead of always falling back to the default.
+    /// </summary>
+    [Fact]
+    public async Task An_explicit_raid_window_seconds_overrides_the_default()
+    {
+        (StartRaidAction sut, _, _, _, _) = Build();
+        PipelineExecutionContext ctx = Ctx();
+        DateTime before = DateTime.UtcNow;
+
+        await sut.ExecuteAsync(ctx, Raid("123456", raidWindowSeconds: 200));
+
+        DateTime after = DateTime.UtcNow;
+        DateTime firesAt = new(
+            long.Parse(ctx.Variables["raid.fires_at_utc_ticks"]),
+            DateTimeKind.Utc
+        );
+        firesAt
+            .Should()
+            .BeOnOrAfter(before.AddSeconds(200))
+            .And.BeOnOrBefore(after.AddSeconds(201));
+    }
+
+    [Fact]
+    public async Task An_out_of_range_raid_window_seconds_is_clamped_not_rejected()
+    {
+        (StartRaidAction sut, _, _, _, _) = Build();
+        PipelineExecutionContext ctx = Ctx();
+        DateTime before = DateTime.UtcNow;
+
+        // Absurdly large — must clamp to MaxRaidWindowSeconds, not hang the pipeline on a typo.
+        await sut.ExecuteAsync(ctx, Raid("123456", raidWindowSeconds: 999_999));
+
+        DateTime after = DateTime.UtcNow;
+        DateTime firesAt = new(
+            long.Parse(ctx.Variables["raid.fires_at_utc_ticks"]),
+            DateTimeKind.Utc
+        );
+        firesAt
+            .Should()
+            .BeOnOrAfter(before.AddSeconds(StartRaidAction.MaxRaidWindowSeconds))
+            .And.BeOnOrBefore(after.AddSeconds(StartRaidAction.MaxRaidWindowSeconds + 1));
     }
 
     [Fact]

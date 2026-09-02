@@ -53,16 +53,21 @@ public sealed class StartRaidAction : ICommandAction
 {
     private const int MaxDelaySeconds = 90;
 
-    /// <summary>Twitch's server-side raid window — the raid auto-fires this many seconds after
-    /// <c>POST /raids</c> returns, and there is no API to commit it earlier. Originally assumed 90s
-    /// (the commonly-cited figure); confirmed live 2026-09-02 (raid to skeemer_codes) that a
-    /// countdown built on 90s finished 12-14s early, so it was raised to 103s — confirmed live AGAIN
-    /// the same day (raid to aaoa_) that 103s was STILL 12-14s early, the identical gap, so this is
-    /// now 116s (103 + another 13). Every downstream step — the countdown's own open time (derived
-    /// from this constant in RaidFlowSeeder) AND <see cref="WaitUntilRaidFiresAction"/>'s re-anchor
-    /// deadline — is driven off this ONE constant, so raising it shifts the whole back half of the
-    /// flow (countdown through stop-stream/pause/final-message) later together, never just part of
-    /// it. If 116s is still short, the fix is only ever this one number.</summary>
+    /// <summary>Bounds for the tunable <c>raid_window_seconds</c> parameter — shared with
+    /// <see cref="WaitUntilRaidFiresAction"/>'s safety cap so a legitimately large tuned value is
+    /// never clamped by a ceiling meant only to catch a corrupt/stale run.</summary>
+    internal const int MaxRaidWindowSeconds = 300;
+    internal const int MinRaidWindowSeconds = 30;
+
+    /// <summary>Default Twitch server-side raid window — the raid auto-fires this many seconds
+    /// after <c>POST /raids</c> returns, and there is no API to commit it earlier or query the
+    /// real value. Three live recalibrations on 2026-09-02 (90 -> 103 -> 116), each confirmed still
+    /// too short by the SAME reported margin, established this can't be nailed down by guessing
+    /// from the code side — it needs to be tunable by the person who can actually watch a raid
+    /// complete, without a code-commit-CI-deploy cycle each time. The <c>raid_window_seconds</c>
+    /// action parameter (see <see cref="Fields"/>) now carries the effective value; this constant
+    /// is only the seeded default and the safety ceiling <see cref="WaitUntilRaidFiresAction"/>
+    /// clamps to when a run somehow carries no override.</summary>
     internal const int TwitchRaidWindowSeconds = 116;
 
     private readonly ITwitchRaidsApi _raids;
@@ -89,6 +94,11 @@ public sealed class StartRaidAction : ICommandAction
                 "delay_seconds",
                 PipelineActionFieldKind.Number,
                 Description: new("pipeline.start_raid.delay_seconds.help")
+            ),
+            new(
+                "raid_window_seconds",
+                PipelineActionFieldKind.Number,
+                Description: new("pipeline.start_raid.raid_window_seconds.help")
             ),
         ];
 
@@ -207,15 +217,22 @@ public sealed class StartRaidAction : ICommandAction
             ctx.CancellationToken
         );
 
-        // Twitch's server-side raid timer starts THIS instant and cannot be committed early — it
-        // auto-fires at exactly +90s. Recording the deadline here lets a later `wait_until_raid_fires`
-        // step correct for any drift accumulated by OBS calls, chat sends, etc. between here and there,
-        // instead of the rest of the flow trusting a blind sum of fixed waits to land on time.
+        // Twitch's server-side raid timer starts THIS instant and cannot be committed early or
+        // queried — it auto-fires after `raid_window_seconds` (tunable per-channel; see the
+        // TwitchRaidWindowSeconds doc comment for why this is a parameter and not a constant).
+        // Recording the deadline here lets a later `wait_until_raid_fires` step correct for any
+        // drift accumulated by OBS calls, chat sends, etc. between here and there, instead of the
+        // rest of the flow trusting a blind sum of fixed waits to land on time.
+        int raidWindowSeconds = Math.Clamp(
+            action.GetInt("raid_window_seconds", TwitchRaidWindowSeconds),
+            MinRaidWindowSeconds,
+            MaxRaidWindowSeconds
+        );
         ctx.Variables["raid.fires_at_utc_ticks"] = DateTime
-            .UtcNow.AddSeconds(TwitchRaidWindowSeconds)
+            .UtcNow.AddSeconds(raidWindowSeconds)
             .Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
-        int delaySeconds = Math.Clamp(action.GetInt("delay_seconds", 0), 0, MaxDelaySeconds);
+        int delaySeconds = Math.Clamp(action.GetInt("delay_seconds"), 0, MaxDelaySeconds);
         if (delaySeconds > 0)
         {
             _logger.LogDebug(
