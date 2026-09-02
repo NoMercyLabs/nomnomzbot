@@ -111,11 +111,11 @@ the real cause was the missing native-GIF fragment support above.
     ALL discarded their `ApiResult` and reloaded regardless, so `ActionErrorBanner` could never fire for them —
     all seven now share a `writeThenReload` helper that sets `actionError` on failure, covered by
     `a_rejected_flag_write_surfaces_the_error_instead_of_reloading_silently` (confirmed red before the fix).
-  - **Design-system parity**: none of Overview/Channels/Users/System/Flags/Billing tabs use a shared list-row
-    or empty/loading-state primitive the way `AdminTenantsTab.kt` does (`EmptyLine`, `Spinner`,
-    `ActionErrorBanner`, status filter chips) — `AdminTenantsTab.kt` and `AdminIamTab.kt` are the two tabs that
-    already meet the current catalogue bar; the other five do not (raw `Row`/`Text` lists, no per-tab
-    empty-state copy for Channels/Users/System/Flags). **Whole-screen spinner: CLOSED 2026-09-02 (`79ed90e1`,
+  - **Design-system parity**: **CLOSED 2026-09-02 (`a18d32d4`/`32089616`, S-OWN08-DESIGN-PARITY)** — Overview/
+    Channels/Users/System/Billing tabs now render `EmptyLine` with tab-specific empty copy, matching
+    `AdminTenantsTab.kt`/`AdminIamTab.kt`'s primitive usage; proven by 5 new `AdminScreenTest` cases (one per
+    tab), re-verified green in an isolated worktree after the main tree hit unrelated concurrent-session WIP.
+    **Whole-screen spinner: CLOSED 2026-09-02 (`79ed90e1`,
     S-OWN08-SPINNER)** — `AdminState.loadingSections` now tracks loading per `AdminSection`; each tab renders
     its own `Spinner` independently via `TabContentOrSpinner`, proven by
     `AdminControllerTest.loading_one_tab_does_not_mark_other_tabs_as_loading` (a Users-tab search in flight
