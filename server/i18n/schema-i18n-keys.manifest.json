@@ -273,6 +273,7 @@
     "pipeline.start_live_game.game_type.help",
     "pipeline.start_raid.delay_seconds.help",
     "pipeline.start_raid.description",
+    "pipeline.start_raid.raid_window_seconds.help",
     "pipeline.start_raid.target.help",
     "pipeline.stop.description",
     "pipeline.stop_sound.all.help",

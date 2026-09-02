@@ -77,10 +77,10 @@ public sealed class WaitUntilRaidFiresActionTests
     {
         // One second past the cap boundary — proves the clamp actually engages rather than just
         // happening to match an already-in-range value.
-        DateTime firesAt = Now.AddSeconds(StartRaidAction.TwitchRaidWindowSeconds + 1);
+        DateTime firesAt = Now.AddSeconds(StartRaidAction.MaxRaidWindowSeconds + 1);
         TimeSpan? wait = WaitUntilRaidFiresAction.ComputeWait(Vars(firesAt.Ticks.ToString()), Now);
 
-        wait.Should().Be(TimeSpan.FromSeconds(StartRaidAction.TwitchRaidWindowSeconds));
+        wait.Should().Be(TimeSpan.FromSeconds(StartRaidAction.MaxRaidWindowSeconds));
     }
 
     [Fact]
@@ -88,10 +88,10 @@ public sealed class WaitUntilRaidFiresActionTests
     {
         // The boundary itself: must pass through as exactly the window, not be nudged by an off-by-one
         // in the clamp comparison (> vs >=).
-        DateTime firesAt = Now.AddSeconds(StartRaidAction.TwitchRaidWindowSeconds);
+        DateTime firesAt = Now.AddSeconds(StartRaidAction.MaxRaidWindowSeconds);
         TimeSpan? wait = WaitUntilRaidFiresAction.ComputeWait(Vars(firesAt.Ticks.ToString()), Now);
 
-        wait.Should().Be(TimeSpan.FromSeconds(StartRaidAction.TwitchRaidWindowSeconds));
+        wait.Should().Be(TimeSpan.FromSeconds(StartRaidAction.MaxRaidWindowSeconds));
     }
 
     [Fact]
@@ -100,7 +100,7 @@ public sealed class WaitUntilRaidFiresActionTests
         DateTime firesAt = Now.AddHours(1);
         TimeSpan? wait = WaitUntilRaidFiresAction.ComputeWait(Vars(firesAt.Ticks.ToString()), Now);
 
-        wait.Should().Be(TimeSpan.FromSeconds(StartRaidAction.TwitchRaidWindowSeconds));
+        wait.Should().Be(TimeSpan.FromSeconds(StartRaidAction.MaxRaidWindowSeconds));
     }
 
     // ── ExecuteAsync: proves the computed value is actually what gets awaited, and that the action

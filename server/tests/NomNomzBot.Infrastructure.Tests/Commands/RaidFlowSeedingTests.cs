@@ -13,17 +13,15 @@ using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Content.Commands;
-using NomNomzBot.Infrastructure.Stream.PipelineActions;
 using NomNomzBot.Infrastructure.Tests.Content;
 
 namespace NomNomzBot.Infrastructure.Tests.Commands;
 
 /// <summary>
 /// The <c>!raid</c> raid-out flow ships as an ordinary editable pipeline made only of generic blocks.
-/// These tests hold the two things that make it actually work on stream: the raid call goes FIRST
-/// (Twitch's 90s server timer starts the moment it returns, so a countdown built before it would be
-/// counting down to nothing), and the announced countdown lands just before that fire moment rather
-/// than finishing early into silence or overrunning it.
+/// It deliberately carries NO countdown or fixed-wait timing (see <see cref="RaidCommitFlowSeeder"/> for
+/// where stopping the stream/pausing music/confirming the raid now live, reactively) — these tests hold
+/// only that the raid call goes first and the flow reads back as a plain, flat leaf sequence.
 /// </summary>
 public sealed class RaidFlowSeedingTests
 {
@@ -66,7 +64,7 @@ public sealed class RaidFlowSeedingTests
     }
 
     [Fact]
-    public async Task The_raid_fires_first_and_the_ending_scene_comes_up_before_any_countdown()
+    public async Task The_raid_fires_first_and_the_ending_scene_comes_up_right_after()
     {
         (RaidFlowSeeder seeder, SeedTestDbContext db) = Build();
 
@@ -76,13 +74,6 @@ public sealed class RaidFlowSeedingTests
         steps[0].ActionType.Should().Be("start_raid");
         steps[0].ConfigJson.Should().Contain("{args.1}");
         steps[1].ActionType.Should().Be("obs_switch_scene");
-
-        // Nothing may wait or speak ahead of the raid call: Twitch's 90s window only starts once
-        // start_raid returns, so a step before it pushes the whole countdown past the fire moment.
-        steps
-            .TakeWhile(s => s.ActionType != "start_raid")
-            .Should()
-            .BeEmpty("the raid call starts the clock everything else is timed against");
     }
 
     /// <summary>
@@ -91,9 +82,7 @@ public sealed class RaidFlowSeedingTests
     /// rows), never by <c>PipelineId</c> — so a <c>detached_step</c>/<c>try</c> block-kind wrapper is
     /// dead weight there: the flat reader has no concept of nested blocks, and a wrapper row just reads
     /// back as an ordinary step whose ActionType is the literal string "detached_step", which has no
-    /// registered action and fails closed immediately (confirmed: this is EXACTLY what happened when an
-    /// earlier version of this seeder used that wrapper — "Unknown action type 'detached_step'", right
-    /// after start_raid, aborting everything after it). Every step here must be a plain top-level leaf;
+    /// registered action and fails closed immediately. Every step here must be a plain top-level leaf;
     /// only <see cref="PipelineStep.ContinueOnError"/> is honored by the flat runtime.
     /// </summary>
     [Fact]
@@ -119,9 +108,9 @@ public sealed class RaidFlowSeedingTests
         await seeder.SeedAsync(Tenant);
 
         // Matches the legacy bot's fire-and-forget `_ = SwitchToEndingScene(...)` — an OBS hiccup here
-        // must never take down the countdown, "RAID LIVE!", or stopping the stream/music (confirmed live
-        // 2026-09-01: "OBS connection closed" on this ONE step killed the entire rest of the raid while
-        // Twitch's clock kept ticking).
+        // must never take down the rest of the intro (confirmed live 2026-09-01: "OBS connection
+        // closed" on this ONE step killed the entire rest of the raid while Twitch's clock kept
+        // ticking).
         StepsOf(db)
             .Single(s => s.ActionType == "obs_switch_scene")
             .ContinueOnError.Should()
@@ -129,47 +118,21 @@ public sealed class RaidFlowSeedingTests
     }
 
     [Fact]
-    public async Task Stopping_the_stream_and_pausing_the_music_each_continue_on_error_independently()
+    public async Task The_pipeline_carries_no_deadline_synced_wait_and_never_stops_the_stream_itself()
     {
         (RaidFlowSeeder seeder, SeedTestDbContext db) = Build();
 
         await seeder.SeedAsync(Tenant);
 
-        // The legacy bot wraps StopStreaming and PauseSpotify in their OWN try/catch, each only logging a
-        // warning on failure — one failing must never stop the other from running (confirmed live
-        // 2026-09-01: without ContinueOnError on obs_streaming, a stop-streaming failure on a flaky OBS
-        // bridge left music_pause never running at all).
+        // The whole point of moving to a reactive channel.raid.out flow: nothing here guesses an
+        // elapsed-time offset. Three live recalibrations of that guess (90s -> 103s -> 116s) each came
+        // back reported wrong by the same margin — a genuine architectural dead end, not a tuning gap.
+        // Plain, un-synced 1s pacing waits between the intro messages are fine and still present.
         List<PipelineStep> steps = StepsOf(db);
-        steps.Single(s => s.ActionType == "obs_streaming").ContinueOnError.Should().BeTrue();
-        steps.Single(s => s.ActionType == "music_pause").ContinueOnError.Should().BeTrue();
-    }
-
-    [Fact]
-    public async Task The_countdown_lands_just_before_twitch_fires_the_raid()
-    {
-        (RaidFlowSeeder seeder, SeedTestDbContext db) = Build();
-
-        await seeder.SeedAsync(Tenant);
-
-        int totalWaitSeconds = StepsOf(db)
-            .Where(s => s.ActionType == "wait")
-            .Sum(s =>
-                System
-                    .Text.Json.JsonDocument.Parse(s.ConfigJson)
-                    .RootElement.GetProperty("seconds")
-                    .GetInt32()
-            );
-
-        // Twitch auto-fires at TwitchRaidWindowSeconds and cannot be committed early. Finishing early
-        // leaves viewers watching silence; overrunning announces a raid that already happened.
-        // wait_until_raid_fires closes the last couple of seconds of margin, so the fixed waits alone
-        // land just short of (never at or past) the window.
-        totalWaitSeconds
+        steps.Should().NotContain(s => s.ActionType == "wait_until_raid_fires");
+        steps
             .Should()
-            .BeInRange(
-                StartRaidAction.TwitchRaidWindowSeconds - 10,
-                StartRaidAction.TwitchRaidWindowSeconds - 1
-            );
+            .NotContain(s => s.ActionType == "obs_streaming" || s.ActionType == "music_pause");
     }
 
     [Fact]
@@ -190,13 +153,11 @@ public sealed class RaidFlowSeedingTests
             .ToList();
 
         messages.Should().Contain(m => m.Contains("heading out to"));
-        foreach (int mark in new[] { 15, 10, 5, 3, 2 })
-            messages.Should().Contain(m => m.Contains($"Raid in {mark} seconds"));
-        messages.Should().Contain(m => m.Contains("Raid in 1 second..."));
-        messages.Should().Contain(m => m.Contains("raided out to"));
-
-        // A "45 seconds left" line this early reads as spam — those waits are deliberately silent.
-        messages.Should().NotContain(m => m.Contains("Raid in 45") || m.Contains("Raid in 30"));
+        messages.Should().Contain(m => m.Contains("Big bird"));
+        // The final "raided out" confirmation is no longer part of THIS pipeline — it now lives in
+        // RaidCommitFlowSeeder's reactive flow, so it must NOT appear here (a duplicate would mean
+        // chat gets told twice, once too early).
+        messages.Should().NotContain(m => m.Contains("raided out to"));
     }
 
     /// <summary>
@@ -226,32 +187,6 @@ public sealed class RaidFlowSeedingTests
         headingOut.Should().Contain("heading out to {args.1}");
         headingOut.Should().NotContain("{{args.1}}");
         headingOut.Should().NotContain("{{{args.1}}}");
-    }
-
-    /// <summary>
-    /// The final "we've raided out" line is the LAST thing said — it confirms the raid actually
-    /// committed, so it must follow the stream stopping and the music pausing, not precede them.
-    /// </summary>
-    [Fact]
-    public async Task The_final_raided_out_message_comes_after_the_stream_stops_and_the_music_pauses()
-    {
-        (RaidFlowSeeder seeder, SeedTestDbContext db) = Build();
-
-        await seeder.SeedAsync(Tenant);
-
-        List<PipelineStep> steps = StepsOf(db);
-        int raidedOutIndex = steps.FindIndex(s =>
-            s.ActionType == "send_message" && s.ConfigJson.Contains("raided out to")
-        );
-        int stopIndex = steps.FindIndex(s => s.ActionType == "obs_streaming");
-        int pauseIndex = steps.FindIndex(s => s.ActionType == "music_pause");
-
-        raidedOutIndex.Should().BeGreaterThan(-1);
-        // Confirming the raid before the stream has actually stopped tells chat something that hasn't
-        // happened yet.
-        raidedOutIndex.Should().BeGreaterThan(stopIndex);
-        raidedOutIndex.Should().BeGreaterThan(pauseIndex);
-        steps[stopIndex].ConfigJson.Should().Contain("stop");
     }
 
     /// <summary>

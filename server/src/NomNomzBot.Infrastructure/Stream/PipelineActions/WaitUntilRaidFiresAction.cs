@@ -90,7 +90,9 @@ public sealed class WaitUntilRaidFiresAction : ICommandAction
     /// Pure clock math, split out so the capping/negative/missing-variable behavior is directly
     /// testable without a unit test having to actually sleep through a bogus far-future deadline.
     /// <c>null</c> means "no deadline recorded" (missing/unparsable variable); otherwise the exact
-    /// duration to wait, already clamped to <see cref="StartRaidAction.TwitchRaidWindowSeconds"/> and
+    /// duration to wait, clamped to <see cref="StartRaidAction.MaxRaidWindowSeconds"/> — the ceiling
+    /// on the tunable <c>raid_window_seconds</c> parameter itself, so a legitimately large tuned
+    /// value is never clamped by a safety cap meant only to catch a corrupt/stale variable — and
     /// never negative.
     /// </summary>
     internal static TimeSpan? ComputeWait(
@@ -110,7 +112,7 @@ public sealed class WaitUntilRaidFiresAction : ICommandAction
         if (remaining <= TimeSpan.Zero)
             return TimeSpan.Zero;
 
-        TimeSpan cap = TimeSpan.FromSeconds(StartRaidAction.TwitchRaidWindowSeconds);
+        TimeSpan cap = TimeSpan.FromSeconds(StartRaidAction.MaxRaidWindowSeconds);
         return remaining > cap ? cap : remaining;
     }
 }

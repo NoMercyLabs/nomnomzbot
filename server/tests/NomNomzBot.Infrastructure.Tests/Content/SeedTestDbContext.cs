@@ -368,6 +368,8 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         // RaidFlowSeeder writes a real Pipeline + PipelineStep set, so those are under test here too.
         modelBuilder.ApplyConfiguration(new PipelineConfiguration());
         modelBuilder.ApplyConfiguration(new PipelineStepConfiguration());
+        // RaidCommitFlowSeeder reads/writes real EventResponse rows.
+        modelBuilder.ApplyConfiguration(new EventResponseConfiguration());
 
         // Every entity NOT under test is ignored — EF would otherwise auto-discover them from
         // the DbSet<T> properties (an IApplicationDbContext requirement) and try to map their
@@ -410,7 +412,6 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.Ignore<TtsCacheEntry>();
         modelBuilder.Ignore<DeletionAuditLog>();
         modelBuilder.Ignore<NomNomzBot.Domain.Commands.Entities.Timer>();
-        modelBuilder.Ignore<EventResponse>();
         modelBuilder.Ignore<WatchStreak>();
         modelBuilder.Ignore<PipelineExecution>();
         modelBuilder.Ignore<CommandCooldownState>();
