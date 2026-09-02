@@ -42,6 +42,7 @@ import bot.nomnomz.dashboard.core.network.StreamInfoUpdate
 import bot.nomnomz.dashboard.core.network.ViewerOption
 import bot.nomnomz.dashboard.core.network.UpdateCommandBody
 import bot.nomnomz.dashboard.core.realtime.HubEvent
+import bot.nomnomz.dashboard.core.realtime.HubAutoModQueueChange
 import bot.nomnomz.dashboard.core.realtime.HubRewardRedeemed
 import bot.nomnomz.dashboard.core.realtime.HubStreamInfoChanged
 import kotlin.test.Test
@@ -247,6 +248,50 @@ class HomeControllerTest {
         assertEquals("Pushed title", ready.stats.streamTitle)
         assertEquals("Pushed game", ready.stats.gameName)
         assertEquals("Pushed title", ready.streamInfo?.title)
+    }
+
+    @Test
+    fun an_automod_queue_push_refetches_the_attention_inbox_live() = runTest {
+        val notifications = FakeNotificationsApi()
+        val controller =
+            HomeController(
+                channelsApi = FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                dashboardApi = FakeDashboardApi(ApiResult.Ok(DashboardStats())),
+                streamApi = FakeStreamApi(),
+                commandsApi = FakeCommandsApi(),
+                communityApi = FakeCommunityApi(),
+                notificationsApi = notifications,
+                pipelinesApi = FakePipelinesApi(),
+                moderationApi = FakeModerationApi(),
+                integrationsApi = FakeIntegrationsApi(),
+            )
+        controller.load()
+        assertTrue((controller.state.value as HomeState.Ready).actionRequired.isEmpty())
+
+        val events = MutableSharedFlow<HubEvent>(extraBufferCapacity = 16)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.subscribeToHub(events) }
+
+        // A new hold lands on the backend; the hub push must pull it in without a reload — and with the
+        // exact item id the backend grouped it under, not merely "some item".
+        notifications.result =
+            ApiResult.Ok(
+                listOf(
+                    ActionRequiredItem(
+                        id = "held-user:9001",
+                        kind = "held_chat_message",
+                        severity = "warning",
+                        title = "held",
+                        message = "held",
+                        deepLinkRoute = "/moderation/queue",
+                    )
+                )
+            )
+        events.emit(HubEvent.AutoModQueueChanged(HubAutoModQueueChange(messageId = "amsg-9", change = "held")))
+
+        assertEquals(
+            listOf("held-user:9001"),
+            (controller.state.value as HomeState.Ready).actionRequired.map { it.id },
+        )
     }
 
     @Test
