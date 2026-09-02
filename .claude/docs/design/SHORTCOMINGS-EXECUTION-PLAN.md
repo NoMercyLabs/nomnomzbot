@@ -1169,8 +1169,15 @@ later.)
 - **S104** Media share + sound + assets — media player widget (system surface) consuming `GetNext`;
   moderation rows with thumbnail/link/name; submitted/playback events as trigger sources; paged queue;
   sound handle threaded end-to-end; upload dialog with volume/trigger/cooldown/floor; clip replace;
-  preview-on-overlay or remove dead endpoint; asset picker wherever a media URL is configured; used-by
-  guard; limits shown; paging (U·E2).
+  asset picker wherever a media URL is configured; used-by guard; limits shown; paging (U·E2).
+  **Preview-on-overlay DONE, verified 2026-09-02 (`789fd48c`)**: the endpoint was never dead — real
+  chain `SoundClipsController.Preview` → `SoundClipService.PreviewAsync` →
+  `ISoundClipOverlayNotifier.PlaySoundAsync`, but zero frontend callers; a prior fix had replaced
+  overlay preview with local in-browser playback (kept intact), so a separate "Preview on overlay"
+  row action was added calling the real endpoint — proven by `SoundClipServicePreviewTests` (backend,
+  re-verified in an isolated worktree after shared-tree contention from a concurrent peer session's
+  uncommitted WIP blocked in-place verification) + `SoundControllerTest` (Kotlin, unverified by
+  gradle due to the same contention — compiles clean via `compileKotlinJvm`).
 - **S105** OBS + VTS truth — OBS page consumes OBS events; scene/source/input pickers in pipeline fields;
   source-visibility + replay-buffer on the control screen; bridge error vs offline; edit-reset fix; VTS
   probe + bridge status; inventory failure vs locked; parameter/tint control; endpoint prefilled +
