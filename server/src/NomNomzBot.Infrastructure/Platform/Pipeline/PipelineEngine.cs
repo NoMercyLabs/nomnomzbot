@@ -970,6 +970,29 @@ public sealed class PipelineEngine : IPipelineEngine
     }
 
     /// <summary>
+    /// Builds an <see cref="ActionDefinition"/> from a DB row's raw <c>ConfigJson</c> + <c>ActionType</c>
+    /// column. <see cref="ActionDefinition.Type"/> is a <c>required</c> member, but <c>ConfigJson</c> never
+    /// embeds it — the type always lives in the separate <c>ActionType</c> column (every seeder's
+    /// convention) — so deserializing <c>ConfigJson</c> straight into <see cref="ActionDefinition"/> throws
+    /// on the missing required member before a caller ever gets the chance to overwrite it. Parse into the
+    /// parameter bag alone and construct the type explicitly instead.
+    /// </summary>
+    private static ActionDefinition? ParseStepAction(string configJson, string actionType)
+    {
+        try
+        {
+            Dictionary<string, JsonElement>? parameters = JsonSerializer.Deserialize<
+                Dictionary<string, JsonElement>
+            >(configJson, JsonOpts);
+            return new ActionDefinition { Type = actionType, Parameters = parameters };
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Translates a genuinely flat set of DB rows (no <see cref="PipelineStep.BlockKind"/>, no
     /// <see cref="PipelineStep.ParentStepId"/> — today's shape) into the legacy <see cref="PipelineDefinition"/>
     /// so it executes through the unmodified <see cref="RunStepsAsync"/> — zero behaviour change.
@@ -979,21 +1002,10 @@ public sealed class PipelineEngine : IPipelineEngine
         PipelineDefinition definition = new();
         foreach (PipelineStep row in rows.OrderBy(r => r.Order))
         {
-            ActionDefinition? action;
-            try
-            {
-                action = JsonSerializer.Deserialize<ActionDefinition>(row.ConfigJson, JsonOpts);
-            }
-            catch
-            {
-                action = null;
-            }
+            ActionDefinition? action = ParseStepAction(row.ConfigJson, row.ActionType);
 
             if (action is null)
                 continue;
-
-            // ActionType from the row overrides whatever may be embedded in ConfigJson.
-            action.Type = row.ActionType;
 
             // Translate DB conditions to runtime ConditionDefinition list.
             ConditionDefinition? condition = null;
@@ -1166,7 +1178,7 @@ public sealed class PipelineEngine : IPipelineEngine
                     "run_pipeline_callee_failed"
                 );
 
-            return Result.Success<string?>(callerCtx.ReturnValue);
+            return Result.Success(callerCtx.ReturnValue);
         }
         finally
         {
@@ -1286,7 +1298,7 @@ public sealed class PipelineEngine : IPipelineEngine
         // and incremented Resume.Index right before calling in) — the frame that says how to resolve
         // this block's arm/case/iteration WITHOUT re-evaluating anything.
         PipelineRunFrame? resumeFrame =
-            walk.Resume is { } r && r.Index > 0 && r.Path[r.Index - 1].BlockStepId == step.Id
+            walk.Resume is { Index: > 0 } r && r.Path[r.Index - 1].BlockStepId == step.Id
                 ? r.Path[r.Index - 1]
                 : null;
 
@@ -1384,15 +1396,7 @@ public sealed class PipelineEngine : IPipelineEngine
             return;
         }
 
-        ActionDefinition? action;
-        try
-        {
-            action = JsonSerializer.Deserialize<ActionDefinition>(step.ConfigJson, JsonOpts);
-        }
-        catch
-        {
-            action = null;
-        }
+        ActionDefinition? action = ParseStepAction(step.ConfigJson, step.ActionType);
 
         if (action is null)
         {
@@ -1409,8 +1413,6 @@ public sealed class PipelineEngine : IPipelineEngine
             state.FailedBreak = true;
             return;
         }
-
-        action.Type = step.ActionType;
 
         ActionResult actionResult;
         try
@@ -2091,18 +2093,9 @@ public sealed class PipelineEngine : IPipelineEngine
         if (leaf is null)
             return;
 
-        ActionDefinition? action;
-        try
-        {
-            action = JsonSerializer.Deserialize<ActionDefinition>(leaf.Step.ConfigJson, JsonOpts);
-        }
-        catch
-        {
-            action = null;
-        }
+        ActionDefinition? action = ParseStepAction(leaf.Step.ConfigJson, leaf.Step.ActionType);
         if (action is null)
             return;
-        action.Type = leaf.Step.ActionType;
 
         // Fire-and-forget alongside the main chain: dispatched now, never awaited by the parent run,
         // and its own failure never fails the parent (pipeline-tree-and-editor.md §1.1/§2.1).
