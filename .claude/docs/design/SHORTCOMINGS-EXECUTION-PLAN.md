@@ -1181,7 +1181,13 @@ later.)
 - **S105** OBS + VTS truth — OBS page consumes OBS events; scene/source/input pickers in pipeline fields;
   source-visibility + replay-buffer on the control screen; bridge error vs offline; edit-reset fix; VTS
   probe + bridge status; inventory failure vs locked; parameter/tint control; endpoint prefilled +
-  validated; i18n of the two hardcoded errors (U·E2).
+  validated (U·E2). **i18n of the two hardcoded errors DONE, verified 2026-09-02 (`89c4870f`)**: the
+  OBS/VTS "no active channel" error was a hardcoded English literal in both `ObsController.kt` and
+  `VtsController.kt`; now real `obs_no_channel_error`/`vts_no_channel_error` resource keys (en+nl) —
+  proven by `ObsControllerLocalizationTest`/`VtsControllerLocalizationTest` (forces JVM locale to nl,
+  asserts the real Dutch string), re-verified BUILD SUCCESSFUL in an isolated worktree. Same hardcoded
+  pattern also found (not fixed, out of this slice's scope) at `AlertsController.kt:149`-adjacent and
+  `WidgetsController.kt:367`'s `NoChannelApiError` — flag as a fresh slice if wanted.
 - **S106** Stream / live-ops page — dedicated Stream destination (stream info incl. language per
   platform connection, polls/predictions with live results + hub refresh, ad countdown + snooze, raids,
   markers, clips, shield, hype train, goals, charity, guest star); errors not swallowed; raid-pending
