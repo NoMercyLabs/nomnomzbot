@@ -24,6 +24,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_deleted
+import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_preview_overlay_failed
+import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_preview_overlay_sent
 import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_save_failed
 import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_saved
 import nomnomzbot.composeapp.generated.resources.feedback_sound_clip_uploaded
@@ -116,6 +118,17 @@ class SoundController(
     // play"). Fire-and-forget browser playback of the clip's anonymous stream URL; no network round-trip needed.
     fun previewClip(previewUrl: String) {
         if (previewUrl.isNotBlank()) playSoundPreview(previewUrl)
+    }
+
+    // A DISTINCT action from [previewClip]: this one actually calls the backend (POST /sound-clips/{id}/preview),
+    // which pushes a PlaySound event to the connected OBS overlay via SignalR — the real "will this clip actually
+    // show up on stream" check, deliberately kept separate from the always-audible local preview above.
+    suspend fun previewOnOverlay(id: String) {
+        when (val result: ApiResult<Unit> = soundApi.preview(id)) {
+            is ApiResult.Ok -> feedback.success(Res.string.feedback_sound_clip_preview_overlay_sent)
+            is ApiResult.Failure ->
+                feedback.error(Res.string.feedback_sound_clip_preview_overlay_failed, result.error.message)
+        }
     }
 
     private suspend fun afterWrite(

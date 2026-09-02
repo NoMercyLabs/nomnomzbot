@@ -3396,6 +3396,7 @@
     <string name="sound_clips_retry">Retry</string>
     <string name="sound_clips_action_error">%1$s</string>
     <string name="sound_clips_preview_action">Preview %1$s</string>
+    <string name="sound_clips_preview_overlay_action">Preview %1$s on overlay</string>
     <string name="sound_clips_edit_action">Edit %1$s</string>
     <string name="sound_clips_delete_action">Delete %1$s</string>
     <string name="sound_clips_delete_title">Delete clip?</string>
@@ -3424,6 +3425,8 @@
     <string name="feedback_sound_clip_saved">Clip saved</string>
     <string name="feedback_sound_clip_deleted">Clip deleted</string>
     <string name="feedback_sound_clip_save_failed">Couldn't save the clip: %1$s</string>
+    <string name="feedback_sound_clip_preview_overlay_sent">Sent to the overlay</string>
+    <string name="feedback_sound_clip_preview_overlay_failed">Couldn't preview on the overlay: %1$s</string>
     <string name="sound_clips_upload_action">Upload Clip</string>
     <string name="feedback_sound_clip_uploaded">Clip uploaded.</string>
     <string name="feedback_sound_clip_upload_failed">Upload failed: %1$s</string>
@@ -3644,6 +3647,7 @@
     <!-- OBS control page -->
     <string name="obs_subtitle">Connect OBS, control scenes, and manage the browser-source bridge.</string>
     <string name="obs_action_error">Action failed: %1$s</string>
+    <string name="obs_no_channel_error">No active channel — reconnect and try again.</string>
     <string name="obs_loading">Loading OBS…</string>
     <string name="obs_error">Couldn't load OBS: %1$s</string>
     <string name="obs_retry">Retry</string>
@@ -3694,6 +3698,7 @@
     <!-- VTube Studio page -->
     <string name="vts_subtitle">Connect VTube Studio and control your model, hotkeys, and expressions.</string>
     <string name="vts_action_error">Action failed: %1$s</string>
+    <string name="vts_no_channel_error">No active channel — reconnect and try again.</string>
     <string name="vts_loading">Loading VTube Studio…</string>
     <string name="vts_error">Couldn't load VTube Studio: %1$s</string>
     <string name="vts_retry">Retry</string>
@@ -4411,6 +4416,7 @@
     <string name="pipeline_song_volume_volume_help">The playback volume to set, from 0 (silent) to 100 (full volume).</string>
     <string name="pipeline_start_live_game_game_type_help">Which live game to start.</string>
     <string name="pipeline_start_raid_delay_seconds_help">How many seconds to wait before starting the raid. Leave blank to raid immediately.</string>
+    <string name="pipeline_start_raid_raid_window_seconds_help">How many seconds Twitch takes to auto-fire the raid after this step runs. Twitch doesn't publish this number, so if a countdown timed against it lands early or late, adjust it here — no code change needed. Leave blank for the default.</string>
     <string name="pipeline_start_raid_target_help">The channel to raid.</string>
     <string name="pipeline_stop_sound_all_help">Stops every currently playing sound clip instead of just one handle.</string>
     <string name="pipeline_stop_sound_handle_help">The handle of the specific play_sound step to stop. Leave blank together with All off to stop the most recent clip.</string>

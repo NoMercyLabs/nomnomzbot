@@ -58,6 +58,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Slider
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
+import bot.nomnomz.dashboard.core.designsystem.icon.AppIcons
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
@@ -101,6 +102,7 @@ import nomnomzbot.composeapp.generated.resources.sound_clips_perm_moderator
 import nomnomzbot.composeapp.generated.resources.sound_clips_perm_subscriber
 import nomnomzbot.composeapp.generated.resources.sound_clips_perm_vip
 import nomnomzbot.composeapp.generated.resources.sound_clips_preview_action
+import nomnomzbot.composeapp.generated.resources.sound_clips_preview_overlay_action
 import nomnomzbot.composeapp.generated.resources.sound_clips_retry
 import nomnomzbot.composeapp.generated.resources.sound_clips_size_kb
 import nomnomzbot.composeapp.generated.resources.sound_clips_upload_action
@@ -143,6 +145,7 @@ fun SoundScreen(controller: SoundController, role: ManagementRole?) {
                     onEdit = { clip -> editTarget = clip },
                     onDelete = { clip -> deleteTarget = clip },
                     onPreview = { clip -> controller.previewClip(clip.previewUrl) },
+                    onPreviewOverlay = { clip -> scope.launch { controller.previewOnOverlay(clip.id) } },
                 )
             is SoundState.Ready ->
                 ClipList(
@@ -154,6 +157,7 @@ fun SoundScreen(controller: SoundController, role: ManagementRole?) {
                     onEdit = { clip -> editTarget = clip },
                     onDelete = { clip -> deleteTarget = clip },
                     onPreview = { clip -> controller.previewClip(clip.previewUrl) },
+                    onPreviewOverlay = { clip -> scope.launch { controller.previewOnOverlay(clip.id) } },
                 )
         }
     }
@@ -215,6 +219,7 @@ private fun ClipList(
     onEdit: (SoundClip) -> Unit,
     onDelete: (SoundClip) -> Unit,
     onPreview: (SoundClip) -> Unit,
+    onPreviewOverlay: (SoundClip) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -255,6 +260,7 @@ private fun ClipList(
                             onEdit = { onEdit(clip) },
                             onDelete = { onDelete(clip) },
                             onPreview = { onPreview(clip) },
+                            onPreviewOverlay = { onPreviewOverlay(clip) },
                         )
                         if (index < clips.lastIndex) {
                             Separator()
@@ -274,6 +280,7 @@ private fun ClipRow(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onPreview: () -> Unit,
+    onPreviewOverlay: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
     val tokens = LocalTokens.current
@@ -282,6 +289,8 @@ private fun ClipRow(
     val displayName: String =
         resolveRowLabel(clip.displayName, secondary = clip.name, typeLabel = "Sound clip", discriminatorSource = clip.id)
     val previewLabel: String = stringResource(Res.string.sound_clips_preview_action, displayName)
+    val previewOverlayLabel: String =
+        stringResource(Res.string.sound_clips_preview_overlay_action, displayName)
     val editLabel: String = stringResource(Res.string.sound_clips_edit_action, displayName)
     val deleteLabel: String = stringResource(Res.string.sound_clips_delete_action, displayName)
 
@@ -384,6 +393,15 @@ private fun ClipRow(
                     icon = SoundClipsGlyph,
                     label = previewLabel,
                     onClick = onPreview,
+                    enabled = enabled,
+                )
+                // Distinct from the local browser preview above: this fires the real backend endpoint
+                // (POST /sound-clips/{id}/preview) that pushes the clip to the connected OBS overlay — the
+                // "will this actually show up on stream" check, before relying on it live.
+                GlyphButton(
+                    icon = AppIcons.MonitorDisplayStand,
+                    label = previewOverlayLabel,
+                    onClick = onPreviewOverlay,
                     enabled = enabled,
                 )
             }

@@ -3382,6 +3382,7 @@
     <string name="sound_clips_retry">Opnieuw proberen</string>
     <string name="sound_clips_action_error">%1$s</string>
     <string name="sound_clips_preview_action">Voorbeeld %1$s</string>
+    <string name="sound_clips_preview_overlay_action">%1$s tonen op overlay</string>
     <string name="sound_clips_edit_action">%1$s bewerken</string>
     <string name="sound_clips_delete_action">%1$s verwijderen</string>
     <string name="sound_clips_delete_title">Fragment verwijderen?</string>
@@ -3410,6 +3411,8 @@
     <string name="feedback_sound_clip_saved">Fragment opgeslagen</string>
     <string name="feedback_sound_clip_deleted">Fragment verwijderd</string>
     <string name="feedback_sound_clip_save_failed">Kon het fragment niet opslaan: %1$s</string>
+    <string name="feedback_sound_clip_preview_overlay_sent">Verzonden naar de overlay</string>
+    <string name="feedback_sound_clip_preview_overlay_failed">Kon niet tonen op de overlay: %1$s</string>
     <string name="sound_clips_upload_action">Fragment uploaden</string>
     <string name="feedback_sound_clip_uploaded">Fragment geüpload.</string>
     <string name="feedback_sound_clip_upload_failed">Upload mislukt: %1$s</string>
@@ -3630,6 +3633,7 @@
     <!-- OBS-besturingspagina -->
     <string name="obs_subtitle">Verbind OBS, wissel scènes en beheer de browserbron-bridge.</string>
     <string name="obs_action_error">Actie mislukt: %1$s</string>
+    <string name="obs_no_channel_error">Geen actief kanaal — maak opnieuw verbinding en probeer het nogmaals.</string>
     <string name="obs_loading">OBS laden…</string>
     <string name="obs_error">OBS kon niet worden geladen: %1$s</string>
     <string name="obs_retry">Opnieuw</string>
@@ -3680,6 +3684,7 @@
     <!-- VTube Studio-pagina -->
     <string name="vts_subtitle">Verbind VTube Studio en bestuur je model, sneltoetsen en expressies.</string>
     <string name="vts_action_error">Actie mislukt: %1$s</string>
+    <string name="vts_no_channel_error">Geen actief kanaal — maak opnieuw verbinding en probeer het nogmaals.</string>
     <string name="vts_loading">VTube Studio laden…</string>
     <string name="vts_error">VTube Studio kon niet worden geladen: %1$s</string>
     <string name="vts_retry">Opnieuw</string>
@@ -4397,6 +4402,7 @@
     <string name="pipeline_song_volume_volume_help">Het afspeelvolume dat wordt ingesteld, van 0 (stil) tot 100 (volledig volume).</string>
     <string name="pipeline_start_live_game_game_type_help">Welk live spel wordt gestart.</string>
     <string name="pipeline_start_raid_delay_seconds_help">Hoeveel seconden wordt gewacht voordat de raid start. Leeg laten om direct te raiden.</string>
+    <string name="pipeline_start_raid_raid_window_seconds_help">Hoeveel seconden Twitch nodig heeft om de raid automatisch te starten na deze stap. Twitch publiceert dit getal niet — als een aftelling die hierop is afgestemd te vroeg of te laat uitkomt, pas het hier aan, zonder codewijziging. Leeg laten voor de standaardwaarde.</string>
     <string name="pipeline_start_raid_target_help">Het kanaal dat wordt geraid.</string>
     <string name="pipeline_stop_sound_all_help">Stopt alle op dat moment afspelende geluidsfragmenten in plaats van alleen één handle.</string>
     <string name="pipeline_stop_sound_handle_help">De handle van de specifieke play_sound-stap die wordt gestopt. Laat leeg samen met Alles uit om het meest recente fragment te stoppen.</string>
