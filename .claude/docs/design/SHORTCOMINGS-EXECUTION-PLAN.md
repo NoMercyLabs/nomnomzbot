@@ -559,11 +559,15 @@ later.)
   `SoundClipService.UploadAsync` returning a clear `SIZE_EXCEEDED` error before any persistence) — no
   code change needed, just no proving test existed. New `SoundClipServiceUploadLimitTests.cs`: an
   over-cap upload is rejected and never reaches the DB or blob store; an in-limit upload persists both.
+  **Gallery version/update DONE, verified 2026-09-02** (already implemented in a prior slice, no gap:
+  `Widget.GalleryItemId`/`InstalledSourceRevision`, `WidgetGalleryItem.SourceRevision`,
+  `POST {widgetId}/update-from-gallery`, `WidgetService.UpdateFromGalleryAsync`, proven by
+  `WidgetServiceUpdateFromGalleryTests` — 4 tests green).
   **Still open**: per-widget tokens + staged rotation + post-rotate URL list; inline preview; settings
   form by schema availability; asset/sound/font field types (no backend field type for these exists yet
   — needs a schema contract addition first); editable subscriptions (blocked on S085's `domain.action`
   naming realignment landing first — building this against today's ad-hoc event names would need
-  re-doing); gallery version/update (U·B5). Done-when: add → copy → test → live from one row.
+  re-doing). Done-when: add → copy → test → live from one row.
 - **S063** Rewards reach — DONE, closed (0940f891, 737d1a7a, bced87e4, 48e93130). Most severe finding: reward
   create never actually pushed to Twitch (`CreateCustomRewardAsync` had exactly one caller in the whole
   codebase) — a dashboard-created reward could never be redeemed. Fixed alongside the `Response`/
