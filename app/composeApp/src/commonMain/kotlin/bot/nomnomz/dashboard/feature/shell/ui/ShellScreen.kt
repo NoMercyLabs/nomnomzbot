@@ -42,6 +42,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import bot.nomnomz.dashboard.core.designsystem.theme.Breakpoints
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
@@ -72,8 +73,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.realtime.HubConnectionState
 import bot.nomnomz.dashboard.core.realtime.HubEvent
@@ -228,10 +227,8 @@ import org.jetbrains.compose.resources.stringResource
 // sidebar is rendered from the single [ShellNav] inventory filtered by the caller's [ManagementRole] — to
 // move or re-gate a page you edit that one list, never this file. All 21 management pages are wired to
 // real screens with full CRUD and role-gated write controls.
-// Below this width the persistent sidebar would crowd the content, so the shell switches to a mobile layout:
-// the sidebar becomes a hamburger-toggled overlay drawer. A layout breakpoint (a window concern), not a
-// design-system spacing token.
-private val CompactBreakpoint: Dp = 720.dp
+// Below [Breakpoints.Compact] the persistent sidebar would crowd the content, so the shell switches to a
+// mobile layout: the sidebar becomes a hamburger-toggled overlay drawer.
 
 // shadcn Collapsible animation duration (0.2s ease-out) — the sidebar accordion matches it.
 private const val CollapseDurationMillis: Int = 200
@@ -403,7 +400,7 @@ fun ShellScreen(
         graph.dashboardHubClient.connectionState.collectAsStateWithLifecycle()
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize().background(tokens.background)) {
-        val compact: Boolean = maxWidth < CompactBreakpoint
+        val compact: Boolean = maxWidth < Breakpoints.Compact
 
         if (compact) {
             // Mobile: the sidebar is a modal Sheet behind a hamburger; picking a page closes it.
