@@ -327,6 +327,10 @@ class HomeController(
                             )
                         }
                     }
+                    is HubEvent.AutoModQueueChanged ->
+                        // The AutoMod queue changed somewhere (a new hold, or a resolution by any mod or
+                        // by Twitch) — re-fetch just the attention inbox so items appear/disappear live.
+                        refreshAttention()
                     is HubEvent.RewardRedeemed -> {
                         // A channel-point redemption is pushed as its OWN hub event, NOT a generic ChannelEvent —
                         // so without this branch it fell through and only appeared on a manual reload. Prepend it
@@ -357,6 +361,23 @@ class HomeController(
     }
 
     // ─── Attention inbox (S-OWN22) ────────────────────────────────────────────
+
+    /**
+     * Re-fetch the attention inbox alone (hub-pushed queue change) — cheaper than a full [load] and it
+     * never disturbs the rest of the Ready state. A failure keeps the current list; the next load recovers.
+     */
+    private suspend fun refreshAttention() {
+        val channel: String = channelId ?: return
+        when (val r: ApiResult<List<ActionRequiredItem>> = notificationsApi.actionRequired(channel)) {
+            is ApiResult.Ok -> {
+                val latest: HomeState = _state.value
+                if (latest is HomeState.Ready) {
+                    _state.value = latest.copy(actionRequired = r.value)
+                }
+            }
+            is ApiResult.Failure -> Unit
+        }
+    }
 
     /**
      * Dismiss [item] via the persisted dismissal endpoint; on success the item leaves [HomeState.Ready.actionRequired]
