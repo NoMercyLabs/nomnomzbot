@@ -78,6 +78,15 @@ public class CustomDataSource : SoftDeletableEntity, ITenantScoped
     /// <summary>Consecutive failed attempts since the last success; reset to 0 on success (S100a).</summary>
     public int ConsecutiveFailureCount { get; set; }
 
+    /// <summary>
+    /// JSON map <c>{ "&lt;field&gt;": "&lt;error&gt;" }</c> of the field-map entries that failed to resolve on the
+    /// most recent ingest (malformed JSONPath syntax, or a path that did not match anything in the payload).
+    /// Null when the last ingest had no per-field errors. Fields that DID resolve are unaffected — a source with
+    /// one broken mapping among several still ingests the working ones (S100).
+    /// </summary>
+    [MaxLength(1000)]
+    public string? LastFieldErrorsJson { get; set; }
+
     /// <summary>Earliest instant the next poll attempt may run, set by <c>CustomDataPollBackoffPolicy</c> after a
     /// failure and cleared on success (S100a). Null when there is no pending backoff.</summary>
     public DateTime? NextRetryAt { get; set; }

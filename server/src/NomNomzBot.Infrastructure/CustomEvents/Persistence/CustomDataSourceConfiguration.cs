@@ -28,6 +28,7 @@ public class CustomDataSourceConfiguration : IEntityTypeConfiguration<CustomData
         builder.Property(e => e.FieldMapJson).IsRequired().HasDefaultValue("{}");
         builder.Property(e => e.IsEnabled).HasDefaultValue(false);
         builder.Property(e => e.LastError).HasMaxLength(1000);
+        builder.Property(e => e.LastFieldErrorsJson).HasMaxLength(1000);
         builder.Property(e => e.ConsecutiveFailureCount).HasDefaultValue(0);
         builder.Property(e => e.DisabledReason).HasMaxLength(500);
 
