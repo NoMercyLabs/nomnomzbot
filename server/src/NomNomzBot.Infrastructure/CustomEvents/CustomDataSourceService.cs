@@ -139,6 +139,13 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
                 "DUPLICATE_NAME"
             );
 
+        Result fieldMapCheck = ValidateFieldMap(request.FieldMap);
+        if (fieldMapCheck.IsFailure)
+            return Result<CustomDataSourceDto>.Failure(
+                fieldMapCheck.ErrorMessage,
+                fieldMapCheck.ErrorCode
+            );
+
         Result egressCheck = await ValidateEgressAllowedAsync(
             broadcasterId,
             request.EndpointUrl,
@@ -214,6 +221,13 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
 
             source.Name = request.Name.ToLowerInvariant();
         }
+
+        Result fieldMapCheck = ValidateFieldMap(request.FieldMap);
+        if (fieldMapCheck.IsFailure)
+            return Result<CustomDataSourceDto>.Failure(
+                fieldMapCheck.ErrorMessage,
+                fieldMapCheck.ErrorCode
+            );
 
         Result egressCheck = await ValidateEgressAllowedAsync(
             broadcasterId,
@@ -322,6 +336,24 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
             // Return empty on malformed JSON
         }
 
+        Dictionary<string, string> fieldErrors = new(StringComparer.OrdinalIgnoreCase);
+        if (source.LastFieldErrorsJson is not null)
+        {
+            try
+            {
+                Dictionary<string, string>? parsedErrors = JsonConvert.DeserializeObject<
+                    Dictionary<string, string>
+                >(source.LastFieldErrorsJson);
+                if (parsedErrors is not null)
+                    foreach (KeyValuePair<string, string> kv in parsedErrors)
+                        fieldErrors[kv.Key] = kv.Value;
+            }
+            catch
+            {
+                // Return empty on malformed JSON
+            }
+        }
+
         return new(
             source.Id,
             source.Name,
@@ -333,7 +365,8 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
             fieldMap,
             source.PollIntervalSeconds,
             source.IsEnabled,
-            source.LastReceivedAt
+            source.LastReceivedAt,
+            fieldErrors
         );
     }
 
@@ -373,6 +406,22 @@ internal sealed class CustomDataSourceService : ICustomDataSourceService
             : Result.Failure(
                 $"The target host '{host}' is not in an enabled egress allowlist.",
                 "EGRESS_NOT_ALLOWED"
+            );
+    }
+
+    /// <summary>
+    /// Rejects a save whose field-map contains a syntactically malformed JSONPath expression — the same parser
+    /// <c>CustomDataIngestService</c> runs at poll/push time, run here eagerly so a broken mapping is refused at
+    /// save time instead of silently persisting and failing every subsequent ingest (S100).
+    /// </summary>
+    private static Result ValidateFieldMap(IReadOnlyDictionary<string, string> fieldMap)
+    {
+        IReadOnlyDictionary<string, string> errors = CustomDataFieldMapValidator.Validate(fieldMap);
+        return errors.Count == 0
+            ? Result.Success()
+            : Result.Failure(
+                CustomDataFieldMapValidator.ToErrorMessage(errors),
+                "INVALID_FIELD_MAP"
             );
     }
 

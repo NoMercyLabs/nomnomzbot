@@ -121,7 +121,8 @@ public sealed record CustomDataSourceDto(
     IReadOnlyDictionary<string, string> FieldMap,
     int? PollIntervalSeconds,
     bool IsEnabled,
-    DateTime? LastReceivedAt
+    DateTime? LastReceivedAt,
+    IReadOnlyDictionary<string, string> FieldErrors
 );
 
 public sealed record CustomDataSourcePresetDto(string Key, string DisplayName, string SourceKind);

@@ -2246,6 +2246,10 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
+                    b.Property<string>("LastFieldErrorsJson")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
                     b.Property<DateTime?>("LastReceivedAt")
                         .HasColumnType("timestamp with time zone");
 

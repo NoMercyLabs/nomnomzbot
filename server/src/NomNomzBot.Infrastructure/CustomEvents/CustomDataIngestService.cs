@@ -66,11 +66,17 @@ internal sealed class CustomDataIngestService : ICustomDataIngestService
         string boundedRaw =
             rawPayload.Length > MaxRawPayloadBytes ? rawPayload[..MaxRawPayloadBytes] : rawPayload;
 
-        // Extract named fields from the raw payload via JSONPath
-        Dictionary<string, string> fields = ExtractFields(boundedRaw, source.FieldMapJson);
+        // Extract named fields from the raw payload via JSONPath — a broken mapping among several correct ones
+        // still lets the working fields through; the broken one is recorded as a per-field error, not dropped.
+        (Dictionary<string, string> fields, Dictionary<string, string> fieldErrors) = ExtractFields(
+            boundedRaw,
+            source.FieldMapJson
+        );
 
         // Stamp last-received and persist
         source.LastReceivedAt = DateTime.UtcNow;
+        source.LastFieldErrorsJson =
+            fieldErrors.Count == 0 ? null : JsonConvert.SerializeObject(fieldErrors);
         await _db.SaveChangesAsync(ct);
 
         // Update the latest-value cache (D4): TTL 24 h — transient fast-access store
@@ -95,9 +101,19 @@ internal sealed class CustomDataIngestService : ICustomDataIngestService
         return Result.Success();
     }
 
-    private static Dictionary<string, string> ExtractFields(string rawPayload, string fieldMapJson)
+    /// <summary>
+    /// Extracts the field-map's named fields from the raw JSON payload. Each mapping is evaluated independently: a
+    /// field whose JSONPath resolves lands in the returned values; a field whose path is malformed, or does not
+    /// match anything in this payload, lands in the returned errors instead — it never aborts extraction of the
+    /// other, working fields (S100).
+    /// </summary>
+    private static (
+        Dictionary<string, string> Fields,
+        Dictionary<string, string> FieldErrors
+    ) ExtractFields(string rawPayload, string fieldMapJson)
     {
         Dictionary<string, string> result = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, string> errors = new(StringComparer.OrdinalIgnoreCase);
 
         Dictionary<string, string>? fieldMap = null;
         try
@@ -110,7 +126,7 @@ internal sealed class CustomDataIngestService : ICustomDataIngestService
         }
 
         if (fieldMap is null || fieldMap.Count == 0)
-            return result;
+            return (result, errors);
 
         JObject? jObj = null;
         try
@@ -119,11 +135,11 @@ internal sealed class CustomDataIngestService : ICustomDataIngestService
         }
         catch
         {
-            // Non-JSON payload — return empty field extraction (raw still available)
+            // Non-JSON payload — every mapping fails to resolve against it.
+            foreach (string field in fieldMap.Keys)
+                errors[field] = "The payload was not valid JSON.";
+            return (result, errors);
         }
-
-        if (jObj is null)
-            return result;
 
         foreach (KeyValuePair<string, string> mapping in fieldMap)
         {
@@ -132,14 +148,17 @@ internal sealed class CustomDataIngestService : ICustomDataIngestService
                 JToken? token = jObj.SelectToken(mapping.Value);
                 if (token is not null)
                     result[mapping.Key] = token.ToString();
+                else
+                    errors[mapping.Key] =
+                        $"Path '{mapping.Value}' did not match anything in the payload.";
             }
-            catch
+            catch (Exception ex) when (ex is JsonException or FormatException)
             {
-                // Bad JSONPath — skip this field silently
+                errors[mapping.Key] = $"Malformed JSON path '{mapping.Value}': {ex.Message}";
             }
         }
 
-        return result;
+        return (result, errors);
     }
 }
 
