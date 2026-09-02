@@ -242,3 +242,22 @@ public record RoleChangedAlertDto(
     string? Pronouns = null,
     string? CommunityStanding = null
 );
+
+// ─── Outbound webhook delivery alert DTOs (S099-ATTEMPTED-EVENTS-CONSUMED) ────
+
+/// <summary>A failed or dead-lettered outbound webhook delivery attempt — the states an operator needs to notice.</summary>
+public record WebhookDeliveryAttemptFailedAlertDto(
+    string OutboundEndpointId,
+    string WebhookMessageId,
+    int Attempt,
+    string Status,
+    int? ResponseCode,
+    DateTime? NextRetryAt
+);
+
+/// <summary>An outbound webhook endpoint was auto-disabled after too many consecutive delivery failures.</summary>
+public record WebhookEndpointAutoDisabledAlertDto(
+    string OutboundEndpointId,
+    int ConsecutiveFailureCount,
+    string Reason
+);
