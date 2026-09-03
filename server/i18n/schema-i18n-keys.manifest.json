@@ -356,6 +356,7 @@
     "template.helper.message",
     "template.helper.moderator",
     "template.helper.months",
+    "template.helper.name",
     "template.helper.object",
     "template.helper.obs_event_field",
     "template.helper.playlist_id",

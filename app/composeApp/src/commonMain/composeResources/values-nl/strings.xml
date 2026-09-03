@@ -4255,6 +4255,7 @@
     <string name="template_helper_custom_data">Een veld uit een aangesloten aangepaste gegevensbron (bijv. {custom.mysource.field})</string>
     <string name="template_helper_date">De datum van vandaag</string>
     <string name="template_helper_gendered_term">Een term die past bij de voornaamwoorden van de persoon (bijv. kerel/dame)</string>
+    <string name="template_helper_name">De getoonde naam - het @vermelde doel indien aanwezig, anders de gebruiker die het activeerde</string>
     <string name="template_helper_link">Een profiellink - het @vermelde doel indien aanwezig, anders de gebruiker die het activeerde</string>
     <string name="template_helper_list_pick">Een willekeurig item uit een benoemde keuzelijst (bijv. {list.pick.jokes})</string>
     <string name="template_helper_object">Het voornaamwoord in objectvorm (bijv. hen)</string>

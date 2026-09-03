@@ -416,7 +416,8 @@ public static class TemplateHelperRegistry
                 TriggerContexts,
                 "template.helper.target_data"
             ),
-            // ── Shared profile link (mirrors target when present, else user) ───
+            // ── Shared subject name + profile link (mirror target when present, else user) ───
+            Literal("name", TriggerContexts, "template.helper.name"),
             Literal("link", TriggerContexts, "template.helper.link"),
             // ── Pronoun grammar (bare mirrors target when present, else user) ──
             Literal("subject", TriggerContexts, "template.helper.subject"),
