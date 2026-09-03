@@ -136,6 +136,16 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
             e.Ignore(u => u.Channel);
         });
 
+        // Backed for real (was an unsupported stub): the heat auto-timeout handler reads this roster to
+        // decide immunity, so a fake that throws would make an immunity test pass for the wrong reason.
+        b.Entity<ChannelModerator>(e =>
+        {
+            // Composite key (channel, user) — the entity has no surrogate Id.
+            e.HasKey(m => new { m.ChannelId, m.UserId });
+            e.Ignore(m => m.Channel);
+            e.Ignore(m => m.User);
+        });
+
         b.Entity<NomNomzBot.Domain.Moderation.Entities.ViewerReport>(e =>
         {
             e.HasKey(r => r.Id);
@@ -187,6 +197,9 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
         typeof(NomNomzBot.Domain.Moderation.Entities.ChatFilter),
         // The AutoMod review queue (J.1) — nav-free, convention-mapped.
         typeof(NomNomzBot.Domain.Moderation.Entities.ModerationQueueItem),
+        // The channel's moderator roster — read by the heat auto-timeout handler to decide immunity,
+        // so it must be a REAL set here; navs are ignored in OnModelCreating above.
+        typeof(ChannelModerator),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -205,7 +218,7 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
     public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
     public DbSet<ConsentRecord> ConsentRecords => throw new NotSupportedException();
     public DbSet<ErasureRequest> ErasureRequests => throw new NotSupportedException();
-    public DbSet<ChannelModerator> ChannelModerators => throw new NotSupportedException();
+    public DbSet<ChannelModerator> ChannelModerators => Set<ChannelModerator>();
     public DbSet<Service> Services => throw new NotSupportedException();
     public DbSet<Reward> Rewards => throw new NotSupportedException();
     public DbSet<Redemption> Redemptions => throw new NotSupportedException();
