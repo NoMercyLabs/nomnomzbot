@@ -1180,7 +1180,12 @@ public class ModerationController : BaseController
         return ResultResponse(result);
     }
 
-    /// <summary>Resolve a held AutoMod message — <c>approve</c> releases it to chat, <c>deny</c> drops it.</summary>
+    /// <summary>
+    /// Resolve a held AutoMod message — <c>approve</c> releases it to chat, <c>deny</c> drops it. A deny may
+    /// carry a follow-up <c>timeout</c>/<c>ban</c> against the sender, executed as the acting operator. On a
+    /// clean resolve the envelope's <c>message</c> is empty; when the deny succeeded but the follow-up failed,
+    /// <c>message</c> carries the follow-up error and <c>data</c> the (denied) item — both halves of the truth.
+    /// </summary>
     [RequireAction("moderation:queue:resolve")]
     [HttpPost("automod/queue/{queueItemId:guid}/resolve")]
     [ProducesResponseType<StatusResponseDto<ModerationQueueItemDto>>(StatusCodes.Status200OK)]
@@ -1192,16 +1197,22 @@ public class ModerationController : BaseController
     )
     {
         string actorId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
-        Result<ModerationQueueItemDto> result = await _queue.ResolveAsync(
+        Result<ResolveModerationQueueItemResultDto> result = await _queue.ResolveAsync(
             channelId,
             queueItemId,
-            request.Action,
+            request,
             actorId,
             ct
         );
         if (result.IsFailure)
             return ResultResponse(result);
-        return Ok(new StatusResponseDto<ModerationQueueItemDto> { Data = result.Value });
+        return Ok(
+            new StatusResponseDto<ModerationQueueItemDto>
+            {
+                Data = result.Value.Item,
+                Message = result.Value.FollowUpError,
+            }
+        );
     }
 
     // ─── Stats ────────────────────────────────────────────────────────────────

@@ -261,3 +261,8 @@ public record WebhookEndpointAutoDisabledAlertDto(
     int ConsecutiveFailureCount,
     string Reason
 );
+
+// ─── AutoMod review queue alert DTOs (S-OWN22) ────────────────────────────────
+
+/// <summary>The AutoMod review queue changed — a message was held, or a held message's review was resolved.</summary>
+public record AutoModQueueChangedAlertDto(string MessageId, string UserDisplayName, string Change);
