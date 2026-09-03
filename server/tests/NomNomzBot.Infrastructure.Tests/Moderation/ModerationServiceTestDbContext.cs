@@ -106,6 +106,8 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
         Set<NomNomzBot.Domain.Moderation.Entities.ModerationQueueItem>();
     public DbSet<NomNomzBot.Domain.Notifications.Entities.ActionRequiredDismissal> ActionRequiredDismissals =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Trust.Entities.TrustPolicy> TrustPolicies =>
+        throw new NotSupportedException();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
