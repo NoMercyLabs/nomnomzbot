@@ -15,10 +15,12 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
+using NomNomzBot.Application.Trust.Services;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Trust;
+using NomNomzBot.Domain.Trust.Entities;
 
 namespace NomNomzBot.Infrastructure.Moderation;
 
@@ -33,23 +35,26 @@ namespace NomNomzBot.Infrastructure.Moderation;
 public sealed class ModerationProjectionService(
     IApplicationDbContext db,
     IModerationService moderation,
+    ITrustPolicyService trustPolicy,
     IEventBus eventBus,
     TimeProvider clock,
     ILogger<ModerationProjectionService> logger
 ) : IModerationProjectionService
 {
-    private const double HeatHalfLifeHours = 24.0;
     private const int DefaultHeatThreshold = 80;
 
-    /// <summary>The §3.8 per-violation heat deltas (no negative accrual).</summary>
-    private static decimal HeatDeltaFor(string actionType) =>
+    /// <summary>
+    /// The §3.8 per-violation heat deltas (no negative accrual), read from the channel's
+    /// <see cref="TrustPolicy"/> so an operator can retune what each offence costs.
+    /// </summary>
+    private static decimal HeatDeltaFor(string actionType, TrustPolicy policy) =>
         actionType switch
         {
-            "ban" => 40m,
-            "timeout" => 15m,
-            "report_validated" => 10m,
-            "automod_denied" => 5m,
-            "filter_hit" => 5m,
+            "ban" => policy.HeatDeltaBan,
+            "timeout" => policy.HeatDeltaTimeout,
+            "report_validated" => policy.HeatDeltaReportValidated,
+            "automod_denied" => policy.HeatDeltaAutoModDenied,
+            "filter_hit" => policy.HeatDeltaFilterHit,
             _ => 0m, // warn / unban / delete_message shape the rollup, not the heat
         };
 
@@ -82,13 +87,15 @@ public sealed class ModerationProjectionService(
             occurredAtUtc,
             ct
         );
+        TrustPolicy policy = await trustPolicy.GetAsync(broadcasterId, ct);
         await RecomputeAsync(
             broadcasterId,
             subjectUserId.Value,
             subjectTwitchUserId,
             history,
-            HeatDeltaFor(actionType),
+            HeatDeltaFor(actionType, policy),
             occurredAtUtc,
+            policy,
             ct
         );
         await db.SaveChangesAsync(ct);
@@ -115,6 +122,7 @@ public sealed class ModerationProjectionService(
             history,
             heatDelta: 0m,
             clock.GetUtcNow().UtcDateTime,
+            await trustPolicy.GetAsync(broadcasterId, ct),
             ct
         );
         await db.SaveChangesAsync(ct);
@@ -190,6 +198,8 @@ public sealed class ModerationProjectionService(
         List<UserModerationHistory> rebuilt = await db
             .UserModerationHistories.Where(h => h.BroadcasterId == broadcasterId)
             .ToListAsync(ct);
+        // Resolved once for the whole rebuild — it is the same channel for every row.
+        TrustPolicy rebuildPolicy = await trustPolicy.GetAsync(broadcasterId, ct);
         foreach (UserModerationHistory history in rebuilt)
             await RecomputeAsync(
                 broadcasterId,
@@ -198,6 +208,7 @@ public sealed class ModerationProjectionService(
                 history,
                 heatDelta: 0m,
                 clock.GetUtcNow().UtcDateTime,
+                rebuildPolicy,
                 ct
             );
         await db.SaveChangesAsync(ct);
@@ -277,6 +288,7 @@ public sealed class ModerationProjectionService(
         UserModerationHistory history,
         decimal heatDelta,
         DateTime nowUtc,
+        TrustPolicy policy,
         CancellationToken ct
     )
     {
@@ -311,14 +323,15 @@ public sealed class ModerationProjectionService(
                 AccountAgeMonths = tenureMonths,
                 TimeoutCount = history.TimeoutCount,
                 BanCount = history.BanCount,
-            }
+            },
+            policy
         );
         score.TrustScore = Math.Clamp((decimal)trust, 0m, 100m);
 
         // Heat: exponential decay since the last heat event, then the delta, clamped to [0, 100].
         decimal decayed = score is { LastHeatEventAt: { } last, HeatScore: > 0m }
             ? score.HeatScore
-                * (decimal)Math.Pow(0.5, (nowUtc - last).TotalHours / HeatHalfLifeHours)
+                * (decimal)Math.Pow(0.5, (nowUtc - last).TotalHours / policy.HeatHalfLifeHours)
             : 0m;
         decimal before = decayed;
         decimal after = Math.Clamp(decayed + heatDelta, 0m, 100m);
