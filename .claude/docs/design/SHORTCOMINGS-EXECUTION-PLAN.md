@@ -212,6 +212,15 @@ fixed in `25620139`. **Follow-on gap CLOSED 2026-09-02 (`a6bf4a7a`, S-OWN16-WEBH
 
 Read this block first. It is the only summary; everything below is detail.
 
+- **S-FLAKE-TIMING** (small, unowned, found 2026-09-03 during the S-OWN22 merge gate) — two
+  timing-sensitive Infrastructure tests fail under full-suite parallel load and pass in isolation,
+  so a full `dotnet test` lands red ~50% of runs and trains everyone to ignore it:
+  `OutboundWebhookDeliveryTruthTests.Fanout_returns_before_the_slow_http_send_completes_and_still_records_the_failed_attempt`
+  and `…Pipeline…Step_ConfigJsonWithoutEmbeddedType_StillExecutes` (peer commit `60835906`). Both
+  assert on real elapsed time / scheduling rather than on an injected clock or a completion signal.
+  Done-when: both pass 5 consecutive full-suite runs with no `--filter`, fixed by awaiting the
+  actual signal (or a fake TimeProvider), never by widening a sleep.
+
 **Your asks, and where each one is:**
 
 | Your words | Slice | State |
