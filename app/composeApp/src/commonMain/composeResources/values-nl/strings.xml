@@ -3180,7 +3180,9 @@
     <string name="event_type_channel_subscription_gift">Cadeauabonnement</string>
     <string name="event_type_channel_subscription_message">Hernieuwingsmelding</string>
     <string name="event_type_channel_cheer">Cheer</string>
-    <string name="event_type_channel_raid">Raid</string>
+    <string name="event_type_channel_raid">Binnenkomende raid</string>
+    <string name="event_type_channel_raid_start">Raid begint</string>
+    <string name="event_type_channel_raid_out">Raid voltooid</string>
     <string name="event_type_stream_online">Stream online</string>
     <string name="event_type_stream_offline">Stream offline</string>
     <string name="event_type_channel_poll_begin">Poll gestart</string>

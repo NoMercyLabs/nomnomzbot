@@ -228,7 +228,7 @@ class EventResponsesScreenTest {
         }
         waitForIdle()
 
-        onNodeWithContentDescription("Edit Raid").performClick()
+        onNodeWithContentDescription("Edit Incoming Raid").performClick()
         waitForIdle()
 
         onNodeWithText("All helpers…").performClick()

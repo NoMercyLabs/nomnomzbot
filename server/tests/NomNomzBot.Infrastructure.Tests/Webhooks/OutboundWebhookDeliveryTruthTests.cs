@@ -196,6 +196,15 @@ public sealed class OutboundWebhookDeliveryTruthTests
             .IsSuccess.Should()
             .BeTrue();
 
+        // And the delivery is demonstrably STILL RUNNING here — the gated handler has not been released
+        // yet. Without this the test is satisfied by a handler that did the delivery inline and handed
+        // back an already-finished task, which is exactly what it exists to forbid. (Found by mutation:
+        // replacing LastDispatch with Task.CompletedTask left every other assertion green.)
+        handler.LastDispatch.Should().NotBeNull();
+        handler
+            .LastDispatch!.IsCompleted.Should()
+            .BeFalse("the publisher returned while the HTTP send is still blocked");
+
         // The background delivery does reach the HTTP client — it just isn't awaited by the publisher.
         // Awaited as a SIGNAL, not raced against a wall clock: the old form
         // (WhenAny against Task.Delay(5s), asserting which won) turned a loaded machine into a red
