@@ -728,7 +728,6 @@ public static class DependencyInjection
             ServiceLifetime.Scoped,
             typeof(IJwtTokenService), // singleton crypto
             typeof(ICacheService), // deployment-variant: Redis vs in-memory (ambiguity)
-            typeof(ITrustService), // singleton
             typeof(ITtsService), // singleton — stateful TTS queues
             typeof(ITwitchEventSubService), // singleton + hosted (shared TwitchEventSubHostedService instance)
             typeof(ISubjectKeyService), // crypto envelope — wired explicitly below
@@ -910,7 +909,6 @@ public static class DependencyInjection
         services.AddSingleton<ITemplateResolver, TemplateResolver>();
         services.AddSingleton<IWebhookBodyTemplateRenderer, WebhookBodyTemplateRenderer>();
         services.AddSingleton<ITemplateHelperValidator, TemplateHelperValidator>();
-        services.AddSingleton<ITrustService, TrustService>();
         // Game outcome RNG (stateless CSPRNG; not an I<X>Service, so registered explicitly).
         services.AddSingleton<
             Application.Economy.Services.IGameRandomizer,

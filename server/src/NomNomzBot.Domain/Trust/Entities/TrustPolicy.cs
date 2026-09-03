@@ -19,14 +19,13 @@ namespace NomNomzBot.Domain.Trust.Entities;
 /// is EXACTLY the value the calculator shipped with, so an untouched policy reproduces today's scores
 /// byte for byte.
 ///
-/// <para><b>Blast radius, stated exactly (traced 2026-09-03):</b> this policy drives the moderation
-/// trust/heat projection (<c>UserTrustScore</c>) — the scores and tiers the moderation surfaces show.
-/// It does NOT currently gate song requests: that path runs a SEPARATE implementation
-/// (<c>Infrastructure/Music/TrustService</c>, a 0.0–1.0 scale with its own constants). The one method
-/// that would have bridged them, <c>MusicService.CheckTrustPermission</c>, was unreachable dead code
-/// and was deleted rather than left to imply a link that does not exist. Unifying the two trust
-/// systems is filed as S-TRUST-UNIFY; until then, do not tell an operator that these weights change
-/// <c>!sr</c>.</para>
+/// <para><b>Blast radius, stated exactly (traced 2026-09-03, unified 2026-09-04):</b> this policy drives
+/// the moderation trust/heat projection (<c>UserTrustScore</c>) — the scores and tiers the moderation
+/// surfaces show. There is now exactly ONE trust engine: the second implementation that used to sit in
+/// <c>Infrastructure/Music/TrustService</c> (a 0.0–1.0 scale with its own hardcoded lambdas) had no
+/// caller anywhere in the product and is deleted, along with the <c>MusicService.CheckTrustPermission</c>
+/// method that would have bridged them. Song requests are not trust-gated today; when they are, they
+/// gate on THIS policy through <see cref="TrustScoreCalculator"/>, never on a second set of weights.</para>
 ///
 /// <para>Per <c>spam-defense.md</c> §6 these are tunables, not invariants: no value here may switch
 /// off the protections that exist so a regular is never auto-punished.</para>
