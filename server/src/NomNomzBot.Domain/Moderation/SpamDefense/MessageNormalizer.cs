@@ -76,6 +76,64 @@ public static class MessageNormalizer
         ['Ѕ'] = 's', // Ѕ
         ['І'] = 'i', // І
         ['Ј'] = 'j', // Ј
+        // ─ Stroked / barred Latin (Windows Win+. → Symbols → Latin) ─
+        // NFKD does NOT decompose these: a stroke is part of the letter, not a combining mark. They are
+        // two clicks away on the on-screen keyboard, which makes them the cheapest disguise available.
+        ['ø'] = 'o',
+        ['Ø'] = 'o',
+        ['đ'] = 'd',
+        ['Đ'] = 'd',
+        ['ð'] = 'd',
+        ['ł'] = 'l',
+        ['Ł'] = 'l',
+        ['ħ'] = 'h',
+        ['Ħ'] = 'h',
+        ['ŧ'] = 't',
+        ['Ŧ'] = 't',
+        ['ɨ'] = 'i',
+        ['Ɨ'] = 'i',
+        ['ƶ'] = 'z',
+        ['Ƶ'] = 'z',
+        ['ɓ'] = 'b',
+        ['ǥ'] = 'g',
+        ['ɇ'] = 'e',
+        ['ɏ'] = 'y',
+        ['ꝑ'] = 'p',
+        ['ı'] = 'i', // dotless i
+        ['ȷ'] = 'j', // dotless j
+        ['ſ'] = 's', // long s
+        ['þ'] = 'p',
+        ['Þ'] = 'p',
+        ['ß'] = 'b',
+        ['æ'] = 'a',
+        ['Æ'] = 'a',
+        ['œ'] = 'o',
+        ['Œ'] = 'o',
+        // ─ Currency (Win+. → Symbols → Currency) ─ each one wears a letter's face.
+        ['¢'] = 'c',
+        ['£'] = 'l',
+        ['¥'] = 'y',
+        ['₩'] = 'w',
+        ['₽'] = 'p',
+        ['€'] = 'e',
+        ['₡'] = 'c',
+        ['₺'] = 't',
+        ['₴'] = 'e',
+        ['ƒ'] = 'f',
+        // ─ General symbols reachable from the same panel ─
+        ['°'] = 'o',
+        ['∅'] = 'o',
+        ['✕'] = 'x',
+        ['✗'] = 'x',
+        ['✘'] = 'x',
+        ['×'] = 'x',
+        ['∆'] = 'a',
+        ['∑'] = 'e',
+        ['℮'] = 'e',
+        ['№'] = 'n',
+        ['Ω'] = 'o',
+        ['µ'] = 'u', // micro sign
+        ['μ'] = 'u', // Greek mu
         // ─ Greek → Latin ─
         ['ο'] = 'o', // ο
         ['α'] = 'a', // α
@@ -151,8 +209,9 @@ public static class MessageNormalizer
         StringBuilder folded = new(visibleText.Length);
         foreach (char c in visibleText)
         {
-            char mapped = Confusables.TryGetValue(c, out char latin)
-                ? latin
+            char mapped =
+                Confusables.TryGetValue(c, out char latin) ? latin
+                : DeriveLatinSkeleton(c) is char derived ? derived
                 : char.ToLowerInvariant(c);
             folded.Append(Leet.TryGetValue(mapped, out char letter) ? letter : mapped);
         }
@@ -186,6 +245,43 @@ public static class MessageNormalizer
 
     /// <summary>Any Unicode whitespace that is not a plain space — folded to U+0020 rather than dropped.</summary>
     private static bool IsCollapsibleWhitespace(char c) => c != ' ' && char.IsWhiteSpace(c);
+
+    /// <summary>
+    /// Derives a Latin letter from a character's own Unicode decomposition, so accented, circled,
+    /// parenthesised, superscript and other compatibility forms fold WITHOUT anyone hand-listing them.
+    ///
+    /// <para>This exists because a hand-maintained confusable table is the wrong shape for the part of the
+    /// problem that Unicode already answers: every <c>é ⓐ ⑴ ᵃ ǽ</c> the on-screen keyboard can produce
+    /// decomposes to its base letter, and deriving that is a rule rather than 400 more rows. The
+    /// <see cref="Confusables"/> table is then only responsible for what NO algorithm derives —
+    /// cross-script homoglyphs (Cyrillic <c>о</c> is a genuinely different letter that merely looks Latin)
+    /// and stroked letters (<c>ø đ ł</c> carry no decomposition at all). Those two classes are irreducible
+    /// data; everything else is generated here.</para>
+    /// </summary>
+    private static char? DeriveLatinSkeleton(char c)
+    {
+        if (c < 128)
+            return null; // already ASCII — nothing to derive
+
+        // A lone surrogate half is not a valid string on its own: normalizing one throws
+        // ArgumentException. Emoji are surrogate pairs, so without this guard the normalizer crashed on
+        // ordinary chat — every message carrying 🎉 — which the corpus test caught immediately. Emoji
+        // carry no Latin skeleton anyway; the skeleton builder drops them as non-alphanumeric.
+        if (char.IsSurrogate(c))
+            return null;
+
+        foreach (char part in c.ToString().Normalize(NormalizationForm.FormKD))
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(part) is UnicodeCategory.NonSpacingMark)
+                continue;
+            char lower = char.ToLowerInvariant(part);
+            // Only accept a decomposition that lands on a plain ASCII letter; anything else (a second
+            // letter of a ligature, punctuation, another script) is left to the table or kept as-is.
+            return lower is >= 'a' and <= 'z' ? lower : null;
+        }
+
+        return null;
+    }
 
     /// <summary>
     /// A token is mixed-script when it contains letters from two different scripts — the signature of
