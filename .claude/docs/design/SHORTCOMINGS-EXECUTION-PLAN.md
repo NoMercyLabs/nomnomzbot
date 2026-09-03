@@ -417,50 +417,6 @@ later.)
 
 ## Phase 4 — existing features: truth, reach, completeness
 
-- **S052-remaining** TTS system surface. **Auto-provisioning DONE, verified (17cc7a43)**:
-  `IWidgetService.EnsureSystemWidgetAsync` (get-or-create by gallery natural key, never a gallery
-  browse/install) + `GET tts/overlay` on `TtsConfigController` wired to it — a fresh channel gets a
-  working `tts_caption` overlay URL on first call, no widget install required (widgets-overlays.md
-  §1.2). Remaining (each its own follow-up slice, not yet done):
-  - **S052-frontend-overlay-card** — DONE, verified (8daba7f6): TTS page calls `GET tts/overlay` on
-    load, shows a copyable browser-source URL and a distinct "never ran" vs "last ran Xm ago" state,
-    degrades cleanly on a failed call.
-  - **S052-audio-queue** — DONE, verified: already correctly implemented, no change needed.
-    `OverlaySdkController.cs` builds `<audio>` elements from `payload.audioUrl` and queues them
-    (`ttsQueue`/`playNextTts()`), strictly sequential, advances past a failed utterance — the prior
-    audit note about `tts_caption.vue` ignoring `audioUrl` was stale (that logic lives at the SDK level,
-    not that widget); confirmed by existing test `OverlaySdkTtsPlaybackTests.
-    Utterances_are_queued_so_two_voices_never_talk_over_each_other` (3/3 green). Cosmetic-only leftover:
-    `tts_caption.vue`'s header comment still implies it plays audio itself — not fixed, not urgent.
-  - **S052-test-through-overlay** — DONE, verified (401c1648): Test button dispatches a real utterance
-    through the SAME `ITtsDispatchService` path a production redemption uses (not a synthetic
-    shortcut), `ChannelEventId` explicitly null (a manual test, not a paid event — no fake correlation
-    invented). UI copy says "test sent", never claims OBS actually played it (honest about what the
-    backend can and can't confirm).
-  - **S052-queue-controls** — DONE, verified (83883d9a): skip/clear/pause/resume for the LIVE overlay
-    playback queue (correctly disambiguated from `TtsQueueController`, which is the moderator approval
-    queue — unrelated, already built). Real commands sent through to the connected overlay's
-    `ttsQueue`. **Known honest gap, not fixed**: the server never reads back the overlay's true queue
-    state (item count / what's actually playing) — the dashboard's pause/resume indicator is optimistic
-    local UI state, not a confirmed echo from the overlay. Acceptable for now (skip/clear/pause DO fire
-    real commands), but a future slice should close the loop with a real state confirmation if this
-    becomes user-visible as wrong.
-  - **S052-gallery-cleanup** — DONE, verified (aaa41092): `tts_caption` excluded from the browsable
-    gallery listing; a new onboarding handler (`TtsSystemWidgetSeedOnOnboardingHandler`) provisions it
-    at real channel creation, not just lazily on first TTS-page visit.
-  - **S052-alert-sound-provisioning** — DONE, verified (15f612b9), `alerts` half: `alerts` confirmed
-    as a real, distinct catalogue entry with the same gap as `tts_caption` — fixed by generalizing
-    `TtsSystemWidgetSeedOnOnboardingHandler` into `SystemWidgetSeedOnOnboardingHandler` (provisions
-    every natural key in `SystemSurfaceNaturalKeys` at `ChannelOnboardedEvent`, one surface's failure
-    never blocking another) and adding `GET .../event-responses/overlay` mirroring the TTS page's
-    entry point. **`sound` confirmed NOT to exist as a distinct catalogue entry** —
-    `widgets-overlays.md` §1.2 names it, but `FirstPartyWidgetCatalogue.cs` has no `sound` key at all;
-    this is unstarted work, not merely unwired, and needs its own slice once/if a Sound widget surface
-    is actually built (🔒 not urgent, no current UI depends on it).
-  Done-when (whole item) — **S052 is now fully COMPLETE**: TTS (auto-provisioning, audio queue,
-  dashboard card, Test button, queue controls, gallery exclusion) and Alerts (gallery exclusion +
-  onboarding provisioning + overlay endpoint) all shipped and verified. Sound remains genuinely
-  unbuilt, tracked separately, not blocking this item's closure.
 - **S060-remaining** Editor fire-bar. **Real per-event samples DONE, verified (c4846c9c)**: fire bar
   was posting `{}` for every event type — now ports the server's `WidgetTestSamples`, real
   event-distinct payloads. **Declared-events drift DONE**: the fire bar's event list now comes from
@@ -943,11 +899,16 @@ later.)
   role-gated via `rememberManageDecision`; each row action targets that message's own channel, not the
   composer's currently-selected one. 5 new tests assert the real `ChatApi` calls + feed mutation.
 
-- **S085** Spec-led contract deltas (the 2026-08-22 realignment now leads the code) — `ResolvedAccessDto`/
-  `RoleResolver` rungs by name not int; `IAutomationEventDescriptor` → attribute catalog; `FirstPartyWidgetCatalogue`
-  `domain.action` subscription names; `2026-06-16-database-schema.md` changelog for `PlatformConnection`, Provider
-  columns, `BotLinePrefix`, `EventJournal.Source`; `economy.md` L.3 `SubjectTwitchUserId`. Done-when: ApiContractTest
-  + openapi snapshot refreshed; no int level in any DTO.
+- **S085-remaining** Spec-led contract deltas. **The "no int level in any DTO" half is DONE**: every
+  OpenAPI schema now reports a string rung name (commands, chat triggers, built-ins, sound clips), with
+  `PermissionLevelNames` converting at the boundary and unknown rungs refused rather than clamped. Two
+  real defects fell out: the StreamElements importer mapped broadcaster to 5 — not a rung, resolving down
+  to Vip — and all three dashboard pickers offered five of the eight rungs, silently rewriting a stored
+  Artist/LeadModerator/Editor on save. `BundleExports` and `CommandFlowSpec` keep their integers on
+  purpose: they are document formats, absent from `openapi/v1.json`.
+  Still open: `ResolvedAccessDto`/`RoleResolver` rungs by name; `IAutomationEventDescriptor` → attribute
+  catalog; `FirstPartyWidgetCatalogue` `domain.action` subscription names; the
+  `2026-06-16-database-schema.md` changelog entries; `economy.md` L.3 `SubjectTwitchUserId`.
 
 ## Phase 5 — new model (D1 one channel / D2 any login) — merged only after Phases 0–4; S023/S024 are the minimum the viewer-identity fixes need
 
