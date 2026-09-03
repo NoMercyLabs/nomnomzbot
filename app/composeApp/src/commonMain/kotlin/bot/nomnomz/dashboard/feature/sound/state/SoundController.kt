@@ -82,7 +82,7 @@ class SoundController(
         defaultVolume: Int,
         isEnabled: Boolean,
         cooldownSeconds: Int,
-        minPermissionLevel: Int,
+        minPermissionLevel: String,
         triggerWord: String?,
     ) {
         afterWrite(

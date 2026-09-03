@@ -75,7 +75,7 @@ data class BuiltinCommand(
     val name: String = "",
     val isEnabled: Boolean = true,
     val defaultCooldownSeconds: Int = 0,
-    val defaultMinPermissionLevel: Int = 0,
+    val defaultMinPermissionLevel: String = "Everyone",
     val responseOverride: String? = null,
 )
 

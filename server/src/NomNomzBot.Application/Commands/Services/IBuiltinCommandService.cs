@@ -52,6 +52,6 @@ public sealed record BuiltinCommandDto(
     string Name,
     bool IsEnabled,
     int DefaultCooldownSeconds,
-    int DefaultMinPermissionLevel,
+    string DefaultMinPermissionLevel,
     string? ResponseOverride
 );

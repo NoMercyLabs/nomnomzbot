@@ -46,6 +46,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppSelectField
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.designsystem.PermissionRungs
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
@@ -413,7 +414,7 @@ private fun ClipRow(
 private fun EditClipDialog(
     clip: SoundClip,
     onDismiss: () -> Unit,
-    onSave: (String, Int, Boolean, Int, Int, String?) -> Unit,
+    onSave: (String, Int, Boolean, Int, String, String?) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val typography = LocalTypography.current
@@ -424,7 +425,7 @@ private fun EditClipDialog(
     var isEnabled: Boolean by remember(clip.id) { mutableStateOf(clip.isEnabled) }
     var triggerWord: String by remember(clip.id) { mutableStateOf(clip.triggerWord.orEmpty()) }
     var cooldown: String by remember(clip.id) { mutableStateOf(clip.cooldownSeconds.toString()) }
-    var minLevel: Int by remember(clip.id) { mutableStateOf(clip.minPermissionLevel) }
+    var minLevel: String by remember(clip.id) { mutableStateOf(clip.minPermissionLevel) }
     var permMenuOpen: Boolean by remember(clip.id) { mutableStateOf(false) }
 
     val enabledLabel: String = stringResource(Res.string.sound_clips_dialog_enabled_label)
@@ -486,17 +487,17 @@ private fun EditClipDialog(
 
                 // Minimum role that can fire the trigger — role NAMES only, never the numeric ladder value.
                 AppSelectField(
-                    value = permissionLabel(minLevel),
+                    value = stringResource(PermissionRungs.labelOf(minLevel)),
                     label = stringResource(Res.string.sound_clips_dialog_permission_label),
                     expanded = permMenuOpen,
                     onExpandedChange = { permMenuOpen = it },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    PermissionRungs.forEach { (level, res) ->
+                    PermissionRungs.Ordered.forEach { (rung, res) ->
                         DropdownMenuItem(
                             text = { Text(stringResource(res), color = tokens.cardForeground) },
                             onClick = {
-                                minLevel = level
+                                minLevel = rung
                                 permMenuOpen = false
                             },
                         )
@@ -548,21 +549,6 @@ private fun EditClipDialog(
         },
     )
 }
-
-// The permission rungs the picker offers as ROLE NAMES mapped to their unified-ladder value (roles-permissions
-// §0). Ascending so [permissionLabel] resolves a stored level to the highest rung it clears.
-private val PermissionRungs: List<Pair<Int, org.jetbrains.compose.resources.StringResource>> =
-    listOf(
-        0 to Res.string.sound_clips_perm_everyone,
-        2 to Res.string.sound_clips_perm_subscriber,
-        4 to Res.string.sound_clips_perm_vip,
-        10 to Res.string.sound_clips_perm_moderator,
-        40 to Res.string.sound_clips_perm_broadcaster,
-    )
-
-@Composable
-private fun permissionLabel(level: Int): String =
-    stringResource(PermissionRungs.lastOrNull { level >= it.first }?.second ?: Res.string.sound_clips_perm_everyone)
 
 @Composable
 private fun ErrorContent(detail: String, onRetry: () -> Unit) {

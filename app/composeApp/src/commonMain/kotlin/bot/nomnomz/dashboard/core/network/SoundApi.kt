@@ -121,7 +121,7 @@ data class SoundClip(
     // Global per-clip cooldown (seconds) applied to the chat soundboard trigger; 0 = none.
     val cooldownSeconds: Int = 0,
     // Minimum community-standing ladder level to fire the chat trigger (see [SoundPermissionLevel]; 0 = everyone).
-    val minPermissionLevel: Int = 0,
+    val minPermissionLevel: String = "Everyone",
     // Optional bare, prefix-less chat trigger word that plays the clip; null = no chat trigger.
     val triggerWord: String? = null,
     val createdAt: String = "",
@@ -136,6 +136,6 @@ data class UpdateSoundClipBody(
     val defaultVolume: Int,
     val isEnabled: Boolean,
     val cooldownSeconds: Int = 0,
-    val minPermissionLevel: Int = 0,
+    val minPermissionLevel: String = "Everyone",
     val triggerWord: String? = null,
 )
