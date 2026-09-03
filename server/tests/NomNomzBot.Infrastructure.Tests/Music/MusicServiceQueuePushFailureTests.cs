@@ -52,9 +52,14 @@ public sealed class MusicServiceQueuePushFailureTests
         {"error":{"status":403,"reason":"PREMIUM_REQUIRED","message":"Premium required"}}
         """;
 
+    // POST only — a GET to the same path is the duplicate-check's own provider-queue probe (one per
+    // admitted request, MusicService.CheckDuplicateAsync), not a push, and must not be counted as one.
+    // POST only — a GET to the same path is the duplicate-check's own provider-queue probe (one per
+    // admitted request, MusicService.CheckDuplicateAsync), not a push, and must not be counted as one.
     private static int QueuePushCount(RecordingHttpHandler handler) =>
         handler.RequestUrls.Count(url =>
-            url.Contains("/me/player/queue", StringComparison.Ordinal)
+            url.StartsWith("POST", StringComparison.Ordinal)
+            && url.Contains("/me/player/queue", StringComparison.Ordinal)
         );
 
     private static bool IsQueuePush(HttpRequestMessage r) =>

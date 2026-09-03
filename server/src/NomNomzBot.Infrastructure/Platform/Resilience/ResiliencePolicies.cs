@@ -350,22 +350,35 @@ public static class ResiliencePolicies
                 // Spotify's rate limit is per-app (client_id) across every user token that app holds, on a
                 // rolling 30s window (developer.spotify.com/documentation/web-api/concepts/rate-limits) — not
                 // per-user as MusicStatePollingService's own doc comment once assumed. That poller polls every
-                // CONNECTED CHANNEL at a flat 1s cadence, and a self-hosted deployment can carry unlimited
-                // channels (product statement) all sharing the one Spotify app the operator registered — so
-                // channel count alone, not just call frequency, can burn through the shared budget. This gate
-                // sits outermost (before retry/circuit-breaker) and is the ONE place ALL outbound Spotify calls
-                // funnel through (poller, mutation actions, search, everything), so it is what actually bounds
-                // total request volume regardless of channel count: 60 requests / rolling 30s is a small
-                // fraction of even Spotify's undisclosed development-mode budget, so a single connected channel
-                // (1 req/s from the poller) never queues; a deployment with many channels queues its excess
-                // polls instead of bursting a 429 storm, and RateLimiterRejectedException (queue full) surfaces
-                // to the caller exactly like any other transient failure — the poller's existing per-channel
-                // catch/backoff already handles that without change.
+                // CONNECTED CHANNEL at a flat 1s cadence (one real GetCurrentTrackAsync call per channel per
+                // second — MusicStatePollingService.PollInterval), and a self-hosted deployment can carry
+                // unlimited channels (product statement) all sharing the one Spotify app the operator
+                // registered — so channel count alone, not just call frequency, can burn through the shared
+                // budget. This gate sits outermost (before retry/circuit-breaker) and is the ONE place ALL
+                // outbound Spotify calls funnel through (poller, mutation actions, search, everything) — poller
+                // reads and interactive pause/play/skip calls share the SAME queue, FIFO (OldestFirst).
+                //
+                // The original PermitLimit here was 60/30s (2 req/s) — picked before checking it against the
+                // poller's own demand. With just 3 connected channels the poller alone needs 3 req/s = 90/30s,
+                // already past that ceiling: the queue never drains, and an interactive pause landing behind
+                // the backlog waits multiple seconds for a permit — confirmed live (POST .../music/pause took
+                // 9.3s end-to-end against a 3-channel deployment with this cap; see PR conversation). The gate
+                // built specifically to keep pause/play "instant" (NowPlayingCache, MusicStatePollingService
+                // registration) was silently undone by this same session's own earlier rate limit.
+                //
+                // Sized instead against the poller's real formula: PermitLimit/Window must clear
+                // (connectedChannels req/s) with real headroom left for interactive bursts on top, for as many
+                // channels as this deployment is meant to comfortably support before the poller itself is the
+                // bottleneck. 900/30s = 30 req/s sustained supports ~28 actively-polled channels before the
+                // poller alone saturates it — comfortably past self-host's typical single-digit channel counts,
+                // still small next to Spotify's own (undocumented, but empirically much larger) per-app
+                // ceiling, and Polly's retry/circuit-breaker below remains the real backstop against an actual
+                // 429 from Spotify itself.
                 pipeline.AddRateLimiter(
                     new System.Threading.RateLimiting.SlidingWindowRateLimiter(
                         new System.Threading.RateLimiting.SlidingWindowRateLimiterOptions
                         {
-                            PermitLimit = 60,
+                            PermitLimit = 900,
                             Window = TimeSpan.FromSeconds(30),
                             SegmentsPerWindow = 6,
                             QueueProcessingOrder = System
