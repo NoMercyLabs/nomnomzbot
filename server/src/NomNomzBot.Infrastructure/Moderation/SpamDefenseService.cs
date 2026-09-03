@@ -184,6 +184,95 @@ public sealed class SpamDefenseService : ISpamDefenseService
         return Result.Success();
     }
 
+    public async Task<IReadOnlyList<SpamCampaignDto>> GetCampaignsAsync(
+        Guid broadcasterId,
+        int page = 1,
+        int pageSize = 25,
+        CancellationToken ct = default
+    )
+    {
+        int size = Math.Clamp(pageSize, 1, 200);
+
+        return await _db
+            .SpamCampaigns.IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(c => c.BroadcasterId == broadcasterId && c.DeletedAt == null)
+            .OrderByDescending(c => c.LastSeenAt)
+            .Skip((Math.Max(page, 1) - 1) * size)
+            .Take(size)
+            .Select(c => new SpamCampaignDto(
+                c.Id,
+                c.Skeleton,
+                c.Verdict,
+                c.QualificationCount,
+                c.ActionableCount,
+                c.ActionedCount,
+                c.NoStandingShare,
+                c.MayContributeToNetwork,
+                c.ReversedAt,
+                c.ReversalReason,
+                c.FirstSeenAt,
+                c.LastSeenAt
+            ))
+            .ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<FollowBotBlockDto>> GetFollowBotBlocksAsync(
+        Guid broadcasterId,
+        int page = 1,
+        int pageSize = 25,
+        CancellationToken ct = default
+    )
+    {
+        int size = Math.Clamp(pageSize, 1, 200);
+
+        return await _db
+            .FollowBotBlocks.IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(b => b.BroadcasterId == broadcasterId && b.DeletedAt == null)
+            .OrderByDescending(b => b.BlockedAt)
+            .Skip((Math.Max(page, 1) - 1) * size)
+            .Take(size)
+            .Select(b => new FollowBotBlockDto(
+                b.Id,
+                b.BatchId,
+                b.SubjectPlatformUserId,
+                b.SubjectUsername,
+                b.Indicators,
+                b.BatchExamined,
+                b.RestoredAt,
+                b.BlockedAt
+            ))
+            .ToListAsync(ct);
+    }
+
+    public async Task<Result<int>> RestoreFollowBotBatchAsync(
+        Guid broadcasterId,
+        Guid batchId,
+        CancellationToken ct = default
+    )
+    {
+        List<FollowBotBlock> blocks = await _db
+            .FollowBotBlocks.IgnoreQueryFilters()
+            .Where(b =>
+                b.BroadcasterId == broadcasterId
+                && b.BatchId == batchId
+                && b.DeletedAt == null
+                && b.RestoredAt == null
+            )
+            .ToListAsync(ct);
+
+        if (blocks.Count == 0)
+            return Result.Failure<int>("spam_follow_bot_batch_not_found", errorCode: "NOT_FOUND");
+
+        DateTime now = _time.GetUtcNow().UtcDateTime;
+        foreach (FollowBotBlock block in blocks)
+            block.RestoredAt = now;
+
+        await _db.SaveChangesAsync(ct);
+        return Result.Success(blocks.Count);
+    }
+
     public async Task<SpamEvaluationResult?> EvaluateAsync(
         SpamEvaluationRequest request,
         CancellationToken ct = default

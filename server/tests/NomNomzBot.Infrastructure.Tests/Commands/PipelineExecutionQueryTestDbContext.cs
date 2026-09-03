@@ -157,6 +157,12 @@ internal sealed class PipelineExecutionQueryTestDbContext : DbContext, IApplicat
 
     public DbSet<NomNomzBot.Domain.Moderation.Entities.SpamDetection> SpamDetections =>
         throw new NotSupportedException();
+
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.SpamCampaignRecord> SpamCampaigns =>
+        throw new NotSupportedException();
+
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.FollowBotBlock> FollowBotBlocks =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPoll> ChatPolls =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes =>

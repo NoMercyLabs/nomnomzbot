@@ -6685,6 +6685,64 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.ToTable("ChatFilters");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.FollowBotBlock", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("BatchExamined")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("BatchId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("BlockedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Indicators")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("RestoredAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SubjectPlatformUserId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SubjectUsername")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BatchId");
+
+                    b.HasIndex("BroadcasterId", "BlockedAt")
+                        .IsDescending(false, true);
+
+                    b.ToTable("FollowBotBlocks");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.ModerationEscalationPolicy", b =>
                 {
                     b.Property<Guid>("Id")
@@ -6961,6 +7019,78 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .IsUnique();
 
                     b.ToTable("SharedBanTrustedChannels");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.SpamCampaignRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ActionableCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ActionedAccountIds")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ActionedCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FirstSeenAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("LastSeenAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("MayContributeToNetwork")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double>("NoStandingShare")
+                        .HasColumnType("REAL");
+
+                    b.Property<int>("QualificationCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ReversalReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ReversedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Skeleton")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Verdict")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "LastSeenAt")
+                        .IsDescending(false, true);
+
+                    b.HasIndex("BroadcasterId", "Skeleton");
+
+                    b.ToTable("SpamCampaigns");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.SpamDefensePolicy", b =>

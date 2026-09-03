@@ -202,6 +202,12 @@ internal sealed class EngagementTestDbContext : DbContext, IApplicationDbContext
 
     public DbSet<NomNomzBot.Domain.Moderation.Entities.SpamDetection> SpamDetections =>
         throw new NotSupportedException();
+
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.SpamCampaignRecord> SpamCampaigns =>
+        throw new NotSupportedException();
+
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.FollowBotBlock> FollowBotBlocks =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPoll> ChatPolls =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes =>
