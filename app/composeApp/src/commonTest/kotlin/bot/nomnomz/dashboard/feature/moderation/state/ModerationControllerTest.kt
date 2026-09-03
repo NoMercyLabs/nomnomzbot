@@ -26,6 +26,7 @@ import bot.nomnomz.dashboard.core.network.EscalationLadderStep
 import bot.nomnomz.dashboard.core.network.EscalationPolicy
 import bot.nomnomz.dashboard.core.network.ModLogEntry
 import bot.nomnomz.dashboard.core.network.ModerationQueueItem
+import bot.nomnomz.dashboard.core.network.ResolvedAutomodQueueItem
 import bot.nomnomz.dashboard.core.network.ModerationRule
 import bot.nomnomz.dashboard.core.network.ModerationStanding
 import bot.nomnomz.dashboard.core.network.ModerationStats
@@ -62,6 +63,11 @@ import kotlinx.coroutines.test.runTest
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.feedback_unban_failed
 import nomnomzbot.composeapp.generated.resources.feedback_unbanned
+import bot.nomnomz.dashboard.core.realtime.HubAutoModQueueChange
+import bot.nomnomz.dashboard.core.realtime.HubEvent
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 
 // Proves the Moderation page state machine the read-only screen renders: resolve the active channel, then
 // surface the real banned-viewer list — Empty when there are none, or Error if either step fails. The screen
@@ -619,6 +625,51 @@ class ModerationControllerTest {
         // The triage hit the API with exactly the report id + action, and the queue reloaded.
         assertEquals(listOf("rep1" to "escalate"), api.resolvedReports)
         assertEquals(2, api.reportsCalls)
+    }
+
+    @Test
+    fun an_automod_queue_push_refetches_the_pending_queue_live() = runTest {
+        val api = FakeModerationApi(ApiResult.Ok(emptyList()))
+        api.automodQueueResult =
+            ApiResult.Ok(listOf(ModerationQueueItem(id = "q1", status = "pending")))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
+        controller.load()
+
+        val events = MutableSharedFlow<HubEvent>(extraBufferCapacity = 16)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.subscribeToHub(events) }
+
+        // Another mod resolved q1 and a NEW message q9 was held — the push must swap in the fresh queue,
+        // and the surviving item must be exactly q9 (not q1 kept by a stale count-only refresh).
+        api.automodQueueResult =
+            ApiResult.Ok(listOf(ModerationQueueItem(id = "q9", status = "pending")))
+        events.emit(HubEvent.AutoModQueueChanged(HubAutoModQueueChange(messageId = "amsg-9", change = "held")))
+
+        assertEquals(
+            listOf("q9"),
+            (controller.state.value as? ModerationState.Ready)?.automodQueue?.map { it.id },
+        )
+    }
+
+    @Test
+    fun an_automod_queue_push_on_an_empty_page_falls_back_to_a_full_load() = runTest {
+        // The page can sit in its empty state (nothing to moderate) when the FIRST hold arrives — the
+        // targeted Ready-refresh cannot apply, so the push must trigger a full load and surface the item.
+        val api = FakeModerationApi(ApiResult.Ok(emptyList()))
+        val controller = ModerationController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeCommunityApi())
+        controller.load()
+        assertTrue(controller.state.value !is ModerationState.Ready)
+
+        val events = MutableSharedFlow<HubEvent>(extraBufferCapacity = 16)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { controller.subscribeToHub(events) }
+
+        api.automodQueueResult =
+            ApiResult.Ok(listOf(ModerationQueueItem(id = "q1", status = "pending")))
+        events.emit(HubEvent.AutoModQueueChanged(HubAutoModQueueChange(messageId = "amsg-1", change = "held")))
+
+        assertEquals(
+            listOf("q1"),
+            (controller.state.value as? ModerationState.Ready)?.automodQueue?.map { it.id },
+        )
     }
 
     @Test
@@ -1316,8 +1367,8 @@ private class FakeModerationApi(
 
     var automodQueueResult: ApiResult<List<ModerationQueueItem>> =
         ApiResult.Ok(emptyList<ModerationQueueItem>())
-    var resolveAutomodQueueItemResult: ApiResult<ModerationQueueItem> =
-        ApiResult.Ok(ModerationQueueItem())
+    var resolveAutomodQueueItemResult: ApiResult<ResolvedAutomodQueueItem> =
+        ApiResult.Ok(ResolvedAutomodQueueItem(item = ModerationQueueItem()))
     val resolvedAutomodQueueItems: MutableList<Pair<String, String>> = mutableListOf()
 
     override suspend fun automodQueue(
@@ -1329,7 +1380,10 @@ private class FakeModerationApi(
         channelId: String,
         queueItemId: String,
         action: String,
-    ): ApiResult<ModerationQueueItem> {
+        followUp: String?,
+        timeoutSeconds: Int?,
+        reason: String?,
+    ): ApiResult<ResolvedAutomodQueueItem> {
         resolvedAutomodQueueItems.add(queueItemId to action)
         return resolveAutomodQueueItemResult
     }

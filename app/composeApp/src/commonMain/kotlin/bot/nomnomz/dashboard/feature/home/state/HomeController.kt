@@ -15,6 +15,7 @@ import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.network.ActionRequiredItem
 import bot.nomnomz.dashboard.core.network.ActivityEvent
 import bot.nomnomz.dashboard.core.network.ApiResult
+import bot.nomnomz.dashboard.core.network.AutomodConfig
 import bot.nomnomz.dashboard.core.network.Category
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -25,7 +26,11 @@ import bot.nomnomz.dashboard.core.network.DashboardApi
 import bot.nomnomz.dashboard.core.network.DashboardStats
 import bot.nomnomz.dashboard.core.network.IntegrationStatus
 import bot.nomnomz.dashboard.core.network.IntegrationsApi
+import bot.nomnomz.dashboard.core.network.ModerationApi
+import bot.nomnomz.dashboard.core.network.ModerationQueueItem
 import bot.nomnomz.dashboard.core.network.NotificationsApi
+import bot.nomnomz.dashboard.core.network.ResolvedAutomodQueueItem
+import bot.nomnomz.dashboard.core.network.UserModerationContext
 import bot.nomnomz.dashboard.core.network.PipelineSummary
 import bot.nomnomz.dashboard.core.network.PipelinesApi
 import bot.nomnomz.dashboard.core.network.ReplayResult
@@ -76,6 +81,7 @@ class HomeController(
     private val notificationsApi: NotificationsApi,
     private val pipelinesApi: PipelinesApi,
     private val integrationsApi: IntegrationsApi,
+    private val moderationApi: ModerationApi,
     private val hubClient: DashboardHubClient? = null,
     private val baseUrl: () -> String? = { null },
     private val accessToken: () -> String? = { null },
@@ -86,6 +92,12 @@ class HomeController(
 
     /** The page render state: loading / ready (with the snapshot + stream info + activity) / error. */
     val state: StateFlow<HomeState> = _state.asStateFlow()
+
+    private val _heldReview: MutableStateFlow<HeldReviewState?> = MutableStateFlow(null)
+
+    /** The held-message review dialog's state — null while it is closed (mirrors ModerationController's
+     * per-user context dialog pattern). */
+    val heldReview: StateFlow<HeldReviewState?> = _heldReview.asStateFlow()
 
     // Resolved on first load, reused by stream-edit actions without re-resolving.
     private var channelId: String? = null
@@ -315,6 +327,10 @@ class HomeController(
                             )
                         }
                     }
+                    is HubEvent.AutoModQueueChanged ->
+                        // The AutoMod queue changed somewhere (a new hold, or a resolution by any mod or
+                        // by Twitch) — re-fetch just the attention inbox so items appear/disappear live.
+                        refreshAttention()
                     is HubEvent.RewardRedeemed -> {
                         // A channel-point redemption is pushed as its OWN hub event, NOT a generic ChannelEvent —
                         // so without this branch it fell through and only appeared on a manual reload. Prepend it
@@ -343,6 +359,233 @@ class HomeController(
             }
         }
     }
+
+    // ─── Attention inbox (S-OWN22) ────────────────────────────────────────────
+
+    /**
+     * Re-fetch the attention inbox alone (hub-pushed queue change) — cheaper than a full [load] and it
+     * never disturbs the rest of the Ready state. A failure keeps the current list; the next load recovers.
+     */
+    private suspend fun refreshAttention() {
+        val channel: String = channelId ?: return
+        when (val r: ApiResult<List<ActionRequiredItem>> = notificationsApi.actionRequired(channel)) {
+            is ApiResult.Ok -> {
+                val latest: HomeState = _state.value
+                if (latest is HomeState.Ready) {
+                    _state.value = latest.copy(actionRequired = r.value)
+                }
+            }
+            is ApiResult.Failure -> Unit
+        }
+    }
+
+    /**
+     * Dismiss [item] via the persisted dismissal endpoint; on success the item leaves [HomeState.Ready.actionRequired]
+     * immediately AND stays gone across reloads (the backend excludes dismissed keys from the next read).
+     * No optimistic update — a failed dismiss leaves the item in place with the backend's error verbatim.
+     */
+    suspend fun dismissAttentionItem(item: ActionRequiredItem) {
+        val channel: String = channelId ?: return
+        when (val result: ApiResult<Unit> = notificationsApi.dismissActionRequired(channel, listOf(item.id))) {
+            is ApiResult.Ok -> removeAttentionItem(item.id)
+            is ApiResult.Failure -> {
+                val current: HomeState = _state.value
+                if (current is HomeState.Ready) {
+                    _state.value = current.copy(attentionError = result.error.message)
+                }
+            }
+        }
+    }
+
+    /**
+     * Open the held-message review dialog for [item] (kind `held_chat_message`): loads the pending AutoMod
+     * queue rows for the item's [ActionRequiredItem.queueItemIds], plus — best-effort — the chatter's
+     * moderation context (trust/heat badges) and the channel's heat auto-timeout threshold.
+     */
+    suspend fun openHeldReview(item: ActionRequiredItem) {
+        val channel: String = channelId ?: return
+        _heldReview.value = HeldReviewState.Loading
+        val rows: List<ModerationQueueItem> =
+            when (val result: ApiResult<List<ModerationQueueItem>> = moderationApi.automodQueue(channel, "pending")) {
+                is ApiResult.Failure -> {
+                    _heldReview.value = HeldReviewState.Error(result.error.message)
+                    return
+                }
+                is ApiResult.Ok -> result.value.filter { it.id in item.queueItemIds }
+            }
+        // Context + threshold are enrichment, not gates: a failed read renders the dialog without badges
+        // rather than blocking the review actions (which is why their failures fold to null/default).
+        val context: UserModerationContext? =
+            item.sourceUserId?.let { userId ->
+                when (val result: ApiResult<UserModerationContext> = moderationApi.userContext(channel, userId)) {
+                    is ApiResult.Ok -> result.value
+                    is ApiResult.Failure -> null
+                }
+            }
+        val heatThreshold: Int =
+            when (val result: ApiResult<AutomodConfig> = moderationApi.automod(channel)) {
+                is ApiResult.Ok -> result.value.heatTimeoutThreshold
+                is ApiResult.Failure -> DEFAULT_HEAT_THRESHOLD
+            }
+        _heldReview.value = HeldReviewState.Ready(
+            item = item,
+            messages = rows,
+            userContext = context,
+            heatThreshold = heatThreshold,
+        )
+    }
+
+    /** Close the held-message review dialog (state only — nothing is resolved or lost). */
+    fun closeHeldReview() {
+        _heldReview.value = null
+    }
+
+    /**
+     * Resolve ONE held message: [action] is `approve` (Allow) or `deny` (Block); a deny may carry a
+     * [followUp] (`timeout` needs [timeoutSeconds], `ban` takes an optional [reason]). No optimistic update:
+     * - clean success → the message leaves the dialog, the Home item's count/ids shrink (gone when empty);
+     * - partial success (deny stood, follow-up failed) → NOTHING is removed and the follow-up failure text
+     *   shows verbatim, so a "blocked but the ban failed" outcome is never mistaken for done;
+     * - failure → nothing is removed, the backend's error shows verbatim.
+     */
+    suspend fun resolveHeldMessage(
+        queueItemId: String,
+        action: String,
+        followUp: String? = null,
+        timeoutSeconds: Int? = null,
+        reason: String? = null,
+    ) {
+        val channel: String = channelId ?: return
+        val ready: HeldReviewState.Ready = _heldReview.value as? HeldReviewState.Ready ?: return
+        when (
+            val result: ApiResult<ResolvedAutomodQueueItem> =
+                moderationApi.resolveAutomodQueueItem(channel, queueItemId, action, followUp, timeoutSeconds, reason)
+        ) {
+            is ApiResult.Failure -> _heldReview.value = ready.copy(actionError = result.error.message)
+            is ApiResult.Ok -> {
+                val followUpError: String? = result.value.followUpError
+                if (followUpError != null) {
+                    _heldReview.value = ready.copy(actionError = followUpError)
+                } else {
+                    removeResolvedHeldMessage(ready, queueItemId)
+                }
+            }
+        }
+    }
+
+    /**
+     * Resolve EVERY remaining held message in the open dialog (the bulk all-from-this-user row) with the same
+     * action/follow-up. Sequential, stop-free: each message applies its own outcome (success removes it,
+     * failure or partial outcome keeps it with the error), so one Helix hiccup never voids the rest.
+     */
+    suspend fun resolveAllHeldMessages(
+        action: String,
+        followUp: String? = null,
+        timeoutSeconds: Int? = null,
+        reason: String? = null,
+    ) {
+        val open: HeldReviewState.Ready = _heldReview.value as? HeldReviewState.Ready ?: return
+        open.messages.map { it.id }.forEach { queueItemId ->
+            resolveHeldMessage(queueItemId, action, followUp, timeoutSeconds, reason)
+        }
+    }
+
+    /** Add [term] (a held message's text) to the channel's blocked-terms list. Success/failure is surfaced
+     * on the open dialog; the held message itself stays pending — blocking the term does not resolve it. */
+    suspend fun blockTermFromHeldMessage(term: String) {
+        val channel: String = channelId ?: return
+        val ready: HeldReviewState.Ready = _heldReview.value as? HeldReviewState.Ready ?: return
+        when (val result: ApiResult<Unit> = moderationApi.addBlockedTerm(channel, term)) {
+            is ApiResult.Ok -> _heldReview.value = ready.copy(actionError = null, blockedTerm = term)
+            is ApiResult.Failure -> _heldReview.value = ready.copy(actionError = result.error.message)
+        }
+    }
+
+    // A cleanly-resolved message leaves the dialog and shrinks its Home item (count/ids); the LAST message
+    // removes the item and closes the dialog — the group is fully handled.
+    private fun removeResolvedHeldMessage(ready: HeldReviewState.Ready, queueItemId: String) {
+        val remaining: List<ModerationQueueItem> = ready.messages.filterNot { it.id == queueItemId }
+        val remainingIds: List<String> = ready.item.queueItemIds.filterNot { it == queueItemId }
+        if (remaining.isEmpty()) {
+            removeAttentionItem(ready.item.id)
+            _heldReview.value = null
+            return
+        }
+        val shrunkItem: ActionRequiredItem = ready.item.copy(queueItemIds = remainingIds, count = remaining.size)
+        _heldReview.value = ready.copy(item = shrunkItem, messages = remaining, actionError = null)
+        val current: HomeState = _state.value
+        if (current is HomeState.Ready) {
+            _state.value = current.copy(
+                actionRequired = current.actionRequired.map { if (it.id == shrunkItem.id) shrunkItem else it }
+            )
+        }
+    }
+
+    private fun removeAttentionItem(itemId: String) {
+        val current: HomeState = _state.value
+        if (current is HomeState.Ready) {
+            _state.value = current.copy(
+                actionRequired = current.actionRequired.filterNot { it.id == itemId },
+                attentionError = null,
+            )
+        }
+    }
+}
+
+/**
+ * Maps an [ActionRequiredItem.kind] to the [bot.nomnomz.dashboard.feature.shell.nav.ShellRoute] name the
+ * item's Review action navigates to — the frontend owns this mapping now; the wire's `deepLinkRoute` (a URL
+ * path, not a route name — the old dead click) is no longer consumed. Null for an unknown kind: no navigation
+ * is honest, a wrong page is not.
+ */
+fun attentionRouteFor(kind: String): String? =
+    when (kind) {
+        "held_chat_message" -> "Moderation"
+        "integration_token_dead" -> "Integrations"
+        else -> null
+    }
+
+/** The three-way severity scale an [ActionRequiredItem.severity] maps onto (fixes the old binarisation
+ * that rendered `info` as "Warning"). Unknown future values read as [Warning] — attention-worthy, not scary. */
+enum class AttentionSeverity {
+    Critical,
+    Warning,
+    Info,
+}
+
+/** Maps the wire severity (`critical` | `warning` | `info`) to [AttentionSeverity]. */
+fun attentionSeverityFor(severity: String): AttentionSeverity =
+    when (severity) {
+        "critical" -> AttentionSeverity.Critical
+        "info" -> AttentionSeverity.Info
+        else -> AttentionSeverity.Warning
+    }
+
+// The bot's default heat auto-timeout threshold (backend AutomodConfigDto default) — used when the automod
+// config read fails so the held-message dialog can still color heat consistently.
+private const val DEFAULT_HEAT_THRESHOLD: Int = 80
+
+/** The held-message review dialog's load/render state. */
+sealed interface HeldReviewState {
+    data object Loading : HeldReviewState
+
+    /**
+     * The pending queue rows for the opened item ([messages], full content snapshots), the chatter's
+     * moderation context when it loaded ([userContext] — trust/heat badges), and the channel's heat
+     * auto-timeout threshold. [actionError] is the last action's backend error — verbatim, including the
+     * partial "deny stood but the follow-up failed" outcome. [blockedTerm] is the last term successfully
+     * added to the blocked-terms list (a visible confirmation, never a fake one).
+     */
+    data class Ready(
+        val item: ActionRequiredItem,
+        val messages: List<ModerationQueueItem>,
+        val userContext: UserModerationContext? = null,
+        val heatThreshold: Int = DEFAULT_HEAT_THRESHOLD,
+        val actionError: String? = null,
+        val blockedTerm: String? = null,
+    ) : HeldReviewState
+
+    data class Error(val detail: String) : HeldReviewState
 }
 
 /** The Home page render state. */
@@ -364,6 +607,8 @@ sealed interface HomeState {
         val firstRunSteps: List<FirstRunStep> = emptyList(),
         /** Non-null when the last [HomeController.updateStreamInfo] call failed. */
         val streamError: String? = null,
+        /** Non-null when the last attention-inbox dismiss failed — the backend's error verbatim. */
+        val attentionError: String? = null,
         /** Per-[ActivityEvent.id] outcome of the last Replay click on that row — absent = never replayed this session. */
         val replayStatus: Map<String, ReplayStatus> = emptyMap(),
     ) : HomeState

@@ -58,6 +58,9 @@ sealed interface HubEvent {
     /** A channel-points reward changed (created / updated / deleted / redemption state moved). */
     data class RewardChanged(val change: HubRewardChanged) : HubEvent
 
+    /** The AutoMod review queue changed — a new hold, or a resolution (any moderator, or Twitch expiry). */
+    data class AutoModQueueChanged(val change: HubAutoModQueueChange) : HubEvent
+
     /** A hub target not yet modelled — carry the raw argument so callers can inspect it. */
     data class Unknown(val target: String, val rawArgs: String) : HubEvent
 
@@ -83,6 +86,7 @@ sealed interface HubEvent {
                     "ObsBridgeStateChanged" -> ObsBridgeStateChanged(json.decodeFromString(first))
                     "ConfigChanged" -> ConfigChanged(json.decodeFromString(first))
                     "RewardChanged" -> RewardChanged(json.decodeFromString(first))
+                    "automod_queue_changed" -> AutoModQueueChanged(json.decodeFromString(first))
                     else -> Unknown(target, first)
                 }
             }.getOrNull()
@@ -323,4 +327,12 @@ data class HubRewardChanged(
     val cost: Int? = null,
     val isEnabled: Boolean? = null,
     val timestamp: String = "",
+)
+
+/** Mirrors AutoModQueueChangedAlertDto — the AutoMod review queue changed (a hold, or a resolution). */
+@Serializable
+data class HubAutoModQueueChange(
+    val messageId: String = "",
+    val userDisplayName: String = "",
+    val change: String = "",
 )
