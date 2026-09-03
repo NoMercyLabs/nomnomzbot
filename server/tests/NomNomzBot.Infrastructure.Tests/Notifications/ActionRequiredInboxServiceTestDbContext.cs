@@ -84,6 +84,9 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
     public DbSet<NomNomzBot.Domain.Notifications.Entities.ActionRequiredDismissal> ActionRequiredDismissals =>
         Set<NomNomzBot.Domain.Notifications.Entities.ActionRequiredDismissal>();
 
+    public DbSet<NomNomzBot.Domain.Trust.Entities.TrustPolicy> TrustPolicies =>
+        Set<NomNomzBot.Domain.Trust.Entities.TrustPolicy>();
+
     protected override void OnModelCreating(ModelBuilder b)
     {
         b.Entity<IntegrationConnection>(e =>

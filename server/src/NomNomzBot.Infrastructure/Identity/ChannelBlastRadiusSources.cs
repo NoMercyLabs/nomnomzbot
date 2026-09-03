@@ -200,6 +200,7 @@ public static class ChannelBlastRadiusSources
         Of(BlastRadiusCategoryKeys.ChannelOther, db => db.FeatureFlagOverrides),
         Of(BlastRadiusCategoryKeys.ChannelOther, db => db.SecurityNotices),
         Of(BlastRadiusCategoryKeys.ChannelOther, db => db.ActionRequiredDismissals),
+        Of(BlastRadiusCategoryKeys.ChannelOther, db => db.TrustPolicies),
         Of(BlastRadiusCategoryKeys.ChannelOther, db => db.EventJournals),
         Of(BlastRadiusCategoryKeys.ChannelOther, db => db.Records),
         // Past stream sessions and the tenant's id sequence: real rows that die with the channel, but nothing

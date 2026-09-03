@@ -8758,6 +8758,112 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.ToTable("SupporterEvents");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Trust.Entities.TrustPolicy", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<double>("AccountAgeDecay")
+                        .HasColumnType("REAL");
+
+                    b.Property<double>("AccountAgeWeight")
+                        .HasColumnType("REAL");
+
+                    b.Property<double>("BanPenalty")
+                        .HasColumnType("REAL");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ConfigSchemaVersion")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double>("ContentAgeDecay")
+                        .HasColumnType("REAL");
+
+                    b.Property<double>("ContentAgeWeight")
+                        .HasColumnType("REAL");
+
+                    b.Property<double>("ContentPopularityDecay")
+                        .HasColumnType("REAL");
+
+                    b.Property<double>("ContentPopularityWeight")
+                        .HasColumnType("REAL");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("HeatDeltaAutoModDenied")
+                        .HasPrecision(8, 4)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("HeatDeltaBan")
+                        .HasPrecision(8, 4)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("HeatDeltaFilterHit")
+                        .HasPrecision(8, 4)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("HeatDeltaReportValidated")
+                        .HasPrecision(8, 4)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("HeatDeltaTimeout")
+                        .HasPrecision(8, 4)
+                        .HasColumnType("TEXT");
+
+                    b.Property<double>("HeatHalfLifeHours")
+                        .HasColumnType("REAL");
+
+                    b.Property<double>("LowMax")
+                        .HasColumnType("REAL");
+
+                    b.Property<double>("NotFollowingFactor")
+                        .HasColumnType("REAL");
+
+                    b.Property<bool>("ReputationBoostEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double>("RequestCountDecay")
+                        .HasColumnType("REAL");
+
+                    b.Property<double>("RequestCountWeight")
+                        .HasColumnType("REAL");
+
+                    b.Property<double>("SkipPenalty")
+                        .HasColumnType("REAL");
+
+                    b.Property<double>("StandardMax")
+                        .HasColumnType("REAL");
+
+                    b.Property<double>("TimeoutPenalty")
+                        .HasColumnType("REAL");
+
+                    b.Property<double>("UntrustedMax")
+                        .HasColumnType("REAL");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<double>("YouTubeQualityPenaltyFactor")
+                        .HasColumnType("REAL");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId")
+                        .IsUnique();
+
+                    b.ToTable("TrustPolicies");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Tts.Entities.TtsApprovalQueueEntry", b =>
                 {
                     b.Property<Guid>("Id")

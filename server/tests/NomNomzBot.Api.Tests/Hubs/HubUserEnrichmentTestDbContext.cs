@@ -164,6 +164,8 @@ internal sealed class HubUserEnrichmentTestDbContext : DbContext, IApplicationDb
         throw new NotSupportedException();
     public DbSet<Domain.Notifications.Entities.ActionRequiredDismissal> ActionRequiredDismissals =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Trust.Entities.TrustPolicy> TrustPolicies =>
+        throw new NotSupportedException();
     public DbSet<Domain.Community.Entities.ChatPoll> ChatPolls => throw new NotSupportedException();
     public DbSet<Domain.Community.Entities.ChatPollVote> ChatPollVotes =>
         throw new NotSupportedException();
