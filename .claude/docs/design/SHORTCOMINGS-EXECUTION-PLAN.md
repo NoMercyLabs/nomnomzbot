@@ -214,25 +214,14 @@ Read this block first. It is the only summary; everything below is detail.
 
 ### S-SPAM — Sery-parity spam defence (owner 2026-09-03: "get the bot to behave like Sery bot")
 
-The ledger for `spec/spam-defense.md` §9. **9 of 9 members built; 6 of 6 dashboard surfaces built.**
-One piece is genuinely blocked and named below.
+The ledger for `spec/spam-defense.md` §9. All nine members and all six dashboard surfaces are built,
+wired, enforced and deployed; those lines are gone from this tracker. One piece remains open.
 
-- [x] **S-SPAM-1** L0 normalizer
-- [x] **S-SPAM-2** L1 account risk
-- [x] **S-SPAM-3** L4 ladder + capability table + L5 enforcement + dry run
-- [x] **S-SPAM-4** L2 content signals
-- [x] **S-SPAM-5** L3 correlation + baselines + follow-bot track
-- [x] **S-SPAM-6** Hate-raid lockdown
-- [x] **S-SPAM-7** Signature corpus — store, quarantine, corroboration, curated-skips-quarantine,
-      withdrawal, and the contribution eligibility rules. **Closes a real hole:** the L2 corpus was
-      always empty, so corpus-match and near-duplicate could never fire.
-      **BLOCKED, not deferred:** remote subscribe/contribute need a signature service at NoMercy
-      that does not exist. Nothing in this repo can start it. Everything not depending on it is done.
-- [x] **S-SPAM-8** All six surfaces: Spam Defence settings, Review Queue, Detections, Coordinated
-      groups, Follow-bot blocks, and `Admin → Spam Defence Defaults`.
-- [x] **S-SPAM-9** Wired, enforced, deployed. Engine + correlation on the chat path, four migration
-      pairs (every upgrade path verified on Postgres AND SQLite), 7 endpoints, 4 Gate-2 keys.
-      `scripts/mutation-check.ps1` proves all 8 enforcement guards load-bearing (8 caught, 0 survived).
+- [ ] **S-SPAM-NETWORK** Signature subscribe/contribute across instances. **BLOCKED, not deferred:**
+      it needs a signature service at NoMercy that does not exist, and nothing in this repo can start
+      it. The local corpus — store, quarantine, corroboration, curated-skips-quarantine, withdrawal,
+      contribution eligibility — is built and is what makes corpus-match and near-duplicate able to
+      fire at all.
 
 **Known infrastructure fault, outside this work:** `https://dev.nomnomz.bot` returns 530. The origin
 serves correctly on `http://192.168.2.60:5080`; the Cloudflare tunnel token in the host's `.env`
@@ -251,13 +240,6 @@ Cloudflare account access. Verify deploys over the LAN address until then.
 - **S-AUTOMOD-STALE-RULES** (same trace) — automod rules are cached 5 minutes in a process-local
   static dictionary that is never invalidated on save, so an operator's edit takes up to five
   minutes to take effect with no indication. Invalidate on write.
-- [ ] **S-SPAM-7 (now last)** Signature network — subscribe first, contribute + quarantine second.
-- [ ] **S-SPAM-8** Five dashboard surfaces (Spam Defense, Review Queue, Campaigns, Detections,
-      Follow-bot blocks) + `Admin → Spam Defense Defaults`. Every weight and every ban rule must be
-      operator-editable and explained in plain language — this is the owner's headline requirement,
-      not a settings page bolted on at the end.
-- [ ] **S-SPAM-9** Wire the engine into the live chat path, then deploy to Proxmox and verify
-      `/health/version` == the deployed SHA. Until this lands the engine is unreached code.
 
 - **S-DEAD-USER-EXPORT** (found 2026-09-03 by the new `ApiRouteContractTest`) — the Community screen's
   "export user data" control calls `POST api/v1/users/{userId}/export`
