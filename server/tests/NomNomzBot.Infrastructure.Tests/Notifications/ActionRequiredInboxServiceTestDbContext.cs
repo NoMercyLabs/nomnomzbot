@@ -87,6 +87,12 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
     public DbSet<NomNomzBot.Domain.Trust.Entities.TrustPolicy> TrustPolicies =>
         Set<NomNomzBot.Domain.Trust.Entities.TrustPolicy>();
 
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.SpamDefensePolicy> SpamDefensePolicies =>
+        Set<NomNomzBot.Domain.Moderation.Entities.SpamDefensePolicy>();
+
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.SpamDetection> SpamDetections =>
+        Set<NomNomzBot.Domain.Moderation.Entities.SpamDetection>();
+
     protected override void OnModelCreating(ModelBuilder b)
     {
         b.Entity<IntegrationConnection>(e =>

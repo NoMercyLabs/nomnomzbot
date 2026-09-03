@@ -166,6 +166,12 @@ internal sealed class CustomDataSourceServiceTestDbContext : DbContext, IApplica
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Trust.Entities.TrustPolicy> TrustPolicies =>
         throw new NotSupportedException();
+
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.SpamDefensePolicy> SpamDefensePolicies =>
+        throw new NotSupportedException();
+
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.SpamDetection> SpamDetections =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPoll> ChatPolls =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes =>

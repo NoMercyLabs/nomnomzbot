@@ -58,6 +58,8 @@ public interface IApplicationDbContext
     DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationQueueItem> ModerationQueueItems { get; }
     DbSet<NomNomzBot.Domain.Notifications.Entities.ActionRequiredDismissal> ActionRequiredDismissals { get; }
     DbSet<NomNomzBot.Domain.Trust.Entities.TrustPolicy> TrustPolicies { get; }
+    DbSet<NomNomzBot.Domain.Moderation.Entities.SpamDefensePolicy> SpamDefensePolicies { get; }
+    DbSet<NomNomzBot.Domain.Moderation.Entities.SpamDetection> SpamDetections { get; }
     DbSet<NomNomzBot.Domain.Community.Entities.ChatPoll> ChatPolls { get; }
     DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes { get; }
     DbSet<Quote> Quotes { get; }
