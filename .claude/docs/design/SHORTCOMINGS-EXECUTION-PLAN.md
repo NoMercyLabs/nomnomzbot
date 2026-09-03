@@ -208,6 +208,55 @@ fixed in `25620139`. **Follow-on gap CLOSED 2026-09-02 (`a6bf4a7a`, S-OWN16-WEBH
 (Kotlin, all three re-verified green 2026-09-02 after a shared-tree gradle build-dir contention delay).
 ---
 
+## OWNER REQUEST 2026-09-03 — the design skill is not reaching the work (NEXT SLICE, after S-SPAM)
+
+Owner sent a screenshot of the Home → **Held messages** modal and said the UI is not following best
+practices or the Sleak skill. He asked for the CAUSE first, not a fix.
+
+**The cause is not that an agent forgot.** It is four independent gaps, each of which alone is enough
+to produce that screen, and all four are live right now. Evidence for each is a file and a line, not
+an impression.
+
+1. **Sleak is absent from the checklist agents actually follow.** `CLAUDE.md` → *Adding a New
+   Dashboard Page* is the five-step list anyone writing a screen reads. It names
+   `frontend-design-system.md`, the catalogue, i18n, and role gating. It does **not** name Sleak. An
+   agent following it exactly still produces the screenshot.
+2. **Both Sleak mentions in `CLAUDE.md` sit inside the track-split-suspension paragraph** (lines 32
+   and 90) — governance about who owns which files during the campaign. It reads as process, not as
+   a build rule, and nobody scanning for "how do I write this screen" will find it there.
+3. **`dispatch-a-builder` never mentions design at all.** Its *Related playbooks* line lists
+   build-server, build-app, run-the-stack, commit-a-slice, watch-ci, deploy-and-verify, devbox — no
+   Sleak. Every subagent brief generated from that playbook is therefore silent on craft. Its one
+   design-adjacent line, "a UI claim needs the rendered client", is about verification, not hierarchy.
+4. **Nothing enforces it.** `DesignSystemStyleGuardTest` contains zero references to radius or accent;
+   it bans raw hex/`dp` and off-catalogue Material3 primitives. That is token hygiene. A screen can
+   pass every gate we run and still have no primary action.
+
+**Measured on the offending file:** `feature/home/ui/AttentionInbox.kt` uses `ButtonVariant`
+**zero** times. Allow / Block / Timeout / Ban all render at identical weight, which is Sleak core
+principle 3 (one primary focal point, secondaries neutral or outline) violated outright.
+
+**This is not a subagent-only failure.** Claude wrote four UI files in the S-SPAM slice
+(`SpamDefenseSection`, `SpamDetectionsSection`, `SpamCampaignsSection`, `AdminSpamDefaultsTab`)
+without ever loading the Sleak skill, hitting the same four gaps. Any fix that only changes agent
+briefs will miss the larger half of the problem.
+
+- [ ] **S-DESIGN-1 Close the routing gaps.** Add Sleak to the *Adding a New Dashboard Page* checklist
+      as a numbered step ("load the `sleak` skill before writing the screen"); move the design bar out
+      of the suspension paragraph into its own rule near the other Critical Rules; add Sleak to
+      `dispatch-a-builder`'s Related playbooks AND to the brief template it generates, so every
+      dispatched UI slice carries it.
+- [ ] **S-DESIGN-2 Make it enforceable.** Extend `DesignSystemStyleGuardTest` with the Sleak rules
+      that CAN be checked statically: a screen with 3+ sibling action buttons and no variant
+      differentiation fails; nested rounded containers reusing the same radius with padding > 0 fail.
+      Grandfather existing offenders as a shrinking per-file baseline, exactly as the raw-hex/`dp`
+      guard already does — the count is the backlog.
+- [ ] **S-DESIGN-3 Fix the Held-messages modal** (`AttentionInbox.kt`) as the reference example:
+      one primary action per row, secondaries outline/ghost, destructive distinct; group the repeated
+      identical messages instead of stacking six copies; humanise "Held 1450m ago"; give "Block term"
+      a home instead of floating between rows.
+- [ ] **S-DESIGN-4 Re-audit the four S-SPAM screens** against the same bar once S-DESIGN-2 lands.
+
 ## AT A GLANCE — what is open, in one screen
 
 Read this block first. It is the only summary; everything below is detail.
