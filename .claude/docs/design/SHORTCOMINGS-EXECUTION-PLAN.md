@@ -214,9 +214,8 @@ Read this block first. It is the only summary; everything below is detail.
 
 ### S-SPAM — Sery-parity spam defence (owner 2026-09-03: "get the bot to behave like Sery bot")
 
-The ledger for `spec/spam-defense.md` §9. **8 of 9 members complete.** Deployed and verified on
-Proxmox at `015ab0ea` (dry run, the shipped default). Outstanding: the signature network, and 5 of
-the 6 dashboard surfaces.
+The ledger for `spec/spam-defense.md` §9. **9 of 9 members built; 6 of 6 dashboard surfaces built.**
+One piece is genuinely blocked and named below.
 
 - [x] **S-SPAM-1** L0 normalizer
 - [x] **S-SPAM-2** L1 account risk
@@ -224,16 +223,21 @@ the 6 dashboard surfaces.
 - [x] **S-SPAM-4** L2 content signals
 - [x] **S-SPAM-5** L3 correlation + baselines + follow-bot track
 - [x] **S-SPAM-6** Hate-raid lockdown
-- [ ] **S-SPAM-7** Signature network — subscribe first, contribute + quarantine second. NOT STARTED.
-- [ ] **S-SPAM-8** Dashboard surfaces — **1 of 6 done**. The settings editor ships (renders from the
-      server's catalogue, every control states what moving it costs, en+nl, five guards).
-      Outstanding: **Review Queue**, **Campaigns**, **Detections**, **Follow-bot blocks**, and
-      **Admin → Spam Defense Defaults**.
-- [x] **S-SPAM-9** Wired, enforced and deployed. Engine on the chat path, both migration sets
-      (upgrade path verified on Postgres AND SQLite), 4 endpoints + 4 Gate-2 keys,
-      `SpamEnforcementExecutor` routing account actions through `IModerationService` so they feed
-      heat. `scripts/mutation-check.ps1` proves all 8 enforcement guards are load-bearing (8 caught,
-      0 survivors).
+- [x] **S-SPAM-7** Signature corpus — store, quarantine, corroboration, curated-skips-quarantine,
+      withdrawal, and the contribution eligibility rules. **Closes a real hole:** the L2 corpus was
+      always empty, so corpus-match and near-duplicate could never fire.
+      **BLOCKED, not deferred:** remote subscribe/contribute need a signature service at NoMercy
+      that does not exist. Nothing in this repo can start it. Everything not depending on it is done.
+- [x] **S-SPAM-8** All six surfaces: Spam Defence settings, Review Queue, Detections, Coordinated
+      groups, Follow-bot blocks, and `Admin → Spam Defence Defaults`.
+- [x] **S-SPAM-9** Wired, enforced, deployed. Engine + correlation on the chat path, four migration
+      pairs (every upgrade path verified on Postgres AND SQLite), 7 endpoints, 4 Gate-2 keys.
+      `scripts/mutation-check.ps1` proves all 8 enforcement guards load-bearing (8 caught, 0 survived).
+
+**Known infrastructure fault, outside this work:** `https://dev.nomnomz.bot` returns 530. The origin
+serves correctly on `http://192.168.2.60:5080`; the Cloudflare tunnel token in the host's `.env`
+(tunnel `cf9f7591`) is rejected by Cloudflare on every connection attempt. Reissuing it needs
+Cloudflare account access. Verify deploys over the LAN address until then.
 
 - **S-AUTOMOD-NO-HEAT** (found 2026-09-03 while tracing the chat path) — `AutoModerationHandler`
   calls `ITwitchModerationApi` directly and publishes no domain event, so its own timeouts and bans
