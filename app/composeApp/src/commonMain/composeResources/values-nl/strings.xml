@@ -4894,4 +4894,28 @@
     <string name="spam_group_bursts">Plotselinge activiteit</string>
     <string name="spam_group_lockdown">Raid-lockdown</string>
     <string name="spam_group_network">Gedeelde spamlijst</string>
+    <!-- Spambeveiliging: het oordeellogboek en de beoordelingslijst. -->
+    <string name="spam_detections_title">Spamdetecties</string>
+    <string name="spam_detections_empty">Nog niets gedetecteerd. Elk oordeel dat de bot velt verschijnt hier, met de reden erbij.</string>
+    <string name="spam_detections_dry_run_notice">Alleen kijken. Dit zijn de acties die genomen zouden zijn.</string>
+    <string name="spam_review_queue_title">Wacht op beoordeling</string>
+    <string name="spam_review_queue_empty">Niets in de wacht. Verwijderde berichten die een mens nodig hebben komen hier terecht.</string>
+    <string name="spam_detection_overturn">Dit was fout</string>
+    <string name="spam_detection_overturned">Als fout gemarkeerd</string>
+    <string name="spam_detection_would_have">Zou zijn: %1$s</string>
+    <string name="spam_detection_confidence_zero">Geen signaal</string>
+    <string name="spam_detection_confidence_low">Zwak signaal</string>
+    <string name="spam_detection_confidence_medium">Redelijk zeker</string>
+    <string name="spam_detection_confidence_high">Heel zeker</string>
+    <string name="spam_detection_outcome_none">Niets gedaan</string>
+    <string name="spam_detection_outcome_flag">Gemarkeerd voor een mens</string>
+    <string name="spam_detection_outcome_delete_queue">Bericht verwijderd, wacht op beoordeling</string>
+    <string name="spam_detection_outcome_delete_escalate">Bericht verwijderd en kijker getimed</string>
+    <string name="spam_tier_untrusted">Nieuw hier</string>
+    <string name="spam_tier_newcomer">Nieuwkomer</string>
+    <string name="spam_tier_known">Bekend gezicht</string>
+    <string name="spam_tier_regular">Vaste kijker</string>
+    <string name="spam_tier_trusted">Vertrouwd</string>
+    <string name="spam_tier_semi_trusted">Heeft status</string>
+    <string name="spam_tier_established">Gevestigde vaste kijker</string>
 </resources>

@@ -4919,4 +4919,28 @@
     <string name="spam_group_bursts">Sudden activity</string>
     <string name="spam_group_lockdown">Raid lockdown</string>
     <string name="spam_group_network">Shared spam list</string>
+    <!-- Spam defence: the verdict log and the review queue. -->
+    <string name="spam_detections_title">Spam detections</string>
+    <string name="spam_detections_empty">Nothing detected yet. Every verdict the bot reaches will appear here with the reason it reached it.</string>
+    <string name="spam_detections_dry_run_notice">Watching only. These are the actions that would have been taken.</string>
+    <string name="spam_review_queue_title">Waiting for review</string>
+    <string name="spam_review_queue_empty">Nothing waiting. Removed messages that need a human decision land here.</string>
+    <string name="spam_detection_overturn">This was wrong</string>
+    <string name="spam_detection_overturned">Marked wrong</string>
+    <string name="spam_detection_would_have">Would have: %1$s</string>
+    <string name="spam_detection_confidence_zero">No signal</string>
+    <string name="spam_detection_confidence_low">Weak signal</string>
+    <string name="spam_detection_confidence_medium">Fairly sure</string>
+    <string name="spam_detection_confidence_high">Very sure</string>
+    <string name="spam_detection_outcome_none">Nothing done</string>
+    <string name="spam_detection_outcome_flag">Flagged for a human</string>
+    <string name="spam_detection_outcome_delete_queue">Message removed, waiting for review</string>
+    <string name="spam_detection_outcome_delete_escalate">Message removed and viewer timed out</string>
+    <string name="spam_tier_untrusted">New here</string>
+    <string name="spam_tier_newcomer">Newcomer</string>
+    <string name="spam_tier_known">Known face</string>
+    <string name="spam_tier_regular">Regular</string>
+    <string name="spam_tier_trusted">Trusted</string>
+    <string name="spam_tier_semi_trusted">Has standing</string>
+    <string name="spam_tier_established">Established regular</string>
 </resources>

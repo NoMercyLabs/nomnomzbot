@@ -79,6 +79,7 @@ import bot.nomnomz.dashboard.core.designsystem.icon.UnlockGlyph
 import bot.nomnomz.dashboard.core.network.AutomodConfig
 import bot.nomnomz.dashboard.core.network.SpamDefensePolicy
 import bot.nomnomz.dashboard.core.network.SpamDefenseSettings
+import bot.nomnomz.dashboard.core.network.SpamDetection
 import bot.nomnomz.dashboard.core.network.TrustPolicy
 import bot.nomnomz.dashboard.core.network.TwitchAutoModSettings
 import bot.nomnomz.dashboard.core.network.UpdateTrustPolicyBody
@@ -118,6 +119,8 @@ import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecisionAtFloor
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.spam_detections_title
+import nomnomzbot.composeapp.generated.resources.spam_review_queue_title
 import nomnomzbot.composeapp.generated.resources.moderation_action_error
 import nomnomzbot.composeapp.generated.resources.moderation_moderators_title
 import nomnomzbot.composeapp.generated.resources.moderation_moderators_add_label
@@ -484,12 +487,16 @@ fun ModerationScreen(
                         ),
                     trustPolicy = current.trustPolicy,
                     spamDefense = current.spamDefense,
+                    spamDetections = current.spamDetections,
                     twitchAutoMod = current.twitchAutoMod,
                     trustWeightSumInvalid = current.trustWeightSumInvalid,
                     broadcasterManage = broadcasterManage,
                     onSaveTrustPolicy = { body -> scope.launch { controller.saveTrustPolicy(body) } },
                     onSaveSpamDefense = { settings ->
                         scope.launch { controller.saveSpamDefense(settings) }
+                    },
+                    onOverturnSpamDetection = { id ->
+                        scope.launch { controller.overturnSpamDetection(id) }
                     },
                     onSaveTwitchAutoMod = { body -> scope.launch { controller.saveTwitchAutoMod(body) } },
                     onToggleAutoTimeoutOnHeat = { on ->
@@ -634,11 +641,13 @@ private fun BansList(
     automationLines: List<AutomationLine>,
     trustPolicy: TrustPolicy?,
     spamDefense: SpamDefensePolicy?,
+    spamDetections: List<SpamDetection>,
     twitchAutoMod: TwitchAutoModSettings?,
     trustWeightSumInvalid: Boolean,
     broadcasterManage: ManageDecision,
     onSaveTrustPolicy: (UpdateTrustPolicyBody) -> Unit,
     onSaveSpamDefense: (SpamDefenseSettings) -> Unit,
+    onOverturnSpamDetection: (String) -> Unit,
     onSaveTwitchAutoMod: (UpdateTwitchAutoModSettingsBody) -> Unit,
     onToggleAutoTimeoutOnHeat: (Boolean) -> Unit,
     onSaveHeatTimeoutSeconds: (Int) -> Unit,
@@ -1188,6 +1197,47 @@ private fun BansList(
                         policy = policy,
                         manage = broadcasterManage,
                         onSave = onSaveSpamDefense,
+                    )
+                }
+            }
+        }
+        // The review queue and the full log. Both render only when the policy read succeeded, which is
+        // the same Moderator+ floor — a caller who cannot see the settings cannot see the verdicts
+        // either, and neither is meaningful without the other.
+        spamDefense?.let {
+            item(key = "spam-review-queue-header") {
+                Text(
+                    text = stringResource(Res.string.spam_review_queue_title),
+                    style = typography.lg,
+                    color = tokens.cardForeground,
+                    maxLines = 1,
+                )
+            }
+            item(key = "spam-review-queue-card") {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    SpamDetectionsSection(
+                        detections = spamDetections,
+                        manage = manage,
+                        reviewQueueOnly = true,
+                        onOverturn = onOverturnSpamDetection,
+                    )
+                }
+            }
+            item(key = "spam-detections-header") {
+                Text(
+                    text = stringResource(Res.string.spam_detections_title),
+                    style = typography.lg,
+                    color = tokens.cardForeground,
+                    maxLines = 1,
+                )
+            }
+            item(key = "spam-detections-card") {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    SpamDetectionsSection(
+                        detections = spamDetections,
+                        manage = manage,
+                        reviewQueueOnly = false,
+                        onOverturn = onOverturnSpamDetection,
                     )
                 }
             }
