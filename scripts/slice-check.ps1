@@ -14,7 +14,9 @@ param(
     [Parameter(Mandatory = $true)][string[]]$Paths,
     # Verify a committed sha in a throwaway worktree instead of the shared tree. Use this whenever
     # another agent's uncommitted work breaks the build on a file you do not own. Never `git stash`.
-    [string]$AtCommit
+    [string]$AtCommit,
+    # Force the ReSharper leg inside the devbox, where it is skipped by default.
+    [switch]$Inspect
 )
 
 $ErrorActionPreference = 'Stop'
@@ -96,6 +98,14 @@ try {
     }
     Invoke-Native 'dotnet format style failed on slice files' {
         dotnet format style NomNomzBot.slnx --include @relativePaths --severity warn --no-restore
+    }
+
+    # inspectcode reads the WHOLE solution regardless of --include, so inside the devbox every file
+    # crosses the Docker Desktop share and the leg goes from ~2min to 20+. Skipped there, loudly:
+    # it still has to run on the host before the slice is called done.
+    if ($env:NOMNOMZ_DEVBOX -eq '1' -and -not $Inspect) {
+        Write-Host '== inspect SKIPPED (devbox) - re-run this gate on the host, or pass -Inspect ==' -ForegroundColor Yellow
+        return
     }
 
     Write-Host '== inspect (ReSharper, slice files only) =='
