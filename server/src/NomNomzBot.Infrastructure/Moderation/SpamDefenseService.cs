@@ -58,7 +58,10 @@ public sealed class SpamDefenseService : ISpamDefenseService
         if (violations.Count > 0)
             return Result.Failure<SpamDefenseSettings>(
                 string.Join(' ', violations),
-                errorCode: "spam.setting.out_of_range"
+                // VALIDATION_FAILED is the established code the API layer already maps to 400. Inventing
+                // a new one meant it fell through to 500 — a client error reported as a server fault,
+                // which the dashboard would show as "something went wrong" instead of naming the field.
+                errorCode: "VALIDATION_FAILED"
             );
 
         // The hysteresis band is a safety property, not a preference: if de-qualify ever met or
@@ -66,7 +69,7 @@ public sealed class SpamDefenseService : ISpamDefenseService
         if (settings.DequalifyNoStandingShare >= settings.QualifyNoStandingShare)
             return Result.Failure<SpamDefenseSettings>(
                 "spam_setting_dequalify_below_qualify",
-                errorCode: "spam.setting.dequalify_not_below_qualify"
+                errorCode: "VALIDATION_FAILED"
             );
 
         SpamDefensePolicy? policy = await LoadPolicyAsync(broadcasterId, track: true, ct);
