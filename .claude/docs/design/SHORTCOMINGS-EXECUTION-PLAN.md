@@ -214,30 +214,26 @@ Read this block first. It is the only summary; everything below is detail.
 
 ### S-SPAM — Sery-parity spam defence (owner 2026-09-03: "get the bot to behave like Sery bot")
 
-The ledger for `spec/spam-defense.md` §9. Settled 2026-08-23, build STARTED 2026-09-03.
-**Done: L0 normalizer, L1 account risk, L2 content signals, L3 correlation + baselines +
-follow-bot track, L4 ladder + capability table, L5 enforcement + dry run + hate-raid lockdown.**
-Every engine layer is built and tested.
+The ledger for `spec/spam-defense.md` §9. **8 of 9 members complete.** Deployed and verified on
+Proxmox at `015ab0ea` (dry run, the shipped default). Outstanding: the signature network, and 5 of
+the 6 dashboard surfaces.
 
-**Reordered 2026-09-03 (was 7 → 8 → 9).** All of the above is pure Domain code with **zero
-consumers** — the identical shape to S-HEAT-UNENFORCED, where a dashboard control set a number
-that nothing read. Wiring and operator control therefore come before the network, which is the
-one remaining piece the owner cannot see working on their own box:
-
-- [x] **S-SPAM-9a** Engine on the live chat path: `SpamDefensePolicy` + `SpamDetection` entities,
-      both migration sets (upgrade path verified on Postgres AND SQLite against a populated
-      database), `SpamDefenseHandler` on `ChatMessageReceivedEvent`, tier resolved from real
-      channel history. Dry run by default, so it records and actions nobody.
-- [x] **S-SPAM-9b** API: 4 endpoints + 4 Gate-2 action keys; OpenAPI snapshot refreshed.
-- [ ] **S-SPAM-9c** ENFORCEMENT still not connected. `EvaluateAsync` returns a decision and records
-      it; nothing yet calls delete/timeout/ban. Deliberate — the tier resolver needs a live soak
-      before it is allowed to act — but until it lands, enforcement mode does nothing but log.
-      Route it through `IModerationService` (NOT `ITwitchModerationApi` directly), or its actions
-      will feed no heat, which is the existing `AutoModerationHandler` defect below.
-- [ ] **S-SPAM-8** Remaining dashboard surfaces: Review Queue, Campaigns, Detections, Follow-bot
-      blocks, and `Admin → Spam Defense Defaults`. The **settings editor is done** — it renders
-      from the server's catalogue, so a new weight appears with its copy and bounds without a UI
-      change, and every control states what moving it costs.
+- [x] **S-SPAM-1** L0 normalizer
+- [x] **S-SPAM-2** L1 account risk
+- [x] **S-SPAM-3** L4 ladder + capability table + L5 enforcement + dry run
+- [x] **S-SPAM-4** L2 content signals
+- [x] **S-SPAM-5** L3 correlation + baselines + follow-bot track
+- [x] **S-SPAM-6** Hate-raid lockdown
+- [ ] **S-SPAM-7** Signature network — subscribe first, contribute + quarantine second. NOT STARTED.
+- [ ] **S-SPAM-8** Dashboard surfaces — **1 of 6 done**. The settings editor ships (renders from the
+      server's catalogue, every control states what moving it costs, en+nl, five guards).
+      Outstanding: **Review Queue**, **Campaigns**, **Detections**, **Follow-bot blocks**, and
+      **Admin → Spam Defense Defaults**.
+- [x] **S-SPAM-9** Wired, enforced and deployed. Engine on the chat path, both migration sets
+      (upgrade path verified on Postgres AND SQLite), 4 endpoints + 4 Gate-2 keys,
+      `SpamEnforcementExecutor` routing account actions through `IModerationService` so they feed
+      heat. `scripts/mutation-check.ps1` proves all 8 enforcement guards are load-bearing (8 caught,
+      0 survivors).
 
 - **S-AUTOMOD-NO-HEAT** (found 2026-09-03 while tracing the chat path) — `AutoModerationHandler`
   calls `ITwitchModerationApi` directly and publishes no domain event, so its own timeouts and bans
