@@ -39,13 +39,39 @@ public sealed class SpamDefenseService : ISpamDefenseService
         _time = time;
     }
 
+    /// <summary>
+    /// The tenant id the PLATFORM-WIDE defaults are stored under.
+    ///
+    /// <para>A sentinel rather than a second table: the defaults are the same 22 values with the same
+    /// bounds and the same validation, and giving them their own entity would mean two shapes that must
+    /// be kept in step forever. <see cref="Guid.Empty"/> is not a real channel, so it cannot collide.</para>
+    /// </summary>
+    public static Guid PlatformDefaultsScope => Guid.Empty;
+
     public async Task<SpamDefenseSettings> GetSettingsAsync(
         Guid broadcasterId,
         CancellationToken ct = default
     )
     {
         SpamDefensePolicy? stored = await LoadPolicyAsync(broadcasterId, track: false, ct);
-        return stored?.ToSettings() ?? new SpamDefenseSettings();
+        if (stored is not null)
+            return stored.ToSettings();
+
+        // A channel that has never been configured TRACKS the platform defaults, so an admin changing
+        // them moves every untouched channel with it (§6). Falling straight through to the shipped
+        // constants would make the admin page a lie.
+        if (broadcasterId != PlatformDefaultsScope)
+        {
+            SpamDefensePolicy? defaults = await LoadPolicyAsync(
+                PlatformDefaultsScope,
+                track: false,
+                ct
+            );
+            if (defaults is not null)
+                return defaults.ToSettings();
+        }
+
+        return new SpamDefenseSettings();
     }
 
     public async Task<Result<SpamDefenseSettings>> UpdateSettingsAsync(

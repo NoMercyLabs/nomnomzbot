@@ -689,6 +689,7 @@ class AppGraph {
     val adminController: AdminController =
         AdminController(
             api = adminApi,
+            spamDefenseApi = spamDefenseApi,
             iamApi = platformIamApi,
             platformAdminApi = platformAdminApi,
             hubClient = adminHubClient,

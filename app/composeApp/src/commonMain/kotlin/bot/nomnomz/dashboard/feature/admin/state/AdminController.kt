@@ -12,6 +12,9 @@ package bot.nomnomz.dashboard.feature.admin.state
 
 import bot.nomnomz.dashboard.core.connection.SessionStore
 import bot.nomnomz.dashboard.core.connection.SessionUser
+import bot.nomnomz.dashboard.core.network.SpamDefenseApi
+import bot.nomnomz.dashboard.core.network.SpamDefensePolicy
+import bot.nomnomz.dashboard.core.network.SpamDefenseSettings
 import bot.nomnomz.dashboard.core.network.AdminApi
 import bot.nomnomz.dashboard.core.network.AdminChannel
 import bot.nomnomz.dashboard.core.network.AdminCreateInviteCodeRequest
@@ -58,6 +61,8 @@ import kotlinx.datetime.Instant
 
 data class AdminState(
     val stats: AdminStats? = null,
+    /** Platform-wide spam-defence defaults; null until the tab is first opened, or if the read failed. */
+    val spamDefaults: SpamDefensePolicy? = null,
     val channels: List<AdminChannel> = emptyList(),
     val channelSearch: String = "",
     val users: List<AdminUser> = emptyList(),
@@ -136,6 +141,9 @@ enum class ImpersonationRefusal {
  */
 class AdminController(
     private val api: AdminApi,
+    // Platform-wide spam-defence defaults. Nullable like the other optional collaborators so a bare
+    // test controller still builds; the tab then stays hidden rather than rendering defaults nobody read.
+    private val spamDefenseApi: SpamDefenseApi? = null,
     private val iamApi: PlatformIamApi,
     private val platformAdminApi: PlatformAdminApi,
     private val hubClient: AdminHubClient? = null,
@@ -576,6 +584,35 @@ class AdminController(
             AdminSection.Billing,
         )
     }
+    /**
+     * Loads the platform-wide spam-defence defaults. Lazy like the other heavier admin slices — it is
+     * only fetched when somebody opens the tab.
+     */
+    suspend fun loadSpamDefaults() {
+        val spam: SpamDefenseApi = spamDefenseApi ?: return
+        when (val result: ApiResult<SpamDefensePolicy> = spam.platformDefaults()) {
+            is ApiResult.Ok -> _state.value = _state.value.copy(spamDefaults = result.value)
+            is ApiResult.Failure -> _state.value = _state.value.copy(error = result.error.message)
+        }
+    }
+
+    /**
+     * Saves the platform-wide defaults. Validated server-side against exactly the same ranges a channel
+     * page enforces, so this cannot put every channel into a state its own editor would reject.
+     */
+    suspend fun saveSpamDefaults(settings: SpamDefenseSettings) {
+        val spam: SpamDefenseApi = spamDefenseApi ?: return
+        when (val result: ApiResult<SpamDefenseSettings> = spam.savePlatformDefaults(settings)) {
+            is ApiResult.Ok ->
+                _state.value =
+                    _state.value.copy(
+                        spamDefaults = _state.value.spamDefaults?.copy(settings = result.value),
+                        error = null,
+                    )
+            is ApiResult.Failure -> _state.value = _state.value.copy(error = result.error.message)
+        }
+    }
+
 }
 
 // Mirrors ConnectController's CurrentUser→SessionUser projection (kept local to avoid coupling the admin panel to
