@@ -3331,6 +3331,9 @@
     <string name="admin_user_grant_access">Platformtoegang geven</string>
     <string name="admin_user_grant_access_desc">Geef %1$s een platformrol. Eigen kanalen blijven hoe dan ook van hen — dit bepaalt alleen wat iemand op het hele platform mag.</string>
     <string name="admin_user_manage_in_iam">Beheren in IAM</string>
+    <string name="admin_page_previous">Vorige</string>
+    <string name="admin_page_next">Volgende</string>
+    <string name="admin_page_current">Pagina %1$d</string>
     <string name="admin_iam_reason">Reden (optioneel)</string>
     <string name="admin_iam_user_id">Gebruikers-ID</string>
     <string name="admin_iam_display_name">Weergavenaam</string>

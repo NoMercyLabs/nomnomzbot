@@ -141,6 +141,9 @@ import nomnomzbot.composeapp.generated.resources.admin_cancel
 import nomnomzbot.composeapp.generated.resources.admin_iam_inactive
 import nomnomzbot.composeapp.generated.resources.admin_iam_no_assignments
 import nomnomzbot.composeapp.generated.resources.admin_iam_role
+import nomnomzbot.composeapp.generated.resources.admin_page_previous
+import nomnomzbot.composeapp.generated.resources.admin_page_next
+import nomnomzbot.composeapp.generated.resources.admin_page_current
 import nomnomzbot.composeapp.generated.resources.admin_user_channels
 import nomnomzbot.composeapp.generated.resources.admin_user_role
 import nomnomzbot.composeapp.generated.resources.admin_channel_empty
@@ -475,6 +478,12 @@ internal fun ChannelsTab(state: AdminState, controller: AdminController) {
                     }
                 }
             }
+
+            Pager(
+                page = state.channelPage,
+                hasMore = state.channelHasMore,
+                onPage = { page -> scope.launch { controller.loadChannels(page = page) } },
+            )
         }
     }
 }
@@ -568,6 +577,12 @@ internal fun UsersTab(state: AdminState, controller: AdminController, onOpenIam:
                     }
                 }
             }
+
+            Pager(
+                page = state.userPage,
+                hasMore = state.userHasMore,
+                onPage = { page -> scope.launch { controller.loadUsers(page = page) } },
+            )
         }
     }
 
@@ -685,6 +700,55 @@ private fun GrantPlatformAccessDialog(
             Button(onClick = { onGrant(selectedRoleId) }, enabled = selectedRoleId.isNotBlank()) {
                 Text(text = stringResource(Res.string.admin_user_grant_access))
             }
+        }
+    }
+}
+
+/**
+ * Page controls for a server-paged admin list.
+ *
+ * The lists have always been paged server-side at 25 rows and the client always asked for page 1, so
+ * row 26 onward was unreachable from the dashboard — an operator on a platform with more than 25
+ * channels was quietly looking at a truncated list with nothing saying so.
+ *
+ * Next is driven by the server's own [hasMore], never by guessing from the row count: a page that
+ * happens to hold exactly 25 rows is not evidence that a 26th exists. Both controls are outline
+ * weight — navigation is not the primary act on any of these screens.
+ */
+@Composable
+private fun Pager(page: Int, hasMore: Boolean, onPage: (Int) -> Unit) {
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    val tokens = LocalTokens.current
+
+    // Page 1 with nothing after it IS the whole list; a pager there is furniture that says nothing.
+    if (page <= 1 && !hasMore) return
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Button(
+            onClick = { onPage(page - 1) },
+            enabled = page > 1,
+            variant = ButtonVariant.Outline,
+            size = ButtonSize.Sm,
+        ) {
+            Text(text = stringResource(Res.string.admin_page_previous), style = typography.xs)
+        }
+        Text(
+            text = stringResource(Res.string.admin_page_current, page),
+            style = typography.xs,
+            color = tokens.mutedForeground,
+        )
+        Button(
+            onClick = { onPage(page + 1) },
+            enabled = hasMore,
+            variant = ButtonVariant.Outline,
+            size = ButtonSize.Sm,
+        ) {
+            Text(text = stringResource(Res.string.admin_page_next), style = typography.xs)
         }
     }
 }
