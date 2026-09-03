@@ -19,40 +19,6 @@ Slice IDs are stable; the order is the queue.
 
 ---
 
-## OWNER REQUEST 2026-09-02 — moderation tooling made real (jump the queue, worked FIRST, in order)
-
-Owner: the Home "Needs your attention" items must become real moderation tooling — actionable,
-dismissible, correctly placed — and the user must get full control + plain-language understanding of
-every weight/threshold behind auto-actions. Ties into `spec/spam-defense.md` (our Sery-bar spec) —
-these slices align with its §6 philosophy but do NOT implement it. Full worked-out plan with
-grounding, contracts, defaults, and tests: **`S-OWN22-23-moderation-inbox-and-trust-plan.md`** —
-execute from there.
-
-- 🔴 **S-OWN22** Home layout + actionable attention inbox — stat tiles become ONE row above the
-  stream card (aaoa); attention inbox moves between stream-status cluster and Recent Activity;
-  items get stable ids, per-user grouping, persisted dismissal (`ActionRequiredDismissal`, both
-  migration sets); held-message modal shows the real message + user context with
-  Allow/Block/Timeout/Ban (resolve endpoint extended with deny+follow-up, Helix-first) and
-  Block-term; dead deep link + binarised severity fixed; hub-driven refresh wired end-to-end.
-  Done-when: from Home, a held message is allowed/blocked/timed-out/banned in the modal and
-  disappears from Home AND Moderation surviving reload; Dismiss persists across reload; tiles
-  render one row; every button validated live.
-- 🔴 **S-OWN23** Trust & auto-action transparency + advanced config — trust engine extracted out
-  of Music into its own `Trust` module first (owner 2026-09-02: calculator/context/tier →
-  `Domain/Trust`, Music becomes a consumer, pure move, own commit); `TrustPolicy` entity
-  per channel (weights/decays/penalties/tier ceilings/heat deltas+half-life, defaults = today's
-  consts, sum-to-1.0 validated, both migration sets); `TrustScoreCalculator` takes the policy,
-  BOTH consumers (moderation projection + song-request trust) use it; heat auto-timeout never
-  fires on broadcaster/mod (test-proven); `GET/PUT …/trust/policy` (new `TrustPolicyController`) +
-  `GET/PUT …/moderation/twitch-automod` (real Helix AutoMod settings — closes the S066 leftover
-  gap); Moderation screen "Trust & Automation" section: derived truthful "what happens
-  automatically" panel + every field with default, reset, and plain en+nl explanation of what
-  moving it costs, song-request blast radius named. Done-when: every number influencing automatic
-  action is editable per channel with explained defaults, demonstrably changes enforcement, and
-  persists; the automation panel derives from live config and names exactly what can auto-ban.
-- 🔒 **Owner call filed, not blocking:** queue `spam-defense.md` §9 build order (steps 1–3 stop
-  the motivating attack) as its own slice family next?
-
 ## OWNER REQUEST 2026-09-01 — bug/UX punch list (jump the queue, dispatched immediately)
 
 Owner's own words, filed as slices S-OWN01..S-OWN19. 🔴 = owner-marked priority, worked first, in
@@ -72,35 +38,6 @@ when done) — this section is only the intake, not a shortcut around the bar.
   was actually stale (a live screenshot of the wrong content would pin it down) before further code
   changes are justified.
 
-**S-OWN20 — closed 2026-09-01.** First investigation pass (media-share `MediaSourceResolver.cs` /
-`ChatHtmlSanitizer.cs`) was the WRONG root cause and nothing from it was kept as the fix for this
-slice — the owner corrected the diagnosis mid-investigation: "Cat Festival GIF by W&W" is Twitch's
-own new native chat-GIF feature (announced TwitchCon EU 2026, GIPHY-backed, Tier 2+ subscriber
-perk), not a media-share submission or a pasted HTML `<img>`. Verified against the live Twitch docs
-(`dev.twitch.tv/docs/eventsub/eventsub-reference`, WebFetch 2026-09-01): `channel.chat.message`'s
-`message.fragments[]` now includes a `"gif"` fragment type — `{ type: "gif", text, gif: { gif_id,
-url } }` — alongside the existing text/emote/cheermote/mention types; this bot's translator/domain
-model/wire DTOs had no case for it at all, so the fragment fell through to nothing rendering (the
-green/rock image the owner saw was NOT produced by this codebase — no bundled placeholder graphic
-matching it exists anywhere in the repo; most likely the browser/OBS source's own broken-image
-glyph over a transparent hole). Implemented first-party support end to end: `ChatMessageFragment.cs`
-(`GifId`/`GifUrl`), `ChatTranslators.cs` (`ChatPayload.ReadFragment` parses the `gif` object),
-`ChatDtos.cs`/`ChatFragmentMapper.cs` (new `ChatGifDto`, wired on `ChatFragmentDto`), the Kotlin
-mirrors (`ChatApi.kt` `ChatGif`, `HubEvent.kt` `HubChatGif`, `ChatController.kt`'s hub→REST-shape
-mapper), `chat_box.vue` (renders the fragment's real `gif.url` inline, capped to 8em so one GIF
-can't blow out the overlay), and the dashboard's own chat feed
-(`feature/chat/ui/ChatMessageFragments.kt`, rendered via the existing `AnimatedNetworkImage`).
-`server/openapi/v1.json` regenerated (the DTO gained a field the REST chat-history endpoint
-returns). Regression tests: `ChatTranslatorsTests.ChatMessage_NativeGif_PublishesGifFragmentWithTheRealUrl`
-(asserts the translator carries the real GIPHY url through, using the owner's own reported caption)
-and `ChatFragmentMapperTests.MapFragment_carries_the_native_gif_s_real_url_not_a_placeholder`. Both
-green. Separately, `ChatHtmlSanitizer.cs` — the sanitizer for the *unrelated* opt-in subscriber
-chat-HTML fragment feature — had a genuine, independently-discovered truthful-rendering bug: an
-`<img>`/`<video>`/`<source>` whose `src`/`poster` gets stripped by the https-only `AllowedSchemes`
-guard used to survive as a captioned, src-less tag instead of being removed outright. Fixed
-(`RemovingAttribute` + `PostProcessNode` hooks now drop the whole element) and covered by
-`ChatHtmlSanitizerTests.cs`, kept as a standalone correctness fix — NOT attributed to S-OWN20, since
-the real cause was the missing native-GIF fragment support above.
 - **S-OWN08-remaining** — admin pages (SaaS management: users, providers, settings) UX/DX pass. Owner: "the
   admin pages have not changed one bit and really need a better ux and dx interface for managing the saas
   version of the bot. this includes the ability to manage users, providers, and other settings." First slice
@@ -227,11 +164,6 @@ wired, enforced and deployed; those lines are gone from this tracker. One piece 
 serves correctly on `http://192.168.2.60:5080`; the Cloudflare tunnel token in the host's `.env`
 (tunnel `cf9f7591`) is rejected by Cloudflare on every connection attempt. Reissuing it needs
 Cloudflare account access. Verify deploys over the LAN address until then.
-
-- **S-FLAKE-TIMING** — fix written, PROOF PENDING. Both tests now await the real signal
-  (`OutboundWebhookFanoutHandler.LastDispatch`, and a `Ran` TaskCompletionSource on the pipeline test
-  actions) instead of racing `Task.Delay`; the remaining bounds are hang detectors, not timing
-  assertions. Stays open until the done-when is met: 5 consecutive full-suite runs with no `--filter`.
 
 **Your asks, and where each one is:**
 
