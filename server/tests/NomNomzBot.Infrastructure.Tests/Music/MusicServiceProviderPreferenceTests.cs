@@ -169,7 +169,8 @@ public sealed class MusicServiceProviderPreferenceTests
             NullLogger<MusicService>.Instance,
             new InMemoryIntegrationCapabilityStore(),
             configService,
-            Substitute.For<ICurrencyAccountService>()
+            Substitute.For<ICurrencyAccountService>(),
+            new NowPlayingCache()
         );
     }
 

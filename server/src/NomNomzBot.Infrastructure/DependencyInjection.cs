@@ -351,6 +351,12 @@ public static class DependencyInjection
         // per-tenant internally (Music.ISongRequestQueueStore); every FairQueue<T> mutation is lock-protected.
         services.AddSingleton<ISongRequestQueueStore, SongRequestQueueStore>();
 
+        // Same reasoning as the queue store above: must outlive the scoped MusicService that reads/writes
+        // it. Kept warm by every real GetNowPlayingAsync read (poller-cadence for an actively streaming
+        // channel) so Pause/Play/the play-pause toggle can publish their state-changed event immediately
+        // off a known-fresh snapshot instead of a second live provider round trip in the critical path.
+        services.AddSingleton<INowPlayingCache, NowPlayingCache>();
+
         // S001b — durable mirror of the fair queue (write-through on every mutation) + the once-at-startup
         // restore that replays it back into the (freshly empty) singleton store above before any live
         // traffic can reach it.

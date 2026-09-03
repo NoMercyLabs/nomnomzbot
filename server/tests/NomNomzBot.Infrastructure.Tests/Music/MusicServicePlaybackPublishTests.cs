@@ -16,6 +16,7 @@ using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Domain.Music.Events;
+using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
@@ -73,6 +74,107 @@ public sealed class MusicServicePlaybackPublishTests
         published.TrackName.Should().Be("Song A");
     }
 
+    /// <summary>
+    /// The actual latency fix: pausing/resuming has a KNOWN outcome (the track doesn't change, only
+    /// IsPlaying does), so with a fresh <see cref="INowPlayingCache"/> entry — the ordinary case for an
+    /// actively streaming channel, kept warm every 1s by <c>MusicStatePollingService</c> — PauseAsync must
+    /// publish off that cached snapshot instead of issuing a second live GET /me/player. That second call
+    /// used to sit in series with the pause command itself on every Stream Deck press, roughly doubling
+    /// the time before anything downstream (dashboard, overlay, Stream Deck) saw the new state — and it
+    /// could race Spotify's own playback-state propagation delay (a GET right after a PUT can still echo
+    /// the pre-mutation state).
+    /// </summary>
+    [Fact]
+    public async Task PauseAsync_skips_the_second_provider_round_trip_when_the_cache_is_warm()
+    {
+        INowPlayingCache cache = new NowPlayingCache();
+        (MusicService sut, RecordingEventBus bus, FakeSpotifyHttpHandler handler) = Build(
+            TrackJson("Song A", isPlaying: true),
+            cache
+        );
+
+        // Warms the cache exactly the way the poller does: one real read.
+        await sut.GetNowPlayingAsync(ChannelId.ToString());
+        handler.NowPlayingReadCount.Should().Be(1);
+
+        Result ok = await sut.PauseAsync(ChannelId.ToString());
+
+        ok.IsSuccess.Should().BeTrue();
+        handler
+            .NowPlayingReadCount.Should()
+            .Be(1, "pause must publish from the warm cache, not a second live GET");
+        PlaybackStateChangedEvent published = bus
+            .Published.OfType<PlaybackStateChangedEvent>()
+            .Last();
+        published.IsPlaying.Should().BeFalse();
+        published
+            .TrackName.Should()
+            .Be("Song A", "the track itself is carried over from the cache");
+        published.Artist.Should().Be("Artist");
+        published.DurationMs.Should().Be(200000);
+    }
+
+    /// <summary>The other half: without ANY prior real read (nothing cached yet — e.g. right after the
+    /// backend starts, before the poller's first tick), Pause must still fall back to a real fetch rather
+    /// than publishing a guess or failing.</summary>
+    [Fact]
+    public async Task PauseAsync_falls_back_to_a_real_fetch_when_nothing_is_cached_yet()
+    {
+        (MusicService sut, RecordingEventBus bus, FakeSpotifyHttpHandler handler) = Build(
+            TrackJson("Song A", isPlaying: false)
+        );
+
+        Result ok = await sut.PauseAsync(ChannelId.ToString());
+
+        ok.IsSuccess.Should().BeTrue();
+        handler.NowPlayingReadCount.Should().Be(1, "no cache existed, so a real read was required");
+        bus.Published.OfType<PlaybackStateChangedEvent>().Single().IsPlaying.Should().BeFalse();
+    }
+
+    /// <summary>A stale cache entry (older than the freshness window) must NOT be trusted — Pause should
+    /// re-fetch rather than publish state that could be meaningfully out of date.</summary>
+    [Fact]
+    public async Task PauseAsync_ignores_a_stale_cache_entry_and_refetches()
+    {
+        INowPlayingCache cache = new NowPlayingCache();
+        (MusicService sut, RecordingEventBus bus, FakeSpotifyHttpHandler handler) = Build(
+            TrackJson("Song A", isPlaying: true),
+            cache
+        );
+        await sut.GetNowPlayingAsync(ChannelId.ToString());
+        handler.NowPlayingReadCount.Should().Be(1);
+
+        // Directly age the entry past the freshness window rather than sleeping the test — proves the
+        // staleness check itself, not a timing coincidence.
+        cache.Set(
+            ChannelId,
+            new TrackInfo
+            {
+                TrackName = "Song A",
+                Artist = "Artist",
+                Album = "Album",
+                TrackUri = "spotify:track:x",
+                Provider = "spotify",
+                IsPlaying = true,
+            },
+            DateTimeOffset.UtcNow.AddSeconds(-30)
+        );
+
+        Result ok = await sut.PauseAsync(ChannelId.ToString());
+
+        ok.IsSuccess.Should().BeTrue();
+        handler
+            .NowPlayingReadCount.Should()
+            .Be(
+                2,
+                "the cache entry was stale, so pause must have refetched rather than trusting it"
+            );
+        // The fallback path ignores `assumeIsPlaying` entirely and believes whatever the real fetch
+        // reports (the fixture's canned isPlaying: true) — proving a stale cache doesn't just get a
+        // slower version of the SAME trust-the-caller shortcut, it genuinely defers to the provider.
+        bus.Published.OfType<PlaybackStateChangedEvent>().Last().IsPlaying.Should().BeTrue();
+    }
+
     [Fact]
     public async Task SkipAsync_publishes_the_next_tracks_state()
     {
@@ -119,7 +221,8 @@ public sealed class MusicServicePlaybackPublishTests
             NullLogger<MusicService>.Instance,
             new InMemoryIntegrationCapabilityStore(),
             PermissiveMusicConfigService.Instance,
-            Substitute.For<ICurrencyAccountService>()
+            Substitute.For<ICurrencyAccountService>(),
+            new NowPlayingCache()
         );
 
         Result ok = await sut.PlayAsync(ChannelId.ToString());
@@ -130,6 +233,11 @@ public sealed class MusicServicePlaybackPublishTests
 
     private static (MusicService Sut, RecordingEventBus Bus, FakeSpotifyHttpHandler Handler) Build(
         string? currentTrackJson
+    ) => Build(currentTrackJson, new NowPlayingCache());
+
+    private static (MusicService Sut, RecordingEventBus Bus, FakeSpotifyHttpHandler Handler) Build(
+        string? currentTrackJson,
+        INowPlayingCache nowPlayingCache
     )
     {
         MusicTestDbContext db = MusicTestDbContext.New();
@@ -173,7 +281,8 @@ public sealed class MusicServicePlaybackPublishTests
             NullLogger<MusicService>.Instance,
             new InMemoryIntegrationCapabilityStore(),
             PermissiveMusicConfigService.Instance,
-            Substitute.For<ICurrencyAccountService>()
+            Substitute.For<ICurrencyAccountService>(),
+            nowPlayingCache
         );
         return (sut, bus, handler);
     }
@@ -212,6 +321,10 @@ public sealed class MusicServicePlaybackPublishTests
     {
         public string? CurrentTrackJson { get; set; }
 
+        /// <summary>Counts real GET /me/player reads — the second Spotify round trip the assumed-outcome
+        /// fast path exists to eliminate from Pause/Play's critical path when a fresh cache entry exists.</summary>
+        public int NowPlayingReadCount { get; private set; }
+
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken
@@ -228,6 +341,7 @@ public sealed class MusicServicePlaybackPublishTests
 
             if (isNowPlayingRead)
             {
+                NowPlayingReadCount++;
                 HttpResponseMessage response = CurrentTrackJson is null
                     ? new(HttpStatusCode.NoContent)
                     : new HttpResponseMessage(HttpStatusCode.OK)

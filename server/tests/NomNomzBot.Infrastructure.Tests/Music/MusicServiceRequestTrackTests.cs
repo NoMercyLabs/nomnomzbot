@@ -334,7 +334,8 @@ public sealed class MusicServiceRequestTrackTests
             logger ?? NullLogger<MusicService>.Instance,
             new InMemoryIntegrationCapabilityStore(),
             PermissiveMusicConfigService.Instance,
-            Substitute.For<ICurrencyAccountService>()
+            Substitute.For<ICurrencyAccountService>(),
+            new NowPlayingCache()
         );
         return (sut, handler, blocks);
     }

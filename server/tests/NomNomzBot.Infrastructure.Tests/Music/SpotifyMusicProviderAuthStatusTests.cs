@@ -246,7 +246,8 @@ public sealed class SpotifyMusicProviderAuthStatusTests
             NullLogger<MusicService>.Instance,
             capabilityStore,
             PermissiveMusicConfigService.Instance,
-            Substitute.For<ICurrencyAccountService>()
+            Substitute.For<ICurrencyAccountService>(),
+            new NowPlayingCache()
         );
 
         return (sut, handler, capabilityStore, vault);

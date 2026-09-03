@@ -238,7 +238,8 @@ public sealed class MusicServiceQueueRefundTests
             NullLogger<MusicService>.Instance,
             new InMemoryIntegrationCapabilityStore(),
             PermissiveMusicConfigService.Instance,
-            accounts
+            accounts,
+            new NowPlayingCache()
         );
         return (sut, accounts, store);
     }
