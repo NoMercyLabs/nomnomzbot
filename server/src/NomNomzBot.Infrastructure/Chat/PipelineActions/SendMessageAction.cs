@@ -36,7 +36,16 @@ public sealed class SendMessageAction : ICommandAction
                 Templated: true,
                 Description: new("pipeline.send_message.message.help")
             ),
+            new(
+                "sender",
+                PipelineActionFieldKind.Enum,
+                Options: [SenderBot, SenderBroadcaster],
+                Description: new("pipeline.send_message.sender.help")
+            ),
         ];
+
+    private const string SenderBot = "bot";
+    private const string SenderBroadcaster = "broadcaster";
 
     public SendMessageAction(IChatProvider chat, ITemplateResolver resolver)
     {
@@ -59,11 +68,17 @@ public sealed class SendMessageAction : ICommandAction
             ctx.BroadcasterId,
             ctx.CancellationToken
         );
-        bool sent = await _chat.SendMessageAsync(
-            ctx.BroadcasterId,
-            resolved,
-            ctx.CancellationToken
-        );
+        // Defaults to the bot voice (existing behavior, unchanged for every step that never set this).
+        // "broadcaster" is for content only the streamer's own account can post as themselves — e.g. a
+        // subscriber-only emote a separate bot account isn't subscribed to and so can't render.
+        bool asBroadcaster = action.GetString("sender") == SenderBroadcaster;
+        bool sent = asBroadcaster
+            ? await _chat.SendMessageAsBroadcasterAsync(
+                ctx.BroadcasterId,
+                resolved,
+                ctx.CancellationToken
+            )
+            : await _chat.SendMessageAsync(ctx.BroadcasterId, resolved, ctx.CancellationToken);
         return sent
             ? ActionResult.Success(resolved)
             : ActionResult.Failure("send_message could not be delivered");

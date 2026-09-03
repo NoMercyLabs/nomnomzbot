@@ -46,6 +46,16 @@ public sealed class PostQuoteActionTests
             return Task.FromResult(true);
         }
 
+        public Task<bool> SendMessageAsBroadcasterAsync(
+            Guid broadcasterId,
+            string message,
+            CancellationToken ct = default
+        )
+        {
+            Sent.Add((broadcasterId, message));
+            return Task.FromResult(true);
+        }
+
         public Task<bool> SendReplyAsync(
             Guid broadcasterId,
             string replyToMessageId,

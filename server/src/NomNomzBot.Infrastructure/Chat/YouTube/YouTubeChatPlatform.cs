@@ -82,6 +82,15 @@ public sealed class YouTubeChatPlatform : IChatPlatform
         return sent.IsSuccess;
     }
 
+    // YouTube already sends every message on the streamer's own token (ResolveWriteAuthAsync) — there is
+    // no separate bot identity here to distinguish from, so "as the broadcaster" is identical to a normal
+    // send.
+    public Task<bool> SendMessageAsBroadcasterAsync(
+        Guid broadcasterId,
+        string message,
+        CancellationToken cancellationToken = default
+    ) => SendMessageAsync(broadcasterId, message, cancellationToken);
+
     public Task<bool> SendReplyAsync(
         Guid broadcasterId,
         string replyToMessageId,

@@ -167,6 +167,52 @@ public sealed class HelixChatProviderTests
     }
 
     /// <summary>
+    /// <see cref="HelixChatProvider.SendMessageAsBroadcasterAsync"/> bypasses the registered bot account
+    /// entirely and always signs as the channel's own owner — for content only the streamer can post as
+    /// themselves (e.g. a subscriber-only emote the bot account is not subscribed to). Same setup as
+    /// <see cref="SendMessage_WithRegisteredBotAccount_SendsAsTheBotAccount"/> (a bot account IS
+    /// registered), but this call must still land on the owner's identity, not the bot's.
+    /// </summary>
+    [Fact]
+    public async Task SendMessageAsBroadcaster_WithRegisteredBotAccount_StillSendsAsTheOwner()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        await AddConnectionAsync(
+            db,
+            Owner,
+            AuthEnums.IntegrationProvider.Twitch,
+            OwnerTwitchUserId,
+            DateTime.UtcNow
+        );
+        await AddConnectionAsync(
+            db,
+            null,
+            AuthEnums.IntegrationProvider.Twitch + "_bot",
+            BotTwitchUserId,
+            DateTime.UtcNow
+        );
+        (HelixChatProvider provider, CapturingHelixTransport transport) = Build(db);
+
+        await provider.SendMessageAsBroadcasterAsync(Owner, "big bird raid");
+
+        TwitchHelixRequest sent = (TwitchHelixRequest)transport.LastRequest!;
+        sent.Auth.Should()
+            .Be(
+                TwitchHelixAuth.User,
+                "a broadcaster-sender send always rides the channel's own token, never the bot's"
+            );
+        sent.BroadcasterId.Should()
+            .Be(Owner, "the transport must resolve THIS tenant's own token to sign the send");
+        (string SenderId, string BroadcasterId, string Message) body = ReadBody(sent.Body!);
+        body.SenderId.Should()
+            .Be(
+                OwnerTwitchUserId,
+                "the owner's own account, not the registered bot account, is the sender"
+            );
+        body.Message.Should().Be("big bird raid");
+    }
+
+    /// <summary>
     /// Multi-tenant correctness: on a deployment with several channels and NO shared bot, each channel's send
     /// is authored by THAT channel's own owner account — never one global (oldest) account for everyone. The
     /// sender_id differs per broadcaster AND each send rides its own channel's broadcaster token

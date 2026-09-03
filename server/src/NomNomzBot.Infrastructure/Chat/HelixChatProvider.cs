@@ -77,6 +77,12 @@ public sealed class HelixChatProvider : IChatPlatform
         CancellationToken cancellationToken = default
     ) => PostChatMessageAsync(broadcasterId, message, null, cancellationToken);
 
+    public Task<bool> SendMessageAsBroadcasterAsync(
+        Guid broadcasterId,
+        string message,
+        CancellationToken cancellationToken = default
+    ) => PostChatMessageAsBroadcasterAsync(broadcasterId, message, cancellationToken);
+
     public Task<bool> SendReplyAsync(
         Guid broadcasterId,
         string replyToMessageId,
@@ -214,6 +220,45 @@ public sealed class HelixChatProvider : IChatPlatform
             message,
             replyToMessageId,
             sender.FallbackAuth,
+            ct
+        );
+    }
+
+    /// <summary>
+    /// Posts a chat message as the STREAMER'S OWN account — <see cref="OwnerSenderAsync"/> directly,
+    /// never <see cref="SharedBotSenderAsync"/>'s dedicated/shared bot — riding that channel's own
+    /// broadcaster token (<see cref="TwitchHelixAuth.User"/>). The broadcaster's own sender_id is always
+    /// entitled to their own channel's subscriber emotes/badges regardless of whether a separate bot
+    /// account exists or is subscribed to render them. No app-token/badge attempt here — the chatbot
+    /// badge is a BOT-identity concept and does not apply to a message the streamer sent as themselves.
+    /// </summary>
+    private async Task<bool> PostChatMessageAsBroadcasterAsync(
+        Guid broadcasterId,
+        string message,
+        CancellationToken ct
+    )
+    {
+        string? twitchBroadcasterId = await ResolveTwitchChannelIdAsync(broadcasterId, ct);
+        if (twitchBroadcasterId is null)
+            return false;
+
+        BotSenderIdentity? sender = await OwnerSenderAsync(broadcasterId, ct);
+        if (sender is null)
+        {
+            _logger.LogWarning(
+                "HelixChatProvider: no broadcaster identity for {BroadcasterId}, cannot send as broadcaster",
+                broadcasterId
+            );
+            return false;
+        }
+
+        return await TrySendAsync(
+            broadcasterId,
+            twitchBroadcasterId,
+            sender,
+            message,
+            null,
+            TwitchHelixAuth.User,
             ct
         );
     }

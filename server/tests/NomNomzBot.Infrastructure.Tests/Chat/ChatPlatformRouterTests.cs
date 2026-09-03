@@ -159,6 +159,43 @@ public sealed class ChatPlatformRouterTests
             .SendMessageAsync(default, default!, Arg.Any<CancellationToken>());
     }
 
+    /// <summary>
+    /// <c>SendMessageAsBroadcasterAsync</c> routes to the resolved platform's OWN
+    /// <c>SendMessageAsBroadcasterAsync</c> — never the plain <c>SendMessageAsync</c> the bot voice uses —
+    /// still gets stamped (S009b, the self-echo guard is marker-aware regardless of which account sent
+    /// it), but never gets the bot-line prefix (that prefix exists to distinguish the bot's voice from
+    /// the streamer's own; a broadcaster-sender send already IS the streamer's own voice).
+    /// </summary>
+    [Fact]
+    public async Task SendMessageAsBroadcaster_routes_to_the_platforms_broadcaster_send_never_the_bot_voice()
+    {
+        (ChatPlatformRouter router, IChatPlatform twitch, IChatPlatform youtube) =
+            await BuildAsync();
+        twitch
+            .SendMessageAsBroadcasterAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(true);
+
+        await router.SendMessageAsBroadcasterAsync(TwitchTenant, "big bird raid");
+
+        await twitch
+            .Received(1)
+            .SendMessageAsBroadcasterAsync(
+                TwitchTenant,
+                BotEmittedLine.Marker + "big bird raid",
+                Arg.Any<CancellationToken>()
+            );
+        await twitch
+            .DidNotReceiveWithAnyArgs()
+            .SendMessageAsync(default, default!, Arg.Any<CancellationToken>());
+        await youtube
+            .DidNotReceiveWithAnyArgs()
+            .SendMessageAsBroadcasterAsync(default, default!, Arg.Any<CancellationToken>());
+    }
+
     [Fact]
     public async Task An_unregistered_provider_is_dropped_honestly_never_routed_to_twitch()
     {
