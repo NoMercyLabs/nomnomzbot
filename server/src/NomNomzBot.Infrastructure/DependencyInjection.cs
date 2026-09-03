@@ -961,6 +961,11 @@ public static class DependencyInjection
 
         // Auto-moderation engine consumed by concrete type — kept explicit.
         services.AddScoped<AutoModerationEngine>();
+
+        // Singleton on purpose: AutoModerationHandler is scoped (a new one per event), so a cache held
+        // on the handler was rebuilt for every chat message and never once hit. Held here it survives
+        // between messages; AutoModRuleCacheInvalidator keeps it honest on every rule write.
+        services.AddSingleton<IAutoModRuleCache, AutoModRuleCache>();
         // Consumed by concrete type from the chat-path handler, so convention scanning (I<X>Service ->
         // <X>Service) does not reach it. Separate from SpamDefenseService because deciding and acting
         // are different responsibilities: the decision is pure, acting touches somebody's account.

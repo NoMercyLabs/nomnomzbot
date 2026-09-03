@@ -8,7 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
@@ -22,7 +21,6 @@ using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Enums;
-using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Moderation.EventHandlers;
@@ -40,26 +38,21 @@ namespace NomNomzBot.Infrastructure.Moderation.EventHandlers;
 /// </summary>
 public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageReceivedEvent>
 {
-    private static readonly TimeSpan RuleCacheExpiry = TimeSpan.FromMinutes(5);
-
     /// <summary>Used when a timeout rule carries no duration of its own.</summary>
     private const int DefaultTimeoutSeconds = 60;
 
-    // Per-channel rule cache: key = broadcaster tenant Guid
-    private readonly ConcurrentDictionary<Guid, CachedRules> _ruleCache = new();
-
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly TimeProvider _timeProvider;
+    private readonly IAutoModRuleCache _rules;
     private readonly ILogger<AutoModerationHandler> _logger;
 
     public AutoModerationHandler(
         IServiceScopeFactory scopeFactory,
-        TimeProvider timeProvider,
+        IAutoModRuleCache rules,
         ILogger<AutoModerationHandler> logger
     )
     {
         _scopeFactory = scopeFactory;
-        _timeProvider = timeProvider;
+        _rules = rules;
         _logger = logger;
     }
 
@@ -81,7 +74,7 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
         if (broadcasterId == Guid.Empty || string.IsNullOrEmpty(@event.Message))
             return;
 
-        IReadOnlyList<AutoModRule> rules = await GetRulesAsync(broadcasterId, cancellationToken);
+        IReadOnlyList<AutoModRule> rules = await _rules.GetAsync(broadcasterId, cancellationToken);
         if (rules.Count == 0)
             return;
 
@@ -338,131 +331,6 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
                 result.ErrorMessage
             );
     }
-
-    // ─── Rule loading (cached) ────────────────────────────────────────────────
-
-    private async Task<IReadOnlyList<AutoModRule>> GetRulesAsync(
-        Guid broadcasterId,
-        CancellationToken ct
-    )
-    {
-        DateTimeOffset now = _timeProvider.GetUtcNow();
-
-        if (
-            _ruleCache.TryGetValue(broadcasterId, out CachedRules? cached)
-            && now - cached.CachedAt < RuleCacheExpiry
-        )
-        {
-            return cached.Rules;
-        }
-
-        IReadOnlyList<AutoModRule> rules = await LoadRulesFromDbAsync(broadcasterId, ct);
-        _ruleCache[broadcasterId] = new(rules, now);
-        return rules;
-    }
-
-    private async Task<IReadOnlyList<AutoModRule>> LoadRulesFromDbAsync(
-        Guid broadcasterId,
-        CancellationToken ct
-    )
-    {
-        try
-        {
-            using IServiceScope scope = _scopeFactory.CreateScope();
-            IApplicationDbContext db =
-                scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
-
-            List<Record> records = await db
-                .Records.Where(r =>
-                    r.BroadcasterId == broadcasterId && r.RecordType == "moderation_rule"
-                )
-                .ToListAsync(ct);
-
-            return
-            [
-                .. records
-                    .Select(r =>
-                    {
-                        try
-                        {
-                            return ParseRule(r.Data);
-                        }
-                        catch
-                        {
-                            return null;
-                        }
-                    })
-                    .Where(r => r is not null)
-                    .Select(r => r!),
-            ];
-        }
-        catch (Exception ex)
-        {
-            _logger.LogDebug(
-                ex,
-                "Failed to load auto-mod rules for {BroadcasterId}",
-                broadcasterId
-            );
-            return [];
-        }
-    }
-
-    private static AutoModRule ParseRule(string data)
-    {
-        using JsonDocument doc = JsonDocument.Parse(data);
-        JsonElement root = doc.RootElement;
-
-        return new()
-        {
-            Name = root.TryGetProperty("Name", out JsonElement n)
-                ? n.GetString() ?? string.Empty
-                : string.Empty,
-            Type = root.TryGetProperty("Type", out JsonElement t)
-                ? t.GetString() ?? string.Empty
-                : string.Empty,
-            Action = root.TryGetProperty("Action", out JsonElement a)
-                ? a.GetString() ?? "timeout"
-                : "timeout",
-            IsEnabled = !root.TryGetProperty("IsEnabled", out JsonElement e) || e.GetBoolean(),
-            DurationSeconds =
-                root.TryGetProperty("DurationSeconds", out JsonElement d)
-                && d.ValueKind == JsonValueKind.Number
-                    ? d.GetInt32()
-                    : null,
-            Reason = root.TryGetProperty("Reason", out JsonElement r) ? r.GetString() : null,
-            Settings =
-                root.TryGetProperty("Settings", out JsonElement s)
-                && s.ValueKind == JsonValueKind.Object
-                    ? s.EnumerateObject().ToDictionary(p => p.Name, p => (object)p.Value.Clone())
-                    : new(),
-            ExemptRoles =
-                root.TryGetProperty("ExemptRoles", out JsonElement er)
-                && er.ValueKind == JsonValueKind.Array
-                    ?
-                    [
-                        .. er.EnumerateArray()
-                            .Select(x => x.GetString() ?? string.Empty)
-                            .Where(x => x.Length > 0),
-                    ]
-                    : [],
-        };
-    }
-
-    // ─── Inner types ──────────────────────────────────────────────────────────
-
-    private sealed class AutoModRule
-    {
-        public string Name { get; set; } = string.Empty;
-        public string Type { get; set; } = string.Empty;
-        public string Action { get; set; } = "timeout";
-        public bool IsEnabled { get; set; } = true;
-        public int? DurationSeconds { get; set; }
-        public string? Reason { get; set; }
-        public Dictionary<string, object> Settings { get; set; } = new();
-        public List<string> ExemptRoles { get; set; } = [];
-    }
-
-    private sealed record CachedRules(IReadOnlyList<AutoModRule> Rules, DateTimeOffset CachedAt);
 
     [GeneratedRegex(@"https?://[^\s]+", RegexOptions.IgnoreCase)]
     private static partial Regex UrlPattern();

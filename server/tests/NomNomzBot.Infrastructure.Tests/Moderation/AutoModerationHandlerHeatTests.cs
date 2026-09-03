@@ -16,6 +16,7 @@ using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Chat.Events;
+using NomNomzBot.Infrastructure.Moderation;
 using NomNomzBot.Infrastructure.Moderation.EventHandlers;
 using NSubstitute;
 
@@ -108,9 +109,14 @@ public sealed class AutoModerationHandlerHeatTests
         services.AddSingleton(twitch);
         ServiceProvider provider = services.BuildServiceProvider();
 
+        IServiceScopeFactory scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
         AutoModerationHandler handler = new(
-            provider.GetRequiredService<IServiceScopeFactory>(),
-            TimeProvider.System,
+            scopeFactory,
+            new AutoModRuleCache(
+                scopeFactory,
+                TimeProvider.System,
+                NullLogger<AutoModRuleCache>.Instance
+            ),
             NullLogger<AutoModerationHandler>.Instance
         );
 
