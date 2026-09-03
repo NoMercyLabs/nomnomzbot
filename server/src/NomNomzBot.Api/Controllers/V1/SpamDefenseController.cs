@@ -121,6 +121,81 @@ public class SpamDefenseController : BaseController
     }
 
     /// <summary>
+    /// Correlated cohorts — which groups the bot judged coordinated, which it exonerated, and how many
+    /// accounts each one actually touched.
+    /// </summary>
+    [HttpGet("{channelId}/spam-defense/campaigns")]
+    [Authorize]
+    [RequireAction("spam:detections:read")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<SpamCampaignDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> GetCampaigns(
+        string channelId,
+        CancellationToken ct,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid tenantId))
+            return BadRequestResponse("Invalid channel id.");
+
+        return Ok(
+            new StatusResponseDto<IReadOnlyList<SpamCampaignDto>>
+            {
+                Data = await _spamDefense.GetCampaignsAsync(tenantId, page, pageSize, ct),
+            }
+        );
+    }
+
+    /// <summary>Follow-bot blocks, each with the per-account evidence that justified it (SD9).</summary>
+    [HttpGet("{channelId}/spam-defense/follow-bot-blocks")]
+    [Authorize]
+    [RequireAction("spam:detections:read")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<FollowBotBlockDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> GetFollowBotBlocks(
+        string channelId,
+        CancellationToken ct,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid tenantId))
+            return BadRequestResponse("Invalid channel id.");
+
+        return Ok(
+            new StatusResponseDto<IReadOnlyList<FollowBotBlockDto>>
+            {
+                Data = await _spamDefense.GetFollowBotBlocksAsync(tenantId, page, pageSize, ct),
+            }
+        );
+    }
+
+    /// <summary>
+    /// Restores an entire spike batch at once. Bulk by design: a misread viral moment can be hundreds
+    /// of accounts, and undoing them one at a time is not a recovery path anybody would use.
+    /// </summary>
+    [HttpPost("{channelId}/spam-defense/follow-bot-blocks/{batchId}/restore")]
+    [Authorize]
+    [RequireAction("spam:detections:manage")]
+    [ProducesResponseType<StatusResponseDto<int>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> RestoreFollowBotBatch(
+        string channelId,
+        string batchId,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid tenantId))
+            return BadRequestResponse("Invalid channel id.");
+        if (!Guid.TryParse(batchId, out Guid batch))
+            return BadRequestResponse("Invalid batch id.");
+
+        return ResultResponse(await _spamDefense.RestoreFollowBotBatchAsync(tenantId, batch, ct));
+    }
+
+    /// <summary>
     /// Marks a verdict wrong. Moderator-level on purpose: this is the correction path, and making it
     /// owner-only would leave moderators watching false positives they cannot fix.
     /// </summary>

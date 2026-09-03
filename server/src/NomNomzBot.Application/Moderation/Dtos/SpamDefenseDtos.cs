@@ -64,3 +64,34 @@ public sealed record SpamDetectionDto(
     DateTime? OverturnedAt,
     DateTime DetectedAt
 );
+
+/// <summary>One correlated cohort, for the Campaigns surface.</summary>
+public sealed record SpamCampaignDto(
+    Guid Id,
+    string Skeleton,
+    CohortVerdict Verdict,
+    int QualificationCount,
+    int ActionableCount,
+    int ActionedCount,
+    double NoStandingShare,
+    bool MayContributeToNetwork,
+    DateTime? ReversedAt,
+    string? ReversalReason,
+    DateTime FirstSeenAt,
+    DateTime LastSeenAt
+);
+
+/// <summary>
+/// One follow-bot block, for the Follow-bot blocks surface. <paramref name="Indicators"/> is what makes
+/// the block reviewable — a block whose reason cannot be shown is one nobody can judge.
+/// </summary>
+public sealed record FollowBotBlockDto(
+    Guid Id,
+    Guid BatchId,
+    string SubjectPlatformUserId,
+    string SubjectUsername,
+    string Indicators,
+    int BatchExamined,
+    DateTime? RestoredAt,
+    DateTime BlockedAt
+);

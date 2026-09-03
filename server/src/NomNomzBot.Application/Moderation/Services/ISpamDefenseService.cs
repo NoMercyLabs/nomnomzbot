@@ -97,6 +97,32 @@ public interface ISpamDefenseService
         CancellationToken ct = default
     );
 
+    /// <summary>Correlated cohorts, newest first — the Campaigns surface.</summary>
+    Task<IReadOnlyList<SpamCampaignDto>> GetCampaignsAsync(
+        Guid broadcasterId,
+        int page = 1,
+        int pageSize = 25,
+        CancellationToken ct = default
+    );
+
+    /// <summary>Follow-bot blocks, newest first, each carrying its own evidence.</summary>
+    Task<IReadOnlyList<FollowBotBlockDto>> GetFollowBotBlocksAsync(
+        Guid broadcasterId,
+        int page = 1,
+        int pageSize = 25,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// Restore an entire spike batch. Bulk by design: if a viral moment was misread the operator
+    /// should not have to undo five hundred blocks one at a time.
+    /// </summary>
+    Task<Result<int>> RestoreFollowBotBatchAsync(
+        Guid broadcasterId,
+        Guid batchId,
+        CancellationToken ct = default
+    );
+
     /// <summary>
     /// Evaluate one message and record the verdict. In dry run — the shipped default — this records
     /// and returns what WOULD have happened, and does nothing else.

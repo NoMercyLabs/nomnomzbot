@@ -90,6 +90,12 @@ public class AppDbContext : DbContext, IApplicationDbContext
 
     public DbSet<NomNomzBot.Domain.Moderation.Entities.SpamDetection> SpamDetections =>
         Set<NomNomzBot.Domain.Moderation.Entities.SpamDetection>();
+
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.SpamCampaignRecord> SpamCampaigns =>
+        Set<NomNomzBot.Domain.Moderation.Entities.SpamCampaignRecord>();
+
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.FollowBotBlock> FollowBotBlocks =>
+        Set<NomNomzBot.Domain.Moderation.Entities.FollowBotBlock>();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPoll> ChatPolls =>
         Set<NomNomzBot.Domain.Community.Entities.ChatPoll>();
     public DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes =>

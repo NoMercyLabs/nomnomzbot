@@ -49,3 +49,36 @@ public class SpamDetectionConfiguration : IEntityTypeConfiguration<SpamDetection
         builder.Property(e => e.Reason).HasMaxLength(1000);
     }
 }
+
+/// <summary>Correlated cohorts, read newest-first per channel like every other moderation log.</summary>
+public class SpamCampaignRecordConfiguration : IEntityTypeConfiguration<SpamCampaignRecord>
+{
+    public void Configure(EntityTypeBuilder<SpamCampaignRecord> builder)
+    {
+        builder.HasKey(e => e.Id);
+        builder.HasIndex(e => new { e.BroadcasterId, e.LastSeenAt }).IsDescending(false, true);
+        builder.HasIndex(e => new { e.BroadcasterId, e.Skeleton });
+
+        builder.Property(e => e.Skeleton).HasMaxLength(1000);
+        builder.Property(e => e.ActionedAccountIds).HasMaxLength(4000);
+        builder.Property(e => e.ReversalReason).HasMaxLength(500);
+    }
+}
+
+/// <summary>
+/// Follow-bot blocks. Indexed by batch as well as by channel, because the operation that matters most
+/// here is restoring a whole sweep at once when a viral moment was misread.
+/// </summary>
+public class FollowBotBlockConfiguration : IEntityTypeConfiguration<FollowBotBlock>
+{
+    public void Configure(EntityTypeBuilder<FollowBotBlock> builder)
+    {
+        builder.HasKey(e => e.Id);
+        builder.HasIndex(e => new { e.BroadcasterId, e.BlockedAt }).IsDescending(false, true);
+        builder.HasIndex(e => e.BatchId);
+
+        builder.Property(e => e.SubjectPlatformUserId).HasMaxLength(100);
+        builder.Property(e => e.SubjectUsername).HasMaxLength(100);
+        builder.Property(e => e.Indicators).HasMaxLength(500);
+    }
+}

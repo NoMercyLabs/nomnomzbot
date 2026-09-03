@@ -13,6 +13,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Identity.Entities;
@@ -345,6 +346,188 @@ public class SpamDefenseServiceTests : IDisposable
         SpamDefensePolicy policy = await read.SpamDefensePolicies.SingleAsync();
 
         policy.EnforcementEligibleAt.Should().Be(Now.UtcDateTime.AddDays(7));
+    }
+
+    // ---- Campaigns and follow-bot blocks ---------------------------------------------------------
+
+    private static readonly Guid OtherChannel = Guid.Parse("0199c000-0000-7000-8000-0000000000d9");
+
+    private void SeedBlocks(Guid batch, int count, Guid channel, bool restored = false)
+    {
+        using AppDbContext db = NewDbContext();
+        for (int i = 0; i < count; i++)
+            db.FollowBotBlocks.Add(
+                new FollowBotBlock
+                {
+                    BroadcasterId = channel,
+                    BatchId = batch,
+                    SubjectPlatformUserId = $"bot{batch:N}-{i}",
+                    SubjectUsername = $"viewer{i}8042193",
+                    Indicators = nameof(FollowBotIndicator.GeneratedHandlePattern),
+                    BatchExamined = count + 5,
+                    BlockedAt = Now.UtcDateTime,
+                    RestoredAt = restored ? Now.UtcDateTime : null,
+                }
+            );
+        db.SaveChanges();
+    }
+
+    [Fact]
+    public async Task RestoringABatch_RestoresEveryBlockInIt_AndNothingOutsideIt()
+    {
+        // The distinction a count-only assertion would let collapse: restoring "some blocks" is not
+        // restoring THIS batch. A misread viral moment and a genuine farm can be minutes apart.
+        Guid misread = Guid.NewGuid();
+        Guid genuine = Guid.NewGuid();
+        SeedBlocks(misread, 5, Channel);
+        SeedBlocks(genuine, 3, Channel);
+
+        using AppDbContext db = NewDbContext();
+        Result<int> result = await NewService(db).RestoreFollowBotBatchAsync(Channel, misread);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be(5);
+
+        using AppDbContext read = NewDbContext();
+        (await read.FollowBotBlocks.Where(b => b.BatchId == misread).ToListAsync())
+            .Should()
+            .OnlyContain(b => b.RestoredAt != null);
+        (await read.FollowBotBlocks.Where(b => b.BatchId == genuine).ToListAsync())
+            .Should()
+            .OnlyContain(b => b.RestoredAt == null, "the other sweep must be untouched");
+    }
+
+    [Fact]
+    public async Task ABatchFromAnotherChannel_IsNotRestorable()
+    {
+        // Cross-tenant: the query ignores the ambient filter (it runs outside a resolved-tenant
+        // request), so the broadcaster has to be matched explicitly or one channel could undo
+        // another's moderation.
+        Guid batch = Guid.NewGuid();
+        SeedBlocks(batch, 4, OtherChannel);
+
+        using AppDbContext db = NewDbContext();
+        Result<int> result = await NewService(db).RestoreFollowBotBatchAsync(Channel, batch);
+
+        result.IsFailure.Should().BeTrue();
+        using AppDbContext read = NewDbContext();
+        (await read.FollowBotBlocks.ToListAsync()).Should().OnlyContain(b => b.RestoredAt == null);
+    }
+
+    [Fact]
+    public async Task RestoringAnAlreadyRestoredBatch_ReportsFailureRatherThanClaimingSuccess()
+    {
+        // Reporting "restored 0" as success is the kind of quiet lie that makes an operator think an
+        // action worked. There is nothing left to restore, and the answer says so.
+        Guid batch = Guid.NewGuid();
+        SeedBlocks(batch, 3, Channel, restored: true);
+
+        using AppDbContext db = NewDbContext();
+        (await NewService(db).RestoreFollowBotBatchAsync(Channel, batch))
+            .IsFailure.Should()
+            .BeTrue();
+    }
+
+    [Fact]
+    public async Task EveryStoredBlockCarriesItsOwnEvidence()
+    {
+        // SD9 at the storage layer: a block that cannot say why is one nobody can review, and the
+        // Follow-bot blocks surface exists precisely so somebody can.
+        SeedBlocks(Guid.NewGuid(), 3, Channel);
+
+        using AppDbContext db = NewDbContext();
+        IReadOnlyList<FollowBotBlockDto> blocks = await NewService(db)
+            .GetFollowBotBlocksAsync(Channel);
+
+        blocks.Should().HaveCount(3);
+        blocks.Should().OnlyContain(b => b.Indicators != "");
+        // The denominator matters as much as the blocks: it is how an operator sees the sweep examined
+        // more accounts than it acted on, which is SD9 holding in a form somebody can check.
+        blocks
+            .Should()
+            .OnlyContain(
+                b => b.BatchExamined > 3,
+                "the sweep examined more accounts than it blocked"
+            );
+    }
+
+    [Fact]
+    public async Task BlocksAndCampaignsFromAnotherChannel_AreNeverListed()
+    {
+        SeedBlocks(Guid.NewGuid(), 2, OtherChannel);
+        using (AppDbContext seed = NewDbContext())
+        {
+            seed.SpamCampaigns.Add(
+                new SpamCampaignRecord
+                {
+                    BroadcasterId = OtherChannel,
+                    Skeleton = "bestviewers",
+                    Verdict = CohortVerdict.Campaign,
+                    FirstSeenAt = Now.UtcDateTime,
+                    LastSeenAt = Now.UtcDateTime,
+                }
+            );
+            seed.SaveChanges();
+        }
+
+        using AppDbContext db = NewDbContext();
+        SpamDefenseService service = NewService(db);
+
+        (await service.GetFollowBotBlocksAsync(Channel)).Should().BeEmpty();
+        (await service.GetCampaignsAsync(Channel)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task CampaignsComeBackNewestFirst_WithTheNumbersTheVerdictTurnedOn()
+    {
+        // Ordering is a distinction a "returns 2 rows" assertion would miss, and it is the one that
+        // decides which incident an operator sees when they open the page during an attack.
+        using (AppDbContext seed = NewDbContext())
+        {
+            seed.SpamCampaigns.AddRange(
+                new SpamCampaignRecord
+                {
+                    BroadcasterId = Channel,
+                    Skeleton = "older",
+                    Verdict = CohortVerdict.CommunityPattern,
+                    QualificationCount = 35,
+                    ActionableCount = 20,
+                    ActionedCount = 2,
+                    NoStandingShare = 0.57,
+                    MayContributeToNetwork = false,
+                    ReversedAt = Now.UtcDateTime,
+                    ReversalReason = "15 regulars joined this pattern; it is not spam.",
+                    FirstSeenAt = Now.UtcDateTime.AddHours(-2),
+                    LastSeenAt = Now.UtcDateTime.AddHours(-2),
+                },
+                new SpamCampaignRecord
+                {
+                    BroadcasterId = Channel,
+                    Skeleton = "newer",
+                    Verdict = CohortVerdict.Campaign,
+                    QualificationCount = 20,
+                    ActionableCount = 20,
+                    ActionedCount = 20,
+                    NoStandingShare = 1.0,
+                    FirstSeenAt = Now.UtcDateTime,
+                    LastSeenAt = Now.UtcDateTime,
+                }
+            );
+            seed.SaveChanges();
+        }
+
+        using AppDbContext db = NewDbContext();
+        IReadOnlyList<SpamCampaignDto> campaigns = await NewService(db).GetCampaignsAsync(Channel);
+
+        campaigns.Select(c => c.Skeleton).Should().ContainInOrder("newer", "older");
+
+        SpamCampaignDto exonerated = campaigns.Single(c => c.Skeleton == "older");
+        exonerated.Verdict.Should().Be(CohortVerdict.CommunityPattern);
+        exonerated.ReversedAt.Should().NotBeNull();
+        exonerated.ReversalReason.Should().Contain("regulars");
+        exonerated
+            .MayContributeToNetwork.Should()
+            .BeFalse("a cohort that included standing viewers is never a network signature");
     }
 
     public void Dispose() => _connection.Dispose();
