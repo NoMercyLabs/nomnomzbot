@@ -42,11 +42,11 @@ public class RenderManifestServiceTests
         new(
             UserId,
             BroadcasterId,
-            EffectiveLevel: 100,
-            CommunityStanding.Moderator,
-            CommunityLevel: 10,
-            ManagementRole.Broadcaster,
-            ManagementLevel: 100,
+            EffectiveLevel: nameof(PermissionLevel.Broadcaster),
+            nameof(CommunityStanding.Moderator),
+            CommunityLevel: nameof(PermissionLevel.Moderator),
+            nameof(ManagementRole.Broadcaster),
+            ManagementLevel: nameof(PermissionLevel.Broadcaster),
             PermitRole: null,
             PermitCapabilities: [],
             WinningSource: "management",
@@ -64,11 +64,11 @@ public class RenderManifestServiceTests
         new(
             UserId,
             BroadcasterId,
-            EffectiveLevel: 0,
-            CommunityStanding.Everyone,
-            CommunityLevel: 0,
+            EffectiveLevel: nameof(PermissionLevel.Everyone),
+            nameof(CommunityStanding.Everyone),
+            CommunityLevel: nameof(PermissionLevel.Everyone),
             ManagementRole: null,
-            ManagementLevel: 0,
+            ManagementLevel: nameof(PermissionLevel.Everyone),
             PermitRole: null,
             PermitCapabilities: [],
             WinningSource: "community",
@@ -152,7 +152,7 @@ public class RenderManifestServiceTests
         manifest.Scopes.Should().BeEquivalentTo(SampleScopes());
 
         // Spot-check the load-bearing key fields the shell gates on.
-        manifest.Access.ManagementRole.Should().Be(ManagementRole.Broadcaster);
+        manifest.Access.ManagementRole.Should().Be(nameof(ManagementRole.Broadcaster));
         manifest.Access.HeldActionKeys.Should().Contain("feature:read");
         manifest
             .Features.Should()

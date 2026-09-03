@@ -81341,10 +81341,6 @@
         },
         "description": "Lightweight command info for list views — includes the response text and pipeline id so the edit\n            form can pre-fill without a separate detail fetch."
       },
-      "CommunityStanding": {
-        "type": "integer",
-        "description": "Plane A — community-standing ladder: `Everyone(0) &lt; Subscriber(2) &lt; Vip(4) &lt; Artist(6) &lt; Moderator(10)`."
-      },
       "CommunityStatsDto": {
         "required": [
           "followers",
@@ -93343,50 +93339,27 @@
             "format": "ulid"
           },
           "effectiveLevel": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
+            "type": "string"
           },
           "communityStanding": {
-            "$ref": "#/components/schemas/CommunityStanding"
+            "type": "string"
           },
           "communityLevel": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
+            "type": "string"
           },
           "managementRole": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/ManagementRole"
-              }
+            "type": [
+              "null",
+              "string"
             ]
           },
           "managementLevel": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
+            "type": "string"
           },
           "permitRole": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/ManagementRole"
-              }
+            "type": [
+              "null",
+              "string"
             ]
           },
           "permitCapabilities": {

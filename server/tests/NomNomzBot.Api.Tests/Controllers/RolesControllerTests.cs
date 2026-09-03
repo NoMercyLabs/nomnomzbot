@@ -53,11 +53,11 @@ public sealed class RolesControllerTests
         new(
             userId,
             Channel,
-            level,
-            CommunityStanding.Everyone,
-            0,
-            role,
-            role?.ToLevel() ?? 0,
+            PermissionLevelNames.ToName(level),
+            nameof(CommunityStanding.Everyone),
+            nameof(PermissionLevel.Everyone),
+            role?.ToString(),
+            PermissionLevelNames.ToName(role?.ToLevel() ?? 0),
             null,
             [],
             level == 0 ? "community" : "management",
@@ -168,8 +168,8 @@ public sealed class RolesControllerTests
         StatusResponseDto<ResolvedAccessDto> body =
             (StatusResponseDto<ResolvedAccessDto>)((OkObjectResult)result).Value!;
         body.Data!.UserId.Should().Be(Caller);
-        body.Data!.ManagementRole.Should().Be(ManagementRole.Editor);
-        body.Data!.EffectiveLevel.Should().Be(30);
+        body.Data!.ManagementRole.Should().Be(nameof(ManagementRole.Editor));
+        body.Data!.EffectiveLevel.Should().Be(nameof(PermissionLevel.Editor));
         await resolver
             .Received(1)
             .ResolveAccessAsync(Caller, Channel, Arg.Any<CancellationToken>());
@@ -190,7 +190,7 @@ public sealed class RolesControllerTests
         StatusResponseDto<ResolvedAccessDto> body =
             (StatusResponseDto<ResolvedAccessDto>)((OkObjectResult)result).Value!;
         body.Data!.ManagementRole.Should().BeNull();
-        body.Data!.EffectiveLevel.Should().Be(0);
+        body.Data!.EffectiveLevel.Should().Be(nameof(PermissionLevel.Everyone));
     }
 
     [Fact]

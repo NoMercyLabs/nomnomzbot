@@ -229,14 +229,22 @@ enum class ManagementRole(val wire: Int, val level: Int) {
 
         /** Resolve a wire ordinal to its rung, failing closed to [Moderator] on an unknown value. */
         fun fromWire(wire: Int): ManagementRole = entries.firstOrNull { it.wire == wire } ?: Moderator
+
+        /**
+         * Resolve a wire rung NAME, failing closed to [Moderator] (the least-privileged management rung)
+         * on anything unrecognised. Names replaced ordinals on ResolvedAccess because an ordinal silently
+         * renumbers every consumer the moment an enum member is inserted.
+         */
+        fun fromName(name: String): ManagementRole =
+            entries.firstOrNull { it.name.equals(name, ignoreCase = true) } ?: Moderator
     }
 }
 
 /**
  * The caller's resolved access on a channel (backend `ResolvedAccessDto`) — the shell's role source. The backend
  * folds the three planes into one [effectiveLevel]; the shell gates on [managementRole], the Plane-B rung that
- * arrives as a **nullable** integer ordinal (the OpenAPI declares `ManagementRole` as `{"type":"integer"}`, and a
- * pure viewer with no management role has it null). The [communityStanding] is the Plane-A rung (an integer
+ * arrives as a **nullable rung NAME** (null for a pure viewer with no management role). The [communityStanding]
+ * is the Plane-A rung (also a name
  * ordinal — Everyone/Subscriber/Vip/Artist/Moderator) the **participant** surface unlocks progressively from
  * (a Sub sees a lane a plain viewer doesn't). [permitCapabilities] are the per-user action keys the backend
  * granted, which the participant surface uses to light up capability-gated self-service (e.g. `economy:transfer:write`).
@@ -250,22 +258,22 @@ enum class ManagementRole(val wire: Int, val level: Int) {
 data class ResolvedAccess(
     val userId: String,
     val broadcasterId: String,
-    val effectiveLevel: Int = 0,
-    val communityStanding: Int = 0,
-    val communityLevel: Int = 0,
-    val managementRole: Int? = null,
-    val managementLevel: Int = 0,
+    val effectiveLevel: String = "Everyone",
+    val communityStanding: String = "Everyone",
+    val communityLevel: String = "Everyone",
+    val managementRole: String? = null,
+    val managementLevel: String = "Everyone",
     val permitCapabilities: List<String> = emptyList(),
     val winningSource: String = "",
     val heldActionKeys: List<String> = emptyList(),
 ) {
     /** The Plane-B rung the shell gates on, or null when the caller holds no management role (a viewer). */
     val role: ManagementRole?
-        get() = managementRole?.let { ManagementRole.fromWire(it) }
+        get() = managementRole?.let { ManagementRole.fromName(it) }
 
     /** The Plane-A community rung the participant surface unlocks from (Everyone/Sub/VIP/Artist/Moderator). */
     val standing: CommunityStanding
-        get() = CommunityStanding.fromWire(communityStanding)
+        get() = CommunityStanding.fromName(communityStanding)
 }
 
 /**
@@ -285,6 +293,10 @@ enum class CommunityStanding(val wire: Int, val level: Int) {
     companion object {
         /** Resolve a wire ordinal to its rung, failing closed to [Everyone] (the least-privileged) on unknown. */
         fun fromWire(wire: Int): CommunityStanding = entries.firstOrNull { it.wire == wire } ?: Everyone
+
+        /** Resolve a wire rung NAME, failing closed to [Everyone] on anything unrecognised. */
+        fun fromName(name: String): CommunityStanding =
+            entries.firstOrNull { it.name.equals(name, ignoreCase = true) } ?: Everyone
     }
 }
 

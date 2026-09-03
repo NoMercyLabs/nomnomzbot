@@ -247,10 +247,10 @@ public sealed class RoleResolverTests
 
         Result<ResolvedAccessDto> access = await sut.ResolveAccessAsync(User, Channel);
 
-        access.Value.EffectiveLevel.Should().Be(30);
+        access.Value.EffectiveLevel.Should().Be(nameof(PermissionLevel.Editor));
         access.Value.WinningSource.Should().Be("permit");
-        access.Value.ManagementLevel.Should().Be(10);
-        access.Value.PermitRole.Should().Be(ManagementRole.Editor);
+        access.Value.ManagementLevel.Should().Be(nameof(PermissionLevel.Moderator));
+        access.Value.PermitRole.Should().Be(nameof(ManagementRole.Editor));
     }
 
     [Fact]
@@ -343,7 +343,9 @@ public sealed class RoleResolverTests
 
         // A bare VIP (level 4) clears neither: both default to Moderator (10) with no override lowering them.
         access.IsSuccess.Should().BeTrue();
-        access.Value.EffectiveLevel.Should().Be(CommunityStanding.Vip.ToLevel());
+        access
+            .Value.EffectiveLevel.Should()
+            .Be(PermissionLevelNames.ToName(CommunityStanding.Vip.ToLevel()));
         access.Value.HeldActionKeys.Should().NotContain("commands:read");
         access.Value.HeldActionKeys.Should().NotContain("moderation:ban");
     }
@@ -391,7 +393,9 @@ public sealed class RoleResolverTests
 
         Result<ResolvedAccessDto> access = await sut.ResolveAccessAsync(User, Channel);
 
-        access.Value.EffectiveLevel.Should().Be(ManagementRole.Moderator.ToLevel());
+        access
+            .Value.EffectiveLevel.Should()
+            .Be(PermissionLevelNames.ToName(ManagementRole.Moderator.ToLevel()));
         access
             .Value.HeldActionKeys.Should()
             .Contain(["commands:read", "moderation:ban", "moderation:read"]);

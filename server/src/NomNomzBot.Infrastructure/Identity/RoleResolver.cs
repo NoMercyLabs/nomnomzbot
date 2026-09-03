@@ -52,12 +52,12 @@ public sealed class RoleResolver(IApplicationDbContext db, TimeProvider clock) :
             new ResolvedAccessDto(
                 userId,
                 broadcasterId,
-                facts.EffectiveLevel,
-                facts.Standing,
-                facts.CommunityLevel,
-                facts.Role,
-                facts.ManagementLevel,
-                facts.PermitRole,
+                PermissionLevelNames.ToName(facts.EffectiveLevel),
+                facts.Standing.ToString(),
+                PermissionLevelNames.ToName(facts.CommunityLevel),
+                facts.Role?.ToString(),
+                PermissionLevelNames.ToName(facts.ManagementLevel),
+                facts.PermitRole?.ToString(),
                 facts.PermitCapabilities,
                 facts.WinningSource,
                 heldActionKeys
