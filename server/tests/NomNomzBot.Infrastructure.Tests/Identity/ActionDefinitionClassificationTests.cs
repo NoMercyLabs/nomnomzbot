@@ -106,6 +106,12 @@ public sealed class ActionDefinitionClassificationTests
         // why the bot scored someone the way it did, and what the platform is holding.
         "trust:policy:read",
         "moderation:automod:twitch:read",
+        // Reading spam verdicts IS the review queue, and overturning a wrong one is the correction path.
+        // Both are a moderator's day-to-day work — making the correction owner-only would leave mods
+        // watching false positives they cannot fix.
+        "spam:policy:read",
+        "spam:detections:read",
+        "spam:detections:manage",
         "community:read",
         "community:trust:write",
         "integration:read",
@@ -201,6 +207,9 @@ public sealed class ActionDefinitionClassificationTests
         // moderator's day-to-day tooling, so both sit at the Broadcaster floor.
         "trust:policy:manage",
         "moderation:automod:twitch:manage",
+        // Same reasoning as the trust weights, and the same floor: these decide who the bot auto-actions
+        // channel-wide, and they are where enforcement gets switched on at all.
+        "spam:policy:manage",
         "moderation:action:read",
         "moderation:timeout",
         "moderation:ban",
