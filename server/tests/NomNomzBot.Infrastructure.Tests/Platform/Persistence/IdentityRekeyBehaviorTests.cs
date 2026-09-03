@@ -436,6 +436,9 @@ public sealed class IdentityRekeyBehaviorTests
 
         public DbSet<NomNomzBot.Domain.Moderation.Entities.FollowBotBlock> FollowBotBlocks =>
             throw new NotSupportedException();
+
+        public DbSet<NomNomzBot.Domain.Moderation.Entities.SpamSignature> SpamSignatures =>
+            throw new NotSupportedException();
         public DbSet<ConsentRecord> ConsentRecords => inner.ConsentRecords;
         public DbSet<ErasureRequest> ErasureRequests => throw new NotSupportedException();
         public DbSet<Channel> Channels => inner.Channels;

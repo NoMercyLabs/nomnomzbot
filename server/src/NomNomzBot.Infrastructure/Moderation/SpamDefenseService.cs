@@ -312,11 +312,7 @@ public sealed class SpamDefenseService : ISpamDefenseService
         ContentEvaluation content = ContentSignals.Evaluate(
             normalized,
             request.Message,
-            new ContentPolicy
-            {
-                NearDuplicateSimilarity = settings.NearDuplicateSimilarity,
-                MinimumSkeletonLength = settings.MinimumSkeletonLength,
-            }
+            await BuildContentPolicyAsync(settings, ct)
         );
 
         SpamTrustTier tier = await ResolveTierAsync(request, settings, ct);
@@ -366,6 +362,47 @@ public sealed class SpamDefenseService : ISpamDefenseService
             normalized.Skeleton,
             settings
         );
+    }
+
+    /// <summary>
+    /// Load the corpus the content layer matches against.
+    ///
+    /// <para>Until this existed the corpus was always EMPTY, which meant corpus-match and near-duplicate
+    /// — two of the six content signals, and the two that catch a known campaign — could never fire at
+    /// all. A signal nothing can populate is a signal that does not exist.</para>
+    ///
+    /// <para>Only entries that may ACT are loaded. A quarantined signature from an unproven source stays
+    /// out until enough independent reporters have corroborated it, which is the property that stops one
+    /// bad contributor causing removals everywhere; a withdrawn one never comes back.</para>
+    /// </summary>
+    private async Task<ContentPolicy> BuildContentPolicyAsync(
+        SpamDefenseSettings settings,
+        CancellationToken ct
+    )
+    {
+        List<SpamSignature> usable = await _db
+            .SpamSignatures.IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(sig =>
+                sig.DeletedAt == null
+                && sig.WithdrawnAt == null
+                && (!sig.IsQuarantined || sig.Corroborations >= settings.RequiredCorroborations)
+            )
+            .ToListAsync(ct);
+
+        return new ContentPolicy
+        {
+            NearDuplicateSimilarity = settings.NearDuplicateSimilarity,
+            MinimumSkeletonLength = settings.MinimumSkeletonLength,
+            CorpusSkeletons =
+            [
+                .. usable.Where(sig => sig.Kind == SignatureKind.Skeleton).Select(sig => sig.Value),
+            ],
+            DeniedDomains =
+            [
+                .. usable.Where(sig => sig.Kind == SignatureKind.Domain).Select(sig => sig.Value),
+            ],
+        };
     }
 
     /// <summary>
