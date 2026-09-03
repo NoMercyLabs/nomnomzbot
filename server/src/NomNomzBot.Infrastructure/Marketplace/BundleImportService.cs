@@ -34,6 +34,7 @@ using NomNomzBot.Domain.Assets.Entities;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.CustomCode.Entities;
 using NomNomzBot.Domain.CustomEvents.Entities;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Marketplace.Entities;
 using NomNomzBot.Domain.Marketplace.Events;
 using NomNomzBot.Domain.PickLists.Entities;
@@ -472,7 +473,8 @@ public class BundleImportService : IBundleImportService
                 {
                     Name = name,
                     Tier = export.Tier,
-                    MinPermissionLevel = export.MinPermissionLevel,
+                    // Bundle exports still store the ladder int; the create request takes the name.
+                    MinPermissionLevel = PermissionLevelNames.ToName(export.MinPermissionLevel),
                     TemplateResponse = export.TemplateResponse,
                     TemplateResponses = export.TemplateResponses?.ToList(),
                     PipelineId = export.PipelineName is not null

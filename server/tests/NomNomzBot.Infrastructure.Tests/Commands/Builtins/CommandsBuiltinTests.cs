@@ -75,7 +75,7 @@ public sealed class CommandsBuiltinTests
             Guid.CreateVersion7(),
             name,
             "template",
-            0,
+            "Everyone",
             isEnabled,
             "Default",
             null,

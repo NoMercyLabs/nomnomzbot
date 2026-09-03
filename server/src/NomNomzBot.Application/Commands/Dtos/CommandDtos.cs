@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using System.ComponentModel.DataAnnotations;
+using NomNomzBot.Domain.Identity.Enums;
 
 namespace NomNomzBot.Application.Commands.Dtos;
 
@@ -17,7 +18,7 @@ public sealed record CommandDto(
     Guid Id,
     string Name,
     string Tier,
-    int MinPermissionLevel,
+    string MinPermissionLevel,
     bool IsEnabled,
     string PrefixMode,
     string? CustomPrefix,
@@ -42,7 +43,7 @@ public sealed record CommandListItem(
     Guid Id,
     string Name,
     string Tier,
-    int MinPermissionLevel,
+    string MinPermissionLevel,
     bool IsEnabled,
     string PrefixMode,
     string? CustomPrefix,
@@ -69,8 +70,17 @@ public sealed record CreateCommandDto
     /// <summary>template | pipeline | code</summary>
     public string Tier { get; init; } = "template";
 
-    /// <summary>0=everyone, 1=follower, 2=sub, 3=vip, 4=moderator, 5=broadcaster</summary>
-    public int MinPermissionLevel { get; init; }
+    /// <summary>
+    /// The lowest rung that may run this command, by NAME —
+    /// <c>Everyone | Subscriber | Vip | Artist | Moderator | LeadModerator | Editor | Broadcaster</c>.
+    ///
+    /// <para>It used to be the ladder's raw integer, documented here as "0=everyone, 1=follower, 2=sub,
+    /// 3=vip, 4=moderator, 5=broadcaster" — a scale the product has not used for a long time. The real rungs
+    /// are 0/2/4/6/10/20/30/40 and include Artist, LeadModerator and Editor, so anyone integrating against
+    /// that comment sent 5 for "broadcaster" and quietly got a command every subscriber could run.</para>
+    /// </summary>
+    [MaxLength(20)]
+    public string MinPermissionLevel { get; init; } = nameof(PermissionLevel.Everyone);
 
     /// <summary>How the prefix is resolved: Default (channel prefix) | Custom | None.</summary>
     [MaxLength(20)]
@@ -122,7 +132,10 @@ public sealed record UpdateCommandDto
     public string? Name { get; init; }
 
     public string? Tier { get; init; }
-    public int? MinPermissionLevel { get; init; }
+
+    /// <summary>The rung name (see <see cref="CreateCommandRequest.MinPermissionLevel"/>); null leaves it.</summary>
+    [MaxLength(20)]
+    public string? MinPermissionLevel { get; init; }
 
     /// <summary>How the prefix is resolved: Default | Custom | None. Null leaves it unchanged.</summary>
     [MaxLength(20)]

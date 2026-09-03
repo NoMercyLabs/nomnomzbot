@@ -17,6 +17,7 @@ using NomNomzBot.Application.Import.Dtos;
 using NomNomzBot.Application.Import.Services;
 using NomNomzBot.Application.Quotes.Dtos;
 using NomNomzBot.Application.Quotes.Services;
+using NomNomzBot.Domain.Identity.Enums;
 
 namespace NomNomzBot.Infrastructure.Import;
 
@@ -123,7 +124,10 @@ public sealed class ProviderImportService : IProviderImportService
             {
                 Name = name,
                 Tier = "template",
-                MinPermissionLevel = MapAccessLevel(source.AccessLevel),
+                // The create request now carries the rung NAME; the mapper still yields the ladder int.
+                MinPermissionLevel = PermissionLevelNames.ToName(
+                    MapAccessLevel(source.AccessLevel)
+                ),
                 TemplateResponse = source.Response,
                 CooldownSeconds = cooldown,
                 CooldownPerUser = perUser,
@@ -299,19 +303,26 @@ public sealed class ProviderImportService : IProviderImportService
     private static string NormalizeQuoteText(string text) => text.Trim().ToLowerInvariant();
 
     /// <summary>
-    /// Maps StreamElements' numeric access ladder onto this project's role ladder
-    /// (0=everyone, 1=follower, 2=subscriber, 3=vip, 4=moderator, 5=broadcaster). Anchored on the SE values the
-    /// export uses — 0=everyone, 100=subscriber, 500=broadcaster — with the in-between bands mapped monotonically
-    /// (SE "regular" ≈ vip, the moderator band below broadcaster). Values above 500 (SE super-mod/owner scales)
-    /// clamp to broadcaster. SE has no "follower" tier, so level 1 is never produced.
+    /// Maps StreamElements' numeric access ladder onto this project's role ladder.
+    ///
+    /// Anchored on the SE values the export uses — 0=everyone, 100=subscriber, 500=broadcaster — with the
+    /// in-between bands mapped monotonically (SE "regular" is closest to VIP, and the band below broadcaster
+    /// is moderator). Values above 500 (SE super-mod/owner scales) clamp to broadcaster.
+    ///
+    /// <para>It used to emit 0/2/3/4/5 against a documented scale of "3=vip, 4=moderator, 5=broadcaster".
+    /// Those are not this product's rungs: the ladder is 0/2/4/6/10/20/30/40, so 3 landed between Subscriber
+    /// and Vip, 4 WAS Vip, and 5 sat below Artist. Every imported command marked broadcaster-only came out
+    /// runnable by any VIP. The rungs are named now, so the mapping cannot drift back.</para>
     /// </summary>
     private static int MapAccessLevel(int? accessLevel) =>
-        accessLevel switch
-        {
-            null or <= 0 => 0, // everyone
-            <= 100 => 2, // subscriber
-            <= 250 => 3, // vip (SE "regular")
-            < 500 => 4, // moderator band
-            _ => 5, // broadcaster (SE 500 and any higher owner scale)
-        };
+        (
+            accessLevel switch
+            {
+                null or <= 0 => PermissionLevel.Everyone,
+                <= 100 => PermissionLevel.Subscriber,
+                <= 250 => PermissionLevel.Vip,
+                < 500 => PermissionLevel.Moderator,
+                _ => PermissionLevel.Broadcaster,
+            }
+        ).ToLevelValue();
 }

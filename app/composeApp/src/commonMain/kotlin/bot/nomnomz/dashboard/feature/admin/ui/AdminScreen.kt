@@ -973,7 +973,14 @@ internal fun ProvidersTab(state: AdminState, controller: AdminController) {
     confirmClear?.let { provider ->
         ConfirmDialog(
             title = stringResource(Res.string.admin_providers_clear),
-            message = stringResource(Res.string.admin_providers_clear_confirm, provider.provider),
+            // The counted blast radius, from the row itself: how many stored values disappear, and what
+            // resolves afterwards. "Are you sure?" without the count is the thing S-CONSEQ forbids.
+            message =
+                stringResource(
+                    Res.string.admin_providers_clear_confirm,
+                    provider.provider,
+                    listOf(provider.clientIdSource, provider.secretSource).count { it == "stored" },
+                ),
             confirmLabel = stringResource(Res.string.admin_providers_clear),
             dismissLabel = stringResource(Res.string.admin_cancel),
             destructive = true,
