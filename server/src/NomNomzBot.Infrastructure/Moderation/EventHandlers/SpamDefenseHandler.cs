@@ -72,6 +72,28 @@ public sealed class SpamDefenseHandler : IEventHandler<ChatMessageReceivedEvent>
             if (result is null)
                 return;
 
+            // Correlation runs on the SKELETON, after the per-message verdict. A cohort that qualifies
+            // can escalate a sender the content layer alone would only have flagged — many strangers
+            // posting one phrase is evidence no single message carries.
+            CohortObservation cohort = await scope
+                .ServiceProvider.GetRequiredService<SpamCorrelationService>()
+                .ObserveAsync(
+                    @event.BroadcasterId,
+                    result.Skeleton,
+                    @event.UserId,
+                    result.Tier,
+                    result.Settings,
+                    ct
+                );
+
+            if (cohort.Reversal is not null)
+                _logger.LogWarning(
+                    "Spam defence reversed a campaign in {Channel}: {Reason} Restoring {Count} account(s).",
+                    @event.BroadcasterId,
+                    cohort.Reversal.OperatorMessage,
+                    cohort.Reversal.AccountsToRestore.Count
+                );
+
             // Acting is a separate step from deciding, and it happens here rather than inside the
             // service so that a channel in dry run simply never reaches this line.
             SpamEnforcementOutcome enforcement = await scope

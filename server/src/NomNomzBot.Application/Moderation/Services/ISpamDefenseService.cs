@@ -44,12 +44,20 @@ public sealed record SpamEvaluationRequest(
 /// <param name="Tier">The trust tier the sender held at evaluation time.</param>
 /// <param name="Signals">Which content signals fired.</param>
 /// <param name="DetectionId">The recorded row, when one was written.</param>
+/// <param name="Skeleton">
+/// The normalized form the engine matched on. Carried out so correlation can group by it without
+/// normalizing the same message a second time — and, more importantly, without the risk of the two
+/// normalizations drifting and cohorts forming on a different string than detections matched.
+/// </param>
+/// <param name="Settings">The settings this verdict was reached under, so later layers agree with it.</param>
 public sealed record SpamEvaluationResult(
     SpamDecision Decision,
     SpamConfidence Confidence,
     SpamTrustTier Tier,
     IReadOnlyList<ContentSignal> Signals,
-    Guid? DetectionId
+    Guid? DetectionId,
+    string Skeleton,
+    SpamDefenseSettings Settings
 );
 
 /// <summary>

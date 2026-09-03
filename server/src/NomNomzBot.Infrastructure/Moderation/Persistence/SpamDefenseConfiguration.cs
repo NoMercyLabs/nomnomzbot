@@ -61,6 +61,8 @@ public class SpamCampaignRecordConfiguration : IEntityTypeConfiguration<SpamCamp
 
         builder.Property(e => e.Skeleton).HasMaxLength(1000);
         builder.Property(e => e.ActionedAccountIds).HasMaxLength(4000);
+        builder.Property(e => e.MemberAccountIds).HasMaxLength(8000);
+        builder.Property(e => e.StandingAccountIds).HasMaxLength(4000);
         builder.Property(e => e.ReversalReason).HasMaxLength(500);
     }
 }

@@ -7121,8 +7121,14 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<Guid?>("DeletedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTime>("FirstSeenAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDequalified")
+                        .HasColumnType("boolean");
 
                     b.Property<DateTime>("LastSeenAt")
                         .HasColumnType("timestamp with time zone");
@@ -7130,11 +7136,19 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<bool>("MayContributeToNetwork")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("MemberAccountIds")
+                        .IsRequired()
+                        .HasMaxLength(8000)
+                        .HasColumnType("character varying(8000)");
+
                     b.Property<double>("NoStandingShare")
                         .HasColumnType("double precision");
 
                     b.Property<int>("QualificationCount")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime?>("QualifiedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("ReversalReason")
                         .HasMaxLength(500)
@@ -7147,6 +7161,11 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("StandingAccountIds")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
