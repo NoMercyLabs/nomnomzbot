@@ -588,7 +588,7 @@ overrode it.
 | | corroborations before a quarantined signature acts | 3 | |
 | **Escalation** | action per confidence tier, and the strike ladder | §L5 | routes into `ModerationEscalationService` |
 
-Ranges are enforced server-side, and the four SD invariants are **not settings**: SD0, SD8, SD9,
+Ranges are enforced server-side, and the five SD invariants are **not settings**: SD0, SD8, SD9,
 SD11 and SD12 have no knob, because a switch that turns off "never punish a regular" is a switch
 someone eventually flips at 3am during a raid.
 

@@ -215,14 +215,22 @@ Read this block first. It is the only summary; everything below is detail.
 ### S-SPAM — Sery-parity spam defence (owner 2026-09-03: "get the bot to behave like Sery bot")
 
 The ledger for `spec/spam-defense.md` §9. Settled 2026-08-23, build STARTED 2026-09-03.
-**Done: L0 normalizer, L1 account risk, L4 ladder + capability table, L5 enforcement + dry run,
-L2 content signals.** The engine layers now stop the motivating attack; what remains is
-correlation, the network, and the surfaces that let an operator see and steer any of it.
+**Done: L0 normalizer, L1 account risk, L2 content signals, L3 correlation + baselines +
+follow-bot track, L4 ladder + capability table, L5 enforcement + dry run + hate-raid lockdown.**
+Every engine layer is built and tested.
 
-- [ ] **S-SPAM-5** L3 correlation + burst detection + follow-bot block track, with SD9
-      per-account-evidence and the viral-moment test in the same slice.
-- [ ] **S-SPAM-6** L5 hate-raid lockdown (SD0: tighten the room, never punish the person).
-- [ ] **S-SPAM-7** Signature network — subscribe first, contribute + quarantine second.
+**Reordered 2026-09-03 (was 7 → 8 → 9).** All of the above is pure Domain code with **zero
+consumers** — the identical shape to S-HEAT-UNENFORCED, where a dashboard control set a number
+that nothing read. Wiring and operator control therefore come before the network, which is the
+one remaining piece the owner cannot see working on their own box:
+
+- [ ] **S-SPAM-9 (now first)** Wire the engine into the live chat path: per-channel persisted
+      config, both migration sets, DI, and the decision actually reaching delete/timeout/ban.
+      Until this lands the whole engine is unreached code.
+- [ ] **S-SPAM-8** Five dashboard surfaces + `Admin → Spam Defense Defaults`. Every weight and
+      every ban rule operator-editable and explained in plain language — the owner's headline
+      requirement, not a settings page bolted on at the end.
+- [ ] **S-SPAM-7 (now last)** Signature network — subscribe first, contribute + quarantine second.
 - [ ] **S-SPAM-8** Five dashboard surfaces (Spam Defense, Review Queue, Campaigns, Detections,
       Follow-bot blocks) + `Admin → Spam Defense Defaults`. Every weight and every ban rule must be
       operator-editable and explained in plain language — this is the owner's headline requirement,
