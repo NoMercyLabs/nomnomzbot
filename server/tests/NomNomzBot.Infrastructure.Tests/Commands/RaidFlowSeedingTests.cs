@@ -64,16 +64,36 @@ public sealed class RaidFlowSeedingTests
     }
 
     [Fact]
-    public async Task The_raid_fires_first_and_the_ending_scene_comes_up_right_after()
+    public async Task The_command_starts_the_raid_and_does_nothing_else()
     {
+        // The scene switch and the chat call-out used to live here, firing the moment the command ran —
+        // before Twitch had validated anything. A raid it rejected (target offline, bad name, no
+        // permission) still switched the scene and posted to chat. They now hang off channel.raid.start,
+        // which Twitch only sends once the raid is real.
         (RaidFlowSeeder seeder, SeedTestDbContext db) = Build();
 
         await seeder.SeedAsync(Tenant);
 
         List<PipelineStep> steps = StepsOf(db);
+        steps.Should().ContainSingle();
         steps[0].ActionType.Should().Be("start_raid");
         steps[0].ConfigJson.Should().Contain("{args.1}");
-        steps[1].ActionType.Should().Be("obs_switch_scene");
+    }
+
+    [Fact]
+    public async Task The_command_never_switches_scenes_or_talks_to_chat_itself()
+    {
+        // Named separately from the count above: a future step appended here would still leave that one
+        // green if it also updated the count, and this is the property that actually matters — the
+        // command commits to nothing that a rejected raid would leave stranded.
+        (RaidFlowSeeder seeder, SeedTestDbContext db) = Build();
+
+        await seeder.SeedAsync(Tenant);
+
+        List<PipelineStep> steps = StepsOf(db);
+        steps.Should().NotContain(s => s.ActionType == "obs_switch_scene");
+        steps.Should().NotContain(s => s.ActionType == "send_message");
+        steps.Should().NotContain(s => s.ActionType == "wait");
     }
 
     /// <summary>
@@ -101,23 +121,6 @@ public sealed class RaidFlowSeedingTests
     }
 
     [Fact]
-    public async Task The_ending_scene_switch_continues_on_error_so_a_broken_OBS_never_blocks_the_raid()
-    {
-        (RaidFlowSeeder seeder, SeedTestDbContext db) = Build();
-
-        await seeder.SeedAsync(Tenant);
-
-        // Matches the legacy bot's fire-and-forget `_ = SwitchToEndingScene(...)` — an OBS hiccup here
-        // must never take down the rest of the intro (confirmed live 2026-09-01: "OBS connection
-        // closed" on this ONE step killed the entire rest of the raid while Twitch's clock kept
-        // ticking).
-        StepsOf(db)
-            .Single(s => s.ActionType == "obs_switch_scene")
-            .ContinueOnError.Should()
-            .BeTrue();
-    }
-
-    [Fact]
     public async Task The_pipeline_carries_no_deadline_synced_wait_and_never_stops_the_stream_itself()
     {
         (RaidFlowSeeder seeder, SeedTestDbContext db) = Build();
@@ -133,60 +136,6 @@ public sealed class RaidFlowSeedingTests
         steps
             .Should()
             .NotContain(s => s.ActionType == "obs_streaming" || s.ActionType == "music_pause");
-    }
-
-    [Fact]
-    public async Task The_last_stretch_is_announced_and_the_early_waits_stay_silent()
-    {
-        (RaidFlowSeeder seeder, SeedTestDbContext db) = Build();
-
-        await seeder.SeedAsync(Tenant);
-
-        List<string> messages = StepsOf(db)
-            .Where(s => s.ActionType == "send_message")
-            .Select(s =>
-                System
-                    .Text.Json.JsonDocument.Parse(s.ConfigJson)
-                    .RootElement.GetProperty("message")
-                    .GetString()!
-            )
-            .ToList();
-
-        messages.Should().Contain(m => m.Contains("heading out to"));
-        messages.Should().Contain(m => m.Contains("Big bird"));
-        // The final "raided out" confirmation is no longer part of THIS pipeline — it now lives in
-        // RaidCommitFlowSeeder's reactive flow, so it must NOT appear here (a duplicate would mean
-        // chat gets told twice, once too early).
-        messages.Should().NotContain(m => m.Contains("raided out to"));
-    }
-
-    /// <summary>
-    /// Confirmed live 2026-09-01 (raid to jddoesdev): chat actually showed "RAID INCOMING to
-    /// {jddoesdev}!" — a leftover decorative brace pair around the resolved name, from an earlier
-    /// version of this seed line that wrapped the template engine's own single-brace {args.1} token in
-    /// an extra escaped layer. Asserts the RAW, UNRESOLVED config text carries the token exactly once,
-    /// with no brace left over on either side for the resolver to skip past.
-    /// </summary>
-    [Fact]
-    public async Task The_raid_incoming_message_carries_the_args_token_with_no_leftover_braces()
-    {
-        (RaidFlowSeeder seeder, SeedTestDbContext db) = Build();
-
-        await seeder.SeedAsync(Tenant);
-
-        string headingOut = StepsOf(db)
-            .Where(s => s.ActionType == "send_message")
-            .Select(s =>
-                System
-                    .Text.Json.JsonDocument.Parse(s.ConfigJson)
-                    .RootElement.GetProperty("message")
-                    .GetString()!
-            )
-            .Single(m => m.Contains("heading out to"));
-
-        headingOut.Should().Contain("heading out to {args.1}");
-        headingOut.Should().NotContain("{{args.1}}");
-        headingOut.Should().NotContain("{{{args.1}}}");
     }
 
     /// <summary>
