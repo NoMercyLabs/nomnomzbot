@@ -192,7 +192,9 @@ public sealed class OutboundWebhookDeliveryTruthTests
         // blocked in GatedHandler at this point, so if the publisher were awaiting it this would time
         // out. That is the real proof the delivery moved off the publishing thread; racing it against
         // a Task.Delay only measured how busy the machine was.
-        (await onCommitted.WaitAsync(HangTimeout)).IsSuccess.Should().BeTrue();
+        (await onCommitted.WaitAsync(HangTimeout))
+            .IsSuccess.Should()
+            .BeTrue();
 
         // The background delivery does reach the HTTP client — it just isn't awaited by the publisher.
         // Awaited as a SIGNAL, not raced against a wall clock: the old form
