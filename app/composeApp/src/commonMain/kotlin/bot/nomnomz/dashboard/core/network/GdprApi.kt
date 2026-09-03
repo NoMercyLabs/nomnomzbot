@@ -31,6 +31,15 @@ interface GdprApi {
     suspend fun exportData(): ApiResult<DataExport>
 
     /**
+     * Export ANOTHER subject's record on their behalf — the operator half of a right-of-access request,
+     * for when the request arrives to the channel rather than from the subject's own dashboard.
+     *
+     * Lives on the compliance plane (`compliance:erasure`), not the Gate-1 self-service plane, because
+     * it reads a stranger's personal data. Same document shape, so the caller handles it identically.
+     */
+    suspend fun exportSubject(subjectUserId: String, channelId: String? = null): ApiResult<DataExport>
+
+    /**
      * The counted preview of what erasure WOULD destroy for the caller (S-CONSEQ) — real backend row counts,
      * read before the irreversible save. A failure here is a genuine unknown: the confirm surface must say so
      * and never render it as a zero blast radius.
@@ -61,6 +70,15 @@ interface GdprApi {
 
 class RestGdprApi(private val client: ApiClient) : GdprApi {
     override suspend fun exportData(): ApiResult<DataExport> = client.getEnvelope("api/v1/gdpr/export")
+
+    override suspend fun exportSubject(
+        subjectUserId: String,
+        channelId: String?,
+    ): ApiResult<DataExport> =
+        client.getEnvelope(
+            "api/v1/compliance/export?subjectUserId=$subjectUserId" +
+                if (channelId.isNullOrBlank()) "" else "&broadcasterId=$channelId"
+        )
 
     override suspend fun previewErasure(): ApiResult<ErasurePreview> =
         client.getEnvelope("api/v1/gdpr/erasure/preview")

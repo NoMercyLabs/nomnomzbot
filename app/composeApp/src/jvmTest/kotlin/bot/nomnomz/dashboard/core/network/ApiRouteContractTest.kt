@@ -71,15 +71,10 @@ class ApiRouteContractTest {
         return a.indices.all { i -> a[i] == b[i] || a[i] == "{}" || b[i] == "{}" }
     }
 
-    /**
-     * The ONE break this scan found on its first run, kept visible rather than silently tolerated.
-     * `CommunityScreen`'s "export user data" control calls `POST api/v1/users/{id}/export`, which the API
-     * does not serve — the only export routes are `/gdpr/export`, `/bundles/export` and
-     * `/event-store/…/export`. So that button 404s today. Filed as S-DEAD-USER-EXPORT; deleting this entry
-     * is part of closing it. Nothing else may be added here without the same treatment: a named reason and
-     * a tracker entry.
-     */
-    private val knownDeadRoutes: Set<String> = setOf("api/v{}/users/{}/export")
+    // Empty, and it must stay that way. The one entry that lived here — POST users/{}/export — was a
+    // control that 404'd on every click while reading as success; it now calls the compliance plane's
+    // real export. A new entry here is a shipped dead button, not a tolerated exception.
+    private val knownDeadRoutes: Set<String> = emptySet()
 
     @Test
     fun every_client_rest_url_matches_a_route_the_api_serves() {

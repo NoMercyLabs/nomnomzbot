@@ -60,7 +60,7 @@ class CommunityControllerTest {
                 membersResults = listOf(ApiResult.Ok(emptyList())),
                 memberResult = ApiResult.Ok(real),
             )
-        val controller = CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeUsersApi(), FakeViewerDataApi())
+        val controller = CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeUsersApi(), FakeViewerDataApi(), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge())
         controller.load()
 
         val member: CommunityMember? = controller.memberDetail("42")
@@ -75,7 +75,7 @@ class CommunityControllerTest {
     fun member_detail_is_null_when_the_lookup_fails() = runTest {
         // Default memberResult is a 404 failure — the row then falls back to the name-only placeholder.
         val api = FakeCommunityApi(membersResults = listOf(ApiResult.Ok(emptyList())))
-        val controller = CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeUsersApi(), FakeViewerDataApi())
+        val controller = CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeUsersApi(), FakeViewerDataApi(), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge())
         controller.load()
 
         assertNull(controller.memberDetail("99"))
@@ -100,7 +100,7 @@ class CommunityControllerTest {
                     )
                 ),
                 FakeUsersApi(),
-                FakeViewerDataApi(),
+                FakeViewerDataApi(), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge(),
             )
 
         controller.load()
@@ -121,7 +121,7 @@ class CommunityControllerTest {
                 FakeChannelsApi(ApiResult.Failure(ApiError(404, "NO_CHANNEL", "none onboarded"))),
                 FakeCommunityApi(ApiResult.Ok(emptyList())),
                 FakeUsersApi(),
-                FakeViewerDataApi(),
+                FakeViewerDataApi(), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge(),
             )
 
         controller.load()
@@ -138,7 +138,7 @@ class CommunityControllerTest {
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 FakeCommunityApi(ApiResult.Failure(ApiError(500, "ERR", "boom"))),
                 FakeUsersApi(),
-                FakeViewerDataApi(),
+                FakeViewerDataApi(), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge(),
             )
 
         controller.load()
@@ -155,7 +155,7 @@ class CommunityControllerTest {
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 FakeCommunityApi(ApiResult.Ok(emptyList())),
                 FakeUsersApi(),
-                FakeViewerDataApi(),
+                FakeViewerDataApi(), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge(),
             )
 
         controller.load()
@@ -176,7 +176,7 @@ class CommunityControllerTest {
                     )
             )
         val controller =
-            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi(), FakeViewerDataApi())
+            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi(), FakeViewerDataApi(), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge())
 
         controller.load()
         controller.setTrust("u1", CommunityTrustLevel.Vip)
@@ -199,7 +199,7 @@ class CommunityControllerTest {
                 trustResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope.")),
             )
         val controller =
-            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi(), FakeViewerDataApi())
+            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi(), FakeViewerDataApi(), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge())
 
         controller.load()
         controller.setTrust("u1", CommunityTrustLevel.Moderator)
@@ -227,7 +227,7 @@ class CommunityControllerTest {
                     )
             )
         val controller =
-            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi(), FakeViewerDataApi())
+            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi(), FakeViewerDataApi(), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge())
 
         controller.load()
         controller.ban("u1", "Spamming links")
@@ -250,7 +250,7 @@ class CommunityControllerTest {
                 banResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope.")),
             )
         val controller =
-            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi(), FakeViewerDataApi())
+            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi(), FakeViewerDataApi(), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge())
 
         controller.load()
         controller.ban("u1", "Spamming links")
@@ -276,7 +276,7 @@ class CommunityControllerTest {
                     )
             )
         val controller =
-            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi(), FakeViewerDataApi())
+            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi(), FakeViewerDataApi(), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge())
 
         controller.load()
         controller.unban("u1")
@@ -299,7 +299,7 @@ class CommunityControllerTest {
                 unbanResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope.")),
             )
         val controller =
-            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi(), FakeViewerDataApi())
+            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi(), FakeViewerDataApi(), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge())
 
         controller.load()
         controller.unban("u1")
@@ -320,7 +320,7 @@ class CommunityControllerTest {
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 FakeCommunityApi(ApiResult.Ok(emptyList())),
                 FakeUsersApi(),
-                FakeViewerDataApi(),
+                FakeViewerDataApi(), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge(),
             )
 
         // A successful upsert returns null (no error to surface) — the consequence the dialog keys off.
@@ -338,6 +338,8 @@ class CommunityControllerTest {
                     setResult =
                         ApiResult.Failure(ApiError(400, "TOO_LONG", "Value exceeds 500 characters."))
                 ),
+                gdprApi = FakeGdprApi(),
+                fileBridge = FakeFileBridge(),
             )
 
         // An over-cap value is rejected by the backend; the controller returns its verbatim message so the
@@ -367,7 +369,9 @@ class CommunityControllerTest {
                 FakeCommunityApi(ApiResult.Ok(listOf(member))),
                 FakeUsersApi(),
                 FakeViewerDataApi(),
-                analytics,
+                analyticsApi = analytics,
+                gdprApi = FakeGdprApi(),
+                fileBridge = FakeFileBridge(),
             )
 
         controller.load()
@@ -392,7 +396,9 @@ class CommunityControllerTest {
                 FakeCommunityApi(ApiResult.Ok(listOf(member))),
                 FakeUsersApi(),
                 FakeViewerDataApi(),
-                analytics,
+                analyticsApi = analytics,
+                gdprApi = FakeGdprApi(),
+                fileBridge = FakeFileBridge(),
             )
 
         controller.load()
@@ -410,6 +416,8 @@ class CommunityControllerTest {
                 FakeCommunityApi(ApiResult.Ok(emptyList())),
                 FakeUsersApi(),
                 FakeViewerDataApi(data = mapOf("deaths" to "12", "favorite_game" to "Elden Ring")),
+                gdprApi = FakeGdprApi(),
+                fileBridge = FakeFileBridge(),
             )
 
         val data: Map<String, String>? = controller.getViewerData("u1")
@@ -434,7 +442,7 @@ class CommunityControllerTest {
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 communityApi,
                 FakeUsersApi(),
-                FakeViewerDataApi(),
+                FakeViewerDataApi(), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge(),
             )
 
         controller.load()
@@ -464,7 +472,7 @@ class CommunityControllerTest {
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 communityApi,
                 FakeUsersApi(),
-                FakeViewerDataApi(),
+                FakeViewerDataApi(), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge(),
             )
         controller.load()
 
@@ -476,6 +484,95 @@ class CommunityControllerTest {
         assertEquals("tw-42", options.first().id)
         assertEquals("Nibbles", options.first().label)
         assertEquals("nibbles", options.first().sublabel)
+    }
+
+    // ── Right-of-access export ────────────────────────────────────────────────
+    //
+    // This control used to POST users/{id}/export, a route the API has never served: it 404'd on every
+    // click while the dialog closed as if the export had been queued. The tests below assert the two
+    // things that were missing — the real route is called for the right subject and channel, and the
+    // operator ends up HOLDING the document rather than being told it was sent somewhere.
+
+    @Test
+    fun export_user_data_calls_the_compliance_plane_for_the_subject_and_channel() = runTest {
+        val gdpr = FakeGdprApi()
+        val bridge = FakeFileBridge()
+        val controller =
+            CommunityController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeCommunityApi(ApiResult.Ok(emptyList())),
+                FakeUsersApi(),
+                FakeViewerDataApi(),
+                gdprApi = gdpr,
+                fileBridge = bridge,
+            )
+        controller.load()
+
+        assertNull(controller.exportUserData("u1"))
+
+        assertEquals(listOf<Pair<String, String?>>("u1" to "ch1"), gdpr.exportSubjectCalls.toList())
+    }
+
+    @Test
+    fun export_user_data_writes_the_returned_document_to_a_file() = runTest {
+        val bridge = FakeFileBridge()
+        val controller =
+            CommunityController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeCommunityApi(ApiResult.Ok(emptyList())),
+                FakeUsersApi(),
+                FakeViewerDataApi(),
+                gdprApi = FakeGdprApi(),
+                fileBridge = bridge,
+            )
+        controller.load()
+
+        controller.exportUserData("u1")
+
+        // The bytes are the export document itself, not a summary of it — an export the operator
+        // cannot open is not a fulfilled access request.
+        assertEquals("{\"subject\":\"u1\"}", bridge.savedBytes?.decodeToString())
+        assertEquals("nomnomz-subject-u1.json", bridge.savedName)
+    }
+
+    @Test
+    fun export_user_data_surfaces_the_backend_error_and_saves_nothing() = runTest {
+        val bridge = FakeFileBridge()
+        val controller =
+            CommunityController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeCommunityApi(ApiResult.Ok(emptyList())),
+                FakeUsersApi(),
+                FakeViewerDataApi(),
+                gdprApi =
+                    FakeGdprApi(
+                        ApiResult.Failure(ApiError(403, "FORBIDDEN", "compliance:erasure required."))
+                    ),
+                fileBridge = bridge,
+            )
+        controller.load()
+
+        assertEquals("compliance:erasure required.", controller.exportUserData("u1"))
+        assertNull(bridge.savedBytes)
+    }
+
+    @Test
+    fun cancelling_the_save_dialog_is_neither_an_error_nor_a_delivered_export() = runTest {
+        // The dialog must not report a failure the operator did not cause, and must not claim success
+        // for a document that was never written.
+        val bridge = FakeFileBridge(accept = false)
+        val controller =
+            CommunityController(
+                FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+                FakeCommunityApi(ApiResult.Ok(emptyList())),
+                FakeUsersApi(),
+                FakeViewerDataApi(),
+                gdprApi = FakeGdprApi(),
+                fileBridge = bridge,
+            )
+        controller.load()
+
+        assertNull(controller.exportUserData("u1"))
     }
 }
 
@@ -599,8 +696,6 @@ private class FakeUsersApi : bot.nomnomz.dashboard.core.network.UsersApi {
     override suspend fun stats(userId: String): ApiResult<bot.nomnomz.dashboard.core.network.UserStats> =
         ApiResult.Ok(bot.nomnomz.dashboard.core.network.UserStats())
 
-    override suspend fun export(userId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
-
     override suspend fun erase(userId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 }
 
@@ -675,4 +770,67 @@ private class FakeAnalyticsApi(
         viewerUserId: String,
         optedOut: Boolean,
     ): ApiResult<Unit> = ApiResult.Ok(Unit)
+}
+
+// The compliance-plane export the viewer panel fulfils a right-of-access request through, and the OS
+// save seam it hands the document to. Both record what they were asked for, because "the export
+// happened" is not the claim under test — "the operator ended up holding the right document" is.
+private class FakeGdprApi(
+    private val result: ApiResult<bot.nomnomz.dashboard.core.network.DataExport> =
+        ApiResult.Ok(bot.nomnomz.dashboard.core.network.DataExport(document = "{\"subject\":\"u1\"}")),
+) : bot.nomnomz.dashboard.core.network.GdprApi {
+    val exportSubjectCalls: MutableList<Pair<String, String?>> = mutableListOf()
+
+    override suspend fun exportData(): ApiResult<bot.nomnomz.dashboard.core.network.DataExport> = result
+
+    override suspend fun exportSubject(
+        subjectUserId: String,
+        channelId: String?,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.DataExport> {
+        exportSubjectCalls += subjectUserId to channelId
+        return result
+    }
+
+    override suspend fun previewErasure(): ApiResult<bot.nomnomz.dashboard.core.network.ErasurePreview> =
+        ApiResult.Ok(bot.nomnomz.dashboard.core.network.ErasurePreview())
+
+    override suspend fun requestErasure(
+        scope: String
+    ): ApiResult<bot.nomnomz.dashboard.core.network.ErasureRequest> =
+        ApiResult.Ok(bot.nomnomz.dashboard.core.network.ErasureRequest())
+
+    override suspend fun optOut(): ApiResult<bot.nomnomz.dashboard.core.network.ErasureRequest> =
+        ApiResult.Ok(bot.nomnomz.dashboard.core.network.ErasureRequest())
+
+    override suspend fun requests(): ApiResult<List<bot.nomnomz.dashboard.core.network.ErasureRequest>> =
+        ApiResult.Ok(emptyList())
+
+    override suspend fun request(
+        id: String
+    ): ApiResult<bot.nomnomz.dashboard.core.network.ErasureRequest> =
+        ApiResult.Ok(bot.nomnomz.dashboard.core.network.ErasureRequest())
+
+    override suspend fun consents(): ApiResult<List<bot.nomnomz.dashboard.core.network.ConsentRecord>> =
+        ApiResult.Ok(emptyList())
+
+    override suspend fun grantConsent(
+        body: bot.nomnomz.dashboard.core.network.GrantConsentBody
+    ): ApiResult<bot.nomnomz.dashboard.core.network.ConsentRecord> =
+        ApiResult.Ok(bot.nomnomz.dashboard.core.network.ConsentRecord())
+
+    override suspend fun withdrawConsent(consentType: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+}
+
+private class FakeFileBridge(private val accept: Boolean = true) :
+    bot.nomnomz.dashboard.core.io.JournalFileIO {
+    var savedName: String? = null
+    var savedBytes: ByteArray? = null
+
+    override suspend fun saveFile(suggestedName: String, bytes: ByteArray): Boolean {
+        savedName = suggestedName
+        savedBytes = bytes
+        return accept
+    }
+
+    override suspend fun pickFile(): bot.nomnomz.dashboard.core.io.PickedFile? = null
 }

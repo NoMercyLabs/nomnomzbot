@@ -682,7 +682,6 @@ private class FakeUsersApi(
         searchResult
 
     override suspend fun stats(userId: String) = error("stub")
-    override suspend fun export(userId: String) = error("stub")
     override suspend fun erase(userId: String) = error("stub")
 }
 
