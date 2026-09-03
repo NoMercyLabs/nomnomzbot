@@ -224,12 +224,33 @@ consumers** — the identical shape to S-HEAT-UNENFORCED, where a dashboard cont
 that nothing read. Wiring and operator control therefore come before the network, which is the
 one remaining piece the owner cannot see working on their own box:
 
-- [ ] **S-SPAM-9 (now first)** Wire the engine into the live chat path: per-channel persisted
-      config, both migration sets, DI, and the decision actually reaching delete/timeout/ban.
-      Until this lands the whole engine is unreached code.
-- [ ] **S-SPAM-8** Five dashboard surfaces + `Admin → Spam Defense Defaults`. Every weight and
-      every ban rule operator-editable and explained in plain language — the owner's headline
-      requirement, not a settings page bolted on at the end.
+- [x] **S-SPAM-9a** Engine on the live chat path: `SpamDefensePolicy` + `SpamDetection` entities,
+      both migration sets (upgrade path verified on Postgres AND SQLite against a populated
+      database), `SpamDefenseHandler` on `ChatMessageReceivedEvent`, tier resolved from real
+      channel history. Dry run by default, so it records and actions nobody.
+- [x] **S-SPAM-9b** API: 4 endpoints + 4 Gate-2 action keys; OpenAPI snapshot refreshed.
+- [ ] **S-SPAM-9c** ENFORCEMENT still not connected. `EvaluateAsync` returns a decision and records
+      it; nothing yet calls delete/timeout/ban. Deliberate — the tier resolver needs a live soak
+      before it is allowed to act — but until it lands, enforcement mode does nothing but log.
+      Route it through `IModerationService` (NOT `ITwitchModerationApi` directly), or its actions
+      will feed no heat, which is the existing `AutoModerationHandler` defect below.
+- [ ] **S-SPAM-8** Remaining dashboard surfaces: Review Queue, Campaigns, Detections, Follow-bot
+      blocks, and `Admin → Spam Defense Defaults`. The **settings editor is done** — it renders
+      from the server's catalogue, so a new weight appears with its copy and bounds without a UI
+      change, and every control states what moving it costs.
+
+- **S-AUTOMOD-NO-HEAT** (found 2026-09-03 while tracing the chat path) — `AutoModerationHandler`
+  calls `ITwitchModerationApi` directly and publishes no domain event, so its own timeouts and bans
+  never reach `ModerationProjectionService`. **Automod enforcement contributes zero heat**, which
+  means the escalation ladder never sees the offences automod itself acted on. Route it through
+  `IModerationService` (which emits `UserBanned`/`UserTimedOut`) as the heat path does.
+- **S-AUTOMOD-ENGINE-DEAD** (same trace) — `AutoModerationEngine` has **no production callers**;
+  it is registered in DI and tested, and `AutoModerationHandler` re-implements caps/links/phrases
+  inline beside it. The engine's exempt-role ladder, slow mode and regex-phrase support exist only
+  in the unused class. Either adopt it or delete it; keeping both is how the two drift.
+- **S-AUTOMOD-STALE-RULES** (same trace) — automod rules are cached 5 minutes in a process-local
+  static dictionary that is never invalidated on save, so an operator's edit takes up to five
+  minutes to take effect with no indication. Invalidate on write.
 - [ ] **S-SPAM-7 (now last)** Signature network — subscribe first, contribute + quarantine second.
 - [ ] **S-SPAM-8** Five dashboard surfaces (Spam Defense, Review Queue, Campaigns, Detections,
       Follow-bot blocks) + `Admin → Spam Defense Defaults`. Every weight and every ban rule must be
