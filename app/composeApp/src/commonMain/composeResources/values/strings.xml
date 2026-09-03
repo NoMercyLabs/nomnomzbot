@@ -4962,4 +4962,6 @@
     <string name="spam_follow_indicator_generated_handle">Name looks bulk-generated</string>
     <string name="spam_follow_indicator_zero_history">Hours old with an empty profile</string>
     <string name="spam_follow_indicator_oscillation">Followed and unfollowed repeatedly</string>
+    <string name="admin_tab_spam_defaults">Spam defence defaults</string>
+    <string name="spam_defaults_explain">These are the values every new channel starts with. A channel that has never changed a setting keeps following these, so editing one here moves all of them at once.</string>
 </resources>

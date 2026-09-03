@@ -48,6 +48,12 @@ interface SpamDefenseApi {
 
     /** Restore an entire spike batch at once. */
     suspend fun restoreFollowBotBatch(channelId: String, batchId: String): ApiResult<Unit>
+
+    /** The platform-wide defaults every new channel inherits. Same shape as a channel's own policy. */
+    suspend fun platformDefaults(): ApiResult<SpamDefensePolicy>
+
+    /** Save the platform-wide defaults. */
+    suspend fun savePlatformDefaults(body: SpamDefenseSettings): ApiResult<SpamDefenseSettings>
 }
 
 class RestSpamDefenseApi(private val client: ApiClient) : SpamDefenseApi {
@@ -89,6 +95,14 @@ class RestSpamDefenseApi(private val client: ApiClient) : SpamDefenseApi {
         client.postUnit(
             "api/v1/channels/$channelId/spam-defense/follow-bot-blocks/$batchId/restore"
         )
+
+    override suspend fun platformDefaults(): ApiResult<SpamDefensePolicy> =
+        client.getEnvelope("api/v1/admin/spam-defense/defaults")
+
+    override suspend fun savePlatformDefaults(
+        body: SpamDefenseSettings
+    ): ApiResult<SpamDefenseSettings> =
+        client.putEnvelope("api/v1/admin/spam-defense/defaults", body)
 }
 
 /**

@@ -4937,4 +4937,6 @@
     <string name="spam_follow_indicator_generated_handle">Naam lijkt automatisch aangemaakt</string>
     <string name="spam_follow_indicator_zero_history">Uren oud met een leeg profiel</string>
     <string name="spam_follow_indicator_oscillation">Herhaaldelijk gevolgd en ontvolgd</string>
+    <string name="admin_tab_spam_defaults">Standaard spambeveiliging</string>
+    <string name="spam_defaults_explain">Dit zijn de waarden waarmee elk nieuw kanaal begint. Een kanaal dat nooit een instelling heeft gewijzigd blijft deze volgen, dus hier iets aanpassen verplaatst ze allemaal tegelijk.</string>
 </resources>

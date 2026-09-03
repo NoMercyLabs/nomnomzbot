@@ -71,6 +71,7 @@ import nomnomzbot.composeapp.generated.resources.shell_nav_admin
 import nomnomzbot.composeapp.generated.resources.admin_tab_iam
 import nomnomzbot.composeapp.generated.resources.admin_tab_tenants
 import nomnomzbot.composeapp.generated.resources.admin_tab_audit
+import nomnomzbot.composeapp.generated.resources.admin_tab_spam_defaults
 import nomnomzbot.composeapp.generated.resources.admin_live_indicator
 import nomnomzbot.composeapp.generated.resources.admin_live_offline
 import nomnomzbot.composeapp.generated.resources.admin_registry_title
@@ -154,6 +155,7 @@ fun AdminScreen(controller: AdminController) {
             TAB_IAM -> if (state.principals.isEmpty() && state.roles.isEmpty()) controller.loadIam()
             TAB_TENANTS -> if (state.tenants.isEmpty()) controller.loadTenants()
             TAB_AUDIT -> if (state.auditEntries.isEmpty()) controller.loadAudit()
+            TAB_SPAM_DEFAULTS -> if (state.spamDefaults == null) controller.loadSpamDefaults()
         }
     }
     val tabs: List<String> = listOf(
@@ -166,6 +168,7 @@ fun AdminScreen(controller: AdminController) {
         stringResource(Res.string.admin_tab_iam),
         stringResource(Res.string.admin_tab_tenants),
         stringResource(Res.string.admin_tab_audit),
+        stringResource(Res.string.admin_tab_spam_defaults),
     )
 
     Column(modifier = Modifier.fillMaxSize().background(tokens.background)) {
@@ -214,6 +217,7 @@ fun AdminScreen(controller: AdminController) {
             TAB_IAM -> IamTab(state = state, controller = controller)
             TAB_TENANTS -> TenantsTab(state = state, controller = controller)
             TAB_AUDIT -> AuditTab(state = state, controller = controller)
+            TAB_SPAM_DEFAULTS -> SpamDefaultsTab(state = state, controller = controller)
         }
     }
 }
@@ -221,6 +225,7 @@ fun AdminScreen(controller: AdminController) {
 private const val TAB_IAM: Int = 6
 private const val TAB_TENANTS: Int = 7
 private const val TAB_AUDIT: Int = 8
+private const val TAB_SPAM_DEFAULTS: Int = 9
 
 /** Renders [content] normally, or a centered [Spinner] in its place while [isLoading] — scoped to the current
  * tab's content area only, so a sibling tab's fetch never blocks this one. */

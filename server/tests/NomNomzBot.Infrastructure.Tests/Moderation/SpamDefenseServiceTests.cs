@@ -530,5 +530,80 @@ public class SpamDefenseServiceTests : IDisposable
             .BeFalse("a cohort that included standing viewers is never a network signature");
     }
 
+    // ---- Platform defaults -----------------------------------------------------------------------
+
+    [Fact]
+    public async Task AnUnconfiguredChannel_TracksThePlatformDefaults_NotTheShippedConstants()
+    {
+        // §6: a channel setting left untouched TRACKS the default and moves when the default moves.
+        // Falling straight through to the shipped constants would make the admin page a lie — an
+        // operator would change a default and see nothing happen anywhere.
+        using (AppDbContext admin = NewDbContext())
+            await NewService(admin)
+                .UpdateSettingsAsync(
+                    SpamDefenseService.PlatformDefaultsScope,
+                    new SpamDefenseSettings { ActionDelaySeconds = 45, MinimumCohortSize = 9 }
+                );
+
+        using AppDbContext db = NewDbContext();
+        SpamDefenseSettings effective = await NewService(db).GetSettingsAsync(Channel);
+
+        effective.ActionDelaySeconds.Should().Be(45);
+        effective.MinimumCohortSize.Should().Be(9);
+    }
+
+    [Fact]
+    public async Task AChannelThatPinnedItsOwnValue_IgnoresALaterDefaultChange()
+    {
+        // The other half of the same rule: editing PINS it. A channel that made a deliberate choice
+        // must not have it silently overwritten by a platform-wide edit.
+        using (AppDbContext own = NewDbContext())
+            await NewService(own)
+                .UpdateSettingsAsync(Channel, new SpamDefenseSettings { ActionDelaySeconds = 12 });
+
+        using (AppDbContext admin = NewDbContext())
+            await NewService(admin)
+                .UpdateSettingsAsync(
+                    SpamDefenseService.PlatformDefaultsScope,
+                    new SpamDefenseSettings { ActionDelaySeconds = 45 }
+                );
+
+        using AppDbContext db = NewDbContext();
+        (await NewService(db).GetSettingsAsync(Channel))
+            .ActionDelaySeconds.Should()
+            .Be(12, "the channel pinned its own value");
+    }
+
+    [Fact]
+    public async Task ThePlatformDefaultsAreValidatedLikeAnyChannel()
+    {
+        // A default nobody could save on a channel page must not be settable platform-wide either —
+        // otherwise the admin page becomes the way to put every channel into a state its own editor
+        // rejects.
+        using AppDbContext db = NewDbContext();
+        Result<SpamDefenseSettings> result = await NewService(db)
+            .UpdateSettingsAsync(
+                SpamDefenseService.PlatformDefaultsScope,
+                new SpamDefenseSettings { MinimumCohortSize = 1 }
+            );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+    }
+
+    [Fact]
+    public async Task TheDefaultsScopeIsNotARealChannel()
+    {
+        // If the sentinel could collide with a tenant, one channel's settings would silently become
+        // everybody's.
+        SpamDefenseService.PlatformDefaultsScope.Should().Be(Guid.Empty);
+        SpamDefenseService.PlatformDefaultsScope.Should().NotBe(Channel);
+
+        using AppDbContext db = NewDbContext();
+        (await db.Channels.AnyAsync(c => c.Id == SpamDefenseService.PlatformDefaultsScope))
+            .Should()
+            .BeFalse();
+    }
+
     public void Dispose() => _connection.Dispose();
 }
