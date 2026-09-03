@@ -232,29 +232,24 @@ an impression.
    it bans raw hex/`dp` and off-catalogue Material3 primitives. That is token hygiene. A screen can
    pass every gate we run and still have no primary action.
 
-**Measured on the offending file:** `feature/home/ui/AttentionInbox.kt` uses `ButtonVariant`
-**zero** times. Allow / Block / Timeout / Ban all render at identical weight, which is Sleak core
-principle 3 (one primary focal point, secondaries neutral or outline) violated outright.
+**Correction to the first reading of the screenshot (2026-09-03).** The original diagnosis here said
+`AttentionInbox.kt` uses `ButtonVariant` zero times and therefore renders Allow / Block / Timeout /
+Ban at identical weight. The first half is literally true and the conclusion drawn from it was wrong:
+the file differentiates through the catalogue's wrappers rather than the enum — Allow is a primary
+`Button`, Block and Timeout are muted `TextButton`s, Ban carries `tokens.destructive`. Hierarchy by
+weight is present. What the screenshot actually shows is **density and copy**: six near-identical
+messages stacked ungrouped, four actions on every one of them, a floating "Block term", and a raw
+"Held 1450m ago". S-DESIGN-3 below is scoped to those, not to button variants.
 
 **This is not a subagent-only failure.** Claude wrote four UI files in the S-SPAM slice
 (`SpamDefenseSection`, `SpamDetectionsSection`, `SpamCampaignsSection`, `AdminSpamDefaultsTab`)
 without ever loading the Sleak skill, hitting the same four gaps. Any fix that only changes agent
 briefs will miss the larger half of the problem.
 
-- [ ] **S-DESIGN-1 Close the routing gaps.** Add Sleak to the *Adding a New Dashboard Page* checklist
-      as a numbered step ("load the `sleak` skill before writing the screen"); move the design bar out
-      of the suspension paragraph into its own rule near the other Critical Rules; add Sleak to
-      `dispatch-a-builder`'s Related playbooks AND to the brief template it generates, so every
-      dispatched UI slice carries it.
-- [ ] **S-DESIGN-2 Make it enforceable.** Extend `DesignSystemStyleGuardTest` with the Sleak rules
-      that CAN be checked statically: a screen with 3+ sibling action buttons and no variant
-      differentiation fails; nested rounded containers reusing the same radius with padding > 0 fail.
-      Grandfather existing offenders as a shrinking per-file baseline, exactly as the raw-hex/`dp`
-      guard already does — the count is the backlog.
-- [ ] **S-DESIGN-3 Fix the Held-messages modal** (`AttentionInbox.kt`) as the reference example:
-      one primary action per row, secondaries outline/ghost, destructive distinct; group the repeated
-      identical messages instead of stacking six copies; humanise "Held 1450m ago"; give "Block term"
-      a home instead of floating between rows.
+- [ ] **S-DESIGN-3 Fix the Held-messages modal** (`AttentionInbox.kt`) as the reference example.
+      Scope per the correction above — the button weights are already right; the density and the copy
+      are not: group repeated identical messages instead of stacking six copies, humanise
+      "Held 1450m ago", and give "Block term" a home instead of floating between rows.
 - [ ] **S-DESIGN-4 Re-audit the four S-SPAM screens** against the same bar once S-DESIGN-2 lands.
 
 ## AT A GLANCE — what is open, in one screen

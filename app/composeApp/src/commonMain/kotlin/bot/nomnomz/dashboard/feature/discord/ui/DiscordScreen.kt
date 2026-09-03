@@ -650,21 +650,23 @@ private fun GuildCard(
                 // the list" requirement) — a lookup built from the same guild-channels fetch used by the picker.
                 val channelNames: Map<String, String> =
                     (channels as? PickerState.Loaded)?.value?.associate { it.id to (it.name ?: it.id) }.orEmpty()
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column {
-                        guild.configs.forEachIndexed { index, rule ->
-                            RuleRow(
-                                rule = rule,
-                                channelName = channelNames[rule.targetChannelId] ?: rule.targetChannelId,
-                                manage = manage,
-                                onEdit = { onEditRule(rule) },
-                                onToggle = { enabled -> onToggleRule(rule, enabled) },
-                                onDelete = { onDeleteRule(rule) },
-                                onPreview = { onPreviewRule(rule) },
-                            )
-                            if (index < guild.configs.lastIndex) {
-                                Separator()
-                            }
+                // Deliberately NOT a Card. This sits inside a Card already padded by s4, and the
+                // catalogue has no radius that satisfies parent − padding at that inset, so a nested
+                // Card would put two identical 20dp curves 16dp apart — the concentric-radius break
+                // Sleak calls out. The Separators between rows carry the grouping instead.
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    guild.configs.forEachIndexed { index, rule ->
+                        RuleRow(
+                            rule = rule,
+                            channelName = channelNames[rule.targetChannelId] ?: rule.targetChannelId,
+                            manage = manage,
+                            onEdit = { onEditRule(rule) },
+                            onToggle = { enabled -> onToggleRule(rule, enabled) },
+                            onDelete = { onDeleteRule(rule) },
+                            onPreview = { onPreviewRule(rule) },
+                        )
+                        if (index < guild.configs.lastIndex) {
+                            Separator()
                         }
                     }
                 }

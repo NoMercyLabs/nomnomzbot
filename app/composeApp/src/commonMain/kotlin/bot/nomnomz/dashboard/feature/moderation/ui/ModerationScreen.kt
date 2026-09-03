@@ -1755,7 +1755,11 @@ private fun ModerateViewerDialog(
             }
         },
         confirmButton = {
+            // A ban or a timeout is the destructive half of this dialog, so it wears the destructive
+            // variant rather than the same primary pill a save button uses. The person clicking it is
+            // about to remove someone from their channel.
             Button(
+                variant = ButtonVariant.Destructive,
                 onClick = {
                     val picked: PickerRef? = target
                     if (picked == null) {

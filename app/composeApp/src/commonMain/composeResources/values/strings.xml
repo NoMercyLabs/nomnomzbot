@@ -3516,6 +3516,9 @@
     <string name="custom_events_test_success">Test event fired — check your pipeline logs.</string>
     <string name="custom_events_purpose_title">What is a data source?</string>
     <string name="custom_events_row_type">Data source</string>
+    <string name="custom_events_row_edit">Edit</string>
+    <string name="custom_events_row_test">Test</string>
+    <string name="custom_events_row_delete">Delete</string>
     <string name="custom_events_option_row_type">Data source</string>
     <string name="custom_events_preset_row_type">Preset</string>
     <string name="custom_events_purpose_body">A data source lets the bot ingest an external feed — a heart-rate monitor, a sensor board, a companion app, or any JSON/websocket API. Each value that arrives fires a pipeline trigger and becomes a template variable you can use anywhere.</string>

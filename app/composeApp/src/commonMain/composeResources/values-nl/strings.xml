@@ -3502,6 +3502,9 @@
     <string name="custom_events_test_success">Testgebeurtenis verzonden — controleer uw pipeline-logboeken.</string>
     <string name="custom_events_purpose_title">Wat is een gegevensbron?</string>
     <string name="custom_events_row_type">Gegevensbron</string>
+    <string name="custom_events_row_edit">Bewerken</string>
+    <string name="custom_events_row_test">Testen</string>
+    <string name="custom_events_row_delete">Verwijderen</string>
     <string name="custom_events_option_row_type">Gegevensbron</string>
     <string name="custom_events_preset_row_type">Voorinstelling</string>
     <string name="custom_events_purpose_body">Met een gegevensbron kan de bot een externe feed binnenhalen — een hartslagmeter, een sensorbord, een companion-app of een JSON/websocket-API. Elke binnenkomende waarde start een pipeline-trigger en wordt een sjabloonvariabele die u overal kunt gebruiken.</string>

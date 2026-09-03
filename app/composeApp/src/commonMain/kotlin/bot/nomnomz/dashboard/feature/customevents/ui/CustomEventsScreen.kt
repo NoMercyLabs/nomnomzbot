@@ -117,6 +117,9 @@ import nomnomzbot.composeapp.generated.resources.custom_events_purpose_body
 import nomnomzbot.composeapp.generated.resources.custom_events_purpose_example_body
 import nomnomzbot.composeapp.generated.resources.custom_events_purpose_example_title
 import nomnomzbot.composeapp.generated.resources.custom_events_purpose_title
+import nomnomzbot.composeapp.generated.resources.custom_events_row_delete
+import nomnomzbot.composeapp.generated.resources.custom_events_row_edit
+import nomnomzbot.composeapp.generated.resources.custom_events_row_test
 import nomnomzbot.composeapp.generated.resources.custom_events_row_type
 import nomnomzbot.composeapp.generated.resources.custom_events_search_label
 import nomnomzbot.composeapp.generated.resources.custom_events_search_placeholder
@@ -575,10 +578,25 @@ private fun SourceRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(spacing.s2),
             ) {
-                GlyphButton(icon = EditGlyph, label = "Edit", enabled = enabled, onClick = onEdit)
-                GlyphButton(icon = PlayCircleGlyph, label = "Test", enabled = enabled, onClick = onTest)
+                GlyphButton(
+                    icon = EditGlyph,
+                    label = stringResource(Res.string.custom_events_row_edit),
+                    enabled = enabled,
+                    onClick = onEdit,
+                )
+                GlyphButton(
+                    icon = PlayCircleGlyph,
+                    label = stringResource(Res.string.custom_events_row_test),
+                    enabled = enabled,
+                    onClick = onTest,
+                )
                 Spacer(modifier = Modifier.weight(1f))
-                GlyphButton(icon = TrashGlyph, label = "Delete", enabled = enabled, onClick = onDelete)
+                GlyphButton(
+                    icon = TrashGlyph,
+                    label = stringResource(Res.string.custom_events_row_delete),
+                    enabled = enabled,
+                    onClick = onDelete,
+                )
             }
         }
     }

@@ -137,6 +137,127 @@ class DesignSystemStyleGuardTest {
         }
     }
 
+    // ── Sleak core rules that a static check can actually decide ────────────────────────────────
+    //
+    // The guards above check TOKENS: the right color, the right spacing unit. They cannot see
+    // HIERARCHY, which is what the Sleak skill governs and what shipped wrong — a screen can use
+    // every correct token and still tell the reader nothing about what matters. These two catch the
+    // parts of that which are decidable from source. Both stand at ZERO because the tree was brought
+    // to zero when they were written: there is no baseline to burn down, so any offender is new.
+
+    /**
+     * Sleak core rule 1, concentric radius. A design-system [Card] is `radius.lg` with its own
+     * padding; nesting a second one inside it puts two identical curves a padding-width apart, which
+     * is the exact geometry the rule forbids (`parent − padding = child`). The catalogue has no
+     * radius that satisfies that relationship at `s4`, so the fix is never "pick a smaller radius" —
+     * it is not to nest. Group with spacing and Separators instead.
+     */
+    @Test
+    fun cards_are_never_nested_inside_cards() {
+        val root: File = featureRoot()
+        val offenders: MutableList<String> = mutableListOf()
+        root.walkTopDown().filter { it.isFile && it.extension == "kt" }.forEach { file ->
+            val rel: String = file.relativeTo(root).path.replace('\\', '/')
+            val text: String = withoutImports(file.readText())
+            cardCall.findAll(text).forEach { match ->
+                val body: IntRange = trailingLambdaOf(text, match.range.last) ?: return@forEach
+                if (cardCall.containsMatchIn(text.substring(body))) {
+                    offenders += "$rel:${text.lineOf(match.range.first)}"
+                }
+            }
+        }
+        if (offenders.isNotEmpty()) {
+            fail(
+                "Card nested directly inside a Card — two identical radii separated by padding breaks " +
+                    "concentric radius (Sleak core rule 1). Group with spacing/Separator, or give the " +
+                    "outer surface no Card. Offenders:\n" + offenders.joinToString("\n")
+            )
+        }
+    }
+
+    /**
+     * Sleak core rule 3, hierarchy by weight. A destructive action must not look like its neighbours.
+     * The catalogue ships `Destructive`, `DestructiveSecondary` and `DestructiveGhost` for exactly
+     * this; a destructive-token label colour or a trash glyph carries the same signal, so all three
+     * count. What fails is a ban / delete / revoke rendered identically to the save button beside it.
+     *
+     * Words like "dismiss" or "cancel" in the same call mean the button is the SAFE half of a
+     * destructive dialog, which must stay quiet — those are exempt, not offenders.
+     */
+    @Test
+    fun destructive_actions_are_visually_distinct() {
+        val root: File = featureRoot()
+        val offenders: MutableList<String> = mutableListOf()
+        root.walkTopDown().filter { it.isFile && it.extension == "kt" }.forEach { file ->
+            val rel: String = file.relativeTo(root).path.replace('\\', '/')
+            val text: String = withoutImports(file.readText())
+            buttonCall.findAll(text).forEach { match ->
+                val body: IntRange = trailingLambdaOf(text, match.range.last) ?: match.range
+                val call: String = text.substring(match.range.first, body.last + 1)
+                if (
+                    destructiveVerb.containsMatchIn(call) &&
+                        !safeHalfOfDialog.containsMatchIn(call) &&
+                        !destructiveSignal.containsMatchIn(call)
+                ) {
+                    offenders += "$rel:${text.lineOf(match.range.first)}"
+                }
+            }
+        }
+        if (offenders.isNotEmpty()) {
+            fail(
+                "Destructive action with no destructive treatment — use ButtonVariant.Destructive* , a " +
+                    "tokens.destructive label, or TrashGlyph, so it does not read as an ordinary action " +
+                    "(Sleak core rule 3). Offenders:\n" + offenders.joinToString("\n")
+            )
+        }
+    }
+
+    private val cardCall: Regex = Regex("""(?<![A-Za-z0-9_.])Card\s*\(""")
+    private val buttonCall: Regex = Regex("""(?<![A-Za-z0-9_.])(Button|TextButton|GlyphButton)\s*\(""")
+    private val destructiveVerb: Regex =
+        Regex("""(?<![A-Za-z])(?i)(ban|delete|remove|revoke|purge|disconnect|unlink|wipe|destroy)(?![A-Za-z])""")
+    private val safeHalfOfDialog: Regex =
+        Regex("""(?<![A-Za-z])(?i)(dismiss|cancel|close|keep|back|restore|undo)(?![A-Za-z])""")
+    private val destructiveSignal: Regex =
+        Regex("""ButtonVariant\.Destructive|\.destructive|TrashGlyph""")
+
+    /** Blanks import lines so matches never fire on them, while keeping line numbers honest. */
+    private fun withoutImports(text: String): String =
+        text.lineSequence().joinToString("\n") { if (it.trimStart().startsWith("import ")) "" else it }
+
+    private fun String.lineOf(index: Int): Int = substring(0, index).count { it == '\n' } + 1
+
+    /**
+     * The span of a composable call's trailing `{ … }` block, or null when it has none. Balances
+     * the argument list first, because a nested `(` inside the arguments would otherwise end it early.
+     */
+    private fun trailingLambdaOf(text: String, callParenIndex: Int): IntRange? {
+        var depth = 0
+        var i: Int = callParenIndex
+        while (i < text.length) {
+            if (text[i] == '(') depth++
+            if (text[i] == ')') {
+                depth--
+                if (depth == 0) break
+            }
+            i++
+        }
+        var k: Int = i + 1
+        while (k < text.length && text[k].isWhitespace()) k++
+        if (k >= text.length || text[k] != '{') return null
+        var braces = 0
+        var end: Int = k
+        while (end < text.length) {
+            if (text[end] == '{') braces++
+            if (text[end] == '}') {
+                braces--
+                if (braces == 0) break
+            }
+            end++
+        }
+        return k..minOf(end, text.length - 1)
+    }
+
     private fun featureRoot(): File {
         return File(commonMainRoot(), "feature")
     }

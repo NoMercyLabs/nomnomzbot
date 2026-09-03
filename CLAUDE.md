@@ -27,6 +27,7 @@ Licensed under **AGPL-3.0**. Copyright (C) NoMercy Labs.
 - **Full external-API coverage — implement, never remove.** Every method and every event of every API we integrate (Twitch Helix + EventSub, Spotify, Discord, YouTube, …) gets implemented; a missing one is a gap to ADD. Beta/restricted surfaces ship with graceful degradation, never get skipped or deleted. Never act on a "deprecated/skip" claim about an external API without re-verifying the live docs first.
 - **Don't ask "should I continue?" or "want me to fix this?"** — just do it.
 - **Match the design system exactly** — the shadcn (new-york) tokens, component catalogue, and variant tables in `frontend-design-system.md`; correct tokens/spacing/variants. Never hardcode a color or `dp`; do not approximate.
+- **Load the `sleak` skill before writing any UI, every time.** The design system says which token; Sleak says which thing wins the eye. Its three core rules are non-negotiable on every screen: **one primary action per group** (siblings go outline/ghost, destructive gets its own treatment — a row of equal-weight buttons is a defect), **concentric radius** (a nested rounded container never reuses the parent radius when padding > 0), and **scarce accent** (full-chroma accent marks the single most important task on the page, nothing else). This applies to Claude and to every dispatched agent — writing a screen without loading it has produced shipped defects.
 - **Test every interactive element** — never claim something "works" without full validation.
 - **No half-assed work** — seed ALL data, test EVERY button, run parallel where possible.
 - **Track split + handoff inboxes — SUSPENDED (not allowed to be used) during the remediation campaign (2026-08-22, D7).** Claude works backend + frontend; the work queue is `.claude/docs/design/SHORTCOMINGS-EXECUTION-PLAN.md`; the design bar is the Sleak skill + the shadcn catalogue. The original rule ("Check your handoff inbox at session start — `handoff/for-backend.md` / `handoff/for-frontend.md`; open items are picked up automatically") stays on the books below and resumes when the campaign ends.
@@ -567,15 +568,20 @@ OS keychain, switchable from the profile menu.
 
 ### Adding a New Dashboard Page
 
-1. Screen + state under `app/composeApp/src/commonMain/.../feature/<domain>/`; navigation and page
+1. **Load the `sleak` skill first** — before a line of Compose is written, not as a review pass
+   afterwards. Hierarchy decisions (which action is primary, what the eye lands on) are made while
+   the screen is being laid out; retrofitting them means rewriting it.
+2. Screen + state under `app/composeApp/src/commonMain/.../feature/<domain>/`; navigation and page
    placement per `frontend-ia.md` (the definitive page inventory).
-2. Fetch/mutate exclusively through the **typed shared KMP client** (`core/network`, REST + SignalR) —
+3. Fetch/mutate exclusively through the **typed shared KMP client** (`core/network`, REST + SignalR) —
    never call the API ad hoc. New DTOs register in `ApiContractTest`; refresh `server/openapi/v1.json`
    on any contract change.
-3. Design-system components only (`frontend-design-system.md` + catalogue) — no raw hex/`dp`.
-4. i18n keys for both `en` and `nl`; never hardcode user-facing strings.
-5. Role-gate per `frontend-ia.md` §7 — hide pages below the read floor; **disable** (don't hide)
+4. Design-system components only (`frontend-design-system.md` + catalogue) — no raw hex/`dp`.
+5. i18n keys for both `en` and `nl`; never hardcode user-facing strings.
+6. Role-gate per `frontend-ia.md` §7 — hide pages below the read floor; **disable** (don't hide)
    actions below the manage floor, with a reason tooltip.
+7. Re-run the Sleak checklist on the **rendered** screen before calling it done — one primary action
+   per group, concentric radius, accent spent once. Source alone does not show hierarchy.
 
 ### Adding a New Twitch EventSub Subscription
 
