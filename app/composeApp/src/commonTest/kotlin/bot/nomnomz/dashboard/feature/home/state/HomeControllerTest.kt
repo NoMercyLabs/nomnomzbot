@@ -31,6 +31,7 @@ import bot.nomnomz.dashboard.core.network.IntegrationStatus
 import bot.nomnomz.dashboard.core.network.IntegrationsApi
 import bot.nomnomz.dashboard.core.network.ModerationApi
 import bot.nomnomz.dashboard.core.network.ModerationQueueItem
+import bot.nomnomz.dashboard.core.network.UpdateTwitchAutoModSettingsBody
 import bot.nomnomz.dashboard.core.network.NotificationsApi
 import bot.nomnomz.dashboard.core.network.ResolvedAutomodQueueItem
 import bot.nomnomz.dashboard.core.network.PipelineSummary
@@ -1150,6 +1151,13 @@ private class FakeModerationApi : ModerationApi {
         channelId: String,
         config: bot.nomnomz.dashboard.core.network.AutomodConfig,
     ) = error("stub")
+    override suspend fun twitchAutoMod(channelId: String) = error("stub")
+
+    override suspend fun saveTwitchAutoMod(
+        channelId: String,
+        body: UpdateTwitchAutoModSettingsBody,
+    ) = error("stub")
+
     override suspend fun rules(channelId: String) = error("stub")
     override suspend fun createRule(
         channelId: String,
