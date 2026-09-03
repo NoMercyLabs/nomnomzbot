@@ -77,6 +77,8 @@ import bot.nomnomz.dashboard.core.designsystem.icon.NetworkGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.UnlockGlyph
 import bot.nomnomz.dashboard.core.network.AutomodConfig
+import bot.nomnomz.dashboard.core.network.SpamDefensePolicy
+import bot.nomnomz.dashboard.core.network.SpamDefenseSettings
 import bot.nomnomz.dashboard.core.network.TrustPolicy
 import bot.nomnomz.dashboard.core.network.TwitchAutoModSettings
 import bot.nomnomz.dashboard.core.network.UpdateTrustPolicyBody
@@ -481,10 +483,14 @@ fun ModerationScreen(
                             escalationPolicy = current.escalationPolicy,
                         ),
                     trustPolicy = current.trustPolicy,
+                    spamDefense = current.spamDefense,
                     twitchAutoMod = current.twitchAutoMod,
                     trustWeightSumInvalid = current.trustWeightSumInvalid,
                     broadcasterManage = broadcasterManage,
                     onSaveTrustPolicy = { body -> scope.launch { controller.saveTrustPolicy(body) } },
+                    onSaveSpamDefense = { settings ->
+                        scope.launch { controller.saveSpamDefense(settings) }
+                    },
                     onSaveTwitchAutoMod = { body -> scope.launch { controller.saveTwitchAutoMod(body) } },
                     onToggleAutoTimeoutOnHeat = { on ->
                         scope.launch { controller.setAutoTimeoutOnHeat(on) }
@@ -627,10 +633,12 @@ private fun BansList(
     // The derived "what happens automatically" account, plus the two broadcaster-gated editors behind it.
     automationLines: List<AutomationLine>,
     trustPolicy: TrustPolicy?,
+    spamDefense: SpamDefensePolicy?,
     twitchAutoMod: TwitchAutoModSettings?,
     trustWeightSumInvalid: Boolean,
     broadcasterManage: ManageDecision,
     onSaveTrustPolicy: (UpdateTrustPolicyBody) -> Unit,
+    onSaveSpamDefense: (SpamDefenseSettings) -> Unit,
     onSaveTwitchAutoMod: (UpdateTwitchAutoModSettingsBody) -> Unit,
     onToggleAutoTimeoutOnHeat: (Boolean) -> Unit,
     onSaveHeatTimeoutSeconds: (Int) -> Unit,
@@ -1166,6 +1174,20 @@ private fun BansList(
                         manage = broadcasterManage,
                         weightSumInvalid = trustWeightSumInvalid,
                         onSave = onSaveTrustPolicy,
+                    )
+                }
+            }
+        }
+        // Spam defence. Same posture as the trust editor: the section renders when the read succeeded
+        // (Moderator+ floor), and the writes inside it stay gated at the Broadcaster floor, because
+        // changing these weights is where enforcement gets switched on at all.
+        spamDefense?.let { policy ->
+            item(key = "spam-defense-card") {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    SpamDefenseSection(
+                        policy = policy,
+                        manage = broadcasterManage,
+                        onSave = onSaveSpamDefense,
                     )
                 }
             }

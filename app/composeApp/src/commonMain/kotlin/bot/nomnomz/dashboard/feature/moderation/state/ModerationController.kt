@@ -48,6 +48,9 @@ import bot.nomnomz.dashboard.core.network.UnbanRequest
 import bot.nomnomz.dashboard.core.network.UpsertEscalationPolicyBody
 import bot.nomnomz.dashboard.core.network.ShieldStatus
 import bot.nomnomz.dashboard.core.network.TrustApi
+import bot.nomnomz.dashboard.core.network.SpamDefenseApi
+import bot.nomnomz.dashboard.core.network.SpamDefensePolicy
+import bot.nomnomz.dashboard.core.network.SpamDefenseSettings
 import bot.nomnomz.dashboard.core.network.TrustPolicy
 import bot.nomnomz.dashboard.core.network.TwitchAutoModSettings
 import bot.nomnomz.dashboard.core.network.UpdateTrustPolicyBody
@@ -82,6 +85,10 @@ class ModerationController(
     // the same reason as [streamApi]: a state-holder test that does not exercise the Trust & Automation section
     // omits it, and the section then stays hidden rather than rendering a policy nobody read.
     private val trustApi: TrustApi? = null,
+    // The per-channel spam-defence policy. Nullable for the same reason as [trustApi]: a state-holder test
+    // that does not exercise the section omits it, and the section then stays hidden rather than rendering
+    // settings nobody read.
+    private val spamDefenseApi: SpamDefenseApi? = null,
 ) {
     private val _state: MutableStateFlow<ModerationState> = MutableStateFlow(ModerationState.Loading)
 
@@ -323,6 +330,14 @@ class ModerationController(
                 is ApiResult.Ok -> result.value
             }
 
+        // The channel's spam-defence policy. Resilient in exactly the same way, and for the same reason:
+        // a caller below the read floor sees the section hidden rather than the whole page failing.
+        val spamDefense: SpamDefensePolicy? =
+            when (val result: ApiResult<SpamDefensePolicy>? = spamDefenseApi?.policy(channel.id)) {
+                null, is ApiResult.Failure -> null
+                is ApiResult.Ok -> result.value
+            }
+
         // Empty only when there is genuinely nothing to show AND every always-on control (shield, automod) is off
         // AND every live-Twitch section is available (an unavailable section must render Ready so its needs-permission
         // notice shows — never Empty, which would read as "nothing here" rather than "you can't see this here").
@@ -375,6 +390,7 @@ class ModerationController(
                     shoutoutOverrides = shoutoutOverrides,
                     twitchAutoMod = twitchAutoMod,
                     trustPolicy = trustPolicy,
+                    spamDefense = spamDefense,
                 )
             }
     }
@@ -1084,6 +1100,36 @@ class ModerationController(
     }
 
     /**
+     * Saves the channel's spam-defence settings. The backend validates every range against the same
+     * catalogue the editor rendered from, so an out-of-range value comes back as a failure naming the
+     * control by resource key rather than being silently clamped.
+     */
+    suspend fun saveSpamDefense(settings: SpamDefenseSettings) {
+        val channel: String = channelId ?: return
+        val api: SpamDefenseApi = spamDefenseApi ?: return
+        val current: ModerationState = _state.value
+        if (current !is ModerationState.Ready) return
+
+        when (val result: ApiResult<SpamDefenseSettings> = api.saveSettings(channel, settings)) {
+            is ApiResult.Ok -> {
+                val ready: ModerationState = _state.value
+                if (ready is ModerationState.Ready) {
+                    // Keep the catalogue and invariants that came with the original load; only the
+                    // values changed, and re-fetching them to learn nothing new would cost a round trip
+                    // on every save.
+                    _state.value =
+                        ready.copy(
+                            spamDefense =
+                                ready.spamDefense?.copy(settings = result.value, isPinned = true),
+                            actionError = null,
+                        )
+                }
+            }
+            is ApiResult.Failure -> setActionError(result.error.message)
+        }
+    }
+
+    /**
      * Replace Twitch's own AutoMod levels with [body]. The body type only exists in an overall-dial OR a
      * per-category shape, so the combination Twitch rejects cannot be sent. Stores the echoed settings on success.
      */
@@ -1159,6 +1205,7 @@ sealed interface ModerationState {
         val twitchAutoMod: TwitchAutoModSettings? = null,
         // The channel's trust policy (S-OWN23), null when the read failed or no trust API is wired.
         val trustPolicy: TrustPolicy? = null,
+        val spamDefense: SpamDefensePolicy? = null,
         // True when the last trust-policy save was refused locally because the four weights do not sum to 1.0 —
         // the backend rejects that body, so the editor blocks it and shows the inline error instead.
         val trustWeightSumInvalid: Boolean = false,

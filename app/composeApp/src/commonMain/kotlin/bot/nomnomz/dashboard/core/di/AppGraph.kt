@@ -101,7 +101,9 @@ import bot.nomnomz.dashboard.core.network.RestGiveawaysApi
 import bot.nomnomz.dashboard.core.network.SupportersApi
 import bot.nomnomz.dashboard.core.network.RestSupportersApi
 import bot.nomnomz.dashboard.core.network.RestModerationApi
+import bot.nomnomz.dashboard.core.network.RestSpamDefenseApi
 import bot.nomnomz.dashboard.core.network.RestTrustApi
+import bot.nomnomz.dashboard.core.network.SpamDefenseApi
 import bot.nomnomz.dashboard.core.network.TrustApi
 import bot.nomnomz.dashboard.core.network.RestMusicApi
 import bot.nomnomz.dashboard.core.network.RestParticipantApi
@@ -324,6 +326,7 @@ class AppGraph {
     val timersApi: TimersApi = RestTimersApi(apiClient)
     val moderationApi: ModerationApi = RestModerationApi(apiClient)
     val trustApi: TrustApi = RestTrustApi(apiClient)
+    val spamDefenseApi: SpamDefenseApi = RestSpamDefenseApi(apiClient)
     val analyticsApi: AnalyticsApi = RestAnalyticsApi(apiClient)
     val rewardsApi: RewardsApi = RestRewardsApi(apiClient)
     val songRequestsApi: SongRequestsApi = RestSongRequestsApi(apiClient)
@@ -498,6 +501,7 @@ class AppGraph {
             feedback = feedbackController,
             streamApi = streamApi,
             trustApi = trustApi,
+            spamDefenseApi = spamDefenseApi,
         )
 
     val analyticsController: AnalyticsController =

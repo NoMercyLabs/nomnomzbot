@@ -127,6 +127,13 @@ class ApiContractTest {
             TwitchAutoModSettings.serializer() to "TwitchAutoModSettingsDto",
             UpdateTwitchAutoModSettingsBody.serializer() to "UpdateTwitchAutoModSettingsRequest",
             TrustPolicy.serializer() to "TrustPolicyDto",
+            // Spam defence. The settings record is shared by the read and the write, so it appears
+            // under its own name on both sides rather than as a separate request body.
+            SpamDefensePolicy.serializer() to "SpamDefensePolicyDto",
+            SpamDefenseSettings.serializer() to "SpamDefenseSettings",
+            SpamSettingDescriptor.serializer() to "SpamSettingDescriptorDto",
+            SpamInvariant.serializer() to "SpamInvariantDto",
+            SpamDetection.serializer() to "SpamDetectionDto",
             UpdateTrustPolicyBody.serializer() to "UpdateTrustPolicyRequest",
             AutomodLinkFilter.serializer() to "AutomodLinkFilterDto",
             AutomodCapsFilter.serializer() to "AutomodCapsFilterDto",
