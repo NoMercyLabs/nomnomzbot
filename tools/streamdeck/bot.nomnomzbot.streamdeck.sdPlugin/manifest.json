@@ -1,7 +1,7 @@
 {
   "Name": "NomNomzBot Music",
   "UUID": "bot.nomnomzbot.streamdeck",
-  "Version": "1.0.0",
+  "Version": "1.0.1",
   "Author": "NoMercy Labs",
   "Description": "Control Spotify (and any other connected NomNomzBot music provider) through your bot's own Automation API — pairs itself, defaults to your self-hosted bot at localhost.",
   "Icon": "imgs/plugin/marketplace",
