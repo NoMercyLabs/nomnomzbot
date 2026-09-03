@@ -68,7 +68,8 @@ class RestChatTriggersApi(private val client: ApiClient) : ChatTriggersApi {
  * (`contains` | `exact` | `starts_with` | `regex`), whether the match is [caseSensitive], the [isEnabled] flag,
  * and the reaction — a template [response] (`{user}`/`{args}` variables, like commands) OR a [pipelineId] (a
  * chained reaction). Exactly one of the two is set. [cooldownSeconds] is the per-trigger spam guard;
- * [minPermissionLevel] is the unified-ladder value a chatter must clear to fire it (0 = everyone).
+ * [minPermissionLevel] is the rung NAME a chatter must clear to fire it
+ * (Everyone/Subscriber/Vip/Artist/Moderator/LeadModerator/Editor/Broadcaster).
  */
 @Serializable
 data class ChatTrigger(
@@ -80,7 +81,7 @@ data class ChatTrigger(
     val response: String? = null,
     val pipelineId: String? = null,
     val cooldownSeconds: Int = 30,
-    val minPermissionLevel: Int = 0,
+    val minPermissionLevel: String = "Everyone",
     val createdAt: String = "",
     val updatedAt: String = "",
 )
@@ -100,7 +101,7 @@ data class CreateChatTriggerBody(
     val response: String? = null,
     val pipelineId: String? = null,
     val cooldownSeconds: Int,
-    val minPermissionLevel: Int,
+    val minPermissionLevel: String,
 )
 
 /**
@@ -119,5 +120,5 @@ data class UpdateChatTriggerBody(
     val response: String? = null,
     val pipelineId: String? = null,
     val cooldownSeconds: Int? = null,
-    val minPermissionLevel: Int? = null,
+    val minPermissionLevel: String? = null,
 )

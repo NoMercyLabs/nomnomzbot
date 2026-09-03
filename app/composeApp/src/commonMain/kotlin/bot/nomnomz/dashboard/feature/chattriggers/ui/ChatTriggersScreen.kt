@@ -44,6 +44,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppSelectField
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
+import bot.nomnomz.dashboard.core.designsystem.PermissionRungs
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
@@ -416,7 +417,7 @@ private fun TriggerFormDialog(
     var response: String by remember { mutableStateOf(editor.response) }
     var selectedPipelineId: String? by remember { mutableStateOf(editor.pipelineId) }
     var cooldown: String by remember { mutableStateOf(editor.cooldownSeconds.toString()) }
-    var minLevel: Int by remember { mutableStateOf(editor.minPermissionLevel) }
+    var minLevel: String by remember { mutableStateOf(editor.minPermissionLevel) }
 
     var matchMenuOpen: Boolean by remember { mutableStateOf(false) }
     var permMenuOpen: Boolean by remember { mutableStateOf(false) }
@@ -492,15 +493,15 @@ private fun TriggerFormDialog(
                 // Minimum role that can fire it — role NAMES only, never the numeric ladder value (house rule).
                 PickerField(
                     label = stringResource(Res.string.chattriggers_dialog_permission_label),
-                    value = permissionLabel(minLevel),
+                    value = stringResource(PermissionRungs.labelOf(minLevel)),
                     expanded = permMenuOpen,
                     onExpandedChange = { permMenuOpen = it },
                 ) {
-                    PermissionRungs.forEach { (level, res) ->
+                    PermissionRungs.Ordered.forEach { (rung, res) ->
                         DropdownMenuItem(
                             text = { Text(stringResource(res), color = tokens.cardForeground) },
                             onClick = {
-                                minLevel = level
+                                minLevel = rung
                                 permMenuOpen = false
                             },
                         )
@@ -649,10 +650,6 @@ private fun matchTypeLabel(matchType: String): String =
     )
 
 @Composable
-private fun permissionLabel(level: Int): String =
-    stringResource(PermissionRungs.lastOrNull { level >= it.first }?.second ?: Res.string.chattriggers_perm_everyone)
-
-@Composable
 private fun ErrorContent(detail: String, onRetry: () -> Unit) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -688,15 +685,6 @@ private fun CenteredMessage(text: String) {
 private val MatchTypes: List<String> = listOf("contains", "exact", "starts_with", "regex")
 
 // The permission rungs the picker offers as ROLE NAMES mapped to their unified-ladder value (roles-permissions
-// §0). Ascending so [permissionLabel] can resolve a stored level to the highest rung it clears.
-private val PermissionRungs: List<Pair<Int, StringResource>> =
-    listOf(
-        0 to Res.string.chattriggers_perm_everyone,
-        2 to Res.string.chattriggers_perm_subscriber,
-        4 to Res.string.chattriggers_perm_vip,
-        10 to Res.string.chattriggers_perm_moderator,
-        40 to Res.string.chattriggers_perm_broadcaster,
-    )
 
 // The dialog's submitted values, bundled so the create/edit callback has one clean parameter.
 private data class TriggerForm(
@@ -708,7 +696,7 @@ private data class TriggerForm(
     val response: String,
     val pipelineId: String?,
     val cooldownSeconds: Int,
-    val minPermissionLevel: Int,
+    val minPermissionLevel: String,
 )
 
 // The create/edit dialog's seed: an empty editor opens a blank create form; one seeded from a trigger opens a
@@ -724,7 +712,7 @@ private data class TriggerEditor(
     val response: String,
     val pipelineId: String?,
     val cooldownSeconds: Int,
-    val minPermissionLevel: Int,
+    val minPermissionLevel: String,
 ) {
     companion object {
         fun create(): TriggerEditor =
@@ -739,7 +727,7 @@ private data class TriggerEditor(
                 response = "",
                 pipelineId = null,
                 cooldownSeconds = 30,
-                minPermissionLevel = 0,
+                minPermissionLevel = PermissionRungs.Everyone,
             )
 
         fun edit(trigger: ChatTrigger): TriggerEditor =

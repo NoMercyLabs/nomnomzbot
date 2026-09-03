@@ -59,7 +59,7 @@ class ChatTriggersControllerTest {
             response = "Hi there!",
             pipelineId = null,
             cooldownSeconds = 30,
-            minPermissionLevel = 0,
+            minPermissionLevel = "Everyone",
         )
 
         assertEquals(FeedbackKind.Success, feedback.only.kind)
@@ -101,7 +101,7 @@ class ChatTriggersControllerTest {
             response = "boom",
             pipelineId = null,
             cooldownSeconds = 30,
-            minPermissionLevel = 0,
+            minPermissionLevel = "Everyone",
         )
 
         assertEquals(FeedbackKind.Error, feedback.only.kind)

@@ -14,6 +14,7 @@ using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Commands.Entities;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Commands;
@@ -71,6 +72,14 @@ public sealed class ChatTriggerService : IChatTriggerService
         if (invalid.IsFailure)
             return Result.Failure<ChatTriggerDto>(invalid.ErrorMessage!, invalid.ErrorCode);
 
+        // Refused, never clamped: Math.Max(0, x) used to accept any integer, so a caller sending a rung
+        // that does not exist got the nearest legal-looking value instead of an error.
+        int? minLevel = PermissionLevelNames.ToLevelValue(request.MinPermissionLevel);
+        if (minLevel is null)
+            return Errors
+                .ValidationFailed(UnknownRungMessage(request.MinPermissionLevel))
+                .ToTyped<ChatTriggerDto>();
+
         ChatTrigger trigger = new()
         {
             Id = Guid.CreateVersion7(),
@@ -82,7 +91,7 @@ public sealed class ChatTriggerService : IChatTriggerService
             Response = request.Response,
             PipelineId = request.PipelineId,
             CooldownSeconds = Math.Clamp(request.CooldownSeconds, 0, MaxCooldownSeconds),
-            MinPermissionLevel = Math.Max(0, request.MinPermissionLevel),
+            MinPermissionLevel = minLevel.Value,
         };
         _db.ChatTriggers.Add(trigger);
         await _db.SaveChangesAsync(cancellationToken);
@@ -139,8 +148,15 @@ public sealed class ChatTriggerService : IChatTriggerService
                 0,
                 MaxCooldownSeconds
             );
-        if (request.MinPermissionLevel.HasValue)
-            trigger.MinPermissionLevel = Math.Max(0, request.MinPermissionLevel.Value);
+        if (request.MinPermissionLevel is not null)
+        {
+            int? updatedLevel = PermissionLevelNames.ToLevelValue(request.MinPermissionLevel);
+            if (updatedLevel is null)
+                return Errors
+                    .ValidationFailed(UnknownRungMessage(request.MinPermissionLevel))
+                    .ToTyped<ChatTriggerDto>();
+            trigger.MinPermissionLevel = updatedLevel.Value;
+        }
 
         await _db.SaveChangesAsync(cancellationToken);
         await _registry.InvalidateChatTriggersAsync(broadcaster, cancellationToken);
@@ -217,8 +233,12 @@ public sealed class ChatTriggerService : IChatTriggerService
             t.Response,
             t.PipelineId,
             t.CooldownSeconds,
-            t.MinPermissionLevel,
+            PermissionLevelNames.ToName(t.MinPermissionLevel),
             t.CreatedAt,
             t.UpdatedAt
         );
+
+    /// <summary>One wording for an unusable rung, naming what IS accepted so the caller can fix it.</summary>
+    private static string UnknownRungMessage(string? given) =>
+        $"'{given}' is not a permission rung. Use one of: {string.Join(", ", PermissionLevelNames.All)}.";
 }

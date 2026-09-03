@@ -80907,12 +80907,7 @@
             "format": "int32"
           },
           "minPermissionLevel": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
+            "type": "string"
           },
           "createdAt": {
             "type": "string",
@@ -81856,13 +81851,9 @@
             "format": "int32"
           },
           "minPermissionLevel": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "description": "Minimum unified-ladder level of the speaker (0 = everyone).",
-            "format": "int32"
+            "maxLength": 20,
+            "type": "string",
+            "description": "The lowest rung whose speaker may fire this trigger, by NAME —\n`Everyone | Subscriber | Vip | Artist | Moderator | LeadModerator | Editor | Broadcaster`.\nAn unrecognised name is refused rather than clamped: a typo must not quietly widen who can fire it."
           }
         }
       },
@@ -107051,13 +107042,12 @@
             "format": "int32"
           },
           "minPermissionLevel": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "maxLength": 20,
             "type": [
               "null",
-              "integer",
               "string"
             ],
-            "format": "int32"
+            "description": "The rung name (see string CreateChatTriggerRequest.MinPermissionLevel); null leaves it."
           }
         }
       },

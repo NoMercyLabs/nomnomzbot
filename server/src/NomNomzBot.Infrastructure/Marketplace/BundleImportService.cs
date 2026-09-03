@@ -771,7 +771,8 @@ public class BundleImportService : IBundleImportService
                             ? pipelineIdsByName.GetValueOrDefault(export.PipelineName)
                             : null,
                         CooldownSeconds = export.CooldownSeconds,
-                        MinPermissionLevel = export.MinPermissionLevel,
+                        // Bundle exports still store the ladder int; the create request takes the name.
+                        MinPermissionLevel = PermissionLevelNames.ToName(export.MinPermissionLevel),
                     },
                     ct
                 );

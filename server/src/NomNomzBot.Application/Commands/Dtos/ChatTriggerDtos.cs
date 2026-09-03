@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using System.ComponentModel.DataAnnotations;
+using NomNomzBot.Domain.Identity.Enums;
 
 namespace NomNomzBot.Application.Commands.Dtos;
 
@@ -22,7 +23,7 @@ public sealed record ChatTriggerDto(
     string? Response,
     Guid? PipelineId,
     int CooldownSeconds,
-    int MinPermissionLevel,
+    string MinPermissionLevel,
     DateTime CreatedAt,
     DateTime UpdatedAt
 );
@@ -51,8 +52,13 @@ public sealed record CreateChatTriggerRequest
     /// <summary>Channel-wide cooldown between fires (spam guard, default 30s, capped 24h).</summary>
     public int CooldownSeconds { get; init; } = 30;
 
-    /// <summary>Minimum unified-ladder level of the speaker (0 = everyone).</summary>
-    public int MinPermissionLevel { get; init; }
+    /// <summary>
+    /// The lowest rung whose speaker may fire this trigger, by NAME —
+    /// <c>Everyone | Subscriber | Vip | Artist | Moderator | LeadModerator | Editor | Broadcaster</c>.
+    /// An unrecognised name is refused rather than clamped: a typo must not quietly widen who can fire it.
+    /// </summary>
+    [MaxLength(20)]
+    public string MinPermissionLevel { get; init; } = nameof(PermissionLevel.Everyone);
 }
 
 public sealed record UpdateChatTriggerRequest
@@ -71,5 +77,8 @@ public sealed record UpdateChatTriggerRequest
 
     public Guid? PipelineId { get; init; }
     public int? CooldownSeconds { get; init; }
-    public int? MinPermissionLevel { get; init; }
+
+    /// <summary>The rung name (see <see cref="CreateChatTriggerRequest.MinPermissionLevel"/>); null leaves it.</summary>
+    [MaxLength(20)]
+    public string? MinPermissionLevel { get; init; }
 }
