@@ -4269,6 +4269,7 @@
     <string name="template_helper_custom_data">A field from an ingested custom data source (e.g. {custom.mysource.field})</string>
     <string name="template_helper_date">Today date</string>
     <string name="template_helper_gendered_term">A gendered term matching the person pronouns (e.g. guy/gal)</string>
+    <string name="template_helper_name">The name shown - the @mention target if present, otherwise the triggering user</string>
     <string name="template_helper_link">A profile link - the @mention target if present, otherwise the triggering user</string>
     <string name="template_helper_list_pick">A random entry from a named pick-list (e.g. {list.pick.jokes})</string>
     <string name="template_helper_object">The object-case pronoun (e.g. them)</string>

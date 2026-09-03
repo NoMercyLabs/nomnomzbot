@@ -217,6 +217,49 @@ public sealed class DerivedGrammarTemplateResolverTests
             .Be("twitch.tv/dave/twitch.tv/dave", "the bare {link} mirrors the @mention target");
     }
 
+    // ── {name} family ────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Name_MirrorsTheTargetWhenPresent_ElseTheTriggeringUser()
+    {
+        string userOnly = await _resolver.ResolveAsync(
+            "Shoutout to {name}!",
+            Seeds("111"),
+            Channel
+        );
+        string knownTarget = await _resolver.ResolveAsync(
+            "Shoutout to {name}!",
+            Seeds("111", target: "Dave"),
+            Channel
+        );
+        string unknownTarget = await _resolver.ResolveAsync(
+            "Shoutout to {name}!",
+            Seeds("111", target: "tbdgamer"),
+            Channel
+        );
+
+        userOnly.Should().Be("Shoutout to alice!");
+        knownTarget.Should().Be("Shoutout to dave!", "the bare {name} mirrors the @mention target");
+        unknownTarget
+            .Should()
+            .Be(
+                "Shoutout to tbdgamer!",
+                "a target with no User row still has the name the caller supplied"
+            );
+    }
+
+    [Fact]
+    public async Task Name_ResolvesAlongsideThePronounGrammarItIsWrittenWith()
+    {
+        string resolved = await _resolver.ResolveAsync(
+            "Shoutout to {name}! {Subject} {presentTense} great — follow {possessive} channel.",
+            Seeds("111", target: "Dave"),
+            Channel
+        );
+
+        resolved.Should().Be("Shoutout to dave! They are great — follow their channel.");
+    }
+
     // ── {verb:singular|plural} ───────────────────────────────────────────────
 
     [Fact]

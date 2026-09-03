@@ -546,7 +546,12 @@ public sealed partial class TemplateResolver : ITemplateResolver
         }
 
         // ── Target DB lookups (id, name, follow age, pronoun grammar) ───────
-        if (NeedsAny(needed, "target.id", "target.name", "target.followAge") || needsTargetGrammar)
+        bool needsBareName = needed.Contains("name");
+        if (
+            NeedsAny(needed, "target.id", "target.name", "target.followAge")
+            || needsTargetGrammar
+            || (hasTargetContext && needsBareName)
+        )
         {
             string? targetName = vars.GetValueOrDefault("target");
             if (!string.IsNullOrEmpty(targetName))
@@ -578,6 +583,20 @@ public sealed partial class TemplateResolver : ITemplateResolver
             string source = isLive ? $"{side}presenttense" : $"{side}pasttense";
             string fallback = isLive ? "are" : "were";
             vars.TryAdd($"{side}tense", vars.GetValueOrDefault(source, fallback));
+        }
+
+        // ── Display name: {name} → the subject's name, mirroring the @mention target when one is present
+        // else the triggering user — the same bare-mirrors-target convention as {link} and the pronoun
+        // grammar vars. A target that has no User row yet (never chatted here) still has a name: the raw
+        // {target} text the caller supplied. Without this, a template written as "Shoutout to {name}!"
+        // rendered the placeholder literally, because the resolver leaves unknown variables as-is.
+        if (needsBareName)
+        {
+            string? mirroredName = hasTargetContext
+                ? vars.GetValueOrDefault("target.name") ?? vars.GetValueOrDefault("target")
+                : vars.GetValueOrDefault("user.name");
+            if (!string.IsNullOrEmpty(mirroredName))
+                vars.TryAdd("name", mirroredName);
         }
 
         // ── Profile links: {link}/{user.link}/{target.link} → twitch.tv/<login>. The bare form mirrors
