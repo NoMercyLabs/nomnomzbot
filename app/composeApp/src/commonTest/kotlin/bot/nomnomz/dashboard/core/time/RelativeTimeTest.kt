@@ -43,4 +43,49 @@ class RelativeTimeTest {
         assertNull(RelativeTime.minutesSince(null, Instant.parse("2026-08-30T12:00:00Z")))
         assertNull(RelativeTime.minutesSince("garbage", Instant.parse("2026-08-30T12:00:00Z")))
     }
+
+    // The bucket boundaries are the whole point of the type: the held-messages modal used to render a
+    // day-old message as "1450m ago". Each of these asserts the side of a boundary it lands on.
+
+    @Test
+    fun under_a_minute_reads_as_just_now() {
+        val now = Instant.parse("2026-08-30T12:00:30Z")
+        assertEquals(Elapsed.JustNow, RelativeTime.elapsedSince("2026-08-30T12:00:00Z", now))
+    }
+
+    @Test
+    fun minutes_hold_until_the_hour_then_become_hours() {
+        val now = Instant.parse("2026-08-30T12:00:00Z")
+        assertEquals(Elapsed.Minutes(59), RelativeTime.elapsedSince("2026-08-30T11:01:00Z", now))
+        assertEquals(Elapsed.Hours(1), RelativeTime.elapsedSince("2026-08-30T11:00:00Z", now))
+    }
+
+    @Test
+    fun hours_hold_until_two_days_then_become_days() {
+        val now = Instant.parse("2026-09-01T12:00:00Z")
+        // 47h — still worth reading as hours.
+        assertEquals(Elapsed.Hours(47), RelativeTime.elapsedSince("2026-08-30T13:00:00Z", now))
+        // 48h — the boundary flips to days.
+        assertEquals(Elapsed.Days(2), RelativeTime.elapsedSince("2026-08-30T12:00:00Z", now))
+    }
+
+    @Test
+    fun the_1450_minute_case_reads_as_hours_not_raw_minutes() {
+        // The exact case from the Held-messages modal: 1450 minutes rendered as "1450m ago".
+        // Inside the 48h window it stays hours, which is the precise AND readable answer.
+        val now = Instant.parse("2026-08-31T12:10:00Z")
+        assertEquals(Elapsed.Hours(24), RelativeTime.elapsedSince("2026-08-30T12:00:00Z", now))
+    }
+
+    @Test
+    fun a_future_timestamp_collapses_to_just_now_rather_than_a_negative_age() {
+        val now = Instant.parse("2026-08-30T12:00:00Z")
+        assertEquals(Elapsed.JustNow, RelativeTime.elapsedSince("2026-08-30T12:30:00Z", now))
+    }
+
+    @Test
+    fun elapsed_is_null_when_it_never_happened() {
+        assertNull(RelativeTime.elapsedSince(null, Instant.parse("2026-08-30T12:00:00Z")))
+        assertNull(RelativeTime.elapsedSince("garbage", Instant.parse("2026-08-30T12:00:00Z")))
+    }
 }

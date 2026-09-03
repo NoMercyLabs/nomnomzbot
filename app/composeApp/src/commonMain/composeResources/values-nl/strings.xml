@@ -294,7 +294,11 @@
     <string name="home_held_modal_error">Kon vastgehouden berichten niet laden: %1$s</string>
     <string name="home_held_modal_empty">Er zijn geen vastgehouden berichten meer voor dit item.</string>
     <string name="home_held_modal_category">AutoMod-categorie: %1$s</string>
-    <string name="home_held_modal_held_ago">%1$dm geleden vastgehouden</string>
+    <string name="home_held_modal_held_just_now">Zojuist vastgehouden</string>
+    <string name="home_held_modal_held_minutes">%1$d min geleden vastgehouden</string>
+    <string name="home_held_modal_held_hours">%1$d uur geleden vastgehouden</string>
+    <string name="home_held_modal_held_days">%1$d dagen geleden vastgehouden</string>
+    <string name="home_held_modal_repeated">%1$d keer gepost</string>
     <string name="home_held_allow">Toestaan</string>
     <string name="home_held_block">Blokkeren</string>
     <string name="home_held_timeout">Time-out</string>

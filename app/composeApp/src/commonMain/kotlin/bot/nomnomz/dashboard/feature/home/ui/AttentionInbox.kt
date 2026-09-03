@@ -14,6 +14,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -48,6 +49,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.network.ActionRequiredItem
 import bot.nomnomz.dashboard.core.network.ModerationQueueItem
+import bot.nomnomz.dashboard.core.time.Elapsed
 import bot.nomnomz.dashboard.core.time.RelativeTime
 import bot.nomnomz.dashboard.feature.home.state.AttentionSeverity
 import bot.nomnomz.dashboard.feature.home.state.HeldReviewState
@@ -71,10 +73,14 @@ import nomnomzbot.composeapp.generated.resources.home_held_block
 import nomnomzbot.composeapp.generated.resources.home_held_block_term
 import nomnomzbot.composeapp.generated.resources.home_held_bulk_title
 import nomnomzbot.composeapp.generated.resources.home_held_close
+import nomnomzbot.composeapp.generated.resources.home_held_modal_held_just_now
+import nomnomzbot.composeapp.generated.resources.home_held_modal_held_minutes
+import nomnomzbot.composeapp.generated.resources.home_held_modal_held_hours
+import nomnomzbot.composeapp.generated.resources.home_held_modal_held_days
+import nomnomzbot.composeapp.generated.resources.home_held_modal_repeated
 import nomnomzbot.composeapp.generated.resources.home_held_modal_category
 import nomnomzbot.composeapp.generated.resources.home_held_modal_empty
 import nomnomzbot.composeapp.generated.resources.home_held_modal_error
-import nomnomzbot.composeapp.generated.resources.home_held_modal_held_ago
 import nomnomzbot.composeapp.generated.resources.home_held_modal_loading
 import nomnomzbot.composeapp.generated.resources.home_held_modal_title
 import nomnomzbot.composeapp.generated.resources.home_held_term_blocked
@@ -369,24 +375,62 @@ private fun HeldReviewBody(
         Separator()
     }
 
-    state.messages.forEach { message ->
-        HeldMessageRow(
-            message = message,
+    // A spam wave is the SAME line posted over and over, so the raw list is six copies of one
+    // message and six identical action rows to read past. One row per distinct text, carrying its
+    // own repeat count, is the same information at a sixth of the reading cost — and one decision
+    // then resolves every copy, which is what the moderator meant anyway.
+    heldGroups(state.messages).forEachIndexed { index, group ->
+        if (index > 0) Separator()
+        HeldMessageGroupRow(
+            group = group,
             resolveManage = resolveManage,
             blocklistManage = blocklistManage,
-            onAllow = { onResolve(message.id, "approve", null, null, null) },
-            onBlock = { onResolve(message.id, "deny", null, null, null) },
-            onTimeout = { seconds -> onResolve(message.id, "deny", "timeout", seconds, banReason.ifBlank { null }) },
-            onBan = { onResolve(message.id, "deny", "ban", null, banReason.ifBlank { null }) },
+            onAllow = { group.ids.forEach { id -> onResolve(id, "approve", null, null, null) } },
+            onBlock = { group.ids.forEach { id -> onResolve(id, "deny", null, null, null) } },
+            onTimeout = { seconds ->
+                group.ids.forEach { id ->
+                    onResolve(id, "deny", "timeout", seconds, banReason.ifBlank { null })
+                }
+            },
+            onBan = {
+                group.ids.forEach { id -> onResolve(id, "deny", "ban", null, banReason.ifBlank { null }) }
+            },
             onBlockTerm = onBlockTerm,
         )
     }
 }
 
-// One held message: the full content snapshot, its AutoMod category, when it was held, and the action row.
+/**
+ * One distinct held message plus every copy of it.
+ *
+ * [heldAt] is the OLDEST copy's timestamp — the age a moderator cares about is how long this has
+ * been waiting, which is when it first arrived, not when it was last repeated.
+ */
+private data class HeldGroup(
+    val text: String?,
+    val category: String?,
+    val heldAt: String?,
+    val ids: List<String>,
+)
+
+/** Groups by exact message text, preserving the order the messages arrived in. */
+private fun heldGroups(messages: List<ModerationQueueItem>): List<HeldGroup> =
+    messages
+        .groupBy { it.messageContentSnapshot?.takeIf { text -> text.isNotBlank() } ?: it.id }
+        .map { (_, copies) ->
+            HeldGroup(
+                text = copies.first().messageContentSnapshot?.takeIf { it.isNotBlank() },
+                category = copies.firstNotNullOfOrNull { it.autoModCategory?.takeIf { c -> c.isNotBlank() } },
+                heldAt = copies.mapNotNull { it.createdAt }.minOrNull(),
+                ids = copies.map { it.id },
+            )
+        }
+
+// One held message and every copy of it: the content snapshot, its AutoMod category, how long it has
+// been waiting, the repeat count, and the actions — all of which resolve the whole group.
 @Composable
-private fun HeldMessageRow(
-    message: ModerationQueueItem,
+private fun HeldMessageGroupRow(
+    group: HeldGroup,
     resolveManage: ManageDecision,
     blocklistManage: ManageDecision,
     onAllow: () -> Unit,
@@ -401,7 +445,7 @@ private fun HeldMessageRow(
     val now = remember { Clock.System.now() }
 
     Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
-        message.messageContentSnapshot?.takeIf { it.isNotBlank() }?.let { text ->
+        group.text?.let { text ->
             Text(
                 text = text,
                 style = typography.sm,
@@ -412,7 +456,14 @@ private fun HeldMessageRow(
             horizontalArrangement = Arrangement.spacedBy(spacing.s3),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            message.autoModCategory?.takeIf { it.isNotBlank() }?.let { category ->
+            if (group.ids.size > 1) {
+                Text(
+                    text = stringResource(Res.string.home_held_modal_repeated, group.ids.size),
+                    style = typography.xs,
+                    color = tokens.cardForeground,
+                )
+            }
+            group.category?.let { category ->
                 Text(
                     text = stringResource(Res.string.home_held_modal_category, category),
                     style = typography.xs,
@@ -421,9 +472,9 @@ private fun HeldMessageRow(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            RelativeTime.minutesSince(message.createdAt, now)?.let { minutesAgo ->
+            RelativeTime.elapsedSince(group.heldAt, now)?.let { elapsed ->
                 Text(
-                    text = stringResource(Res.string.home_held_modal_held_ago, minutesAgo.coerceAtLeast(0).toInt()),
+                    text = heldAgoText(elapsed),
                     style = typography.xs,
                     color = tokens.mutedForeground,
                 )
@@ -435,19 +486,34 @@ private fun HeldMessageRow(
             onBlock = onBlock,
             onTimeout = onTimeout,
             onBan = onBan,
+            // Blocking the term belongs WITH the other decisions about this message, not floating on
+            // its own line between rows where it reads as if it applied to the next one.
+            trailing =
+                group.text?.let { text ->
+                    {
+                        ManageGate(decision = blocklistManage) { enabled ->
+                            TextButton(onClick = { onBlockTerm(text) }, enabled = enabled) {
+                                Text(
+                                    text = stringResource(Res.string.home_held_block_term),
+                                    color = tokens.mutedForeground,
+                                )
+                            }
+                        }
+                    }
+                },
         )
-        message.messageContentSnapshot?.takeIf { it.isNotBlank() }?.let { text ->
-            ManageGate(decision = blocklistManage) { enabled ->
-                TextButton(onClick = { onBlockTerm(text) }, enabled = enabled) {
-                    Text(
-                        text = stringResource(Res.string.home_held_block_term),
-                        color = tokens.mutedForeground,
-                    )
-                }
-            }
-        }
     }
 }
+
+/** The translated wording for a bucketed age — the unit choice is made in [RelativeTime]. */
+@Composable
+private fun heldAgoText(elapsed: Elapsed): String =
+    when (elapsed) {
+        is Elapsed.JustNow -> stringResource(Res.string.home_held_modal_held_just_now)
+        is Elapsed.Minutes -> stringResource(Res.string.home_held_modal_held_minutes, elapsed.value)
+        is Elapsed.Hours -> stringResource(Res.string.home_held_modal_held_hours, elapsed.value)
+        is Elapsed.Days -> stringResource(Res.string.home_held_modal_held_days, elapsed.value)
+    }
 
 // The four resolve actions. Timeout expands its preset row (60s/10m/1h/1d) instead of firing blind; every
 // button rides the caller's `moderation:queue:resolve` decision — disabled with a reason below the floor.
@@ -458,6 +524,7 @@ private fun HeldActionRow(
     onBlock: () -> Unit,
     onTimeout: (seconds: Int) -> Unit,
     onBan: () -> Unit,
+    trailing: (@Composable () -> Unit)? = null,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -466,6 +533,7 @@ private fun HeldActionRow(
 
     Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
         Row(
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(spacing.s2),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -497,6 +565,10 @@ private fun HeldActionRow(
                         color = tokens.destructive,
                     )
                 }
+            }
+            trailing?.let { slot ->
+                Spacer(modifier = Modifier.weight(1f))
+                slot()
             }
         }
         if (showTimeoutPresets) {
