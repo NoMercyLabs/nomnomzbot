@@ -600,6 +600,7 @@ private fun ShellContent(
                     controller = graph.rewardsController,
                     role = role,
                     hubEvents = graph.dashboardHubClient.events,
+                    templateHelpersApi = graph.templateHelpersApi,
                 )
             ShellRoute.SongRequests ->
                 SongRequestsScreen(
