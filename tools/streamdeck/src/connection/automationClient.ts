@@ -80,12 +80,52 @@ export class AutomationApiError extends Error {
  * cheap, short enough that a missed/dropped `song.changed` frame never leaves a key stale for long. */
 const RESYNC_INTERVAL_MS = 15_000;
 
+/** How long a REST call is allowed to hang before it's treated as failed. `fetch` has no default
+ * timeout, so a connection that goes silently dead mid-request (machine sleep/wake, VPN toggle, a
+ * NAT/firewall dropping an idle keep-alive with no RST) never resolves and never rejects — the
+ * request just hangs forever, and every layer built on top of it (the resync fallback, token
+ * refresh) hangs with it. This is what turned "the WS dropped" into "stuck until the plugin is
+ * manually restarted": the fallback that was supposed to self-heal was itself capable of hanging
+ * with no way out. */
+const REQUEST_TIMEOUT_MS = 10_000;
+
+/** How long the WS connection can go without ANY inbound frame (event, or the transport's own
+ * ping/pong) before it's declared dead and force-reconnected. A half-dead TCP connection can sit
+ * "open" from Node's point of view indefinitely — no `close`/`error` event ever fires — because
+ * nothing at the OS or protocol layer guarantees a timely RST when a network path silently drops
+ * packets. `ws` auto-answers server pings with no application code required, so any inbound frame
+ * (a real event OR a bare ping) resets this watchdog; only true silence trips it. Comfortably under
+ * the server's own idle keep-alive cadence so this fires first. */
+const WS_IDLE_TIMEOUT_MS = 45_000;
+
+/** Timing knobs, injectable so tests can prove the watchdog/timeout behavior at real (fast) speed
+ * instead of waiting out production-length windows. The exported singleton below uses the real
+ * defaults; only tests construct an {@link AutomationClient} directly with shorter ones. */
+export interface AutomationClientTiming {
+  requestTimeoutMs: number;
+  wsIdleTimeoutMs: number;
+  wsWatchdogIntervalMs: number;
+}
+
+const DEFAULT_TIMING: AutomationClientTiming = {
+  requestTimeoutMs: REQUEST_TIMEOUT_MS,
+  wsIdleTimeoutMs: WS_IDLE_TIMEOUT_MS,
+  wsWatchdogIntervalMs: 5_000,
+};
+
 export class AutomationClient {
   private ws: WebSocket | null = null;
   private reconnectDelayMs = 1000;
   private resyncTimer: ReturnType<typeof setInterval> | null = null;
+  private wsWatchdogTimer: ReturnType<typeof setInterval> | null = null;
+  private wsLastActivityAt = 0;
   private nowPlayingListeners = new Set<(payload: NowPlayingPayload) => void>();
   private disconnectListeners = new Set<() => void>();
+  private readonly timing: AutomationClientTiming;
+
+  constructor(timing: Partial<AutomationClientTiming> = {}) {
+    this.timing = { ...DEFAULT_TIMING, ...timing };
+  }
 
   async isPaired(): Promise<boolean> {
     return (await getPairingState()) !== null;
@@ -145,6 +185,7 @@ export class AutomationClient {
     const wsUrl = state.backendUrl.replace(/^http/, "ws") + "/automation/v1/stream";
     const socket = new WebSocket(wsUrl);
     this.ws = socket;
+    this.wsLastActivityAt = Date.now();
 
     socket.on("open", () => {
       this.reconnectDelayMs = 1000;
@@ -152,8 +193,15 @@ export class AutomationClient {
       socket.send(JSON.stringify({ op: "subscribe", id: "sub", events: ["song.changed"] }));
       void this.resyncNowPlaying();
       this.startResyncTimer();
+      this.startWsWatchdog(socket);
+    });
+    // Any inbound frame proves the connection is alive — including the bare pings `ws` answers on
+    // its own — so both are tracked here as watchdog activity, not just real event frames.
+    socket.on("ping", () => {
+      this.wsLastActivityAt = Date.now();
     });
     socket.on("message", (raw: WebSocket.RawData) => {
+      this.wsLastActivityAt = Date.now();
       try {
         // automation-api.md §4.2: a pushed event frame is {op:"event", type, data}, NOT the
         // {event, payload} shape this used to check — which meant song.changed pushes were parsed
@@ -170,6 +218,7 @@ export class AutomationClient {
     socket.on("close", () => {
       this.ws = null;
       this.stopResyncTimer();
+      this.stopWsWatchdog();
       setTimeout(() => void this.connectStream(), this.reconnectDelayMs);
       this.reconnectDelayMs = Math.min(this.reconnectDelayMs * 2, 30_000);
     });
@@ -194,6 +243,26 @@ export class AutomationClient {
     this.resyncTimer = null;
   }
 
+  /** Declares the socket dead and forces it closed once it's gone `WS_IDLE_TIMEOUT_MS` without any
+   * inbound frame — `terminate()`, not `close()`, because a half-dead connection may never complete
+   * a graceful close handshake either; only `terminate()` guarantees the `close` event fires so the
+   * existing reconnect-with-backoff logic actually runs. Checked on a short interval rather than one
+   * timer per expected ping so a single missed ping doesn't itself trip a reconnect — only sustained
+   * silence does. */
+  private startWsWatchdog(socket: WebSocket): void {
+    this.stopWsWatchdog();
+    this.wsWatchdogTimer = setInterval(() => {
+      if (Date.now() - this.wsLastActivityAt > this.timing.wsIdleTimeoutMs) {
+        socket.terminate();
+      }
+    }, this.timing.wsWatchdogIntervalMs);
+  }
+
+  private stopWsWatchdog(): void {
+    if (this.wsWatchdogTimer) clearInterval(this.wsWatchdogTimer);
+    this.wsWatchdogTimer = null;
+  }
+
   /** D7/D8 startup + daily check: proactively refresh under the threshold, react to hard expiry. */
   async ensureFreshToken(): Promise<void> {
     const state = await getPairingState();
@@ -213,6 +282,7 @@ export class AutomationClient {
       const response = await fetch(`${state.backendUrl}/automation/v1/refresh`, {
         method: "POST",
         headers: { Authorization: `Bearer ${state.token}` },
+        signal: AbortSignal.timeout(this.timing.requestTimeoutMs),
       });
       const body = (await response.json()) as StatusResponse<{
         secret: string;
@@ -240,6 +310,7 @@ export class AutomationClient {
         "Content-Type": "application/json",
       },
       body: body ? JSON.stringify(body) : undefined,
+      signal: AbortSignal.timeout(this.timing.requestTimeoutMs),
     });
     const parsed = (await response.json().catch(() => null)) as StatusResponse<T> | null;
 
