@@ -280,11 +280,13 @@ private fun resolvedAccess(
     ResolvedAccess(
         userId = "caller",
         broadcasterId = "ch1",
-        effectiveLevel = level,
-        communityStanding = standing.wire,
-        communityLevel = standing.level,
-        managementRole = role?.wire,
-        managementLevel = role?.level ?: 0,
+        // Rung NAMES, matching the wire. The builder still takes the ladder int so every existing caller
+        // reads the same, and maps it here — the one place that has to know both vocabularies.
+        effectiveLevel = rungName(level),
+        communityStanding = standing.name,
+        communityLevel = rungName(standing.level),
+        managementRole = role?.name,
+        managementLevel = rungName(role?.level ?: 0),
         permitCapabilities = capabilities,
         winningSource = if (role == null) "community" else "management",
         heldActionKeys = heldActionKeys,
@@ -365,3 +367,14 @@ private class FakeRolesApi(private val access: ApiResult<ResolvedAccess>) : Role
     override suspend fun resetOverride(channelId: String, actionKey: String): ApiResult<Unit> =
         ApiResult.Ok(Unit)
 }
+
+/**
+ * The ladder value a test asks for, as the rung name the wire now carries. Ladder values in this file are
+ * the coarse 0/100 scale the wire enums expose, so anything above Everyone reads as the management floor.
+ */
+private fun rungName(level: Int): String =
+    when {
+        level <= 0 -> "Everyone"
+        level < 100 -> "Vip"
+        else -> "Broadcaster"
+    }

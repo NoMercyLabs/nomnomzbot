@@ -8,8 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using NomNomzBot.Domain.Identity.Enums;
-
 namespace NomNomzBot.Application.Contracts.Authorization;
 
 /// <summary>
@@ -24,15 +22,26 @@ namespace NomNomzBot.Application.Contracts.Authorization;
 /// per-user capability grant for it. The dashboard gates page/action visibility on this set.
 /// </para>
 /// </summary>
+/// <remarks>
+/// Every rung on this record is a NAME. They used to be numbers, and two different kinds of number at
+/// that: <c>EffectiveLevel</c>/<c>CommunityLevel</c>/<c>ManagementLevel</c> were unified-ladder values
+/// (0/2/4/6/10/20/30/40), while <c>CommunityStanding</c>/<c>ManagementRole</c>/<c>PermitRole</c> serialized
+/// as enum ORDINALS (Moderator=0, LeadModerator=1, …) — so the same concept arrived as 10 in one field and
+/// 0 in another, and inserting a single enum member would silently renumber every consumer. The client had
+/// to keep hand-written ordinal tables to read them back.
+///
+/// <para><c>EffectiveLevel</c> is the MAX of the three planes; <c>ManagementRole</c> is null for a caller
+/// who holds no management role.</para>
+/// </remarks>
 public sealed record ResolvedAccessDto(
     Guid UserId,
     Guid BroadcasterId,
-    int EffectiveLevel,
-    CommunityStanding CommunityStanding,
-    int CommunityLevel,
-    ManagementRole? ManagementRole,
-    int ManagementLevel,
-    ManagementRole? PermitRole,
+    string EffectiveLevel,
+    string CommunityStanding,
+    string CommunityLevel,
+    string? ManagementRole,
+    string ManagementLevel,
+    string? PermitRole,
     IReadOnlyList<string> PermitCapabilities,
     string WinningSource,
     IReadOnlyList<string> HeldActionKeys
