@@ -44,6 +44,89 @@ public sealed class StreamLifecycleTranslatorsTests
         };
     }
 
+    // One Twitch topic, two directions. We subscribe channel.raid twice — keyed on to_broadcaster_user_id
+    // for raids arriving here, and on from_broadcaster_user_id for raids this channel SENT. The from_-keyed
+    // one is the only report Twitch gives that a raid actually executed and the viewers moved; before it
+    // existed the sole outgoing signal was channel.moderate's `raid` action, which fires when the countdown
+    // STARTS — so the raid-committed pipeline ended the broadcast at the beginning of the raid.
+
+    [Fact]
+    public async Task ChannelRaid_WhenThisChannelIsTheRaider_PublishesTheExecutedOutgoingRaid()
+    {
+        Guid tenant = Guid.NewGuid();
+        CapturingEventBus bus = new();
+        ChannelRaidTranslator translator = new(bus, Clock);
+
+        await translator.TranslateAsync(
+            Notification(
+                tenant,
+                "channel.raid",
+                """
+                {
+                    "from_broadcaster_user_id": "broadcaster-99",
+                    "from_broadcaster_user_login": "streamer",
+                    "from_broadcaster_user_name": "Streamer",
+                    "to_broadcaster_user_id": "5678",
+                    "to_broadcaster_user_login": "friendly_streamer",
+                    "to_broadcaster_user_name": "Friendly_Streamer",
+                    "viewers": 250
+                }
+                """
+            )
+        );
+
+        OutgoingRaidEvent published = bus.EventsOf<OutgoingRaidEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject;
+        published.BroadcasterId.Should().Be(tenant);
+        published.ToUserId.Should().Be("5678", "the outgoing event names the channel we raided");
+        published.ToDisplayName.Should().Be("Friendly_Streamer");
+        published.ToLogin.Should().Be("friendly_streamer");
+        published.ViewerCount.Should().Be(250);
+
+        bus.EventsOf<RaidEvent>()
+            .Should()
+            .BeEmpty(
+                "a raid we sent is not a raid we received — the direction decides, and only one fires"
+            );
+    }
+
+    [Fact]
+    public async Task ChannelRaid_DirectionIsDecidedByWhichSideIsUs_NotByFieldOrder()
+    {
+        // The payload names both sides on every raid notification, so a translator that simply read
+        // from_/to_ would publish the wrong direction for one of the two subscriptions. The resolved
+        // TwitchBroadcasterUserId — which the transport takes from the subscription's own condition — is
+        // what settles it.
+        Guid tenant = Guid.NewGuid();
+        CapturingEventBus bus = new();
+        ChannelRaidTranslator translator = new(bus, Clock);
+
+        await translator.TranslateAsync(
+            Notification(
+                tenant,
+                "channel.raid",
+                """
+                {
+                    "from_broadcaster_user_id": "someone-else",
+                    "from_broadcaster_user_login": "raider",
+                    "from_broadcaster_user_name": "Raider",
+                    "to_broadcaster_user_id": "broadcaster-99",
+                    "to_broadcaster_user_login": "streamer",
+                    "to_broadcaster_user_name": "Streamer",
+                    "viewers": 12
+                }
+                """
+            )
+        );
+
+        bus.EventsOf<RaidEvent>().Should().ContainSingle();
+        bus.EventsOf<OutgoingRaidEvent>()
+            .Should()
+            .BeEmpty("we are the raided side here, so nothing outgoing may fire");
+    }
+
     [Fact]
     public async Task ChannelRaid_PublishesRaidEvent_FromIncomingRaiderFields()
     {

@@ -10,6 +10,7 @@
 
 using FluentAssertions;
 using NomNomzBot.Infrastructure.BackgroundServices;
+using NomNomzBot.Infrastructure.Platform.Eventing;
 
 namespace NomNomzBot.Infrastructure.Tests.BackgroundServices;
 
@@ -145,12 +146,56 @@ public sealed class BotLifecycleServiceTopicsTests
     }
 
     [Fact]
-    public void ChannelEventTypes_HasExactlySeventyThreeTopics()
+    public void ChannelEventTypes_HasExactlySeventyFourTopics()
     {
-        // 25 pre-existing + 44 per-channel E1 topics + 4 restored Guest Star topics. A hard count catches a
-        // silently-dropped or duplicated topic that the "Contain" assertions above would not (they only prove
-        // a subset is present).
-        BotLifecycleService.ChannelEventTypes.Should().HaveCount(73);
+        // 25 pre-existing + 44 per-channel E1 topics + 4 restored Guest Star topics + the outgoing half of
+        // channel.raid. A hard count catches a silently-dropped or duplicated topic that the "Contain"
+        // assertions above would not (they only prove a subset is present).
+        BotLifecycleService.ChannelEventTypes.Should().HaveCount(74);
+    }
+
+    [Fact]
+    public void ChannelEventTypes_SubscribesBothDirectionsOfChannelRaid()
+    {
+        // The outgoing half is the ONLY report Twitch gives that a raid this channel sent has actually
+        // executed. Drop it and the sole outgoing signal is channel.moderate's `raid` action, which fires
+        // when the countdown starts — which is how a raid pipeline ended the broadcast at the beginning of
+        // the raid instead of the end of it.
+        BotLifecycleService.ChannelEventTypes.Should().Contain("channel.raid");
+        BotLifecycleService
+            .ChannelEventTypes.Should()
+            .Contain(EventSubConditionBuilder.OutgoingRaidTopic);
+    }
+
+    [Fact]
+    public void TheOutgoingRaidTopic_SubscribesChannelRaidKeyedOnTheRaider()
+    {
+        // The topic list carries a plain literal like every other entry; this is what stops that literal
+        // drifting from the builder that has to recognise it. Both halves are asserted together because
+        // getting either the wire type or the condition key wrong yields a subscription Twitch accepts and
+        // that then never fires.
+        EventSubConditionBuilder builder = new();
+
+        builder
+            .GetWireType(EventSubConditionBuilder.OutgoingRaidTopic)
+            .Should()
+            .Be("channel.raid", "Twitch has no channel.raid.outgoing topic — that name is ours");
+
+        builder
+            .BuildCondition(EventSubConditionBuilder.OutgoingRaidTopic, "broadcaster-99")
+            .Should()
+            .BeEquivalentTo(
+                new Dictionary<string, string> { ["from_broadcaster_user_id"] = "broadcaster-99" },
+                "the outgoing half is keyed on the raider — us"
+            );
+
+        builder
+            .BuildCondition("channel.raid", "broadcaster-99")
+            .Should()
+            .BeEquivalentTo(
+                new Dictionary<string, string> { ["to_broadcaster_user_id"] = "broadcaster-99" },
+                "the incoming half stays keyed on the raided channel"
+            );
     }
 
     [Fact]

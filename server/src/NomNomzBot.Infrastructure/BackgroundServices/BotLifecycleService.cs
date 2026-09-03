@@ -46,6 +46,7 @@ public sealed class BotLifecycleService : BackgroundService
         "channel.subscription.gift",
         "channel.cheer",
         "channel.raid",
+        "channel.raid.outgoing",
         "channel.ban",
         "channel.channel_points_custom_reward_redemption.add",
         "channel.poll.begin",

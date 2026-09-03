@@ -169,7 +169,7 @@ public sealed class ChannelModerateTranslatorTests
     }
 
     [Fact]
-    public async Task ChannelModerate_RaidAction_AlsoPublishesTheOutgoingRaidEvent()
+    public async Task ChannelModerate_RaidAction_PublishesTheRaidSTARTEDEventNotTheExecutedOne()
     {
         Guid tenant = Guid.NewGuid();
         CapturingEventBus bus = new();
@@ -201,17 +201,26 @@ public sealed class ChannelModerateTranslatorTests
             .ContainSingle()
             .Which.ActionType.Should()
             .Be("raid");
-        // …AND the outgoing-raid split carries the target + viewer count (channel.raid is incoming-only,
-        // so this is the ONE truthful source for channel.raid.out).
-        OutgoingRaidEvent outgoing = bus.EventsOf<OutgoingRaidEvent>()
+        // …AND the split carries the target + viewer count — as the raid STARTING.
+        OutgoingRaidStartedEvent starting = bus.EventsOf<OutgoingRaidStartedEvent>()
             .Should()
             .ContainSingle()
             .Subject;
-        outgoing.BroadcasterId.Should().Be(tenant);
-        outgoing.ToUserId.Should().Be("141981764");
-        outgoing.ToLogin.Should().Be("twitchdev");
-        outgoing.ToDisplayName.Should().Be("TwitchDev");
-        outgoing.ViewerCount.Should().Be(42);
+        starting.BroadcasterId.Should().Be(tenant);
+        starting.ToUserId.Should().Be("141981764");
+        starting.ToLogin.Should().Be("twitchdev");
+        starting.ToDisplayName.Should().Be("TwitchDev");
+        starting.ViewerCount.Should().Be(42);
+
+        // The one that matters: this action means the COUNTDOWN began, not that the raid happened. It used
+        // to publish OutgoingRaidEvent, so the raid-committed pipeline stopped the stream here — at the
+        // start of the countdown, killing the outro and the raid with it.
+        bus.EventsOf<OutgoingRaidEvent>()
+            .Should()
+            .BeEmpty(
+                "starting a raid is not the raid executing — the executed one comes from the from_-keyed "
+                    + "channel.raid subscription"
+            );
     }
 
     [Fact]

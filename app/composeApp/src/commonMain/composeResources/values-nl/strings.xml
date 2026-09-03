@@ -4632,7 +4632,8 @@
     <string name="eventresponse_preset_channel_ad_break_begin_template">Reclame voor {ad.duration} seconden — perfect moment om even te strekken!</string>
     <string name="eventresponse_preset_channel_ban_template">{user} is door {moderator} de deur gewezen ({duration}).</string>
     <string name="eventresponse_preset_channel_unban_template">{user} is weer toegelaten — welkom terug.</string>
-    <string name="eventresponse_preset_channel_raid_out_template">We raiden {user} met {viewers} kijkers — geef gas!</string>
+    <string name="eventresponse_preset_channel_raid_out_template">We hebben {user} geraid met {viewers} kijkers — bedankt voor het meekijken!</string>
+    <string name="eventresponse_preset_channel_raid_start_template">We raiden {user} met {viewers} kijkers — geef gas!</string>
     <string name="eventresponse_preset_stream_online_template">We zijn live: {title} — we spelen {game}!</string>
     <string name="eventresponse_preset_stream_offline_template">De stream zit erop na {duration} — bedankt voor het kijken!</string>
     <string name="eventresponse_preset_engagement_first_time_chatter_template">Welkom bij de stream, {user}!</string>

@@ -19,10 +19,17 @@ namespace NomNomzBot.Infrastructure.Content.Commands;
 /// <summary>
 /// Wires the <c>channel.raid.out</c> event response to a small pipeline — stop the stream, pause the
 /// music, confirm the raid in chat — so those three actions fire REACTIVELY off Twitch's own signal
-/// that the raid is under way, instead of a guessed elapsed-time offset (see <see cref="RaidFlowSeeder"/>
-/// for why the fixed-countdown approach was abandoned 2026-09-02). <c>OutgoingRaidAlertHandler</c>
-/// dispatches this event on <c>channel.moderate</c>'s <c>raid</c> action and seeds
-/// <c>user</c>/<c>user.id</c>/<c>user.name</c>/<c>viewers</c> as template variables.
+/// that the raid has HAPPENED, instead of a guessed elapsed-time offset (see <see cref="RaidFlowSeeder"/>
+/// for why the fixed-countdown approach was abandoned 2026-09-02).
+///
+/// <para>That signal is the <c>channel.raid</c> subscription keyed on <c>from_broadcaster_user_id</c>,
+/// which Twitch sends once the raid executes and the viewers have moved;
+/// <c>OutgoingRaidAlertHandler</c> turns it into this response and seeds
+/// <c>user</c>/<c>user.id</c>/<c>user.name</c>/<c>viewers</c> as template variables. It used to be
+/// <c>channel.moderate</c>'s <c>raid</c> action instead — which fires when the countdown STARTS, so this
+/// pipeline ended the broadcast at the beginning of the raid, taking the countdown and the outro with it.
+/// The countdown moment is now <c>channel.raid.start</c>, and anything that belongs during the raid rather
+/// than after it goes there.</para>
 /// </summary>
 /// <remarks>
 /// Idempotent: <see cref="EventResponseDefaultsSeeder"/> (Order 81) already guarantees a

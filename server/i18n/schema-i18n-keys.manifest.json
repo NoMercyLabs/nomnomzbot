@@ -7,6 +7,7 @@
     "eventresponse.preset.channel_follow.template",
     "eventresponse.preset.channel_raid.template",
     "eventresponse.preset.channel_raid_out.template",
+    "eventresponse.preset.channel_raid_start.template",
     "eventresponse.preset.channel_subscribe.template",
     "eventresponse.preset.channel_subscription_gift.template",
     "eventresponse.preset.channel_subscription_message.template",
