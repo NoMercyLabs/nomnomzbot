@@ -129,6 +129,20 @@ private class LoadingFakeAdminApi(private val usersGate: CompletableDeferred<Uni
         ApiResult.Failure(ApiError(status = 500, code = null, message = "not stubbed"))
 
     override suspend fun endImpersonation(accessGrantId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+
+    override suspend fun getProviderCredentials(): ApiResult<List<bot.nomnomz.dashboard.core.network.ProviderCredential>> =
+        ApiResult.Ok(emptyList())
+
+    override suspend fun saveProviderCredential(
+        provider: String,
+        body: bot.nomnomz.dashboard.core.network.SaveProviderCredentialBody,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.ProviderCredential> =
+        ApiResult.Ok(bot.nomnomz.dashboard.core.network.ProviderCredential(provider = provider))
+
+    override suspend fun clearProviderCredential(
+        provider: String
+    ): ApiResult<bot.nomnomz.dashboard.core.network.ProviderCredential> =
+        ApiResult.Ok(bot.nomnomz.dashboard.core.network.ProviderCredential(provider = provider))
 }
 
 private class LoadingFakePlatformIamApi : PlatformIamApi {

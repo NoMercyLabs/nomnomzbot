@@ -22,6 +22,8 @@ import bot.nomnomz.dashboard.core.network.AdminGrantTierRequest
 import bot.nomnomz.dashboard.core.network.AdminServiceHealth
 import bot.nomnomz.dashboard.core.network.AdminSetFeatureFlagOverrideRequest
 import bot.nomnomz.dashboard.core.network.AdminSetFeatureFlagRequest
+import bot.nomnomz.dashboard.core.network.ProviderCredential
+import bot.nomnomz.dashboard.core.network.SaveProviderCredentialBody
 import bot.nomnomz.dashboard.core.network.AdminStats
 import bot.nomnomz.dashboard.core.network.AdminSystem
 import bot.nomnomz.dashboard.core.network.AdminTenant
@@ -125,6 +127,11 @@ data class AdminState(
     val tenantsLoading: Boolean = false,
     val tenantsError: String? = null,
     val selectedTenant: AdminTenantDetail? = null,
+    // ── Provider app credentials ──
+    /** One row per provider the build supports; empty until the Providers tab is first opened. */
+    val providerCredentials: List<ProviderCredential> = emptyList(),
+    val providersLoading: Boolean = false,
+    val providersError: String? = null,
     // ── Audit ──
     val auditEntries: List<IamAuditEntry> = emptyList(),
     val auditOutcomeFilter: String? = null,
@@ -478,6 +485,56 @@ class AdminController(
             is ApiResult.Failure -> _state.value = _state.value.copy(actionError = result.error.message)
         }
     }
+
+    // ── Provider app credentials ────────────────────────────────────────────
+
+    /** Reads every provider's credential state. Fatal on failure: an empty list would read as "nothing
+     * configured", which for a credentials screen is the most misleading thing it could say. */
+    suspend fun loadProviders() {
+        _state.value = _state.value.copy(providersLoading = true, providersError = null)
+        when (val result: ApiResult<List<ProviderCredential>> = api.getProviderCredentials()) {
+            is ApiResult.Ok ->
+                _state.value = _state.value.copy(
+                    providerCredentials = result.value,
+                    providersLoading = false,
+                )
+            is ApiResult.Failure ->
+                _state.value = _state.value.copy(
+                    providersError = result.error.message,
+                    providersLoading = false,
+                )
+        }
+    }
+
+    /** Stores a client id and/or secret. Blank fields are dropped, so the server is never asked to
+     * overwrite a value the operator left alone. Returns null on success, the error otherwise. */
+    suspend fun saveProviderCredential(
+        provider: String,
+        clientId: String,
+        clientSecret: String,
+    ): String? {
+        val body = SaveProviderCredentialBody(
+            clientId = clientId.takeIf { it.isNotBlank() },
+            clientSecret = clientSecret.takeIf { it.isNotBlank() },
+        )
+        return when (val result = api.saveProviderCredential(provider, body)) {
+            is ApiResult.Ok -> {
+                loadProviders()
+                null
+            }
+            is ApiResult.Failure -> result.error.message
+        }
+    }
+
+    /** Clears the stored rows so the environment resolves again. */
+    suspend fun clearProviderCredential(provider: String): String? =
+        when (val result = api.clearProviderCredential(provider)) {
+            is ApiResult.Ok -> {
+                loadProviders()
+                null
+            }
+            is ApiResult.Failure -> result.error.message
+        }
 
     // ── Tenants ─────────────────────────────────────────────────────────────
 

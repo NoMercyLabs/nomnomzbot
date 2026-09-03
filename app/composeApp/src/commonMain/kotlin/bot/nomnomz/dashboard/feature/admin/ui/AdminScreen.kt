@@ -54,13 +54,16 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
+import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
 import bot.nomnomz.dashboard.core.designsystem.component.Dialog
 import bot.nomnomz.dashboard.core.designsystem.component.DialogDescription
 import bot.nomnomz.dashboard.core.designsystem.component.DialogFooter
 import bot.nomnomz.dashboard.core.designsystem.component.DialogTitle
+import bot.nomnomz.dashboard.core.network.ProviderCredential
 import bot.nomnomz.dashboard.core.network.AdminUser
 import bot.nomnomz.dashboard.core.network.IamPrincipalSummary
 import bot.nomnomz.dashboard.core.network.IamRole
@@ -154,6 +157,21 @@ import nomnomzbot.composeapp.generated.resources.admin_filter_live
 import nomnomzbot.composeapp.generated.resources.admin_filter_offline
 import nomnomzbot.composeapp.generated.resources.admin_filter_staff
 import nomnomzbot.composeapp.generated.resources.admin_filter_streamers
+import nomnomzbot.composeapp.generated.resources.admin_tab_providers
+import nomnomzbot.composeapp.generated.resources.admin_providers_explain
+import nomnomzbot.composeapp.generated.resources.admin_providers_empty
+import nomnomzbot.composeapp.generated.resources.admin_providers_no_client_id
+import nomnomzbot.composeapp.generated.resources.admin_providers_id_label
+import nomnomzbot.composeapp.generated.resources.admin_providers_secret_label
+import nomnomzbot.composeapp.generated.resources.admin_providers_source_stored
+import nomnomzbot.composeapp.generated.resources.admin_providers_source_environment
+import nomnomzbot.composeapp.generated.resources.admin_providers_source_unset
+import nomnomzbot.composeapp.generated.resources.admin_providers_configure
+import nomnomzbot.composeapp.generated.resources.admin_providers_configure_title
+import nomnomzbot.composeapp.generated.resources.admin_providers_configure_desc
+import nomnomzbot.composeapp.generated.resources.admin_providers_save
+import nomnomzbot.composeapp.generated.resources.admin_providers_clear
+import nomnomzbot.composeapp.generated.resources.admin_providers_clear_confirm
 import nomnomzbot.composeapp.generated.resources.admin_user_channels
 import nomnomzbot.composeapp.generated.resources.admin_user_role
 import nomnomzbot.composeapp.generated.resources.admin_channel_empty
@@ -188,6 +206,7 @@ fun AdminScreen(controller: AdminController) {
             TAB_TENANTS -> if (state.tenants.isEmpty()) controller.loadTenants()
             TAB_AUDIT -> if (state.auditEntries.isEmpty()) controller.loadAudit()
             TAB_SPAM_DEFAULTS -> if (state.spamDefaults == null) controller.loadSpamDefaults()
+            TAB_PROVIDERS -> if (state.providerCredentials.isEmpty()) controller.loadProviders()
         }
     }
     val tabs: List<String> = listOf(
@@ -201,6 +220,7 @@ fun AdminScreen(controller: AdminController) {
         stringResource(Res.string.admin_tab_tenants),
         stringResource(Res.string.admin_tab_audit),
         stringResource(Res.string.admin_tab_spam_defaults),
+        stringResource(Res.string.admin_tab_providers),
     )
 
     Column(modifier = Modifier.fillMaxSize().background(tokens.background)) {
@@ -250,6 +270,7 @@ fun AdminScreen(controller: AdminController) {
             TAB_TENANTS -> TenantsTab(state = state, controller = controller)
             TAB_AUDIT -> AuditTab(state = state, controller = controller)
             TAB_SPAM_DEFAULTS -> SpamDefaultsTab(state = state, controller = controller)
+            TAB_PROVIDERS -> ProvidersTab(state = state, controller = controller)
         }
     }
 }
@@ -258,6 +279,7 @@ private const val TAB_IAM: Int = 6
 private const val TAB_TENANTS: Int = 7
 private const val TAB_AUDIT: Int = 8
 private const val TAB_SPAM_DEFAULTS: Int = 9
+private const val TAB_PROVIDERS: Int = 10
 
 /** Renders [content] normally, or a centered [Spinner] in its place while [isLoading] — scoped to the current
  * tab's content area only, so a sibling tab's fetch never blocks this one. */
@@ -876,6 +898,205 @@ private fun Pager(page: Int, hasMore: Boolean, onPage: (Int) -> Unit) {
             size = ButtonSize.Sm,
         ) {
             Text(text = stringResource(Res.string.admin_page_next), style = typography.xs)
+        }
+    }
+}
+
+/**
+ * The platform's OAuth app credentials — what is configured for each provider, and where the value in play
+ * actually comes from.
+ *
+ * The setup wizard writes these once and then has no further say; before this, reading back what was
+ * configured or rotating a leaked secret meant editing the database by hand.
+ *
+ * <p>The SOURCE badge is the point of the screen, not decoration. A stored value shadows the environment, so
+ * an operator who corrects a rotated secret in their .env and keeps getting 401s is looking at a stale
+ * stored value they had no way to see. "Clear stored" is the way back, and it is a separate, destructive
+ * action so it can never happen by saving a half-filled form.</p>
+ */
+@Composable
+internal fun ProvidersTab(state: AdminState, controller: AdminController) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    val scope = rememberCoroutineScope()
+
+    var editing: ProviderCredential? by remember { mutableStateOf(null) }
+    var actionError: String? by remember { mutableStateOf(null) }
+    var confirmClear: ProviderCredential? by remember { mutableStateOf(null) }
+
+    Column(
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(spacing.s4),
+        verticalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        Text(
+            text = stringResource(Res.string.admin_providers_explain),
+            style = typography.sm,
+            color = tokens.mutedForeground,
+        )
+
+        state.providersError?.let { ActionErrorBanner(message = it) }
+        actionError?.let { ActionErrorBanner(message = it) }
+
+        if (state.providerCredentials.isEmpty()) {
+            EmptyLine(stringResource(Res.string.admin_providers_empty))
+        } else {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    state.providerCredentials.forEachIndexed { index, provider ->
+                        ProviderRow(
+                            provider = provider,
+                            onConfigure = { editing = provider },
+                            onClear = { confirmClear = provider },
+                        )
+                        if (index < state.providerCredentials.lastIndex) Separator()
+                    }
+                }
+            }
+        }
+    }
+
+    editing?.let { provider ->
+        ProviderCredentialDialog(
+            provider = provider,
+            onDismiss = { editing = null },
+            onSave = { clientId, clientSecret ->
+                editing = null
+                scope.launch {
+                    actionError =
+                        controller.saveProviderCredential(provider.provider, clientId, clientSecret)
+                }
+            },
+        )
+    }
+
+    confirmClear?.let { provider ->
+        ConfirmDialog(
+            title = stringResource(Res.string.admin_providers_clear),
+            message = stringResource(Res.string.admin_providers_clear_confirm, provider.provider),
+            confirmLabel = stringResource(Res.string.admin_providers_clear),
+            dismissLabel = stringResource(Res.string.admin_cancel),
+            destructive = true,
+            onConfirm = {
+                confirmClear = null
+                scope.launch { actionError = controller.clearProviderCredential(provider.provider) }
+            },
+            onDismiss = { confirmClear = null },
+        )
+    }
+}
+
+/**
+ * One provider. The client id is shown because it is public; the secret is only ever a status, because no
+ * read path exists that could return it.
+ */
+@Composable
+private fun ProviderRow(
+    provider: ProviderCredential,
+    onConfigure: () -> Unit,
+    onClear: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+    ) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+            Text(text = provider.provider, style = typography.sm, color = tokens.cardForeground)
+            Text(
+                text = provider.clientId ?: stringResource(Res.string.admin_providers_no_client_id),
+                style = typography.xs,
+                color = tokens.mutedForeground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+
+        SourceBadge(
+            label = stringResource(Res.string.admin_providers_id_label),
+            source = provider.clientIdSource,
+        )
+        SourceBadge(
+            label = stringResource(Res.string.admin_providers_secret_label),
+            source = provider.secretSource,
+        )
+
+        Button(onClick = onConfigure, variant = ButtonVariant.Outline, size = ButtonSize.Sm) {
+            Text(text = stringResource(Res.string.admin_providers_configure), style = typography.xs)
+        }
+        if (provider.clientIdSource == "stored" || provider.secretSource == "stored") {
+            Button(onClick = onClear, variant = ButtonVariant.DestructiveGhost, size = ButtonSize.Sm) {
+                Text(text = stringResource(Res.string.admin_providers_clear), style = typography.xs)
+            }
+        }
+    }
+}
+
+/** Which source the value in play came from — filled when it is a stored one, because that is the one that
+ * shadows everything else and the one an operator cannot otherwise see. */
+@Composable
+private fun SourceBadge(label: String, source: String) {
+    val typography = LocalTypography.current
+    val text = when (source) {
+        "stored" -> stringResource(Res.string.admin_providers_source_stored)
+        "environment" -> stringResource(Res.string.admin_providers_source_environment)
+        else -> stringResource(Res.string.admin_providers_source_unset)
+    }
+    Badge(
+        variant = when (source) {
+            "stored" -> BadgeVariant.Secondary
+            "environment" -> BadgeVariant.Outline
+            else -> BadgeVariant.Outline
+        }
+    ) {
+        Text(text = "$label: $text", style = typography.xs)
+    }
+}
+
+/**
+ * Sets a client id and/or secret. Both fields start EMPTY, including the id: a pre-filled id invites a save
+ * that rewrites a value the operator never meant to touch, and blank here means "leave it".
+ */
+@Composable
+private fun ProviderCredentialDialog(
+    provider: ProviderCredential,
+    onDismiss: () -> Unit,
+    onSave: (clientId: String, clientSecret: String) -> Unit,
+) {
+    var clientId: String by remember { mutableStateOf("") }
+    var clientSecret: String by remember { mutableStateOf("") }
+
+    Dialog(onDismissRequest = onDismiss) {
+        DialogTitle(text = stringResource(Res.string.admin_providers_configure_title, provider.provider))
+        DialogDescription(text = stringResource(Res.string.admin_providers_configure_desc))
+
+        AppTextField(
+            value = clientId,
+            onValueChange = { clientId = it },
+            label = stringResource(Res.string.admin_providers_id_label),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        AppTextField(
+            value = clientSecret,
+            onValueChange = { clientSecret = it },
+            label = stringResource(Res.string.admin_providers_secret_label),
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        DialogFooter {
+            Button(onClick = onDismiss, variant = ButtonVariant.Ghost) {
+                Text(text = stringResource(Res.string.admin_cancel))
+            }
+            Button(
+                onClick = { onSave(clientId, clientSecret) },
+                enabled = clientId.isNotBlank() || clientSecret.isNotBlank(),
+            ) {
+                Text(text = stringResource(Res.string.admin_providers_save))
+            }
         }
     }
 }

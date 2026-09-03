@@ -16,6 +16,7 @@ using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
+using NomNomzBot.Application.Platform.Services;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Infrastructure.Identity;
 using NSubstitute;
@@ -55,7 +56,7 @@ public sealed class AdminListsSortFilterTests
             Substitute.For<IPlatformBotReadinessGate>()
         );
 
-        return (new(adminService, db, Substitute.For<IDekRotationService>()), db);
+        return (new(adminService, db, Substitute.For<IDekRotationService>(), Substitute.For<IProviderCredentialService>()), db);
     }
 
     private static void SeedChannel(

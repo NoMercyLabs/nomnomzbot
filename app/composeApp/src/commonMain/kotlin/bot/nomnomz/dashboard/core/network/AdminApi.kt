@@ -205,7 +205,43 @@ interface AdminApi {
 
     /** Ends the act-as session — the minted token is revoked server-side and stops authenticating immediately. */
     suspend fun endImpersonation(accessGrantId: String): ApiResult<Unit>
+
+    // Provider app credentials (platform OAuth apps)
+    /** Every provider's credential state. No secret is ever returned — only whether one exists and its source. */
+    suspend fun getProviderCredentials(): ApiResult<List<ProviderCredential>>
+
+    /** Stores a client id and/or secret. A blank field is left untouched; clearing is [clearProviderCredential]. */
+    suspend fun saveProviderCredential(
+        provider: String,
+        body: SaveProviderCredentialBody,
+    ): ApiResult<ProviderCredential>
+
+    /** Removes the stored rows so the environment resolves again. Destructive, and deliberately separate. */
+    suspend fun clearProviderCredential(provider: String): ApiResult<ProviderCredential>
 }
+
+/**
+ * One provider's app-credential state.
+ *
+ * [clientId] is the RESOLVED id — what the OAuth flows will actually send — and is safe to show: it appears
+ * in every OAuth URL a viewer's browser already sees. There is no secret field, by design; [secretSource]
+ * says only whether one exists and which source wins.
+ */
+@Serializable
+data class ProviderCredential(
+    val provider: String = "",
+    val clientId: String? = null,
+    val clientIdSource: String = "unset",
+    val secretSource: String = "unset",
+    val appDecisionRecorded: Boolean = false,
+    val supported: Boolean = true,
+)
+
+@Serializable
+data class SaveProviderCredentialBody(
+    val clientId: String? = null,
+    val clientSecret: String? = null,
+)
 
 class AdminApiImpl(private val client: ApiClient) : AdminApi {
     override suspend fun getStats(): ApiResult<AdminStats> =
@@ -287,6 +323,17 @@ class AdminApiImpl(private val client: ApiClient) : AdminApi {
 
     override suspend fun endImpersonation(accessGrantId: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/admin/impersonation/$accessGrantId")
+
+    override suspend fun getProviderCredentials(): ApiResult<List<ProviderCredential>> =
+        client.getEnvelope("api/v1/admin/providers")
+
+    override suspend fun saveProviderCredential(
+        provider: String,
+        body: SaveProviderCredentialBody,
+    ): ApiResult<ProviderCredential> = client.putEnvelope("api/v1/admin/providers/$provider", body)
+
+    override suspend fun clearProviderCredential(provider: String): ApiResult<ProviderCredential> =
+        client.deleteEnvelope("api/v1/admin/providers/$provider")
 
     private fun searchQuery(search: String?): String =
         search?.takeIf { it.isNotBlank() }?.let { "&search=${it.encodeQuery()}" } ?: ""
