@@ -15,7 +15,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Moderation.Dtos;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Enums;
@@ -38,6 +41,9 @@ namespace NomNomzBot.Infrastructure.Moderation.EventHandlers;
 public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageReceivedEvent>
 {
     private static readonly TimeSpan RuleCacheExpiry = TimeSpan.FromMinutes(5);
+
+    /// <summary>Used when a timeout rule carries no duration of its own.</summary>
+    private const int DefaultTimeoutSeconds = 60;
 
     // Per-channel rule cache: key = broadcaster tenant Guid
     private readonly ConcurrentDictionary<Guid, CachedRules> _ruleCache = new();
@@ -228,33 +234,20 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
         try
         {
             using IServiceScope scope = _scopeFactory.CreateScope();
-            ITwitchModerationApi moderation =
-                scope.ServiceProvider.GetRequiredService<ITwitchModerationApi>();
 
             switch (rule.Action.ToLowerInvariant())
             {
                 case "timeout":
-                    int duration = rule.DurationSeconds ?? 60;
-                    await moderation.TimeoutUserAsync(
-                        broadcasterId,
-                        userId,
-                        duration,
-                        rule.Reason ?? rule.Name,
-                        ct
-                    );
-                    break;
-
                 case "ban":
-                    await moderation.BanUserAsync(
-                        broadcasterId,
-                        userId,
-                        rule.Reason ?? rule.Name,
-                        ct
-                    );
+                    await ApplyAccountActionAsync(scope, rule, broadcasterId, userId, ct);
                     break;
 
                 case "delete":
-                    await moderation.DeleteChatMessageAsync(broadcasterId, messageId, ct);
+                    // Deleting a message is not an action against the account, so it goes straight to
+                    // Helix. Only timeouts and bans are offences the ladder needs to remember.
+                    await scope
+                        .ServiceProvider.GetRequiredService<ITwitchModerationApi>()
+                        .DeleteChatMessageAsync(broadcasterId, messageId, ct);
                     break;
 
                 default:
@@ -271,6 +264,79 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
                 userId
             );
         }
+    }
+
+    /// <summary>
+    /// Timeouts and bans go through <see cref="IModerationService"/>, never straight to Helix.
+    ///
+    /// <para>The direct-to-Helix path used to be the whole of this method, and it silently cost the
+    /// channel every offence automod caught: <c>IModerationService</c> is what emits
+    /// <c>UserTimedOut</c>/<c>UserBanned</c>, and those events are what <c>ModerationProjectionService</c>
+    /// turns into heat. Acting outside it meant the escalation ladder never saw the very offences the
+    /// bot had just acted on, so a repeat offender kept arriving at the ladder as a first-timer.</para>
+    ///
+    /// <para>Issued as the channel owner, matching the spam executor: this is the channel's own
+    /// automation, and no dashboard user is in the loop to attribute it to.</para>
+    /// </summary>
+    private async Task ApplyAccountActionAsync(
+        IServiceScope scope,
+        AutoModRule rule,
+        Guid broadcasterId,
+        string userId,
+        CancellationToken ct
+    )
+    {
+        IApplicationDbContext db =
+            scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+
+        Guid ownerUserId = await db
+            .Channels.Where(c => c.Id == broadcasterId)
+            .Select(c => c.OwnerUserId)
+            .FirstOrDefaultAsync(ct);
+
+        if (ownerUserId == Guid.Empty)
+        {
+            _logger.LogWarning(
+                "Auto-mod could not resolve the owner of channel {BroadcasterId}; '{Action}' not applied",
+                broadcasterId,
+                rule.Action
+            );
+            return;
+        }
+
+        IModerationService moderation =
+            scope.ServiceProvider.GetRequiredService<IModerationService>();
+
+        string reason = rule.Reason ?? rule.Name;
+
+        Result<ModerationActionResult> result =
+            rule.Action.ToLowerInvariant() == "ban"
+                ? await moderation.BanAsync(
+                    broadcasterId.ToString(),
+                    ownerUserId,
+                    userId,
+                    reason,
+                    null,
+                    ct
+                )
+                : await moderation.TimeoutAsync(
+                    broadcasterId.ToString(),
+                    ownerUserId,
+                    userId,
+                    rule.DurationSeconds ?? DefaultTimeoutSeconds,
+                    reason,
+                    null,
+                    ct
+                );
+
+        if (result.IsFailure)
+            _logger.LogWarning(
+                "Auto-mod '{Action}' failed for user {UserId} in {BroadcasterId}: {Error}",
+                rule.Action,
+                userId,
+                broadcasterId,
+                result.ErrorMessage
+            );
     }
 
     // ─── Rule loading (cached) ────────────────────────────────────────────────
@@ -362,7 +428,7 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
                 root.TryGetProperty("DurationSeconds", out JsonElement d)
                 && d.ValueKind == JsonValueKind.Number
                     ? d.GetInt32()
-                    : (int?)null,
+                    : null,
             Reason = root.TryGetProperty("Reason", out JsonElement r) ? r.GetString() : null,
             Settings =
                 root.TryGetProperty("Settings", out JsonElement s)
