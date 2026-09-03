@@ -113,6 +113,8 @@ import nomnomzbot.composeapp.generated.resources.event_type_channel_points_redem
 import nomnomzbot.composeapp.generated.resources.event_type_channel_poll_begin
 import nomnomzbot.composeapp.generated.resources.event_type_channel_prediction_begin
 import nomnomzbot.composeapp.generated.resources.event_type_channel_raid
+import nomnomzbot.composeapp.generated.resources.event_type_channel_raid_out
+import nomnomzbot.composeapp.generated.resources.event_type_channel_raid_start
 import nomnomzbot.composeapp.generated.resources.event_type_channel_subscribe
 import nomnomzbot.composeapp.generated.resources.event_type_channel_subscription_gift
 import nomnomzbot.composeapp.generated.resources.event_type_channel_subscription_message
@@ -607,6 +609,8 @@ private fun String.toEventLabel(): String =
         "channel.subscription.message" -> stringResource(Res.string.event_type_channel_subscription_message)
         "channel.cheer" -> stringResource(Res.string.event_type_channel_cheer)
         "channel.raid" -> stringResource(Res.string.event_type_channel_raid)
+        "channel.raid.start" -> stringResource(Res.string.event_type_channel_raid_start)
+        "channel.raid.out" -> stringResource(Res.string.event_type_channel_raid_out)
         "stream.online" -> stringResource(Res.string.event_type_stream_online)
         "stream.offline" -> stringResource(Res.string.event_type_stream_offline)
         "channel.poll.begin" -> stringResource(Res.string.event_type_channel_poll_begin)
