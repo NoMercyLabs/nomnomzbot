@@ -167,8 +167,20 @@ data class ImpersonateUserRequest(val accessGrantId: String, val justification: 
 interface AdminApi {
     // Platform stats
     suspend fun getStats(): ApiResult<AdminStats>
-    suspend fun getChannels(search: String? = null, page: Int = 1, pageSize: Int = 25): ApiResult<PaginatedEnvelope<AdminChannel>>
-    suspend fun getUsers(search: String? = null, page: Int = 1, pageSize: Int = 25): ApiResult<PaginatedEnvelope<AdminUser>>
+    suspend fun getChannels(
+        search: String? = null,
+        page: Int = 1,
+        pageSize: Int = 25,
+        sort: String? = null,
+        isLive: Boolean? = null,
+    ): ApiResult<PaginatedEnvelope<AdminChannel>>
+    suspend fun getUsers(
+        search: String? = null,
+        page: Int = 1,
+        pageSize: Int = 25,
+        sort: String? = null,
+        role: String? = null,
+    ): ApiResult<PaginatedEnvelope<AdminUser>>
     suspend fun getSystem(): ApiResult<AdminSystem>
     suspend fun getHealth(): ApiResult<List<AdminServiceHealth>>
     suspend fun getEvents(): ApiResult<List<PlatformEvent>>
@@ -199,11 +211,33 @@ class AdminApiImpl(private val client: ApiClient) : AdminApi {
     override suspend fun getStats(): ApiResult<AdminStats> =
         client.getEnvelope("api/v1/admin/stats")
 
-    override suspend fun getChannels(search: String?, page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<AdminChannel>> =
-        client.getDirect("api/v1/admin/channels?page=$page&pageSize=$pageSize${searchQuery(search)}")
+    override suspend fun getChannels(
+        search: String?,
+        page: Int,
+        pageSize: Int,
+        sort: String?,
+        isLive: Boolean?,
+    ): ApiResult<PaginatedEnvelope<AdminChannel>> =
+        client.getDirect(
+            "api/v1/admin/channels?page=$page&pageSize=$pageSize" +
+                searchQuery(search) +
+                sortQuery(sort) +
+                (isLive?.let { "&isLive=$it" } ?: "")
+        )
 
-    override suspend fun getUsers(search: String?, page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<AdminUser>> =
-        client.getDirect("api/v1/admin/users?page=$page&pageSize=$pageSize${searchQuery(search)}")
+    override suspend fun getUsers(
+        search: String?,
+        page: Int,
+        pageSize: Int,
+        sort: String?,
+        role: String?,
+    ): ApiResult<PaginatedEnvelope<AdminUser>> =
+        client.getDirect(
+            "api/v1/admin/users?page=$page&pageSize=$pageSize" +
+                searchQuery(search) +
+                sortQuery(sort) +
+                (role?.takeIf { it.isNotBlank() }?.let { "&role=${it.encodeQuery()}" } ?: "")
+        )
 
     override suspend fun getSystem(): ApiResult<AdminSystem> =
         client.getEnvelope("api/v1/admin/system")
@@ -256,4 +290,8 @@ class AdminApiImpl(private val client: ApiClient) : AdminApi {
 
     private fun searchQuery(search: String?): String =
         search?.takeIf { it.isNotBlank() }?.let { "&search=${it.encodeQuery()}" } ?: ""
+
+    /** The server binds ordering from `sort`; an unknown value falls back to its default rather than failing. */
+    private fun sortQuery(sort: String?): String =
+        sort?.takeIf { it.isNotBlank() }?.let { "&sort=${it.encodeQuery()}" } ?: ""
 }

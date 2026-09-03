@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
@@ -74,14 +75,16 @@ public class AdminController : BaseController
     public async Task<IActionResult> ListChannels(
         [FromQuery] string? search,
         [FromQuery] PageRequestDto request,
-        CancellationToken ct
+        CancellationToken ct,
+        [FromQuery] bool? isLive = null
     )
     {
         PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
         Result<PagedList<AdminChannelDto>> result = await _adminService.ListChannelsAsync(
             search,
             pagination,
-            ct
+            ct,
+            isLive
         );
         if (result.IsFailure)
             return ResultResponse(result);
@@ -99,14 +102,16 @@ public class AdminController : BaseController
     public async Task<IActionResult> ListUsers(
         [FromQuery] string? search,
         [FromQuery] PageRequestDto request,
-        CancellationToken ct
+        CancellationToken ct,
+        [FromQuery] string? role = null
     )
     {
         PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
         Result<PagedList<AdminUserDto>> result = await _adminService.ListUsersAsync(
             search,
             pagination,
-            ct
+            ct,
+            role
         );
         if (result.IsFailure)
             return ResultResponse(result);
@@ -186,7 +191,7 @@ public class AdminController : BaseController
     /// </summary>
     [HttpPost("security/rotate-encryption-key")]
     [Authorize(Policy = IamPermissionKeys.IamManage)]
-    [EnableRateLimiting(NomNomzBot.Api.RateLimiting.SecuritySensitiveRateLimitPolicy.PolicyName)]
+    [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
     [ProducesResponseType<StatusResponseDto<DekRotationSummary>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> RotateEncryptionKey(
         [FromBody] RotateEncryptionKeyRequestDto request,

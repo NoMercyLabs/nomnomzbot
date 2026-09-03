@@ -22,7 +22,8 @@ public interface IAdminService
     Task<Result<PagedList<AdminChannelDto>>> ListChannelsAsync(
         string? search,
         PaginationParams pagination,
-        CancellationToken ct = default
+        CancellationToken ct = default,
+        bool? isLive = null
     );
 
     /// <summary>Paged user listing, optionally narrowed by a case-insensitive [search] match against the
@@ -30,7 +31,8 @@ public interface IAdminService
     Task<Result<PagedList<AdminUserDto>>> ListUsersAsync(
         string? search,
         PaginationParams pagination,
-        CancellationToken ct = default
+        CancellationToken ct = default,
+        string? role = null
     );
 
     Task<Result<AdminSystemDto>> GetSystemHealthAsync(CancellationToken ct = default);

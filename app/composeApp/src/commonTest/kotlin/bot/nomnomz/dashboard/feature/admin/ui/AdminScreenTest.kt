@@ -247,6 +247,63 @@ class AdminScreenTest {
         }
     }
 
+    // S-OWN08: the lists were hard-ordered newest-first with no filter. These assert what the client
+    // actually SENDS, and that a second click on an active filter clears it — a filter with no off switch
+    // is how an operator ends up reading a subset and believing it is everything.
+
+    @Test
+    fun choosing_a_sort_sends_it_and_returns_to_the_first_page() = runTest {
+        val api = RecordingListSearchAdminApi(hasMore = true)
+        val controller = AdminController(api = api, iamApi = NoopPlatformIamApi(), platformAdminApi = NoopPlatformAdminApi())
+
+        controller.loadUsers(page = 3)
+        controller.loadUsers(sort = "name")
+
+        assertEquals(listOf<String?>("newest", "name"), api.userSortCalls.toList())
+        assertEquals(listOf(3, 1), api.userPageCalls, "re-ordering the list must return to page 1")
+    }
+
+    @Test
+    fun a_channel_filter_is_sent_and_a_second_click_clears_it() = runTest {
+        val api = RecordingListSearchAdminApi()
+        val controller = AdminController(api = api, iamApi = NoopPlatformIamApi(), platformAdminApi = NoopPlatformAdminApi())
+
+        controller.loadChannels(isLive = true)
+        assertEquals(true, controller.state.value.channelLiveFilter)
+
+        controller.loadChannels(clearLiveFilter = true)
+
+        assertEquals(listOf<Boolean?>(true, null), api.channelLiveCalls.toList(), "clearing must send no filter, not the opposite one")
+        assertEquals(null, controller.state.value.channelLiveFilter)
+    }
+
+    @Test
+    fun the_offline_filter_is_a_real_value_not_an_absent_one() = runTest {
+        // false and null mean different things on the wire — "only offline" versus "no filter". A
+        // nullable Boolean makes that easy to get wrong, so it is pinned here.
+        val api = RecordingListSearchAdminApi()
+        val controller = AdminController(api = api, iamApi = NoopPlatformIamApi(), platformAdminApi = NoopPlatformAdminApi())
+
+        controller.loadChannels(isLive = false)
+
+        assertEquals(listOf<Boolean?>(false), api.channelLiveCalls.toList())
+        assertEquals(false, controller.state.value.channelLiveFilter)
+    }
+
+    @Test
+    fun a_role_filter_survives_paging_within_the_filtered_list() = runTest {
+        // Paging must not silently drop the narrowing the operator applied — page 2 of "platform staff"
+        // has to still be platform staff.
+        val api = RecordingListSearchAdminApi(hasMore = true)
+        val controller = AdminController(api = api, iamApi = NoopPlatformIamApi(), platformAdminApi = NoopPlatformAdminApi())
+
+        controller.loadUsers(role = "admin")
+        controller.loadUsers(page = 2)
+
+        assertEquals(listOf<String?>("admin", "admin"), api.userRoleCalls.toList())
+        assertEquals(listOf(1, 2), api.userPageCalls)
+    }
+
     // S-OWN08: both admin lists have always been paged server-side at 25 rows while the client asked
     // only ever for page 1, so row 26 onward was unreachable from the dashboard and nothing said so.
     // These assert the page the client actually REQUESTS, not that a button exists.
@@ -491,9 +548,9 @@ private class RecordingFeatureFlagAdminApi(
     val setFeatureFlagCalls: MutableList<AdminSetFeatureFlagRequest> = mutableListOf()
 
     override suspend fun getStats(): ApiResult<AdminStats> = ApiResult.Ok(AdminStats(0, 0, 0, "ok", 0, 0))
-    override suspend fun getChannels(search: String?, page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<AdminChannel>> =
+    override suspend fun getChannels(search: String?, page: Int, pageSize: Int, sort: String?, isLive: Boolean?): ApiResult<PaginatedEnvelope<AdminChannel>> =
         ApiResult.Ok(PaginatedEnvelope(emptyList()))
-    override suspend fun getUsers(search: String?, page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<AdminUser>> =
+    override suspend fun getUsers(search: String?, page: Int, pageSize: Int, sort: String?, role: String?): ApiResult<PaginatedEnvelope<AdminUser>> =
         ApiResult.Ok(PaginatedEnvelope(emptyList()))
     override suspend fun getSystem(): ApiResult<AdminSystem> = ApiResult.Ok(AdminSystem("ok", emptyList(), "1.0", 0, 0.0))
     override suspend fun getHealth(): ApiResult<List<AdminServiceHealth>> = ApiResult.Ok(emptyList())
@@ -541,15 +598,37 @@ private class RecordingListSearchAdminApi(private val hasMore: Boolean = false) 
     val channelPageCalls: MutableList<Int> = mutableListOf()
     val userPageCalls: MutableList<Int> = mutableListOf()
 
+    /** The ordering and filter each list call actually sent. */
+    val channelSortCalls: MutableList<String?> = mutableListOf()
+    val channelLiveCalls: MutableList<Boolean?> = mutableListOf()
+    val userSortCalls: MutableList<String?> = mutableListOf()
+    val userRoleCalls: MutableList<String?> = mutableListOf()
+
     override suspend fun getStats(): ApiResult<AdminStats> = ApiResult.Ok(AdminStats(0, 0, 0, "ok", 0, 0))
-    override suspend fun getChannels(search: String?, page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<AdminChannel>> {
+    override suspend fun getChannels(
+        search: String?,
+        page: Int,
+        pageSize: Int,
+        sort: String?,
+        isLive: Boolean?,
+    ): ApiResult<PaginatedEnvelope<AdminChannel>> {
         channelSearchCalls += search
         channelPageCalls += page
+        channelSortCalls += sort
+        channelLiveCalls += isLive
         return ApiResult.Ok(PaginatedEnvelope(emptyList(), hasMore = hasMore))
     }
-    override suspend fun getUsers(search: String?, page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<AdminUser>> {
+    override suspend fun getUsers(
+        search: String?,
+        page: Int,
+        pageSize: Int,
+        sort: String?,
+        role: String?,
+    ): ApiResult<PaginatedEnvelope<AdminUser>> {
         userSearchCalls += search
         userPageCalls += page
+        userSortCalls += sort
+        userRoleCalls += role
         return ApiResult.Ok(PaginatedEnvelope(emptyList(), hasMore = hasMore))
     }
     override suspend fun getSystem(): ApiResult<AdminSystem> = ApiResult.Ok(AdminSystem("ok", emptyList(), "1.0", 0, 0.0))

@@ -72,6 +72,8 @@ import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.feature.admin.state.AdminController
 import bot.nomnomz.dashboard.feature.admin.state.AdminSection
+import bot.nomnomz.dashboard.feature.admin.state.AdminSort
+import androidx.compose.foundation.layout.RowScope
 import bot.nomnomz.dashboard.feature.admin.state.AdminState
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.shell_nav_admin
@@ -144,6 +146,14 @@ import nomnomzbot.composeapp.generated.resources.admin_iam_role
 import nomnomzbot.composeapp.generated.resources.admin_page_previous
 import nomnomzbot.composeapp.generated.resources.admin_page_next
 import nomnomzbot.composeapp.generated.resources.admin_page_current
+import nomnomzbot.composeapp.generated.resources.admin_sort_label
+import nomnomzbot.composeapp.generated.resources.admin_sort_newest
+import nomnomzbot.composeapp.generated.resources.admin_sort_oldest
+import nomnomzbot.composeapp.generated.resources.admin_sort_name
+import nomnomzbot.composeapp.generated.resources.admin_filter_live
+import nomnomzbot.composeapp.generated.resources.admin_filter_offline
+import nomnomzbot.composeapp.generated.resources.admin_filter_staff
+import nomnomzbot.composeapp.generated.resources.admin_filter_streamers
 import nomnomzbot.composeapp.generated.resources.admin_user_channels
 import nomnomzbot.composeapp.generated.resources.admin_user_role
 import nomnomzbot.composeapp.generated.resources.admin_channel_empty
@@ -437,6 +447,32 @@ internal fun ChannelsTab(state: AdminState, controller: AdminController) {
             keyboardActions = KeyboardActions(onSearch = { scope.launch { controller.loadChannels(search = searchText) } }),
         )
 
+        ListControls(
+            sort = state.channelSort,
+            onSort = { key -> scope.launch { controller.loadChannels(sort = key) } },
+        ) {
+            FilterChip(
+                label = stringResource(Res.string.admin_filter_live),
+                selected = state.channelLiveFilter == true,
+                onClick = {
+                    scope.launch {
+                        if (state.channelLiveFilter == true) controller.loadChannels(clearLiveFilter = true)
+                        else controller.loadChannels(isLive = true)
+                    }
+                },
+            )
+            FilterChip(
+                label = stringResource(Res.string.admin_filter_offline),
+                selected = state.channelLiveFilter == false,
+                onClick = {
+                    scope.launch {
+                        if (state.channelLiveFilter == false) controller.loadChannels(clearLiveFilter = true)
+                        else controller.loadChannels(isLive = false)
+                    }
+                },
+            )
+        }
+
         if (state.channels.isEmpty()) {
             EmptyLine(stringResource(Res.string.admin_channel_empty))
         } else {
@@ -523,6 +559,32 @@ internal fun UsersTab(state: AdminState, controller: AdminController, onOpenIam:
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
             keyboardActions = KeyboardActions(onSearch = { scope.launch { controller.loadUsers(search = searchText) } }),
         )
+
+        ListControls(
+            sort = state.userSort,
+            onSort = { key -> scope.launch { controller.loadUsers(sort = key) } },
+        ) {
+            FilterChip(
+                label = stringResource(Res.string.admin_filter_staff),
+                selected = state.userRoleFilter == "admin",
+                onClick = {
+                    scope.launch {
+                        if (state.userRoleFilter == "admin") controller.loadUsers(clearRoleFilter = true)
+                        else controller.loadUsers(role = "admin")
+                    }
+                },
+            )
+            FilterChip(
+                label = stringResource(Res.string.admin_filter_streamers),
+                selected = state.userRoleFilter == "user",
+                onClick = {
+                    scope.launch {
+                        if (state.userRoleFilter == "user") controller.loadUsers(clearRoleFilter = true)
+                        else controller.loadUsers(role = "user")
+                    }
+                },
+            )
+        }
 
         if (state.users.isEmpty()) {
             EmptyLine(stringResource(Res.string.admin_user_empty))
@@ -715,6 +777,71 @@ private fun GrantPlatformAccessDialog(
  * happens to hold exactly 25 rows is not evidence that a 26th exists. Both controls are outline
  * weight — navigation is not the primary act on any of these screens.
  */
+/**
+ * The sort selector and filter chips that sit above an admin list.
+ *
+ * Sort and filters are the same act — deciding which rows you are looking at, and in what order — so they
+ * share one row rather than being scattered. Everything here is neutral weight: narrowing a list is
+ * navigation, and spending the accent on it would compete with whatever the operator is on this page to do.
+ */
+@Composable
+private fun ListControls(
+    sort: String,
+    onSort: (String) -> Unit,
+    filters: @Composable RowScope.() -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+    val tokens = LocalTokens.current
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = stringResource(Res.string.admin_sort_label),
+            style = typography.xs,
+            color = tokens.mutedForeground,
+        )
+        SortChip(label = stringResource(Res.string.admin_sort_newest), key = AdminSort.Newest, current = sort, onSort = onSort)
+        SortChip(label = stringResource(Res.string.admin_sort_oldest), key = AdminSort.Oldest, current = sort, onSort = onSort)
+        SortChip(label = stringResource(Res.string.admin_sort_name), key = AdminSort.Name, current = sort, onSort = onSort)
+        Spacer(modifier = Modifier.weight(1f))
+        filters()
+    }
+}
+
+/** One ordering choice. The selected one is filled so the current order is readable at a glance. */
+@Composable
+private fun SortChip(label: String, key: String, current: String, onSort: (String) -> Unit) {
+    val typography = LocalTypography.current
+    Button(
+        onClick = { onSort(key) },
+        variant = if (current == key) ButtonVariant.Secondary else ButtonVariant.Ghost,
+        size = ButtonSize.Sm,
+    ) {
+        Text(text = label, style = typography.xs)
+    }
+}
+
+/**
+ * One filter, on or off. Clicking the active one clears it — a filter an operator cannot switch off without
+ * hunting for a reset control is a trap, and these lists are exactly where someone gets stuck seeing a
+ * subset and believing it is everything.
+ */
+@Composable
+private fun FilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    val typography = LocalTypography.current
+    Button(
+        onClick = onClick,
+        variant = if (selected) ButtonVariant.Secondary else ButtonVariant.Outline,
+        size = ButtonSize.Sm,
+    ) {
+        Text(text = label, style = typography.xs)
+    }
+}
+
 @Composable
 private fun Pager(page: Int, hasMore: Boolean, onPage: (Int) -> Unit) {
     val spacing = LocalSpacing.current

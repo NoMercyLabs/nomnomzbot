@@ -59,6 +59,16 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.datetime.Instant
 
+/**
+ * The ordering keys the admin lists send. The server parses exactly these and falls back to its default
+ * for anything else, so they live in one place rather than as string literals in the screen.
+ */
+object AdminSort {
+    const val Newest: String = "newest"
+    const val Oldest: String = "oldest"
+    const val Name: String = "name"
+}
+
 data class AdminState(
     val stats: AdminStats? = null,
     /** Platform-wide spam-defence defaults; null until the tab is first opened, or if the read failed. */
@@ -69,12 +79,20 @@ data class AdminState(
     val channelPage: Int = 1,
     /** Whether the server said there is a page after [channelPage] — the only honest basis for a Next control. */
     val channelHasMore: Boolean = false,
+    /** Ordering key sent to the server: newest (default) / oldest / name. */
+    val channelSort: String = AdminSort.Newest,
+    /** Live filter: null = both, true = only live, false = only offline. */
+    val channelLiveFilter: Boolean? = null,
     val users: List<AdminUser> = emptyList(),
     val userSearch: String = "",
     /** 1-based page the user list is currently showing. */
     val userPage: Int = 1,
     /** Whether the server said there is a page after [userPage]. */
     val userHasMore: Boolean = false,
+    /** Ordering key sent to the server: newest (default) / oldest / name. */
+    val userSort: String = AdminSort.Newest,
+    /** Role filter: null = everyone, "admin" = platform staff, "user" = everyone else. */
+    val userRoleFilter: String? = null,
     val system: AdminSystem? = null,
     val health: List<AdminServiceHealth> = emptyList(),
     val events: List<PlatformEvent> = emptyList(),
@@ -218,15 +236,36 @@ class AdminController(
      * Re-fetches the channel list. A new [search] resets to page 1 — staying on page 4 of the previous
      * query would show an empty list and read as "no matches" for a search that has plenty.
      */
-    suspend fun loadChannels(search: String? = null, page: Int? = null) {
+    suspend fun loadChannels(
+        search: String? = null,
+        page: Int? = null,
+        sort: String? = null,
+        isLive: Boolean? = null,
+        clearLiveFilter: Boolean = false,
+    ) {
         val effectiveSearch: String = search ?: _state.value.channelSearch
-        val effectivePage: Int = page ?: if (search != null) 1 else _state.value.channelPage
+        val effectiveSort: String = sort ?: _state.value.channelSort
+        val effectiveLive: Boolean? =
+            if (clearLiveFilter) null else isLive ?: _state.value.channelLiveFilter
+        // Any change to WHICH rows are being listed returns to page 1 — a narrowed list read from page 4
+        // is an empty screen that looks like "no results".
+        val narrowed: Boolean = search != null || sort != null || isLive != null || clearLiveFilter
+        val effectivePage: Int = page ?: if (narrowed) 1 else _state.value.channelPage
         _state.value = _state.value.copy(
             channelSearch = effectiveSearch,
+            channelSort = effectiveSort,
+            channelLiveFilter = effectiveLive,
             channelPage = effectivePage,
             loadingSections = _state.value.loadingSections + AdminSection.Channels,
         )
-        when (val result = api.getChannels(search = effectiveSearch, page = effectivePage)) {
+        when (
+            val result = api.getChannels(
+                search = effectiveSearch,
+                page = effectivePage,
+                sort = effectiveSort,
+                isLive = effectiveLive,
+            )
+        ) {
             is ApiResult.Ok ->
                 _state.value = _state.value.copy(
                     channels = result.value.data,
@@ -239,15 +278,34 @@ class AdminController(
 
     /** Re-fetches the user list, narrowed by [search] against the user's login or display name — the
      * last-submitted search when [search] is omitted. */
-    suspend fun loadUsers(search: String? = null, page: Int? = null) {
+    suspend fun loadUsers(
+        search: String? = null,
+        page: Int? = null,
+        sort: String? = null,
+        role: String? = null,
+        clearRoleFilter: Boolean = false,
+    ) {
         val effectiveSearch: String = search ?: _state.value.userSearch
-        val effectivePage: Int = page ?: if (search != null) 1 else _state.value.userPage
+        val effectiveSort: String = sort ?: _state.value.userSort
+        val effectiveRole: String? =
+            if (clearRoleFilter) null else role ?: _state.value.userRoleFilter
+        val narrowed: Boolean = search != null || sort != null || role != null || clearRoleFilter
+        val effectivePage: Int = page ?: if (narrowed) 1 else _state.value.userPage
         _state.value = _state.value.copy(
             userSearch = effectiveSearch,
+            userSort = effectiveSort,
+            userRoleFilter = effectiveRole,
             userPage = effectivePage,
             loadingSections = _state.value.loadingSections + AdminSection.Users,
         )
-        when (val result = api.getUsers(search = effectiveSearch, page = effectivePage)) {
+        when (
+            val result = api.getUsers(
+                search = effectiveSearch,
+                page = effectivePage,
+                sort = effectiveSort,
+                role = effectiveRole,
+            )
+        ) {
             is ApiResult.Ok ->
                 _state.value = _state.value.copy(
                     users = result.value.data,

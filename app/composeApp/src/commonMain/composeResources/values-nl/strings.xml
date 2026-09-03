@@ -3334,6 +3334,14 @@
     <string name="admin_page_previous">Vorige</string>
     <string name="admin_page_next">Volgende</string>
     <string name="admin_page_current">Pagina %1$d</string>
+    <string name="admin_sort_label">Sorteren</string>
+    <string name="admin_sort_newest">Nieuwste</string>
+    <string name="admin_sort_oldest">Oudste</string>
+    <string name="admin_sort_name">Naam</string>
+    <string name="admin_filter_live">Nu live</string>
+    <string name="admin_filter_offline">Offline</string>
+    <string name="admin_filter_staff">Platformmedewerkers</string>
+    <string name="admin_filter_streamers">Alle anderen</string>
     <string name="admin_iam_reason">Reden (optioneel)</string>
     <string name="admin_iam_user_id">Gebruikers-ID</string>
     <string name="admin_iam_display_name">Weergavenaam</string>
