@@ -57,13 +57,6 @@ when done) — this section is only the intake, not a shortcut around the bar.
     `ListUsers_...` (real seeded DB, asserts included AND excluded rows) and
     `submitting_the_channel_search_calls_get_channels_with_the_typed_value` + the users twin.
     Still open on these two tabs: no sort, no filter chips, and no visible page controls for deep paging.
-  - **`UsersTab` is read-only** — it lists id/login/role/channel count with no action at all (the code comment
-    at `AdminScreen.kt:423` explicitly defers "manage a user" to the Tenants-tab owner-impersonate flow, which
-    only reaches a tenant's owner, not an arbitrary platform user). There is no suspend/ban/role-change control
-    on this tab; `IamTab` (`feature/admin/ui/AdminIamTab.kt`) covers *principals* (staff/service-accounts) with
-    promote/deactivate/reactivate/assign-role, but that is a different set of people from the SaaS end-user
-    list `UsersTab` shows. Closing "manage users" for real means deciding whether `UsersTab` should gain its
-    own actions or be merged into/cross-linked with `IamTab`.
   - **No provider/system-credential management screen exists at all** — grep of `feature/admin/**` and
     `Controllers/V1/*Admin*.cs` turns up no endpoint or tab for viewing/rotating the platform-level OAuth
     client id/secret pairs (Twitch/Spotify/Discord/YouTube/Kick/Twitter — see the `.env`/`appsettings.json`

@@ -57,6 +57,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
+import bot.nomnomz.dashboard.core.designsystem.component.Dialog
+import bot.nomnomz.dashboard.core.designsystem.component.DialogDescription
+import bot.nomnomz.dashboard.core.designsystem.component.DialogFooter
+import bot.nomnomz.dashboard.core.designsystem.component.DialogTitle
+import bot.nomnomz.dashboard.core.network.AdminUser
+import bot.nomnomz.dashboard.core.network.IamPrincipalSummary
+import bot.nomnomz.dashboard.core.network.IamRole
 import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
 import bot.nomnomz.dashboard.core.designsystem.component.PageHeader
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
@@ -126,6 +133,14 @@ import nomnomzbot.composeapp.generated.resources.admin_tab_flags
 import nomnomzbot.composeapp.generated.resources.admin_tab_overview
 import nomnomzbot.composeapp.generated.resources.admin_tab_system
 import nomnomzbot.composeapp.generated.resources.admin_tab_users
+import nomnomzbot.composeapp.generated.resources.admin_user_no_platform_access
+import nomnomzbot.composeapp.generated.resources.admin_user_grant_access
+import nomnomzbot.composeapp.generated.resources.admin_user_grant_access_desc
+import nomnomzbot.composeapp.generated.resources.admin_user_manage_in_iam
+import nomnomzbot.composeapp.generated.resources.admin_cancel
+import nomnomzbot.composeapp.generated.resources.admin_iam_inactive
+import nomnomzbot.composeapp.generated.resources.admin_iam_no_assignments
+import nomnomzbot.composeapp.generated.resources.admin_iam_role
 import nomnomzbot.composeapp.generated.resources.admin_user_channels
 import nomnomzbot.composeapp.generated.resources.admin_user_role
 import nomnomzbot.composeapp.generated.resources.admin_channel_empty
@@ -152,6 +167,10 @@ fun AdminScreen(controller: AdminController) {
     // Lazy-load the heavier Plane-C management slices only when their tab is first opened.
     LaunchedEffect(selectedTab) {
         when (selectedTab) {
+            // The Users tab reads the IAM principal list too — it is what tells an operator whether the
+            // person they are looking at has platform access at all. Without it every row would read
+            // "no platform access", which is a lie told confidently.
+            2 -> if (state.principals.isEmpty() && state.roles.isEmpty()) controller.loadIam()
             TAB_IAM -> if (state.principals.isEmpty() && state.roles.isEmpty()) controller.loadIam()
             TAB_TENANTS -> if (state.tenants.isEmpty()) controller.loadTenants()
             TAB_AUDIT -> if (state.auditEntries.isEmpty()) controller.loadAudit()
@@ -203,7 +222,7 @@ fun AdminScreen(controller: AdminController) {
                 ChannelsTab(state = state, controller = controller)
             }
             2 -> TabContentOrSpinner(isLoading = AdminSection.Users in state.loadingSections, tokens = tokens) {
-                UsersTab(state = state, controller = controller)
+                UsersTab(state = state, controller = controller, onOpenIam = { selectedTab = TAB_IAM })
             }
             3 -> TabContentOrSpinner(isLoading = AdminSection.System in state.loadingSections, tokens = tokens) {
                 SystemTab(state = state)
@@ -460,13 +479,25 @@ internal fun ChannelsTab(state: AdminState, controller: AdminController) {
     }
 }
 
+/**
+ * Platform users, and what platform access each of them actually has.
+ *
+ * The list used to be read-only: id, login, role, channel count, and nothing an operator could do or
+ * even learn from it. Whether a person holds platform access lives in IAM, keyed by principal, so
+ * answering "can this user do anything here?" meant leaving the tab and hunting a second list.
+ *
+ * Each row now states that answer and offers exactly one action for it. The IAM tab keeps ownership of
+ * the full principal editor — duplicating it here is how two surfaces drift into disagreeing about who
+ * can do what.
+ */
 @Composable
-internal fun UsersTab(state: AdminState, controller: AdminController) {
+internal fun UsersTab(state: AdminState, controller: AdminController, onOpenIam: () -> Unit = {}) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
     val scope = rememberCoroutineScope()
     var searchText: String by remember { mutableStateOf(state.userSearch) }
+    var grantTarget: AdminUser? by remember { mutableStateOf(null) }
 
     Column(
         modifier = Modifier
@@ -523,6 +554,12 @@ internal fun UsersTab(state: AdminState, controller: AdminController) {
                                     style = typography.xs,
                                     color = tokens.mutedForeground,
                                 )
+
+                                UserPlatformAccess(
+                                    principal = state.principals.firstOrNull { it.userId == user.id },
+                                    onGrant = { grantTarget = user },
+                                    onOpenIam = onOpenIam,
+                                )
                             }
                         }
                         if (index < state.users.lastIndex) {
@@ -530,6 +567,123 @@ internal fun UsersTab(state: AdminState, controller: AdminController) {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    grantTarget?.let { user ->
+        GrantPlatformAccessDialog(
+            user = user,
+            roles = state.roles,
+            onDismiss = { grantTarget = null },
+            onGrant = { roleId ->
+                grantTarget = null
+                scope.launch {
+                    controller.promoteUser(
+                        userId = user.id,
+                        displayName = user.displayName.ifBlank { user.login },
+                        roleIds = listOf(roleId),
+                    )
+                }
+            },
+        )
+    }
+}
+
+/**
+ * One user's platform-access state, and the single action that follows from it.
+ *
+ * No principal means no platform access, and the action is to grant it. A principal means IAM owns the
+ * detail, and the action is to go there — deliberately NOT a second copy of the principal editor. An
+ * inactive principal is called out in destructive terms because "holds a role" and "can currently use
+ * it" are different facts, and showing only the first would be the confident kind of wrong.
+ */
+@Composable
+private fun UserPlatformAccess(
+    principal: IamPrincipalSummary?,
+    onGrant: () -> Unit,
+    onOpenIam: () -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+    ) {
+        if (principal == null) {
+            Badge(variant = BadgeVariant.Outline) {
+                Text(text = stringResource(Res.string.admin_user_no_platform_access), style = typography.xs)
+            }
+            Button(onClick = onGrant, variant = ButtonVariant.Outline, size = ButtonSize.Sm) {
+                Text(text = stringResource(Res.string.admin_user_grant_access), style = typography.xs)
+            }
+        } else {
+            if (!principal.isActive) {
+                Badge(variant = BadgeVariant.Destructive) {
+                    Text(text = stringResource(Res.string.admin_iam_inactive), style = typography.xs)
+                }
+            }
+            if (principal.activeAssignments.isEmpty()) {
+                Badge(variant = BadgeVariant.Outline) {
+                    Text(text = stringResource(Res.string.admin_iam_no_assignments), style = typography.xs)
+                }
+            } else {
+                principal.activeAssignments.forEach { assignment ->
+                    Badge(variant = BadgeVariant.Secondary) {
+                        Text(text = assignment.roleName, style = typography.xs)
+                    }
+                }
+            }
+            Button(onClick = onOpenIam, variant = ButtonVariant.Ghost, size = ButtonSize.Sm) {
+                Text(text = stringResource(Res.string.admin_user_manage_in_iam), style = typography.xs)
+            }
+        }
+    }
+}
+
+/**
+ * Grants a user platform access by making them an IAM principal with one role — the same
+ * createPrincipal call the IAM tab's Promote dialog makes, reached from the person rather than from the
+ * principal list. Save stays disabled until a role is chosen: an access grant with no role is a
+ * principal that can do nothing, which reads as a broken grant rather than a deliberate one.
+ */
+@Composable
+private fun GrantPlatformAccessDialog(
+    user: AdminUser,
+    roles: List<IamRole>,
+    onDismiss: () -> Unit,
+    onGrant: (roleId: String) -> Unit,
+) {
+    var selectedRoleId: String by remember { mutableStateOf("") }
+    var selectedRoleName: String by remember { mutableStateOf("") }
+
+    Dialog(onDismissRequest = onDismiss) {
+        DialogTitle(text = stringResource(Res.string.admin_user_grant_access))
+        DialogDescription(
+            text =
+                stringResource(
+                    Res.string.admin_user_grant_access_desc,
+                    user.displayName.ifBlank { user.login },
+                )
+        )
+
+        PickerField(
+            label = stringResource(Res.string.admin_iam_role),
+            selectedLabel = selectedRoleName,
+            options = roles.map { it.id to it.name },
+            onSelect = { id, label ->
+                selectedRoleId = id
+                selectedRoleName = label
+            },
+        )
+
+        DialogFooter {
+            Button(onClick = onDismiss, variant = ButtonVariant.Ghost) {
+                Text(text = stringResource(Res.string.admin_cancel))
+            }
+            Button(onClick = { onGrant(selectedRoleId) }, enabled = selectedRoleId.isNotBlank()) {
+                Text(text = stringResource(Res.string.admin_user_grant_access))
             }
         }
     }
