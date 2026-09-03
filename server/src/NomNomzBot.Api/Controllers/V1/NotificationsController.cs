@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Security.Claims;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -47,6 +48,31 @@ public class NotificationsController : BaseController
             return BadRequestResponse("Invalid channel id.");
 
         Result<List<ActionRequiredItemDto>> result = await _inbox.GetItemsAsync(tenantId, ct);
+        return ResultResponse(result);
+    }
+
+    /// <summary>
+    /// Dismisses action-required items by their stable ids (S-OWN22 T2). A grouped
+    /// <c>held-user:{sourceUserId}</c> id is expanded into one persisted dismissal per contained
+    /// <c>held:{queueItemGuid}</c> key, so a NEW hold from that user surfaces again. Returns the number of
+    /// dismissal rows written (already-dismissed keys are skipped).
+    /// </summary>
+    [HttpPost("{channelId}/notifications/action-required/dismiss")]
+    [Authorize]
+    [RequireAction("notifications:dismiss")]
+    [ProducesResponseType<StatusResponseDto<int>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> DismissActionRequiredItems(
+        string channelId,
+        [FromBody] DismissActionRequiredItemsRequest request,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid tenantId))
+            return BadRequestResponse("Invalid channel id.");
+        if (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out Guid actorId))
+            return UnauthenticatedResponse();
+
+        Result<int> result = await _inbox.DismissAsync(tenantId, actorId, request.Ids, ct);
         return ResultResponse(result);
     }
 }

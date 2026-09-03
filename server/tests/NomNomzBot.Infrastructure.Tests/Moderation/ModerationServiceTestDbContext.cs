@@ -104,6 +104,8 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
         Set<NomNomzBot.Domain.Moderation.Entities.ViewerReport>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationQueueItem> ModerationQueueItems =>
         Set<NomNomzBot.Domain.Moderation.Entities.ModerationQueueItem>();
+    public DbSet<NomNomzBot.Domain.Notifications.Entities.ActionRequiredDismissal> ActionRequiredDismissals =>
+        throw new NotSupportedException();
 
     protected override void OnModelCreating(ModelBuilder b)
     {

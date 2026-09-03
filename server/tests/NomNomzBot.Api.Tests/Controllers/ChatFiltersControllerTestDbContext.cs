@@ -84,6 +84,8 @@ internal sealed class ChatFiltersControllerTestDbContext : DbContext, IApplicati
 
     public DbSet<ChatFilter> ChatFilters => Set<ChatFilter>();
     public DbSet<ModerationQueueItem> ModerationQueueItems => throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Notifications.Entities.ActionRequiredDismissal> ActionRequiredDismissals =>
+        throw new NotSupportedException();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
