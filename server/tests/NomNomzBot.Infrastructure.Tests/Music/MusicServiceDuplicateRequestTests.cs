@@ -45,9 +45,14 @@ public sealed class MusicServiceDuplicateRequestTests
 
         second.ErrorCode.Should().Be("DUPLICATE_TRACK");
         second.ErrorMessage.Should().Contain("viewer1");
-        // Refused before the provider is touched — one push, one queue entry, one play.
+        // Refused before the provider PUSH is touched — one push, one queue entry, one play. (A GET to
+        // the same path is the new provider-side duplicate probe, which also runs on the first, admitted
+        // request — only the POST push count says whether the second request reached the provider.)
         handler
-            .RequestUrls.Count(u => u.Contains("/me/player/queue", StringComparison.Ordinal))
+            .RequestUrls.Count(u =>
+                u.StartsWith("POST", StringComparison.Ordinal)
+                && u.Contains("/me/player/queue", StringComparison.Ordinal)
+            )
             .Should()
             .Be(1);
         (await sut.GetQueueAsync(ChannelId.ToString())).Queue.Should().ContainSingle();
@@ -70,6 +75,39 @@ public sealed class MusicServiceDuplicateRequestTests
 
         result.ErrorCode.Should().Be("DUPLICATE_TRACK");
         (await sut.GetQueueAsync(ChannelId.ToString())).Queue.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_track_already_sitting_in_the_providers_own_queue_is_refused()
+    {
+        // Nothing in OUR fair queue and nothing "playing right now" — this is the case our own admission
+        // gates cannot see: the streamer queued the track by hand from the Spotify app itself.
+        (MusicService sut, RecordingHttpHandler handler) = Build();
+        RespondNothingPlaying(handler);
+        handler.RespondWhen(
+            r =>
+                r.Method == HttpMethod.Get
+                && r.RequestUri!.AbsolutePath.EndsWith(
+                    "/me/player/queue",
+                    StringComparison.Ordinal
+                ),
+            HttpStatusCode.OK,
+            """
+            {"queue":[{"name":"Dup","uri":"__URI__","duration_ms":200000,"artists":[{"name":"Artist"}],"album":{"name":"Album","images":[]}}]}
+            """.Replace("__URI__", TrackUri)
+        );
+
+        Result result = await sut.AddToQueueAsync(ChannelId.ToString(), TrackUri, "viewer1");
+
+        result.ErrorCode.Should().Be("DUPLICATE_TRACK");
+        // Refused before the provider push — the caller's own fair queue never held this entry.
+        handler
+            .RequestUrls.Count(u =>
+                u.Contains("/me/player/queue", StringComparison.Ordinal)
+                && u.StartsWith("POST", StringComparison.Ordinal)
+            )
+            .Should()
+            .Be(0);
     }
 
     [Fact]

@@ -277,6 +277,11 @@ public sealed class MusicServiceProviderPreferenceTests
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();
 
+        public Task<IReadOnlyList<TrackInfo>> GetQueueAsync(
+            Guid broadcasterId,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
         public Task<string?> GetEmbeddedPlaybackTokenAsync(
             Guid broadcasterId,
             CancellationToken cancellationToken = default
