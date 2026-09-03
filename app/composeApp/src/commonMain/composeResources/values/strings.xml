@@ -3345,6 +3345,9 @@
     <string name="admin_user_grant_access">Grant platform access</string>
     <string name="admin_user_grant_access_desc">Give %1$s a platform role. They keep their own channels either way — this only decides what they can do across the platform.</string>
     <string name="admin_user_manage_in_iam">Manage in IAM</string>
+    <string name="admin_page_previous">Previous</string>
+    <string name="admin_page_next">Next</string>
+    <string name="admin_page_current">Page %1$d</string>
     <string name="admin_iam_reason">Reason (optional)</string>
     <string name="admin_iam_user_id">User ID</string>
     <string name="admin_iam_display_name">Display name</string>

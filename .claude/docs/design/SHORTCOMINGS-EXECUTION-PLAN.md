@@ -56,7 +56,8 @@ when done) — this section is only the intake, not a shortcut around the bar.
     `AdminListsSearchTests.ListChannels_search_matches_login_or_owner_display_name_case_insensitively` +
     `ListUsers_...` (real seeded DB, asserts included AND excluded rows) and
     `submitting_the_channel_search_calls_get_channels_with_the_typed_value` + the users twin.
-    Still open on these two tabs: no sort, no filter chips, and no visible page controls for deep paging.
+    Still open on these two tabs: no sort and no filter chips. (Page controls: CLOSED — both lists now
+    render a server-driven pager, so row 26 onward is reachable instead of silently truncated.)
   - **No provider/system-credential management screen exists at all** — grep of `feature/admin/**` and
     `Controllers/V1/*Admin*.cs` turns up no endpoint or tab for viewing/rotating the platform-level OAuth
     client id/secret pairs (Twitch/Spotify/Discord/YouTube/Kick/Twitter — see the `.env`/`appsettings.json`

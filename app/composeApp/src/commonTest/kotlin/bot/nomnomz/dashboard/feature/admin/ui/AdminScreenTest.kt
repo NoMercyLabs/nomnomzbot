@@ -247,6 +247,60 @@ class AdminScreenTest {
         }
     }
 
+    // S-OWN08: both admin lists have always been paged server-side at 25 rows while the client asked
+    // only ever for page 1, so row 26 onward was unreachable from the dashboard and nothing said so.
+    // These assert the page the client actually REQUESTS, not that a button exists.
+
+    @Test
+    fun paging_the_user_list_asks_the_server_for_the_next_page() = runTest {
+        val api = RecordingListSearchAdminApi(hasMore = true)
+        val controller = AdminController(api = api, iamApi = NoopPlatformIamApi(), platformAdminApi = NoopPlatformAdminApi())
+
+        controller.loadUsers()
+        controller.loadUsers(page = 2)
+
+        assertEquals(listOf(1, 2), api.userPageCalls, "the second load must ask for page 2, not page 1 again")
+        assertEquals(2, controller.state.value.userPage, "state must follow the page actually fetched")
+    }
+
+    @Test
+    fun a_new_user_search_returns_to_the_first_page() = runTest {
+        // Staying on page 4 of the previous query would render an empty list and read as "no matches"
+        // for a search that has plenty.
+        val api = RecordingListSearchAdminApi(hasMore = true)
+        val controller = AdminController(api = api, iamApi = NoopPlatformIamApi(), platformAdminApi = NoopPlatformAdminApi())
+
+        controller.loadUsers(page = 4)
+        controller.loadUsers(search = "rockhound")
+
+        assertEquals(listOf(4, 1), api.userPageCalls, "a new search must reset to page 1")
+        assertEquals(1, controller.state.value.userPage)
+    }
+
+    @Test
+    fun paging_the_channel_list_asks_the_server_for_the_next_page() = runTest {
+        val api = RecordingListSearchAdminApi(hasMore = true)
+        val controller = AdminController(api = api, iamApi = NoopPlatformIamApi(), platformAdminApi = NoopPlatformAdminApi())
+
+        controller.loadChannels()
+        controller.loadChannels(page = 2)
+
+        assertEquals(listOf(1, 2), api.channelPageCalls)
+        assertEquals(2, controller.state.value.channelPage)
+    }
+
+    @Test
+    fun has_more_comes_from_the_server_not_from_the_row_count() = runTest {
+        // A page holding exactly pageSize rows is not evidence a further page exists. Only the server
+        // knows, and Next is driven by what it said.
+        val exhausted = RecordingListSearchAdminApi(hasMore = false)
+        val controller = AdminController(api = exhausted, iamApi = NoopPlatformIamApi(), platformAdminApi = NoopPlatformAdminApi())
+
+        controller.loadUsers()
+
+        assertEquals(false, controller.state.value.userHasMore, "Next must stay disabled when the server says there is no more")
+    }
+
     // S-OWN08: the Users tab was read-only — id, login, role, channel count, and nothing an operator
     // could do or even learn. Whether a person holds platform access lives in IAM, keyed by principal,
     // so the one question a platform admin actually asks of a user row had no answer on the row. These
@@ -479,18 +533,24 @@ private class RecordingFeatureFlagAdminApi(
 }
 
 /** Records every search value AdminController forwards to [getChannels]/[getUsers] — S-OWN08b. */
-private class RecordingListSearchAdminApi : AdminApi {
+private class RecordingListSearchAdminApi(private val hasMore: Boolean = false) : AdminApi {
     val channelSearchCalls: MutableList<String?> = mutableListOf()
     val userSearchCalls: MutableList<String?> = mutableListOf()
+
+    /** The page each list call actually asked the server for — the whole point of the pager. */
+    val channelPageCalls: MutableList<Int> = mutableListOf()
+    val userPageCalls: MutableList<Int> = mutableListOf()
 
     override suspend fun getStats(): ApiResult<AdminStats> = ApiResult.Ok(AdminStats(0, 0, 0, "ok", 0, 0))
     override suspend fun getChannels(search: String?, page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<AdminChannel>> {
         channelSearchCalls += search
-        return ApiResult.Ok(PaginatedEnvelope(emptyList()))
+        channelPageCalls += page
+        return ApiResult.Ok(PaginatedEnvelope(emptyList(), hasMore = hasMore))
     }
     override suspend fun getUsers(search: String?, page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<AdminUser>> {
         userSearchCalls += search
-        return ApiResult.Ok(PaginatedEnvelope(emptyList()))
+        userPageCalls += page
+        return ApiResult.Ok(PaginatedEnvelope(emptyList(), hasMore = hasMore))
     }
     override suspend fun getSystem(): ApiResult<AdminSystem> = ApiResult.Ok(AdminSystem("ok", emptyList(), "1.0", 0, 0.0))
     override suspend fun getHealth(): ApiResult<List<AdminServiceHealth>> = ApiResult.Ok(emptyList())
