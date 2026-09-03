@@ -86,14 +86,22 @@ internal fun SpamDefenseSection(
 
         Separator()
 
+        // Every child of this Column is s3 apart, so without extra space above a group heading the
+        // heading sits exactly as far from the previous group's last control as those controls sit
+        // from each other — 22 knobs read as one undifferentiated wall. The gap is what makes the
+        // grouping visible; the heading alone does not.
         policy.catalogue
             .groupBy { it.group }
-            .forEach { (group, descriptors) ->
+            .entries
+            .forEachIndexed { groupIndex, (group, descriptors) ->
                 SpamDefenseCopy.resource("spam_group_$group")?.let { resource ->
                     Text(
                         text = stringResource(resource),
                         style = typography.lg,
                         color = tokens.cardForeground,
+                        modifier =
+                            if (groupIndex == 0) Modifier
+                            else Modifier.padding(top = spacing.s4),
                     )
                 }
 
