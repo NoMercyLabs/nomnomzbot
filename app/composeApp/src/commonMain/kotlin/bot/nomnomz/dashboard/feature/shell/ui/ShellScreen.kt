@@ -591,6 +591,7 @@ private fun ShellContent(
                 ModerationScreen(
                     controller = graph.moderationController,
                     role = role,
+                    templateHelpersApi = graph.templateHelpersApi,
                     hubEvents = graph.dashboardHubClient.events,
                 )
             ShellRoute.Analytics -> AnalyticsScreen(controller = graph.analyticsController, role = role)
