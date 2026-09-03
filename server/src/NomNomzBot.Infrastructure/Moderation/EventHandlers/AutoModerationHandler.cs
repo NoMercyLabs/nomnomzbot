@@ -90,7 +90,7 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
             bool triggered = rule.Type switch
             {
                 "caps" => CheckCaps(message, rule),
-                "links" => CheckLinks(message),
+                "links" => CheckLinks(message, rule),
                 "banned_phrases" => CheckBannedPhrases(message, rule),
                 "emote_spam" => CheckEmoteSpam(@event.Fragments, rule),
                 _ => false,
@@ -150,8 +150,51 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
         return message.Length >= minLength && ratio >= threshold;
     }
 
-    private static bool CheckLinks(string message) => UrlPattern().IsMatch(message);
+    /// <summary>
+    /// Any link trips the rule, unless every link in the message is on the rule's allow-list.
+    ///
+    /// <para>The allow-list is what makes a links rule usable at all: a channel that wants "no links"
+    /// almost always still wants its own Discord, its schedule, and its clips to pass. Without it the
+    /// only options are moderating the streamer's own links or not filtering at all.</para>
+    ///
+    /// <para>ONE disallowed link is enough to trip, even when the others are allowed — otherwise a
+    /// spammer pads a payload with a permitted domain and walks straight through.</para>
+    /// </summary>
+    private static bool CheckLinks(string message, AutoModRule rule)
+    {
+        if (!UrlPattern().IsMatch(message))
+            return false;
 
+        HashSet<string> allowed = ReadStringSet(rule, "allowed_domains");
+        if (allowed.Count == 0)
+            return true;
+
+        foreach (Match match in UrlPattern().Matches(message))
+        {
+            Match host = HostnamePattern().Match(match.Value);
+            if (!host.Success)
+                return true;
+
+            string hostname = host.Groups[1].Value.ToLowerInvariant();
+            string[] parts = hostname.Split('.');
+            // Registrable-ish suffix, so allowing "example.com" also allows "www.example.com".
+            string domain = parts.Length >= 2 ? string.Join('.', parts[^2..]) : hostname;
+
+            if (!allowed.Contains(hostname) && !allowed.Contains(domain))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Banned phrases, literal by default and regex when the rule asks for it.
+    ///
+    /// <para>Regex is opt-in per rule because it is the difference between blocking "cash" and blocking
+    /// every word containing it. A pattern that fails to compile falls back to a literal match rather
+    /// than silently disarming the rule, and every match runs under a 100ms timeout so a catastrophic
+    /// backtracker cannot stall the chat path.</para>
+    /// </summary>
     private static bool CheckBannedPhrases(string message, AutoModRule rule)
     {
         if (!rule.Settings.TryGetValue("phrases", out object? phrasesObj))
@@ -162,15 +205,66 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
         )
             return false;
 
+        bool useRegex =
+            rule.Settings.TryGetValue("use_regex", out object? r)
+            && r is JsonElement { ValueKind: JsonValueKind.True };
+
         string lower = message.ToLowerInvariant();
         foreach (JsonElement phrase in phrasesElem.EnumerateArray())
         {
             string? p = phrase.GetString();
-            if (!string.IsNullOrEmpty(p) && lower.Contains(p.ToLowerInvariant()))
+            if (string.IsNullOrEmpty(p))
+                continue;
+
+            bool hit = useRegex
+                ? IsRegexMatch(message, p)
+                : lower.Contains(p.ToLowerInvariant(), StringComparison.Ordinal);
+
+            if (hit)
                 return true;
         }
 
         return false;
+    }
+
+    private static bool IsRegexMatch(string message, string pattern)
+    {
+        try
+        {
+            return Regex.IsMatch(
+                message,
+                pattern,
+                RegexOptions.IgnoreCase,
+                TimeSpan.FromMilliseconds(100)
+            );
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            // An invalid pattern must not disarm the rule the operator wrote.
+            return message.Contains(pattern, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    private static HashSet<string> ReadStringSet(AutoModRule rule, string key)
+    {
+        if (
+            !rule.Settings.TryGetValue(key, out object? raw)
+            || raw is not JsonElement { ValueKind: JsonValueKind.Array } element
+        )
+            return [];
+
+        return
+        [
+            .. element
+                .EnumerateArray()
+                .Select(x => x.GetString()?.Trim().ToLowerInvariant())
+                .Where(x => !string.IsNullOrEmpty(x))
+                .Select(x => x!),
+        ];
     }
 
     private static bool CheckEmoteSpam(
@@ -334,4 +428,7 @@ public sealed partial class AutoModerationHandler : IEventHandler<ChatMessageRec
 
     [GeneratedRegex(@"https?://[^\s]+", RegexOptions.IgnoreCase)]
     private static partial Regex UrlPattern();
+
+    [GeneratedRegex(@"https?://([^/\s:]+)", RegexOptions.IgnoreCase)]
+    private static partial Regex HostnamePattern();
 }
