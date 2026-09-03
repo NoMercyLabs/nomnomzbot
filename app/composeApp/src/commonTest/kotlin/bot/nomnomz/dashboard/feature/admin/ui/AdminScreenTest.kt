@@ -247,6 +247,128 @@ class AdminScreenTest {
         }
     }
 
+    // S-OWN08: the Users tab was read-only — id, login, role, channel count, and nothing an operator
+    // could do or even learn. Whether a person holds platform access lives in IAM, keyed by principal,
+    // so the one question a platform admin actually asks of a user row had no answer on the row. These
+    // prove the answer is now there AND that it is derived from the real principal list rather than
+    // assumed: a user with no principal must not read as "has access", and a user whose principal is
+    // deactivated must not read as if their role still works.
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun a_user_with_no_iam_principal_is_shown_as_having_no_platform_access() {
+        val controller = AdminController(api = RecordingListSearchAdminApi(), iamApi = NoopPlatformIamApi(), platformAdminApi = NoopPlatformAdminApi())
+        val state = controller.state.value.copy(
+            users = listOf(AdminUser(id = "u1", login = "rockhound", displayName = "Rockhound", role = "viewer", channelCount = 1, createdAt = "2026-01-01T00:00:00Z")),
+        )
+
+        runComposeUiTest {
+            setContent { EnglishContent { UsersTab(state = state, controller = controller) } }
+
+            assertTrue(
+                onAllNodesWithText("No platform access").fetchSemanticsNodes().isNotEmpty(),
+                "a user with no matching IAM principal must say so, not stay silent",
+            )
+            assertTrue(
+                onAllNodesWithText("Grant platform access").fetchSemanticsNodes().isNotEmpty(),
+                "the action that follows from having no access must be on the row",
+            )
+        }
+    }
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun a_user_with_a_principal_shows_their_real_role_names_and_defers_to_iam() {
+        val controller = AdminController(api = RecordingListSearchAdminApi(), iamApi = NoopPlatformIamApi(), platformAdminApi = NoopPlatformAdminApi())
+        val state = controller.state.value.copy(
+            users = listOf(AdminUser(id = "u1", login = "rockhound", displayName = "Rockhound", role = "viewer", channelCount = 1, createdAt = "2026-01-01T00:00:00Z")),
+            principals = listOf(
+                IamPrincipalSummary(
+                    id = "p1",
+                    userId = "u1",
+                    name = "Rockhound",
+                    activeAssignments = listOf(
+                        IamRoleAssignment(id = "a1", principalId = "p1", roleId = "r1", roleName = "Support", createdAt = "2026-01-01T00:00:00Z"),
+                    ),
+                )
+            ),
+        )
+
+        runComposeUiTest {
+            setContent { EnglishContent { UsersTab(state = state, controller = controller) } }
+
+            assertTrue(
+                onAllNodesWithText("Support").fetchSemanticsNodes().isNotEmpty(),
+                "the row must name the role the principal actually holds",
+            )
+            assertTrue(
+                onAllNodesWithText("Manage in IAM").fetchSemanticsNodes().isNotEmpty(),
+                "editing stays in IAM — this row points there rather than forking the editor",
+            )
+            assertTrue(
+                onAllNodesWithText("Grant platform access").fetchSemanticsNodes().isEmpty(),
+                "a user who already has access must not be offered a grant",
+            )
+        }
+    }
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun a_deactivated_principal_is_called_out_rather_than_reading_as_working_access() {
+        // "Holds a role" and "can currently use it" are different facts. Showing only the first is the
+        // confident kind of wrong: an operator would think access is live when it is switched off.
+        val controller = AdminController(api = RecordingListSearchAdminApi(), iamApi = NoopPlatformIamApi(), platformAdminApi = NoopPlatformAdminApi())
+        val state = controller.state.value.copy(
+            users = listOf(AdminUser(id = "u1", login = "rockhound", displayName = "Rockhound", role = "viewer", channelCount = 1, createdAt = "2026-01-01T00:00:00Z")),
+            principals = listOf(
+                IamPrincipalSummary(id = "p1", userId = "u1", name = "Rockhound", isActive = false)
+            ),
+        )
+
+        runComposeUiTest {
+            setContent { EnglishContent { UsersTab(state = state, controller = controller) } }
+
+            assertTrue(
+                onAllNodesWithText("Inactive").fetchSemanticsNodes().isNotEmpty(),
+                "a deactivated principal must be visible on the row",
+            )
+        }
+    }
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun granting_platform_access_creates_the_principal_with_the_chosen_role() {
+        val iam = RecordingPromoteIamApi()
+        val controller = AdminController(api = RecordingListSearchAdminApi(), iamApi = iam, platformAdminApi = NoopPlatformAdminApi())
+        val state = controller.state.value.copy(
+            users = listOf(AdminUser(id = "u1", login = "rockhound", displayName = "Rockhound", role = "viewer", channelCount = 1, createdAt = "2026-01-01T00:00:00Z")),
+            roles = listOf(IamRole(id = "r1", name = "Support")),
+        )
+
+        runComposeUiTest {
+            setContent { EnglishContent { UsersTab(state = state, controller = controller) } }
+
+            onAllNodesWithText("Grant platform access")[0].performClick()
+            waitForIdle()
+            // Open the role picker (its button shows the em-dash placeholder until something is chosen)
+            // and take the only role offered.
+            onAllNodesWithText("—")[0].performClick()
+            waitForIdle()
+            onAllNodesWithText("Support")[0].performClick()
+            waitForIdle()
+            // The dialog's own confirm is the LAST node carrying this label (the row button is the first).
+            val confirms = onAllNodesWithText("Grant platform access").fetchSemanticsNodes()
+            onAllNodesWithText("Grant platform access")[confirms.size - 1].performClick()
+            waitForIdle()
+        }
+
+        assertEquals(1, iam.createdPrincipals.size, "confirming the dialog must create the principal")
+        val created = iam.createdPrincipals.first()
+        assertEquals("u1", created.userId, "the principal must be created for the row user")
+        assertEquals(listOf("r1"), created.roleIds, "the chosen role must be the one granted")
+        assertEquals(0, created.principalType, "granting a person access creates an employee principal, not a service account")
+    }
+
     @OptIn(ExperimentalTestApi::class)
     @Test
     fun users_tab_renders_empty_line_with_user_specific_copy() {
@@ -403,6 +525,16 @@ private class NoopPlatformIamApi : PlatformIamApi {
     override suspend fun assignRole(body: AssignRoleBody): ApiResult<IamRoleAssignment> =
         ApiResult.Ok(IamRoleAssignment(id = "a", principalId = body.principalId, roleId = body.roleId, roleName = "role", createdAt = "2026-01-01T00:00:00Z"))
     override suspend fun revokeAssignment(assignmentId: String, reason: String?): ApiResult<Unit> = ApiResult.Ok(Unit)
+}
+
+/** Records what the grant dialog actually sent, so the test asserts the created principal, not a click. */
+private class RecordingPromoteIamApi : PlatformIamApi by NoopPlatformIamApi() {
+    val createdPrincipals: MutableList<CreatePrincipalBody> = mutableListOf()
+
+    override suspend fun createPrincipal(body: CreatePrincipalBody): ApiResult<IamPrincipal> {
+        createdPrincipals += body
+        return ApiResult.Ok(IamPrincipal(id = "p1", name = body.displayName))
+    }
 }
 
 private class NoopPlatformAdminApi : PlatformAdminApi {
