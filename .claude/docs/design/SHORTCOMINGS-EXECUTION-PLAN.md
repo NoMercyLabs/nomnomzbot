@@ -228,19 +228,6 @@ serves correctly on `http://192.168.2.60:5080`; the Cloudflare tunnel token in t
 (tunnel `cf9f7591`) is rejected by Cloudflare on every connection attempt. Reissuing it needs
 Cloudflare account access. Verify deploys over the LAN address until then.
 
-- **S-AUTOMOD-NO-HEAT** (found 2026-09-03 while tracing the chat path) — `AutoModerationHandler`
-  calls `ITwitchModerationApi` directly and publishes no domain event, so its own timeouts and bans
-  never reach `ModerationProjectionService`. **Automod enforcement contributes zero heat**, which
-  means the escalation ladder never sees the offences automod itself acted on. Route it through
-  `IModerationService` (which emits `UserBanned`/`UserTimedOut`) as the heat path does.
-- **S-AUTOMOD-ENGINE-DEAD** (same trace) — `AutoModerationEngine` has **no production callers**;
-  it is registered in DI and tested, and `AutoModerationHandler` re-implements caps/links/phrases
-  inline beside it. The engine's exempt-role ladder, slow mode and regex-phrase support exist only
-  in the unused class. Either adopt it or delete it; keeping both is how the two drift.
-- **S-AUTOMOD-STALE-RULES** (same trace) — automod rules are cached 5 minutes in a process-local
-  static dictionary that is never invalidated on save, so an operator's edit takes up to five
-  minutes to take effect with no indication. Invalidate on write.
-
 - **S-DEAD-USER-EXPORT** (found 2026-09-03 by the new `ApiRouteContractTest`) — the Community screen's
   "export user data" control calls `POST api/v1/users/{userId}/export`
   (`UsersApi.kt:47` ← `CommunityController.exportUserData` ← `CommunityScreen.kt:294`), a route the API
