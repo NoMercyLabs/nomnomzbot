@@ -292,16 +292,17 @@ public class SpamDefenseServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task AnOutOfRangeValue_IsRejected_WithCopyNamingTheControl()
+    public async Task AnOutOfRangeValue_IsRejected_NamingTheControlByItsResourceKey()
     {
-        // Ranges are enforced server-side (§6.1), and the message has to name the control in the words
-        // the operator saw — not the property name.
+        // Ranges are enforced server-side (§6.1). The failure names the control by the key the
+        // dashboard translates, so a Dutch operator is not shown an English sentence.
         using AppDbContext db = NewDbContext();
         Result<SpamDefenseSettings> result = await NewService(db)
             .UpdateSettingsAsync(Channel, new SpamDefenseSettings { MinimumCohortSize = 1 });
 
         result.IsFailure.Should().BeTrue();
-        result.ErrorMessage.Should().Contain("Fewest accounts");
+        result.ErrorMessage.Should().Contain("spam_setting_minimum_cohort_size_label");
+        result.ErrorCode.Should().Be("spam.setting.out_of_range");
     }
 
     [Fact]
@@ -321,7 +322,7 @@ public class SpamDefenseServiceTests : IDisposable
             );
 
         result.IsFailure.Should().BeTrue();
-        result.ErrorMessage.Should().Contain("borderline");
+        result.ErrorCode.Should().Be("spam.setting.dequalify_not_below_qualify");
     }
 
     [Fact]

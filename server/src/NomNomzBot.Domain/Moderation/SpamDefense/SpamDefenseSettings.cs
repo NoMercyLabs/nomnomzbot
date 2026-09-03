@@ -110,315 +110,122 @@ public sealed record SpamDefenseSettings
     public int RequiredCorroborations { get; init; } = 3;
 }
 
-/// <summary>How a setting is presented and bounded (spam-defense.md §6.1).</summary>
+/// <summary>
+/// How a setting is presented and bounded (spam-defense.md §6.1).
+///
+/// <para>Carries the resource KEYS for its copy, never the copy itself. The product ships in English
+/// and Dutch, and the house rule is that the backend never holds user-facing prose — so the bounds and
+/// the identity live here, where behaviour is, and the words live in the dashboard's string resources
+/// where they can be translated.</para>
+///
+/// <para>The three keys are DERIVED from <see cref="Key"/> rather than stored, which removes the whole
+/// class of bug where a descriptor points at a resource nobody wrote.</para>
+/// </summary>
 /// <param name="Key">The property name on <see cref="SpamDefenseSettings"/>.</param>
 /// <param name="Group">The section it belongs to in the editor.</param>
-/// <param name="Label">Plain-language name. Never the property name.</param>
-/// <param name="Explanation">What the setting actually does, for someone who is not an engineer.</param>
-/// <param name="CostOfMoving">
-/// What it costs to move it, in both directions. This is the field that makes the difference between a
-/// settings page and a machine somebody can actually operate: a number with a range but no consequence
-/// is a number nobody can tune honestly.
-/// </param>
 /// <param name="Minimum">Lowest accepted value, or null for a toggle.</param>
 /// <param name="Maximum">Highest accepted value, or null for a toggle.</param>
 public sealed record SpamSettingDescriptor(
     string Key,
     string Group,
-    string Label,
-    string Explanation,
-    string CostOfMoving,
     double? Minimum = null,
     double? Maximum = null
-);
+)
+{
+    /// <summary>Resource key for the human-readable name.</summary>
+    public string LabelKey => $"spam_setting_{SnakeKey}_label";
+
+    /// <summary>Resource key for what the setting does.</summary>
+    public string ExplanationKey => $"spam_setting_{SnakeKey}_explanation";
+
+    /// <summary>
+    /// Resource key for what moving it costs, in both directions. This is the string that makes the
+    /// difference between a settings page and a machine somebody can actually operate: a number with a
+    /// range but no stated consequence is a number nobody can tune honestly.
+    /// </summary>
+    public string CostKey => $"spam_setting_{SnakeKey}_cost";
+
+    /// <summary>True for a toggle, which has no range to enforce.</summary>
+    public bool IsToggle => Minimum is null && Maximum is null;
+
+    private string SnakeKey => ToSnakeCase(Key);
+
+    private static string ToSnakeCase(string name)
+    {
+        System.Text.StringBuilder builder = new(name.Length + 8);
+        for (int i = 0; i < name.Length; i++)
+        {
+            if (i > 0 && char.IsUpper(name[i]))
+                builder.Append('_');
+            builder.Append(char.ToLowerInvariant(name[i]));
+        }
+        return builder.ToString();
+    }
+}
 
 /// <summary>
-/// The plain-language description of every knob, and of the five things that are deliberately NOT
-/// knobs.
+/// Which knobs exist, what group they belong to, and what bounds they are held to — the structural
+/// facts about the configuration surface.
 ///
-/// <para>This lives in the Domain rather than in the dashboard on purpose. If the explanations sat in
-/// the UI they would drift from the behaviour the moment a threshold changed, and the operator would be
-/// reading a description of a machine we no longer ship. Here, a test walks
-/// <see cref="SpamDefenseSettings"/> by reflection and fails when a property has no entry — so adding a
-/// weight without explaining it breaks the build.</para>
+/// <para>This lives in the Domain rather than the dashboard because it describes behaviour: the same
+/// bounds that validate a save are the ones the editor renders, so there is no second list to keep in
+/// step. A test walks <see cref="SpamDefenseSettings"/> by reflection and fails when a property has no
+/// entry here, so a weight cannot ship unlisted; a matching test on the dashboard side fails when a
+/// listed weight has no copy in English and Dutch, so it cannot ship unexplained either.</para>
+///
+/// <para>The five invariants are named too, because an operator should be able to see the guarantees
+/// they get for free rather than have to ask.</para>
 /// </summary>
 public static class SpamSettingCatalogue
 {
-    /// <summary>
-    /// The invariants that have no switch, and why. A toggle that turns off "never punish a regular" is
-    /// a toggle somebody eventually flips at 3am during a raid, and then it is a person's account.
-    /// </summary>
-    public static IReadOnlyList<(string Decision, string Guarantee)> Invariants { get; } =
-    [
-        (
-            "SD0",
-            "Under uncertainty the room is tightened, never the person. Lockdown is always the "
-                + "first response to a raid, never a mass ban."
-        ),
-        (
-            "SD8",
-            "An established regular of this channel is never actioned automatically, at any "
-                + "confidence, by any layer."
-        ),
-        (
-            "SD9",
-            "Presence is never an offence. No account is actioned for being silent, being new, "
-                + "or arriving during an attack. Every action needs that account's own evidence."
-        ),
-        (
-            "SD11",
-            "A viewer with standing — a mod or sub anywhere, or real watch time here — is never "
-                + "automatically banned or timed out. The engine's ceiling for them is deleting "
-                + "a message and flagging it."
-        ),
-        (
-            "SD12",
-            "We do not host the chat, so nothing here claims to stop a message before it is "
-                + "published. What we can do is tighten the platform's own rules, and we say so "
-                + "plainly rather than implying cover we do not have."
-        ),
-    ];
+    /// <summary>Group keys, so the editor's section headings are translated the same way.</summary>
+    public static class Groups
+    {
+        public const string Master = "master";
+        public const string Trust = "trust";
+        public const string Content = "content";
+        public const string Campaign = "campaign";
+        public const string Bursts = "bursts";
+        public const string Lockdown = "lockdown";
+        public const string Network = "network";
+    }
 
-    /// <summary>Every knob, with the copy the editor shows.</summary>
+    /// <summary>
+    /// The decisions that have no switch. A toggle that turns off "never punish a regular" is a toggle
+    /// somebody eventually flips at 3am during a raid, and then it is a person's account.
+    /// </summary>
+    public static IReadOnlyList<string> Invariants { get; } = ["SD0", "SD8", "SD9", "SD11", "SD12"];
+
+    /// <summary>Resource key for what an invariant guarantees.</summary>
+    public static string GuaranteeKey(string decision) =>
+        $"spam_invariant_{decision.ToLowerInvariant()}_guarantee";
+
+    /// <summary>Every knob, with its group and its bounds.</summary>
     public static IReadOnlyList<SpamSettingDescriptor> All { get; } =
     [
-        new(
-            nameof(SpamDefenseSettings.IsEnabled),
-            "Master",
-            "Spam defence enabled",
-            "Turns the whole system on or off. Off means no detection and no records at all.",
-            "Off leaves you with only the platform's own tools."
-        ),
-        new(
-            nameof(SpamDefenseSettings.DryRun),
-            "Master",
-            "Watch only, do not act",
-            "Everything is detected and recorded with a full explanation, and nothing is acted "
-                + "on. The dashboard shows what would have happened.",
-            "Leaving it on means spam is never removed automatically. Turning it off is the "
-                + "moment the system starts affecting real viewers — do it after you have read a "
-                + "week of your own results and agree with them."
-        ),
-        new(
-            nameof(SpamDefenseSettings.SemiTrustedWatchHoursHere),
-            "Trust",
-            "Watch hours here that earn protection",
-            "Someone who has watched this many hours in your channel can no longer be banned or "
-                + "timed out automatically, even if they have never typed a word.",
-            "Lower protects quiet regulars sooner. Higher leaves them exposed for longer — this "
-                + "is the setting that protects lurkers, who have no other way to prove they are "
-                + "real.",
-            1,
-            200
-        ),
-        new(
-            nameof(SpamDefenseSettings.SemiTrustedWatchHoursInstance),
-            "Trust",
-            "Watch hours across all channels that earn protection",
-            "The same protection, earned across every channel on this server rather than just "
-                + "yours.",
-            "Lower extends trust between channels more readily; higher keeps each channel's "
-                + "judgement to itself.",
-            1,
-            500
-        ),
-        new(
-            nameof(SpamDefenseSettings.NearDuplicateSimilarity),
-            "Content",
-            "How similar counts as the same spam",
-            "Spammers change a couple of characters and send again. This is how alike a message "
-                + "must be to a known one to be treated as the same campaign.",
-            "Lower catches more mutations but starts matching ordinary messages that happen to "
-                + "share phrasing. Higher only catches near-exact repeats. 0 turns mutation "
-                + "matching off entirely and leaves only exact matches.",
-            0,
-            1
-        ),
-        new(
-            nameof(SpamDefenseSettings.MinimumSkeletonLength),
-            "Content",
-            "Shortest message that can be matched",
-            "Messages shorter than this are never compared against known spam.",
-            "Lower risks matching \"gg\" and \"lol\" against the shared list, which would delete "
-                + "them everywhere at once. Higher lets short spam through.",
-            2,
-            50
-        ),
-        new(
-            nameof(SpamDefenseSettings.NonLatinScriptGate),
-            "Content",
-            "Restrict other alphabets to established viewers",
-            "Limits Japanese, Korean, Cyrillic, Arabic and other non-Latin messages to viewers "
-                + "who have been around.",
-            "Off by default and should stay off for almost everyone: real viewers write in these "
-                + "alphabets every day. It exists for a channel under an active attack that uses "
-                + "them, and it silences honest international viewers while it is on."
-        ),
-        new(
-            nameof(SpamDefenseSettings.QualifyNoStandingShare),
-            "Campaign",
-            "Share of strangers that makes it a campaign",
-            "When many accounts post the same thing at once, this is how much of that group must "
-                + "be people with no standing in your channel before it is treated as coordinated "
-                + "spam rather than a community joke.",
-            "Lower catches campaigns sooner but starts treating copypasta as an attack. Higher "
-                + "means a campaign needs to be almost entirely strangers before anything happens.",
-            0.5,
-            1
-        ),
-        new(
-            nameof(SpamDefenseSettings.DequalifyNoStandingShare),
-            "Campaign",
-            "Share at which the group is exonerated",
-            "If your regulars join in and the group falls below this, it is judged community "
-                + "behaviour after all — everything already done is undone.",
-            "Higher exonerates more readily and reverses more often. Lower makes reversal rarer. "
-                + "It must stay below the qualifying share, which is what stops a group on the "
-                + "line from flipping back and forth.",
-            0.3,
-            0.95
-        ),
-        new(
-            nameof(SpamDefenseSettings.MinimumCohortSize),
-            "Campaign",
-            "Fewest accounts that can be a campaign",
-            "Below this many distinct accounts, nothing is treated as coordinated however "
-                + "identical the messages.",
-            "Lower catches small coordinated groups but risks treating a few friends quoting each "
-                + "other as an attack. Higher lets small campaigns through.",
-            2,
-            100
-        ),
-        new(
-            nameof(SpamDefenseSettings.WindowSeconds),
-            "Campaign",
-            "How long a group is watched",
-            "Messages this far apart still count as part of the same group. Each new match "
-                + "extends it.",
-            "Longer links slower campaigns together but keeps groups open longer. Shorter misses "
-                + "campaigns that trickle.",
-            30,
-            3600
-        ),
-        new(
-            nameof(SpamDefenseSettings.MaxWindowSeconds),
-            "Campaign",
-            "Longest a group can stay open",
-            "However many messages keep arriving, a group closes after this.",
-            "Longer lets one long attack stay a single incident; shorter splits it into several.",
-            60,
-            7200
-        ),
-        new(
-            nameof(SpamDefenseSettings.ActionDelaySeconds),
-            "Campaign",
-            "Head start before acting",
-            "After a group is judged a campaign, the system waits this long before doing "
-                + "anything — long enough for one of your regulars to join in and prove it is a "
-                + "joke.",
-            "This is a real trade-off and it is yours to make. Longer means an exoneration almost "
-                + "always beats the ban, at the cost of that many seconds of visible spam. "
-                + "Shorter catches the spam faster and relies on undoing mistakes afterwards.",
-            0,
-            120
-        ),
-        new(
-            nameof(SpamDefenseSettings.AutoReverseOnDequalify),
-            "Campaign",
-            "Undo automatically when a group is exonerated",
-            "When regulars turn out to be part of a group, every timeout and ban it issued is "
-                + "reversed on its own.",
-            "Turning this off means somebody stays banned for the rest of your stream because "
-                + "they laughed along, until a moderator notices. Strongly recommended on."
-        ),
-        new(
-            nameof(SpamDefenseSettings.FollowSpikeFactor),
-            "Bursts",
-            "Follow rate that counts as unusual",
-            "How many times your channel's normal follow rate counts as a spike worth looking at. "
-                + "It is measured against your own history, so a small channel and a large one are "
-                + "never compared to each other.",
-            "Lower notices smaller spikes, including the ones caused by going viral. Note that a "
-                + "spike alone never blocks anybody — it only decides when to look closely.",
-            1.5,
-            50
-        ),
-        new(
-            nameof(SpamDefenseSettings.JoinBurstFactor),
-            "Bursts",
-            "Join rate that counts as unusual",
-            "The same, for people arriving in chat rather than following.",
-            "Lower notices smaller bursts. A raid from a friendly channel looks exactly like this, "
-                + "which is why a burst never actions anyone by itself.",
-            1.5,
-            50
-        ),
-        new(
-            nameof(SpamDefenseSettings.LockdownMinutes),
-            "Lockdown",
-            "How long the room stays tightened",
-            "During a raid the platform's own rules are tightened — slow mode, followers-only and "
-                + "so on — and put back exactly as they were after this long.",
-            "Longer keeps the room calm but keeps honest new viewers out. Shorter reopens sooner "
-                + "and may reopen into the same attack.",
-            1,
-            240
-        ),
-        new(
-            nameof(SpamDefenseSettings.LockdownAutoExtend),
-            "Lockdown",
-            "Keep it tightened while the attack continues",
-            "Extends the window as long as the attack is still arriving.",
-            "Off means the room reopens on schedule even mid-raid."
-        ),
-        new(
-            nameof(SpamDefenseSettings.LockdownMaxMinutes),
-            "Lockdown",
-            "Longest the room can stay tightened",
-            "A ceiling, so a lockdown can never be forgotten about.",
-            "Longer risks a room left restricted after everyone has gone home.",
-            5,
-            480
-        ),
-        new(
-            nameof(SpamDefenseSettings.NetworkSubscribe),
-            "Network",
-            "Use the shared spam list",
-            "Pulls known spam patterns and malicious links found by other servers. Read-only — "
-                + "nothing about your channel leaves it.",
-            "Off means you only ever catch what you have seen yourself."
-        ),
-        new(
-            nameof(SpamDefenseSettings.NetworkContribute),
-            "Network",
-            "Share what you catch",
-            "Sends the patterns your channel confirms back to the shared list. Never message "
-                + "text, never viewer identities — a pattern and nothing else.",
-            "Off by default. On helps everyone catch a campaign faster."
-        ),
-        new(
-            nameof(SpamDefenseSettings.RequiredCorroborations),
-            "Network",
-            "Reports needed before a shared pattern acts",
-            "A pattern from an unproven source only flags until this many independent servers "
-                + "have seen it too.",
-            "Lower acts on shared patterns sooner and trusts strangers more. Higher is the "
-                + "protection against one bad contributor causing mass removals everywhere.",
-            1,
-            20
-        ),
-        new(
-            nameof(SpamDefenseSettings.TrustThresholds),
-            "Trust",
-            "Trust ladder thresholds",
-            "How long someone has been around, how much they have said, and on how many separate "
-                + "days, before they count as a newcomer, a known face, a regular, or an "
-                + "established member of your channel.",
-            "Lower earns trust faster, which protects real viewers sooner and gives a patient "
-                + "spammer a shorter road. Higher is stricter on both. Reaching established means "
-                + "the system will never act against them automatically, which is why this "
-                + "particular bar is worth setting deliberately."
-        ),
+        new(nameof(SpamDefenseSettings.IsEnabled), Groups.Master),
+        new(nameof(SpamDefenseSettings.DryRun), Groups.Master),
+        new(nameof(SpamDefenseSettings.TrustThresholds), Groups.Trust),
+        new(nameof(SpamDefenseSettings.SemiTrustedWatchHoursHere), Groups.Trust, 1, 200),
+        new(nameof(SpamDefenseSettings.SemiTrustedWatchHoursInstance), Groups.Trust, 1, 500),
+        new(nameof(SpamDefenseSettings.NearDuplicateSimilarity), Groups.Content, 0, 1),
+        new(nameof(SpamDefenseSettings.MinimumSkeletonLength), Groups.Content, 2, 50),
+        new(nameof(SpamDefenseSettings.NonLatinScriptGate), Groups.Content),
+        new(nameof(SpamDefenseSettings.QualifyNoStandingShare), Groups.Campaign, 0.5, 1),
+        new(nameof(SpamDefenseSettings.DequalifyNoStandingShare), Groups.Campaign, 0.3, 0.95),
+        new(nameof(SpamDefenseSettings.MinimumCohortSize), Groups.Campaign, 2, 100),
+        new(nameof(SpamDefenseSettings.WindowSeconds), Groups.Campaign, 30, 3600),
+        new(nameof(SpamDefenseSettings.MaxWindowSeconds), Groups.Campaign, 60, 7200),
+        new(nameof(SpamDefenseSettings.ActionDelaySeconds), Groups.Campaign, 0, 120),
+        new(nameof(SpamDefenseSettings.AutoReverseOnDequalify), Groups.Campaign),
+        new(nameof(SpamDefenseSettings.FollowSpikeFactor), Groups.Bursts, 1.5, 50),
+        new(nameof(SpamDefenseSettings.JoinBurstFactor), Groups.Bursts, 1.5, 50),
+        new(nameof(SpamDefenseSettings.LockdownMinutes), Groups.Lockdown, 1, 240),
+        new(nameof(SpamDefenseSettings.LockdownAutoExtend), Groups.Lockdown),
+        new(nameof(SpamDefenseSettings.LockdownMaxMinutes), Groups.Lockdown, 5, 480),
+        new(nameof(SpamDefenseSettings.NetworkSubscribe), Groups.Network),
+        new(nameof(SpamDefenseSettings.NetworkContribute), Groups.Network),
+        new(nameof(SpamDefenseSettings.RequiredCorroborations), Groups.Network, 1, 20),
     ];
 
     /// <summary>The descriptor for a settings property, or null when there is none.</summary>
