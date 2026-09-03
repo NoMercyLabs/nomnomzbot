@@ -13,7 +13,6 @@ package bot.nomnomz.dashboard.core.network
 // Backend routes (UsersController):
 //   GET    /api/v1/users?query=…&page=&pageSize=      → PaginatedResponse<UserDto>              (viewer search)
 //   GET    /api/v1/users/{userId}/stats            → StatusResponseDto<UserStatsDto>
-//   POST   /api/v1/users/{userId}/export           → StatusResponseDto<Unit> (triggers data export email)
 //   DELETE /api/v1/users/{userId}                  → 204 No Content          (GDPR erasure, Broadcaster-only)
 interface UsersApi {
     /**
@@ -25,7 +24,6 @@ interface UsersApi {
     suspend fun search(query: String, limit: Int = 20): ApiResult<List<UserSearchResult>>
 
     suspend fun stats(userId: String): ApiResult<UserStats>
-    suspend fun export(userId: String): ApiResult<Unit>
     suspend fun erase(userId: String): ApiResult<Unit>
 }
 
@@ -44,8 +42,6 @@ class RestUsersApi(private val client: ApiClient) : UsersApi {
     override suspend fun stats(userId: String): ApiResult<UserStats> =
         client.getEnvelope("api/v1/users/$userId/stats")
 
-    override suspend fun export(userId: String): ApiResult<Unit> =
-        client.postUnit("api/v1/users/$userId/export")
 
     override suspend fun erase(userId: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/users/$userId")

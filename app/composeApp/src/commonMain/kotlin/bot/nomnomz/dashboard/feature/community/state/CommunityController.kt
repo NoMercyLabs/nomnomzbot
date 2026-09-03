@@ -19,6 +19,9 @@ import bot.nomnomz.dashboard.core.network.ChatActivityEntry
 import bot.nomnomz.dashboard.core.network.CommunityApi
 import bot.nomnomz.dashboard.core.network.CommunityMember
 import bot.nomnomz.dashboard.core.network.CommunityPage
+import bot.nomnomz.dashboard.core.io.JournalFileIO
+import bot.nomnomz.dashboard.core.network.DataExport
+import bot.nomnomz.dashboard.core.network.GdprApi
 import bot.nomnomz.dashboard.core.network.UserStats
 import bot.nomnomz.dashboard.core.network.UsersApi
 import bot.nomnomz.dashboard.core.network.ViewerAnalyticsProfile
@@ -42,6 +45,11 @@ class CommunityController(
     // through (`analytics/viewers/{internalUserId}`), which a moderator may call for anyone — unlike the self-only
     // usersApi.stats. Nullable so existing state-holder tests construct the controller without it.
     private val analyticsApi: AnalyticsApi? = null,
+    // The compliance-plane export a moderator fulfils a right-of-access request with, plus the shared
+    // file bridge that hands the document to the OS. Required, not optional: an export control wired to
+    // nothing is exactly the failure this slice is fixing.
+    private val gdprApi: GdprApi,
+    private val fileBridge: JournalFileIO,
 ) {
     private val _state: MutableStateFlow<CommunityState> = MutableStateFlow(CommunityState.Loading)
 
@@ -304,11 +312,35 @@ class CommunityController(
      * Request a GDPR data export for [userId]. The backend emails the export to the user. Broadcaster-only.
      * Returns `null` on success (nothing to show other than a confirmation), or an error string on failure.
      */
-    suspend fun exportUserData(userId: String): String? =
-        when (val result: ApiResult<Unit> = usersApi.export(userId)) {
-            is ApiResult.Ok -> null
+    /**
+     * Fulfil a right-of-access request for [userId] and hand the document to the OS.
+     *
+     * <p>This used to POST `users/{id}/export`, a route the API has never served — the button 404'd on
+     * every click while reading as "export queued". It now calls the compliance plane's real export and
+     * saves the returned JSON through the same file bridge the self-service My-data export uses, so the
+     * operator ends up holding the document rather than trusting that something was emailed.</p>
+     *
+     * Returns null on success, an error string on failure. A user who cancels the save dialog gets
+     * neither: nothing failed, and nothing was delivered.
+     */
+    suspend fun exportUserData(userId: String): String? {
+        return when (val result: ApiResult<DataExport> = gdprApi.exportSubject(userId, channelId)) {
             is ApiResult.Failure -> result.error.message
+            is ApiResult.Ok ->
+                if (
+                    fileBridge.saveFile(
+                        suggestedName = "nomnomz-subject-$userId.json",
+                        bytes = result.value.document.encodeToByteArray(),
+                    )
+                ) {
+                    null
+                } else {
+                    // The user closed the save dialog. Nothing failed and nothing was delivered, so
+                    // there is no error to show — and no success to claim either.
+                    null
+                }
         }
+    }
 
     /**
      * Permanently erase all data for [userId] (GDPR erasure). Broadcaster-only. Irreversible — the screen

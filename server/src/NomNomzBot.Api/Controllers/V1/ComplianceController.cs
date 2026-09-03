@@ -65,6 +65,37 @@ public class ComplianceController : BaseController
         return ResultResponse(result);
     }
 
+    /// <summary>
+    /// Export a subject's personal data on their behalf (right of access, operator-initiated).
+    ///
+    /// <para>The self-service <c>GET /gdpr/export</c> only ever exports the CALLER's own data, so an
+    /// access request that arrives to the operator rather than from the subject's own dashboard had no
+    /// route to fulfil it. This is that route, and it is the operator sibling of
+    /// <see cref="PreviewErasure"/> — same plane, same key, same read-only nature.</para>
+    ///
+    /// <para>Gated on <c>compliance:erasure</c>, the compliance plane's key: the erasure preview beside
+    /// it already reads a subject's personal-data counts under exactly that gate, and exporting a
+    /// stranger's personal data is not something a channel moderator does in passing.</para>
+    /// </summary>
+    [HttpGet("export")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
+    [Authorize(Policy = IamPermissionKeys.ComplianceErasure)]
+    [ProducesResponseType<StatusResponseDto<DataExportDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ExportSubjectData(
+        [FromQuery] Guid subjectUserId,
+        [FromQuery] Guid? broadcasterId,
+        CancellationToken ct
+    )
+    {
+        Result<DataExportDto> result = await _erasure.RequestExportAsync(
+            // "platform_iam" rather than "self_service": the ledger must record that an operator
+            // fulfilled this, not that the subject asked from their own dashboard.
+            new(subjectUserId, broadcasterId, "platform_iam"),
+            ct
+        );
+        return ResultResponse(result);
+    }
+
     [HttpPost("erasure")]
     [DestructiveAction(HasCountedBlastRadius = true)]
     [Authorize(Policy = IamPermissionKeys.ComplianceErasure)]

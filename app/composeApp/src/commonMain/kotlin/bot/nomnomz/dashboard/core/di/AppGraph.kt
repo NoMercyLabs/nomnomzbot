@@ -377,6 +377,10 @@ class AppGraph {
     val vtsApi: VtsApi = RestVtsApi(apiClient)
     val automationApi: AutomationApi = RestAutomationApi(apiClient)
     val gdprApi: GdprApi = RestGdprApi(apiClient)
+
+    // The per-target OS file save/pick seam for journal export/import, built like the other platform engines.
+    private val journalFileBridge: JournalFileBridge = JournalFileBridge()
+
     val mediaShareApi: MediaShareApi = RestMediaShareApi(apiClient)
     val bundlesApi: BundlesApi = RestBundlesApi(apiClient)
     val marketplaceApi: MarketplaceApi = RestMarketplaceApi(apiClient)
@@ -462,6 +466,8 @@ class AppGraph {
             usersApi = usersApi,
             viewerDataApi = viewerDataApi,
             analyticsApi = analyticsApi,
+            gdprApi = gdprApi,
+            fileBridge = journalFileBridge,
         )
 
     val commandsController: CommandsController =
@@ -556,9 +562,6 @@ class AppGraph {
             baseUrlProvider = sessionStore::baseUrl,
             feedback = feedbackController,
         )
-
-    // The per-target OS file save/pick seam for journal export/import, built like the other platform engines.
-    private val journalFileBridge: JournalFileBridge = JournalFileBridge()
 
     val journalPortabilityController: JournalPortabilityController =
         JournalPortabilityController(
