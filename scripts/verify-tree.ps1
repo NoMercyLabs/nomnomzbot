@@ -46,7 +46,16 @@ $server = Join-Path $root 'server'
 [bool]$failed = $false
 
 # Trap 1: stray processes hold the DLLs and the build reports file-lock errors that read like real ones.
+# The process NAMES differ by host: Windows shows testhost/NomNomzBot.Api, but on Linux (the devbox
+# container) both run as plain `dotnet`, so matching only the Windows names silently kills nothing.
+# Linux does not lock open files the way Windows does, so there the kill is about a stale API holding
+# the port, not the DLLs - matched on its command line instead of its name.
 Get-Process -Name 'testhost', 'NomNomzBot.Api' -ErrorAction SilentlyContinue | Stop-Process -Force
+if (-not $IsWindows) {
+    Get-Process -Name 'dotnet' -ErrorAction SilentlyContinue |
+        Where-Object { $_.CommandLine -match 'testhost|NomNomzBot\.Api' } |
+        Stop-Process -Force -ErrorAction SilentlyContinue
+}
 Start-Sleep -Seconds 2
 
 Push-Location $server
