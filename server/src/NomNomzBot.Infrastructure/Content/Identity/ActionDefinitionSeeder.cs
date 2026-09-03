@@ -355,6 +355,16 @@ public sealed class ActionDefinitionSeeder : ISeeder
         // for the whole channel is the broadcaster's call.
         M("moderation:automod:twitch:read", Mod);
         M("moderation:automod:twitch:manage", Broadcaster);
+        // Spam defence (spam-defense.md §6). Reading the detection log is a moderator's core review
+        // work — it IS the review queue. Changing the weights retunes who the bot auto-actions
+        // channel-wide and is where enforcement gets switched on at all, so like trust tuning the
+        // manage floor is the broadcaster. Overturning a single verdict stays with moderators: it is
+        // the correction path, and making it owner-only would leave mods watching false positives they
+        // cannot fix.
+        M("spam:policy:read", Mod);
+        M("spam:policy:manage", Broadcaster);
+        M("spam:detections:read", Mod);
+        M("spam:detections:manage", Mod);
         // Re-broadcasting a past alert to overlays is presentation-only (no currency/loyalty/reward
         // side effect), same moderator floor as the other widget/dashboard write actions.
         M("dashboard:replay", Mod);

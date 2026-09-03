@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Domain.Moderation.SpamDefense;
 
 namespace NomNomzBot.Application.Moderation.Services;
@@ -68,6 +69,31 @@ public interface ISpamDefenseService
     Task<Result<SpamDefenseSettings>> UpdateSettingsAsync(
         Guid broadcasterId,
         SpamDefenseSettings settings,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// The full configuration surface: current values, the metadata to render an editor for them, and
+    /// the guarantees that have no switch.
+    /// </summary>
+    Task<SpamDefensePolicyDto> GetPolicyAsync(Guid broadcasterId, CancellationToken ct = default);
+
+    /// <summary>Recent verdicts, newest first — the review queue and the dry-run report.</summary>
+    Task<IReadOnlyList<SpamDetectionDto>> GetDetectionsAsync(
+        Guid broadcasterId,
+        int page = 1,
+        int pageSize = 25,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// Mark a verdict wrong. This is the correction path, and the number that matters when judging
+    /// whether the weights are set right — a channel with a rising overturn rate is one whose settings
+    /// need loosening, and the operator should be able to see that.
+    /// </summary>
+    Task<Result> OverturnDetectionAsync(
+        Guid broadcasterId,
+        Guid detectionId,
         CancellationToken ct = default
     );
 
