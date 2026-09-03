@@ -620,6 +620,55 @@ class MusicControllerTest {
         assertEquals(45_000, nowPlaying.progressMs)
         assertEquals("https://i.scdn.co/image/abc", nowPlaying.imageUrl)
     }
+
+    // The screen's local ticker calls this once it counts up to the track's predicted natural end. A missed
+    // hub push (reconnect gap, dropped frame) would otherwise leave the card frozen forever — this must fall
+    // back to a real backend read and stop as soon as that read shows a different track actually playing.
+    @Test
+    fun predicted_track_end_refetches_and_stops_as_soon_as_a_new_track_is_observed() = runTest {
+        val finished =
+            NowPlaying(trackName = "Song A", artist = "Artist", durationMs = 200_000, progressMs = 200_000, isPlaying = true)
+        val next = NowPlaying(trackName = "Song B", artist = "Artist", durationMs = 180_000, progressMs = 4_000, isPlaying = true)
+        val musicApi =
+            FakeMusicApi(listOf(ApiResult.Ok(MusicSnapshot(nowPlaying = finished)), ApiResult.Ok(MusicSnapshot(nowPlaying = next))))
+        val controller =
+            MusicController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), musicApi)
+        controller.load()
+
+        controller.onPredictedTrackEndReached()
+
+        // 1 initial load() + exactly 1 resync read — it must not keep polling once the new track shows up.
+        assertEquals(2, musicApi.queueCalls)
+        val ready: MusicState.Ready = controller.state.value as MusicState.Ready
+        assertEquals("Song B", assertNotNull(ready.nowPlaying).trackName)
+    }
+
+    @Test
+    fun predicted_track_end_gives_up_after_its_retry_budget_when_the_same_finished_track_keeps_reporting() = runTest {
+        val finished =
+            NowPlaying(trackName = "Song A", artist = "Artist", durationMs = 200_000, progressMs = 200_000, isPlaying = true)
+        val musicApi = FakeMusicApi(ApiResult.Ok(MusicSnapshot(nowPlaying = finished)))
+        val controller =
+            MusicController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), musicApi)
+        controller.load()
+
+        controller.onPredictedTrackEndReached()
+
+        // 1 initial load() + a bounded retry budget (3) — it must stop, not poll the backend forever.
+        assertEquals(4, musicApi.queueCalls)
+    }
+
+    @Test
+    fun predicted_track_end_does_nothing_without_a_ready_now_playing_state() = runTest {
+        val musicApi = FakeMusicApi(ApiResult.Ok(MusicSnapshot()))
+        val controller =
+            MusicController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), musicApi)
+        // No load() — the controller is still MusicState.Loading, with no nowPlaying to have "ended".
+
+        controller.onPredictedTrackEndReached()
+
+        assertEquals(0, musicApi.queueCalls)
+    }
 }
 
 private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {
