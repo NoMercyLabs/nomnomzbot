@@ -177,7 +177,15 @@ public sealed record AutomodConfigDto(
     // The J.5 heat threshold (moderation.md §3.8): UserHeatThresholdCrossedEvent fires when a viewer's
     // HeatScore crosses this upward. Stored configs predating the field deserialize to 0 → readers treat
     // <= 0 as the default (80).
-    int HeatTimeoutThreshold = 80
+    int HeatTimeoutThreshold = 80,
+    // Whether crossing that threshold actually times the viewer out (J.7 AutoTimeoutOnHeat).
+    // DEFAULT OFF, and deliberately so: this is the one setting that lets the bot punish a viewer with
+    // no human in the loop, so a channel opts in rather than discovering it. Off, a crossing only
+    // flags for review. The broadcaster, moderators and VIPs are NEVER auto-timed-out at any setting.
+    bool AutoTimeoutOnHeat = false,
+    // Timeout length applied when AutoTimeoutOnHeat fires. Stored configs predating the field
+    // deserialize to 0 → readers treat <= 0 as the default (600s / 10 minutes).
+    int HeatTimeoutSeconds = 600
 );
 
 // ─── Bans ────────────────────────────────────────────────────────────────────
