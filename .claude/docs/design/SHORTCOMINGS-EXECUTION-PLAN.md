@@ -60,13 +60,6 @@ when done) — this section is only the intake, not a shortcut around the bar.
     truncated), a closed-set sort (newest/oldest/name), and filter chips (live/offline for channels,
     platform-staff/everyone-else for users). Backend ordering and filtering are asserted against a seeded
     database, including that an unknown sort key falls back to the default rather than reaching the query.
-  - **No provider/system-credential management screen exists at all** — grep of `feature/admin/**` and
-    `Controllers/V1/*Admin*.cs` turns up no endpoint or tab for viewing/rotating the platform-level OAuth
-    client id/secret pairs (Twitch/Spotify/Discord/YouTube/Kick/Twitter — see the `.env`/`appsettings.json`
-    table in `CLAUDE.md`) that a SaaS operator would need to manage centrally. `SystemTab`
-    (`AdminScreen.kt:442`) is health/version/CPU/memory only. This is the literal "providers" half of the
-    owner's ask and has no backend surface yet — needs its own spec pass (which provider fields are safe to
-    show/rotate from the dashboard vs. env-only) before implementation.
   - ~~**`FeatureFlagsTab` is read-only in the UI** despite the backend supporting writes.~~ **CLOSED 2026-09-02
     (`cb9596fa`, S-OWN08a).** `FeatureFlagsTab` now carries a per-flag toggle calling `setFeatureFlag`, the
     per-tenant override editor calling `setFeatureFlagOverride`/`deleteFeatureFlagOverride`, in-flight row

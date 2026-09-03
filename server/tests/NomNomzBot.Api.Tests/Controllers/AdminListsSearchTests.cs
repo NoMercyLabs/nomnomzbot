@@ -16,6 +16,7 @@ using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
+using NomNomzBot.Application.Platform.Services;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Infrastructure.Identity;
@@ -48,7 +49,7 @@ public sealed class AdminListsSearchTests
             Substitute.For<IPlatformBotReadinessGate>()
         );
 
-        AdminController controller = new(adminService, db, Substitute.For<IDekRotationService>());
+        AdminController controller = new(adminService, db, Substitute.For<IDekRotationService>(), Substitute.For<IProviderCredentialService>());
         return (controller, db);
     }
 

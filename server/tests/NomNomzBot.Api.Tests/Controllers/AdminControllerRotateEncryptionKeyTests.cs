@@ -15,6 +15,7 @@ using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Application.Platform.Services;
 using NomNomzBot.Application.Services;
 using NSubstitute;
 
@@ -39,7 +40,12 @@ public sealed class AdminControllerRotateEncryptionKeyTests
             .RotateAllDeksAsync("old-key", "new-key", Arg.Any<CancellationToken>())
             .Returns(Result.Success(summary));
 
-        AdminController controller = new(adminService, db, rotationService);
+        AdminController controller = new(
+            adminService,
+            db,
+            rotationService,
+            Substitute.For<IProviderCredentialService>()
+        );
 
         IActionResult result = await controller.RotateEncryptionKey(
             new("old-key", "new-key"),

@@ -13,12 +13,15 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Application.Platform.Dtos;
+using NomNomzBot.Application.Platform.Services;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Domain.Identity;
 
@@ -40,16 +43,19 @@ public class AdminController : BaseController
     private readonly IAdminService _adminService;
     private readonly IApplicationDbContext _db;
     private readonly IDekRotationService _dekRotationService;
+    private readonly IProviderCredentialService _providerCredentials;
 
     public AdminController(
         IAdminService adminService,
         IApplicationDbContext db,
-        IDekRotationService dekRotationService
+        IDekRotationService dekRotationService,
+        IProviderCredentialService providerCredentials
     )
     {
         _adminService = adminService;
         _db = db;
         _dekRotationService = dekRotationService;
+        _providerCredentials = providerCredentials;
     }
 
     public record ServiceHealthResponseDto(string Name, string Status);
@@ -67,6 +73,59 @@ public class AdminController : BaseController
         Result<AdminStatsDto> result = await _adminService.GetStatsAsync(ct);
         return ResultResponse(result);
     }
+
+    // ── Provider app credentials ─────────────────────────────────────────────
+
+    /// <summary>
+    /// Every provider's OAuth app credential state: the resolved client id, and for both fields whether the
+    /// value in play is a stored one or the environment's.
+    ///
+    /// <para>The setup wizard writes these once and then has no further say; until now nothing could read
+    /// back what was configured or rotate a leaked secret without editing the database by hand.</para>
+    ///
+    /// <para><b>No secret is ever returned</b> — only whether one exists and which source wins. The client
+    /// id is returned because it is a public identifier that appears in every OAuth URL a viewer's browser
+    /// already sees, and withholding it would only stop the operator checking the value most likely wrong.</para>
+    /// </summary>
+    [HttpGet("providers")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
+    [Authorize(Policy = IamPermissionKeys.IamManage)]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<ProviderCredentialDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> ListProviderCredentials(CancellationToken ct) =>
+        ResultResponse(await _providerCredentials.ListAsync(ct));
+
+    /// <summary>
+    /// Stores a client id and/or secret for one provider. A blank field is left untouched, so rotating a
+    /// secret needs no id and a half-filled form cannot wipe a working credential.
+    /// </summary>
+    [HttpPut("providers/{provider}")]
+    [Authorize(Policy = IamPermissionKeys.IamManage)]
+    [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
+    [ProducesResponseType<StatusResponseDto<ProviderCredentialDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SaveProviderCredential(
+        string provider,
+        [FromBody] SaveProviderCredentialRequest request,
+        CancellationToken ct
+    ) => ResultResponse(await _providerCredentials.SaveAsync(provider, request, ct));
+
+    /// <summary>
+    /// Clears a provider's STORED credentials, handing resolution back to the environment.
+    ///
+    /// <para>Destructive, and the repair path for a real failure: a stored secret shadows the environment,
+    /// so an operator who fixes a rotated secret in their <c>.env</c> keeps getting 401s from a stale stored
+    /// value they cannot see. It is a separate verb precisely so it can never happen by accident.</para>
+    /// </summary>
+    [HttpDelete("providers/{provider}")]
+    [DestructiveAction]
+    [Authorize(Policy = IamPermissionKeys.IamManage)]
+    [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
+    [ProducesResponseType<StatusResponseDto<ProviderCredentialDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ClearProviderCredential(
+        string provider,
+        CancellationToken ct
+    ) => ResultResponse(await _providerCredentials.ClearAsync(provider, ct));
 
     /// <summary>Returns all channels with their current status.</summary>
     [HttpGet("channels")]
