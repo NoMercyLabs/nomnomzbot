@@ -118,6 +118,32 @@ public sealed class MusicControlActionsTests
         await music.DidNotReceive().PauseAsync(ChannelId.ToString(), Arg.Any<CancellationToken>());
     }
 
+    /// <summary>The latency fix: when a cached hint is available, the toggle must decide from THAT and
+    /// never call the full <c>GetNowPlayingAsync</c> read at all — a redundant live provider round trip
+    /// on every single toggle press otherwise. A test that only checked Pause/Play were called would
+    /// pass even if this were still calling GetNowPlayingAsync every time — DidNotReceive on the read
+    /// itself is the assertion that actually pins the fast path.</summary>
+    [Fact]
+    public async Task Play_pause_decides_from_the_cached_hint_without_a_full_read_when_available()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .TryGetCachedIsPlayingAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns((bool?)true);
+        music
+            .PauseAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        MusicPlayPauseAction action = new(music);
+
+        ActionResult result = await action.ExecuteAsync(Ctx(), Def("music_play_pause"));
+
+        result.Succeeded.Should().BeTrue();
+        await music.Received(1).PauseAsync(ChannelId.ToString(), Arg.Any<CancellationToken>());
+        await music
+            .DidNotReceive()
+            .GetNowPlayingAsync(ChannelId.ToString(), Arg.Any<CancellationToken>());
+    }
+
     // ─── music_toggle_shuffle: writes the OPPOSITE of the fixture ─────────────
 
     [Fact]
