@@ -7034,6 +7034,196 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.ToTable("SharedBanTrustedChannels");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.SpamDefensePolicy", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ActionDelaySeconds")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("AutoReverseOnDequalify")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<double>("DequalifyNoStandingShare")
+                        .HasColumnType("double precision");
+
+                    b.Property<bool>("DryRun")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("EnforcementEligibleAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double>("FollowSpikeFactor")
+                        .HasColumnType("double precision");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<double>("JoinBurstFactor")
+                        .HasColumnType("double precision");
+
+                    b.Property<bool>("LockdownAutoExtend")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("LockdownMaxMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("LockdownMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MaxWindowSeconds")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MinimumCohortSize")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MinimumSkeletonLength")
+                        .HasColumnType("integer");
+
+                    b.Property<double>("NearDuplicateSimilarity")
+                        .HasColumnType("double precision");
+
+                    b.Property<bool>("NetworkContribute")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("NetworkSubscribe")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("NonLatinScriptGate")
+                        .HasColumnType("boolean");
+
+                    b.Property<double>("QualifyNoStandingShare")
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("RequiredCorroborations")
+                        .HasColumnType("integer");
+
+                    b.Property<double>("SemiTrustedWatchHoursHere")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("SemiTrustedWatchHoursInstance")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("WindowSeconds")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId")
+                        .IsUnique();
+
+                    b.ToTable("SpamDefensePolicies");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.SpamDetection", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Confidence")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("DetectedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("MessageId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("MessageText")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<int>("Outcome")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("OverturnedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("Signals")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Skeleton")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("SubjectDisplayName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("SubjectPlatformUserId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("Tier")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("WasDryRun")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("WouldHaveBeen")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "DetectedAt")
+                        .IsDescending(false, true);
+
+                    b.HasIndex("BroadcasterId", "SubjectPlatformUserId");
+
+                    b.ToTable("SpamDetections");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Moderation.Entities.UserModerationHistory", b =>
                 {
                     b.Property<long>("Id")

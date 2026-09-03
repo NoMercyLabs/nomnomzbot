@@ -87,6 +87,7 @@ public static class ChannelBlastRadiusSources
         Of(BlastRadiusCategoryKeys.ChannelViewers, db => db.UserModerationHistories),
         Of(BlastRadiusCategoryKeys.ChannelViewers, db => db.UserTrustScores),
         Of(BlastRadiusCategoryKeys.ChannelViewers, db => db.ModerationQueueItems),
+        Of(BlastRadiusCategoryKeys.ChannelViewers, db => db.SpamDetections),
         Of(BlastRadiusCategoryKeys.ChannelViewers, db => db.UserTtsVoices),
         Of(BlastRadiusCategoryKeys.ChannelViewers, db => db.FoundersBadges),
         Of(BlastRadiusCategoryKeys.ChannelViewers, db => db.CurrencyConfigs),
@@ -201,6 +202,7 @@ public static class ChannelBlastRadiusSources
         Of(BlastRadiusCategoryKeys.ChannelOther, db => db.SecurityNotices),
         Of(BlastRadiusCategoryKeys.ChannelOther, db => db.ActionRequiredDismissals),
         Of(BlastRadiusCategoryKeys.ChannelOther, db => db.TrustPolicies),
+        Of(BlastRadiusCategoryKeys.ChannelOther, db => db.SpamDefensePolicies),
         Of(BlastRadiusCategoryKeys.ChannelOther, db => db.EventJournals),
         Of(BlastRadiusCategoryKeys.ChannelOther, db => db.Records),
         // Past stream sessions and the tenant's id sequence: real rows that die with the channel, but nothing

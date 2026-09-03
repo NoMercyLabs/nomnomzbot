@@ -159,6 +159,12 @@ internal sealed class BillingTierChangeTestDbContext : DbContext, IApplicationDb
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Trust.Entities.TrustPolicy> TrustPolicies =>
         throw new NotSupportedException();
+
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.SpamDefensePolicy> SpamDefensePolicies =>
+        throw new NotSupportedException();
+
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.SpamDetection> SpamDetections =>
+        throw new NotSupportedException();
     public DbSet<ChannelModerationStanding> ChannelModerationStandings =>
         throw new NotSupportedException();
     public DbSet<SharedBanSettings> SharedBanSettings => throw new NotSupportedException();
