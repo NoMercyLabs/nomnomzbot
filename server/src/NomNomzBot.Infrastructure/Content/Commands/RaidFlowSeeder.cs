@@ -199,39 +199,17 @@ public sealed class RaidFlowSeeder : ISeeder
     /// </summary>
     private static IEnumerable<SeedStep> BuildSteps()
     {
+        // Start the raid, and nothing else. Everything that used to follow — the ending scene, the
+        // call-out messages — was fired optimistically here, before Twitch had confirmed anything, so a
+        // raid it rejected (target offline, bad name, no permission) still switched the scene and posted
+        // to chat. Those steps now hang off channel.raid.start (RaidStartFlowSeeder), and stopping the
+        // stream and the music off channel.raid.out (RaidCommitFlowSeeder), which fires when the raid
+        // has actually executed.
+        //
+        // No countdown and no wait_until_raid_fires: Twitch's own timer commits the raid on ITS clock,
+        // and both halves of the flow are now driven by Twitch's own events. Three live recalibrations
+        // of a fixed offset (90s -> 103s -> 116s) each came back still wrong by the same margin — the
+        // fixed wait was the wrong tool, not an under-tuned constant.
         yield return new("start_raid", """{"target":"{args.1}"}""");
-        // ContinueOnError=true: matches the legacy bot's fire-and-forget `_ = SwitchToEndingScene(...)` —
-        // an OBS hiccup here must never take down the rest of the intro (confirmed live 2026-09-01:
-        // without this, "OBS connection closed" on this ONE step killed the entire rest of the raid
-        // while Twitch's clock kept ticking).
-        yield return new("obs_switch_scene", """{"scene":"Ending"}""", ContinueOnError: true);
-        // {args.1} is the template engine's own single-brace token syntax (matches start_raid's
-        // {"target":"{args.1}"} above) — confirmed live 2026-09-01: an earlier version of this line
-        // wrapped it in an EXTRA decorative brace pair (meant to double-escape it inside this raw C#
-        // interpolated string), which the resolver only stripped the inner layer of, so chat saw the
-        // literal text "RAID INCOMING to {jddoesdev}!" instead of the resolved name.
-        yield return new(
-            "send_message",
-            """{"message":"We're heading out to {args.1}, thanks for watching!"}"""
-        );
-        yield return new("wait", """{"seconds":1}""");
-        yield return new(
-            "send_message",
-            """{"message":"Big bird raid stoney90Hmmm Big bird raid stoney90Hmmm Big bird raid stoney90Hmmm"}"""
-        );
-        yield return new("wait", """{"seconds":1}""");
-        yield return new(
-            "send_message",
-            """{"message":"Big bird raid 🦅 Big bird raid 🦅 Big bird raid 🦅"}"""
-        );
-
-        // That's it — no countdown, no wait_until_raid_fires. Twitch's own server-side timer commits
-        // the raid on ITS clock, independent of anything this pipeline does; stopping the stream
-        // earlier or later doesn't change when viewers actually get redirected. Stopping the stream,
-        // pausing the music and the final chat line all happen REACTIVELY instead — wired to the
-        // channel.raid.out event response (see RaidCommitFlowSeeder) so they fire off Twitch's own
-        // signal that the raid is under way, not a guessed elapsed-time offset. Three separate live
-        // recalibrations of that offset (90s -> 103s -> 116s) each came back still wrong by the same
-        // reported margin — the fixed-wait approach was the wrong tool, not an under-tuned constant.
     }
 }
