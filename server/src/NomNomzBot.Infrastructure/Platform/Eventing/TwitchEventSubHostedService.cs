@@ -708,7 +708,10 @@ public sealed class TwitchEventSubHostedService
         {
             BroadcasterId = broadcasterId,
             TwitchBroadcasterUserId = twitchId ?? botTwitchUserId!,
-            EventType = eventType,
+            // Twitch is asked for the WIRE type; our registry row keeps the catalogue key. They differ for
+            // exactly one topic — channel.raid.out is a second channel.raid subscription keyed on the
+            // raider — and the row has to stay distinct so each direction owns its own lifecycle.
+            EventType = _conditionBuilder.GetWireType(eventType),
             Version = version,
             Condition = condition,
             UserAccessTokenOwner = tokenOwner,

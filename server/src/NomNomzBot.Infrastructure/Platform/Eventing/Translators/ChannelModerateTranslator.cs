@@ -59,12 +59,14 @@ public sealed class ChannelModerateTranslator(IEventBus bus, TimeProvider clock)
 
         await PublishAsync(moderated, ct);
 
-        // The `raid` action is the ONE observable signal for an OUTGOING raid (the channel.raid subscription is
-        // to_broadcaster-keyed, incoming only): its detail names the raided channel + the viewer count. Split it
-        // into the dedicated OutgoingRaidEvent so channel.raid.out responses fire alongside the generic feed.
+        // The `raid` action fires when the raid is STARTED — the countdown is running and the broadcaster
+        // can still cancel. It used to be published as OutgoingRaidEvent, i.e. as though the raid had
+        // happened, which is why a raid pipeline that stops the stream ended the broadcast at the start of
+        // the countdown. The executed raid now comes from the from_-keyed channel.raid subscription
+        // (ChannelRaidTranslator); this stays as the distinct "it is beginning" signal.
         if (action == "raid" && detail is { } raid)
         {
-            OutgoingRaidEvent outgoing = new()
+            OutgoingRaidStartedEvent starting = new()
             {
                 BroadcasterId = notification.BroadcasterId,
                 OccurredAt = Clock.GetUtcNow(),
@@ -73,7 +75,7 @@ public sealed class ChannelModerateTranslator(IEventBus bus, TimeProvider clock)
                 ToLogin = raid.GetRequiredString("user_login"),
                 ViewerCount = raid.GetInt("viewer_count"),
             };
-            await PublishAsync(outgoing, ct);
+            await PublishAsync(starting, ct);
         }
     }
 }

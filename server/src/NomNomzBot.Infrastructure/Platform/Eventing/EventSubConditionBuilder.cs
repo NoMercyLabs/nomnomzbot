@@ -45,6 +45,7 @@ public sealed class EventSubConditionBuilder : IEventSubConditionBuilder
         BroadcasterAndModerator,
         BroadcasterAndUser,
         RaidTo,
+        RaidFrom,
         UserOnly,
     }
 
@@ -80,6 +81,14 @@ public sealed class EventSubConditionBuilder : IEventSubConditionBuilder
             {
                 ["to_broadcaster_user_id"] = twitchBroadcasterUserId,
             },
+            // The OUTGOING half. Twitch only reports a raid this channel sent — and only once it has
+            // actually executed and the viewers have moved — through a channel.raid subscription keyed on
+            // the raider. Without this subscription the sole outgoing signal is channel.moderate's `raid`
+            // action, which fires the moment the countdown STARTS.
+            ConditionShape.RaidFrom => new Dictionary<string, string>
+            {
+                ["from_broadcaster_user_id"] = twitchBroadcasterUserId,
+            },
             ConditionShape.UserOnly => new Dictionary<string, string> { ["user_id"] = slotUserId },
             _ => new Dictionary<string, string>
             {
@@ -87,6 +96,18 @@ public sealed class EventSubConditionBuilder : IEventSubConditionBuilder
             },
         };
     }
+
+    /// <summary>
+    /// Our catalogue key for the outgoing half of <c>channel.raid</c>. It is NOT a Twitch topic name —
+    /// <see cref="GetWireType"/> maps it back to <c>channel.raid</c> at subscribe time — but it needs its
+    /// own key so the two directions get their own subscription rows and their own lifecycles.
+    /// </summary>
+    /// Deliberately NOT "channel.raid.out": that string is the EVENT-RESPONSE key streamers configure, and
+    /// two different catalogues sharing one name is how someone later wires the wrong one.
+    public const string OutgoingRaidTopic = "channel.raid.outgoing";
+
+    public string GetWireType(string eventType) =>
+        eventType == OutgoingRaidTopic ? "channel.raid" : eventType;
 
     public string GetVersion(string eventType) =>
         eventType switch
@@ -131,6 +152,7 @@ public sealed class EventSubConditionBuilder : IEventSubConditionBuilder
         eventType switch
         {
             "channel.raid" => ConditionShape.RaidTo,
+            OutgoingRaidTopic => ConditionShape.RaidFrom,
             "user.update" or "user.whisper.message" => ConditionShape.UserOnly,
             _ when ModeratorPlaneEvents.Contains(eventType) =>
                 ConditionShape.BroadcasterAndModerator,

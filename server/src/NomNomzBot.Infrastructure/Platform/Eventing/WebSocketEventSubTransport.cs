@@ -720,7 +720,7 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
                         ParseTimestamp(envelope.Metadata.MessageTimestamp),
                         sub.Type,
                         sub.Version ?? "1",
-                        ExtractBroadcasterId(@event),
+                        ResolveTenantKey(sub, @event),
                         @event.Value,
                         ct
                     );
@@ -737,6 +737,36 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
             double seconds = baseDelay.TotalSeconds * Random.Shared.NextDouble();
             return TimeSpan.FromSeconds(seconds);
         }
+    }
+
+    /// <summary>
+    /// The Twitch user id this notification belongs to US as.
+    ///
+    /// <para>For every topic but one, the payload answers it: the event body names the broadcaster whose
+    /// channel it happened in. <c>channel.raid</c> is the exception — its payload names the raider AND the
+    /// raided, and we subscribe BOTH directions, so the payload cannot say which side we are. Worse, the
+    /// payload scan checks <c>to_broadcaster_user_id</c> first, so an outgoing raid would be attributed to
+    /// the channel being raided — and if that channel is also hosted here, to a real, wrong tenant.</para>
+    ///
+    /// <para>The subscription's own condition is the authoritative answer, so raids use it.</para>
+    /// </summary>
+    private static string ResolveTenantKey(Wire.Subscription sub, JsonElement? @event)
+    {
+        if (sub is { Type: "channel.raid", Condition: { } condition })
+        {
+            if (
+                condition.TryGetValue("from_broadcaster_user_id", out string? from)
+                && !string.IsNullOrEmpty(from)
+            )
+                return from;
+            if (
+                condition.TryGetValue("to_broadcaster_user_id", out string? to)
+                && !string.IsNullOrEmpty(to)
+            )
+                return to;
+        }
+
+        return ExtractBroadcasterId(@event);
     }
 
     private static string ExtractBroadcasterId(JsonElement? @event)
@@ -825,6 +855,13 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
             public string? Type { get; init; }
             public string? Version { get; init; }
             public string? Status { get; init; }
+
+            /// <summary>
+            /// The condition Twitch echoes back with every notification. Needed for raids: one
+            /// channel.raid payload names BOTH sides, so the payload alone cannot say which of them we
+            /// subscribed as — and on an instance hosting both channels, guessing picks the wrong tenant.
+            /// </summary>
+            public Dictionary<string, string>? Condition { get; init; }
         }
     }
 }

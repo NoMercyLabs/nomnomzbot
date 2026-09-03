@@ -10,15 +10,23 @@
 
 using System.Text.Json;
 using NomNomzBot.Application.DTOs.Twitch.EventSub;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Stream.Events;
 
 namespace NomNomzBot.Infrastructure.Platform.Eventing.Translators;
 
 /// <summary>
-/// Translates <c>channel.raid</c> (keyed on <c>to_broadcaster_user_id</c> — a raid arriving at this channel)
-/// into <see cref="RaidEvent"/>. Payload fields: <c>from_broadcaster_user_id</c>,
-/// <c>from_broadcaster_user_name</c>, <c>from_broadcaster_user_login</c>, <c>viewers</c>.
+/// Translates <c>channel.raid</c> — BOTH directions, because both arrive under the same topic name.
+///
+/// <para>We hold two subscriptions: one keyed on <c>to_broadcaster_user_id</c> (a raid arriving here) and
+/// one on <c>from_broadcaster_user_id</c> (a raid this channel sent, reported once it has EXECUTED and the
+/// viewers have moved). The payload names both sides either way, so direction is decided by which of them
+/// is us — the transport has already resolved that from the subscription's own condition.</para>
+///
+/// <para>The outgoing half is the fix for a raid pipeline ending the broadcast at the START of the
+/// countdown: previously the only outgoing signal was <c>channel.moderate</c>'s <c>raid</c> action, which
+/// fires on initiation.</para>
 /// </summary>
 public sealed class ChannelRaidTranslator(IEventBus bus, TimeProvider clock)
     : EventSubEventTranslator(bus, clock)
@@ -31,11 +39,31 @@ public sealed class ChannelRaidTranslator(IEventBus bus, TimeProvider clock)
     )
     {
         JsonElement payload = notification.Event;
+        string fromUserId = payload.GetRequiredString("from_broadcaster_user_id");
+
+        // We are the raider → this is our outgoing raid, and it has already happened.
+        if (
+            !string.IsNullOrEmpty(notification.TwitchBroadcasterUserId)
+            && fromUserId == notification.TwitchBroadcasterUserId
+        )
+        {
+            OutgoingRaidEvent outgoing = new()
+            {
+                BroadcasterId = notification.BroadcasterId,
+                OccurredAt = Clock.GetUtcNow(),
+                ToUserId = payload.GetRequiredString("to_broadcaster_user_id"),
+                ToDisplayName = payload.GetRequiredString("to_broadcaster_user_name"),
+                ToLogin = payload.GetRequiredString("to_broadcaster_user_login"),
+                ViewerCount = payload.GetInt("viewers"),
+            };
+            return PublishAsync(outgoing, ct);
+        }
+
         RaidEvent raided = new()
         {
             BroadcasterId = notification.BroadcasterId,
             OccurredAt = Clock.GetUtcNow(),
-            FromUserId = payload.GetRequiredString("from_broadcaster_user_id"),
+            FromUserId = fromUserId,
             FromDisplayName = payload.GetRequiredString("from_broadcaster_user_name"),
             FromLogin = payload.GetRequiredString("from_broadcaster_user_login"),
             ViewerCount = payload.GetInt("viewers"),
@@ -92,7 +120,7 @@ public sealed class StreamOnlineTranslator(IEventBus bus, TimeProvider clock)
         JsonElement payload = notification.Event;
         ChannelOnlineEvent online = new()
         {
-            Provider = NomNomzBot.Domain.Identity.Enums.AuthEnums.Platform.Twitch,
+            Provider = AuthEnums.Platform.Twitch,
             BroadcasterId = notification.BroadcasterId,
             OccurredAt = Clock.GetUtcNow(),
             BroadcasterDisplayName = payload.GetRequiredString("broadcaster_user_name"),
@@ -124,7 +152,7 @@ public sealed class StreamOfflineTranslator(IEventBus bus, TimeProvider clock)
         JsonElement payload = notification.Event;
         ChannelOfflineEvent offline = new()
         {
-            Provider = NomNomzBot.Domain.Identity.Enums.AuthEnums.Platform.Twitch,
+            Provider = AuthEnums.Platform.Twitch,
             BroadcasterId = notification.BroadcasterId,
             OccurredAt = Clock.GetUtcNow(),
             BroadcasterDisplayName = payload.GetRequiredString("broadcaster_user_name"),

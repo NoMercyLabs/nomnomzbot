@@ -13,10 +13,16 @@ using NomNomzBot.Domain.Platform;
 namespace NomNomzBot.Domain.Stream.Events;
 
 /// <summary>
-/// An OUTGOING raid — this channel sending its viewers to another broadcaster. Twitch's <c>channel.raid</c>
-/// subscription is keyed on <c>to_broadcaster_user_id</c> (incoming only, → <see cref="RaidEvent"/>), so the
-/// outgoing direction is observed from <c>channel.moderate</c>'s <c>raid</c> action, whose nested detail names
-/// the target channel and viewer count. Drives the <c>channel.raid.out</c> event responses.
+/// An OUTGOING raid that has ACTUALLY HAPPENED — this channel's viewers have moved to another broadcaster.
+///
+/// <para>Raised from the <c>channel.raid</c> subscription keyed on <c>from_broadcaster_user_id</c>, which
+/// Twitch sends once the raid executes. Drives the <c>channel.raid.out</c> event responses.</para>
+///
+/// <para><b>Not to be confused with <see cref="OutgoingRaidStartedEvent"/>.</b> That one fires when the
+/// raid is INITIATED and the countdown begins, and it used to be the source of this event — which is why
+/// a raid pipeline that stops the stream ended the broadcast at the start of the countdown, taking the
+/// countdown, the outro and the viewers with it. Anything that must not happen until the viewers have
+/// actually left belongs on THIS event.</para>
 /// </summary>
 public sealed class OutgoingRaidEvent : DomainEventBase
 {

@@ -69,6 +69,9 @@ public static class EventResponsePresetCatalog
         Preset("channel.unban", ["user", "user.id", "moderator"]),
         // Outgoing raid (channel.moderate's raid action) — {user} names the TARGET channel being raided.
         Preset("channel.raid.out", ["user", "user.id", "user.name", "viewers"]),
+        // The countdown moment, distinct from the executed raid above — same variables, so a response can
+        // move between the two without rewriting its template.
+        Preset("channel.raid.start", ["user", "user.id", "user.name", "viewers"]),
         Preset("stream.online", ["broadcaster", "title", "game"]),
         Preset("stream.offline", ["broadcaster", "duration"]),
         Preset("engagement.first_time_chatter", ["user", "user.id", "viewer.name"]),

@@ -35,6 +35,14 @@ public interface IEventSubConditionBuilder
     /// <summary>The topic version (e.g. <c>2</c> for <c>channel.follow</c> / <c>channel.update</c>, else <c>1</c>).</summary>
     string GetVersion(string eventType);
 
+    /// <summary>
+    /// The type string Twitch is actually asked to subscribe. Almost always the catalogue key itself; the
+    /// exception is <c>channel.raid.out</c>, our name for the SECOND <c>channel.raid</c> subscription — the
+    /// one keyed on <c>from_broadcaster_user_id</c>, which is how Twitch reports a raid this channel SENT.
+    /// One Twitch topic, two directions, two catalogue keys so each keeps its own subscription row.
+    /// </summary>
+    string GetWireType(string eventType);
+
     /// <summary>True when the create must ride the broadcaster's user token (broadcaster-scoped topic).</summary>
     bool RequiresBroadcasterToken(string eventType);
 }
