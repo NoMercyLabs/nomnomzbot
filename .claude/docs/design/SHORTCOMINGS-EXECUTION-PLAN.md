@@ -212,6 +212,24 @@ fixed in `25620139`. **Follow-on gap CLOSED 2026-09-02 (`a6bf4a7a`, S-OWN16-WEBH
 
 Read this block first. It is the only summary; everything below is detail.
 
+### S-SPAM — Sery-parity spam defence (owner 2026-09-03: "get the bot to behave like Sery bot")
+
+The ledger for `spec/spam-defense.md` §9. Settled 2026-08-23, build STARTED 2026-09-03.
+**Done: L0 normalizer, L1 account risk, L4 ladder + capability table, L5 enforcement + dry run,
+L2 content signals.** The engine layers now stop the motivating attack; what remains is
+correlation, the network, and the surfaces that let an operator see and steer any of it.
+
+- [ ] **S-SPAM-5** L3 correlation + burst detection + follow-bot block track, with SD9
+      per-account-evidence and the viral-moment test in the same slice.
+- [ ] **S-SPAM-6** L5 hate-raid lockdown (SD0: tighten the room, never punish the person).
+- [ ] **S-SPAM-7** Signature network — subscribe first, contribute + quarantine second.
+- [ ] **S-SPAM-8** Five dashboard surfaces (Spam Defense, Review Queue, Campaigns, Detections,
+      Follow-bot blocks) + `Admin → Spam Defense Defaults`. Every weight and every ban rule must be
+      operator-editable and explained in plain language — this is the owner's headline requirement,
+      not a settings page bolted on at the end.
+- [ ] **S-SPAM-9** Wire the engine into the live chat path, then deploy to Proxmox and verify
+      `/health/version` == the deployed SHA. Until this lands the engine is unreached code.
+
 - **S-DEAD-USER-EXPORT** (found 2026-09-03 by the new `ApiRouteContractTest`) — the Community screen's
   "export user data" control calls `POST api/v1/users/{userId}/export`
   (`UsersApi.kt:47` ← `CommunityController.exportUserData` ← `CommunityScreen.kt:294`), a route the API
