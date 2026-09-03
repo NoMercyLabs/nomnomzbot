@@ -31,4 +31,17 @@ public interface IActionRequiredInboxService
         Guid channelId,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// Persists a dismissal for each given stable item id (S-OWN22 T2) so <see cref="GetItemsAsync"/> stops
+    /// surfacing it. A grouped <c>held-user:{sourceUserId}</c> id is expanded into one dismissal row per
+    /// contained <c>held:{queueItemGuid}</c> key; already-dismissed keys are skipped (idempotent). Returns
+    /// the number of dismissal rows written.
+    /// </summary>
+    Task<Result<int>> DismissAsync(
+        Guid channelId,
+        Guid dismissedByUserId,
+        List<string> ids,
+        CancellationToken cancellationToken = default
+    );
 }

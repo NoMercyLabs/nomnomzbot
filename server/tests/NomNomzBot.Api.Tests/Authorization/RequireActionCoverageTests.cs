@@ -161,4 +161,20 @@ public sealed class RequireActionCoverageTests
             .Should()
             .Be("community:read");
     }
+
+    [Theory]
+    [InlineData(nameof(NotificationsController.GetActionRequiredItems), "dashboard:read")]
+    [InlineData(
+        nameof(NotificationsController.DismissActionRequiredItems),
+        "notifications:dismiss"
+    )]
+    public void NotificationsController_action_carries_the_expected_action_key(
+        string methodName,
+        string expectedActionKey
+    )
+    {
+        RequiredActionKeyOf(typeof(NotificationsController), methodName)
+            .Should()
+            .Be(expectedActionKey);
+    }
 }
