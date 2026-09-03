@@ -28,6 +28,7 @@ import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
+import bot.nomnomz.dashboard.core.designsystem.component.TemplateHelpersLink
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -108,6 +109,8 @@ import bot.nomnomz.dashboard.core.network.UserModerationContext
 import bot.nomnomz.dashboard.core.network.UserModerationHistorySummary
 import bot.nomnomz.dashboard.core.network.UserTrustSummary
 import bot.nomnomz.dashboard.core.network.UserNote
+import bot.nomnomz.dashboard.core.network.TemplateHelperContext
+import bot.nomnomz.dashboard.core.network.TemplateHelpersApi
 import kotlin.math.roundToInt
 import bot.nomnomz.dashboard.feature.moderation.state.AutomationLine
 import bot.nomnomz.dashboard.feature.moderation.state.AutomodFilter
@@ -422,6 +425,7 @@ import org.jetbrains.compose.resources.stringResource
 fun ModerationScreen(
     controller: ModerationController,
     role: ManagementRole?,
+    templateHelpersApi: TemplateHelpersApi,
     hubEvents: SharedFlow<HubEvent>? = null,
 ) {
     val state: ModerationState by controller.state.collectAsStateWithLifecycle()
@@ -480,6 +484,7 @@ fun ModerationScreen(
                     nukeBatches = current.nukeBatches,
                     shoutoutTemplate = current.shoutoutTemplate,
                     shoutoutOverrides = current.shoutoutOverrides,
+                    templateHelpersApi = templateHelpersApi,
                     // Computed from the very config objects enforcement reads — never a hardcoded claim.
                     automationLines =
                         deriveAutomationLines(
@@ -646,6 +651,7 @@ private fun BansList(
     nukeBatches: List<NetworkNukeBatch>,
     shoutoutTemplate: String?,
     shoutoutOverrides: List<ShoutoutOverride>,
+    templateHelpersApi: TemplateHelpersApi,
     // The derived "what happens automatically" account, plus the two broadcaster-gated editors behind it.
     automationLines: List<AutomationLine>,
     trustPolicy: TrustPolicy?,
@@ -1021,6 +1027,7 @@ private fun BansList(
                 ShoutoutTemplateEditor(
                     template = shoutoutTemplate,
                     manage = manage,
+                    templateHelpersApi = templateHelpersApi,
                     onSave = onSaveShoutoutTemplate,
                 )
             }
@@ -1034,7 +1041,11 @@ private fun BansList(
             )
         }
         item(key = "shoutout-overrides-add") {
-            AddShoutoutOverrideRow(manage = manage, onAdd = onSaveShoutoutOverride)
+            AddShoutoutOverrideRow(
+                manage = manage,
+                templateHelpersApi = templateHelpersApi,
+                onAdd = onSaveShoutoutOverride,
+            )
         }
         if (shoutoutOverrides.isNotEmpty()) {
             item(key = "shoutout-overrides-card") {
@@ -2884,7 +2895,12 @@ private fun AutomodRow(
 // OTHER streamers on this platform see when THEY shout this channel out with !so, not a template for the
 // shoutouts THIS channel gives. Re-syncs its local draft when the loaded value changes (e.g. after Save).
 @Composable
-private fun ShoutoutTemplateEditor(template: String?, manage: ManageDecision, onSave: (String) -> Unit) {
+private fun ShoutoutTemplateEditor(
+    template: String?,
+    manage: ManageDecision,
+    templateHelpersApi: TemplateHelpersApi,
+    onSave: (String) -> Unit,
+) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -2909,6 +2925,15 @@ private fun ShoutoutTemplateEditor(template: String?, manage: ManageDecision, on
                     enabled = enabled,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                // The announcement runs through ShoutoutAction, so it speaks the pipeline vocabulary —
+                // {name}, {target.link}, the pronoun grammar. Without this picker the field was a blank
+                // box and a template written from memory ("Shoutout to {name}!") rendered its placeholder
+                // literally, because the resolver leaves an unknown variable as-is.
+                TemplateHelpersLink(
+                    context = TemplateHelperContext.Pipeline,
+                    api = templateHelpersApi,
+                    onInsert = { token -> draft = if (draft.isBlank()) token else "$draft $token" },
+                )
                 val canSave: Boolean = enabled && dirty
                 TextButton(onClick = { onSave(draft) }, enabled = canSave) {
                     Text(
@@ -2927,6 +2952,7 @@ private fun ShoutoutTemplateEditor(template: String?, manage: ManageDecision, on
 @Composable
 private fun AddShoutoutOverrideRow(
     manage: ManageDecision,
+    templateHelpersApi: TemplateHelpersApi,
     onAdd: (targetTwitchUserId: String, targetDisplayName: String, messageTemplate: String) -> Unit,
 ) {
     val spacing = LocalSpacing.current
@@ -2958,6 +2984,11 @@ private fun AddShoutoutOverrideRow(
                 label = stringResource(Res.string.moderation_shoutout_override_message_label),
                 enabled = enabled,
                 modifier = Modifier.fillMaxWidth(),
+            )
+            TemplateHelpersLink(
+                context = TemplateHelperContext.Pipeline,
+                api = templateHelpersApi,
+                onInsert = { token -> template = if (template.isBlank()) token else "$template $token" },
             )
             val canSubmit: Boolean =
                 enabled && targetId.isNotBlank() && targetName.isNotBlank() && template.isNotBlank()
