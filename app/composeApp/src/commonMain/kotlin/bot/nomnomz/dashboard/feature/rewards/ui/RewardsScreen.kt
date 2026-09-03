@@ -64,6 +64,9 @@ import bot.nomnomz.dashboard.core.designsystem.icon.CheckCircleGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.RemoveGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
+import bot.nomnomz.dashboard.core.designsystem.component.TemplateHelpersLink
+import bot.nomnomz.dashboard.core.network.TemplateHelperContext
+import bot.nomnomz.dashboard.core.network.TemplateHelpersApi
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.media.EmojiText
@@ -168,6 +171,7 @@ fun RewardsScreen(
     controller: RewardsController,
     role: ManagementRole?,
     hubEvents: SharedFlow<HubEvent>? = null,
+    templateHelpersApi: TemplateHelpersApi? = null,
 ) {
     val state: RewardsState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
@@ -283,6 +287,7 @@ fun RewardsScreen(
         RewardFormDialog(
             editor = open,
             pipelines = pipelines,
+            templateHelpersApi = templateHelpersApi,
             onDismiss = { editor = null },
             onSubmit = { result ->
                 editor = null
@@ -911,6 +916,9 @@ private fun RewardFormDialog(
     onDismiss: () -> Unit,
     onSubmit: (RewardFormResult) -> Unit,
     onCreatePipeline: suspend (name: String) -> PipelineSummary?,
+    // Null only in a state-holder test that never opens the helper picker — the affordance is simply
+    // absent then, rather than a button that opens a dialog with nothing in it.
+    templateHelpersApi: TemplateHelpersApi? = null,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -989,6 +997,18 @@ private fun RewardFormDialog(
                     modifier = Modifier.fillMaxWidth(),
                     label = stringResource(Res.string.rewards_dialog_response_label),
                 )
+                // The last free-text template field in the product without a helper picker (S043). A
+                // redemption announcement wants {user} as much as any command response does, and without
+                // this the streamer has to know the token vocabulary by heart.
+                templateHelpersApi?.let { helpers ->
+                    TemplateHelpersLink(
+                        context = TemplateHelperContext.EventResponse,
+                        api = helpers,
+                        onInsert = { token ->
+                            response = if (response.isBlank()) token else "$response $token"
+                        },
+                    )
+                }
                 // The reward card's background colour (hex). Blank = Twitch's default. Uses the design-system
                 // colour control (hex field + live swatch).
                 ColorField(

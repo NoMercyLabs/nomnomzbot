@@ -396,10 +396,10 @@ than each consumer needing their own clone-and-customize pass.
 
 ## Phase 3 — form infrastructure (stabilizes existing authoring; every 'raw text box' finding rides on it)
 
-- **S043** "All helpers" dialog — DONE for commands, event responses, timers, chat triggers, Discord,
-  pipelines (`TemplateHelpersLink`/`TemplateHelpersDialog`, chip scroller removed). Remaining: rewards
-  and giveaways have no free-text template field to wire it into yet — wire it in when S063 adds the
-  rewards `Response` field and when giveaways grows an announcement-text field (U·A7, W·§8 i7).
+- **S043** "All helpers" dialog — wired into every free-text template field that exists: commands, event
+  responses, timers, chat triggers, Discord, pipelines, and now the rewards `Response` field (S063 added
+  it). Giveaways still has no announcement-text field to wire into — front or back — so that half is not a
+  wiring task but the separate feature filed as W·§8 i7.
 (empty — S046-remaining fully shipped: wire-format prereq c401253e, if ba140ecb/293b9ec7, switch
 c3f5a6f9, loop cde1f5fa, random_branch 05b7bb85, try 34e75021, all verified. Out-of-scope notes filed:
 chat-triggers/automation screens could still use `PipelineBindPicker` (not yet done); the 5
@@ -564,8 +564,8 @@ later.)
   zero-`available` pool is disabled in the prize picker; the "already-bound to another giveaway" half
   was explicitly NOT added, no backend concept of it exists and it's a non-fatal foot-gun, not a
   fulfillment bug); `ClosesAt` auto-close (501225e5 — `Giveaway.ScheduledCloseAt` target field +
-  `GiveawayAutoCloseWorker` 1-minute sweep, mirrors `GiveawayClaimSweepWorker`; **not yet settable
-  from the dashboard** either, same deferral). DONE: entries endpoint + list (f8e6385d/caf03f6f —
+  `GiveawayAutoCloseWorker` 1-minute sweep, mirrors `GiveawayClaimSweepWorker`; settable from the
+  dialog's auto-close minutes field — an earlier note here claiming otherwise was stale). DONE: entries endpoint + list (f8e6385d/caf03f6f —
   `IGiveawayService` had no `GetEntriesAsync`, no `GET /{id}/entries`; a broadcaster could only see
   the raw `entryCount` integer, never who's entered before drawing. Added `GetEntriesAsync` +
   `ToEntryDtosAsync` mirroring the existing `GetWinnersAsync`/`ToWinnerDtosAsync`; `GiveawayEntryDto`
