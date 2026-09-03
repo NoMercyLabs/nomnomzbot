@@ -81,6 +81,9 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ModerationQueueItem> ModerationQueueItems =>
         Set<NomNomzBot.Domain.Moderation.Entities.ModerationQueueItem>();
 
+    public DbSet<NomNomzBot.Domain.Notifications.Entities.ActionRequiredDismissal> ActionRequiredDismissals =>
+        Set<NomNomzBot.Domain.Notifications.Entities.ActionRequiredDismissal>();
+
     protected override void OnModelCreating(ModelBuilder b)
     {
         b.Entity<IntegrationConnection>(e =>
@@ -95,6 +98,10 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
             e.HasKey(i => i.Id);
         });
 
+        b.ApplyConfiguration(
+            new Infrastructure.Notifications.Persistence.ActionRequiredDismissalConfiguration()
+        );
+
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
 
@@ -105,6 +112,7 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
     [
         typeof(IntegrationConnection),
         typeof(NomNomzBot.Domain.Moderation.Entities.ModerationQueueItem),
+        typeof(NomNomzBot.Domain.Notifications.Entities.ActionRequiredDismissal),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =

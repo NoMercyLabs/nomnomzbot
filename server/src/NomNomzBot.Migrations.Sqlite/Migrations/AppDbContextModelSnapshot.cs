@@ -7240,6 +7240,48 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.ToTable("SongRequestQueueItems");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Notifications.Entities.ActionRequiredDismissal", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ChannelId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("DismissedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("DismissedByUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ItemKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChannelId", "ItemKey")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ActionRequiredDismissal_Channel_ItemKey_Live")
+                        .HasFilter("\"DeletedAt\" IS NULL");
+
+                    b.ToTable("ActionRequiredDismissals");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Obs.Entities.ObsConnection", b =>
                 {
                     b.Property<Guid>("Id")

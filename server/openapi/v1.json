@@ -22591,6 +22591,106 @@
         }
       }
     },
+    "/api/v{version}/custom-data-sources/{id}/test-fetch": {
+      "post": {
+        "tags": [
+          "CustomEvents"
+        ],
+        "summary": "One-off GET against the source's configured endpoint — lets the operator see the real returned JSON shape\r\nand pick a key instead of typing a JSONPath blind.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfCustomDataSourceTestFetchDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/dashboard/{channelId}/stats": {
       "get": {
         "tags": [
@@ -49250,6 +49350,124 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/notifications/action-required/dismiss": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Dismisses action-required items by their stable ids (S-OWN22 T2). A grouped\r\n`held-user:{sourceUserId}` id is expanded into one persisted dismissal per contained\r\n`held:{queueItemGuid}` key, so a NEW hold from that user surfaces again. Returns the number of\r\ndismissal rows written (already-dismissed keys are skipped).",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DismissActionRequiredItemsRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DismissActionRequiredItemsRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/DismissActionRequiredItemsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfint"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/obs/bridge/status": {
       "get": {
         "tags": [
@@ -75827,15 +76045,23 @@
     "schemas": {
       "ActionRequiredItemDto": {
         "required": [
+          "id",
           "kind",
           "severity",
           "title",
           "message",
           "detectedAt",
-          "deepLinkRoute"
+          "deepLinkRoute",
+          "sourceUserId",
+          "sourceUserName",
+          "count",
+          "queueItemIds"
         ],
         "type": "object",
         "properties": {
+          "id": {
+            "type": "string"
+          },
           "kind": {
             "type": "string"
           },
@@ -75854,9 +76080,37 @@
           },
           "deepLinkRoute": {
             "type": "string"
+          },
+          "sourceUserId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sourceUserName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "queueItemIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
           }
         },
-        "description": "One row of the dashboard's action-required inbox (S071a) — a real, already-detected condition that needs\r\nthe streamer's attention, surfaced from an existing signal (never fabricated). string ActionRequiredItemDto.Kind is a\r\nstable machine key the dashboard groups/icons by (e.g. `integration_token_dead`,\r\n`held_chat_message`); string ActionRequiredItemDto.Severity is `critical` | `warning` | `info`."
+        "description": "One row of the dashboard's action-required inbox (S071a) — a real, already-detected condition that needs\r\nthe streamer's attention, surfaced from an existing signal (never fabricated). string ActionRequiredItemDto.Kind is a\r\nstable machine key the dashboard groups/icons by (e.g. `integration_token_dead`,\r\n`held_chat_message`); string ActionRequiredItemDto.Severity is `critical` | `warning` | `info`.\r\nstring ActionRequiredItemDto.Id is the item's stable identity (S-OWN22 T2), the key the dismiss endpoint accepts: a\r\nsingle held message is held:{queueItemGuid}, a per-user group of held messages is\r\nheld-user:{sourceUserId}, and a dead token is token:{connectionId}:{invalidatedAtUtcTicks}\r\n(re-invalidation after a fix mints a NEW key, so an old dismissal cannot hide it). Held messages from one\r\nuser are grouped into ONE item: int ActionRequiredItemDto.Count pending holds, all of them in\r\nList&lt;Guid&gt; ActionRequiredItemDto.QueueItemIds, with string? ActionRequiredItemDto.SourceUserId/string? ActionRequiredItemDto.SourceUserName naming the\r\nsender. Dead-token items keep int ActionRequiredItemDto.Count = 1 and an empty List&lt;Guid&gt; ActionRequiredItemDto.QueueItemIds."
       },
       "ActivityDto": {
         "required": [
@@ -80946,7 +81200,8 @@
           "fieldMap",
           "pollIntervalSeconds",
           "isEnabled",
-          "lastReceivedAt"
+          "lastReceivedAt",
+          "fieldErrors"
         ],
         "type": "object",
         "properties": {
@@ -81003,6 +81258,12 @@
               "string"
             ],
             "format": "date-time"
+          },
+          "fieldErrors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
           }
         },
         "description": "Safe read projection — the `AuthSecret` is never echoed; only its presence is surfaced."
@@ -81047,6 +81308,29 @@
             "type": "string"
           }
         }
+      },
+      "CustomDataSourceTestFetchDto": {
+        "required": [
+          "rawJson",
+          "keyPaths",
+          "truncated"
+        ],
+        "type": "object",
+        "properties": {
+          "rawJson": {
+            "type": "string"
+          },
+          "keyPaths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "description": "The result of a one-off test fetch against a source's configured endpoint. string CustomDataSourceTestFetchDto.RawJson is the raw\r\nfetched body (subject to the shared response-byte cap); IReadOnlyList&lt;string&gt; CustomDataSourceTestFetchDto.KeyPaths is every leaf field-map path\r\n(`$.foo.bar` syntax) found in it, capped so a huge/deeply-nested document can't flood the picker."
       },
       "DashboardChatMessageDto": {
         "required": [
@@ -82264,6 +82548,21 @@
           }
         },
         "description": "A live guild channel carrying whether the BOT CAN POST IN IT right now (S055c) — computed from the bot's\r\neffective permissions in that specific channel, including per-channel permission overwrites (a channel\r\noverwrite can deny View Channel/Send Messages even when the bot's guild-level role permissions would allow\r\nit). bool DiscordPostableChannelDto.CanPost false always carries a non-null string? DiscordPostableChannelDto.UnavailableReasonCode/\r\nstring? DiscordPostableChannelDto.UnavailableReason."
+      },
+      "DismissActionRequiredItemsRequest": {
+        "required": [
+          "ids"
+        ],
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "Dismisses one or more action-required inbox items by their stable string ActionRequiredItemDto.Id\r\nkeys (S-OWN22 T2). A grouped `held-user:{sourceUserId}` id is expanded server-side into one dismissal\r\nper contained `held:{queueItemGuid}` key, so a NEW hold from that user surfaces again."
       },
       "EarningRuleDto": {
         "required": [
@@ -93893,6 +94192,43 @@
           }
         }
       },
+      "StatusResponseDtoOfCustomDataSourceTestFetchDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CustomDataSourceTestFetchDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfDashboardStatsDto": {
         "type": "object",
         "properties": {
@@ -95093,6 +95429,42 @@
                 "$ref": "#/components/schemas/ImportSummary"
               }
             ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        },
+        "description": "Standard response envelope for mutations and single-item responses.\r\nMatches the NoMercy media server pattern."
+      },
+      "StatusResponseDtoOfint": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           },
           "message": {
             "type": [

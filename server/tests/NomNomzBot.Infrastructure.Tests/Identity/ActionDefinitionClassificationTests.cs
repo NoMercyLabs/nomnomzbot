@@ -101,6 +101,7 @@ public sealed class ActionDefinitionClassificationTests
         "sdk:read",
         "dashboard:read",
         "dashboard:replay",
+        "notifications:dismiss",
         "community:read",
         "community:trust:write",
         "integration:read",
