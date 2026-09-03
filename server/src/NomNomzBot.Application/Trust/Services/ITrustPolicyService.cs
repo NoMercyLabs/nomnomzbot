@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Trust.Dtos;
 using NomNomzBot.Domain.Trust.Entities;
 
 namespace NomNomzBot.Application.Trust.Services;
@@ -26,4 +28,25 @@ public interface ITrustPolicyService
     /// path (scoring runs on every chat message; it must not create rows).
     /// </summary>
     Task<TrustPolicy> GetAsync(Guid broadcasterId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The dashboard read: the same values plus whether this channel has pinned them or is still
+    /// tracking the shipped defaults.
+    /// </summary>
+    Task<Result<TrustPolicyDto>> GetForEditingAsync(
+        Guid broadcasterId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Save the channel's tuning, creating the row on first edit. Validates server-side before writing:
+    /// the four weights must sum to 1.0, tier ceilings must ascend, and no multiplier, decay, penalty or
+    /// heat value may be negative — a policy that cannot produce a sane score must never reach the
+    /// scorer. Returns the saved policy.
+    /// </summary>
+    Task<Result<TrustPolicyDto>> UpdateAsync(
+        Guid broadcasterId,
+        UpdateTrustPolicyRequest request,
+        CancellationToken cancellationToken = default
+    );
 }

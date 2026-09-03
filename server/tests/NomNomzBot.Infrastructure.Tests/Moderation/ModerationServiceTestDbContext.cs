@@ -107,7 +107,7 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
     public DbSet<NomNomzBot.Domain.Notifications.Entities.ActionRequiredDismissal> ActionRequiredDismissals =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Trust.Entities.TrustPolicy> TrustPolicies =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Trust.Entities.TrustPolicy>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -200,6 +200,8 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
         // The channel's moderator roster — read by the heat auto-timeout handler to decide immunity,
         // so it must be a REAL set here; navs are ignored in OnModelCreating above.
         typeof(ChannelModerator),
+        // Per-channel trust tuning (S-OWN23) — nav-free, convention-mapped.
+        typeof(NomNomzBot.Domain.Trust.Entities.TrustPolicy),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =

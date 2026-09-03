@@ -22,6 +22,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
+using NomNomzBot.Application.Trust.Dtos;
 using NomNomzBot.Domain.Stream.Entities;
 
 namespace NomNomzBot.Api.Controllers.V1;
@@ -48,6 +49,7 @@ public class ModerationController : BaseController
     private readonly IApplicationDbContext _db;
     private readonly TimeProvider _timeProvider;
     private readonly ITwitchChatApi _chatApi;
+    private readonly ITwitchModerationApi _twitchModeration;
     private readonly ITemplateHelperValidator _templateHelperValidator;
 
     public ModerationController(
@@ -62,9 +64,11 @@ public class ModerationController : BaseController
         IApplicationDbContext db,
         TimeProvider timeProvider,
         ITwitchChatApi chatApi,
+        ITwitchModerationApi twitchModeration,
         ITemplateHelperValidator templateHelperValidator
     )
     {
+        _twitchModeration = twitchModeration;
         _moderationService = moderationService;
         _networkBan = networkBan;
         _reports = reports;
@@ -1159,6 +1163,111 @@ public class ModerationController : BaseController
             return ResultResponse(result);
         return Ok(new StatusResponseDto<ViewerReportDto> { Data = result.Value });
     }
+
+    // ─── Twitch's OWN AutoMod levels (S-OWN23) ──────────────────────────────────
+
+    /// <summary>
+    /// The channel's REAL Twitch AutoMod levels. Distinct from <c>GET automod</c>, which returns the
+    /// bot's own filters: this is Twitch's pre-publish hold — the only lever that stops a message before
+    /// chat ever sees it. <c>overallLevel</c> is null when the broadcaster drives categories individually.
+    /// </summary>
+    [RequireAction("moderation:automod:twitch:read")]
+    [HttpGet("automod/twitch")]
+    [ProducesResponseType<StatusResponseDto<TwitchAutoModSettingsDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetTwitchAutoModSettings(
+        string channelId,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid tenantId))
+            return BadRequestResponse("Invalid channel id.");
+
+        Result<TwitchAutoModSettings> result = await _twitchModeration.GetAutoModSettingsAsync(
+            tenantId,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+
+        return Ok(new StatusResponseDto<TwitchAutoModSettingsDto> { Data = ToDto(result.Value) });
+    }
+
+    /// <summary>
+    /// Sets the channel's Twitch AutoMod levels. Twitch treats the overall dial and the per-category
+    /// levels as mutually exclusive, so sending both is rejected rather than silently resolved one way.
+    /// Levels are 0–4 (0 = AutoMod off for that category).
+    /// </summary>
+    [RequireAction("moderation:automod:twitch:manage")]
+    [HttpPut("automod/twitch")]
+    [ProducesResponseType<StatusResponseDto<TwitchAutoModSettingsDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> UpdateTwitchAutoModSettings(
+        string channelId,
+        [FromBody] UpdateTwitchAutoModSettingsRequest request,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid tenantId))
+            return BadRequestResponse("Invalid channel id.");
+
+        int?[] categories =
+        [
+            request.Aggression,
+            request.Bullying,
+            request.Disability,
+            request.Misogyny,
+            request.RaceEthnicityOrReligion,
+            request.SexBasedTerms,
+            request.SexualitySexOrGender,
+            request.Swearing,
+        ];
+        bool anyCategory = categories.Any(level => level.HasValue);
+
+        if (request.OverallLevel.HasValue && anyCategory)
+            return BadRequestResponse(
+                "Set either the overall AutoMod level or the individual categories — Twitch does not accept both."
+            );
+        if (!request.OverallLevel.HasValue && !anyCategory)
+            return BadRequestResponse(
+                "Provide an overall AutoMod level or at least one category level."
+            );
+
+        int?[] all = [request.OverallLevel, .. categories];
+        if (all.Any(level => level is < 0 or > 4))
+            return BadRequestResponse("AutoMod levels must be between 0 and 4.");
+
+        Result<TwitchAutoModSettings> result = await _twitchModeration.UpdateAutoModSettingsAsync(
+            tenantId,
+            new UpdateAutoModSettingsRequest(
+                request.OverallLevel,
+                request.Aggression,
+                request.Bullying,
+                request.Disability,
+                request.Misogyny,
+                request.RaceEthnicityOrReligion,
+                request.SexBasedTerms,
+                request.SexualitySexOrGender,
+                request.Swearing
+            ),
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+
+        return Ok(new StatusResponseDto<TwitchAutoModSettingsDto> { Data = ToDto(result.Value) });
+    }
+
+    private static TwitchAutoModSettingsDto ToDto(TwitchAutoModSettings s) =>
+        new(
+            s.OverallLevel,
+            s.Aggression,
+            s.Bullying,
+            s.Disability,
+            s.Misogyny,
+            s.RaceEthnicityOrReligion,
+            s.SexBasedTerms,
+            s.SexualitySexOrGender,
+            s.Swearing
+        );
 
     // ─── AutoMod review queue ───────────────────────────────────────────────────
 

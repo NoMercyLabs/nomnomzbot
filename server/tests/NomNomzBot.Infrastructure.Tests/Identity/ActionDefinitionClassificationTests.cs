@@ -102,6 +102,10 @@ public sealed class ActionDefinitionClassificationTests
         "dashboard:read",
         "dashboard:replay",
         "notifications:dismiss",
+        // Reading the trust tuning and Twitch's AutoMod levels is diagnostic — a moderator needs to see
+        // why the bot scored someone the way it did, and what the platform is holding.
+        "trust:policy:read",
+        "moderation:automod:twitch:read",
         "community:read",
         "community:trust:write",
         "integration:read",
@@ -192,6 +196,11 @@ public sealed class ActionDefinitionClassificationTests
         "moderation:read",
         "moderation:queue:read",
         "moderation:queue:resolve",
+        // Retuning the trust weights changes who the bot auto-actions channel-wide, and the Twitch
+        // AutoMod levels decide what the platform holds for everyone — owner-shaped decisions, not a
+        // moderator's day-to-day tooling, so both sit at the Broadcaster floor.
+        "trust:policy:manage",
+        "moderation:automod:twitch:manage",
         "moderation:action:read",
         "moderation:timeout",
         "moderation:ban",
