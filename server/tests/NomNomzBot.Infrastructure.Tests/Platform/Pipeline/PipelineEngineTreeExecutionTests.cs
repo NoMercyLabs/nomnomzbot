@@ -59,6 +59,13 @@ public sealed class PipelineEngineTreeExecutionTests
         }
     }
 
+    /// <summary>
+    /// A hang detector for the fire-and-forget detached steps, not a timing assertion: nothing here is
+    /// expected to take measurable time, and a slow machine must never turn into a red build. The two
+    /// tests below used to sleep 50ms and hope, which lost that bet under full-suite load.
+    /// </summary>
+    private static readonly TimeSpan DetachedHangTimeout = TimeSpan.FromSeconds(30);
+
     private sealed class AlwaysFailAction : ICommandAction
     {
         public string ActionType => "always_fail";
@@ -66,10 +73,21 @@ public sealed class PipelineEngineTreeExecutionTests
         public LocalizedText Category => new("pipeline.category.test_fixture");
         public LocalizedText Description => new("pipeline.test_fixture.description");
 
+        private readonly TaskCompletionSource _ran = new(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+
+        /// <summary>Completes the first time this action runs — see <see cref="CountingAction.Ran"/>.</summary>
+        public Task Ran => _ran.Task;
+
         public Task<ActionResult> ExecuteAsync(
             PipelineExecutionContext ctx,
             ActionDefinition action
-        ) => Task.FromResult(ActionResult.Failure("boom"));
+        )
+        {
+            _ran.TrySetResult();
+            return Task.FromResult(ActionResult.Failure("boom"));
+        }
     }
 
     /// <summary>Fires <c>ctx.ShouldBreakLoop</c> only when <c>{{loop.index}}</c> equals the action's
@@ -122,12 +140,25 @@ public sealed class PipelineEngineTreeExecutionTests
         public LocalizedText Description => new("pipeline.test_fixture.description");
         public int Count { get; private set; }
 
+        private readonly TaskCompletionSource _ran = new(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+
+        /// <summary>
+        /// Completes the first time this action runs. Detached (fire-and-forget) steps are not awaited
+        /// by the walk, so a test that asserts one ran has to wait for SOMETHING — and a fixed
+        /// <c>Task.Delay</c> is a bet on machine speed that a loaded full-suite run loses. Awaiting this
+        /// waits for the actual execution instead.
+        /// </summary>
+        public Task Ran => _ran.Task;
+
         public Task<ActionResult> ExecuteAsync(
             PipelineExecutionContext ctx,
             ActionDefinition action
         )
         {
             Count++;
+            _ran.TrySetResult();
             return Task.FromResult(ActionResult.Success());
         }
     }
@@ -2098,7 +2129,8 @@ public sealed class PipelineEngineTreeExecutionTests
 
         CountingAction countBefore = new() { ActionType = "count_before" };
         CountingAction countAfter = new() { ActionType = "count_after" };
-        PipelineEngine engine = CreateEngine(db, [countBefore, countAfter, new AlwaysFailAction()]);
+        AlwaysFailAction failing = new();
+        PipelineEngine engine = CreateEngine(db, [countBefore, countAfter, failing]);
 
         PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(pipelineId));
 
@@ -2106,9 +2138,10 @@ public sealed class PipelineEngineTreeExecutionTests
         countBefore.Count.Should().Be(1);
         countAfter.Count.Should().Be(1, "the step after the detached block must still run");
 
-        // The detached action runs fire-and-forget (Task.Run, never awaited by the walk) — give it a
-        // moment to actually execute before asserting it did, rather than racing its background task.
-        await Task.Delay(50);
+        // The detached action runs fire-and-forget (Task.Run, never awaited by the walk), so wait for
+        // the action itself to signal rather than for a fixed number of milliseconds to pass. This is
+        // the half the old Task.Delay(50) only pretended to check: it slept and then asserted nothing.
+        await failing.Ran.WaitAsync(DetachedHangTimeout);
     }
 
     /// <summary>Same regression as <see cref="FlatDbPipeline_ConfigJsonWithoutEmbeddedType_StillExecutes"/>
@@ -2145,8 +2178,9 @@ public sealed class PipelineEngineTreeExecutionTests
         PipelineEngine engine = CreateEngine(db, [counted]);
         await engine.ExecuteAsync(BuildRequest(pipelineId));
 
-        // Fire-and-forget (Task.Run, never awaited by the walk) — give it a moment before asserting.
-        await Task.Delay(50);
+        // Fire-and-forget (Task.Run, never awaited by the walk): await the action's own signal. The
+        // bound is a hang detector, not a timing assertion — if it fires, the leaf genuinely never ran.
+        await counted.Ran.WaitAsync(DetachedHangTimeout);
         counted.Count.Should().Be(1, "the detached leaf must actually run, not silently vanish");
     }
 }

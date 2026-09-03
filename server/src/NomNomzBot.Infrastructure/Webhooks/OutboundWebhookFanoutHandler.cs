@@ -63,7 +63,13 @@ public sealed class OutboundWebhookFanoutHandler(
         // Detached: a fresh scope (its own DbContext/HttpClient) so the delivery outlives this method call and
         // never touches the caller's (about-to-be-disposed) scope. CancellationToken.None — the caller's token
         // is not ours to cancel the background work with once we've returned.
-        _ = Task.Run(async () =>
+        // Kept so a test can await the ACTUAL delivery instead of racing a wall clock: the truth test
+        // for this handler asserts that the HTTP send happens off the publishing thread, and a
+        // Task.WhenAny against Task.Delay(5s) made that assertion fail whenever the full suite loaded
+        // the machine enough to miss the window. Production never reads this — the semantics stay
+        // fire-and-forget, and the field only holds the most recent commit's task.
+        // InternalsVisibleTo(NomNomzBot.Infrastructure.Tests) is already wired for exactly this seam.
+        LastDispatch = Task.Run(async () =>
         {
             await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
             IOutboundWebhookDispatcher scopedDispatcher =
@@ -88,6 +94,13 @@ public sealed class OutboundWebhookFanoutHandler(
 
         return Result.Success();
     }
+
+    /// <summary>
+    /// The detached delivery task from the most recent commit. A test seam, never a production read:
+    /// awaiting it is how a test observes the background send finishing without asserting on elapsed
+    /// time. Null until the first commit that has at least one enabled endpoint.
+    /// </summary>
+    internal Task? LastDispatch { get; private set; }
 
     private static IReadOnlyDictionary<string, string> BuildVariables(EventRecord committed)
     {

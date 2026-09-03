@@ -41,6 +41,13 @@ public sealed class OutboundWebhookDeliveryTruthTests
     private static readonly Guid EndpointId = Guid.Parse("0192a000-0000-7000-8000-000000000e02");
     private static readonly DateTimeOffset Now = new(2026, 6, 22, 12, 0, 0, TimeSpan.Zero);
 
+    /// <summary>
+    /// A HANG detector, not a timing assertion. Nothing here is expected to take a measurable amount of
+    /// time; this bound only exists so a genuinely stuck await fails the test instead of hanging the
+    /// suite. It is deliberately generous — a slow machine must not turn into a red build.
+    /// </summary>
+    private static readonly TimeSpan HangTimeout = TimeSpan.FromSeconds(30);
+
     [Fact]
     public void Backoff_never_exceeds_the_one_hour_cap_even_for_a_huge_attempt_number()
     {
@@ -180,36 +187,35 @@ public sealed class OutboundWebhookDeliveryTruthTests
         );
 
         Task<Result> onCommitted = handler.OnCommittedAsync(committed);
-        Task finished = await Task.WhenAny(onCommitted, Task.Delay(TimeSpan.FromSeconds(5)));
 
-        // The publish-side call completed WITHOUT waiting on the gated HTTP send — proving the delivery moved
-        // off the publishing thread instead of blocking it.
-        finished.Should().Be(onCommitted);
-        (await onCommitted).IsSuccess.Should().BeTrue();
+        // The publish-side call completes WITHOUT waiting on the gated HTTP send — the send is still
+        // blocked in GatedHandler at this point, so if the publisher were awaiting it this would time
+        // out. That is the real proof the delivery moved off the publishing thread; racing it against
+        // a Task.Delay only measured how busy the machine was.
+        (await onCommitted.WaitAsync(HangTimeout)).IsSuccess.Should().BeTrue();
 
         // The background delivery does reach the HTTP client — it just isn't awaited by the publisher.
-        Task requestArrived = await Task.WhenAny(
-            gatedHandler.RequestReceived.Task,
-            Task.Delay(TimeSpan.FromSeconds(5))
-        );
-        requestArrived.Should().Be(gatedHandler.RequestReceived.Task);
+        // Awaited as a SIGNAL, not raced against a wall clock: the old form
+        // (WhenAny against Task.Delay(5s), asserting which won) turned a loaded machine into a red
+        // suite roughly half the time. The timeout below is a hang detector, not the assertion — if
+        // it ever fires, the send genuinely never happened.
+        await gatedHandler.RequestReceived.Task.WaitAsync(HangTimeout);
 
-        // Let the gated send fail (500), then give the fire-and-forget task time to persist the outcome.
+        // Let the gated send fail (500) and then await the ACTUAL detached delivery task rather than
+        // polling for the row to appear. When it completes, the outcome has been persisted.
         gatedHandler.Release();
+        handler.LastDispatch.Should().NotBeNull();
+        await handler.LastDispatch!.WaitAsync(HangTimeout);
+
         AuthDbContext assertDb = AuthTestBuilder.NewContext(databaseName);
-        OutboundWebhookDelivery? delivery = null;
-        for (int i = 0; i < 50 && delivery is null; i++)
-        {
-            await Task.Delay(50);
-            delivery = await assertDb
-                .OutboundWebhookDeliveries.AsNoTracking()
-                .FirstOrDefaultAsync(d => d.EndpointId == EndpointId);
-        }
+        OutboundWebhookDelivery? delivery = await assertDb
+            .OutboundWebhookDeliveries.AsNoTracking()
+            .FirstOrDefaultAsync(d => d.EndpointId == EndpointId);
 
         // The Result of the delivery attempt was observed and recorded, not silently dropped: a delivery row
         // exists with the failure captured, not left as an untouched Pending stub.
         delivery.Should().NotBeNull();
-        delivery!.Error.Should().NotBeNullOrEmpty();
+        delivery.Error.Should().NotBeNullOrEmpty();
         delivery.NextRetryAt.Should().NotBeNull();
     }
 }
