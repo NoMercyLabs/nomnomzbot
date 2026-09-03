@@ -3475,8 +3475,9 @@ private fun AnnounceDialog(
 }
 
 // The J.5 trust + heat pair. Heat at or above the channel's auto-timeout threshold reads as a warning (destructive).
+// Internal (not private): the Home attention inbox's held-message dialog renders the SAME badges — reuse, not a fork.
 @Composable
-private fun TrustHeatBadges(trust: UserTrustSummary, heatThreshold: Int) {
+internal fun TrustHeatBadges(trust: UserTrustSummary, heatThreshold: Int) {
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 

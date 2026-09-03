@@ -31,6 +31,7 @@ import bot.nomnomz.dashboard.core.network.ModerationActionResult
 import bot.nomnomz.dashboard.core.network.ModerationApi
 import bot.nomnomz.dashboard.core.network.EscalationPolicy
 import bot.nomnomz.dashboard.core.network.Moderator
+import bot.nomnomz.dashboard.core.network.ResolvedAutomodQueueItem
 import bot.nomnomz.dashboard.core.network.ModerationRule
 import bot.nomnomz.dashboard.core.network.ModerationQueueItem
 import bot.nomnomz.dashboard.core.network.ModerationStanding
@@ -496,10 +497,15 @@ class ModerationController(
     suspend fun resolveAutomodQueueItem(queueItemId: String, action: String) {
         val channel: String = channelId ?: return
         when (
-            val result: ApiResult<ModerationQueueItem> =
+            val result: ApiResult<ResolvedAutomodQueueItem> =
                 moderationApi.resolveAutomodQueueItem(channel, queueItemId, action)
         ) {
-            is ApiResult.Ok -> load()
+            is ApiResult.Ok -> {
+                load()
+                // A partial outcome (deny stood, follow-up timeout/ban failed) is still a reload-worthy
+                // success — but its failure text must reach the moderator, never be swallowed.
+                result.value.followUpError?.let { setActionError(it) }
+            }
             is ApiResult.Failure -> setActionError(result.error.message)
         }
     }
@@ -955,9 +961,15 @@ class ModerationController(
      * Subscribe to [hubEvents] so the mod log updates in real-time:
      * - [HubEvent.ModAction]: prepends a new [ModLogEntry] to the log (cap 50) so ban/timeout/unban actions
      *   issued by any moderator appear instantly without a page refresh.
+     * - [HubEvent.AutoModQueueChanged]: re-fetches the pending AutoMod queue so a newly held message (or a
+     *   resolution made anywhere) shows without a reload.
      */
     suspend fun subscribeToHub(hubEvents: SharedFlow<HubEvent>) {
         hubEvents.collect { evt ->
+            if (evt is HubEvent.AutoModQueueChanged) {
+                refreshAutomodQueue()
+                return@collect
+            }
             if (evt !is HubEvent.ModAction) return@collect
             val current: ModerationState = _state.value
             if (current !is ModerationState.Ready) return@collect
@@ -971,6 +983,26 @@ class ModerationController(
                 timestamp = "",
             )
             _state.value = current.copy(modLog = (listOf(entry) + current.modLog).take(50))
+        }
+    }
+
+    /**
+     * Re-fetch the pending AutoMod queue alone (hub-pushed change). On a Ready state only that list is
+     * swapped; any other state falls back to a full [load] so a hold arriving on an empty page still surfaces.
+     */
+    private suspend fun refreshAutomodQueue() {
+        val channel: String = channelId ?: return
+        val current: ModerationState = _state.value
+        if (current !is ModerationState.Ready) {
+            load()
+            return
+        }
+        val result: ApiResult<List<ModerationQueueItem>> = moderationApi.automodQueue(channel)
+        if (result is ApiResult.Ok) {
+            val latest: ModerationState = _state.value
+            if (latest is ModerationState.Ready) {
+                _state.value = latest.copy(automodQueue = result.value)
+            }
         }
     }
 
