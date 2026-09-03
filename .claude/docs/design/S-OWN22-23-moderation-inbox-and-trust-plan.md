@@ -61,8 +61,22 @@ truthful data (never show unenforced state), consequences visible before saving.
 - [x] 22-I merged t2 → t3 → t4+t5 into master (6ad0d283, b7781133, 541d0924; merge d3373017). openapi/v1.json conflict resolved to the regenerated snapshot (carries all T2 fields, T3's followUp/timeoutSeconds/reason, and both endpoints — T4's hand-edit was redundant). Merged-tree gate: server build green, csharpier clean (3098 files), Application 70/70, Domain 96/96, Api 874/874, Infrastructure 4816/4820 + 2 PRE-EXISTING load-sensitive flakes outside this slice (`Step_ConfigJsonWithoutEmbeddedType_StillExecutes` from peer commit 60835906, `Fanout_returns_before_the_slow_http_send…`) — both pass in isolation on master and on the pre-merge branches alike; filed as S-FLAKE-TIMING. jvmTest forced rerun green in 80s. Test counts reconcile: 4831 − 17 moved to Domain by T0 + 6 from T3 = 4820.
 - [ ] 22-V live validation on the running app (every button, dismiss survives reload) + tracker close
 - [x] 23-T0 trust extraction — 9f23af61, pure move proven (17=17 byte-identical tests), full server suite green (4805 Infra / 869 Api / 96 Domain / 70 App), csharpier clean; fast-forwarded into master
-- [ ] 23-T1 TrustPolicy entity + both migrations (AFTER 22-T2 merges — EF snapshot single-writer)
-- [ ] 23-T2 calculator takes policy; both consumers; mod/broadcaster auto-timeout exemption test
+- [x] 23-T1 TrustPolicy entity + both migrations — f2d8a6e8; all 21 constants carried with shipped defaults, both migration sets (PG 20260903010857 / SQLite 20260903011018), PendingModelChangesGuard green both providers, 50 test fakes patched, blast-radius registered, csharpier clean
+- [x] 23-T2 calculator takes policy — 25e75029; 12 tests asserting NON-DEFAULT values (a changed
+  weight/ceiling/penalty/heat-delta/half-life changes the outcome; an untouched policy reproduces the
+  shipped score exactly), full server suite green 70/106/874/4820, csharpier clean.
+  **Two findings corrected the plan's own assumptions:** (a) song requests do NOT share this
+  calculator — they run a separate `Music/TrustService` (0.0–1.0, own constants); the only bridge,
+  `MusicService.CheckTrustPermission`, was dead code and was deleted → S-TRUST-UNIFY. (b) The
+  mod/broadcaster auto-timeout exemption test this task called for **cannot be written**: there is no
+  auto-timeout to exempt from. `UserHeatThresholdCrossedEvent` has zero consumers and
+  `AutoTimeoutOnHeat` does not exist in code → S-HEAT-UNENFORCED. Not deferred silently — it is the
+  gating question for 23-T4's automation panel, which must not claim heat auto-timeout works.
+- [x] 23-T2b autoban enforcement (the gap T2 surfaced) — 2bba61d7; `HeatThresholdAutoTimeoutHandler`
+  consumes the previously-orphaned `UserHeatThresholdCrossedEvent`. `AutoTimeoutOnHeat` (default OFF)
+  + `HeatTimeoutSeconds` (default 600) added to `AutomodConfigDto`. Immunity is a short-circuit
+  checked BEFORE the action: broadcaster + the whole moderator roster, role-agnostic; VIP-by-badge
+  NOT claimed (not tracked locally). 5 tests, 3 of them immunity/opt-in. S-HEAT-UNENFORCED closed.
 - [ ] 23-T3 trust-policy + twitch-automod endpoints + contract sync
 - [ ] 23-T4 Trust & Automation UI (Appendix A copy) + derived automation panel
 - [ ] 23-V live validation + tracker close + delete this file
