@@ -864,6 +864,14 @@
     <string name="commands_perm_vip">VIPs</string>
     <string name="commands_perm_moderator">Moderators</string>
     <string name="commands_perm_broadcaster">Broadcaster</string>
+    <string name="perm_everyone">Everyone</string>
+    <string name="perm_subscriber">Subscribers</string>
+    <string name="perm_vip">VIPs</string>
+    <string name="perm_artist">Artists</string>
+    <string name="perm_moderator">Moderators</string>
+    <string name="perm_lead_moderator">Lead moderators</string>
+    <string name="perm_editor">Editors</string>
+    <string name="perm_broadcaster">Broadcaster</string>
     <string name="commands_dialog_random_mode_label">Random responses</string>
     <string name="commands_dialog_responses_label">Responses (one picked at random)</string>
     <string name="commands_dialog_response_add">Add response</string>
@@ -3372,7 +3380,7 @@
     <string name="admin_providers_configure_desc">Leave a field blank to keep what is already stored. Saving a secret replaces it; it can never be read back.</string>
     <string name="admin_providers_save">Save</string>
     <string name="admin_providers_clear">Clear stored</string>
-    <string name="admin_providers_clear_confirm">Remove the stored credentials for %1$s? The environment values take over again, and any stored secret is gone for good.</string>
+    <string name="admin_providers_clear_confirm">Remove %2$d stored value(s) for %1$s? The environment values take over again, and any stored secret is gone for good.</string>
     <string name="admin_iam_reason">Reason (optional)</string>
     <string name="admin_iam_user_id">User ID</string>
     <string name="admin_iam_display_name">Display name</string>

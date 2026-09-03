@@ -230,7 +230,7 @@ public sealed class CommandServiceTests
             CooldownSeconds = 60,
             CooldownPerUser = true,
             UserCooldownSeconds = 15,
-            MinPermissionLevel = 10,
+            MinPermissionLevel = "Moderator",
             IsEnabled = false,
         };
 
@@ -243,7 +243,7 @@ public sealed class CommandServiceTests
         created.MatchPattern.Should().Be("^gr[ae]et$");
         created.UserCooldownSeconds.Should().Be(15);
         created.CooldownPerUser.Should().BeTrue();
-        created.MinPermissionLevel.Should().Be(10);
+        created.MinPermissionLevel.Should().Be("Moderator");
         created.IsEnabled.Should().BeFalse();
 
         // …and they are actually persisted (a re-fetch reads them back, not just the create echo).

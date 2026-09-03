@@ -118,7 +118,10 @@ public class AdminController : BaseController
     /// value they cannot see. It is a separate verb precisely so it can never happen by accident.</para>
     /// </summary>
     [HttpDelete("providers/{provider}")]
-    [DestructiveAction]
+    // Counted, not estimated: the row the console already holds names which of the two fields are stored,
+    // so the confirm states exactly how many stored values disappear and which source takes over. The
+    // response returns the resulting state, so the count is verifiable after the fact too.
+    [DestructiveAction(HasCountedBlastRadius = true)]
     [Authorize(Policy = IamPermissionKeys.IamManage)]
     [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
     [ProducesResponseType<StatusResponseDto<ProviderCredentialDto>>(StatusCodes.Status200OK)]

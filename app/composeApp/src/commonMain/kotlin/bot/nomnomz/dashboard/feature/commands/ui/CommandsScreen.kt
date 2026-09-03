@@ -49,6 +49,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.AppSelectField
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.TabsList
 import bot.nomnomz.dashboard.core.designsystem.component.TabsTrigger
+import bot.nomnomz.dashboard.core.designsystem.PermissionRungs
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.ConfirmDialog
@@ -692,7 +693,7 @@ private fun CommandFormDialog(
     var name: String by remember { mutableStateOf(editor.name) }
     var description: String by remember { mutableStateOf(editor.description) }
     var tier: String by remember { mutableStateOf(editor.tier) }
-    var minLevel: Int by remember { mutableStateOf(editor.minPermissionLevel) }
+    var minLevel: String by remember { mutableStateOf(editor.minPermissionLevel) }
     var prefixMode: String by remember { mutableStateOf(editor.prefixMode) }
     var customPrefix: String by remember { mutableStateOf(editor.customPrefix) }
     var matchMode: String by remember { mutableStateOf(editor.matchMode) }
@@ -854,15 +855,15 @@ private fun CommandFormDialog(
                 // Minimum role that can use it — role NAMES only, never the numeric ladder value (house rule).
                 PickerField(
                     label = stringResource(Res.string.commands_dialog_permission_label),
-                    value = permissionLabel(minLevel),
+                    value = stringResource(PermissionRungs.labelOf(minLevel)),
                     expanded = permMenuOpen,
                     onExpandedChange = { permMenuOpen = it },
                 ) {
-                    PermissionRungs.forEach { (level, res) ->
+                    PermissionRungs.Ordered.forEach { (rung, res) ->
                         DropdownMenuItem(
                             text = { Text(stringResource(res), color = tokens.cardForeground) },
                             onClick = {
-                                minLevel = level
+                                minLevel = rung
                                 permMenuOpen = false
                             },
                         )
@@ -1136,10 +1137,6 @@ private fun matchModeLabel(mode: String): String =
     )
 
 @Composable
-private fun permissionLabel(level: Int): String =
-    stringResource(PermissionRungs.lastOrNull { level >= it.first }?.second ?: Res.string.commands_perm_everyone)
-
-@Composable
 private fun ErrorContent(detail: String, onRetry: () -> Unit) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -1178,7 +1175,7 @@ private data class CommandEditor(
     val isEdit: Boolean,
     val name: String,
     val tier: String,
-    val minPermissionLevel: Int,
+    val minPermissionLevel: String,
     val prefixMode: String,
     val customPrefix: String,
     val matchMode: String,
@@ -1199,7 +1196,7 @@ private data class CommandEditor(
                 isEdit = false,
                 name = "",
                 tier = "template",
-                minPermissionLevel = 0,
+                minPermissionLevel = PermissionRungs.Everyone,
                 prefixMode = "Default",
                 customPrefix = "",
                 matchMode = "StartsWith",
@@ -1249,14 +1246,6 @@ private val MatchModes: List<String> = listOf("StartsWith", "Exact", "Contains",
 
 // The permission rungs the picker offers as ROLE NAMES mapped to their unified-ladder value (roles-permissions
 // §0). Ascending so [permissionLabel] resolves a stored level to the highest rung it clears.
-private val PermissionRungs: List<Pair<Int, org.jetbrains.compose.resources.StringResource>> =
-    listOf(
-        0 to Res.string.commands_perm_everyone,
-        2 to Res.string.commands_perm_subscriber,
-        4 to Res.string.commands_perm_vip,
-        10 to Res.string.commands_perm_moderator,
-        40 to Res.string.commands_perm_broadcaster,
-    )
 
 // Three-way tab: All shows everything, Custom hides built-ins, Builtin hides custom commands.
 private enum class CommandTab { All, Custom, Builtin }

@@ -861,6 +861,14 @@
     <string name="commands_perm_vip">VIP&apos;s</string>
     <string name="commands_perm_moderator">Moderators</string>
     <string name="commands_perm_broadcaster">Streamer</string>
+    <string name="perm_everyone">Iedereen</string>
+    <string name="perm_subscriber">Abonnees</string>
+    <string name="perm_vip">VIPs</string>
+    <string name="perm_artist">Artiesten</string>
+    <string name="perm_moderator">Moderators</string>
+    <string name="perm_lead_moderator">Hoofdmoderators</string>
+    <string name="perm_editor">Editors</string>
+    <string name="perm_broadcaster">Streamer</string>
     <string name="commands_dialog_random_mode_label">Willekeurige antwoorden</string>
     <string name="commands_dialog_responses_label">Antwoorden (er wordt er willekeurig één gekozen)</string>
     <string name="commands_dialog_response_add">Antwoord toevoegen</string>
@@ -3358,7 +3366,7 @@
     <string name="admin_providers_configure_desc">Laat een veld leeg om te houden wat er al staat. Een geheim opslaan vervangt het; het kan nooit worden teruggelezen.</string>
     <string name="admin_providers_save">Opslaan</string>
     <string name="admin_providers_clear">Opgeslagen wissen</string>
-    <string name="admin_providers_clear_confirm">De opgeslagen gegevens voor %1$s verwijderen? De omgevingswaarden nemen het weer over en een opgeslagen geheim is definitief weg.</string>
+    <string name="admin_providers_clear_confirm">%2$d opgeslagen waarde(n) voor %1$s verwijderen? De omgevingswaarden nemen het weer over en een opgeslagen geheim is definitief weg.</string>
     <string name="admin_iam_reason">Reden (optioneel)</string>
     <string name="admin_iam_user_id">Gebruikers-ID</string>
     <string name="admin_iam_display_name">Weergavenaam</string>

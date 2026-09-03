@@ -55,7 +55,7 @@ class CommandsControllerTest {
                             id = "00000007-0000-0000-0000-000000000007",
                             name = "!hello",
                             tier = "template",
-                            minPermissionLevel = 0,
+                            minPermissionLevel = "Everyone",
                             isEnabled = true,
                             cooldownSeconds = 5,
                             description = "Greets the chat",
@@ -123,7 +123,7 @@ class CommandsControllerTest {
             CommandInput(
                 name = "!hi",
                 tier = "template",
-                minPermissionLevel = 10,
+                minPermissionLevel = "Moderator",
                 prefixMode = "Custom",
                 customPrefix = "?",
                 matchMode = "Regex",
@@ -147,7 +147,7 @@ class CommandsControllerTest {
         assertEquals("!hi", body.name)
         assertEquals("yo", body.templateResponse)
         assertEquals(true, body.isEnabled)
-        assertEquals(10, body.minPermissionLevel)
+        assertEquals("Moderator", body.minPermissionLevel)
         assertEquals("Custom", body.prefixMode)
         assertEquals("?", body.customPrefix)
         assertEquals("Regex", body.matchMode)

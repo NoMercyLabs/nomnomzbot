@@ -293,7 +293,7 @@ class CommandsController(
 data class CommandInput(
     val name: String,
     val tier: String,
-    val minPermissionLevel: Int,
+    val minPermissionLevel: String,
     val prefixMode: String,
     val customPrefix: String?,
     val matchMode: String,

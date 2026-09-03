@@ -66,7 +66,7 @@ class RestCommandsApi(private val client: ApiClient) : CommandsApi {
 /**
  * The create-command request body (backend `CreateCommandDto`). [name] plus a reaction ([templateResponse] for
  * a text command, [templateResponses] for a random-response list, or a [pipelineId] to run a visual pipeline)
- * are the essentials. [tier] names the authoring kind (template | pipeline | code). [minPermissionLevel] is the
+ * are the essentials. [tier] names the authoring kind (template | pipeline | code). [minPermissionLevel] is the rung NAME (Everyone/Subscriber/Vip/Artist/Moderator/LeadModerator/Editor/Broadcaster) —
  * unified-ladder value a chatter must clear (0 = everyone). [prefixMode] (Default | Custom | None) with an
  * optional [customPrefix], and [matchMode] (StartsWith | Exact | Contains | Regex) with an optional
  * [matchPattern] (required for Regex), govern how the trigger is recognized. [cooldownSeconds] is the global
@@ -78,7 +78,7 @@ class RestCommandsApi(private val client: ApiClient) : CommandsApi {
 data class CreateCommandBody(
     val name: String,
     val tier: String = "template",
-    val minPermissionLevel: Int = 0,
+    val minPermissionLevel: String = "Everyone",
     val prefixMode: String = "Default",
     val customPrefix: String? = null,
     val matchMode: String = "StartsWith",
@@ -105,7 +105,7 @@ data class CreateCommandBody(
 data class UpdateCommandBody(
     val name: String? = null,
     val tier: String? = null,
-    val minPermissionLevel: Int? = null,
+    val minPermissionLevel: String? = null,
     val prefixMode: String? = null,
     val customPrefix: String? = null,
     val matchMode: String? = null,
@@ -134,7 +134,7 @@ data class CommandSummary(
     val id: String = "",
     val name: String = "",
     val tier: String = "template",
-    val minPermissionLevel: Int = 0,
+    val minPermissionLevel: String = "Everyone",
     val isEnabled: Boolean = false,
     val prefixMode: String = "Default",
     val customPrefix: String? = null,

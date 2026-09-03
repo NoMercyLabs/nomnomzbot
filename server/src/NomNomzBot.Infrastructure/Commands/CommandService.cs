@@ -18,6 +18,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Domain.Commands.Entities;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 
@@ -135,13 +136,21 @@ public class CommandService : ICommandService
         if (variationsOk.IsFailure)
             return variationsOk.ToTyped<CommandDto>();
 
+        // A rung the ladder does not know is refused, never coerced. Silently falling back to Everyone
+        // would hand a broadcaster-only command to the whole chat on a typo.
+        int? minLevel = PermissionLevelNames.ToLevelValue(request.MinPermissionLevel);
+        if (minLevel is null)
+            return Errors
+                .ValidationFailed(UnknownRungMessage(request.MinPermissionLevel))
+                .ToTyped<CommandDto>();
+
         Command command = new()
         {
             BroadcasterId = broadcaster,
             Name = name,
             NameNormalized = nameNormalized,
             Tier = request.Tier,
-            MinPermissionLevel = request.MinPermissionLevel,
+            MinPermissionLevel = minLevel.Value,
             PrefixMode = request.PrefixMode,
             CustomPrefix = request.CustomPrefix,
             MatchMode = request.MatchMode,
@@ -242,8 +251,15 @@ public class CommandService : ICommandService
 
         if (request.Tier is not null)
             command.Tier = request.Tier;
-        if (request.MinPermissionLevel.HasValue)
-            command.MinPermissionLevel = request.MinPermissionLevel.Value;
+        if (request.MinPermissionLevel is not null)
+        {
+            int? updatedLevel = PermissionLevelNames.ToLevelValue(request.MinPermissionLevel);
+            if (updatedLevel is null)
+                return Errors
+                    .ValidationFailed(UnknownRungMessage(request.MinPermissionLevel))
+                    .ToTyped<CommandDto>();
+            command.MinPermissionLevel = updatedLevel.Value;
+        }
         if (request.PrefixMode is not null)
             command.PrefixMode = request.PrefixMode;
         if (request.CustomPrefix is not null)
@@ -379,7 +395,7 @@ public class CommandService : ICommandService
                 c.Id,
                 c.Name,
                 c.Tier,
-                c.MinPermissionLevel,
+                PermissionLevelNames.ToName(c.MinPermissionLevel),
                 c.IsEnabled,
                 c.PrefixMode,
                 c.CustomPrefix,
@@ -629,7 +645,7 @@ public class CommandService : ICommandService
             c.Id,
             c.Name,
             c.Tier,
-            c.MinPermissionLevel,
+            PermissionLevelNames.ToName(c.MinPermissionLevel),
             c.IsEnabled,
             c.PrefixMode,
             c.CustomPrefix,
@@ -654,4 +670,8 @@ public class CommandService : ICommandService
         public string Action { get; set; } = string.Empty;
         public string? Subject { get; set; }
     }
+
+    /// <summary>One wording for an unusable rung, naming what IS accepted so the caller can fix it.</summary>
+    private static string UnknownRungMessage(string? given) =>
+        $"'{given}' is not a permission rung. Use one of: {string.Join(", ", PermissionLevelNames.All)}.";
 }

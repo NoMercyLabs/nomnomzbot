@@ -14,6 +14,7 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Import.Dtos;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.EventStore;
@@ -156,7 +157,12 @@ public sealed class ProviderImportServiceTests
         discord.Aliases.Should().ContainSingle().Which.Should().Be("disc", "the sigil is stripped");
 
         DomainCommand shoutout = await read.Commands.SingleAsync(c => c.NameNormalized == "so");
-        shoutout.MinPermissionLevel.Should().Be(5, "accessLevel 500 → broadcaster");
+        // 40 is Broadcaster on this product's ladder. The old expectation was 5 — which is not a rung at
+        // all, and resolves DOWNWARD to Vip, so an imported broadcaster-only command was runnable by any
+        // VIP. The assertion is written against the enum so it cannot drift back to a raw number.
+        shoutout
+            .MinPermissionLevel.Should()
+            .Be(PermissionLevel.Broadcaster.ToLevelValue(), "accessLevel 500 → broadcaster");
         shoutout.CooldownSeconds.Should().Be(15, "the per-user cooldown wins when present");
         shoutout.CooldownPerUser.Should().BeTrue();
 
@@ -263,15 +269,18 @@ public sealed class ProviderImportServiceTests
         (await read.Quotes.CountAsync()).Should().Be(1);
     }
 
+    // Expectations are the RUNG NAMES, resolved to ladder values in the body. The old table asserted raw
+    // 0/2/3/4/5 — a scale this product does not use: 3 and 5 are not rungs at all, and 4 is Vip, so the
+    // "broadcaster" row was really asserting that a broadcaster-only import came out VIP-runnable.
     [Theory]
-    [InlineData(null, 0)] // unspecified → everyone
-    [InlineData(0, 0)] // everyone
-    [InlineData(100, 2)] // subscriber
-    [InlineData(250, 3)] // vip (SE "regular")
-    [InlineData(400, 4)] // moderator band
-    [InlineData(500, 5)] // broadcaster
-    [InlineData(1000, 5)] // higher owner scale clamps to broadcaster
-    public async Task Access_level_maps_onto_the_role_ladder(int? accessLevel, int expectedLevel)
+    [InlineData(null, nameof(PermissionLevel.Everyone))]
+    [InlineData(0, nameof(PermissionLevel.Everyone))]
+    [InlineData(100, nameof(PermissionLevel.Subscriber))]
+    [InlineData(250, nameof(PermissionLevel.Vip))] // SE "regular"
+    [InlineData(400, nameof(PermissionLevel.Moderator))]
+    [InlineData(500, nameof(PermissionLevel.Broadcaster))]
+    [InlineData(1000, nameof(PermissionLevel.Broadcaster))] // higher owner scales clamp
+    public async Task Access_level_maps_onto_the_role_ladder(int? accessLevel, string expectedRung)
     {
         using ImportSqliteTestDatabase database = ImportSqliteTestDatabase.Open();
         Guid channel = await SeedChannelAsync(database);
@@ -298,6 +307,6 @@ public sealed class ProviderImportServiceTests
 
         await using ImportTestDbContext read = database.NewContext();
         DomainCommand command = await read.Commands.SingleAsync();
-        command.MinPermissionLevel.Should().Be(expectedLevel);
+        command.MinPermissionLevel.Should().Be(PermissionLevelNames.ToLevelValue(expectedRung));
     }
 }
