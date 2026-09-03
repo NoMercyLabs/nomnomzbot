@@ -54,6 +54,17 @@ public sealed class KickChatPlatform : IChatPlatform
         CancellationToken cancellationToken = default
     ) => await SendCoreAsync(broadcasterId, message, replyToMessageId: null, cancellationToken);
 
+    // IKickAccessTokenProvider.GetAsync resolves whichever identity (dedicated kick_bot connection, or
+    // the streamer's own account) is configured for this channel — there is no forced-owner overload yet
+    // to bypass a connected bot account, so this degrades to the same resolved identity as a normal send
+    // rather than guaranteeing the broadcaster's own account. Matches every IChatPlatform's contract that
+    // an operation a platform cannot fully perform degrades gracefully instead of throwing.
+    public async Task<bool> SendMessageAsBroadcasterAsync(
+        Guid broadcasterId,
+        string message,
+        CancellationToken cancellationToken = default
+    ) => await SendCoreAsync(broadcasterId, message, replyToMessageId: null, cancellationToken);
+
     public async Task<bool> SendReplyAsync(
         Guid broadcasterId,
         string replyToMessageId,

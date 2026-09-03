@@ -153,6 +153,16 @@ public sealed class LiveGameEngineTests
             return Task.FromResult(true);
         }
 
+        public Task<bool> SendMessageAsBroadcasterAsync(
+            Guid broadcasterId,
+            string message,
+            CancellationToken cancellationToken = default
+        )
+        {
+            SentMessages.Add(message);
+            return Task.FromResult(true);
+        }
+
         public Task<bool> SendReplyAsync(
             Guid broadcasterId,
             string replyToMessageId,

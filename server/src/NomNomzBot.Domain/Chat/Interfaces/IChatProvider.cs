@@ -52,6 +52,20 @@ public interface IChatProvider
     );
 
     /// <summary>
+    /// Sends a chat message as the STREAMER'S OWN account, even when a dedicated bot account is
+    /// connected for this channel — for content only the broadcaster can post as themselves (e.g. a
+    /// subscriber-only emote the bot account isn't subscribed to and so can't render). On a platform
+    /// with no bot/broadcaster distinction (every identity already IS the streamer's own token) this is
+    /// identical to <see cref="SendMessageAsync"/>. Same false-on-failure contract; never throws for an
+    /// expected send failure.
+    /// </summary>
+    Task<bool> SendMessageAsBroadcasterAsync(
+        Guid broadcasterId,
+        string message,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
     /// Sends a chat message threaded as a reply to <paramref name="replyToMessageId"/>. Returns <c>true</c> when
     /// the reply was accepted; <c>false</c> when it could NOT be sent (no connection, dead token, or the platform
     /// rejected the reply form — e.g. Twitch refusing a reply to a deleted/invalid parent message). Never throws

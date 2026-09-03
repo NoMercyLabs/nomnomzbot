@@ -91,7 +91,31 @@ public sealed class ChatPlatformRouter : IChatProvider, IInboundOriginChatSender
         IChatPlatform? platform = await ResolveAsync(broadcasterId, cancellationToken);
         return platform is null
             ? false
-            : await SendMessageViaAsync(platform, broadcasterId, message, cancellationToken);
+            : await SendMessageViaAsync(
+                platform,
+                broadcasterId,
+                message,
+                asBroadcaster: false,
+                cancellationToken
+            );
+    }
+
+    public async Task<bool> SendMessageAsBroadcasterAsync(
+        Guid broadcasterId,
+        string message,
+        CancellationToken cancellationToken = default
+    )
+    {
+        IChatPlatform? platform = await ResolveAsync(broadcasterId, cancellationToken);
+        return platform is null
+            ? false
+            : await SendMessageViaAsync(
+                platform,
+                broadcasterId,
+                message,
+                asBroadcaster: true,
+                cancellationToken
+            );
     }
 
     public async Task<bool> SendReplyAsync(
@@ -130,7 +154,13 @@ public sealed class ChatPlatformRouter : IChatProvider, IInboundOriginChatSender
         if (!_platforms.TryGetValue(provider, out IChatPlatform? platform))
             return UnsupportedProviderFailure(broadcasterId, provider);
 
-        bool sent = await SendMessageViaAsync(platform, broadcasterId, message, cancellationToken);
+        bool sent = await SendMessageViaAsync(
+            platform,
+            broadcasterId,
+            message,
+            asBroadcaster: false,
+            cancellationToken
+        );
         return sent
             ? Result.Success()
             : Result.Failure($"The '{provider}' chat platform rejected the send.", "send_rejected");
@@ -181,13 +211,18 @@ public sealed class ChatPlatformRouter : IChatProvider, IInboundOriginChatSender
         IChatPlatform platform,
         Guid broadcasterId,
         string message,
+        bool asBroadcaster,
         CancellationToken cancellationToken
     )
     {
         string provider = platform.Provider;
         string queueKey = $"{broadcasterId:D}:{provider}";
         string coalesceKey = $"{queueKey}|msg|{message}";
-        string? botLinePrefix = await ResolveBotLinePrefixAsync(broadcasterId, cancellationToken);
+        // The bot-line prefix distinguishes the bot's voice from the streamer's own — a message sent AS
+        // the broadcaster is the streamer's own voice by definition, so it never gets that prefix either.
+        string? botLinePrefix = asBroadcaster
+            ? null
+            : await ResolveBotLinePrefixAsync(broadcasterId, cancellationToken);
 
         return await _sendQueue.EnqueueAsync(
             queueKey,
@@ -203,7 +238,9 @@ public sealed class ChatPlatformRouter : IChatProvider, IInboundOriginChatSender
                 bool allSucceeded = true;
                 foreach (string chunk in chunks)
                 {
-                    bool sent = await platform.SendMessageAsync(broadcasterId, chunk, ct);
+                    bool sent = asBroadcaster
+                        ? await platform.SendMessageAsBroadcasterAsync(broadcasterId, chunk, ct)
+                        : await platform.SendMessageAsync(broadcasterId, chunk, ct);
                     if (!sent)
                     {
                         allSucceeded = false;
