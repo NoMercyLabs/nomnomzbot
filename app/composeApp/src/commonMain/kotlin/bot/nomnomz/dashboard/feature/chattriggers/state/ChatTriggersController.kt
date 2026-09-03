@@ -97,7 +97,7 @@ class ChatTriggersController(
         response: String?,
         pipelineId: String?,
         cooldownSeconds: Int,
-        minPermissionLevel: Int,
+        minPermissionLevel: String,
     ) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
         afterWrite(
@@ -132,7 +132,7 @@ class ChatTriggersController(
         response: String,
         pipelineId: String?,
         cooldownSeconds: Int,
-        minPermissionLevel: Int,
+        minPermissionLevel: String,
     ) {
         val channel: String = channelId ?: return failWrite(NoChannelError)
         afterWrite(

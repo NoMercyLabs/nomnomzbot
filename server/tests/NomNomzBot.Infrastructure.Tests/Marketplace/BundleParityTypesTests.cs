@@ -342,7 +342,7 @@ public sealed class BundleParityTypesTests
                     Response = "General {user}!",
                     PipelineId = pipeline.Id,
                     CooldownSeconds = 120,
-                    MinPermissionLevel = 10,
+                    MinPermissionLevel = "Moderator",
                 }
             )
         ).Value;
