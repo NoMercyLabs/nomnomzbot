@@ -228,22 +228,10 @@ serves correctly on `http://192.168.2.60:5080`; the Cloudflare tunnel token in t
 (tunnel `cf9f7591`) is rejected by Cloudflare on every connection attempt. Reissuing it needs
 Cloudflare account access. Verify deploys over the LAN address until then.
 
-- **S-TRUST-UNIFY** (found 2026-09-03, traced) — two parallel trust implementations with different
-  scales and different constants: `Domain/Trust/TrustScoreCalculator` (0–100, moderation projection,
-  now policy-driven) and `Infrastructure/Music/TrustService` (0.0–1.0, song requests, own consts
-  LambdaRequest/LambdaAccount/LambdaContent/LambdaPopularity/ViolationPenalty). The comment in
-  `ModerationProjectionService` calling the calculator "the SHARED calculator (never forked)" is
-  aspirational — music forked it. Done-when: one trust engine and one policy feed both, or the
-  dashboard states which system governs which feature; never a UI implying one set of weights
-  controls both.
-- **S-FLAKE-TIMING** (small, unowned, found 2026-09-03 during the S-OWN22 merge gate) — two
-  timing-sensitive Infrastructure tests fail under full-suite parallel load and pass in isolation,
-  so a full `dotnet test` lands red ~50% of runs and trains everyone to ignore it:
-  `OutboundWebhookDeliveryTruthTests.Fanout_returns_before_the_slow_http_send_completes_and_still_records_the_failed_attempt`
-  and `…Pipeline…Step_ConfigJsonWithoutEmbeddedType_StillExecutes` (peer commit `60835906`). Both
-  assert on real elapsed time / scheduling rather than on an injected clock or a completion signal.
-  Done-when: both pass 5 consecutive full-suite runs with no `--filter`, fixed by awaiting the
-  actual signal (or a fake TimeProvider), never by widening a sleep.
+- **S-FLAKE-TIMING** — fix written, PROOF PENDING. Both tests now await the real signal
+  (`OutboundWebhookFanoutHandler.LastDispatch`, and a `Ran` TaskCompletionSource on the pipeline test
+  actions) instead of racing `Task.Delay`; the remaining bounds are hang detectors, not timing
+  assertions. Stays open until the done-when is met: 5 consecutive full-suite runs with no `--filter`.
 
 **Your asks, and where each one is:**
 
