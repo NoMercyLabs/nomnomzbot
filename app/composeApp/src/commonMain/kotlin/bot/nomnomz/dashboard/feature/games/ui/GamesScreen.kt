@@ -64,6 +64,7 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.icon.EditGlyph
+import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.network.GamePlayEntry
 import bot.nomnomz.dashboard.core.network.GameSession
 import bot.nomnomz.dashboard.core.network.GameSummary
@@ -793,7 +794,7 @@ private fun GameConfigDialog(
                             label = stringResource(Res.string.games_dialog_config_value_hint),
                         )
                         GlyphButton(
-                            icon = EditGlyph,
+                            icon = TrashGlyph,
                             label = stringResource(Res.string.games_dialog_config_remove, entry.first),
                             onClick = { configEntries.removeAt(index) },
                         )
