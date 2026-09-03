@@ -23,7 +23,6 @@ using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.Exceptions;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
-using NomNomzBot.Domain.Trust;
 
 namespace NomNomzBot.Infrastructure.Music;
 
@@ -885,20 +884,6 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             "broadcaster" => PermissionLevel.Broadcaster,
             _ => PermissionLevel.Everyone,
         };
-
-    public string? CheckTrustPermission(double trustScore, bool isYouTubeContent)
-    {
-        TrustTier tier = TrustScoreCalculator.GetTier(trustScore);
-
-        return tier switch
-        {
-            TrustTier.Untrusted =>
-                "Your trust score is too low. Requests require moderator approval.",
-            TrustTier.Low when isYouTubeContent =>
-                "YouTube requests are not available at your trust level. Try Spotify.",
-            _ => null,
-        };
-    }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
 

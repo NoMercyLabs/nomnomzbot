@@ -19,9 +19,14 @@ namespace NomNomzBot.Domain.Trust.Entities;
 /// is EXACTLY the value the calculator shipped with, so an untouched policy reproduces today's scores
 /// byte for byte.
 ///
-/// <para><b>Blast radius:</b> this policy drives BOTH the moderation trust/heat projection and
-/// song-request gating — the two consume one calculator and must never fork. Changing a weight here
-/// changes who may use <c>!sr</c> as well as who the moderation surfaces call trusted.</para>
+/// <para><b>Blast radius, stated exactly (traced 2026-09-03):</b> this policy drives the moderation
+/// trust/heat projection (<c>UserTrustScore</c>) — the scores and tiers the moderation surfaces show.
+/// It does NOT currently gate song requests: that path runs a SEPARATE implementation
+/// (<c>Infrastructure/Music/TrustService</c>, a 0.0–1.0 scale with its own constants). The one method
+/// that would have bridged them, <c>MusicService.CheckTrustPermission</c>, was unreachable dead code
+/// and was deleted rather than left to imply a link that does not exist. Unifying the two trust
+/// systems is filed as S-TRUST-UNIFY; until then, do not tell an operator that these weights change
+/// <c>!sr</c>.</para>
 ///
 /// <para>Per <c>spam-defense.md</c> §6 these are tunables, not invariants: no value here may switch
 /// off the protections that exist so a regular is never auto-punished.</para>

@@ -16,9 +16,11 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
+using NomNomzBot.Application.Trust.Services;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Domain.Trust;
+using NomNomzBot.Domain.Trust.Entities;
 using NomNomzBot.Infrastructure.Moderation;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
@@ -43,7 +45,7 @@ public sealed class ModerationProjectionServiceTests
         ModerationProjectionService Sut,
         ModerationServiceTestDbContext Db,
         RecordingEventBus Bus
-    ) Build(int threshold = 80)
+    ) Build(int threshold = 80, TrustPolicy? policy = null)
     {
         ModerationServiceTestDbContext db = ModerationServiceTestDbContext.New();
         IModerationService moderation = Substitute.For<IModerationService>();
@@ -61,9 +63,16 @@ public sealed class ModerationProjectionServiceTests
                 )
             );
         RecordingEventBus bus = new();
+        // Defaults unless a test supplies a tuned policy — which is what keeps every existing
+        // expectation in this file valid unchanged.
+        ITrustPolicyService trustPolicy = Substitute.For<ITrustPolicyService>();
+        trustPolicy
+            .GetAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(policy ?? TrustScoreCalculator.DefaultPolicy);
         ModerationProjectionService sut = new(
             db,
             moderation,
+            trustPolicy,
             bus,
             new FakeTimeProvider(new(T0)),
             NullLogger<ModerationProjectionService>.Instance
@@ -116,6 +125,49 @@ public sealed class ModerationProjectionServiceTests
         ((double)score.TrustScore)
             .Should()
             .BeLessThan(CleanScoreAt(T0));
+    }
+
+    [Fact]
+    public async Task A_tuned_heat_delta_is_the_heat_a_ban_actually_accrues()
+    {
+        // S-OWN23 T2: the channel's policy — not a constant in the service — decides what an offence
+        // costs. A channel that halves the ban delta must see exactly half the heat. Asserted against
+        // a NON-DEFAULT value, so a service that ignored the policy would report the shipped 40.
+        TrustPolicy lenient = new() { HeatDeltaBan = 20m };
+        (ModerationProjectionService sut, ModerationServiceTestDbContext db, _) = Build(
+            policy: lenient
+        );
+        await SeedSubjectAsync(db);
+
+        await sut.ApplyActionAsync(Channel, SubjectTwitchId, "ban", T0);
+
+        UserTrustScore score = await db.UserTrustScores.SingleAsync();
+        score
+            .HeatScore.Should()
+            .Be(20m, "the channel's own ban delta is what accrues, not the default 40");
+    }
+
+    [Fact]
+    public async Task A_tuned_heat_half_life_changes_how_fast_heat_decays()
+    {
+        // Half-life 12h instead of 24h: the same 24h gap now halves the heat twice, not once.
+        TrustPolicy fastCooling = new() { HeatHalfLifeHours = 12.0 };
+        (ModerationProjectionService sut, ModerationServiceTestDbContext db, _) = Build(
+            policy: fastCooling
+        );
+        await SeedSubjectAsync(db);
+
+        await sut.ApplyActionAsync(Channel, SubjectTwitchId, "ban", T0); // heat 40
+        await sut.ApplyActionAsync(Channel, SubjectTwitchId, "timeout", T0.AddHours(24)); // 10 + 15
+
+        UserTrustScore score = await db.UserTrustScores.SingleAsync();
+        score
+            .HeatScore.Should()
+            .BeApproximately(
+                25m,
+                0.01m,
+                "at a 12h half-life 40 quarters to 10 over 24h, then +15 — the default 24h would give 35"
+            );
     }
 
     [Fact]
