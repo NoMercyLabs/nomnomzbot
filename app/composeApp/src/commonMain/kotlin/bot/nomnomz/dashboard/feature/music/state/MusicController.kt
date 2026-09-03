@@ -27,11 +27,18 @@ import bot.nomnomz.dashboard.core.network.MusicDevice
 import bot.nomnomz.dashboard.core.network.MusicPlaylist
 import bot.nomnomz.dashboard.core.network.MusicSongRequestBody
 import bot.nomnomz.dashboard.core.realtime.HubEvent
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import bot.nomnomz.dashboard.core.network.BlastRadiusSummary
+
+// How many times onPredictedTrackEndReached() re-fetches before giving up, and how long it waits between
+// attempts — long enough to clear Spotify's own propagation lag after a real track change, short enough
+// that the screen doesn't sit wrong for long while it retries.
+private const val TrackEndResyncAttempts = 3
+private const val TrackEndResyncRetryDelayMs = 1_500L
 
 // The Music page's state-holder — the channel's live playback, made controllable. Resolves the active channel,
 // loads its real now-playing + queue from the backend (the connected music provider; no fabricated tracks),
@@ -313,6 +320,36 @@ class MusicController(
                 // payload doesn't) rather than patch with the hub payload's defaults.
                 load()
             }
+        }
+    }
+
+    /**
+     * Called once the screen's own local progress ticker reaches the current track's predicted natural end
+     * (position == duration while playing). [subscribeToHub] is the ONLY other source of updates, and a hub
+     * push can be missed — a reconnect gap, a dropped frame, nothing that surfaces as an error anywhere —
+     * with nothing else to notice. Without this, a missed push leaves the screen frozen at 100% forever: the
+     * ticker's own loop simply has nothing left to count up to, so it stops, and nothing ever asks the
+     * backend again.
+     *
+     * Re-fetches via [load] (a real backend read, independent of the hub) and retries a few times with a
+     * short delay: Spotify's own playback-state propagation can lag a few seconds behind the actual track
+     * change, so an IMMEDIATE re-read can still observe the just-finished track. Gives up silently after
+     * [TrackEndResyncAttempts] — the periodic 1s poller and the next real hub push remain the backstop.
+     */
+    suspend fun onPredictedTrackEndReached() {
+        val before: NowPlaying = (_state.value as? MusicState.Ready)?.nowPlaying ?: return
+
+        repeat(TrackEndResyncAttempts) {
+            load()
+            val after: NowPlaying? = (_state.value as? MusicState.Ready)?.nowPlaying
+            val stillTheFinishedTrack: Boolean =
+                after != null &&
+                    after.trackName == before.trackName &&
+                    after.artist == before.artist &&
+                    after.durationMs > 0 &&
+                    after.progressMs >= after.durationMs
+            if (!stillTheFinishedTrack) return
+            delay(TrackEndResyncRetryDelayMs)
         }
     }
 

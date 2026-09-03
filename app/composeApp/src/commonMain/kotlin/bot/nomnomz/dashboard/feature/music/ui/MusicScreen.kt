@@ -220,6 +220,7 @@ fun MusicScreen(
                     onPause = { scope.launch { controller.pause() } },
                     onSeek = { positionMs -> scope.launch { controller.seek(positionMs) } },
                     onSkip = { scope.launch { controller.skip() } },
+                    onTrackEndReached = { scope.launch { controller.onPredictedTrackEndReached() } },
                     onRemove = { position -> scope.launch { controller.remove(position) } },
                     onAddToQueue = { query, requestedBy -> scope.launch { controller.addToQueue(query, requestedBy) } },
                     onRotateToken = { scope.launch { controller.rotateSrPageToken() } },
@@ -258,6 +259,7 @@ private fun ReadyContent(
     onPause: () -> Unit,
     onSeek: (positionMs: Int) -> Unit,
     onSkip: () -> Unit,
+    onTrackEndReached: () -> Unit,
     onRemove: (position: Int) -> Unit,
     onAddToQueue: (query: String, requestedBy: String) -> Unit,
     onRotateToken: () -> Unit,
@@ -300,6 +302,7 @@ private fun ReadyContent(
                 onPause = onPause,
                 onSeek = onSeek,
                 onSkip = onSkip,
+                onTrackEndReached = onTrackEndReached,
             )
         }
 
@@ -439,6 +442,7 @@ private fun NowPlayingCard(
     onPause: () -> Unit,
     onSeek: (positionMs: Int) -> Unit,
     onSkip: () -> Unit,
+    onTrackEndReached: () -> Unit = {},
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -478,6 +482,10 @@ private fun NowPlayingCard(
                 if (nowPlaying.durationMs > 0) (tickedMs + 1_000).coerceAtMost(nowPlaying.durationMs)
                 else tickedMs + 1_000
         }
+        // The ticker reached the track's predicted natural end. subscribeToHub() is the only other source of
+        // updates, and a hub push can be missed silently (reconnect gap, dropped frame) — without this, a missed
+        // push leaves the card frozen at 100% forever. onTrackEndReached() re-checks the backend directly.
+        if (nowPlaying.durationMs > 0) onTrackEndReached()
     }
 
     Column(
