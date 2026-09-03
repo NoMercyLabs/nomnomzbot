@@ -67,9 +67,15 @@ fun TemplateHelpersLink(
     val spacing = LocalSpacing.current
     var open: Boolean by remember { mutableStateOf(false) }
 
+    // Muted, not accent: this is a field affordance that sits beside the form's real primary action
+    // (Save / Add / Create). Painting both at full accent put two focal points in one group and diluted
+    // the one control the streamer is actually meant to press. The dialog it opens carries the accent.
     TextButton(onClick = { open = true }, modifier = modifier) {
-        AppIcon(CodeGlyph, contentDescription = null, tint = tokens.primary, size = spacing.s4)
-        Text(text = stringResource(Res.string.template_helpers_link_label), color = tokens.primary)
+        AppIcon(CodeGlyph, contentDescription = null, tint = tokens.mutedForeground, size = spacing.s4)
+        Text(
+            text = stringResource(Res.string.template_helpers_link_label),
+            color = tokens.mutedForeground,
+        )
     }
 
     if (open) {
