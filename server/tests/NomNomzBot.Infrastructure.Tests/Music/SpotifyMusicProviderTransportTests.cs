@@ -253,7 +253,8 @@ public sealed class SpotifyMusicProviderTransportTests
             NullLogger<MusicService>.Instance,
             store,
             PermissiveMusicConfigService.Instance,
-            Substitute.For<ICurrencyAccountService>()
+            Substitute.For<ICurrencyAccountService>(),
+            new NowPlayingCache()
         );
         return (sut, bus, handler, store);
     }

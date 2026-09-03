@@ -155,7 +155,8 @@ public sealed class SongRequestQueueCrossScopeTests
             NullLogger<MusicService>.Instance,
             new InMemoryIntegrationCapabilityStore(),
             PermissiveMusicConfigService.Instance,
-            Substitute.For<ICurrencyAccountService>()
+            Substitute.For<ICurrencyAccountService>(),
+            new NowPlayingCache()
         );
 
     private static MusicTestDbContext SeedChannel(Guid channelId, MusicTestDbContext? into = null)

@@ -556,6 +556,11 @@ public sealed class MusicStatePollingServiceTests
             );
         }
 
+        public Task<bool?> TryGetCachedIsPlayingAsync(
+            string broadcasterId,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
+
         public Task<IReadOnlyList<MusicTrack>> SearchAsync(
             string broadcasterId,
             string query,

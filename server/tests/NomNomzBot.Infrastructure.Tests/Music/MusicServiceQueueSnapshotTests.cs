@@ -142,7 +142,8 @@ public sealed class MusicServiceQueueSnapshotTests
             NullLogger<MusicService>.Instance,
             new InMemoryIntegrationCapabilityStore(),
             PermissiveMusicConfigService.Instance,
-            Substitute.For<ICurrencyAccountService>()
+            Substitute.For<ICurrencyAccountService>(),
+            new NowPlayingCache()
         );
         return (sut, bus);
     }

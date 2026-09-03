@@ -151,17 +151,26 @@ public sealed class MusicPlayPauseAction : ICommandAction
         ActionDefinition action
     )
     {
-        NowPlaying? nowPlaying = await _music.GetNowPlayingAsync(
-            ctx.BroadcasterId.ToString(),
+        string broadcasterId = ctx.BroadcasterId.ToString();
+
+        // The cached hint (kept warm by the 1s poller — see INowPlayingCache) is all this needs: which
+        // command to send next. A full GetNowPlayingAsync call here would be a redundant live provider
+        // round trip on every toggle press just to answer a question the cache already answers within a
+        // few seconds' staleness. Falls back to the real read only when nothing fresh is cached (e.g. a
+        // channel the poller hasn't reached yet).
+        bool? isPlaying = await _music.TryGetCachedIsPlayingAsync(
+            broadcasterId,
             ctx.CancellationToken
         );
-        Result result = nowPlaying is { IsPlaying: true }
-            ? await _music.PauseAsync(ctx.BroadcasterId.ToString(), ctx.CancellationToken)
-            : await _music.PlayAsync(ctx.BroadcasterId.ToString(), ctx.CancellationToken);
-        return MusicControlResult.FromMusicResult(
-            result,
-            nowPlaying is { IsPlaying: true } ? "paused" : "playing"
-        );
+        isPlaying ??= (
+            await _music.GetNowPlayingAsync(broadcasterId, ctx.CancellationToken)
+        )?.IsPlaying;
+
+        Result result =
+            isPlaying == true
+                ? await _music.PauseAsync(broadcasterId, ctx.CancellationToken)
+                : await _music.PlayAsync(broadcasterId, ctx.CancellationToken);
+        return MusicControlResult.FromMusicResult(result, isPlaying == true ? "paused" : "playing");
     }
 }
 
@@ -715,8 +724,8 @@ public sealed class MusicTransferDeviceAction : ICommandAction
     {
         string value = action.GetString(key) ?? string.Empty;
         if (value.StartsWith('{') && value.EndsWith('}'))
-            vars.TryGetValue(value[1..^1], out value!);
-        return value ?? string.Empty;
+            return vars.GetValueOrDefault(value[1..^1], string.Empty);
+        return value;
     }
 }
 

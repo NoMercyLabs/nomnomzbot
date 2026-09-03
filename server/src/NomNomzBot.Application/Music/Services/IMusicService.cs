@@ -96,6 +96,19 @@ public interface IMusicService
     );
 
     /// <summary>
+    /// A fast, possibly-a-few-seconds-stale read of whether the channel is currently playing, backed by
+    /// the same warm cache <see cref="GetNowPlayingAsync"/> keeps fresh on every real read (poller
+    /// cadence for an actively streaming channel). Null when there is no fresh enough cached reading —
+    /// the caller should fall back to a real <see cref="GetNowPlayingAsync"/> call. Exists for a toggle
+    /// (music_play_pause) that only needs to know WHICH command to send next, not a fully authoritative
+    /// snapshot, so it can skip a redundant live provider round trip on every press.
+    /// </summary>
+    Task<bool?> TryGetCachedIsPlayingAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
     /// The provider key (<c>spotify</c>, <c>youtube</c>, …) of the channel's active music provider,
     /// resolved exactly as every playback member resolves it; null when none is connected.
     /// </summary>

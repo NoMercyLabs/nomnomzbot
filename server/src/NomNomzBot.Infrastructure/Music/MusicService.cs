@@ -49,6 +49,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
     private readonly IIntegrationCapabilityStore _capabilities;
     private readonly IMusicConfigService _config;
     private readonly ICurrencyAccountService _accounts;
+    private readonly INowPlayingCache _nowPlayingCache;
 
     public MusicService(
         IEnumerable<IMusicProvider> providers,
@@ -60,7 +61,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         ILogger<MusicService> logger,
         IIntegrationCapabilityStore capabilities,
         IMusicConfigService config,
-        ICurrencyAccountService accounts
+        ICurrencyAccountService accounts,
+        INowPlayingCache nowPlayingCache
     )
     {
         _providers = providers;
@@ -73,6 +75,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         _logger = logger;
         _capabilities = capabilities;
         _accounts = accounts;
+        _nowPlayingCache = nowPlayingCache;
     }
 
     /// <summary>
@@ -198,7 +201,12 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             return PremiumRequired(ex);
         }
 
-        await PublishPlaybackStateChangedAsync(tenantId, provider, cancellationToken);
+        await PublishPlaybackStateChangedAsync(
+            tenantId,
+            provider,
+            cancellationToken,
+            assumeIsPlaying: true
+        );
         return Result.Success();
     }
 
@@ -225,7 +233,12 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             return PremiumRequired(ex);
         }
 
-        await PublishPlaybackStateChangedAsync(tenantId, provider, cancellationToken);
+        await PublishPlaybackStateChangedAsync(
+            tenantId,
+            provider,
+            cancellationToken,
+            assumeIsPlaying: false
+        );
         return Result.Success();
     }
 
@@ -794,7 +807,23 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         if (track is null)
             return null;
 
-        return new(
+        _nowPlayingCache.Set(tenantId, track, DateTimeOffset.UtcNow);
+
+        return ToNowPlaying(track);
+    }
+
+    public async Task<bool?> TryGetCachedIsPlayingAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid tenantId))
+            return null;
+        return _nowPlayingCache.TryGet(tenantId, NowPlayingCacheFreshness)?.Track.IsPlaying;
+    }
+
+    private static NowPlaying ToNowPlaying(TrackInfo track) =>
+        new(
             track.TrackName,
             track.Artist,
             track.Album,
@@ -820,7 +849,6 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             track.CanPause,
             track.CanResume
         );
-    }
 
     public async Task<string?> GetActiveProviderKeyAsync(
         string broadcasterId,
@@ -1351,19 +1379,95 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         return true;
     }
 
+    /// <summary>How stale a cached <see cref="TrackInfo"/> may be before <see cref="PublishPlaybackStateChangedAsync"/>
+    /// refuses to trust it for the assumed-outcome fast path — generous relative to the 1s poller cadence that
+    /// keeps it warm, tight enough that a channel the poller has stopped reaching (backed off after failures)
+    /// falls back to a real fetch instead of publishing on data that's actually gone stale.</summary>
+    private static readonly TimeSpan NowPlayingCacheFreshness = TimeSpan.FromSeconds(3);
+
     /// <summary>
     /// Publishes <see cref="PlaybackStateChangedEvent"/> right after a successful mutation (play/pause/skip/
-    /// play-context) so the dashboard + overlay update instantly instead of waiting for the next
-    /// <c>MusicStatePollingService</c> tick. Re-reads the provider's current track rather than guessing the new
-    /// state, since e.g. a skip's next track is only known to the provider.
+    /// play-context) so the dashboard + overlay + Stream Deck update instantly instead of waiting for the next
+    /// <c>MusicStatePollingService</c> tick.
+    ///
+    /// <paramref name="assumeIsPlaying"/> is the ONE thing a Pause/Play mutation already knows for certain
+    /// without asking the provider again — pausing/resuming doesn't change which track is loaded, only whether
+    /// it's playing. When it's given and a fresh <see cref="INowPlayingCache"/> entry exists (kept warm by every
+    /// real <see cref="GetNowPlayingAsync"/> read, i.e. every poller tick for an actively streaming channel),
+    /// this skips the provider round trip entirely and publishes from the cached track with just that flag
+    /// substituted — cutting the mutation-to-visible-update latency roughly in half by removing a second
+    /// sequential Spotify API call from the critical path, and sidestepping a real Spotify quirk where a GET
+    /// issued immediately after a PUT can still echo the PRE-mutation state (the read races the provider's own
+    /// propagation, not just network latency). <paramref name="assumeIsPlaying"/> is null for skip/previous/
+    /// play-context, where the resulting track is genuinely unknown until asked — those always re-fetch, which
+    /// also keeps the cache itself warm for the next Pause/Play.
     /// </summary>
     private async Task PublishPlaybackStateChangedAsync(
         Guid tenantId,
         IMusicProvider provider,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        bool? assumeIsPlaying = null
     )
     {
-        TrackInfo? track = await provider.GetCurrentTrackAsync(tenantId, cancellationToken);
+        TrackInfo? track;
+        DateTimeOffset observedAt;
+
+        NowPlayingSnapshot? cached = assumeIsPlaying is not null
+            ? _nowPlayingCache.TryGet(tenantId, NowPlayingCacheFreshness)
+            : null;
+
+        if (cached is { } snapshot)
+        {
+            // The track didn't change; only IsPlaying did. Progress freezes where it was (pausing) or
+            // resumes from where it was (playing) — either way it's the cached value, extrapolated
+            // forward only if the track was ALREADY playing as of that snapshot (a paused track's
+            // position doesn't advance on its own between the snapshot and now).
+            int extrapolatedProgressMs = snapshot.Track.IsPlaying
+                ? snapshot.Track.ProgressMs
+                    + (int)(DateTimeOffset.UtcNow - snapshot.ObservedAt).TotalMilliseconds
+                : snapshot.Track.ProgressMs;
+            track = new TrackInfo
+            {
+                TrackName = snapshot.Track.TrackName,
+                Artist = snapshot.Track.Artist,
+                Album = snapshot.Track.Album,
+                TrackUri = snapshot.Track.TrackUri,
+                AlbumArtUrl = snapshot.Track.AlbumArtUrl,
+                DurationMs = snapshot.Track.DurationMs,
+                Provider = snapshot.Track.Provider,
+                ProviderTrackId = snapshot.Track.ProviderTrackId,
+                ArtistId = snapshot.Track.ArtistId,
+                IsExplicit = snapshot.Track.IsExplicit,
+                IsAgeRestricted = snapshot.Track.IsAgeRestricted,
+                IsEmbeddable = snapshot.Track.IsEmbeddable,
+                // Reachable only when assumeIsPlaying is not null — `cached` is computed FROM that same
+                // condition above — but the compiler can't correlate two separate variables' nullability,
+                // hence GetValueOrDefault() rather than a provably-safe-but-unverifiable `.Value`.
+                IsPlaying = assumeIsPlaying.GetValueOrDefault(),
+                ProgressMs =
+                    snapshot.Track.DurationMs > 0
+                        ? Math.Min(extrapolatedProgressMs, snapshot.Track.DurationMs)
+                        : extrapolatedProgressMs,
+                VolumePercent = snapshot.Track.VolumePercent,
+                ShuffleEnabled = snapshot.Track.ShuffleEnabled,
+                RepeatMode = snapshot.Track.RepeatMode,
+                CanSetShuffle = snapshot.Track.CanSetShuffle,
+                CanSetRepeat = snapshot.Track.CanSetRepeat,
+                CanSkipNext = snapshot.Track.CanSkipNext,
+                CanSkipPrevious = snapshot.Track.CanSkipPrevious,
+                CanSeek = snapshot.Track.CanSeek,
+                CanPause = snapshot.Track.CanPause,
+                CanResume = snapshot.Track.CanResume,
+            };
+            observedAt = DateTimeOffset.UtcNow;
+        }
+        else
+        {
+            track = await provider.GetCurrentTrackAsync(tenantId, cancellationToken);
+            observedAt = DateTimeOffset.UtcNow;
+            if (track is not null)
+                _nowPlayingCache.Set(tenantId, track, observedAt);
+        }
 
         await _eventBus.PublishAsync(
             new PlaybackStateChangedEvent
@@ -1382,7 +1486,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                 ShuffleEnabled = track?.ShuffleEnabled ?? false,
                 RepeatMode = track?.RepeatMode ?? MusicRepeatMode.Off,
                 VolumePercent = track?.VolumePercent ?? 100,
-                ObservedAt = DateTimeOffset.UtcNow,
+                ObservedAt = observedAt,
                 CanSetShuffle = track?.CanSetShuffle ?? true,
                 CanSetRepeat = track?.CanSetRepeat ?? true,
                 CanSkipNext = track?.CanSkipNext ?? true,
