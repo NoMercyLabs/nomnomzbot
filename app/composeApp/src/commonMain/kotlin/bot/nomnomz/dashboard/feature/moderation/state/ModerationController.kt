@@ -51,6 +51,7 @@ import bot.nomnomz.dashboard.core.network.TrustApi
 import bot.nomnomz.dashboard.core.network.SpamDefenseApi
 import bot.nomnomz.dashboard.core.network.SpamDefensePolicy
 import bot.nomnomz.dashboard.core.network.SpamDefenseSettings
+import bot.nomnomz.dashboard.core.network.SpamDetection
 import bot.nomnomz.dashboard.core.network.TrustPolicy
 import bot.nomnomz.dashboard.core.network.TwitchAutoModSettings
 import bot.nomnomz.dashboard.core.network.UpdateTrustPolicyBody
@@ -338,6 +339,16 @@ class ModerationController(
                 is ApiResult.Ok -> result.value
             }
 
+        // The verdict log. Resilient like the policy: a caller below the read floor sees the section
+        // hidden, never a failed page.
+        val spamDetections: List<SpamDetection> =
+            when (
+                val result: ApiResult<List<SpamDetection>>? = spamDefenseApi?.detections(channel.id)
+            ) {
+                null, is ApiResult.Failure -> emptyList()
+                is ApiResult.Ok -> result.value
+            }
+
         // Empty only when there is genuinely nothing to show AND every always-on control (shield, automod) is off
         // AND every live-Twitch section is available (an unavailable section must render Ready so its needs-permission
         // notice shows — never Empty, which would read as "nothing here" rather than "you can't see this here").
@@ -391,6 +402,7 @@ class ModerationController(
                     twitchAutoMod = twitchAutoMod,
                     trustPolicy = trustPolicy,
                     spamDefense = spamDefense,
+                    spamDetections = spamDetections,
                 )
             }
     }
@@ -1130,6 +1142,38 @@ class ModerationController(
     }
 
     /**
+     * Marks one verdict wrong. The row is updated in place rather than the whole page reloaded — a
+     * moderator working through a queue should not lose their scroll position for every correction.
+     */
+    suspend fun overturnSpamDetection(detectionId: String) {
+        val channel: String = channelId ?: return
+        val api: SpamDefenseApi = spamDefenseApi ?: return
+        val current: ModerationState = _state.value
+        if (current !is ModerationState.Ready) return
+
+        when (val result: ApiResult<Unit> = api.overturn(channel, detectionId)) {
+            is ApiResult.Ok -> {
+                val ready: ModerationState = _state.value
+                if (ready is ModerationState.Ready) {
+                    _state.value =
+                        ready.copy(
+                            spamDetections =
+                                ready.spamDetections.map { detection ->
+                                    if (detection.id == detectionId) {
+                                        detection.copy(overturnedAt = "overturned")
+                                    } else {
+                                        detection
+                                    }
+                                },
+                            actionError = null,
+                        )
+                }
+            }
+            is ApiResult.Failure -> setActionError(result.error.message)
+        }
+    }
+
+    /**
      * Replace Twitch's own AutoMod levels with [body]. The body type only exists in an overall-dial OR a
      * per-category shape, so the combination Twitch rejects cannot be sent. Stores the echoed settings on success.
      */
@@ -1206,6 +1250,7 @@ sealed interface ModerationState {
         // The channel's trust policy (S-OWN23), null when the read failed or no trust API is wired.
         val trustPolicy: TrustPolicy? = null,
         val spamDefense: SpamDefensePolicy? = null,
+        val spamDetections: List<SpamDetection> = emptyList(),
         // True when the last trust-policy save was refused locally because the four weights do not sum to 1.0 —
         // the backend rejects that body, so the editor blocks it and shows the inline error instead.
         val trustWeightSumInvalid: Boolean = false,

@@ -138,8 +138,16 @@ class SpamDefenseCopyTest {
         // Compose Resources resolves strings statically — there is no lookup-by-name — so a key the
         // backend sends has to be present in an explicit map to render at all. Without this check the
         // failure is silent and ugly: the page shows a raw key to somebody in the middle of a raid.
+        // Only the keys the SERVER can send need to be in the map. The three prefixes below are
+        // exactly what SpamSettingCatalogue derives; other spam_* strings (the detection log, tier
+        // names) are referenced statically in the UI and need no lookup.
+        val serverSentPrefixes: List<String> =
+            listOf("spam_setting_", "spam_invariant_", "spam_group_")
         val inResources: Set<String> =
-            readStrings("values").keys.filter { it.startsWith("spam_") }.toSet()
+            readStrings("values")
+                .keys
+                .filter { key -> serverSentPrefixes.any { key.startsWith(it) } }
+                .toSet()
         val inMap: Set<String> = SpamDefenseCopy.byKey.keys
 
         val unmapped: Set<String> = inResources - inMap
