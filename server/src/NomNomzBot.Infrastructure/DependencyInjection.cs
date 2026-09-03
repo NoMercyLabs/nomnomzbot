@@ -965,6 +965,9 @@ public static class DependencyInjection
         // <X>Service) does not reach it. Separate from SpamDefenseService because deciding and acting
         // are different responsibilities: the decision is pure, acting touches somebody's account.
         services.AddScoped<Moderation.SpamEnforcementExecutor>();
+        // Same reason: consumed by concrete type from the chat-path handler. Kept apart from
+        // SpamDefenseService because correlation is stateful across messages while evaluation is not.
+        services.AddScoped<Moderation.SpamCorrelationService>();
 
         // Personality tone renderer for built-in responses (override → tone → neutral, then template-resolve).
         // Stateless over the singleton ITemplateResolver, so registered singleton.

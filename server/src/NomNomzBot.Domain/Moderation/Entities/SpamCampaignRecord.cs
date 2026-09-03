@@ -51,6 +51,33 @@ public class SpamCampaignRecord : SoftDeletableEntity, ITenantScoped
     public string ActionedAccountIds { get; set; } = string.Empty;
 
     /// <summary>
+    /// Everyone who posted the skeleton, comma-separated. Stored rather than counted because SD9 needs
+    /// MEMBERSHIP, not presence: an account may only be actioned if it actually posted the phrase, and
+    /// a restart that reduced the cohort to a number would leave the engine unable to tell the two
+    /// apart.
+    /// </summary>
+    public string MemberAccountIds { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The subset with positive standing. Kept separately so the share can be recomputed exactly on
+    /// reload, and so SD11 exclusion does not depend on re-resolving every member's tier.
+    /// </summary>
+    public string StandingAccountIds { get; set; } = string.Empty;
+
+    /// <summary>When the cohort first qualified — the clock the action delay runs from.</summary>
+    public DateTime? QualifiedAt { get; set; }
+
+    /// <summary>
+    /// A de-qualified cohort never re-qualifies within its window. Persisted because the latch is the
+    /// whole of the one-way guarantee: reset by a restart, more strangers arriving would re-action
+    /// people the regulars had already exonerated.
+    /// </summary>
+    public bool IsDequalified { get; set; }
+
+    /// <summary>When this cohort stops accepting observations.</summary>
+    public DateTime ExpiresAt { get; set; }
+
+    /// <summary>
     /// False once any member with standing has been seen. Such a skeleton is never contributed to the
     /// network: a false signature propagated to every subscriber is the worst outcome available here.
     /// </summary>

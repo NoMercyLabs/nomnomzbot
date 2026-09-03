@@ -304,7 +304,9 @@ public sealed class SpamDefenseService : ISpamDefenseService
                 content.Confidence,
                 tier,
                 content.Signals,
-                null
+                null,
+                normalized.Skeleton,
+                settings
             );
 
         SpamDetection detection = new()
@@ -334,7 +336,9 @@ public sealed class SpamDefenseService : ISpamDefenseService
             content.Confidence,
             tier,
             content.Signals,
-            detection.Id
+            detection.Id,
+            normalized.Skeleton,
+            settings
         );
     }
 

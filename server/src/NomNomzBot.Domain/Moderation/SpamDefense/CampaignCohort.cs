@@ -215,6 +215,54 @@ public sealed class CampaignCohort
     /// <summary>Remember that this campaign actioned an account, so reversal knows what to undo.</summary>
     public void RecordAction(string accountId) => _actioned.Add(accountId);
 
+    /// <summary>Accounts this campaign has actioned, for persistence and for reversal.</summary>
+    public IReadOnlyCollection<string> ActionedAccounts => _actioned;
+
+    /// <summary>Members with positive standing, kept separately so a reload need not re-resolve tiers.</summary>
+    public IReadOnlyCollection<string> StandingMembers =>
+        _membersHaveStanding.Where(m => m.Value).Select(m => m.Key).ToList();
+
+    /// <summary>When the cohort first qualified — the clock the action delay runs from.</summary>
+    public DateTimeOffset? QualifiedAt => _qualifiedAt;
+
+    /// <summary>
+    /// Rebuild a cohort from stored state.
+    ///
+    /// <para>Exists so correlation survives a restart with its guarantees intact. The de-qualification
+    /// latch and the qualified-at clock are restored rather than recomputed: reset by a restart, more
+    /// strangers arriving would re-action people the regulars had already exonerated, and the action
+    /// delay would start again from zero every time the process bounced.</para>
+    /// </summary>
+    public static CampaignCohort Rehydrate(
+        string skeleton,
+        DateTimeOffset firstMatchAt,
+        DateTimeOffset expiresAt,
+        IEnumerable<string> members,
+        IEnumerable<string> standingMembers,
+        IEnumerable<string> actioned,
+        CohortVerdict verdict,
+        bool isDequalified,
+        DateTimeOffset? qualifiedAt,
+        bool mayContributeToNetwork,
+        CohortThresholds? thresholds = null
+    )
+    {
+        CampaignCohort cohort = new(skeleton, firstMatchAt, thresholds);
+        HashSet<string> standing = [.. standingMembers];
+
+        foreach (string member in members)
+            cohort._membersHaveStanding[member] = standing.Contains(member);
+        foreach (string account in actioned)
+            cohort._actioned.Add(account);
+
+        cohort._expiresAt = expiresAt;
+        cohort.Verdict = verdict;
+        cohort.IsDequalified = isDequalified;
+        cohort._qualifiedAt = qualifiedAt;
+        cohort.MayContributeToNetwork = mayContributeToNetwork;
+        return cohort;
+    }
+
     /// <summary>
     /// What to undo, or <c>null</c> when the cohort was never de-qualified. Returns a reversal even when
     /// nothing was actioned — the skeleton still has to come back out of the corpus, and the operator
