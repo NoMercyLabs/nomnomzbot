@@ -212,6 +212,13 @@ fixed in `25620139`. **Follow-on gap CLOSED 2026-09-02 (`a6bf4a7a`, S-OWN16-WEBH
 
 Read this block first. It is the only summary; everything below is detail.
 
+- **S-DEAD-USER-EXPORT** (found 2026-09-03 by the new `ApiRouteContractTest`) — the Community screen's
+  "export user data" control calls `POST api/v1/users/{userId}/export`
+  (`UsersApi.kt:47` ← `CommunityController.exportUserData` ← `CommunityScreen.kt:294`), a route the API
+  does NOT serve: the only export routes are `/gdpr/export` (GET), `/bundles/export` and
+  `/event-store/channels/{id}/export`. The button 404s today. Done-when: the control either calls the
+  real GDPR export route with its actual semantics, or is removed; then delete the entry from
+  `ApiRouteContractTest.knownDeadRoutes`, which is what keeps this visible instead of tolerated.
 - **S-TRUST-UNIFY** (found 2026-09-03, traced) — two parallel trust implementations with different
   scales and different constants: `Domain/Trust/TrustScoreCalculator` (0–100, moderation projection,
   now policy-driven) and `Infrastructure/Music/TrustService` (0.0–1.0, song requests, own consts
