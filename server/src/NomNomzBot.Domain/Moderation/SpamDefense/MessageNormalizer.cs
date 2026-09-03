@@ -186,7 +186,7 @@ public static class MessageNormalizer
         // NFKD manufactures combining marks out of innocent characters — `¯` (U+00AF) decomposes to
         // space + combining macron — so scanning after decomposition reports zalgo in a kaomoji and
         // punishes ordinary chat, the exact SD0 failure. Scan the original; decompose only to match.
-        bool cosmeticAbuse = original.Any(IsCosmeticAbuse);
+        bool cosmeticAbuse = HasCosmeticAbuse(original);
 
         // 1. NFKD — separates base characters from combining marks and folds fullwidth /
         //    math-alphanumeric / compatibility forms toward ASCII.
@@ -241,6 +241,53 @@ public static class MessageNormalizer
             >= '\uDB40' and <= '\uDB43' => true, // high surrogates of the U+E0000–E007F tag block
             _ => false,
         };
+    }
+
+    /// <summary>
+    /// The SD2 signal, judged positionally rather than per character.
+    ///
+    /// <para>A zero-width joiner between two LETTERS is evasion — there is no reason to write
+    /// <c>f​ree</c>. A zero-width joiner between two EMOJI is how emoji are built: the family
+    /// <c>👨‍👩</c> and every skin-tone and profession sequence on the Windows
+    /// emoji keyboard is a joined sequence, and so is every variation selector. Treating those as an
+    /// attack would delete a large share of ordinary chat, so a format character next to an emoji is
+    /// not a signal.</para>
+    ///
+    /// <para>Stripping is still unconditional — the skeleton wants none of these characters either.
+    /// Only the SIGNAL is context-aware, because only the signal can hurt somebody.</para>
+    /// </summary>
+    private static bool HasCosmeticAbuse(string text)
+    {
+        for (int i = 0; i < text.Length; i++)
+        {
+            if (!IsCosmeticAbuse(text[i]))
+                continue;
+
+            bool isFormat =
+                CharUnicodeInfo.GetUnicodeCategory(text[i]) == UnicodeCategory.Format
+                || text[i] is '​' or '‌' or '‍' or '﻿' or '⁠';
+            if (isFormat && (IsEmojiLike(text, i - 1) || IsEmojiLike(text, i + 1)))
+                continue;
+
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// True when the character at <paramref name="index"/> is part of an emoji. Surrogates cover the
+    /// astral-plane emoji blocks; <see cref="UnicodeCategory.OtherSymbol"/> covers the BMP ones
+    /// (❤, ☀) that the on-screen keyboard also offers.
+    /// </summary>
+    private static bool IsEmojiLike(string text, int index)
+    {
+        if (index < 0 || index >= text.Length)
+            return false;
+
+        char c = text[index];
+        return char.IsSurrogate(c)
+            || CharUnicodeInfo.GetUnicodeCategory(c) == UnicodeCategory.OtherSymbol;
     }
 
     /// <summary>Any Unicode whitespace that is not a plain space — folded to U+0020 rather than dropped.</summary>

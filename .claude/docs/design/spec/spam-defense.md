@@ -188,17 +188,29 @@ reduce enforcement.
 
 Evaluated against the L0 skeleton.
 
-- **Cosmetic-abuse presence** — any codepoint stripped in L0 steps 2–3. Per **SD2** this fires as
-  a standalone high-confidence signal, because there is no legitimate reason to put a zero-width
-  joiner in a chat message. It is still bounded by the standing ceilings: Established → flag only
+- **Cosmetic-abuse presence** — any codepoint stripped in L0 steps 2–3, judged **positionally**.
+  Per **SD2** this fires as a standalone high-confidence signal, because there is no legitimate
+  reason to put a zero-width joiner between the letters of a word. *(As-built correction,
+  S-SPAM-4: there IS a legitimate reason to put one between two EMOJI — every family, skin-tone and
+  profession sequence on the Windows emoji keyboard is a ZWJ sequence, as is every variation
+  selector. The per-character test fired on all of them. A format character adjacent to an emoji is
+  therefore not a signal. Stripping stays unconditional; only the signal is context-aware, because
+  only the signal can hurt somebody.)* It is still bounded by the standing ceilings: Established → flag only
   (SD8), Semi-Trusted → delete + flag (SD11). "At every tier" means every *earnable* tier, never an
   override of the immunities.
 - **Intra-token script mixing** — a single token containing codepoints from two scripts
   (`ѕtream`: Cyrillic ѕ + Latin). Near-zero false-positive rate; explicitly **not** the same as
   a message being wholly in another script.
 - **Corpus match** — exact skeleton hit against the local + subscribed signature corpus.
-- **Near-duplicate** — SimHash over character 4-shingles of the skeleton; Hamming distance ≤ 3
+- **Near-duplicate** — Jaccard similarity over character 4-shingles of the skeleton; **≥ 0.6**
   against any corpus entry. Catches the next mutation of a known campaign before anyone reports it.
+  *(As-built correction, S-SPAM-4: this said "SimHash, Hamming ≤ 3". SimHash is built for
+  document-length text; chat messages are ~30 characters, far too little input to settle 64 bits.
+  Measured on the seed corpus, a two-character mutation landed 13 bits from the original while two
+  DIFFERENT campaigns landed 19 apart — overlapping ranges, nowhere near "≤ 3". Comparing the
+  shingle sets directly drops the fingerprint step that was discarding the information, and
+  separates the same cases 0.73 vs 0.16. Intent unchanged; instrument changed because the named
+  one does not work at this length.)*
 - **Link policy** — links extracted from the *skeleton* (so `t.me∕x` and `bit␣ly/x` are seen),
   checked against per-channel allow/deny plus the network's malicious-domain set.
 - **Promo shape** — contact-handle patterns (`@handle`, `t.me/`, `discord.gg/`), price/offer
