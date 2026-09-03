@@ -345,6 +345,16 @@ public sealed class ActionDefinitionSeeder : ISeeder
         // Dismissing an action-required inbox item is a mod-surface act on moderation signals (held
         // messages, dead tokens) — reversible bot-internal tooling, Moderator default (S-OWN22 T2).
         M("notifications:dismiss", Mod);
+        // Trust tuning (S-OWN23): reading the numbers is a moderator-level diagnostic, but CHANGING
+        // them retunes who the bot trusts and who it auto-actions channel-wide — an owner-shaped
+        // decision, so the manage floor is the broadcaster, not a moderator.
+        M("trust:policy:read", Mod);
+        M("trust:policy:manage", Broadcaster);
+        // Twitch's own AutoMod levels are the platform's pre-publish hold — the only lever that stops a
+        // message before chat sees it. Reading is moderator-level; raising or lowering what Twitch holds
+        // for the whole channel is the broadcaster's call.
+        M("moderation:automod:twitch:read", Mod);
+        M("moderation:automod:twitch:manage", Broadcaster);
         // Re-broadcasting a past alert to overlays is presentation-only (no currency/loyalty/reward
         // side effect), same moderator floor as the other widget/dashboard write actions.
         M("dashboard:replay", Mod);
