@@ -1649,6 +1649,25 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                 "DUPLICATE_TRACK"
             );
 
+        // The provider's OWN queue, not our fair queue's view of it — catches a track the streamer queued
+        // by hand from the Spotify app itself, or one our in-memory fair queue lost track of (e.g. after a
+        // restart), that the checks above never see. Best-effort by contract (GetQueueAsync never throws;
+        // an unanswerable read returns empty), so a provider outage falls through to the gates below
+        // instead of blocking every request.
+        IReadOnlyList<TrackInfo> providerQueue = await provider.GetQueueAsync(
+            tenantId,
+            cancellationToken
+        );
+        if (
+            providerQueue.Any(t =>
+                string.Equals(t.TrackUri, trackInfo.TrackUri, StringComparison.OrdinalIgnoreCase)
+            )
+        )
+            return Result.Failure(
+                $"\"{trackInfo.TrackName}\" is already queued up.",
+                "DUPLICATE_TRACK"
+            );
+
         return null;
     }
 }

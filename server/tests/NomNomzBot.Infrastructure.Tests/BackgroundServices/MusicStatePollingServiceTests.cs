@@ -513,6 +513,11 @@ public sealed class MusicStatePollingServiceTests
             string trackUri,
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();
+
+        public Task<IReadOnlyList<TrackInfo>> GetQueueAsync(
+            Guid broadcasterId,
+            CancellationToken cancellationToken = default
+        ) => throw new NotSupportedException();
     }
 
     /// <summary>Hand-rolled <see cref="IMusicService"/> test double. Only <see cref="GetNowPlayingAsync"/> is

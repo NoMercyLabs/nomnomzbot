@@ -352,7 +352,7 @@ public sealed class SpotifyMusicProvider
         }
 
         return (
-            [.. json.Tracks.Items.Where(t => t is not null).Select(t => MapToTrackInfo(t))],
+            [.. json.Tracks.Items.Select(t => MapToTrackInfo(t))],
             MusicProviderFailureReason.None
         );
     }
@@ -539,6 +539,44 @@ public sealed class SpotifyMusicProvider
             throw new MusicForbiddenException(ProviderName);
 
         return false;
+    }
+
+    /// <summary>
+    /// Reads Spotify's own <c>GET /me/player/queue</c> — the up-to-the-second provider-side queue,
+    /// including anything the streamer queued by hand from the Spotify app itself, which our own fair
+    /// queue never sees. <c>currently_playing</c> is dropped: <see cref="GetCurrentTrackAsync"/> already
+    /// covers that case for the caller's duplicate check. A dead token, no active device, or any
+    /// non-success response is treated the same as "can't answer" — an empty list, never an exception —
+    /// so a duplicate check built on this never blocks a song request on a transient Spotify outage.
+    /// </summary>
+    public async Task<IReadOnlyList<TrackInfo>> GetQueueAsync(
+        Guid broadcasterId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string? token = await GetTokenAsync(broadcasterId, cancellationToken);
+        if (token is null)
+            return [];
+
+        HttpResponseMessage? response = await SendAsync(
+            HttpMethod.Get,
+            $"{SpotifyApiBase}/me/player/queue",
+            token,
+            broadcasterId,
+            cancellationToken
+        );
+        if (response is null || !response.IsSuccessStatusCode)
+            return [];
+
+        SpotifyQueueResponse? json = await ReadJsonSafeAsync<SpotifyQueueResponse>(
+            response,
+            "get-queue",
+            cancellationToken
+        );
+        if (json?.Queue is null)
+            return [];
+
+        return json.Queue.Where(t => t is not null).Select(t => MapToTrackInfo(t!)).ToList();
     }
 
     // ─── Transport (capability-gated members) ────────────────────────────────
@@ -1654,8 +1692,7 @@ public sealed class SpotifyMusicProvider
 
             // Buffer up front so ClassifyAuthAsync's own body read (403 premium-vs-forbidden
             // disambiguation) never disturbs the caller's own subsequent read of the same response.
-            if (response.Content is not null)
-                await response.Content.LoadIntoBufferAsync();
+            await response.Content.LoadIntoBufferAsync();
             await ClassifyAuthAsync(response, broadcasterId, cancellationToken);
 
             return response;
@@ -1738,8 +1775,7 @@ public sealed class SpotifyMusicProvider
             // (premium/no-active-device) AND, on AddToQueueAsync, a second time by the caller to
             // distinguish NO_ACTIVE_DEVICE from any other provider failure — a live network stream
             // is forward-only, so without buffering the caller's re-read would see an empty body.
-            if (response.Content is not null)
-                await response.Content.LoadIntoBufferAsync();
+            await response.Content.LoadIntoBufferAsync();
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -1789,8 +1825,7 @@ public sealed class SpotifyMusicProvider
                     BuildRequest(method, url, body),
                     cancellationToken
                 );
-                if (response.Content is not null)
-                    await response.Content.LoadIntoBufferAsync();
+                await response.Content.LoadIntoBufferAsync();
             }
         }
 
@@ -2041,6 +2076,14 @@ public sealed class SpotifyMusicProvider
     {
         [JsonPropertyName("items")]
         public List<T>? Items { get; set; }
+    }
+
+    // Shape of GET /me/player/queue — currently_playing is ignored here; GetCurrentTrackAsync's fuller
+    // /me/player read already covers that for the caller's duplicate check.
+    private sealed class SpotifyQueueResponse
+    {
+        [JsonPropertyName("queue")]
+        public List<SpotifyTrack?>? Queue { get; set; }
     }
 
     // Shape of GET /me/player (full playback state) — a superset of /me/player/currently-playing that also

@@ -311,6 +311,16 @@ public sealed class YouTubeMusicProvider : IMusicProvider, IMusicProviderManageA
         return Task.FromResult(true);
     }
 
+    public Task<IReadOnlyList<TrackInfo>> GetQueueAsync(
+        Guid broadcasterId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        // Same reason as AddToQueueAsync above: there is no YouTube-side queue to read back. Our own
+        // fair queue (IMusicService) is already the single source of truth here.
+        return Task.FromResult<IReadOnlyList<TrackInfo>>([]);
+    }
+
     public Task<string?> GetEmbeddedPlaybackTokenAsync(
         Guid broadcasterId,
         CancellationToken cancellationToken = default
