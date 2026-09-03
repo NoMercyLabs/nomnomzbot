@@ -19,6 +19,53 @@ Slice IDs are stable; the order is the queue.
 
 ---
 
+## OWNER REQUEST 2026-09-04 — untangle the UI, starting with Moderation (PRIORITY, worked next)
+
+Owner, verbatim: "i noticed that the moderation page now has a MASSIVE list of options and has become
+unmanagable. for example the custom shoutout messages should be part of the community where a user can be
+looked up and shown the full details about them like watch time, their message history and so on, and that
+should be a better place to declare a custom raid message and also be able to change it. i like you to put
+in a priority slice that goes over the ui design and ux complexity to untangle the mess created and
+reorganizes things into less complex pages and flows using the sleak skill or something that actually helps
+make the bot less complex to use and understand."
+
+**Measured, not asserted (2026-09-04):** `ModerationScreen.kt` is **4,474 lines** with **49 composables**
+and **16 top-level sections** on one page — moderators, bans, unban requests, reports, the automod queue,
+the mod log, blocked terms, shoutout, shoutout overrides, automod, heat auto-timeout, escalation, shared
+bans, nuke batches, rules, chat filters. `CommunityScreen.kt` is 1,244 lines and already owns the
+per-viewer panel (`ViewerStatsDialog`, engagement analytics, viewer data) — the place a person is actually
+looked up.
+
+The diagnosis is not "too many features". It is that ONE page carries four unrelated jobs: acting on a
+person, tuning automatic enforcement, reviewing a queue, and reading history. Each wants a different
+posture, and stacking them makes every one of them harder to find.
+
+- [ ] **S-UX-1 Map before moving anything.** For each of the 16 sections: which job it serves (act on a
+      person / configure automation / work a queue / read history), how often it is opened, and which
+      role opens it. The output is a placement decision per section with a reason, not a rearrangement —
+      a section moved without a stated job just relocates the confusion. Load the `sleak` skill first;
+      its hierarchy rules are the bar, and CLAUDE.md now requires it before any UI work.
+- [ ] **S-UX-2 Per-person things move to Community, behind the person.** Custom shoutout messages and
+      shoutout overrides are keyed to a USER, so they belong in the viewer panel the Community page
+      already opens — beside watch time, message history and the trust/heat badges, where the operator is
+      already looking at that person. The owner also wants a custom RAID message settable and editable
+      there. Done-when: opening a viewer in Community shows their full picture AND lets their shoutout
+      and raid message be set and changed; Moderation no longer carries a per-person editor.
+- [ ] **S-UX-3 Split the remaining page by job.** Enforcement configuration (automod, heat auto-timeout,
+      escalation, chat filters, blocked terms, rules) is a settings surface an operator visits rarely and
+      reads carefully. Queues (unban requests, reports, automod queue) are worked daily under time
+      pressure. The mod log and nuke batches are history. Those three postures do not belong in one
+      scroll. Done-when: no single moderation page carries more than one job, and each has a primary
+      action a person can name.
+- [ ] **S-UX-4 Prove it got simpler, do not assert it.** Before/after counts per page (sections,
+      composables, lines), and every moved control re-verified on the rendered client — a control that
+      moved and stopped working is worse than the mess it left. The `DesignSystemStyleGuardTest` Sleak
+      rules apply to every new surface.
+
+**Not in this slice:** removing capability. Every option that exists today still exists afterwards; this
+is placement and hierarchy, not deletion. If a section turns out to have no owner and no user, that is a
+finding to raise, not a licence to drop it.
+
 ## OWNER REQUEST 2026-09-01 — bug/UX punch list (jump the queue, dispatched immediately)
 
 Owner's own words, filed as slices S-OWN01..S-OWN19. 🔴 = owner-marked priority, worked first, in
