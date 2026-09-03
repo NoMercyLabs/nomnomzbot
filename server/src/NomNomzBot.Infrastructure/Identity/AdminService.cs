@@ -71,7 +71,8 @@ public sealed class AdminService : IAdminService
     public async Task<Result<PagedList<AdminChannelDto>>> ListChannelsAsync(
         string? search,
         PaginationParams pagination,
-        CancellationToken ct = default
+        CancellationToken ct = default,
+        bool? isLive = null
     )
     {
         IQueryable<Channel> channels = _db.Channels;
@@ -84,13 +85,28 @@ public sealed class AdminService : IAdminService
             );
         }
 
+        if (isLive is { } live)
+            channels = channels.Where(c => c.IsLive == live);
+
+        // Ordering is chosen from a CLOSED set, never composed from the caller's string: an admin list is
+        // exactly the surface where an arbitrary field name would become a way to probe the schema. An
+        // unrecognised value falls back to the default rather than failing the request — a stale bookmark
+        // must not 400.
+        AdminListSort order = ParseSort(pagination.SortBy);
+
+        IQueryable<Channel> ordered = order switch
+        {
+            AdminListSort.Oldest => channels.OrderBy(c => c.CreatedAt),
+            AdminListSort.Name => channels.OrderBy(c => c.NameNormalized),
+            _ => channels.OrderByDescending(c => c.CreatedAt),
+        };
+
         int total = await channels.CountAsync(ct);
 
         List<AdminChannelDto> items = await (
-            from c in channels
+            from c in ordered
             join sub in _db.ChannelSubscriptions on c.Id equals sub.BroadcasterId into subs
             from sub in subs.OrderByDescending(s => s.CreatedAt).Take(1).DefaultIfEmpty()
-            orderby c.CreatedAt descending
             select new AdminChannelDto(
                 c.Id.ToString(),
                 c.User.DisplayName,
@@ -114,7 +130,8 @@ public sealed class AdminService : IAdminService
     public async Task<Result<PagedList<AdminUserDto>>> ListUsersAsync(
         string? search,
         PaginationParams pagination,
-        CancellationToken ct = default
+        CancellationToken ct = default,
+        string? role = null
     )
     {
         // Only real bot USERS — operators/streamers/mods who authenticate and use the dashboard (they have an
@@ -140,10 +157,26 @@ public sealed class AdminService : IAdminService
             );
         }
 
+        // The role filter uses the same derivation the DTO reports, so what an operator filters on is
+        // exactly what they then read on the row. Anything else is a filter that appears to lie.
+        if (!string.IsNullOrWhiteSpace(role))
+        {
+            bool wantsAdmin = role.Trim().Equals("admin", StringComparison.OrdinalIgnoreCase);
+            users = users.Where(u => u.IsPlatformPrincipal == wantsAdmin);
+        }
+
+        AdminListSort userOrder = ParseSort(pagination.SortBy);
+
+        IQueryable<User> orderedUsers = userOrder switch
+        {
+            AdminListSort.Oldest => users.OrderBy(u => u.CreatedAt),
+            AdminListSort.Name => users.OrderBy(u => u.UsernameNormalized),
+            _ => users.OrderByDescending(u => u.CreatedAt),
+        };
+
         int total = await users.CountAsync(ct);
 
-        List<AdminUserDto> items = await users
-            .OrderByDescending(u => u.CreatedAt)
+        List<AdminUserDto> items = await orderedUsers
             .Skip((pagination.Page - 1) * pagination.PageSize)
             .Take(pagination.PageSize)
             .Select(u => new AdminUserDto(
@@ -203,5 +236,24 @@ public sealed class AdminService : IAdminService
             HealthStatus.Healthy => "healthy",
             HealthStatus.Degraded => "degraded",
             _ => "unhealthy",
+        };
+
+    /// <summary>
+    /// The closed set of orderings the admin lists offer. Deliberately small: every entry here is a
+    /// column an operator can already see, so a sort can never reveal something the list does not show.
+    /// </summary>
+    private enum AdminListSort
+    {
+        Newest,
+        Oldest,
+        Name,
+    }
+
+    private static AdminListSort ParseSort(string? sort) =>
+        sort?.Trim().ToLowerInvariant() switch
+        {
+            "oldest" => AdminListSort.Oldest,
+            "name" => AdminListSort.Name,
+            _ => AdminListSort.Newest,
         };
 }

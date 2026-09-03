@@ -324,9 +324,9 @@ private class FakeAdminApi(
     val endImpersonationCalls: MutableList<String> = mutableListOf()
 
     override suspend fun getStats(): ApiResult<AdminStats> = ApiResult.Ok(AdminStats(0, 0, 0, "ok", 0, 0))
-    override suspend fun getChannels(search: String?, page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<AdminChannel>> =
+    override suspend fun getChannels(search: String?, page: Int, pageSize: Int, sort: String?, isLive: Boolean?): ApiResult<PaginatedEnvelope<AdminChannel>> =
         ApiResult.Ok(PaginatedEnvelope(emptyList()))
-    override suspend fun getUsers(search: String?, page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<AdminUser>> =
+    override suspend fun getUsers(search: String?, page: Int, pageSize: Int, sort: String?, role: String?): ApiResult<PaginatedEnvelope<AdminUser>> =
         ApiResult.Ok(PaginatedEnvelope(emptyList()))
     override suspend fun getSystem(): ApiResult<AdminSystem> = ApiResult.Ok(AdminSystem("ok", emptyList(), "1.0", 0, 0.0))
     override suspend fun getHealth(): ApiResult<List<AdminServiceHealth>> = ApiResult.Ok(emptyList())

@@ -3348,6 +3348,14 @@
     <string name="admin_page_previous">Previous</string>
     <string name="admin_page_next">Next</string>
     <string name="admin_page_current">Page %1$d</string>
+    <string name="admin_sort_label">Sort</string>
+    <string name="admin_sort_newest">Newest</string>
+    <string name="admin_sort_oldest">Oldest</string>
+    <string name="admin_sort_name">Name</string>
+    <string name="admin_filter_live">Live now</string>
+    <string name="admin_filter_offline">Offline</string>
+    <string name="admin_filter_staff">Platform staff</string>
+    <string name="admin_filter_streamers">Everyone else</string>
     <string name="admin_iam_reason">Reason (optional)</string>
     <string name="admin_iam_user_id">User ID</string>
     <string name="admin_iam_display_name">Display name</string>
