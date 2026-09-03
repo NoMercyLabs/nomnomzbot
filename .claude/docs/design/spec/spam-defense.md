@@ -221,8 +221,10 @@ Evaluated against the L0 skeleton.
 
 Cross-message and cross-channel, over sliding windows.
 
-- **Campaign** — N distinct accounts posting messages within SimHash distance ≤ 3 of each other
-  inside M seconds. Actions the whole cohort at once, not one at a time.
+- **Campaign** — N distinct accounts posting messages within the L2 near-duplicate threshold of
+  each other inside M seconds (same instrument as L2 — shingle similarity, not SimHash; see the
+  as-built note there). Qualifies the cohort as a whole, then actions each member on their own
+  evidence (SD9), never as a set.
 - **Cross-channel campaign** — the same, observed across channels on this instance (and, when
   subscribed, across the network). This is what turns one channel's catch into everyone's
   immunity.
