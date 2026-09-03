@@ -83,9 +83,12 @@ public sealed class MusicServiceCapacityTests
             .Equal("Song b1", "Song b3");
     }
 
+    // POST only — a GET to the same path is the duplicate-check's own provider-queue probe (one per
+    // admitted request, MusicService.CheckDuplicateAsync), not a push, and must not be counted as one.
     private static int QueuePushCount(RecordingHttpHandler handler) =>
         handler.RequestUrls.Count(url =>
-            url.Contains("/me/player/queue", StringComparison.Ordinal)
+            url.StartsWith("POST", StringComparison.Ordinal)
+            && url.Contains("/me/player/queue", StringComparison.Ordinal)
         );
 
     private static async Task<Result> RequestAsync(
