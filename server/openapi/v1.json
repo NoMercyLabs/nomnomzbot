@@ -6,7 +6,7 @@
   },
   "servers": [
     {
-      "url": "http://localhost:5080/"
+      "url": "http://localhost:5085/"
     }
   ],
   "paths": {
@@ -63392,6 +63392,450 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/spam-defense/policy": {
+      "get": {
+        "tags": [
+          "Moderation"
+        ],
+        "summary": "The channel's spam-defence configuration: current values, the metadata to render an editor for\r\nthem, and the five guarantees that have no switch. A channel that has never edited anything gets\r\nthe shipped defaults with `isPinned: false`, so the dashboard can show what is a default and\r\nwhat the operator chose.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfSpamDefensePolicyDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Moderation"
+        ],
+        "summary": "Saves the channel's spam-defence settings, creating the row on first edit.\r\n\r\nRanges are enforced server-side against the same catalogue the editor renders from, and the\r\nexoneration share must stay below the campaign share — otherwise a group on the borderline would\r\nflip between actioning people and reversing it. Failures name the control by resource key so the\r\ndashboard reports them in the operator's own language.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpamDefenseSettings"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpamDefenseSettings"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpamDefenseSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfSpamDefenseSettings"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/spam-defense/detections": {
+      "get": {
+        "tags": [
+          "Moderation"
+        ],
+        "summary": "Recorded verdicts, newest first — the review queue, and during dry run the report of what the\r\nsystem WOULD have done. Reading a week of these is how an operator decides whether to switch\r\nenforcement on at all.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 25
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIReadOnlyListOfSpamDetectionDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/channels/{channelId}/spam-defense/detections/{detectionId}/overturn": {
+      "post": {
+        "tags": [
+          "Moderation"
+        ],
+        "summary": "Marks a verdict wrong. Moderator-level on purpose: this is the correction path, and making it\r\nowner-only would leave moderators watching false positives they cannot fix.",
+        "parameters": [
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "detectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/stream": {
       "get": {
         "tags": [
@@ -93341,6 +93785,372 @@
           }
         }
       },
+      "SpamConfidence": {
+        "type": "integer",
+        "description": "How sure the stack is, per SD1."
+      },
+      "SpamDefensePolicyDto": {
+        "required": [
+          "settings",
+          "catalogue",
+          "invariants",
+          "enforcementEligibleAt",
+          "isPinned"
+        ],
+        "type": "object",
+        "properties": {
+          "settings": {
+            "$ref": "#/components/schemas/SpamDefenseSettings"
+          },
+          "catalogue": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpamSettingDescriptorDto"
+            }
+          },
+          "invariants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpamInvariantDto"
+            }
+          },
+          "enforcementEligibleAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "isPinned": {
+            "type": "boolean"
+          }
+        },
+        "description": "The whole configuration surface in one response: the channel's current values, the metadata to\r\nrender an editor for them, and the guarantees that have no switch.\r\n\r\nThey travel together on purpose. A client that fetched values alone would have to hardcode\r\nits own idea of the bounds, and the first time a range moved server-side the form would start\r\nrejecting saves it had just accepted."
+      },
+      "SpamDefenseSettings": {
+        "type": "object",
+        "properties": {
+          "isEnabled": {
+            "type": "boolean",
+            "description": "Kill switch for the whole stack."
+          },
+          "dryRun": {
+            "type": "boolean",
+            "description": "Detect and log, act on nothing. On for a channel's first 7 days, and a perfectly good permanent\r\nsetting for a channel that only wants visibility."
+          },
+          "trustThresholds": {
+            "description": "Thresholds for the earned ladder and the SD8 immunity gate.",
+            "$ref": "#/components/schemas/TrustTierThresholds"
+          },
+          "semiTrustedWatchHoursHere": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "description": "Watch hours in this channel that grant Semi-Trusted.",
+            "format": "double"
+          },
+          "semiTrustedWatchHoursInstance": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "description": "Watch hours across this instance's channels that grant Semi-Trusted.",
+            "format": "double"
+          },
+          "nearDuplicateSimilarity": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "description": "Similarity at which a message counts as a mutation of a known campaign.",
+            "format": "double"
+          },
+          "minimumSkeletonLength": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Skeletons shorter than this are never corpus-matched.",
+            "format": "int32"
+          },
+          "nonLatinScriptGate": {
+            "type": "boolean",
+            "description": "Restrict non-Latin script to viewers who have been around. Off by default (SD2)."
+          },
+          "qualifyNoStandingShare": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "description": "Share of a cohort with no standing needed to call it a campaign.",
+            "format": "double"
+          },
+          "dequalifyNoStandingShare": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "description": "Share below which a qualified cohort is exonerated and reversed.",
+            "format": "double"
+          },
+          "minimumCohortSize": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Fewest distinct accounts that can constitute a campaign.",
+            "format": "int32"
+          },
+          "windowSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Correlation window, extended by each new match.",
+            "format": "int32"
+          },
+          "maxWindowSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Hard cap on the correlation window, from the first match.",
+            "format": "int32"
+          },
+          "actionDelaySeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The exoneration head start before a qualified campaign may act.",
+            "format": "int32"
+          },
+          "autoReverseOnDequalify": {
+            "type": "boolean",
+            "description": "Undo a campaign's actions when it de-qualifies. Off is allowed, and warned against."
+          },
+          "followSpikeFactor": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "description": "Follow rate over the channel's own baseline that counts as a spike.",
+            "format": "double"
+          },
+          "joinBurstFactor": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "description": "Chatter-join rate over the channel's own baseline that counts as a burst.",
+            "format": "double"
+          },
+          "lockdownMinutes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "How long a lockdown holds before restoring the room by itself.",
+            "format": "int32"
+          },
+          "lockdownAutoExtend": {
+            "type": "boolean",
+            "description": "Extend the window while the attack is still arriving."
+          },
+          "lockdownMaxMinutes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Ceiling on a lockdown however long the attack lasts.",
+            "format": "int32"
+          },
+          "networkSubscribe": {
+            "type": "boolean",
+            "description": "Pull the shared signature set. Free, read-only, and on by default."
+          },
+          "networkContribute": {
+            "type": "boolean",
+            "description": "Send this channel's confirmed signatures back. Opt-in (SD3)."
+          },
+          "requiredCorroborations": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Independent reporters needed before a quarantined signature may act.",
+            "format": "int32"
+          }
+        },
+        "description": "Every knob in the spam-defence stack (spam-defense.md §6.1).\r\n\r\nNothing in this design is a magic number buried in code. Every threshold named anywhere in the\r\nspec is a stored, editable setting with a documented default, a range, and a plain-language\r\nexplanation of what moving it costs — see SpamSettingCatalogue, which is enforced\r\nagainst this record by test so a knob cannot ship without its explanation.The same record is edited at two scopes: per channel, and as the platform-wide defaults every\r\nnew channel inherits. Same fields, same validation, same copy — only the scope differs."
+      },
+      "SpamDetectionDto": {
+        "required": [
+          "id",
+          "subjectPlatformUserId",
+          "subjectDisplayName",
+          "provider",
+          "messageId",
+          "messageText",
+          "signals",
+          "confidence",
+          "tier",
+          "outcome",
+          "wouldHaveBeen",
+          "wasDryRun",
+          "reason",
+          "overturnedAt",
+          "detectedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "subjectPlatformUserId": {
+            "type": "string"
+          },
+          "subjectDisplayName": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "messageId": {
+            "type": "string"
+          },
+          "messageText": {
+            "type": "string"
+          },
+          "signals": {
+            "type": "string"
+          },
+          "confidence": {
+            "$ref": "#/components/schemas/SpamConfidence"
+          },
+          "tier": {
+            "$ref": "#/components/schemas/SpamTrustTier"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/SpamOutcome"
+          },
+          "wouldHaveBeen": {
+            "$ref": "#/components/schemas/SpamOutcome"
+          },
+          "wasDryRun": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "overturnedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "detectedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "One recorded verdict, for the review queue."
+      },
+      "SpamInvariantDto": {
+        "required": [
+          "decision",
+          "guaranteeKey"
+        ],
+        "type": "object",
+        "properties": {
+          "decision": {
+            "type": "string"
+          },
+          "guaranteeKey": {
+            "type": "string"
+          }
+        },
+        "description": "A protection the operator gets for free and cannot turn off."
+      },
+      "SpamOutcome": {
+        "type": "integer",
+        "description": "What the engine decided to do. Ordered so a stricter outcome is a larger value."
+      },
+      "SpamSettingDescriptorDto": {
+        "required": [
+          "key",
+          "group",
+          "labelKey",
+          "explanationKey",
+          "costKey",
+          "minimum",
+          "maximum",
+          "isToggle"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "group": {
+            "type": "string"
+          },
+          "labelKey": {
+            "type": "string"
+          },
+          "explanationKey": {
+            "type": "string"
+          },
+          "costKey": {
+            "type": "string"
+          },
+          "minimum": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "maximum": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "isToggle": {
+            "type": "boolean"
+          }
+        },
+        "description": "One knob as the editor needs it: what it is, where it belongs, and what it is bounded to.\r\nThe words come from the dashboard's string resources, keyed by these."
+      },
+      "SpamTrustTier": {
+        "type": "integer",
+        "description": "The spam-defence trust ladder (spam-defense.md §L4). Ladder-valued so comparisons are ordinary\r\nnumeric ones, matching the existing permission ladder. <b>Users never see these numbers</b> — the\r\ndashboard shows tier NAMES, per the role-name rule."
+      },
       "StartCheckoutRequest": {
         "required": [
           "tierKey",
@@ -97470,6 +98280,43 @@
           }
         }
       },
+      "StatusResponseDtoOfIReadOnlyListOfSpamDetectionDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/SpamDetectionDto"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        },
+        "description": "Standard response envelope for mutations and single-item responses.\r\nMatches the NoMercy media server pattern."
+      },
       "StatusResponseDtoOfIReadOnlyListOfstring": {
         "type": "object",
         "properties": {
@@ -100464,6 +101311,82 @@
           }
         }
       },
+      "StatusResponseDtoOfSpamDefensePolicyDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SpamDefensePolicyDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        },
+        "description": "Standard response envelope for mutations and single-item responses.\r\nMatches the NoMercy media server pattern."
+      },
+      "StatusResponseDtoOfSpamDefenseSettings": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SpamDefenseSettings"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        },
+        "description": "Standard response envelope for mutations and single-item responses.\r\nMatches the NoMercy media server pattern."
+      },
       "StatusResponseDtoOfStreamInfoDto": {
         "type": "object",
         "properties": {
@@ -103226,6 +104149,44 @@
           }
         },
         "description": "A channel's trust tuning as the dashboard sees it (S-OWN23). Carries VALUES only — every label and\r\nplain-language explanation is frontend i18n, per the translations-never-in-code rule.\r\nbool TrustPolicyDto.IsPinned is false while the channel is still tracking the shipped defaults, so the UI\r\ncan show \"default\" versus \"you changed this\" without guessing from the numbers."
+      },
+      "TrustTierThresholds": {
+        "type": "object",
+        "properties": {
+          "establishedDays": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "establishedMessages": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "establishedDistinctActiveDays": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "establishedStrikeFreeDays": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        },
+        "description": "The per-channel thresholds an operator may tune (§L4.1: \"thresholds are per-channel tunable; the\r\ninvariant is not\"). Defaults are the spec's."
       },
       "TtsConfigDto": {
         "required": [

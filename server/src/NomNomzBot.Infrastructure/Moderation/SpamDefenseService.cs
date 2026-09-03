@@ -12,6 +12,7 @@ using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.SpamDefense;
@@ -84,6 +85,100 @@ public sealed class SpamDefenseService : ISpamDefenseService
 
         await _db.SaveChangesAsync(ct);
         return Result.Success(policy.ToSettings());
+    }
+
+    public async Task<SpamDefensePolicyDto> GetPolicyAsync(
+        Guid broadcasterId,
+        CancellationToken ct = default
+    )
+    {
+        SpamDefensePolicy? stored = await LoadPolicyAsync(broadcasterId, track: false, ct);
+
+        return new SpamDefensePolicyDto(
+            stored?.ToSettings() ?? new SpamDefenseSettings(),
+            SpamSettingCatalogue
+                .All.Select(d => new SpamSettingDescriptorDto(
+                    d.Key,
+                    d.Group,
+                    d.LabelKey,
+                    d.ExplanationKey,
+                    d.CostKey,
+                    d.Minimum,
+                    d.Maximum,
+                    d.IsToggle
+                ))
+                .ToList(),
+            SpamSettingCatalogue
+                .Invariants.Select(decision => new SpamInvariantDto(
+                    decision,
+                    SpamSettingCatalogue.GuaranteeKey(decision)
+                ))
+                .ToList(),
+            stored?.EnforcementEligibleAt,
+            // Whether this channel has chosen its own values or is still tracking the shipped
+            // defaults. The dashboard shows the difference so nobody mistakes a default for a decision.
+            stored is not null
+        );
+    }
+
+    public async Task<IReadOnlyList<SpamDetectionDto>> GetDetectionsAsync(
+        Guid broadcasterId,
+        int page = 1,
+        int pageSize = 25,
+        CancellationToken ct = default
+    )
+    {
+        int skip = (Math.Max(page, 1) - 1) * Math.Clamp(pageSize, 1, 200);
+
+        return await _db
+            .SpamDetections.IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(d => d.BroadcasterId == broadcasterId && d.DeletedAt == null)
+            .OrderByDescending(d => d.DetectedAt)
+            .Skip(skip)
+            .Take(Math.Clamp(pageSize, 1, 200))
+            .Select(d => new SpamDetectionDto(
+                d.Id,
+                d.SubjectPlatformUserId,
+                d.SubjectDisplayName,
+                d.Provider,
+                d.MessageId,
+                d.MessageText,
+                d.Signals,
+                d.Confidence,
+                d.Tier,
+                d.Outcome,
+                d.WouldHaveBeen,
+                d.WasDryRun,
+                d.Reason,
+                d.OverturnedAt,
+                d.DetectedAt
+            ))
+            .ToListAsync(ct);
+    }
+
+    public async Task<Result> OverturnDetectionAsync(
+        Guid broadcasterId,
+        Guid detectionId,
+        CancellationToken ct = default
+    )
+    {
+        SpamDetection? detection = await _db
+            .SpamDetections.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(
+                d => d.Id == detectionId && d.BroadcasterId == broadcasterId && d.DeletedAt == null,
+                ct
+            );
+
+        if (detection is null)
+            return Result.Failure(
+                "spam_detection_not_found",
+                errorCode: "spam.detection.not_found"
+            );
+
+        detection.OverturnedAt = _time.GetUtcNow().UtcDateTime;
+        await _db.SaveChangesAsync(ct);
+        return Result.Success();
     }
 
     public async Task<SpamEvaluationResult?> EvaluateAsync(
