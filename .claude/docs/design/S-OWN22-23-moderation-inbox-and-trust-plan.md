@@ -56,10 +56,24 @@ truthful data (never show unenforced state), consequences visible before saving.
 - [x] 22-T1 Home layout reorder — d1c45e75 + 1b7b3723; jvmTest 966 green, wasm green
 - [x] 22-T2 inbox identity/grouping/dismissal — 6ad0d283; 10 tests, 6/6 mutations kill (two were toothless and were rewritten), both migrations + PendingModelChangesGuard green, Api 871/871, csharpier clean
 - [x] 22-T3 resolve deny+follow-up + queue hub broadcast — b7781133 on own22-t3; build green, 14+3 targeted tests green, 8/8 mutations killed (baseline restored), csharpier clean; full suite runs at 22-I on the merged tree
-- [ ] 22-T4 attention inbox UI + modal — b77f299e green on own22-t4 (979 jvm tests, wasm); NOT merged
+- [x] 22-T4 attention inbox UI + modal — b77f299e, merged to master in d3373017
 - [x] 22-T5 frontend consumes `automod_queue_changed` — 541d0924 on own22-t4 atop b77f299e; jvmTest+wasm green, 3/3 mutations killed (target string, Home refresh, Mod refresh), full suite restored green including new empty-state fallback test
 - [x] 22-I merged t2 → t3 → t4+t5 into master (6ad0d283, b7781133, 541d0924; merge d3373017). openapi/v1.json conflict resolved to the regenerated snapshot (carries all T2 fields, T3's followUp/timeoutSeconds/reason, and both endpoints — T4's hand-edit was redundant). Merged-tree gate: server build green, csharpier clean (3098 files), Application 70/70, Domain 96/96, Api 874/874, Infrastructure 4816/4820 + 2 PRE-EXISTING load-sensitive flakes outside this slice (`Step_ConfigJsonWithoutEmbeddedType_StillExecutes` from peer commit 60835906, `Fanout_returns_before_the_slow_http_send…`) — both pass in isolation on master and on the pre-merge branches alike; filed as S-FLAKE-TIMING. jvmTest forced rerun green in 80s. Test counts reconcile: 4831 − 17 moved to Domain by T0 + 6 from T3 = 4820.
-- [ ] 22-V live validation on the running app (every button, dismiss survives reload) + tracker close
+- [~] 22-V / 23-V live validation — **API layer PROVEN, browser layer NOT**. Driven against the running
+  API with a minted token on the real SQLite DB: policy GET returns defaults `isPinned:false` → PUT
+  applies → re-read **persisted** → invalid policy (weight sum 1.5) **rejected 400** with the exact
+  operator-facing message → stored value **unchanged** after rejection → automod/twitch returns a
+  correct `missing_scope` 403 (scope declared via `[RequiresTwitchScope]`, so the progressive re-grant
+  flow offers it) → action-required 200. Both migrations applied to the live DB (`No pending
+  migrations`; `TrustPolicies` + `ActionRequiredDismissals` present). Test row deleted afterwards —
+  DB left as found.
+  **UNVERIFIED: the rendered browser UI.** No control was ever clicked. Obstacle: the chrome-devtools
+  and playwright MCP servers both failed to connect at session start (CONNECT_TIMEOUT), and no other
+  browser-driving tool is available. Closing this needs a session with a working browser tool: load
+  :5090, open Moderation → Trust & Automation, edit a weight, save, reload, confirm it stuck.
+- [x] Route-address guard (gap found while verifying) — `ApiRouteContractTest`, df83250d. Guards **619
+  URL literals across 68 client files**; proven able to fail on 4 realistic typos. Found 1 live break
+  (S-DEAD-USER-EXPORT).
 - [x] 23-T0 trust extraction — 9f23af61, pure move proven (17=17 byte-identical tests), full server suite green (4805 Infra / 869 Api / 96 Domain / 70 App), csharpier clean; fast-forwarded into master
 - [x] 23-T1 TrustPolicy entity + both migrations — f2d8a6e8; all 21 constants carried with shipped defaults, both migration sets (PG 20260903010857 / SQLite 20260903011018), PendingModelChangesGuard green both providers, 50 test fakes patched, blast-radius registered, csharpier clean
 - [x] 23-T2 calculator takes policy — 25e75029; 12 tests asserting NON-DEFAULT values (a changed
@@ -92,7 +106,7 @@ truthful data (never show unenforced state), consequences visible before saving.
   `!sr`). Both manage surfaces broadcaster-gated. Fixed en route: Moderation page no longer renders
   Empty while the trust section has content; `TrustNumberField.labelText` satisfies RowLabelGuardTest
   without a baseline. jvmTest 1003 (was 979) + wasm green.
-- [ ] 23-V live validation + tracker close + delete this file
+- [ ] Close-out — delete this file once 22-V/23-V's browser half is done. Everything else is shipped.
 
 ---
 
