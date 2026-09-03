@@ -77,8 +77,21 @@ truthful data (never show unenforced state), consequences visible before saving.
   + `HeatTimeoutSeconds` (default 600) added to `AutomodConfigDto`. Immunity is a short-circuit
   checked BEFORE the action: broadcaster + the whole moderator roster, role-agnostic; VIP-by-badge
   NOT claimed (not tracked locally). 5 tests, 3 of them immunity/opt-in. S-HEAT-UNENFORCED closed.
-- [ ] 23-T3 trust-policy + twitch-automod endpoints + contract sync
-- [ ] 23-T4 Trust & Automation UI (Appendix A copy) + derived automation panel
+- [x] 23-T3 trust-policy + twitch-automod endpoints + contract sync — e2b3801f; `TrustPolicyController`
+  GET/PUT `channels/{id}/trust/policy` (21 values + `isPinned`, server-side range validation) and
+  GET/PUT `channels/{id}/moderation/automod/twitch` (reaches the long-orphaned Helix AutoMod-settings
+  methods; overall-vs-category exclusivity enforced). 4 action keys: reads at Mod, both manage keys at
+  Broadcaster, classified in the bijection guard. openapi/v1.json REGENERATED from the running API via
+  scripts/dev-api.ps1 (not hand-edited). 10 service tests; Api 874/874; permission gates 150/150.
+- [x] 23-T4 Trust & Automation UI — c732d0fd; `deriveAutomationLines` folds Twitch AutoMod + local
+  filters + chat filters + rules + heat + escalation into a sealed `AutomationLine` list ending in
+  `AutoBanFrom` (names the exact ladder step/filter/rule that can auto-ban) or `AutoBanNone`. Two
+  structural truthfulness properties: an unreadable Twitch call yields "unknown" not "off", and the
+  heat line only claims a timeout when `autoTimeoutOnHeat` is on. All 21 weights with value/default/
+  reset/en+nl explanation, live weight-sum error, accurate blast-radius note (moderation only, NOT
+  `!sr`). Both manage surfaces broadcaster-gated. Fixed en route: Moderation page no longer renders
+  Empty while the trust section has content; `TrustNumberField.labelText` satisfies RowLabelGuardTest
+  without a baseline. jvmTest 1003 (was 979) + wasm green.
 - [ ] 23-V live validation + tracker close + delete this file
 
 ---
