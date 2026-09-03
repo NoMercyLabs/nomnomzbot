@@ -338,8 +338,8 @@ public static class ResiliencePolicies
     }
 
     /// <summary>
-    /// Adds Spotify API resilience: 2 retries with exponential backoff + circuit breaker.
-    /// Respects Retry-After header on 429.
+    /// Adds Spotify API resilience: a global rate limiter, 2 retries with exponential backoff, and a
+    /// circuit breaker. Respects Retry-After header on 429.
     /// </summary>
     public static IHttpClientBuilder AddSpotifyResilienceHandler(this IHttpClientBuilder builder)
     {
@@ -347,6 +347,37 @@ public static class ResiliencePolicies
             "spotify-resilience",
             pipeline =>
             {
+                // Spotify's rate limit is per-app (client_id) across every user token that app holds, on a
+                // rolling 30s window (developer.spotify.com/documentation/web-api/concepts/rate-limits) — not
+                // per-user as MusicStatePollingService's own doc comment once assumed. That poller polls every
+                // CONNECTED CHANNEL at a flat 1s cadence, and a self-hosted deployment can carry unlimited
+                // channels (product statement) all sharing the one Spotify app the operator registered — so
+                // channel count alone, not just call frequency, can burn through the shared budget. This gate
+                // sits outermost (before retry/circuit-breaker) and is the ONE place ALL outbound Spotify calls
+                // funnel through (poller, mutation actions, search, everything), so it is what actually bounds
+                // total request volume regardless of channel count: 60 requests / rolling 30s is a small
+                // fraction of even Spotify's undisclosed development-mode budget, so a single connected channel
+                // (1 req/s from the poller) never queues; a deployment with many channels queues its excess
+                // polls instead of bursting a 429 storm, and RateLimiterRejectedException (queue full) surfaces
+                // to the caller exactly like any other transient failure — the poller's existing per-channel
+                // catch/backoff already handles that without change.
+                pipeline.AddRateLimiter(
+                    new System.Threading.RateLimiting.SlidingWindowRateLimiter(
+                        new System.Threading.RateLimiting.SlidingWindowRateLimiterOptions
+                        {
+                            PermitLimit = 60,
+                            Window = TimeSpan.FromSeconds(30),
+                            SegmentsPerWindow = 6,
+                            QueueProcessingOrder = System
+                                .Threading
+                                .RateLimiting
+                                .QueueProcessingOrder
+                                .OldestFirst,
+                            QueueLimit = 50,
+                        }
+                    )
+                );
+
                 // Retry: 2 attempts, exponential backoff starting at 1s, jitter
                 pipeline.AddRetry(
                     new HttpRetryStrategyOptions

@@ -41,9 +41,13 @@ namespace NomNomzBot.Infrastructure.BackgroundServices;
 /// bigger seam than the poller warrants (YAGNI) versus a single safety-first flat cadence. 1s is what "no more
 /// than 1 second of drift from the real Spotify state" (owner requirement) actually costs: a change the bot
 /// didn't cause (streamer pauses from their phone, a track ends, a manual seek) can only ever be as fresh as this
-/// tick, since it's the only thing that notices it. Spotify Web API cost stays trivial even at 1s — a "currently
-/// playing" read is a single lightweight per-user-token call, not app-wide-quota'd; per-channel failures back off
-/// further below so a struggling channel doesn't hammer a dead token every second.
+/// tick, since it's the only thing that notices it. A flat per-channel 1s cadence is safe to keep simple here
+/// because the actual Spotify budget concern — it IS app-wide (per <c>client_id</c>, shared across every
+/// connected channel's token, rolling 30s window: developer.spotify.com/documentation/web-api/concepts/rate-
+/// limits) — is enforced once, centrally, at the HTTP layer
+/// (<see cref="Platform.Resilience.ResiliencePolicies.AddSpotifyResilienceHandler"/>), not per caller. This
+/// poller does not need to reason about channel count itself; per-channel failures back off further below so a
+/// struggling channel doesn't hammer a dead token every second.
 /// </para>
 ///
 /// <para>
