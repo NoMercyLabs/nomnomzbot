@@ -55,14 +55,17 @@ public sealed class SpamDefenseService : ISpamDefenseService
     {
         IReadOnlyList<string> violations = ValidateRanges(settings);
         if (violations.Count > 0)
-            return Result.Failure<SpamDefenseSettings>(string.Join(" ", violations));
+            return Result.Failure<SpamDefenseSettings>(
+                string.Join(' ', violations),
+                errorCode: "spam.setting.out_of_range"
+            );
 
         // The hysteresis band is a safety property, not a preference: if de-qualify ever met or
         // exceeded qualify, a cohort on the line would flap between actioning and reversing people.
         if (settings.DequalifyNoStandingShare >= settings.QualifyNoStandingShare)
             return Result.Failure<SpamDefenseSettings>(
-                "The exoneration share must be below the campaign share, so a group on the "
-                    + "borderline cannot flip back and forth."
+                "spam_setting_dequalify_below_qualify",
+                errorCode: "spam.setting.dequalify_not_below_qualify"
             );
 
         SpamDefensePolicy? policy = await LoadPolicyAsync(broadcasterId, track: true, ct);
@@ -264,10 +267,10 @@ public sealed class SpamDefenseService : ISpamDefenseService
 
             double value = Convert.ToDouble(property.GetValue(settings));
             if (value < descriptor.Minimum.Value || value > descriptor.Maximum.Value)
-                violations.Add(
-                    $"\"{descriptor.Label}\" must be between {descriptor.Minimum} and "
-                        + $"{descriptor.Maximum}."
-                );
+                // The setting is named by its RESOURCE KEY, not by prose: the dashboard resolves it in
+                // the operator's own language. A backend that returned "Fewest accounts must be
+                // between 2 and 100" would show English to a Dutch streamer.
+                violations.Add($"{descriptor.LabelKey}:{descriptor.Minimum}:{descriptor.Maximum}");
         }
 
         return violations;

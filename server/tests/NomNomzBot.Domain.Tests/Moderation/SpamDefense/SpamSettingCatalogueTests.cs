@@ -65,30 +65,43 @@ public class SpamSettingCatalogueTests
     }
 
     [Fact]
-    public void EveryExplanationSaysWhatMovingItCosts()
+    public void EverySettingPointsAtThreeDistinctResourceKeys()
     {
-        // A number with a range but no consequence is a number nobody can tune honestly. This is the
-        // difference between a settings page and a machine somebody can actually operate.
+        // The backend never holds user-facing prose — the product ships in English and Dutch. What it
+        // holds is the key, and the keys are derived from the property name so a descriptor cannot
+        // point at a resource nobody wrote.
         foreach (SpamSettingDescriptor descriptor in SpamSettingCatalogue.All)
         {
-            descriptor.Explanation.Should().NotBeNullOrWhiteSpace(descriptor.Key);
-            descriptor
-                .CostOfMoving.Should()
-                .NotBeNullOrWhiteSpace($"{descriptor.Key} must say what moving it costs");
-            descriptor
-                .CostOfMoving.Length.Should()
-                .BeGreaterThan(40, $"{descriptor.Key}'s cost note is too short to be useful");
+            descriptor.LabelKey.Should().StartWith("spam_setting_").And.EndWith("_label");
+            descriptor.ExplanationKey.Should().EndWith("_explanation");
+            descriptor.CostKey.Should().EndWith("_cost");
+            descriptor.LabelKey.Should().NotBe(descriptor.ExplanationKey);
         }
     }
 
     [Fact]
-    public void NoLabelIsJustThePropertyName()
+    public void ResourceKeysAreSnakeCase_AndUniquePerSetting()
     {
-        // "QualifyNoStandingShare" is not a label. The person reading this page is a streamer.
+        // Two settings resolving to one key would silently show one control's copy on another.
+        SpamSettingCatalogue.All.Select(d => d.LabelKey).Should().OnlyHaveUniqueItems();
+
+        SpamSettingCatalogue
+            .For(nameof(SpamDefenseSettings.QualifyNoStandingShare))!
+            .LabelKey.Should()
+            .Be("spam_setting_qualify_no_standing_share_label");
+    }
+
+    [Fact]
+    public void NoBackendStringIsUserFacingProse()
+    {
+        // The house rule, asserted rather than trusted: everything the catalogue carries is an
+        // identifier or a number. If prose reappears here it will not be translated, and a Dutch
+        // operator will read English.
         foreach (SpamSettingDescriptor descriptor in SpamSettingCatalogue.All)
-            descriptor
-                .Label.Should()
-                .NotBe(descriptor.Key, $"{descriptor.Key} needs a human-readable label");
+        {
+            descriptor.Key.Should().NotContain(" ");
+            descriptor.Group.Should().NotContain(" ");
+        }
     }
 
     [Fact]
@@ -144,12 +157,14 @@ public class SpamSettingCatalogueTests
         // at 3am during a raid. They are listed so the operator can see the guarantees they get for
         // free, not hidden so nobody asks.
         SpamSettingCatalogue
-            .Invariants.Select(i => i.Decision)
-            .Should()
+            .Invariants.Should()
             .BeEquivalentTo(["SD0", "SD8", "SD9", "SD11", "SD12"]);
 
-        foreach ((string decision, string guarantee) in SpamSettingCatalogue.Invariants)
-            guarantee.Should().NotBeNullOrWhiteSpace(decision);
+        foreach (string decision in SpamSettingCatalogue.Invariants)
+            SpamSettingCatalogue
+                .GuaranteeKey(decision)
+                .Should()
+                .Be($"spam_invariant_{decision.ToLowerInvariant()}_guarantee");
     }
 
     [Fact]
@@ -184,18 +199,14 @@ public class SpamSettingCatalogueTests
     }
 
     [Fact]
-    public void TheNonLatinGateShipsOff_AndItsCopySaysWhyToLeaveItOff()
+    public void TheNonLatinGateShipsOff()
     {
-        // SD2. Real viewers write in these alphabets every day; the gate exists for a channel under
-        // active attack, and the operator has to be told that before they flip it.
+        // SD2. Real viewers write in these alphabets every day; the gate exists only for a channel
+        // under active attack. Whether the copy warns about that is asserted on the dashboard side,
+        // where the copy lives.
         new SpamDefenseSettings()
             .NonLatinScriptGate.Should()
             .BeFalse();
-
-        SpamSettingCatalogue
-            .For(nameof(SpamDefenseSettings.NonLatinScriptGate))!
-            .CostOfMoving.Should()
-            .Contain("silences");
     }
 
     [Fact]
