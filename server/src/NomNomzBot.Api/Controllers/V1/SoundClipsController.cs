@@ -294,7 +294,8 @@ public sealed class SoundClipsController : BaseController
         public int CooldownSeconds { get; set; }
 
         /// <summary>Minimum community-standing ladder level to fire the chat trigger (0 = everyone).</summary>
-        public int MinPermissionLevel { get; set; }
+        /// <summary>The rung NAME the requester must clear, e.g. <c>Moderator</c>.</summary>
+        public string MinPermissionLevel { get; set; } = "Everyone";
 
         /// <summary>Optional bare, prefix-less chat trigger word; blank = no chat trigger.</summary>
         public string? TriggerWord { get; set; }

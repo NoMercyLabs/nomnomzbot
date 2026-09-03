@@ -90,7 +90,7 @@ public sealed record UploadSoundClipRequest(
     Stream Content,
     int DefaultVolume,
     int CooldownSeconds = 0,
-    int MinPermissionLevel = 0,
+    string MinPermissionLevel = "Everyone",
     string? TriggerWord = null
 );
 
@@ -99,7 +99,7 @@ public sealed record UpdateSoundClipRequest(
     int DefaultVolume,
     bool IsEnabled,
     int CooldownSeconds = 0,
-    int MinPermissionLevel = 0,
+    string MinPermissionLevel = "Everyone",
     string? TriggerWord = null
 );
 
@@ -115,7 +115,7 @@ public sealed record SoundClipDto(
     // Global per-clip cooldown (seconds) applied to the chat soundboard trigger; 0 = none.
     int CooldownSeconds,
     // Minimum community-standing ladder level to fire the chat trigger (0 = everyone).
-    int MinPermissionLevel,
+    string MinPermissionLevel,
     // Optional bare, prefix-less chat trigger word that plays the clip; null = no chat trigger.
     string? TriggerWord,
     DateTime CreatedAt,

@@ -16,6 +16,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Application.Sound.Services;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Sound.Entities;
 using NomNomzBot.Infrastructure.Sound.Audio;
@@ -206,6 +207,14 @@ internal sealed class SoundClipService : ISoundClipService
         if (!storeResult.IsSuccess)
             return Result<SoundClipDto>.Failure(storeResult.ErrorMessage, storeResult.ErrorCode);
 
+        // Refused, not clamped: Math.Max(0, x) accepted any integer, so an unknown rung became the nearest
+        // legal-looking one — on a sound clip that means anyone can fire it.
+        int? createLevel = PermissionLevelNames.ToLevelValue(request.MinPermissionLevel);
+        if (createLevel is null)
+            return Errors
+                .ValidationFailed(UnknownRungMessage(request.MinPermissionLevel))
+                .ToTyped<SoundClipDto>();
+
         SoundClip clip = new()
         {
             Id = Guid.NewGuid(),
@@ -219,7 +228,7 @@ internal sealed class SoundClipService : ISoundClipService
             DefaultVolume = Math.Clamp(request.DefaultVolume, 0, 100),
             IsEnabled = true,
             CooldownSeconds = Math.Clamp(request.CooldownSeconds, 0, MaxCooldownSeconds),
-            MinPermissionLevel = Math.Max(0, request.MinPermissionLevel),
+            MinPermissionLevel = createLevel.Value,
             TriggerWord = triggerResult.Value,
             CreatedByUserId = actorUserId,
         };
@@ -263,7 +272,12 @@ internal sealed class SoundClipService : ISoundClipService
         clip.DefaultVolume = Math.Clamp(request.DefaultVolume, 0, 100);
         clip.IsEnabled = request.IsEnabled;
         clip.CooldownSeconds = Math.Clamp(request.CooldownSeconds, 0, MaxCooldownSeconds);
-        clip.MinPermissionLevel = Math.Max(0, request.MinPermissionLevel);
+        int? updateLevel = PermissionLevelNames.ToLevelValue(request.MinPermissionLevel);
+        if (updateLevel is null)
+            return Errors
+                .ValidationFailed(UnknownRungMessage(request.MinPermissionLevel))
+                .ToTyped<SoundClipDto>();
+        clip.MinPermissionLevel = updateLevel.Value;
         clip.TriggerWord = triggerResult.Value;
 
         await _db.SaveChangesAsync(ct);
@@ -449,11 +463,15 @@ internal sealed class SoundClipService : ISoundClipService
             c.DefaultVolume,
             c.IsEnabled,
             c.CooldownSeconds,
-            c.MinPermissionLevel,
+            PermissionLevelNames.ToName(c.MinPermissionLevel),
             c.TriggerWord,
             c.CreatedAt,
             // The stream endpoint is a catch-all route ({*storageKey}) that takes the raw key, so pass it through
             // un-escaped. Anonymous + range-enabled, so an <audio> element on the dashboard can play it directly.
             $"/api/v1/sound-clips/stream/{c.StorageKey}"
         );
+
+    /// <summary>One wording for an unusable rung, naming what IS accepted so the caller can fix it.</summary>
+    private static string UnknownRungMessage(string? given) =>
+        $"'{given}' is not a permission rung. Use one of: {string.Join(", ", PermissionLevelNames.All)}.";
 }

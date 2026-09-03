@@ -63319,12 +63319,7 @@
                     "format": "int32"
                   },
                   "MinPermissionLevel": {
-                    "pattern": "^-?(?:0|[1-9]\\d*)$",
-                    "type": [
-                      "integer",
-                      "string"
-                    ],
-                    "format": "int32"
+                    "type": "string"
                   },
                   "TriggerWord": {
                     "type": "string"
@@ -79489,12 +79484,7 @@
             "format": "int32"
           },
           "defaultMinPermissionLevel": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
+            "type": "string"
           },
           "responseOverride": {
             "type": [
@@ -94835,12 +94825,7 @@
             "format": "int32"
           },
           "minPermissionLevel": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
+            "type": "string"
           },
           "triggerWord": {
             "type": [
@@ -107982,13 +107967,8 @@
             "default": 0
           },
           "minPermissionLevel": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32",
-            "default": 0
+            "type": "string",
+            "default": "Everyone"
           },
           "triggerWord": {
             "type": [

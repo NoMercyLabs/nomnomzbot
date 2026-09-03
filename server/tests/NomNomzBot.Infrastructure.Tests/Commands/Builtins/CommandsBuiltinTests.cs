@@ -115,8 +115,8 @@ public sealed class CommandsBuiltinTests
             .ListAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(
                 Result.Success<IReadOnlyList<BuiltinCommandDto>>([
-                    new BuiltinCommandDto("lurk", "lurk", true, 5, 0, null),
-                    new BuiltinCommandDto("accountage", "accountage", true, 15, 0, null),
+                    new BuiltinCommandDto("lurk", "lurk", true, 5, "Everyone", null),
+                    new BuiltinCommandDto("accountage", "accountage", true, 15, "Everyone", null),
                 ])
             );
 
@@ -156,7 +156,7 @@ public sealed class CommandsBuiltinTests
             .ListAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(
                 Result.Success<IReadOnlyList<BuiltinCommandDto>>([
-                    new BuiltinCommandDto("lurk", "lurk", false, 5, 0, null),
+                    new BuiltinCommandDto("lurk", "lurk", false, 5, "Everyone", null),
                 ])
             );
 

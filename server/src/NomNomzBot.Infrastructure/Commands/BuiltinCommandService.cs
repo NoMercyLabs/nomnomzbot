@@ -15,6 +15,7 @@ using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Commands.Entities;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 
@@ -85,7 +86,7 @@ public sealed class BuiltinCommandService : IBuiltinCommandService
                         "!" + cmd.BuiltinKey,
                         isEnabled,
                         cmd.DefaultCooldownSeconds,
-                        cmd.DefaultMinPermissionLevel,
+                        PermissionLevelNames.ToName(cmd.DefaultMinPermissionLevel),
                         responseOverride
                     );
                 }),
