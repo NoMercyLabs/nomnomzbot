@@ -302,7 +302,7 @@ public class SpamDefenseServiceTests : IDisposable
 
         result.IsFailure.Should().BeTrue();
         result.ErrorMessage.Should().Contain("spam_setting_minimum_cohort_size_label");
-        result.ErrorCode.Should().Be("spam.setting.out_of_range");
+        result.ErrorCode.Should().Be("VALIDATION_FAILED", "so the API maps it to 400, not 500");
     }
 
     [Fact]
@@ -322,7 +322,8 @@ public class SpamDefenseServiceTests : IDisposable
             );
 
         result.IsFailure.Should().BeTrue();
-        result.ErrorCode.Should().Be("spam.setting.dequalify_not_below_qualify");
+        result.ErrorCode.Should().Be("VALIDATION_FAILED", "so the API maps it to 400, not 500");
+        result.ErrorMessage.Should().Contain("spam_setting_dequalify_below_qualify");
     }
 
     [Fact]
