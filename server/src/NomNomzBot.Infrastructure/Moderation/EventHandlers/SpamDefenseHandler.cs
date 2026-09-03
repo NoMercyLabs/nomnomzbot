@@ -69,14 +69,34 @@ public sealed class SpamDefenseHandler : IEventHandler<ChatMessageReceivedEvent>
                 ct
             );
 
-            if (result?.DetectionId is not null)
+            if (result is null)
+                return;
+
+            // Acting is a separate step from deciding, and it happens here rather than inside the
+            // service so that a channel in dry run simply never reaches this line.
+            SpamEnforcementOutcome enforcement = await scope
+                .ServiceProvider.GetRequiredService<SpamEnforcementExecutor>()
+                .ExecuteAsync(
+                    @event.BroadcasterId,
+                    @event.Provider,
+                    @event.MessageId,
+                    @event.UserId,
+                    result.Decision,
+                    ct
+                );
+
+            if (result.DetectionId is not null)
                 _logger.LogInformation(
-                    "Spam defence: {Outcome} (would have been {WouldHaveBeen}) for {User} in {Channel} — {Reason}",
+                    "Spam defence: {Outcome} (would have been {WouldHaveBeen}) for {User} in {Channel} — "
+                        + "{Reason} [deleted={Deleted} timedOut={TimedOut} skipped={Skipped}]",
                     result.Decision.Outcome,
                     result.Decision.WouldHaveBeen,
                     @event.UserLogin,
                     @event.BroadcasterId,
-                    result.Decision.Reason
+                    result.Decision.Reason,
+                    enforcement.DeletedMessage,
+                    enforcement.TimedOutAccount,
+                    enforcement.Skipped
                 );
         }
         catch (Exception ex)
