@@ -51,6 +51,7 @@ using NomNomzBot.Infrastructure.Platform.Caching;
 using NomNomzBot.Infrastructure.Platform.ChannelOps;
 using NomNomzBot.Infrastructure.Platform.Deployment;
 using NomNomzBot.Infrastructure.Platform.Eventing;
+using NomNomzBot.Infrastructure.Platform.Messaging;
 using NomNomzBot.Infrastructure.Platform.Persistence;
 using NomNomzBot.Infrastructure.Platform.Persistence.Interceptors;
 using NomNomzBot.Infrastructure.Platform.Persistence.Repositories;
@@ -361,6 +362,12 @@ public static class DependencyInjection
             (MusicService)sp.GetRequiredService<Application.Music.Services.IMusicService>()
         );
         services.AddHostedService<SongRequestQueueRestoreHostedService>();
+        // Polls every connected music integration at a flat 1s cadence and publishes PlaybackStateChangedEvent
+        // on any state the bot didn't cause itself (streamer's own phone/desktop app, a track ending, a manual
+        // seek) — without this registration the class compiles and is fully tested but nothing ever runs it, so
+        // the dashboard/overlay/StreamDeck now-playing surfaces only ever update on a bot-caused mutation and
+        // otherwise go stale indefinitely (BackgroundServices/MusicStatePollingService.cs).
+        services.AddHostedService<MusicStatePollingService>();
         // Scoped: it resolves the channel's feature toggles through the scoped IFeatureService (cache-backed, so the
         // hot path stays cheap). Consumes the singleton adapters + cache fine.
         services.AddScoped<Application.Chat.Services.IChatMessageDecorator, ChatMessageDecorator>();
@@ -959,9 +966,6 @@ public static class DependencyInjection
         services.AddScoped<SeedRunner>();
         services.AddScoped<SqliteMigrationService>();
 
-        // Auto-moderation engine consumed by concrete type — kept explicit.
-        services.AddScoped<AutoModerationEngine>();
-
         // Singleton on purpose: AutoModerationHandler is scoped (a new one per event), so a cache held
         // on the handler was rebuilt for every chat message and never once hit. Held here it survives
         // between messages; AutoModRuleCacheInvalidator keeps it honest on every rule write.
@@ -969,10 +973,10 @@ public static class DependencyInjection
         // Consumed by concrete type from the chat-path handler, so convention scanning (I<X>Service ->
         // <X>Service) does not reach it. Separate from SpamDefenseService because deciding and acting
         // are different responsibilities: the decision is pure, acting touches somebody's account.
-        services.AddScoped<Moderation.SpamEnforcementExecutor>();
+        services.AddScoped<SpamEnforcementExecutor>();
         // Same reason: consumed by concrete type from the chat-path handler. Kept apart from
         // SpamDefenseService because correlation is stateful across messages while evaluation is not.
-        services.AddScoped<Moderation.SpamCorrelationService>();
+        services.AddScoped<SpamCorrelationService>();
 
         // Personality tone renderer for built-in responses (override → tone → neutral, then template-resolve).
         // Stateless over the singleton ITemplateResolver, so registered singleton.
@@ -1410,10 +1414,7 @@ public static class DependencyInjection
 
         // Per-platform DM senders (S065) — multi-bound; callers resolve by Provider (e.g. a giveaway
         // winner's platform). One impl today; add a sibling per platform as its DM API is implemented.
-        services.AddScoped<
-            Application.Contracts.Platform.IPlatformDirectMessageSender,
-            Platform.Messaging.TwitchWhisperDirectMessageSender
-        >();
+        services.AddScoped<IPlatformDirectMessageSender, TwitchWhisperDirectMessageSender>();
 
         // Top-level façade (twitch-helix.md §3.1) — composes the scoped sub-clients above into one
         // named-accessor surface for discoverability. Pure passthrough, scoped to share their lifetime.
