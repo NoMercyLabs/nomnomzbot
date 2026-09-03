@@ -32,7 +32,18 @@ public sealed record SupporterAlertPayload(
     int? Quantity,
     string? MessageText,
     bool IsRecurring
-);
+)
+{
+    /// <summary>
+    /// Canonical subject name, matching the widget-facing vocabulary every alert payload exposes
+    /// (<c>AlertDtos.cs</c>) — so a widget reads <c>data.user</c> for a supporter event exactly as it does
+    /// for a raid or a follow, instead of having to know this payload spells it <c>supporterDisplayName</c>.
+    /// </summary>
+    public string User => SupporterDisplayName;
+
+    /// <summary>Canonical headline scalar — the supported amount in major units, null when the kind carries none.</summary>
+    public decimal? Amount => AmountMinor is null ? null : AmountMinor.Value / 100m;
+}
 
 /// <summary>
 /// Routes <see cref="SupporterEventReceived"/> (supporter-events.md P.16 — a normalized tip/membership/merch/

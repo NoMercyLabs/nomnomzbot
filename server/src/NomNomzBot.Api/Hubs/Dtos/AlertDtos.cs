@@ -24,6 +24,16 @@ public record ChannelEventDto(
 public record AlertDto(string Type, string? Message, object? Data);
 
 // ─── Alert-specific data DTOs (used as ChannelEventDto.Data) ─────────────────
+//
+// Every alert record below also exposes the CANONICAL widget-facing vocabulary as computed, get-only
+// properties on top of its own event-specific fields: `User` (the display name of whoever the alert is
+// about) on all of them, plus the event's headline scalar under the name the template vocabulary already
+// uses — {user}, {viewers}, {amount}, {months}. The event-specific names each record was born with
+// (DisplayName / GifterDisplayName / FromDisplayName / ViewerCount / Bits / Count) are unchanged, so
+// existing readers keep working; the canonical names exist because the payload is a PUBLIC contract that
+// third-party widget authors code against, and "which of the four subject-name spellings does THIS event
+// use?" is not something they can be expected to guess. A widget that reads `data.user` — the same word
+// the seeded chat templates use — now gets a real name instead of silently falling back to a placeholder.
 
 /// <summary>
 /// <paramref name="AvatarUrl"/>/<paramref name="Pronouns"/>/<paramref name="CommunityStanding"/> are additive
@@ -38,9 +48,17 @@ public record FollowAlertDto(
     string? AvatarUrl = null,
     string? Pronouns = null,
     string? CommunityStanding = null
-);
+)
+{
+    /// <summary>Canonical subject name — see the vocabulary note above.</summary>
+    public string User => DisplayName;
+}
 
-public record SubscriptionAlertDto(string UserId, string DisplayName, string Tier);
+public record SubscriptionAlertDto(string UserId, string DisplayName, string Tier)
+{
+    /// <summary>Canonical subject name — see the vocabulary note above.</summary>
+    public string User => DisplayName;
+}
 
 public record ResubAlertDto(
     string UserId,
@@ -49,7 +67,11 @@ public record ResubAlertDto(
     int Months,
     int Streak,
     string? Message
-);
+)
+{
+    /// <summary>Canonical subject name — see the vocabulary note above.</summary>
+    public string User => DisplayName;
+}
 
 public record GiftSubAlertDto(
     string? GifterId,
@@ -57,7 +79,14 @@ public record GiftSubAlertDto(
     string Tier,
     int Count,
     bool Anonymous
-);
+)
+{
+    /// <summary>Canonical subject name — the GIFTER, the only identity a gift-sub event carries.</summary>
+    public string User => GifterDisplayName;
+
+    /// <summary>Canonical headline scalar — how many subs were gifted.</summary>
+    public int Amount => Count;
+}
 
 public record CheerAlertDto(
     string? UserId,
@@ -65,14 +94,28 @@ public record CheerAlertDto(
     int Bits,
     string Message,
     bool Anonymous
-);
+)
+{
+    /// <summary>Canonical subject name — see the vocabulary note above.</summary>
+    public string User => DisplayName;
+
+    /// <summary>Canonical headline scalar — the bits cheered.</summary>
+    public int Amount => Bits;
+}
 
 public record RaidAlertDto(
     string FromUserId,
     string FromDisplayName,
     string FromLogin,
     int ViewerCount
-);
+)
+{
+    /// <summary>Canonical subject name — the raiding channel.</summary>
+    public string User => FromDisplayName;
+
+    /// <summary>Canonical headline scalar — the size of the incoming raid party.</summary>
+    public int Viewers => ViewerCount;
+}
 
 public record ChatClearedDto(string ClearedByUserId);
 
