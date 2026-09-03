@@ -232,6 +232,7 @@
     "pipeline.send_discord_notification.trigger_type.help",
     "pipeline.send_message.description",
     "pipeline.send_message.message.help",
+    "pipeline.send_message.sender.help",
     "pipeline.send_reply.description",
     "pipeline.send_reply.message.help",
     "pipeline.send_webhook.description",
