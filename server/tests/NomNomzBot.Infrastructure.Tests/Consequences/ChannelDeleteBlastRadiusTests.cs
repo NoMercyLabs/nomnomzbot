@@ -39,7 +39,7 @@ public class ChannelDeleteBlastRadiusTests
     private static readonly DateTimeOffset Now = new(2026, 8, 26, 12, 0, 0, TimeSpan.Zero);
 
     // The categories under test, over exactly the tables this focused relational schema maps. The production
-    // map (ChannelBlastRadiusSources.All) covers all 116 and is proved complete by
+    // map (ChannelBlastRadiusSources.All) covers every tenant-scoped table and is proved complete by
     // ChannelBlastRadiusSourcesCompletenessTests; this subset proves the GROUPING, the tenant filter and the
     // remainder behave over real SQL.
     private static IReadOnlyList<ChannelBlastRadiusSource> Sources =>
