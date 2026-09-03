@@ -134,6 +134,8 @@ class ApiContractTest {
             SpamSettingDescriptor.serializer() to "SpamSettingDescriptorDto",
             SpamInvariant.serializer() to "SpamInvariantDto",
             SpamDetection.serializer() to "SpamDetectionDto",
+            SpamCampaign.serializer() to "SpamCampaignDto",
+            FollowBotBlockEntry.serializer() to "FollowBotBlockDto",
             UpdateTrustPolicyBody.serializer() to "UpdateTrustPolicyRequest",
             AutomodLinkFilter.serializer() to "AutomodLinkFilterDto",
             AutomodCapsFilter.serializer() to "AutomodCapsFilterDto",

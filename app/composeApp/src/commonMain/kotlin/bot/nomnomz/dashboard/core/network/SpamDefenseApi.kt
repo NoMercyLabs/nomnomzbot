@@ -39,6 +39,15 @@ interface SpamDefenseApi {
 
     /** Mark a verdict wrong. */
     suspend fun overturn(channelId: String, detectionId: String): ApiResult<Unit>
+
+    /** Correlated cohorts, newest first. */
+    suspend fun campaigns(channelId: String): ApiResult<List<SpamCampaign>>
+
+    /** Follow-bot blocks, each carrying the evidence that justified it. */
+    suspend fun followBotBlocks(channelId: String): ApiResult<List<FollowBotBlockEntry>>
+
+    /** Restore an entire spike batch at once. */
+    suspend fun restoreFollowBotBatch(channelId: String, batchId: String): ApiResult<Unit>
 }
 
 class RestSpamDefenseApi(private val client: ApiClient) : SpamDefenseApi {
@@ -63,6 +72,22 @@ class RestSpamDefenseApi(private val client: ApiClient) : SpamDefenseApi {
     override suspend fun overturn(channelId: String, detectionId: String): ApiResult<Unit> =
         client.postUnit(
             "api/v1/channels/$channelId/spam-defense/detections/$detectionId/overturn"
+        )
+
+    override suspend fun campaigns(channelId: String): ApiResult<List<SpamCampaign>> =
+        client.getEnvelope("api/v1/channels/$channelId/spam-defense/campaigns")
+
+    override suspend fun followBotBlocks(
+        channelId: String
+    ): ApiResult<List<FollowBotBlockEntry>> =
+        client.getEnvelope("api/v1/channels/$channelId/spam-defense/follow-bot-blocks")
+
+    override suspend fun restoreFollowBotBatch(
+        channelId: String,
+        batchId: String,
+    ): ApiResult<Unit> =
+        client.postUnit(
+            "api/v1/channels/$channelId/spam-defense/follow-bot-blocks/$batchId/restore"
         )
 }
 
@@ -152,4 +177,37 @@ data class SpamDetection(
     val reason: String = "",
     val overturnedAt: String? = null,
     val detectedAt: String = "",
+)
+
+/** One correlated cohort (backend `SpamCampaignDto`). */
+@Serializable
+data class SpamCampaign(
+    val id: String = "",
+    val skeleton: String = "",
+    val verdict: String = "Watching",
+    val qualificationCount: Int = 0,
+    val actionableCount: Int = 0,
+    val actionedCount: Int = 0,
+    val noStandingShare: Double = 0.0,
+    val mayContributeToNetwork: Boolean = true,
+    val reversedAt: String? = null,
+    val reversalReason: String? = null,
+    val firstSeenAt: String = "",
+    val lastSeenAt: String = "",
+)
+
+/**
+ * One follow-bot block (backend `FollowBotBlockDto`). [indicators] is what makes the block reviewable,
+ * and [batchExamined] is how an operator sees the sweep looked at more accounts than it acted on.
+ */
+@Serializable
+data class FollowBotBlockEntry(
+    val id: String = "",
+    val batchId: String = "",
+    val subjectPlatformUserId: String = "",
+    val subjectUsername: String = "",
+    val indicators: String = "",
+    val batchExamined: Int = 0,
+    val restoredAt: String? = null,
+    val blockedAt: String = "",
 )

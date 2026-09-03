@@ -51,6 +51,8 @@ import bot.nomnomz.dashboard.core.network.TrustApi
 import bot.nomnomz.dashboard.core.network.SpamDefenseApi
 import bot.nomnomz.dashboard.core.network.SpamDefensePolicy
 import bot.nomnomz.dashboard.core.network.SpamDefenseSettings
+import bot.nomnomz.dashboard.core.network.FollowBotBlockEntry
+import bot.nomnomz.dashboard.core.network.SpamCampaign
 import bot.nomnomz.dashboard.core.network.SpamDetection
 import bot.nomnomz.dashboard.core.network.TrustPolicy
 import bot.nomnomz.dashboard.core.network.TwitchAutoModSettings
@@ -349,6 +351,21 @@ class ModerationController(
                 is ApiResult.Ok -> result.value
             }
 
+        val spamCampaigns: List<SpamCampaign> =
+            when (val result: ApiResult<List<SpamCampaign>>? = spamDefenseApi?.campaigns(channel.id)) {
+                null, is ApiResult.Failure -> emptyList()
+                is ApiResult.Ok -> result.value
+            }
+
+        val followBotBlocks: List<FollowBotBlockEntry> =
+            when (
+                val result: ApiResult<List<FollowBotBlockEntry>>? =
+                    spamDefenseApi?.followBotBlocks(channel.id)
+            ) {
+                null, is ApiResult.Failure -> emptyList()
+                is ApiResult.Ok -> result.value
+            }
+
         // Empty only when there is genuinely nothing to show AND every always-on control (shield, automod) is off
         // AND every live-Twitch section is available (an unavailable section must render Ready so its needs-permission
         // notice shows — never Empty, which would read as "nothing here" rather than "you can't see this here").
@@ -403,6 +420,8 @@ class ModerationController(
                     trustPolicy = trustPolicy,
                     spamDefense = spamDefense,
                     spamDetections = spamDetections,
+                    spamCampaigns = spamCampaigns,
+                    followBotBlocks = followBotBlocks,
                 )
             }
     }
@@ -1174,6 +1193,38 @@ class ModerationController(
     }
 
     /**
+     * Restores an entire follow-bot sweep. Bulk on purpose: a misread viral moment can be hundreds of
+     * accounts, and undoing them one at a time is not a recovery path anybody would use.
+     */
+    suspend fun restoreFollowBotBatch(batchId: String) {
+        val channel: String = channelId ?: return
+        val api: SpamDefenseApi = spamDefenseApi ?: return
+        val current: ModerationState = _state.value
+        if (current !is ModerationState.Ready) return
+
+        when (val result: ApiResult<Unit> = api.restoreFollowBotBatch(channel, batchId)) {
+            is ApiResult.Ok -> {
+                val ready: ModerationState = _state.value
+                if (ready is ModerationState.Ready) {
+                    _state.value =
+                        ready.copy(
+                            followBotBlocks =
+                                ready.followBotBlocks.map { block ->
+                                    if (block.batchId == batchId) {
+                                        block.copy(restoredAt = "restored")
+                                    } else {
+                                        block
+                                    }
+                                },
+                            actionError = null,
+                        )
+                }
+            }
+            is ApiResult.Failure -> setActionError(result.error.message)
+        }
+    }
+
+    /**
      * Replace Twitch's own AutoMod levels with [body]. The body type only exists in an overall-dial OR a
      * per-category shape, so the combination Twitch rejects cannot be sent. Stores the echoed settings on success.
      */
@@ -1251,6 +1302,8 @@ sealed interface ModerationState {
         val trustPolicy: TrustPolicy? = null,
         val spamDefense: SpamDefensePolicy? = null,
         val spamDetections: List<SpamDetection> = emptyList(),
+        val spamCampaigns: List<SpamCampaign> = emptyList(),
+        val followBotBlocks: List<FollowBotBlockEntry> = emptyList(),
         // True when the last trust-policy save was refused locally because the four weights do not sum to 1.0 —
         // the backend rejects that body, so the editor blocks it and shows the inline error instead.
         val trustWeightSumInvalid: Boolean = false,

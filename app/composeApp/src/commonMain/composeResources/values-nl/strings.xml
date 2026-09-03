@@ -4918,4 +4918,23 @@
     <string name="spam_tier_trusted">Vertrouwd</string>
     <string name="spam_tier_semi_trusted">Heeft status</string>
     <string name="spam_tier_established">Gevestigde vaste kijker</string>
+    <!-- Spambeveiliging: gecoordineerde groepen en de volgbot-actie. -->
+    <string name="spam_campaigns_title">Gecoordineerde groepen</string>
+    <string name="spam_campaigns_empty">Nog geen groepen. Als meerdere accounts tegelijk hetzelfde posten, verschijnt de groep hier met wat de bot erover besloot.</string>
+    <string name="spam_campaign_verdict_watching">Wordt gevolgd</string>
+    <string name="spam_campaign_verdict_campaign">Behandeld als gecoordineerde spam</string>
+    <string name="spam_campaign_verdict_community">Beoordeeld als gedrag van de community</string>
+    <string name="spam_campaign_counts">%1$d accounts postten het, %2$d konden worden aangepakt, %3$d werden dat</string>
+    <string name="spam_campaign_strangers">%1$d%% waren vreemden voor jouw kanaal</string>
+    <string name="spam_campaign_reversed">Teruggedraaid: %1$s</string>
+    <string name="spam_campaign_not_shared">Niet gedeeld met andere servers, omdat iemand met status het ook postte.</string>
+    <string name="spam_follow_blocks_title">Volgbot-blokkades</string>
+    <string name="spam_follow_blocks_empty">Niets geblokkeerd. Accounts die tijdens een volgpiek zijn geblokkeerd verschijnen hier, elk met de reden erbij.</string>
+    <string name="spam_follow_block_examined">%1$d accounts bekeken in deze golf</string>
+    <string name="spam_follow_block_restore">Deze hele golf herstellen</string>
+    <string name="spam_follow_block_restored">Hersteld</string>
+    <string name="spam_follow_indicator_known_bot">Staat op een bekende bottenlijst</string>
+    <string name="spam_follow_indicator_generated_handle">Naam lijkt automatisch aangemaakt</string>
+    <string name="spam_follow_indicator_zero_history">Uren oud met een leeg profiel</string>
+    <string name="spam_follow_indicator_oscillation">Herhaaldelijk gevolgd en ontvolgd</string>
 </resources>
