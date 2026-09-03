@@ -38,6 +38,15 @@ import bot.nomnomz.dashboard.core.network.SharedBanSettings
 import bot.nomnomz.dashboard.core.network.SharedBanTrustedChannel
 import bot.nomnomz.dashboard.core.network.UpsertEscalationPolicyBody
 import bot.nomnomz.dashboard.core.network.ShieldStatus
+import bot.nomnomz.dashboard.core.network.TRUST_POLICY_DEFAULTS
+import bot.nomnomz.dashboard.core.network.TrustApi
+import bot.nomnomz.dashboard.core.network.TrustPolicy
+import bot.nomnomz.dashboard.core.network.TwitchAutoModSettings
+import bot.nomnomz.dashboard.core.network.UpdateTrustPolicyBody
+import bot.nomnomz.dashboard.core.network.UpdateTwitchAutoModSettingsBody
+import bot.nomnomz.dashboard.core.network.asUpdateBody
+import bot.nomnomz.dashboard.feature.moderation.ui.formatTrustValue
+import kotlin.test.assertNotNull
 import bot.nomnomz.dashboard.core.network.ShoutoutOverride
 import bot.nomnomz.dashboard.core.network.ChannelSummary
 import bot.nomnomz.dashboard.core.network.ChannelsApi
@@ -1252,6 +1261,33 @@ private class FakeModerationApi(
 
     override suspend fun automod(channelId: String): ApiResult<AutomodConfig> = automodResult
 
+    var twitchAutoModResult: ApiResult<TwitchAutoModSettings> = ApiResult.Ok(TwitchAutoModSettings())
+    var savedTwitchAutoMod: UpdateTwitchAutoModSettingsBody? = null
+        private set
+
+    override suspend fun twitchAutoMod(channelId: String): ApiResult<TwitchAutoModSettings> =
+        twitchAutoModResult
+
+    override suspend fun saveTwitchAutoMod(
+        channelId: String,
+        body: UpdateTwitchAutoModSettingsBody,
+    ): ApiResult<TwitchAutoModSettings> {
+        savedTwitchAutoMod = body
+        return ApiResult.Ok(
+            TwitchAutoModSettings(
+                overallLevel = body.overallLevel,
+                aggression = body.aggression ?: 0,
+                bullying = body.bullying ?: 0,
+                disability = body.disability ?: 0,
+                misogyny = body.misogyny ?: 0,
+                raceEthnicityOrReligion = body.raceEthnicityOrReligion ?: 0,
+                sexBasedTerms = body.sexBasedTerms ?: 0,
+                sexualitySexOrGender = body.sexualitySexOrGender ?: 0,
+                swearing = body.swearing ?: 0,
+            )
+        )
+    }
+
     var lastSavedAutomod: AutomodConfig? = null
         private set
 
@@ -1506,5 +1542,283 @@ private class FakeModerationApi(
     override suspend fun clearChat(channelId: String): ApiResult<Unit> {
         clearChatCalls++
         return ApiResult.Ok(Unit)
+    }
+}
+
+// ── Trust & Automation (S-OWN23 T4) ─────────────────────────────────────────────────────────────────
+
+/**
+ * The trust-policy backend, faked: it hands back a policy on read and RECORDS the body it is asked to save, so a
+ * test can assert the exact payload that leaves the client (and that an invalid one never does).
+ */
+private class FakeTrustApi(
+    var policyResult: ApiResult<TrustPolicy> = ApiResult.Ok(TrustPolicy()),
+) : TrustApi {
+    var savedPolicy: UpdateTrustPolicyBody? = null
+        private set
+    var saveCalls: Int = 0
+        private set
+
+    override suspend fun policy(channelId: String): ApiResult<TrustPolicy> = policyResult
+
+    override suspend fun savePolicy(
+        channelId: String,
+        body: UpdateTrustPolicyBody,
+    ): ApiResult<TrustPolicy> {
+        savedPolicy = body
+        saveCalls += 1
+        return ApiResult.Ok(
+            TrustPolicy(
+                requestCountWeight = body.requestCountWeight,
+                accountAgeWeight = body.accountAgeWeight,
+                contentAgeWeight = body.contentAgeWeight,
+                contentPopularityWeight = body.contentPopularityWeight,
+                requestCountDecay = body.requestCountDecay,
+                accountAgeDecay = body.accountAgeDecay,
+                contentAgeDecay = body.contentAgeDecay,
+                contentPopularityDecay = body.contentPopularityDecay,
+                notFollowingFactor = body.notFollowingFactor,
+                reputationBoostEnabled = body.reputationBoostEnabled,
+                youTubeQualityPenaltyFactor = body.youTubeQualityPenaltyFactor,
+                skipPenalty = body.skipPenalty,
+                timeoutPenalty = body.timeoutPenalty,
+                banPenalty = body.banPenalty,
+                untrustedMax = body.untrustedMax,
+                lowMax = body.lowMax,
+                standardMax = body.standardMax,
+                heatHalfLifeHours = body.heatHalfLifeHours,
+                heatDeltaBan = body.heatDeltaBan,
+                heatDeltaTimeout = body.heatDeltaTimeout,
+                heatDeltaReportValidated = body.heatDeltaReportValidated,
+                heatDeltaAutoModDenied = body.heatDeltaAutoModDenied,
+                heatDeltaFilterHit = body.heatDeltaFilterHit,
+                // The backend pins the channel the moment it saves its own values.
+                isPinned = true,
+            )
+        )
+    }
+}
+
+/** Proves the Trust & Automation section reads, edits, validates and persists real values. */
+class TrustAutomationControllerTest {
+
+    private fun controller(
+        trust: FakeTrustApi,
+        moderation: FakeModerationApi = FakeModerationApi(ApiResult.Ok(emptyList())),
+    ): Pair<ModerationController, FakeModerationApi> =
+        ModerationController(
+            FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+            moderation,
+            FakeCommunityApi(),
+            trustApi = trust,
+        ) to moderation
+
+    @Test
+    fun load_maps_every_trust_policy_field_and_the_twitch_automod_levels() = runTest {
+        val edited =
+            TrustPolicy(
+                requestCountWeight = 0.10,
+                accountAgeWeight = 0.20,
+                contentAgeWeight = 0.30,
+                contentPopularityWeight = 0.40,
+                requestCountDecay = 0.111,
+                accountAgeDecay = 0.222,
+                contentAgeDecay = 0.333,
+                contentPopularityDecay = 0.0004,
+                notFollowingFactor = 0.55,
+                reputationBoostEnabled = false,
+                youTubeQualityPenaltyFactor = 0.66,
+                skipPenalty = 6.0,
+                timeoutPenalty = 11.0,
+                banPenalty = 31.0,
+                untrustedMax = 26.0,
+                lowMax = 51.0,
+                standardMax = 76.0,
+                heatHalfLifeHours = 12.0,
+                heatDeltaBan = 41.0,
+                heatDeltaTimeout = 16.0,
+                heatDeltaReportValidated = 11.0,
+                heatDeltaAutoModDenied = 6.0,
+                heatDeltaFilterHit = 7.0,
+                isPinned = true,
+            )
+        val moderation = FakeModerationApi(ApiResult.Ok(emptyList()))
+        moderation.twitchAutoModResult =
+            ApiResult.Ok(TwitchAutoModSettings(overallLevel = null, aggression = 3, swearing = 1))
+        val (subject, _) = controller(FakeTrustApi(ApiResult.Ok(edited)), moderation)
+
+        subject.load()
+
+        val ready = subject.state.value as ModerationState.Ready
+        assertEquals(edited, ready.trustPolicy)
+        assertEquals(3, ready.twitchAutoMod?.aggression)
+        assertEquals(1, ready.twitchAutoMod?.swearing)
+        assertNull(ready.twitchAutoMod?.overallLevel)
+    }
+
+    @Test
+    fun load_leaves_the_twitch_levels_unknown_rather_than_reporting_them_off() = runTest {
+        val moderation = FakeModerationApi(ApiResult.Ok(emptyList()))
+        moderation.twitchAutoModResult =
+            ApiResult.Failure(
+                ApiError(status = 403, code = "403", message = "Missing AutoMod settings scope.")
+            )
+        val (subject, _) = controller(FakeTrustApi(), moderation)
+
+        subject.load()
+
+        assertNull((subject.state.value as ModerationState.Ready).twitchAutoMod)
+    }
+
+    @Test
+    fun saveTrustPolicy_sends_the_edited_values_and_stores_the_saved_policy() = runTest {
+        val trust = FakeTrustApi()
+        val (subject, _) = controller(trust)
+        subject.load()
+
+        val body =
+            TRUST_POLICY_DEFAULTS.copy(banPenalty = 45.0, heatHalfLifeHours = 6.0).asUpdateBody()
+        subject.saveTrustPolicy(body)
+
+        val sent = assertNotNull(trust.savedPolicy)
+        assertEquals(45.0, sent.banPenalty)
+        assertEquals(6.0, sent.heatHalfLifeHours)
+        // The rest of the body rides along unchanged — the PUT replaces the whole policy.
+        assertEquals(TRUST_POLICY_DEFAULTS.requestCountWeight, sent.requestCountWeight)
+        assertEquals(TRUST_POLICY_DEFAULTS.contentPopularityDecay, sent.contentPopularityDecay)
+
+        val ready = subject.state.value as ModerationState.Ready
+        assertEquals(45.0, ready.trustPolicy?.banPenalty)
+        assertEquals(true, ready.trustPolicy?.isPinned)
+        assertFalse(ready.trustWeightSumInvalid)
+    }
+
+    @Test
+    fun saveTrustPolicy_blocks_a_weight_sum_that_is_not_one_and_never_reaches_the_backend() = runTest {
+        val trust = FakeTrustApi()
+        val (subject, _) = controller(trust)
+        subject.load()
+
+        val body = TRUST_POLICY_DEFAULTS.copy(requestCountWeight = 0.50).asUpdateBody()
+        subject.saveTrustPolicy(body)
+
+        assertNull(trust.savedPolicy)
+        assertEquals(0, trust.saveCalls)
+        assertTrue((subject.state.value as ModerationState.Ready).trustWeightSumInvalid)
+    }
+
+    @Test
+    fun a_valid_save_after_a_blocked_one_clears_the_weight_sum_error() = runTest {
+        val trust = FakeTrustApi()
+        val (subject, _) = controller(trust)
+        subject.load()
+        subject.saveTrustPolicy(TRUST_POLICY_DEFAULTS.copy(accountAgeWeight = 0.9).asUpdateBody())
+        assertTrue((subject.state.value as ModerationState.Ready).trustWeightSumInvalid)
+
+        subject.saveTrustPolicy(TRUST_POLICY_DEFAULTS.asUpdateBody())
+
+        val ready = subject.state.value as ModerationState.Ready
+        assertFalse(ready.trustWeightSumInvalid)
+        assertEquals(1, trust.saveCalls)
+    }
+
+    @Test
+    fun resetting_a_field_to_its_default_restores_the_shipped_value_and_saves_it() = runTest {
+        val pinned = TrustPolicy(contentPopularityDecay = 0.5, banPenalty = 99.0, isPinned = true)
+        val trust = FakeTrustApi(ApiResult.Ok(pinned))
+        val (subject, _) = controller(trust)
+        subject.load()
+
+        // What the per-field reset control does: put the shipped default back on that one field.
+        val afterReset =
+            pinned
+                .copy(
+                    contentPopularityDecay = TRUST_POLICY_DEFAULTS.contentPopularityDecay,
+                    banPenalty = TRUST_POLICY_DEFAULTS.banPenalty,
+                )
+                .asUpdateBody()
+        subject.saveTrustPolicy(afterReset)
+
+        val sent = assertNotNull(trust.savedPolicy)
+        assertEquals(0.0003, sent.contentPopularityDecay)
+        assertEquals(30.0, sent.banPenalty)
+        assertEquals(0.0003, (subject.state.value as ModerationState.Ready).trustPolicy?.contentPopularityDecay)
+        // The reset control writes this text into the field — a plain decimal, never 3.0E-4.
+        assertEquals("0.0003", formatTrustValue(TRUST_POLICY_DEFAULTS.contentPopularityDecay))
+        assertEquals("30.0", formatTrustValue(TRUST_POLICY_DEFAULTS.banPenalty))
+    }
+
+    @Test
+    fun saveTwitchAutoMod_with_categories_never_sends_an_overall_level() = runTest {
+        val moderation = FakeModerationApi(ApiResult.Ok(emptyList()))
+        moderation.twitchAutoModResult = ApiResult.Ok(TwitchAutoModSettings(overallLevel = 2))
+        val (subject, api) = controller(FakeTrustApi(), moderation)
+        subject.load()
+
+        subject.saveTwitchAutoMod(
+            UpdateTwitchAutoModSettingsBody.categories(
+                aggression = 4,
+                bullying = 3,
+                disability = 2,
+                misogyny = 1,
+                raceEthnicityOrReligion = 0,
+                sexBasedTerms = 1,
+                sexualitySexOrGender = 2,
+                swearing = 3,
+            )
+        )
+
+        val sent = assertNotNull(api.savedTwitchAutoMod)
+        assertNull(sent.overallLevel)
+        assertEquals(4, sent.aggression)
+        assertEquals(3, sent.swearing)
+        assertNull((subject.state.value as ModerationState.Ready).twitchAutoMod?.overallLevel)
+    }
+
+    @Test
+    fun saveTwitchAutoMod_with_an_overall_level_never_sends_categories() = runTest {
+        val (subject, api) = controller(FakeTrustApi())
+        subject.load()
+
+        subject.saveTwitchAutoMod(UpdateTwitchAutoModSettingsBody.overall(3))
+
+        val sent = assertNotNull(api.savedTwitchAutoMod)
+        assertEquals(3, sent.overallLevel)
+        assertNull(sent.aggression)
+        assertNull(sent.bullying)
+        assertNull(sent.disability)
+        assertNull(sent.misogyny)
+        assertNull(sent.raceEthnicityOrReligion)
+        assertNull(sent.sexBasedTerms)
+        assertNull(sent.sexualitySexOrGender)
+        assertNull(sent.swearing)
+        assertEquals(3, (subject.state.value as ModerationState.Ready).twitchAutoMod?.overallLevel)
+    }
+
+    @Test
+    fun setAutoTimeoutOnHeat_persists_the_opt_in_switch_with_the_rest_of_the_config() = runTest {
+        val moderation =
+            FakeModerationApi(
+                bansResults = listOf(ApiResult.Ok(emptyList())),
+                automodResult = ApiResult.Ok(AutomodConfig(heatTimeoutThreshold = 70)),
+            )
+        val (subject, api) = controller(FakeTrustApi(), moderation)
+        subject.load()
+
+        subject.setAutoTimeoutOnHeat(true)
+
+        val saved = assertNotNull(api.lastSavedAutomod)
+        assertTrue(saved.autoTimeoutOnHeat)
+        assertEquals(70, saved.heatTimeoutThreshold)
+    }
+
+    @Test
+    fun setHeatTimeoutSeconds_persists_the_automatic_timeout_length() = runTest {
+        val (subject, api) = controller(FakeTrustApi())
+        subject.load()
+
+        subject.setHeatTimeoutSeconds(120)
+
+        assertEquals(120, assertNotNull(api.lastSavedAutomod).heatTimeoutSeconds)
     }
 }

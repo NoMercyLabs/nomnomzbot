@@ -47,6 +47,11 @@ import bot.nomnomz.dashboard.core.network.ShoutoutOverride
 import bot.nomnomz.dashboard.core.network.UnbanRequest
 import bot.nomnomz.dashboard.core.network.UpsertEscalationPolicyBody
 import bot.nomnomz.dashboard.core.network.ShieldStatus
+import bot.nomnomz.dashboard.core.network.TrustApi
+import bot.nomnomz.dashboard.core.network.TrustPolicy
+import bot.nomnomz.dashboard.core.network.TwitchAutoModSettings
+import bot.nomnomz.dashboard.core.network.UpdateTrustPolicyBody
+import bot.nomnomz.dashboard.core.network.UpdateTwitchAutoModSettingsBody
 import bot.nomnomz.dashboard.core.network.UserModerationContext
 import bot.nomnomz.dashboard.core.network.UserNote
 import bot.nomnomz.dashboard.core.network.ViewerOption
@@ -73,6 +78,10 @@ class ModerationController(
     // Optional broadcaster-search source for the shared-ban trusted-channel picker. Nullable so the state-holder
     // tests construct the controller without it.
     private val streamApi: StreamApi? = null,
+    // The per-channel trust policy (S-OWN23) that drives the moderation trust score and heat decay. Nullable for
+    // the same reason as [streamApi]: a state-holder test that does not exercise the Trust & Automation section
+    // omits it, and the section then stays hidden rather than rendering a policy nobody read.
+    private val trustApi: TrustApi? = null,
 ) {
     private val _state: MutableStateFlow<ModerationState> = MutableStateFlow(ModerationState.Loading)
 
@@ -297,6 +306,23 @@ class ModerationController(
                 is ApiResult.Ok -> result.value
             }
 
+        // Twitch's OWN AutoMod levels (live Helix state). A failure means unreadable here — NOT "all levels 0";
+        // the automation panel then says the state is unknown rather than claiming AutoMod filters nothing.
+        val twitchAutoMod: TwitchAutoModSettings? =
+            when (val result: ApiResult<TwitchAutoModSettings> = moderationApi.twitchAutoMod(channel.id)) {
+                is ApiResult.Failure -> null
+                is ApiResult.Ok -> result.value
+            }
+
+        // The channel's trust policy (S-OWN23). Resilient — a failure (below the read floor) leaves the Trust &
+        // Automation editor hidden rather than failing the page; the backend returns the DEFAULTS (isPinned =
+        // false) for a channel that never saved one.
+        val trustPolicy: TrustPolicy? =
+            when (val result: ApiResult<TrustPolicy>? = trustApi?.policy(channel.id)) {
+                null, is ApiResult.Failure -> null
+                is ApiResult.Ok -> result.value
+            }
+
         // Empty only when there is genuinely nothing to show AND every always-on control (shield, automod) is off
         // AND every live-Twitch section is available (an unavailable section must render Ready so its needs-permission
         // notice shows — never Empty, which would read as "nothing here" rather than "you can't see this here").
@@ -311,6 +337,12 @@ class ModerationController(
                     unbanRequests.isEmpty() &&
                     reports.isEmpty() &&
                     automodQueue.isEmpty() &&
+                    // The Trust & Automation section always has something to show when it is readable —
+                    // the automation summary states what fires automatically even when the answer is
+                    // "nothing", and that answer is exactly what an operator came to check. So a
+                    // readable trust policy alone keeps the page Ready; only a caller who cannot read it
+                    // at all can see Empty.
+                    trustPolicy == null &&
                     !shieldEnabled &&
                     !anyAutomodEnabled &&
                     shoutoutTemplate.isNullOrBlank() &&
@@ -341,6 +373,8 @@ class ModerationController(
                     nukeBatches = nukeBatches,
                     shoutoutTemplate = shoutoutTemplate,
                     shoutoutOverrides = shoutoutOverrides,
+                    twitchAutoMod = twitchAutoMod,
+                    trustPolicy = trustPolicy,
                 )
             }
     }
@@ -1007,6 +1041,67 @@ class ModerationController(
     }
 
     // Reload on success; on failure surface the message on the current Ready state without losing the lists.
+    /**
+     * Switch the automatic heat timeout on or off ([enabled]) — opt-in, so OFF means a heat crossing only flags
+     * the viewer for a human. Re-sends the whole AutoMod config; reloads on success.
+     */
+    suspend fun setAutoTimeoutOnHeat(enabled: Boolean) = saveAutomod { it.copy(autoTimeoutOnHeat = enabled) }
+
+    /** Set how long the automatic heat timeout lasts ([seconds]), re-sending the whole AutoMod config. */
+    suspend fun setHeatTimeoutSeconds(seconds: Int) = saveAutomod { it.copy(heatTimeoutSeconds = seconds) }
+
+    /**
+     * Replace the channel's trust policy with [body].
+     *
+     * The four score weights must sum to 1.0 — the backend rejects anything else, so an invalid sum is refused
+     * HERE and never sent: the state carries [ModerationState.Ready.trustWeightSumInvalid] and the editor renders
+     * its inline error. A valid save stores the returned policy straight onto the state (the backend echoes the
+     * saved row, isPinned now true), so the editor shows what actually persisted.
+     */
+    suspend fun saveTrustPolicy(body: UpdateTrustPolicyBody) {
+        val channel: String = channelId ?: return
+        val api: TrustApi = trustApi ?: return
+        val current: ModerationState = _state.value
+        if (current !is ModerationState.Ready) return
+        if (!trustWeightsAreValid(body)) {
+            _state.value = current.copy(trustWeightSumInvalid = true)
+            return
+        }
+        when (val result: ApiResult<TrustPolicy> = api.savePolicy(channel, body)) {
+            is ApiResult.Ok -> {
+                val ready: ModerationState = _state.value
+                if (ready is ModerationState.Ready) {
+                    _state.value =
+                        ready.copy(
+                            trustPolicy = result.value,
+                            trustWeightSumInvalid = false,
+                            actionError = null,
+                        )
+                }
+            }
+            is ApiResult.Failure -> setActionError(result.error.message)
+        }
+    }
+
+    /**
+     * Replace Twitch's own AutoMod levels with [body]. The body type only exists in an overall-dial OR a
+     * per-category shape, so the combination Twitch rejects cannot be sent. Stores the echoed settings on success.
+     */
+    suspend fun saveTwitchAutoMod(body: UpdateTwitchAutoModSettingsBody) {
+        val channel: String = channelId ?: return
+        when (
+            val result: ApiResult<TwitchAutoModSettings> = moderationApi.saveTwitchAutoMod(channel, body)
+        ) {
+            is ApiResult.Ok -> {
+                val ready: ModerationState = _state.value
+                if (ready is ModerationState.Ready) {
+                    _state.value = ready.copy(twitchAutoMod = result.value, actionError = null)
+                }
+            }
+            is ApiResult.Failure -> setActionError(result.error.message)
+        }
+    }
+
     private suspend fun afterWrite(result: ApiResult<Unit>) {
         when (result) {
             is ApiResult.Ok -> load()
@@ -1060,11 +1155,33 @@ sealed interface ModerationState {
         val shoutoutTemplate: String? = null,
         // This channel's own personal shoutout lines for specific people (old-bot parity). See load().
         val shoutoutOverrides: List<ShoutoutOverride> = emptyList(),
+        // Twitch's own AutoMod levels, null when the live read failed (unknown — never reported as "off").
+        val twitchAutoMod: TwitchAutoModSettings? = null,
+        // The channel's trust policy (S-OWN23), null when the read failed or no trust API is wired.
+        val trustPolicy: TrustPolicy? = null,
+        // True when the last trust-policy save was refused locally because the four weights do not sum to 1.0 —
+        // the backend rejects that body, so the editor blocks it and shows the inline error instead.
+        val trustWeightSumInvalid: Boolean = false,
     ) : ModerationState
 
     data object Empty : ModerationState
 
     data class Error(val detail: String) : ModerationState
+}
+
+/** How far the four trust weights may drift from 1.0 before the backend refuses the policy. */
+private const val TRUST_WEIGHT_SUM_TOLERANCE: Double = 0.001
+
+/**
+ * True when the four score weights of [body] sum to 1.0 (within [TRUST_WEIGHT_SUM_TOLERANCE]) — the same rule the
+ * backend validates. The editor reads this live to show the running sum, and the save path refuses a body that
+ * fails it, so the user never has to guess at a server-side rejection.
+ */
+fun trustWeightsAreValid(body: UpdateTrustPolicyBody): Boolean {
+    val sum: Double =
+        body.requestCountWeight + body.accountAgeWeight + body.contentAgeWeight + body.contentPopularityWeight
+    val drift: Double = sum - 1.0
+    return (if (drift < 0.0) -drift else drift) <= TRUST_WEIGHT_SUM_TOLERANCE
 }
 
 /** The four independent AutoMod filters, used to address a per-filter toggle. */

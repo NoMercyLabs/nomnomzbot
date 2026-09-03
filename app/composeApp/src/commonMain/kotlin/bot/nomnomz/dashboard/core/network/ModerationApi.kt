@@ -56,6 +56,18 @@ interface ModerationApi {
     /** Persist the whole AutoMod [config] (the backend POST takes the full config; a toggle re-sends it). */
     suspend fun saveAutomod(channelId: String, config: AutomodConfig): ApiResult<Unit>
 
+    /** Twitch's OWN AutoMod levels for the channel (live Helix state, `moderation:automod:twitch:read`). */
+    suspend fun twitchAutoMod(channelId: String): ApiResult<TwitchAutoModSettings>
+
+    /**
+     * Replace Twitch's AutoMod levels. Twitch accepts EITHER an overall level OR per-category levels, never both
+     * — [body] can only carry one of the two shapes (see [UpdateTwitchAutoModSettingsBody]).
+     */
+    suspend fun saveTwitchAutoMod(
+        channelId: String,
+        body: UpdateTwitchAutoModSettingsBody,
+    ): ApiResult<TwitchAutoModSettings>
+
     /** The channel's moderation filter rules (newest first). */
     suspend fun rules(channelId: String): ApiResult<List<ModerationRule>>
 
@@ -366,6 +378,15 @@ class RestModerationApi(private val client: ApiClient) : ModerationApi {
     // The POST body IS the full AutomodConfigDto; the controller reloads after, so any 2xx is success.
     override suspend fun saveAutomod(channelId: String, config: AutomodConfig): ApiResult<Unit> =
         client.postUnit("api/v1/channels/$channelId/moderation/automod", config)
+
+    override suspend fun twitchAutoMod(channelId: String): ApiResult<TwitchAutoModSettings> =
+        client.getEnvelope("api/v1/channels/$channelId/moderation/automod/twitch")
+
+    override suspend fun saveTwitchAutoMod(
+        channelId: String,
+        body: UpdateTwitchAutoModSettingsBody,
+    ): ApiResult<TwitchAutoModSettings> =
+        client.putEnvelope("api/v1/channels/$channelId/moderation/automod/twitch", body)
 
     override suspend fun rules(channelId: String): ApiResult<List<ModerationRule>> =
         // Walk every page so ALL moderation rules show — flat `{ data, hasMore, nextPage }`.
@@ -829,6 +850,11 @@ data class AutomodConfig(
     val emoteSpam: AutomodEmoteSpam = AutomodEmoteSpam(),
     // Heat score (0–100, J.5) at which the escalation ladder auto-times-out a viewer; 80 is the backend default.
     val heatTimeoutThreshold: Int = 80,
+    // Opt-in: when false (the backend default) crossing [heatTimeoutThreshold] only FLAGS the viewer for a human;
+    // when true the bot issues the timeout itself. Moderators and the broadcaster are never auto-timed-out.
+    val autoTimeoutOnHeat: Boolean = false,
+    // How long the automatic heat timeout lasts, in seconds (backend default 600).
+    val heatTimeoutSeconds: Int = 600,
 )
 
 /** AutoMod link filter (backend `AutomodLinkFilterDto`) — blocks links except the [whitelist]. */
@@ -1242,3 +1268,69 @@ data class Moderator(val userId: String = "", val username: String = "")
 /** Grant or revoke a moderator (backend `ModeratorRequest`). [targetTwitchUserId] is the viewer's Twitch id. */
 @Serializable
 data class ModeratorBody(val targetTwitchUserId: String)
+
+/**
+ * Twitch's own AutoMod levels for the channel (backend `TwitchAutoModSettingsDto`, live Helix state). Twitch runs
+ * AutoMod in one of two mutually exclusive modes: an [overallLevel] dial (0–4) that drives every category, or
+ * per-category levels with [overallLevel] null. Every category is 0 (off) to 4 (strictest).
+ */
+@Serializable
+data class TwitchAutoModSettings(
+    val overallLevel: Int? = null,
+    val aggression: Int = 0,
+    val bullying: Int = 0,
+    val disability: Int = 0,
+    val misogyny: Int = 0,
+    val raceEthnicityOrReligion: Int = 0,
+    val sexBasedTerms: Int = 0,
+    val sexualitySexOrGender: Int = 0,
+    val swearing: Int = 0,
+)
+
+/**
+ * Update Twitch's AutoMod levels (backend `UpdateTwitchAutoModSettingsRequest`). The backend REJECTS a body that
+ * carries an overall level AND categories, so this type is only built through [overall] or [categories] — the two
+ * factories are the only way to make one, which makes the invalid combination unsendable from the client.
+ */
+@Serializable
+data class UpdateTwitchAutoModSettingsBody
+private constructor(
+    val overallLevel: Int? = null,
+    val aggression: Int? = null,
+    val bullying: Int? = null,
+    val disability: Int? = null,
+    val misogyny: Int? = null,
+    val raceEthnicityOrReligion: Int? = null,
+    val sexBasedTerms: Int? = null,
+    val sexualitySexOrGender: Int? = null,
+    val swearing: Int? = null,
+) {
+    companion object {
+        /** One dial for every category — sends [level] alone, with every per-category value left unset. */
+        fun overall(level: Int): UpdateTwitchAutoModSettingsBody =
+            UpdateTwitchAutoModSettingsBody(overallLevel = level)
+
+        /** Per-category levels — sends the eight categories, with the overall dial left unset. */
+        fun categories(
+            aggression: Int,
+            bullying: Int,
+            disability: Int,
+            misogyny: Int,
+            raceEthnicityOrReligion: Int,
+            sexBasedTerms: Int,
+            sexualitySexOrGender: Int,
+            swearing: Int,
+        ): UpdateTwitchAutoModSettingsBody =
+            UpdateTwitchAutoModSettingsBody(
+                overallLevel = null,
+                aggression = aggression,
+                bullying = bullying,
+                disability = disability,
+                misogyny = misogyny,
+                raceEthnicityOrReligion = raceEthnicityOrReligion,
+                sexBasedTerms = sexBasedTerms,
+                sexualitySexOrGender = sexualitySexOrGender,
+                swearing = swearing,
+            )
+    }
+}

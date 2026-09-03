@@ -77,6 +77,10 @@ import bot.nomnomz.dashboard.core.designsystem.icon.NetworkGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.icon.UnlockGlyph
 import bot.nomnomz.dashboard.core.network.AutomodConfig
+import bot.nomnomz.dashboard.core.network.TrustPolicy
+import bot.nomnomz.dashboard.core.network.TwitchAutoModSettings
+import bot.nomnomz.dashboard.core.network.UpdateTrustPolicyBody
+import bot.nomnomz.dashboard.core.network.UpdateTwitchAutoModSettingsBody
 import bot.nomnomz.dashboard.core.network.BannedUser
 import bot.nomnomz.dashboard.core.network.EscalationLadderStep
 import bot.nomnomz.dashboard.core.network.EscalationPolicy
@@ -100,7 +104,9 @@ import bot.nomnomz.dashboard.core.network.UserModerationHistorySummary
 import bot.nomnomz.dashboard.core.network.UserTrustSummary
 import bot.nomnomz.dashboard.core.network.UserNote
 import kotlin.math.roundToInt
+import bot.nomnomz.dashboard.feature.moderation.state.AutomationLine
 import bot.nomnomz.dashboard.feature.moderation.state.AutomodFilter
+import bot.nomnomz.dashboard.feature.moderation.state.deriveAutomationLines
 import bot.nomnomz.dashboard.feature.moderation.state.ModerationController
 import bot.nomnomz.dashboard.feature.moderation.state.ModerationState
 import bot.nomnomz.dashboard.feature.moderation.state.UserContextState
@@ -360,6 +366,10 @@ import nomnomzbot.composeapp.generated.resources.moderation_escalation_save
 import nomnomzbot.composeapp.generated.resources.moderation_escalation_cancel
 import nomnomzbot.composeapp.generated.resources.moderation_escalation_forgive
 import nomnomzbot.composeapp.generated.resources.moderation_heat_threshold_label
+import nomnomzbot.composeapp.generated.resources.moderation_heat_auto_timeout_explain
+import nomnomzbot.composeapp.generated.resources.moderation_heat_auto_timeout_title
+import nomnomzbot.composeapp.generated.resources.moderation_heat_timeout_seconds_hint
+import nomnomzbot.composeapp.generated.resources.moderation_heat_timeout_seconds_label
 import nomnomzbot.composeapp.generated.resources.moderation_heat_threshold_hint
 import nomnomzbot.composeapp.generated.resources.moderation_heat_threshold_save
 import nomnomzbot.composeapp.generated.resources.moderation_nuke_action
@@ -417,6 +427,10 @@ fun ModerationScreen(
     // Marking a viewer suspicious (monitor / restrict) is a Lead-Moderator (SuperMod) action — a higher floor
     // than the page's Moderator gate (warn / bans). The backend re-checks regardless.
     val suspiciousManage: ManageDecision = rememberManageDecisionAtFloor(role, ManagementRole.SuperMod)
+    // Trust weights and Twitch's own AutoMod levels change what the bot does to EVERY viewer, so both sit at the
+    // Broadcaster floor (backend keys trust:policy:manage / moderation:automod:twitch:manage). Below it the
+    // controls render disabled with the reason, never hidden.
+    val broadcasterManage: ManageDecision = rememberManageDecisionAtFloor(role, ManagementRole.Broadcaster)
 
     LaunchedEffect(Unit) { controller.load() }
     if (hubEvents != null) {
@@ -457,6 +471,27 @@ fun ModerationScreen(
                     nukeBatches = current.nukeBatches,
                     shoutoutTemplate = current.shoutoutTemplate,
                     shoutoutOverrides = current.shoutoutOverrides,
+                    // Computed from the very config objects enforcement reads — never a hardcoded claim.
+                    automationLines =
+                        deriveAutomationLines(
+                            automod = current.automod,
+                            twitchAutoMod = current.twitchAutoMod,
+                            chatFilters = current.chatFilters,
+                            rules = current.rules,
+                            escalationPolicy = current.escalationPolicy,
+                        ),
+                    trustPolicy = current.trustPolicy,
+                    twitchAutoMod = current.twitchAutoMod,
+                    trustWeightSumInvalid = current.trustWeightSumInvalid,
+                    broadcasterManage = broadcasterManage,
+                    onSaveTrustPolicy = { body -> scope.launch { controller.saveTrustPolicy(body) } },
+                    onSaveTwitchAutoMod = { body -> scope.launch { controller.saveTwitchAutoMod(body) } },
+                    onToggleAutoTimeoutOnHeat = { on ->
+                        scope.launch { controller.setAutoTimeoutOnHeat(on) }
+                    },
+                    onSaveHeatTimeoutSeconds = { seconds ->
+                        scope.launch { controller.setHeatTimeoutSeconds(seconds) }
+                    },
                     manage = manage,
                     suspiciousManage = suspiciousManage,
                     onSaveEscalation = { policy -> scope.launch { controller.saveEscalationPolicy(policy) } },
@@ -589,6 +624,16 @@ private fun BansList(
     nukeBatches: List<NetworkNukeBatch>,
     shoutoutTemplate: String?,
     shoutoutOverrides: List<ShoutoutOverride>,
+    // The derived "what happens automatically" account, plus the two broadcaster-gated editors behind it.
+    automationLines: List<AutomationLine>,
+    trustPolicy: TrustPolicy?,
+    twitchAutoMod: TwitchAutoModSettings?,
+    trustWeightSumInvalid: Boolean,
+    broadcasterManage: ManageDecision,
+    onSaveTrustPolicy: (UpdateTrustPolicyBody) -> Unit,
+    onSaveTwitchAutoMod: (UpdateTwitchAutoModSettingsBody) -> Unit,
+    onToggleAutoTimeoutOnHeat: (Boolean) -> Unit,
+    onSaveHeatTimeoutSeconds: (Int) -> Unit,
     manage: ManageDecision,
     suspiciousManage: ManageDecision,
     onSaveEscalation: (UpsertEscalationPolicyBody) -> Unit,
@@ -1071,6 +1116,56 @@ private fun BansList(
                         threshold = automod.heatTimeoutThreshold,
                         manage = manage,
                         onSave = onSaveHeatThreshold,
+                    )
+                    // The auto-timeout is OPT-IN: off, crossing the line above only flags the viewer.
+                    AutomodRow(
+                        name = stringResource(Res.string.moderation_heat_auto_timeout_title),
+                        enabled = automod.autoTimeoutOnHeat,
+                        detail = stringResource(Res.string.moderation_heat_auto_timeout_explain),
+                        manage = manage,
+                        onToggle = { onToggleAutoTimeoutOnHeat(!automod.autoTimeoutOnHeat) },
+                    )
+                    AutomodNumberRow(
+                        value = automod.heatTimeoutSeconds,
+                        label = stringResource(Res.string.moderation_heat_timeout_seconds_label),
+                        hint = stringResource(Res.string.moderation_heat_timeout_seconds_hint),
+                        manage = manage,
+                        onSave = onSaveHeatTimeoutSeconds,
+                    )
+                }
+            }
+        }
+        // Trust & Automation (S-OWN23 T4): what the bot does on its own, and every number behind it.
+        item(key = "trust-automation-header") {
+            Text(
+                text = trustAutomationSectionTitle(),
+                style = typography.lg,
+                color = tokens.cardForeground,
+                maxLines = 1,
+            )
+        }
+        item(key = "automation-panel") {
+            Card(modifier = Modifier.fillMaxWidth()) { AutomationPanel(lines = automationLines) }
+        }
+        item(key = "twitch-automod-card") {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                TwitchAutoModEditor(
+                    settings = twitchAutoMod,
+                    manage = broadcasterManage,
+                    onSave = onSaveTwitchAutoMod,
+                )
+            }
+        }
+        // The trust editor renders only when the policy read succeeded (Moderator+ read floor); the writes inside
+        // it stay gated at the Broadcaster floor.
+        trustPolicy?.let { policy ->
+            item(key = "trust-policy-card") {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    TrustPolicyEditor(
+                        policy = policy,
+                        manage = broadcasterManage,
+                        weightSumInvalid = trustWeightSumInvalid,
+                        onSave = onSaveTrustPolicy,
                     )
                 }
             }

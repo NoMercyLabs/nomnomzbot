@@ -3627,8 +3627,8 @@
     <string name="moderation_escalation_save">Save</string>
     <string name="moderation_escalation_cancel">Cancel</string>
     <string name="moderation_escalation_forgive">Forgive (reset ladder)</string>
-    <string name="moderation_heat_threshold_label">Heat auto-timeout threshold</string>
-    <string name="moderation_heat_threshold_hint">Heat score (0–100) that triggers an automatic timeout.</string>
+    <string name="moderation_heat_threshold_label">Auto-timeout line</string>
+    <string name="moderation_heat_threshold_hint">When a user’s heat crosses this line, the bot times them out automatically — if the switch below is on. Mods and the broadcaster are never auto-timed-out.</string>
     <string name="moderation_heat_threshold_save">Save</string>
 
     <!-- Moderation — network nuke (J.2a) -->
@@ -4717,4 +4717,119 @@
     <string name="template_helpers_dialog_search_placeholder">Search helpers</string>
     <string name="template_helpers_dialog_empty">No helpers match your search.</string>
     <string name="template_helpers_dialog_error">Could not load the helper list. Try again.</string>
+
+    <!-- ===== Trust & Automation (S-OWN23 T4) ===== -->
+    <!-- Section header + the honest blast radius: these numbers drive MODERATION trust and heat only. Song
+         requests run their own gating engine (S-TRUST-UNIFY), so they are deliberately NOT claimed here. -->
+    <string name="moderation_trust_section_title">Trust &amp; Automation</string>
+    <string name="moderation_trust_section_blast_radius">These weights decide the moderation trust score and the heat that drives automatic action. They do not gate song requests — !sr runs its own engine.</string>
+    <string name="moderation_trust_using_defaults">This channel runs on the shipped defaults. Saving pins your own values.</string>
+    <string name="moderation_trust_pinned">This channel uses its own saved values.</string>
+    <string name="moderation_trust_default_value">Default: %1$s</string>
+    <string name="moderation_trust_reset">Reset to default</string>
+    <string name="moderation_trust_save">Save trust settings</string>
+    <string name="moderation_trust_weight_sum">The four weights add up to %1$s.</string>
+    <string name="moderation_trust_weight_sum_error">The four weights must add up to 1.0. The save is blocked until they do.</string>
+    <string name="moderation_trust_invalid_number">Enter a number.</string>
+    <string name="moderation_trust_group_weights">Score weights</string>
+    <string name="moderation_trust_group_decays">Growth speeds</string>
+    <string name="moderation_trust_group_penalties">Penalties</string>
+    <string name="moderation_trust_group_tiers">Trust tiers</string>
+    <string name="moderation_trust_group_heat">Heat</string>
+    <!-- Score weights (Appendix A, verbatim). -->
+    <string name="moderation_trust_weight_request_count_title">Activity weight</string>
+    <string name="moderation_trust_weight_request_count_explain">How much a user's activity here counts. Raise it and active users are trusted faster. All four weights must add up to 1.0.</string>
+    <string name="moderation_trust_weight_account_age_title">Account age weight</string>
+    <string name="moderation_trust_weight_account_age_explain">How much the age of the user's account counts. Raise it and older accounts are trusted faster. Lower it and account age matters less.</string>
+    <string name="moderation_trust_weight_content_age_title">Content age weight</string>
+    <string name="moderation_trust_weight_content_age_explain">How much the age of requested content counts. Mostly affects song requests. Raise it and brand-new content is trusted less.</string>
+    <string name="moderation_trust_weight_content_popularity_title">Content popularity weight</string>
+    <string name="moderation_trust_weight_content_popularity_explain">How much the popularity of requested content counts. Raise it and obscure content is trusted less.</string>
+    <!-- Growth speeds: one shared explanation, the measure name substituted per row (Appendix A). -->
+    <string name="moderation_trust_decay_title">Growth speed (%1$s)</string>
+    <string name="moderation_trust_decay_explain">How fast this score part grows toward its maximum. Higher = it maxes out sooner. Lower = users need more history for the same score.</string>
+    <string name="moderation_trust_measure_request_count">activity</string>
+    <string name="moderation_trust_measure_account_age">account age</string>
+    <string name="moderation_trust_measure_content_age">content age</string>
+    <string name="moderation_trust_measure_content_popularity">content popularity</string>
+    <!-- Modifiers and penalties (Appendix A). -->
+    <string name="moderation_trust_not_following_factor_title">Not-following penalty</string>
+    <string name="moderation_trust_not_following_factor_explain">The score multiplier for users who do not follow the channel. 0.75 means their score is cut by a quarter. 1.0 turns this penalty off.</string>
+    <string name="moderation_trust_reputation_boost_title">Reputation boost</string>
+    <string name="moderation_trust_reputation_boost_explain">Gives mods, VIPs, subscribers and proven regulars a big head start. Turning this off treats them like strangers.</string>
+    <string name="moderation_trust_youtube_quality_title">YouTube quality penalty</string>
+    <string name="moderation_trust_youtube_quality_explain">The score multiplier for low-quality YouTube content. 0.75 means the score is cut by a quarter. 1.0 turns this penalty off.</string>
+    <string name="moderation_trust_skip_penalty_title">Skip penalty</string>
+    <string name="moderation_trust_skip_penalty_explain">Points removed each time this user's request is skipped. Higher = repeated skips lower trust faster.</string>
+    <string name="moderation_trust_timeout_penalty_title">Timeout penalty</string>
+    <string name="moderation_trust_timeout_penalty_explain">Points removed for each timeout on this user. Higher = a timeout hurts their trust more.</string>
+    <string name="moderation_trust_ban_penalty_title">Ban penalty</string>
+    <string name="moderation_trust_ban_penalty_explain">Points removed for each ban on this user. This is the heaviest penalty.</string>
+    <!-- Trust tiers (Appendix A) — users see the tier NAMES; the numbers are only the editable ceilings. -->
+    <string name="moderation_trust_tier_untrusted_max_title">Untrusted ceiling</string>
+    <string name="moderation_trust_tier_untrusted_max_explain">Scores at or below this are Untrusted. Raise it and more users count as Untrusted.</string>
+    <string name="moderation_trust_tier_low_max_title">Low-trust ceiling</string>
+    <string name="moderation_trust_tier_low_max_explain">Scores above the Untrusted ceiling up to this are Low trust.</string>
+    <string name="moderation_trust_tier_standard_max_title">Standard ceiling</string>
+    <string name="moderation_trust_tier_standard_max_explain">Scores above the Low ceiling up to this are Standard. Everything above is Trusted.</string>
+    <!-- Heat (Appendix A): half-life plus one shared explanation for every per-action delta. -->
+    <string name="moderation_trust_heat_half_life_title">Heat cool-down (hours)</string>
+    <string name="moderation_trust_heat_half_life_explain">Heat marks recent bad behavior. After this many hours, half of it is gone. Shorter = users are forgiven faster.</string>
+    <string name="moderation_trust_heat_delta_title">Heat per %1$s</string>
+    <string name="moderation_trust_heat_delta_explain">Heat added when this happens. Higher = this action pushes a user toward the auto-timeout line faster.</string>
+    <string name="moderation_trust_heat_action_ban">ban</string>
+    <string name="moderation_trust_heat_action_timeout">timeout</string>
+    <string name="moderation_trust_heat_action_report_validated">upheld report</string>
+    <string name="moderation_trust_heat_action_automod_denied">denied AutoMod message</string>
+    <string name="moderation_trust_heat_action_filter_hit">filter hit</string>
+    <!-- The auto-timeout switch itself (opt-in) and its length. -->
+    <string name="moderation_heat_auto_timeout_title">Automatic timeout on heat</string>
+    <string name="moderation_heat_auto_timeout_explain">On, the bot times a user out by itself when their heat crosses the line. Off, a crossing only flags them for a human.</string>
+    <string name="moderation_heat_timeout_seconds_label">Automatic timeout length (seconds)</string>
+    <string name="moderation_heat_timeout_seconds_hint">How long the automatic timeout lasts.</string>
+    <!-- What happens automatically (Appendix A) — every line below is computed from live config. -->
+    <string name="moderation_automation_panel_title">What happens automatically</string>
+    <string name="moderation_automation_panel_explain">This list is computed from your current settings. It shows exactly what the bot does without asking a human.</string>
+    <string name="moderation_automation_can_ban_note">Nothing on this channel auto-bans unless it is listed here.</string>
+    <string name="moderation_automation_twitch_unavailable">Twitch AutoMod levels could not be read here, so their state is unknown.</string>
+    <string name="moderation_automation_twitch_overall">Twitch AutoMod holds messages in every category at level %1$d.</string>
+    <string name="moderation_automation_twitch_categories">Twitch AutoMod holds messages in %1$d categories. The strictest is level %2$d.</string>
+    <string name="moderation_automation_twitch_off">Twitch AutoMod holds nothing. Every level is 0.</string>
+    <string name="moderation_automation_filter_link">Links are caught. %1$d domains stay allowed.</string>
+    <string name="moderation_automation_filter_caps">Messages above %1$d percent caps are caught.</string>
+    <string name="moderation_automation_filter_phrases">%1$d banned phrases are caught.</string>
+    <string name="moderation_automation_filter_emotes">Messages above %1$d emotes are caught.</string>
+    <string name="moderation_automation_filters_off">None of the built-in chat filters is on.</string>
+    <string name="moderation_automation_custom_filters_on">%1$d custom chat filters are on. %2$d of them ban.</string>
+    <string name="moderation_automation_custom_filters_off">No custom chat filter is on.</string>
+    <string name="moderation_automation_rules_on">%1$d moderation rules are on. %2$d of them ban.</string>
+    <string name="moderation_automation_rules_off">No moderation rule is on.</string>
+    <string name="moderation_automation_heat_on">At %1$d heat the bot times the user out for %2$d seconds. Mods and the streamer are never auto-timed-out.</string>
+    <string name="moderation_automation_heat_off">At %1$d heat the bot only flags the user. It gives no automatic timeout.</string>
+    <string name="moderation_automation_escalation_step">Offense %1$d: %2$s.</string>
+    <string name="moderation_automation_escalation_step_timeout">Offense %1$d: timeout for %2$d seconds.</string>
+    <string name="moderation_automation_escalation_off">The escalation ladder is off. Repeat offenses escalate nothing on their own.</string>
+    <string name="moderation_automation_auto_ban_from">These can end in an automatic ban: %1$s.</string>
+    <string name="moderation_automation_auto_ban_none">Nothing on this channel ends in an automatic ban.</string>
+    <string name="moderation_automation_auto_ban_source_ladder">the escalation ladder at offense %1$d</string>
+    <string name="moderation_automation_auto_ban_source_filter">chat filter %1$s</string>
+    <string name="moderation_automation_auto_ban_source_rule">rule %1$s</string>
+    <!-- Twitch AutoMod levels (the real Helix form). Overall and per-category are mutually exclusive. -->
+    <string name="moderation_twitch_automod_title">Twitch AutoMod levels</string>
+    <string name="moderation_twitch_automod_explain">Twitch holds risky messages for review. 0 is off, 4 is strictest.</string>
+    <string name="moderation_twitch_automod_mode_overall">One level for everything</string>
+    <string name="moderation_twitch_automod_mode_categories">A level per category</string>
+    <string name="moderation_twitch_automod_mode_explain">Twitch takes one of these two, never both. Pick a mode, then save.</string>
+    <string name="moderation_twitch_automod_level_label">Level (0 is off, 4 is strictest)</string>
+    <string name="moderation_twitch_automod_level_range_error">Enter a level from 0 to 4.</string>
+    <string name="moderation_twitch_automod_save">Save AutoMod levels</string>
+    <string name="moderation_twitch_automod_unavailable">Twitch AutoMod levels could not be read for this channel.</string>
+    <string name="moderation_twitch_automod_category_aggression">Aggression</string>
+    <string name="moderation_twitch_automod_category_bullying">Bullying</string>
+    <string name="moderation_twitch_automod_category_disability">Disability</string>
+    <string name="moderation_twitch_automod_category_misogyny">Misogyny</string>
+    <string name="moderation_twitch_automod_category_race">Race, ethnicity or religion</string>
+    <string name="moderation_twitch_automod_category_sex_based_terms">Sex-based terms</string>
+    <string name="moderation_twitch_automod_category_sexuality">Sexuality, sex or gender</string>
+    <string name="moderation_twitch_automod_category_swearing">Swearing</string>
 </resources>

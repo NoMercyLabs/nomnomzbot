@@ -3613,8 +3613,8 @@
     <string name="moderation_escalation_save">Opslaan</string>
     <string name="moderation_escalation_cancel">Annuleren</string>
     <string name="moderation_escalation_forgive">Vergeven (ladder resetten)</string>
-    <string name="moderation_heat_threshold_label">Hitte auto-time-out drempel</string>
-    <string name="moderation_heat_threshold_hint">Hittescore (0–100) die een automatische time-out veroorzaakt.</string>
+    <string name="moderation_heat_threshold_label">Auto-timeoutgrens</string>
+    <string name="moderation_heat_threshold_hint">Als de heat van een gebruiker over deze grens gaat, geeft de bot automatisch een timeout — als de schakelaar hieronder aan staat. Mods en de streamer krijgen nooit een automatische timeout.</string>
     <string name="moderation_heat_threshold_save">Opslaan</string>
 
     <!-- Moderatie — netwerk-nuke (J.2a) -->
@@ -4703,4 +4703,109 @@
     <string name="template_helpers_dialog_search_placeholder">Helpers zoeken</string>
     <string name="template_helpers_dialog_empty">Geen helpers komen overeen met je zoekopdracht.</string>
     <string name="template_helpers_dialog_error">De helperlijst kon niet worden geladen. Probeer het opnieuw.</string>
+
+    <!-- ===== Vertrouwen en automatisering (S-OWN23 T4) ===== -->
+    <string name="moderation_trust_section_title">Vertrouwen en automatisering</string>
+    <string name="moderation_trust_section_blast_radius">Deze gewichten bepalen de vertrouwensscore voor moderatie en de heat die automatische acties stuurt. Ze bepalen niet wie song requests mag doen — !sr heeft een eigen systeem.</string>
+    <string name="moderation_trust_using_defaults">Dit kanaal gebruikt de standaardwaarden. Opslaan zet je eigen waarden vast.</string>
+    <string name="moderation_trust_pinned">Dit kanaal gebruikt eigen opgeslagen waarden.</string>
+    <string name="moderation_trust_default_value">Standaard: %1$s</string>
+    <string name="moderation_trust_reset">Terug naar standaard</string>
+    <string name="moderation_trust_save">Vertrouwensinstellingen opslaan</string>
+    <string name="moderation_trust_weight_sum">De vier gewichten zijn samen %1$s.</string>
+    <string name="moderation_trust_weight_sum_error">De vier gewichten moeten samen 1.0 zijn. Opslaan is geblokkeerd tot dat klopt.</string>
+    <string name="moderation_trust_invalid_number">Vul een getal in.</string>
+    <string name="moderation_trust_group_weights">Scoregewichten</string>
+    <string name="moderation_trust_group_decays">Groeisnelheden</string>
+    <string name="moderation_trust_group_penalties">Straffen</string>
+    <string name="moderation_trust_group_tiers">Vertrouwensniveaus</string>
+    <string name="moderation_trust_group_heat">Heat</string>
+    <string name="moderation_trust_weight_request_count_title">Activiteitsgewicht</string>
+    <string name="moderation_trust_weight_request_count_explain">Hoe zwaar iemands activiteit hier meetelt. Hoger = actieve gebruikers worden sneller vertrouwd. De vier gewichten moeten samen 1.0 zijn.</string>
+    <string name="moderation_trust_weight_account_age_title">Gewicht accountleeftijd</string>
+    <string name="moderation_trust_weight_account_age_explain">Hoe zwaar de leeftijd van het account meetelt. Hoger = oudere accounts worden sneller vertrouwd. Lager = leeftijd telt minder mee.</string>
+    <string name="moderation_trust_weight_content_age_title">Gewicht content-leeftijd</string>
+    <string name="moderation_trust_weight_content_age_explain">Hoe zwaar de leeftijd van aangevraagde content meetelt. Geldt vooral voor song requests. Hoger = gloednieuwe content wordt minder vertrouwd.</string>
+    <string name="moderation_trust_weight_content_popularity_title">Gewicht content-populariteit</string>
+    <string name="moderation_trust_weight_content_popularity_explain">Hoe zwaar de populariteit van aangevraagde content meetelt. Hoger = onbekende content wordt minder vertrouwd.</string>
+    <string name="moderation_trust_decay_title">Groeisnelheid (%1$s)</string>
+    <string name="moderation_trust_decay_explain">Hoe snel dit scoredeel naar zijn maximum groeit. Hoger = eerder op het maximum. Lager = meer geschiedenis nodig voor dezelfde score.</string>
+    <string name="moderation_trust_measure_request_count">activiteit</string>
+    <string name="moderation_trust_measure_account_age">accountleeftijd</string>
+    <string name="moderation_trust_measure_content_age">content-leeftijd</string>
+    <string name="moderation_trust_measure_content_popularity">content-populariteit</string>
+    <string name="moderation_trust_not_following_factor_title">Straf voor niet-volgers</string>
+    <string name="moderation_trust_not_following_factor_explain">De vermenigvuldiger voor gebruikers die het kanaal niet volgen. 0.75 = score een kwart lager. 1.0 = geen straf.</string>
+    <string name="moderation_trust_reputation_boost_title">Reputatiebonus</string>
+    <string name="moderation_trust_reputation_boost_explain">Geeft mods, VIP's, subscribers en vaste kijkers een flinke voorsprong. Uit = zij worden als vreemden behandeld.</string>
+    <string name="moderation_trust_youtube_quality_title">Straf voor YouTube-kwaliteit</string>
+    <string name="moderation_trust_youtube_quality_explain">De vermenigvuldiger voor YouTube-content van lage kwaliteit. 0.75 = score een kwart lager. 1.0 = geen straf.</string>
+    <string name="moderation_trust_skip_penalty_title">Skip-straf</string>
+    <string name="moderation_trust_skip_penalty_explain">Punten eraf telkens als een verzoek van deze gebruiker wordt geskipt. Hoger = herhaald skippen verlaagt vertrouwen sneller.</string>
+    <string name="moderation_trust_timeout_penalty_title">Timeout-straf</string>
+    <string name="moderation_trust_timeout_penalty_explain">Punten eraf voor elke timeout van deze gebruiker. Hoger = een timeout schaadt het vertrouwen meer.</string>
+    <string name="moderation_trust_ban_penalty_title">Ban-straf</string>
+    <string name="moderation_trust_ban_penalty_explain">Punten eraf voor elke ban van deze gebruiker. Dit is de zwaarste straf.</string>
+    <string name="moderation_trust_tier_untrusted_max_title">Grens Onvertrouwd</string>
+    <string name="moderation_trust_tier_untrusted_max_explain">Scores tot en met deze waarde zijn Onvertrouwd. Hoger = meer gebruikers gelden als Onvertrouwd.</string>
+    <string name="moderation_trust_tier_low_max_title">Grens Laag vertrouwen</string>
+    <string name="moderation_trust_tier_low_max_explain">Scores boven de Onvertrouwd-grens tot en met deze waarde zijn Laag vertrouwen.</string>
+    <string name="moderation_trust_tier_standard_max_title">Grens Standaard</string>
+    <string name="moderation_trust_tier_standard_max_explain">Scores boven de Laag-grens tot en met deze waarde zijn Standaard. Alles daarboven is Vertrouwd.</string>
+    <string name="moderation_trust_heat_half_life_title">Heat-afkoeltijd (uren)</string>
+    <string name="moderation_trust_heat_half_life_explain">Heat markeert recent wangedrag. Na dit aantal uren is de helft weg. Korter = gebruikers worden sneller vergeven.</string>
+    <string name="moderation_trust_heat_delta_title">Heat per %1$s</string>
+    <string name="moderation_trust_heat_delta_explain">Heat die erbij komt als dit gebeurt. Hoger = deze actie duwt een gebruiker sneller richting de auto-timeoutgrens.</string>
+    <string name="moderation_trust_heat_action_ban">ban</string>
+    <string name="moderation_trust_heat_action_timeout">timeout</string>
+    <string name="moderation_trust_heat_action_report_validated">terechte melding</string>
+    <string name="moderation_trust_heat_action_automod_denied">geweigerd AutoMod-bericht</string>
+    <string name="moderation_trust_heat_action_filter_hit">filtertreffer</string>
+    <string name="moderation_heat_auto_timeout_title">Automatische timeout bij heat</string>
+    <string name="moderation_heat_auto_timeout_explain">Aan = de bot geeft zelf een timeout als de heat over de grens gaat. Uit = een grensoverschrijding markeert de gebruiker alleen voor een mens.</string>
+    <string name="moderation_heat_timeout_seconds_label">Lengte automatische timeout (seconden)</string>
+    <string name="moderation_heat_timeout_seconds_hint">Hoe lang de automatische timeout duurt.</string>
+    <string name="moderation_automation_panel_title">Wat er automatisch gebeurt</string>
+    <string name="moderation_automation_panel_explain">Deze lijst wordt berekend uit je huidige instellingen. Hij toont precies wat de bot doet zonder een mens te vragen.</string>
+    <string name="moderation_automation_can_ban_note">Niets op dit kanaal geeft automatisch een ban, behalve wat hier staat.</string>
+    <string name="moderation_automation_twitch_unavailable">De Twitch AutoMod-niveaus konden hier niet gelezen worden. De stand is onbekend.</string>
+    <string name="moderation_automation_twitch_overall">Twitch AutoMod houdt berichten in elke categorie tegen op niveau %1$d.</string>
+    <string name="moderation_automation_twitch_categories">Twitch AutoMod houdt berichten tegen in %1$d categorieën. De strengste staat op niveau %2$d.</string>
+    <string name="moderation_automation_twitch_off">Twitch AutoMod houdt niets tegen. Elk niveau staat op 0.</string>
+    <string name="moderation_automation_filter_link">Links worden gepakt. %1$d domeinen blijven toegestaan.</string>
+    <string name="moderation_automation_filter_caps">Berichten met meer dan %1$d procent hoofdletters worden gepakt.</string>
+    <string name="moderation_automation_filter_phrases">%1$d verboden woorden worden gepakt.</string>
+    <string name="moderation_automation_filter_emotes">Berichten met meer dan %1$d emotes worden gepakt.</string>
+    <string name="moderation_automation_filters_off">Geen enkel ingebouwd chatfilter staat aan.</string>
+    <string name="moderation_automation_custom_filters_on">%1$d eigen chatfilters staan aan. %2$d daarvan geven een ban.</string>
+    <string name="moderation_automation_custom_filters_off">Geen eigen chatfilter staat aan.</string>
+    <string name="moderation_automation_rules_on">%1$d moderatieregels staan aan. %2$d daarvan geven een ban.</string>
+    <string name="moderation_automation_rules_off">Geen moderatieregel staat aan.</string>
+    <string name="moderation_automation_heat_on">Bij %1$d heat geeft de bot de gebruiker %2$d seconden timeout. Mods en de streamer krijgen nooit een automatische timeout.</string>
+    <string name="moderation_automation_heat_off">Bij %1$d heat markeert de bot de gebruiker alleen. Er volgt geen automatische timeout.</string>
+    <string name="moderation_automation_escalation_step">Overtreding %1$d: %2$s.</string>
+    <string name="moderation_automation_escalation_step_timeout">Overtreding %1$d: timeout van %2$d seconden.</string>
+    <string name="moderation_automation_escalation_off">De escalatieladder staat uit. Herhaalde overtredingen lopen niet vanzelf op.</string>
+    <string name="moderation_automation_auto_ban_from">Dit kan eindigen in een automatische ban: %1$s.</string>
+    <string name="moderation_automation_auto_ban_none">Niets op dit kanaal eindigt in een automatische ban.</string>
+    <string name="moderation_automation_auto_ban_source_ladder">de escalatieladder bij overtreding %1$d</string>
+    <string name="moderation_automation_auto_ban_source_filter">chatfilter %1$s</string>
+    <string name="moderation_automation_auto_ban_source_rule">regel %1$s</string>
+    <string name="moderation_twitch_automod_title">Twitch AutoMod-niveaus</string>
+    <string name="moderation_twitch_automod_explain">Twitch houdt riskante berichten tegen voor controle. 0 is uit, 4 is het strengst.</string>
+    <string name="moderation_twitch_automod_mode_overall">Eén niveau voor alles</string>
+    <string name="moderation_twitch_automod_mode_categories">Een niveau per categorie</string>
+    <string name="moderation_twitch_automod_mode_explain">Twitch accepteert één van de twee, nooit allebei. Kies een modus en sla op.</string>
+    <string name="moderation_twitch_automod_level_label">Niveau (0 is uit, 4 is het strengst)</string>
+    <string name="moderation_twitch_automod_level_range_error">Vul een niveau van 0 tot 4 in.</string>
+    <string name="moderation_twitch_automod_save">AutoMod-niveaus opslaan</string>
+    <string name="moderation_twitch_automod_unavailable">De Twitch AutoMod-niveaus konden voor dit kanaal niet gelezen worden.</string>
+    <string name="moderation_twitch_automod_category_aggression">Agressie</string>
+    <string name="moderation_twitch_automod_category_bullying">Pesten</string>
+    <string name="moderation_twitch_automod_category_disability">Handicap</string>
+    <string name="moderation_twitch_automod_category_misogyny">Vrouwenhaat</string>
+    <string name="moderation_twitch_automod_category_race">Afkomst, etniciteit of religie</string>
+    <string name="moderation_twitch_automod_category_sex_based_terms">Seksueel getinte termen</string>
+    <string name="moderation_twitch_automod_category_sexuality">Seksualiteit, sekse of gender</string>
+    <string name="moderation_twitch_automod_category_swearing">Schelden</string>
 </resources>
