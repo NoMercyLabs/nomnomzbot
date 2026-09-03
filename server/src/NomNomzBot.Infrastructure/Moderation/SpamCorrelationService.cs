@@ -131,9 +131,73 @@ public sealed class SpamCorrelationService
             flippedNow && settings.AutoReverseOnDequalify ? cohort.BuildReversal() : null;
 
         Persist(record, cohort, now, reversal);
+        await SyncSignatureAsync(cohort, now, reversal is not null, ct);
         await _db.SaveChangesAsync(ct);
 
         return new CohortObservation(verdict, mayAct, reversal);
+    }
+
+    /// <summary>
+    /// Promote a confirmed campaign into the corpus, or withdraw it when the cohort is exonerated.
+    ///
+    /// <para>Two guards, and both matter more than the promotion itself. A cohort that ever included a
+    /// viewer with standing is <b>never</b> contributed, because a false signature propagated to every
+    /// subscriber is the worst outcome this system can produce. And a de-qualification WITHDRAWS the
+    /// entry rather than leaving it: the premise it was added under no longer holds, and a corpus that
+    /// only ever grows is one that slowly starts deleting a community's own catchphrases.</para>
+    /// </summary>
+    private async Task SyncSignatureAsync(
+        CampaignCohort cohort,
+        DateTimeOffset now,
+        bool wasReversed,
+        CancellationToken ct
+    )
+    {
+        SpamSignature? existing = await _db.SpamSignatures.FirstOrDefaultAsync(
+            sig =>
+                sig.Kind == SignatureKind.Skeleton
+                && sig.Value == cohort.Skeleton
+                && sig.DeletedAt == null,
+            ct
+        );
+
+        // Withdrawal has TWO triggers, and the second one is easy to miss: the cohort qualified and was
+        // contributed BEFORE a standing viewer showed up. "Never contributed" has to mean never, which
+        // includes retracting an entry the moment the cohort stops being eligible — otherwise the
+        // guarantee holds only for regulars who happened to arrive early.
+        bool noLongerEligible = !cohort.MayContributeToNetwork;
+        if (wasReversed || noLongerEligible)
+        {
+            if (existing is not null && existing.Source == SignatureSource.Local)
+                existing.WithdrawnAt = now.UtcDateTime;
+            return;
+        }
+
+        if (cohort.Verdict != CohortVerdict.Campaign)
+            return;
+
+        if (existing is null)
+        {
+            _db.SpamSignatures.Add(
+                new SpamSignature
+                {
+                    Kind = SignatureKind.Skeleton,
+                    Value = cohort.Skeleton,
+                    Source = SignatureSource.Local,
+                    // Locally confirmed on our own evidence, so it is not quarantined HERE. Quarantine
+                    // is for entries arriving from somebody else's instance.
+                    IsQuarantined = false,
+                    Corroborations = 1,
+                    FirstSeenAt = now.UtcDateTime,
+                    LastConfirmedAt = now.UtcDateTime,
+                }
+            );
+            return;
+        }
+
+        existing.LastConfirmedAt = now.UtcDateTime;
+        if (existing.WithdrawnAt is not null)
+            return; // a withdrawn signature is not silently resurrected by a later cohort
     }
 
     private void Persist(

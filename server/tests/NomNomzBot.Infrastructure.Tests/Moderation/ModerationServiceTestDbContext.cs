@@ -121,6 +121,9 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
     public DbSet<NomNomzBot.Domain.Moderation.Entities.FollowBotBlock> FollowBotBlocks =>
         Set<NomNomzBot.Domain.Moderation.Entities.FollowBotBlock>();
 
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.SpamSignature> SpamSignatures =>
+        Set<NomNomzBot.Domain.Moderation.Entities.SpamSignature>();
+
     protected override void OnModelCreating(ModelBuilder b)
     {
         b.Entity<RecordEntity>(e =>

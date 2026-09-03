@@ -62,6 +62,7 @@ public interface IApplicationDbContext
     DbSet<NomNomzBot.Domain.Moderation.Entities.SpamDetection> SpamDetections { get; }
     DbSet<NomNomzBot.Domain.Moderation.Entities.SpamCampaignRecord> SpamCampaigns { get; }
     DbSet<NomNomzBot.Domain.Moderation.Entities.FollowBotBlock> FollowBotBlocks { get; }
+    DbSet<NomNomzBot.Domain.Moderation.Entities.SpamSignature> SpamSignatures { get; }
     DbSet<NomNomzBot.Domain.Community.Entities.ChatPoll> ChatPolls { get; }
     DbSet<NomNomzBot.Domain.Community.Entities.ChatPollVote> ChatPollVotes { get; }
     DbSet<Quote> Quotes { get; }

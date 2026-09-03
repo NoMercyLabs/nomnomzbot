@@ -84,3 +84,20 @@ public class FollowBotBlockConfiguration : IEntityTypeConfiguration<FollowBotBlo
         builder.Property(e => e.Indicators).HasMaxLength(500);
     }
 }
+
+/// <summary>
+/// The signature corpus. NOT tenant-scoped on purpose — a campaign one channel confirms should protect
+/// the next channel it hits, and that only works if the corpus is instance-wide.
+/// </summary>
+public class SpamSignatureConfiguration : IEntityTypeConfiguration<SpamSignature>
+{
+    public void Configure(EntityTypeBuilder<SpamSignature> builder)
+    {
+        builder.HasKey(e => e.Id);
+        // Unique per kind: one skeleton is one signature, however many channels report it. Corroboration
+        // is a counter on that single row, not a second row.
+        builder.HasIndex(e => new { e.Kind, e.Value }).IsUnique();
+
+        builder.Property(e => e.Value).HasMaxLength(1000);
+    }
+}

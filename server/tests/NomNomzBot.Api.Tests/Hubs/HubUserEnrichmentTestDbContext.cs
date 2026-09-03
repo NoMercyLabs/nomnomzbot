@@ -178,6 +178,9 @@ internal sealed class HubUserEnrichmentTestDbContext : DbContext, IApplicationDb
 
     public DbSet<NomNomzBot.Domain.Moderation.Entities.FollowBotBlock> FollowBotBlocks =>
         throw new NotSupportedException();
+
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.SpamSignature> SpamSignatures =>
+        throw new NotSupportedException();
     public DbSet<Domain.Community.Entities.ChatPoll> ChatPolls => throw new NotSupportedException();
     public DbSet<Domain.Community.Entities.ChatPollVote> ChatPollVotes =>
         throw new NotSupportedException();

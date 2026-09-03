@@ -101,6 +101,9 @@ internal sealed class ChatFiltersControllerTestDbContext : DbContext, IApplicati
     public DbSet<NomNomzBot.Domain.Moderation.Entities.FollowBotBlock> FollowBotBlocks =>
         throw new NotSupportedException();
 
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.SpamSignature> SpamSignatures =>
+        throw new NotSupportedException();
+
     protected override void OnModelCreating(ModelBuilder b)
     {
         b.Entity<ChatFilter>(e => e.HasKey(f => f.Id));

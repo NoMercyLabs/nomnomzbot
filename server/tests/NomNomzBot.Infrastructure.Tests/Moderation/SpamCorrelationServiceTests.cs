@@ -303,5 +303,112 @@ public class SpamCorrelationServiceTests : IDisposable
             .Be(2, "the window closed and a new one began");
     }
 
+    // ---- The signature corpus (§4) ---------------------------------------------------------------
+
+    private SpamSignature? StoredSignature()
+    {
+        using AppDbContext db = NewDbContext();
+        return db.SpamSignatures.FirstOrDefault(sig => sig.Value == Skeleton);
+    }
+
+    [Fact]
+    public async Task AConfirmedCampaign_BecomesALocalSignature()
+    {
+        // The corpus was empty until something populated it, which meant corpus-match and
+        // near-duplicate could never fire. This is what makes those two signals real.
+        await AddStrangersAsync(5);
+
+        SpamSignature? signature = StoredSignature();
+        signature.Should().NotBeNull();
+        signature!.Source.Should().Be(SignatureSource.Local);
+        signature
+            .IsQuarantined.Should()
+            .BeFalse("confirmed on our own evidence, in our own instance");
+        signature.Kind.Should().Be(SignatureKind.Skeleton);
+    }
+
+    [Fact]
+    public async Task ACohortThatIncludedAnyStandingViewer_IsNeverContributed()
+    {
+        // The worst outcome available: a false signature propagated to every subscriber. One regular in
+        // the cohort disqualifies it as a source, even while it still qualifies as a campaign locally.
+        await AddStrangersAsync(20);
+        await ObserveAsync("thesub", SpamTrustTier.SemiTrusted);
+
+        Stored().Verdict.Should().Be(CohortVerdict.Campaign, "20 of 21 is still 95%");
+
+        // The row is WITHDRAWN rather than deleted — withdrawal is auditable and deletion is not, and
+        // what the guarantee actually requires is that it can never be used or shared again.
+        SpamSignature? signature = StoredSignature();
+        signature!.WithdrawnAt.Should().NotBeNull();
+        signature.CanAct(requiredCorroborations: 1).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task AnExoneratedCampaign_WithdrawsItsSignature()
+    {
+        // A corpus that only ever grows is one that slowly starts deleting a community's own
+        // catchphrases. The premise the entry was added under no longer holds, so it goes.
+        await AddStrangersAsync(20);
+        StoredSignature().Should().NotBeNull();
+
+        await AddRegularsAsync(11);
+
+        StoredSignature()!.WithdrawnAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task AWithdrawnSignatureIsNotResurrectedByALaterCohort()
+    {
+        // Otherwise the next wave of strangers would quietly undo a moderator's correction.
+        await AddStrangersAsync(20);
+        await AddRegularsAsync(11);
+        StoredSignature()!.WithdrawnAt.Should().NotBeNull();
+
+        _time.Advance(TimeSpan.FromMinutes(31));
+        await AddStrangersAsync(6, prefix: "wave2");
+
+        StoredSignature()!.WithdrawnAt.Should().NotBeNull("still withdrawn");
+    }
+
+    [Fact]
+    public void AQuarantinedNetworkSignature_OnlyActsOnceCorroborated()
+    {
+        // The anti-poisoning property: one malicious contributor must not be able to cause a mass
+        // removal everywhere at once.
+        SpamSignature unproven = new()
+        {
+            Kind = SignatureKind.Skeleton,
+            Value = "x",
+            Source = SignatureSource.Network,
+            IsQuarantined = true,
+            Corroborations = 1,
+        };
+
+        unproven.CanAct(requiredCorroborations: 3).Should().BeFalse();
+
+        unproven.Corroborations = 3;
+        unproven.CanAct(requiredCorroborations: 3).Should().BeTrue();
+    }
+
+    [Fact]
+    public void ACuratedSignatureSkipsQuarantine_AndAWithdrawnOneNeverActs()
+    {
+        SpamSignature curated = new()
+        {
+            Kind = SignatureKind.Skeleton,
+            Value = "y",
+            Source = SignatureSource.Curated,
+            IsQuarantined = false,
+        };
+        curated.CanAct(requiredCorroborations: 99).Should().BeTrue();
+
+        curated.WithdrawnAt = T0.UtcDateTime;
+        curated
+            .CanAct(requiredCorroborations: 1)
+            .Should()
+            .BeFalse("withdrawal outranks every other reason to act");
+    }
+
     public void Dispose() => _connection.Dispose();
 }
