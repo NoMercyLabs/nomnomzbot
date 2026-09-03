@@ -75,6 +75,47 @@ public class MessageNormalizerTests
             .BeEmpty("a message written wholly in one script is not script-MIXING");
     }
 
+    [Theory]
+    // Windows Win+. → Symbols. Every one of these is two clicks from any spammer's keyboard, which is
+    // why they are worth pinning: the cheapest disguise available is the one the OS hands you for free.
+    [InlineData("øne", "one")] // stroked Latin — NFKD does NOT decompose a stroke
+    [InlineData("łist", "list")]
+    [InlineData("ħome", "home")]
+    [InlineData("đone", "done")]
+    [InlineData("¢ash", "cash")] // currency signs wearing letter faces
+    [InlineData("€asy", "easy")]
+    [InlineData("¥es", "yes")]
+    [InlineData("₩in", "win")]
+    [InlineData("h°t", "hot")] // degree sign as o
+    [InlineData("e✕it", "exit")] // multiplication / ballot crosses as x
+    [InlineData("ⓕⓡⓔⓔ", "free")] // circled — DERIVED from Unicode, not hand-listed
+    [InlineData("ｆｒｅｅ", "free")] // fullwidth — derived
+    [InlineData("ｆᵣₑᵉ", "free")] // super/subscript — derived
+    [InlineData("oﬃce", "office")] // ligature — derived; ﬃ expands to its three letters, not one
+    [InlineData("çafé", "cafe")] // accents — derived
+    public void EmojiKeyboardDisguises_FoldToThePlainWord(string disguised, string expected) =>
+        MessageNormalizer.Normalize(disguised).Skeleton.Should().Be(expected);
+
+    [Theory]
+    // The kaomoji panel of the SAME keyboard is what real viewers spam in chat for fun. Its box-drawing,
+    // CJK and geometric characters must never be mistaken for an attacker hiding letters, or the feature
+    // punishes the most enthusiastic people in the room (SD0).
+    [InlineData("¯\\_(ツ)_/¯")]
+    [InlineData("(╯°□°)╯︵ ┻━┻")]
+    [InlineData("ಠ_ಠ")]
+    [InlineData("(づ｡◕‿‿◕｡)づ")]
+    [InlineData("ヽ(♥‿♥)ノ")]
+    [InlineData("★彡 gg 彡★")]
+    public void KaomojiFromTheSameKeyboard_IsNeverFlaggedAsAbuse(string kaomoji)
+    {
+        NormalizedMessage result = MessageNormalizer.Normalize(kaomoji);
+
+        result
+            .StrippedCosmeticAbuse.Should()
+            .BeFalse("kaomoji is ordinary chat, not an evasion attempt");
+        result.MixedScriptTokens.Should().BeEmpty();
+    }
+
     [Fact]
     public void CosmeticAbuse_IsRecorded_EvenThoughTheCharactersAreStripped()
     {
@@ -132,6 +173,26 @@ public class MessageNormalizerTests
 
         result.IsEmpty.Should().BeTrue();
         result.Skeleton.Should().BeEmpty();
+    }
+
+    [Theory]
+    // Emoji are surrogate PAIRS. Normalizing a lone surrogate half throws, so a normalizer that walks
+    // chars without guarding for them crashes on the most ordinary chat there is. It did exactly that
+    // until this test caught it — every one of these must return, not throw.
+    [InlineData("gg 🎉")]
+    [InlineData("🎉🎉🎉")]
+    [InlineData("pog 👏 clap 👏 clap")]
+    [InlineData("👨‍👩‍👧‍👦 family zwj sequence")]
+    [InlineData("🏳️‍🌈 flag sequence")]
+    [InlineData("free 🎁 stuff")]
+    public void EmojiNeverCrashTheNormalizer(string message)
+    {
+        NormalizedMessage result = MessageNormalizer.Normalize(message);
+
+        // Emoji carry no Latin skeleton; they must simply drop out, leaving the words intact.
+        result
+            .Skeleton.Should()
+            .NotContain("�", "no replacement characters leak into the skeleton");
     }
 
     [Fact]
