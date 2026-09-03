@@ -77,8 +77,9 @@ public sealed class WidgetDtoFieldContractTests
                 typeof(RaidAlertDto),
                 typeof(SupporterAlertPayload),
             ],
-            // Deliberate legacy-compatibility fallback (nameOf: `d.displayName || d.user`) — not a mismatch.
-            ["user"]
+            // `nameOf` reads `d.displayName || d.user`: both halves are real fields now that every alert
+            // payload carries the canonical `user` name, so no allowance is needed.
+            []
         ),
         new(
             "alerts",
@@ -107,7 +108,7 @@ public sealed class WidgetDtoFieldContractTests
                 typeof(RaidAlertDto),
                 typeof(SupporterAlertPayload),
             ],
-            ["user"]
+            []
         ),
         new(
             "event_ticker",
@@ -223,6 +224,81 @@ public sealed class WidgetDtoFieldContractTests
         IReadOnlySet<string> missing = WidgetsMissingAContractRow(fixtureCatalogue, AllRows);
 
         missing.Should().BeEquivalentTo(["a_new_widget_nobody_wrote_a_contract_row_for"]);
+    }
+
+    /// <summary>
+    /// The other half of the same defect: the suite above proves FIRST-PARTY widget sources match their DTO,
+    /// but a third-party widget author has only the payload itself to go on — and until every alert payload
+    /// carried one canonical subject name, the four spellings the records were born with
+    /// (<c>displayName</c> / <c>gifterDisplayName</c> / <c>fromDisplayName</c> / <c>supporterDisplayName</c>)
+    /// made <c>data.user</c> — the same word the seeded chat templates use — silently undefined. A real raid
+    /// then rendered as "Someone just raided with ? viewers!" while chat showed the true name and party size.
+    /// Every alert payload must serialize a non-empty canonical <c>user</c>.
+    /// </summary>
+    [Fact]
+    public void Every_alert_payload_serializes_the_canonical_user_name()
+    {
+        Dictionary<string, object> payloads = new(StringComparer.Ordinal)
+        {
+            ["follow"] = new FollowAlertDto("1", "Alice", "alice", null),
+            ["subscription"] = new SubscriptionAlertDto("1", "Alice", "1000"),
+            ["resub"] = new ResubAlertDto("1", "Alice", "1000", 3, 2, null),
+            ["gift"] = new GiftSubAlertDto("1", "Alice", "1000", 5, false),
+            ["cheer"] = new CheerAlertDto("1", "Alice", 100, "cheer100", false),
+            ["raid"] = new RaidAlertDto("1", "Alice", "alice", 18),
+            ["supporter.tip"] = new SupporterAlertPayload(
+                "tip",
+                "Alice",
+                500,
+                "EUR",
+                null,
+                null,
+                null,
+                false
+            ),
+        };
+
+        foreach ((string eventType, object payload) in payloads)
+        {
+            JsonElement json = JsonSerializer.SerializeToElement(payload, CamelCase);
+
+            json.TryGetProperty("user", out JsonElement user)
+                .Should()
+                .BeTrue($"the '{eventType}' payload must carry the canonical subject name");
+            user.GetString()
+                .Should()
+                .Be(
+                    "Alice",
+                    $"the '{eventType}' payload's canonical name must be the real display name"
+                );
+        }
+    }
+
+    /// <summary>
+    /// The headline scalar half of the same vocabulary: a raid's party size, a gift's count and a cheer's bits
+    /// must each be readable under the name the template vocabulary already uses ({viewers} / {amount}), not
+    /// only under the record's own field name.
+    /// </summary>
+    [Fact]
+    public void Alert_payloads_serialize_their_headline_scalar_under_the_canonical_name()
+    {
+        JsonElement raid = JsonSerializer.SerializeToElement(
+            new RaidAlertDto("1", "Alice", "alice", 18),
+            CamelCase
+        );
+        JsonElement gift = JsonSerializer.SerializeToElement(
+            new GiftSubAlertDto("1", "Alice", "1000", 5, false),
+            CamelCase
+        );
+        JsonElement cheer = JsonSerializer.SerializeToElement(
+            new CheerAlertDto("1", "Alice", 100, "cheer100", false),
+            CamelCase
+        );
+
+        raid.GetProperty("viewers").GetInt32().Should().Be(18);
+        raid.GetProperty("viewerCount").GetInt32().Should().Be(18);
+        gift.GetProperty("amount").GetInt32().Should().Be(5);
+        cheer.GetProperty("amount").GetInt32().Should().Be(100);
     }
 
     [Theory]
