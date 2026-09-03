@@ -297,7 +297,11 @@
     <string name="home_held_modal_error">Could not load held messages: %1$s</string>
     <string name="home_held_modal_empty">No pending held messages remain for this item.</string>
     <string name="home_held_modal_category">AutoMod category: %1$s</string>
-    <string name="home_held_modal_held_ago">Held %1$dm ago</string>
+    <string name="home_held_modal_held_just_now">Held just now</string>
+    <string name="home_held_modal_held_minutes">Held %1$d min ago</string>
+    <string name="home_held_modal_held_hours">Held %1$d hours ago</string>
+    <string name="home_held_modal_held_days">Held %1$d days ago</string>
+    <string name="home_held_modal_repeated">Posted %1$d times</string>
     <string name="home_held_allow">Allow</string>
     <string name="home_held_block">Block</string>
     <string name="home_held_timeout">Timeout</string>

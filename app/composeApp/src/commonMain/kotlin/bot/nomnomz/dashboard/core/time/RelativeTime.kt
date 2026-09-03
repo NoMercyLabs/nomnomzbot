@@ -28,4 +28,40 @@ object RelativeTime {
         val then: Instant = parseOrNull(iso) ?: return null
         return (now - then).inWholeMinutes
     }
+
+    /**
+     * The same elapsed time, bucketed for display. Raw minutes are honest and unreadable past an
+     * hour — "1450m ago" is a day, and nobody reads it as one. The bucket carries a unit and a
+     * number; the UI layer picks the translated wording, so no English lives here.
+     *
+     * Clock skew (a timestamp in the future) collapses to [Elapsed.JustNow] rather than a negative
+     * count, because a negative age is never the useful thing to show someone.
+     */
+    fun elapsedSince(iso: String?, now: Instant): Elapsed? {
+        val minutes: Long = minutesSince(iso, now) ?: return null
+        val whole: Long = minutes.coerceAtLeast(0)
+        return when {
+            whole < 1 -> Elapsed.JustNow
+            whole < MinutesPerHour -> Elapsed.Minutes(whole.toInt())
+            whole < MinutesPerDay * 2 -> Elapsed.Hours((whole / MinutesPerHour).toInt())
+            else -> Elapsed.Days((whole / MinutesPerDay).toInt())
+        }
+    }
+
+    private const val MinutesPerHour: Long = 60
+    private const val MinutesPerDay: Long = 60 * 24
+}
+
+/**
+ * How long ago something happened, at the coarseness a person reads it at. Hours stay hours until
+ * two days so "31 hours ago" is still available where it matters; past that, days.
+ */
+sealed interface Elapsed {
+    data object JustNow : Elapsed
+
+    data class Minutes(val value: Int) : Elapsed
+
+    data class Hours(val value: Int) : Elapsed
+
+    data class Days(val value: Int) : Elapsed
 }
