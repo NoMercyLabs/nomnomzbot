@@ -4943,4 +4943,23 @@
     <string name="spam_tier_trusted">Trusted</string>
     <string name="spam_tier_semi_trusted">Has standing</string>
     <string name="spam_tier_established">Established regular</string>
+    <!-- Spam defence: coordinated groups and the follow-bot sweep. -->
+    <string name="spam_campaigns_title">Coordinated groups</string>
+    <string name="spam_campaigns_empty">No groups yet. When several accounts post the same thing at once, the group appears here with what the bot decided about it.</string>
+    <string name="spam_campaign_verdict_watching">Watching</string>
+    <string name="spam_campaign_verdict_campaign">Treated as coordinated spam</string>
+    <string name="spam_campaign_verdict_community">Judged community behaviour</string>
+    <string name="spam_campaign_counts">%1$d accounts posted it, %2$d could be acted on, %3$d were</string>
+    <string name="spam_campaign_strangers">%1$d%% were strangers to your channel</string>
+    <string name="spam_campaign_reversed">Undone: %1$s</string>
+    <string name="spam_campaign_not_shared">Not shared with other servers, because someone with standing posted it too.</string>
+    <string name="spam_follow_blocks_title">Follow-bot blocks</string>
+    <string name="spam_follow_blocks_empty">Nothing blocked. Accounts blocked during a follow spike appear here, each with the reason it was blocked.</string>
+    <string name="spam_follow_block_examined">Looked at %1$d accounts in this wave</string>
+    <string name="spam_follow_block_restore">Restore this whole wave</string>
+    <string name="spam_follow_block_restored">Restored</string>
+    <string name="spam_follow_indicator_known_bot">On a known-bot list</string>
+    <string name="spam_follow_indicator_generated_handle">Name looks bulk-generated</string>
+    <string name="spam_follow_indicator_zero_history">Hours old with an empty profile</string>
+    <string name="spam_follow_indicator_oscillation">Followed and unfollowed repeatedly</string>
 </resources>

@@ -79,6 +79,8 @@ import bot.nomnomz.dashboard.core.designsystem.icon.UnlockGlyph
 import bot.nomnomz.dashboard.core.network.AutomodConfig
 import bot.nomnomz.dashboard.core.network.SpamDefensePolicy
 import bot.nomnomz.dashboard.core.network.SpamDefenseSettings
+import bot.nomnomz.dashboard.core.network.FollowBotBlockEntry
+import bot.nomnomz.dashboard.core.network.SpamCampaign
 import bot.nomnomz.dashboard.core.network.SpamDetection
 import bot.nomnomz.dashboard.core.network.TrustPolicy
 import bot.nomnomz.dashboard.core.network.TwitchAutoModSettings
@@ -119,7 +121,9 @@ import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecision
 import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecisionAtFloor
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
+import nomnomzbot.composeapp.generated.resources.spam_campaigns_title
 import nomnomzbot.composeapp.generated.resources.spam_detections_title
+import nomnomzbot.composeapp.generated.resources.spam_follow_blocks_title
 import nomnomzbot.composeapp.generated.resources.spam_review_queue_title
 import nomnomzbot.composeapp.generated.resources.moderation_action_error
 import nomnomzbot.composeapp.generated.resources.moderation_moderators_title
@@ -488,6 +492,8 @@ fun ModerationScreen(
                     trustPolicy = current.trustPolicy,
                     spamDefense = current.spamDefense,
                     spamDetections = current.spamDetections,
+                    spamCampaigns = current.spamCampaigns,
+                    followBotBlocks = current.followBotBlocks,
                     twitchAutoMod = current.twitchAutoMod,
                     trustWeightSumInvalid = current.trustWeightSumInvalid,
                     broadcasterManage = broadcasterManage,
@@ -497,6 +503,9 @@ fun ModerationScreen(
                     },
                     onOverturnSpamDetection = { id ->
                         scope.launch { controller.overturnSpamDetection(id) }
+                    },
+                    onRestoreFollowBotBatch = { batchId ->
+                        scope.launch { controller.restoreFollowBotBatch(batchId) }
                     },
                     onSaveTwitchAutoMod = { body -> scope.launch { controller.saveTwitchAutoMod(body) } },
                     onToggleAutoTimeoutOnHeat = { on ->
@@ -642,12 +651,15 @@ private fun BansList(
     trustPolicy: TrustPolicy?,
     spamDefense: SpamDefensePolicy?,
     spamDetections: List<SpamDetection>,
+    spamCampaigns: List<SpamCampaign>,
+    followBotBlocks: List<FollowBotBlockEntry>,
     twitchAutoMod: TwitchAutoModSettings?,
     trustWeightSumInvalid: Boolean,
     broadcasterManage: ManageDecision,
     onSaveTrustPolicy: (UpdateTrustPolicyBody) -> Unit,
     onSaveSpamDefense: (SpamDefenseSettings) -> Unit,
     onOverturnSpamDetection: (String) -> Unit,
+    onRestoreFollowBotBatch: (String) -> Unit,
     onSaveTwitchAutoMod: (UpdateTwitchAutoModSettingsBody) -> Unit,
     onToggleAutoTimeoutOnHeat: (Boolean) -> Unit,
     onSaveHeatTimeoutSeconds: (Int) -> Unit,
@@ -1238,6 +1250,36 @@ private fun BansList(
                         manage = manage,
                         reviewQueueOnly = false,
                         onOverturn = onOverturnSpamDetection,
+                    )
+                }
+            }
+            item(key = "spam-campaigns-header") {
+                Text(
+                    text = stringResource(Res.string.spam_campaigns_title),
+                    style = typography.lg,
+                    color = tokens.cardForeground,
+                    maxLines = 1,
+                )
+            }
+            item(key = "spam-campaigns-card") {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    SpamCampaignsSection(campaigns = spamCampaigns)
+                }
+            }
+            item(key = "spam-follow-blocks-header") {
+                Text(
+                    text = stringResource(Res.string.spam_follow_blocks_title),
+                    style = typography.lg,
+                    color = tokens.cardForeground,
+                    maxLines = 1,
+                )
+            }
+            item(key = "spam-follow-blocks-card") {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    FollowBotBlocksSection(
+                        blocks = followBotBlocks,
+                        manage = manage,
+                        onRestoreBatch = onRestoreFollowBotBatch,
                     )
                 }
             }
