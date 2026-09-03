@@ -961,6 +961,10 @@ public static class DependencyInjection
 
         // Auto-moderation engine consumed by concrete type — kept explicit.
         services.AddScoped<AutoModerationEngine>();
+        // Consumed by concrete type from the chat-path handler, so convention scanning (I<X>Service ->
+        // <X>Service) does not reach it. Separate from SpamDefenseService because deciding and acting
+        // are different responsibilities: the decision is pure, acting touches somebody's account.
+        services.AddScoped<Moderation.SpamEnforcementExecutor>();
 
         // Personality tone renderer for built-in responses (override → tone → neutral, then template-resolve).
         // Stateless over the singleton ITemplateResolver, so registered singleton.
