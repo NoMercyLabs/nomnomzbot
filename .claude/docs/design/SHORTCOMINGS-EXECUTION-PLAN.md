@@ -212,6 +212,14 @@ fixed in `25620139`. **Follow-on gap CLOSED 2026-09-02 (`a6bf4a7a`, S-OWN16-WEBH
 
 Read this block first. It is the only summary; everything below is detail.
 
+- **S-TRUST-UNIFY** (found 2026-09-03, traced) — two parallel trust implementations with different
+  scales and different constants: `Domain/Trust/TrustScoreCalculator` (0–100, moderation projection,
+  now policy-driven) and `Infrastructure/Music/TrustService` (0.0–1.0, song requests, own consts
+  LambdaRequest/LambdaAccount/LambdaContent/LambdaPopularity/ViolationPenalty). The comment in
+  `ModerationProjectionService` calling the calculator "the SHARED calculator (never forked)" is
+  aspirational — music forked it. Done-when: one trust engine and one policy feed both, or the
+  dashboard states which system governs which feature; never a UI implying one set of weights
+  controls both.
 - **S-FLAKE-TIMING** (small, unowned, found 2026-09-03 during the S-OWN22 merge gate) — two
   timing-sensitive Infrastructure tests fail under full-suite parallel load and pass in isolation,
   so a full `dotnet test` lands red ~50% of runs and trains everyone to ignore it:
