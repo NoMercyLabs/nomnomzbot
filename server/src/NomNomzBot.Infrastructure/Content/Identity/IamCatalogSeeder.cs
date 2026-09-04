@@ -58,6 +58,12 @@ public sealed class IamCatalogSeeder : ISeeder
         (IamPermissionKeys.SystemIpcManage, IamCategory.FeatureFlag, true),
         // Act-as impersonation mints a token carrying another user's full identity — sensitive.
         (IamPermissionKeys.UserImpersonate, IamCategory.Iam, true),
+        // Platform content authoring/propagation (platform-admin.md §4) — new IamCategory.Content bucket.
+        (IamPermissionKeys.ContentRead, IamCategory.Content, false),
+        (IamPermissionKeys.ContentAuthor, IamCategory.Content, true),
+        (IamPermissionKeys.ContentPublish, IamCategory.Content, true),
+        // force overwrites tenant-edited copies — the most sensitive publish mode (§2.1).
+        (IamPermissionKeys.ContentPublishForce, IamCategory.Content, true),
     ];
 
     /// <summary>C.2 + C.3 rows: system role → its bundled permission keys, verbatim from §C.2.</summary>
@@ -81,6 +87,18 @@ public sealed class IamCatalogSeeder : ISeeder
                 IamPermissionKeys.GalleryReview,
                 IamPermissionKeys.SystemIpcManage,
                 IamPermissionKeys.UserImpersonate,
+                IamPermissionKeys.ContentRead,
+                IamPermissionKeys.ContentAuthor,
+                IamPermissionKeys.ContentPublish,
+                IamPermissionKeys.ContentPublishForce,
+            ]
+        ),
+        (
+            "platform-content-author",
+            [
+                IamPermissionKeys.ContentRead,
+                IamPermissionKeys.ContentAuthor,
+                IamPermissionKeys.ContentPublish,
             ]
         ),
         (

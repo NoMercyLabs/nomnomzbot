@@ -231,6 +231,11 @@ public interface IApplicationDbContext
     // Marketplace — the installed-bundle ledger (marketplace.md D6, schema H.11).
     DbSet<NomNomzBot.Domain.Marketplace.Entities.InstalledBundle> InstalledBundles { get; }
 
+    // Platform content authoring + propagation (platform-admin.md §3) — global, NOT tenant-scoped.
+    DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentDefinition> PlatformContentDefinitions { get; }
+    DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentVersion> PlatformContentVersions { get; }
+    DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentPublishJob> PlatformContentPublishJobs { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>Exposes the tracked entry for an entity — used to detach a rejected write (e.g. a

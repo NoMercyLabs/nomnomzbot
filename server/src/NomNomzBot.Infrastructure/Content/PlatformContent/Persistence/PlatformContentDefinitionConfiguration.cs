@@ -14,7 +14,8 @@ using NomNomzBot.Domain.PlatformContent.Entities;
 
 namespace NomNomzBot.Infrastructure.Content.PlatformContent.Persistence;
 
-public class PlatformContentDefinitionConfiguration : IEntityTypeConfiguration<PlatformContentDefinition>
+public class PlatformContentDefinitionConfiguration
+    : IEntityTypeConfiguration<PlatformContentDefinition>
 {
     public void Configure(EntityTypeBuilder<PlatformContentDefinition> builder)
     {

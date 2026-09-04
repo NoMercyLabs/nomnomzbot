@@ -49,6 +49,16 @@ public static class IamPermissionKeys
     // user. Highly sensitive — the acting admin surfaces only in the non-authoritative `act` claim.
     public const string UserImpersonate = "user:impersonate";
 
+    // Platform content authoring/propagation (platform-admin.md §4): a platform operator drafting,
+    // publishing, or force-publishing versioned system commands/widgets/pipelines/scripts to tenants.
+    public const string ContentRead = "content:read";
+    public const string ContentAuthor = "content:author";
+    public const string ContentPublish = "content:publish";
+
+    // Distinct from ContentPublish per §2.1's guardrail: force overwrites tenant-edited copies, so it is
+    // gated separately and is the one publish mode that can destroy tenant work.
+    public const string ContentPublishForce = "content:publish:force";
+
     /// <summary>Every seeded Plane-C key (§C.1). The legacy alias <c>iam:audit:read</c> collapses to <c>audit:read</c>.</summary>
     public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -67,5 +77,9 @@ public static class IamPermissionKeys
         GalleryReview,
         SystemIpcManage,
         UserImpersonate,
+        ContentRead,
+        ContentAuthor,
+        ContentPublish,
+        ContentPublishForce,
     };
 }

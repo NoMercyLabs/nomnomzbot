@@ -42,6 +42,23 @@ public class ChannelBuiltinCommand : SoftDeletableEntity, ITenantScoped
     /// </summary>
     public string? OverridesJson { get; set; }
 
+    /// <summary>Which <c>PlatformContentDefinition</c> (Kind=<c>command</c>) this row was installed from; null
+    /// for a row a seeder never stamped (platform-admin.md §3.3). Generalizes the
+    /// <c>Widget.GalleryItemId</c>/<c>InstalledSourceRevision</c> staleness pattern to system commands.</summary>
+    public Guid? PlatformSourceDefinitionId { get; set; }
+
+    /// <summary>The <c>PlatformContentVersion.Version</c> installed.</summary>
+    public int? PlatformSourceVersion { get; set; }
+
+    /// <summary>The <c>ContentHash</c> at install/last-sync time — compared against this row's live content
+    /// hash (of <see cref="OverridesJson"/>, canonicalized) to decide "untouched" for
+    /// <c>update_in_place_where_untouched</c> publishes.</summary>
+    [MaxLength(64)]
+    public string? PlatformSourceHash { get; set; }
+
+    /// <summary>When this row last received a platform-originated update.</summary>
+    public DateTime? PlatformSourceSyncedAt { get; set; }
+
     [ForeignKey(nameof(BroadcasterId))]
     public virtual Channel Channel { get; set; } = null!;
 }

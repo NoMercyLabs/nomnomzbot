@@ -29,5 +29,8 @@ public class ChannelBuiltinCommandConfiguration : IEntityTypeConfiguration<Chann
             .HasIndex(e => new { e.BroadcasterId, e.BuiltinKey })
             .IsUnique()
             .HasDatabaseName("IX_ChannelBuiltinCommand_BroadcasterId_Key");
+
+        builder.Property(e => e.PlatformSourceHash).HasMaxLength(64);
+        builder.HasIndex(e => e.PlatformSourceDefinitionId);
     }
 }

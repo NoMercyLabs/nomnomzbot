@@ -70,7 +70,9 @@ public class PlatformContentController(
     [HttpGet("definitions/{id:guid}")]
     [EnableRateLimiting(RateLimitPolicyNames.Read)]
     [Authorize(Policy = IamPermissionKeys.ContentRead)]
-    [ProducesResponseType<StatusResponseDto<PlatformContentDefinitionDetailDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<StatusResponseDto<PlatformContentDefinitionDetailDto>>(
+        StatusCodes.Status200OK
+    )]
     public async Task<IActionResult> GetDefinition(Guid id, CancellationToken ct)
     {
         Result<Guid> acting = await ActingPrincipalIdAsync(ct);
