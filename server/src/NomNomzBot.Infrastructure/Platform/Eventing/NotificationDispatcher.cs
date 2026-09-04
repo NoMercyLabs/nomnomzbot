@@ -33,23 +33,30 @@ namespace NomNomzBot.Infrastructure.Platform.Eventing;
 /// and the typed fan-out runs on the genuinely-new path only (a redelivery already fanned out the first time).
 /// </para>
 /// <para>
-/// That message-id dedupe cannot see the same real-world event delivered under TWO DIFFERENT message ids — the
-/// WebSocket reconnect grace window can hand one occurrence to both a dying session's subscription and its
-/// freshly re-homed replacement (S-DUPE). <see cref="IDuplicateNotificationSuppressor"/> is the second guard:
-/// a genuinely-new message-id still gets journaled (the raw delivery is always a truthful record), but the
-/// typed fan-out is skipped when the (broadcaster, subscription type, raw payload) triple was already claimed
-/// inside <see cref="SemanticDedupeWindow"/> — a legitimate repeat carries different payload bytes (a chat
-/// message's own <c>message_id</c>, a follow's <c>followed_at</c>, …) and is never suppressed.
+/// That message-id dedupe cannot see the same real-world event delivered under TWO DIFFERENT message ids. The
+/// dominant cause is this project's own zero-downtime deploy (<c>scripts/switchover.ps1</c>): the incoming
+/// colour is started and waits (up to its ready-timeout, plus a drain window) WHILE the outgoing colour keeps
+/// serving, so for that overlap TWO PROCESSES both hold a live EventSub session and both receive the same
+/// event under their own message id — on every deploy, not as a rare edge. A single-process WebSocket
+/// reconnect can produce the same shape too (Twitch keeps a dying session's subscriptions alive for ~1 minute).
+/// <see cref="IDuplicateNotificationSuppressor"/> is the second guard: a genuinely-new message-id still gets
+/// journaled (the raw delivery is always a truthful record), but the typed fan-out is skipped when the
+/// (broadcaster, subscription type, raw payload) triple was already claimed — by THIS process or the other
+/// live colour, since the claim is persisted in the shared database, not an in-process cache — inside
+/// <see cref="SemanticDedupeWindow"/>. A legitimate repeat carries different payload bytes (a chat message's
+/// own <c>message_id</c>, a follow's <c>followed_at</c>, …) and is never suppressed.
 /// </para>
 /// </summary>
 public sealed class NotificationDispatcher : INotificationDispatcher
 {
-    // Twitch keeps a dying WebSocket session's subscriptions alive for ~1 minute after a reconnect
-    // (WebSocketEventSubTransport's stale-session comments) — a duplicate delivery riding that grace window
-    // lands within, at most, low tens of seconds of the original. Kept well short of a minute so a legitimate
-    // rapid repeat with coincidentally identical payload bytes (rare, but possible on a payload-sparse topic)
-    // is not swallowed by a needlessly wide window.
-    private static readonly TimeSpan SemanticDedupeWindow = TimeSpan.FromSeconds(30);
+    // scripts/switchover.ps1's default -ReadyTimeoutSec (120s) plus its -DrainSec (35s) bounds how long the
+    // outgoing colour can legitimately still be live-and-subscribed once the incoming colour is also up — a
+    // slow-but-healthy deploy can duplicate-deliver across that whole span, not just a few seconds of it. A
+    // single-process WebSocket reconnect's ~1-minute stale-session grace fits comfortably inside the same
+    // window. Generous on purpose: the cost of missing a genuine duplicate (two chat messages) outweighs the
+    // cost of the window, which only matters for a topic whose payload carries no per-occurrence field at all
+    // (most do) AND which legitimately repeats byte-for-byte inside 5 minutes (rare).
+    private static readonly TimeSpan SemanticDedupeWindow = TimeSpan.FromMinutes(5);
 
     private readonly IEventJournal _journal;
     private readonly IEventBus _eventBus;
@@ -129,12 +136,13 @@ public sealed class NotificationDispatcher : INotificationDispatcher
         // under a DIFFERENT message-id (S-DUPE) — so claim the (broadcaster, type, payload) triple before
         // fanning out; a second claim within the window skips fan-out but the row above still journals the
         // genuine wire delivery.
-        bool claimedFirst = _duplicateSuppressor.TryClaim(
+        bool claimedFirst = await _duplicateSuppressor.TryClaimAsync(
             notification.BroadcasterId,
             notification.SubscriptionType,
             notification.Event.GetRawText(),
             _clock.GetUtcNow(),
-            SemanticDedupeWindow
+            SemanticDedupeWindow,
+            ct
         );
         bool semanticDuplicate = !claimedFirst;
 

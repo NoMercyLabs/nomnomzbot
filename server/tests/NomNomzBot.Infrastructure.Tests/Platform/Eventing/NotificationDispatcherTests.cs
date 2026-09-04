@@ -38,7 +38,8 @@ public sealed class NotificationDispatcherTests
 {
     private static readonly FakeTimeProvider Clock = new(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
 
-    private static DuplicateNotificationSuppressor NewSuppressor() => new();
+    private static DuplicateNotificationSuppressor NewSuppressor(EventStoreTestDbContext db) =>
+        new(db);
 
     private static EventJournalService NewJournal(EventStoreTestDbContext db)
     {
@@ -86,7 +87,7 @@ public sealed class NotificationDispatcherTests
             NewJournal(db),
             bus,
             new EventSubTranslatorRegistry([]),
-            NewSuppressor(),
+            NewSuppressor(db),
             Clock,
             NullLogger<NotificationDispatcher>.Instance
         );
@@ -147,7 +148,7 @@ public sealed class NotificationDispatcherTests
             NewJournal(db),
             bus,
             new EventSubTranslatorRegistry([]),
-            NewSuppressor(),
+            NewSuppressor(db),
             Clock,
             NullLogger<NotificationDispatcher>.Instance
         );
@@ -197,7 +198,7 @@ public sealed class NotificationDispatcherTests
             NewJournal(db),
             bus,
             new EventSubTranslatorRegistry([]),
-            NewSuppressor(),
+            NewSuppressor(db),
             Clock,
             NullLogger<NotificationDispatcher>.Instance
         );
@@ -227,7 +228,7 @@ public sealed class NotificationDispatcherTests
             NewJournal(db),
             bus,
             new EventSubTranslatorRegistry([translator]),
-            NewSuppressor(),
+            NewSuppressor(db),
             Clock,
             NullLogger<NotificationDispatcher>.Instance
         );
@@ -261,7 +262,7 @@ public sealed class NotificationDispatcherTests
             NewJournal(db),
             bus,
             new EventSubTranslatorRegistry([translator]),
-            NewSuppressor(),
+            NewSuppressor(db),
             Clock,
             NullLogger<NotificationDispatcher>.Instance
         );
@@ -308,7 +309,7 @@ public sealed class NotificationDispatcherTests
             NewJournal(db),
             bus,
             new EventSubTranslatorRegistry([translator]),
-            NewSuppressor(),
+            NewSuppressor(db),
             Clock,
             NullLogger<NotificationDispatcher>.Instance
         );
@@ -339,6 +340,118 @@ public sealed class NotificationDispatcherTests
     }
 
     [Fact]
+    public async Task Dispatch_SameRealEvent_AcrossTwoSeparateDispatcherInstances_FansOutOnlyOnce()
+    {
+        // The actual reported shape (S-DUPE): scripts/switchover.ps1 runs the incoming and outgoing deploy
+        // colour SIDE BY SIDE, so two separate OS processes -- two separate NotificationDispatcher instances,
+        // each with its OWN DuplicateNotificationSuppressor and its OWN DbContext -- can both receive the same
+        // real Twitch event under different message ids. An in-process-only guard is blind to this; only a
+        // claim durable in the store BOTH processes share (here: two independent connections against the same
+        // shared-cache SQLite database, mirroring two containers against one Postgres/SQLite instance) can
+        // catch it. This is the test an in-process dictionary cannot pass.
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        Guid tenant = Guid.NewGuid();
+
+        CapturingEventBus busColourA = new();
+        RecordingTranslator translatorColourA = new("channel.follow");
+        await using EventStoreTestDbContext dbColourA = database.NewContext();
+        NotificationDispatcher dispatcherColourA = new(
+            NewJournal(dbColourA),
+            busColourA,
+            new EventSubTranslatorRegistry([translatorColourA]),
+            NewSuppressor(dbColourA),
+            Clock,
+            NullLogger<NotificationDispatcher>.Instance
+        );
+
+        CapturingEventBus busColourB = new();
+        RecordingTranslator translatorColourB = new("channel.follow");
+        await using EventStoreTestDbContext dbColourB = database.NewContext();
+        NotificationDispatcher dispatcherColourB = new(
+            NewJournal(dbColourB),
+            busColourB,
+            new EventSubTranslatorRegistry([translatorColourB]),
+            NewSuppressor(dbColourB),
+            Clock,
+            NullLogger<NotificationDispatcher>.Instance
+        );
+
+        Result<NotificationDispatchResult> fromColourA = await dispatcherColourA.DispatchAsync(
+            Notification(tenant, "colour-a-delivery")
+        );
+        Result<NotificationDispatchResult> fromColourB = await dispatcherColourB.DispatchAsync(
+            Notification(tenant, "colour-b-delivery") // different message-id, identical payload
+        );
+
+        fromColourA.IsSuccess.Should().BeTrue();
+        fromColourB.IsSuccess.Should().BeTrue();
+        fromColourB
+            .Value.WasDuplicate.Should()
+            .BeTrue("colour B received the same real event colour A already claimed");
+
+        (translatorColourA.Calls + translatorColourB.Calls)
+            .Should()
+            .Be(
+                1,
+                "one real-world event delivered to two live processes must still fan out exactly once"
+            );
+    }
+
+    [Fact]
+    public async Task Dispatch_TwoDistinctEvents_AcrossTwoSeparateDispatcherInstances_BothFanOut()
+    {
+        // The false-positive guard, proven across processes: two separate live colours each seeing a
+        // genuinely distinct event must not have one clobber the other's claim.
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        Guid tenant = Guid.NewGuid();
+
+        CapturingEventBus busColourA = new();
+        RecordingTranslator translatorColourA = new("channel.chat.message");
+        await using EventStoreTestDbContext dbColourA = database.NewContext();
+        NotificationDispatcher dispatcherColourA = new(
+            NewJournal(dbColourA),
+            busColourA,
+            new EventSubTranslatorRegistry([translatorColourA]),
+            NewSuppressor(dbColourA),
+            Clock,
+            NullLogger<NotificationDispatcher>.Instance
+        );
+
+        CapturingEventBus busColourB = new();
+        RecordingTranslator translatorColourB = new("channel.chat.message");
+        await using EventStoreTestDbContext dbColourB = database.NewContext();
+        NotificationDispatcher dispatcherColourB = new(
+            NewJournal(dbColourB),
+            busColourB,
+            new EventSubTranslatorRegistry([translatorColourB]),
+            NewSuppressor(dbColourB),
+            Clock,
+            NullLogger<NotificationDispatcher>.Instance
+        );
+
+        await dispatcherColourA.DispatchAsync(
+            Notification(
+                tenant,
+                "colour-a-1",
+                type: "channel.chat.message",
+                payload: "{\"chatter_user_id\":\"42\",\"message\":{\"text\":\"hi\"},\"message_id\":\"wire-a\"}"
+            )
+        );
+        await dispatcherColourB.DispatchAsync(
+            Notification(
+                tenant,
+                "colour-b-1",
+                type: "channel.chat.message",
+                payload: "{\"chatter_user_id\":\"42\",\"message\":{\"text\":\"hi\"},\"message_id\":\"wire-b\"}"
+            )
+        );
+
+        (translatorColourA.Calls + translatorColourB.Calls)
+            .Should()
+            .Be(2, "two genuinely distinct sends across two live processes must both fan out");
+    }
+
+    [Fact]
     public async Task Dispatch_InboundWhisper_IsJournaled_AndPublishesWhisperReceivedEvent()
     {
         // The bot can only SEND whispers via IPlatformDirectMessageSender/!whisper; there is no chat-channel
@@ -355,7 +468,7 @@ public sealed class NotificationDispatcherTests
             NewJournal(db),
             bus,
             new EventSubTranslatorRegistry([translator]),
-            NewSuppressor(),
+            NewSuppressor(db),
             Clock,
             NullLogger<NotificationDispatcher>.Instance
         );
