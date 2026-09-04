@@ -164,54 +164,6 @@ The diagnosis is not "too many features". It is that ONE page carries four unrel
 person, tuning automatic enforcement, reviewing a queue, and reading history. Each wants a different
 posture, and stacking them makes every one of them harder to find.
 
-- [ ] **S-UX-6 Device breakpoints — the per-screen sweep.** The mechanism exists; most screens have not
-      been given a Compact layout yet. Measured by weighted-child count (`Modifier.weight(` per file), the
-      screens most likely to squeeze on a narrow pane, worst first:
-
-      | Screen | weighted children | Screen | weighted children |
-      |---|---|---|---|
-      | `PipelinesScreen` | 34 | `GiveawaysScreen` | 8 |
-      | `HomeScreen` | 21 | `AdminScreen` | 8 |
-      | `SettingsScreen` | 20 | `WebhooksScreen` | 7 |
-      | `EconomyScreen` | 20 | `DiscordScreen` | 6 |
-      | `ModerationScreen` | 14 | `SupportersScreen` | 5 |
-      | `AnalyticsScreen` | 14 | `SetupWizardScreen` | 5 |
-      | `TtsScreen` | 10 | `GamesScreen` | 5 |
-      | `ShellScreen` | 10 | `CustomEventsScreen` / `CommunityScreen` / `ChatScreen` / `BundlesScreen` | 5 |
-
-      A high count is a SUSPECT, not a defect: `label (weight 1f) + small control` is correct at every
-      width. But the count is also the WRONG instrument, and reading it as one already produced a wrong
-      call here: Moderation's hits really were label+control, that was generalised to Community without
-      checking, and Community's viewer-data row turned out to be two text fields sharing a dialog.
-
-      The instrument that actually finds this: **a Row containing two or more ENTRY FIELDS, both
-      weighted.** Searched across every screen, that is five sites, now all on the `FieldPair` primitive
-      (stacks at Compact) and guarded by `SideBySideFieldGuardTest` so a sixth cannot be hand-written.
-      What remains in the sweep is everything that is NOT a field pair: dialog widths, multi-column
-      cards, tables, tab strips, and charts.
-
-      **Not everything with a width branch belongs in the size class.** `HomeScreen`'s 8-tile strip
-      switches at 960 dp because that is where EIGHT TILES stop fitting — a content-fit question, measured
-      locally, and forcing it onto the 840 dp class boundary would give each tile 105 dp. Size class is for
-      layout MODE; content-fit checks stay local.
-
-      **S-UX-6a CLOSED (`f61d5bc4`)** — Pipelines / Home / Settings / Economy. The 42 dialogs across those
-      four screens turned out to share ONE primitive, so the fix is a size-class branch in `Dialog.kt`
-      rather than 42 screen edits. `DialogCompactWidthGuardTest` pins it and enumerates the real
-      commonMain tree so a hand-rolled `Window`/`AlertDialog` bypassing the primitive fails the build.
-      Nothing else in those four needed a Compact layout, each with a stated reason: Pipelines' branch
-      lanes already stack (`LaneSection`) and its param editor is on `FieldPair`; Home's only tab strip
-      already horizontal-scrolls (`Tabs.kt:119`) and its 8-tile strip keeps its own local content-fit
-      split; Settings has no tab strip and its matrix rows are label+control; Economy has no grid, table
-      or chart. Source-level only — not opened in a browser at Compact.
-
-      Remaining: every screen below Economy in the table above. Fold in this finding while sweeping
-      Settings: `feature/settings/ui/SettingsScreen.kt:1596`, EventJournalSection's Export/Import/Rebuild
-      button row has no weight or wrap handling and crowds at narrow widths — an action-row concern,
-      outside the five categories, so 6a left it.
-
-      Done-when: every screen has been opened at Compact and Medium on the rendered client and either has a
-      layout for it or a stated reason it does not need one.
 
 **Verification altitude — what is and is not proven for S-UX-2/3/5/6 (2026-09-04).** Every guard in this
 campaign so far is a **source-text check or a state-holder test**. Those are real (each was mutated and went
@@ -224,9 +176,17 @@ red), but they enter BELOW the layer a streamer uses:
 | `index.html` in the SOURCE TREE carries the mobile viewport fixes | That the built bundle a phone downloads carries them |
 | `FieldPair` branches on the size class, and all five call sites use it | That a phone-width viewport actually shows them stacked |
 
-The rendered client has not been driven: the Playwright and Chrome MCP servers both failed to connect this
-session, so no browser was available. That is S-UX-4's job and it stays open. Do not let the green guards
-above read as "it works on a phone" — they prove the code says the right thing, not that the screen does.
+A browser IS available now — the chat overlay was driven successfully via chrome-attached against the API
+running inside the `nomnomzbot-devbox` container (it publishes 5080; the API needs ~174s to reach health
+200). That check immediately found a defect no source-level guard could see: an image paint rendered flat
+because `background-size` was unset. So the table above is not pedantry — it is the exact gap that hides
+this class of bug. S-UX-4 is now unblocked and stays open until the dashboard itself is driven.
+
+S-UX-6 is CLOSED: 6a (`f61d5bc4`, the four worst screens via one shared `Dialog.kt` primitive) and 6b
+(`89564844`, the remaining fifteen — three real fixes in Analytics tables, Admin flag-override actions and
+the Settings journal button row; twelve screens with a stated reason for needing nothing). Its guard was
+hardened after the fact (`18dd67e7`): the assertion matched a bare substring, so a rename keeping the token
+as a suffix slipped through — now word-boundary anchored, with both mutations proven red.
 
 - [ ] **S-UX-4 Prove it got simpler, do not assert it.** Before/after counts per page (sections,
       composables, lines), and every moved control re-verified on the rendered client — a control that
