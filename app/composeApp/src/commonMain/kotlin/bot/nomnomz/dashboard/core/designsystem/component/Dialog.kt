@@ -40,12 +40,22 @@ import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
 import bot.nomnomz.dashboard.core.designsystem.theme.Spacing
 import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
 import bot.nomnomz.dashboard.core.designsystem.theme.Typography
+import bot.nomnomz.dashboard.core.designsystem.theme.windowSize
 
 // 1dp border stroke — not a layout spacing value.
 private val DialogBorderWidth: Dp = 1.dp
 
-// shadcn dialog default max width (sm:max-w-lg ≈ 512dp).
+// shadcn dialog default max width (sm:max-w-lg ≈ 512dp). Applies at Medium/Expanded — the dialog's own window
+// has no size constraint of its own (usePlatformDefaultWidth = false), so without a cap the Column would only
+// ever be as wide as the widest child, up to this ceiling.
 private val DialogMaxWidth: Dp = 512.dp
+
+// At Compact (phone-width) a fixed 512dp cap is still wider than the viewport: nothing bounds the dialog to
+// the screen it is drawn over, so a wide child (a StepFormDialog's fields, a leaderboard config form) pushes
+// the card past the edge instead of wrapping. Sizing to a fraction of the available width instead keeps every
+// dialog readable on a phone without touching a single call site — every AlertDialog/Dialog in the app gets
+// this for free.
+private const val CompactDialogWidthFraction: Float = 0.94f
 
 /**
  * shadcn/ui Dialog ported to Compose (frontend-design-system.md §4, catalogue row).
@@ -66,6 +76,7 @@ fun Dialog(
     val tokens: Tokens = LocalTokens.current
     val spacing: Spacing = LocalSpacing.current
     val shape: RoundedCornerShape = RoundedCornerShape(tokens.radius.lg)
+    val isCompact: Boolean = windowSize.isCompact
 
     WindowDialog(
         onDismissRequest = onDismissRequest,
@@ -80,7 +91,13 @@ fun Dialog(
             Column(
                 modifier =
                     modifier
-                        .widthIn(max = DialogMaxWidth)
+                        .then(
+                            if (isCompact) {
+                                Modifier.fillMaxWidth(CompactDialogWidthFraction)
+                            } else {
+                                Modifier.widthIn(max = DialogMaxWidth)
+                            }
+                        )
                         .border(DialogBorderWidth, tokens.border, shape)
                         .clip(shape)
                         .background(tokens.popover)
