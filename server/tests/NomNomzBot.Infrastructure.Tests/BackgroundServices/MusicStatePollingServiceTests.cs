@@ -16,6 +16,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Infrastructure.BackgroundServices;
@@ -343,13 +344,41 @@ public sealed class MusicStatePollingServiceTests
             );
     }
 
+    /// <summary>
+    /// A connection the vault has flipped to <c>needs_reauth</c> must leave the poll set entirely.
+    /// Eligibility used to read only the legacy <c>Services</c> mirror, which keeps its <c>AccessToken</c>
+    /// after the canonical connection is marked dead — so a channel whose token Spotify had been rejecting
+    /// for days was still polled once per second, forever, producing the 401 flood in the 2026-09-04 logs.
+    /// This is the poller half of the fix; the provider half persists the 401 so the flip happens at all.
+    /// </summary>
+    [Fact]
+    public async Task A_channel_whose_connection_needs_reauth_is_not_polled()
+    {
+        (MusicStatePollingService sut, _, FakeMusicService music, _, _) = Build(
+            [ChannelA, ChannelB],
+            needsReauth: [ChannelB]
+        );
+        music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
+        music.SetResponse(ChannelB, NowPlayingState("Song B", isPlaying: true, progressMs: 1_000));
+
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        music.Calls.Should().Contain(ChannelA, "a healthy connection is still polled");
+        music
+            .Calls.Should()
+            .NotContain(
+                ChannelB,
+                "a connection marked needs_reauth must stop being polled, not be retried every second"
+            );
+    }
+
     private static (
         MusicStatePollingService Sut,
         RecordingEventBus Bus,
         FakeMusicService MusicService,
         FakeTimeProvider Clock,
         RecordingHandover Handover
-    ) Build(IReadOnlyList<Guid> connectedChannels)
+    ) Build(IReadOnlyList<Guid> connectedChannels, IReadOnlyList<Guid>? needsReauth = null)
     {
         MusicTestDbContext db = MusicTestDbContext.New();
         foreach (Guid channelId in connectedChannels)
@@ -362,6 +391,24 @@ public sealed class MusicStatePollingServiceTests
                     BroadcasterId = channelId,
                     Enabled = true,
                     AccessToken = "test-access-token",
+                }
+            );
+            // The legacy Services row alone no longer makes a channel eligible: it keeps its AccessToken
+            // even after the canonical connection is flipped to needs_reauth, which is how dead credentials
+            // stayed in the 1s poll set. Eligibility reads IntegrationConnection.Status, so a "connected"
+            // channel in these tests needs the connection that says so. Verified 1:1 against production:
+            // every Services row has exactly one matching IntegrationConnection.
+            db.IntegrationConnections.Add(
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    BroadcasterId = channelId,
+                    Provider = "spotify",
+                    Status =
+                        needsReauth?.Contains(channelId) == true
+                            ? AuthEnums.IntegrationStatus.NeedsReauth
+                            : AuthEnums.IntegrationStatus.Connected,
+                    ProviderAccountId = $"spotify-{channelId:N}",
                 }
             );
         }
