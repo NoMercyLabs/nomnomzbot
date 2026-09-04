@@ -19,6 +19,35 @@ Slice IDs are stable; the order is the queue.
 
 ---
 
+## OWNER BUG 2026-09-04 (b) — `!sr` answers with the PREVIOUS request's track (TOP PRIORITY)
+
+Owner's chat, 22:01-22:02, with the ids checked against Spotify's own API:
+
+| he typed | bot replied | that id really is |
+|---|---|---|
+| `!sr joliene` | Jolene by Dolly Parton, Måneskin — `3iWSfaHoiphVIBMIwJHzpJ` | Jolene (Måneskin cover) |
+| `!sr 9 to 5` | **Jolene** by Dolly Parton — `2SpEHTbUuebeLkgs9QB7Ue` | Jolene (Dolly, 1974) |
+
+Queried live against Spotify with app credentials: `q=9 to 5&type=track&limit=1` returns **9 to 5**
+(`4w3tQBXhn5345eUXDGBWZG`), and `q=joliene&type=track&limit=1` returns **Jolene**
+(`2SpEHTbUuebeLkgs9QB7Ue`). So the reply to "9 to 5" is EXACTLY the search result for the PREVIOUS
+query — the answers are lagging one request behind, not merely fuzzy-matching badly.
+
+Already eliminated, do not re-derive: `SongRequestBuiltin` passes `context.Args` through untouched and
+composes the confirmation from the `RequestTrackAsync` result it just received (no stale read there);
+`MusicService.ResolveOrSearchAsync` resolves then searches with the caller's own string;
+`SpotifyMusicProvider.SearchAsync` builds a fresh URL per call (`q={EscapeDataString(query)}&type=track`)
+with no cache; there is no search cache in the provider or the service (`INowPlayingCache` is playback
+state only). So the stale value is held BETWEEN those, or the request is being answered from a
+per-requester/pending-request path rather than the new resolve.
+
+- [ ] **S-SR-STALE `!sr` must answer the query it was given.** Find the layer holding the previous
+      result — start at `MusicService.RequestTrackAsync`'s fair-queue/pending-request handling
+      (`FairQueue<T>` + trust scoring) and the `SongRequestQueueStore` singleton, since a "user already
+      has a request" branch returning the existing entry fits the evidence. Done-when: two different
+      queries in a row each return their OWN track, proven against a recorded provider, and a test that
+      fails on the one-behind behaviour.
+
 ## OWNER BUG 2026-09-04 — two chat messages per Twitch event (TOP PRIORITY)
 
 Owner, verbatim: "i have 2 messages per twitch event! prevent this from happeneing next slice".
