@@ -19,7 +19,7 @@ namespace NomNomzBot.Api.Tests.Hubs;
 
 /// <summary>
 /// Proves a song-request queue change reaches the standing <c>sr_queue</c> overlay widget as an
-/// <c>sr_queue</c> widget event carrying the snapshot's { items: [{ title, requestedBy, durationSec }] }
+/// <c>sr_queue</c> widget event carrying the snapshot's { items: [{ title, requestedBy, durationSec, code }] }
 /// shape — and only reaches widgets subscribed to that type — AND reaches the dashboard's channel
 /// group via <c>sr_queue_changed</c> carrying that same snapshot, so a mod acting from the dashboard
 /// (promote/ban/remove) sees the live update too, not just the OBS-facing widget.
@@ -57,7 +57,11 @@ public sealed class SrQueueBroadcastHandlerTests
             new()
             {
                 BroadcasterId = channel,
-                Items = [new("Song A", "viewer1", 210), new("Song B", "viewer2", 185)],
+                Items =
+                [
+                    new("Song A", "viewer1", 210, "K7QM"),
+                    new("Song B", "viewer2", 185, "N4PT"),
+                ],
             }
         );
 
@@ -89,7 +93,8 @@ public sealed class SrQueueBroadcastHandlerTests
             );
     }
 
-    /// <summary>Asserts the payload serializes to the { items: [{ title, requestedBy, durationSec }] } wire shape.</summary>
+    /// <summary>Asserts the payload serializes to the { items: [{ title, requestedBy, durationSec, code }] } wire shape —
+    /// the song's speakable code (S-MUSIC-4) must survive to the wire, not just live on the internal snapshot object.</summary>
     private static bool ItemsMatch(object? data)
     {
         if (data is null)
@@ -103,6 +108,8 @@ public sealed class SrQueueBroadcastHandlerTests
             && items[0].GetProperty("title").GetString() == "Song A"
             && items[0].GetProperty("requestedBy").GetString() == "viewer1"
             && items[0].GetProperty("durationSec").GetInt32() == 210
-            && items[1].GetProperty("title").GetString() == "Song B";
+            && items[0].GetProperty("code").GetString() == "K7QM"
+            && items[1].GetProperty("title").GetString() == "Song B"
+            && items[1].GetProperty("code").GetString() == "N4PT";
     }
 }

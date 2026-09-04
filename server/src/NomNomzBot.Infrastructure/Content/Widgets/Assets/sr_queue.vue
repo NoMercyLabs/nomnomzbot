@@ -22,7 +22,7 @@ const cfg = reactive<SrQueueConfig>({
   accentColor: '#9146ff',
 })
 
-interface QueueItem { title: string; requestedBy: string; durationSec: number }
+interface QueueItem { title: string; requestedBy: string; durationSec: number; code: string }
 
 const items = ref<QueueItem[]>([])
 
@@ -40,6 +40,7 @@ function onQueue(d: any): void {
       title: (it && it.title) || '',
       requestedBy: (it && it.requestedBy) || '',
       durationSec: Number(it && it.durationSec) || 0,
+      code: (it && it.code) || '',
     }))
     .filter((it: QueueItem) => !!it.title)
 }
@@ -67,6 +68,7 @@ onUnmounted(() => {
     <div class="header">Up Next</div>
     <div v-for="(it, i) in items.slice(0, cfg.count)" :key="i" class="row">
       <span class="pos">{{ i + 1 }}</span>
+      <span v-if="it.code" class="code" title="Say this code to name this request, e.g. !wrongsong">{{ it.code }}</span>
       <span class="title">{{ it.title }}</span>
       <span v-if="cfg.showRequester && it.requestedBy" class="req">{{ it.requestedBy }}</span>
       <span v-if="cfg.showDuration && it.durationSec > 0" class="dur">{{ fmtDuration(it.durationSec) }}</span>
@@ -112,6 +114,18 @@ onUnmounted(() => {
   width: 18px;
   font-weight: 700;
   color: var(--accent, #9146ff);
+}
+.code {
+  flex: none;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  color: var(--accent, #9146ff);
+  background: color-mix(in srgb, var(--accent, #9146ff) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent, #9146ff) 45%, transparent);
 }
 .title {
   flex: 1;

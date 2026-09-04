@@ -51,6 +51,49 @@ public sealed class SongRequestActionTests
             );
     }
 
+    /// <summary>
+    /// S-MUSIC-4b: the "Added to queue" confirmation is where a viewer first learns their request's code —
+    /// the only handle <c>!wrongsong CODE</c> accepts. RequestTrackAsync's result carries no code (it's the
+    /// search-result shape), so the action has to read it back off the just-updated queue snapshot; this
+    /// proves that read-back actually lands the real code in the composed chat text, not just a placeholder.
+    /// </summary>
+    [Fact]
+    public async Task The_confirmation_names_the_just_queued_requests_speakable_code()
+    {
+        (SongRequestAction sut, IMusicService music, IChatProvider chat) = Build(
+            Result.Success(
+                new MusicTrack("spotify:track:abc", "Song Q", "Artist", null, null, 0, "spotify")
+            )
+        );
+        music
+            .GetQueueAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(
+                new MusicQueue(
+                    null,
+                    [
+                        new MusicQueueItem(
+                            "Some Other Song",
+                            "Someone Else",
+                            null,
+                            0,
+                            "AnotherViewer",
+                            Code: "N4PT"
+                        ),
+                        new MusicQueueItem("Song Q", "Artist", null, 0, "Bamo", Code: "K7QM"),
+                    ]
+                )
+            );
+
+        await sut.ExecuteAsync(Ctx(), Def("lofi beats"));
+
+        await chat.Received()
+            .SendMessageAsync(
+                ChannelId,
+                Arg.Is<string>(m => m.Contains("K7QM") && !m.Contains("N4PT")),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
     [Fact]
     public async Task Not_found_sends_a_not_found_message_and_fails_the_step()
     {
@@ -168,6 +211,11 @@ public sealed class SongRequestActionTests
                 Arg.Any<CancellationToken>()
             )
             .Returns(requestResult);
+        // Default: an empty queue, so the code-lookup read-back is a no-op for every test that doesn't
+        // care about the code — only "The_confirmation_names_..." below overrides this.
+        music
+            .GetQueueAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(new MusicQueue(null, []));
 
         IChatProvider chat = Substitute.For<IChatProvider>();
         SongRequestAction sut = new(music, chat, NullLogger<SongRequestAction>.Instance);
