@@ -10,6 +10,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Domain.Music.Entities;
+using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Infrastructure.Platform.Persistence;
 
 namespace NomNomzBot.Infrastructure.Music;
@@ -125,6 +126,7 @@ public sealed class SongRequestQueuePersistence : ISongRequestQueuePersistence
                             CreatedAt = now,
                             IsInFlight =
                                 inFlight is not null && ReferenceEquals(inFlight, entry.Item),
+                            Code = entry.Item.Code,
                         }
                 ),
             ];
@@ -166,33 +168,44 @@ public sealed class SongRequestQueuePersistence : ISongRequestQueuePersistence
             List<SongRequestQueueItem> orderedRows = [.. channel.OrderBy(r => r.Sequence)];
             int inFlightIndex = orderedRows.FindIndex(r => r.IsInFlight);
 
+            // Persisted codes are unique per channel by construction (SyncAsync writes exactly one row
+            // per live queue entry, and MusicService.NextSongCode never hands out a code already in the
+            // live queue) — the migration that added this column backfilled every pre-existing row the
+            // same way. taken/reassignment here is a safety net, not the normal path: a row that somehow
+            // still carries no code (or, impossibly, a duplicate) gets a fresh one rather than coming
+            // back unusable to every code-addressed command.
+            HashSet<string> takenCodes = new(StringComparer.Ordinal);
+            List<(string OwnerKey, SongRequestEntry Entry)> orderedEntries = new(orderedRows.Count);
+            foreach (SongRequestQueueItem r in orderedRows)
+            {
+                string code = r.Code;
+                if (string.IsNullOrEmpty(code) || !takenCodes.Add(code))
+                {
+                    code = SongCode.NextAvailable(takenCodes) ?? string.Empty;
+                    if (!string.IsNullOrEmpty(code))
+                        takenCodes.Add(code);
+                }
+
+                orderedEntries.Add(
+                    (
+                        r.OwnerKey,
+                        new SongRequestEntry(
+                            r.TrackUri,
+                            r.TrackName,
+                            r.Artist,
+                            r.ImageUrl,
+                            r.DurationMs,
+                            r.OwnerKey,
+                            r.Cost,
+                            r.RequesterUserId,
+                            code
+                        )
+                    )
+                );
+            }
+
             restored.Add(
-                new(
-                    channel.Key,
-                    [
-                        .. orderedRows.Select(r =>
-                            (
-                                r.OwnerKey,
-                                new SongRequestEntry(
-                                    r.TrackUri,
-                                    r.TrackName,
-                                    r.Artist,
-                                    r.ImageUrl,
-                                    r.DurationMs,
-                                    r.OwnerKey,
-                                    r.Cost,
-                                    r.RequesterUserId,
-                                    // SongRequestQueueItem carries no Code column yet, so a restored entry
-                                    // can never recover the code it had before the restart — explicitly
-                                    // empty (a documented, legal value; see SongRequestEntry.Code), not a
-                                    // silently-defaulted one.
-                                    Code: string.Empty
-                                )
-                            )
-                        ),
-                    ],
-                    inFlightIndex < 0 ? null : inFlightIndex
-                )
+                new(channel.Key, orderedEntries, inFlightIndex < 0 ? null : inFlightIndex)
             );
         }
 
