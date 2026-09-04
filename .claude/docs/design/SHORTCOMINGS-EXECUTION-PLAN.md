@@ -45,12 +45,20 @@ posture, and stacking them makes every one of them harder to find.
       role opens it. The output is a placement decision per section with a reason, not a rearrangement —
       a section moved without a stated job just relocates the confusion. Load the `sleak` skill first;
       its hierarchy rules are the bar, and CLAUDE.md now requires it before any UI work.
-- [ ] **S-UX-2 Per-person things move to Community, behind the person.** Custom shoutout messages and
-      shoutout overrides are keyed to a USER, so they belong in the viewer panel the Community page
-      already opens — beside watch time, message history and the trust/heat badges, where the operator is
-      already looking at that person. The owner also wants a custom RAID message settable and editable
-      there. Done-when: opening a viewer in Community shows their full picture AND lets their shoutout
-      and raid message be set and changed; Moderation no longer carries a per-person editor.
+- [x] **S-UX-2 Per-person things move to Community, behind the person.** DONE. The per-person editor is
+      gone from Moderation (−158 lines: three list items and both composables) and lives in the Community
+      viewer panel (+196 lines), beside watch time, engagement and the viewer's custom data. Because the
+      person is already open there, the operator no longer retypes the Twitch id and display name the old
+      editor demanded. `ShoutoutOverride` gained a `Kind` discriminator so the shoutout line and the raid
+      line are two independent rows for the same person — `ShoutoutAction` reads only `shoutout`, and the
+      write/delete are keyed on (target, kind) so editing one never touches the other. Migrations landed in
+      BOTH sets defaulting existing rows to `shoutout` (the generated default was `""`, which would have
+      orphaned every custom shoutout already written — proven on a populated upgrade, not just an empty db).
+      Moderation keeps the channel-wide DEFAULT template: that is configuration, not a person.
+      Evidence: 31 CommunityControllerTest cases green; 3 mutations (write ignores kind / delete ignores
+      kind / read ignores the person) each proven RED; backend `A_shoutout_reads_the_shoutout_line_and_
+      never_the_same_persons_raid_line` proven RED against a relaxed filter; full backend suite 6,213 green;
+      jvmTest + compileKotlinWasmJs green.
 - [ ] **S-UX-3 Split the remaining page by job.** Enforcement configuration (automod, heat auto-timeout,
       escalation, chat filters, blocked terms, rules) is a settings surface an operator visits rarely and
       reads carefully. Queues (unban requests, reports, automod queue) are worked daily under time
