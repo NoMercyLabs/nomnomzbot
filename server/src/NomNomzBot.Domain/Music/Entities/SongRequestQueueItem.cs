@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using System.ComponentModel.DataAnnotations;
+using NomNomzBot.Domain.Music.ValueObjects;
 
 namespace NomNomzBot.Domain.Music.Entities;
 
@@ -82,4 +83,16 @@ public class SongRequestQueueItem
     /// <see cref="Cost"/> is 0, or the requester could not be resolved to a viewer account (e.g. an
     /// anonymous public song-request page submission).</summary>
     public Guid? RequesterUserId { get; set; }
+
+    /// <summary>
+    /// Mirrors <see cref="NomNomzBot.Infrastructure.Music.SongRequestEntry.Code"/> — the short speakable
+    /// handle (<see cref="SongCode"/>) a viewer names this request by, e.g. <c>!wrongsong K7QM</c>.
+    /// Without this column a restart forgot every issued code: the in-memory queue rebuilt from this
+    /// table came back with empty codes, so every code-addressed command silently stopped matching a
+    /// restored entry. Default empty only for rows written before this column existed; every row written
+    /// from now on carries a real code (backfilled for pre-existing rows by the migration that added
+    /// this column).
+    /// </summary>
+    [MaxLength(SongCode.Length)]
+    public string Code { get; set; } = string.Empty;
 }

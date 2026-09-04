@@ -7608,6 +7608,11 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(4)
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("Cost")
                         .HasColumnType("INTEGER");
 
