@@ -7,16 +7,42 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!--
+      viewport-fit=cover lets the page paint into the notch/home-indicator area; the safe-area padding below
+      keeps content out of it. Zoom is deliberately NOT disabled (no maximum-scale / user-scalable=no) - a
+      dashboard someone cannot pinch-zoom is a dashboard some people cannot read.
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>NomNomzBot</title>
     <style>
         html, body {
             margin: 0;
             padding: 0;
             width: 100%;
-            height: 100%;
+            /*
+              100dvh, not 100%: on a mobile browser the visible viewport shrinks and grows as the URL bar
+              collapses, and a percentage height resolves against the LARGER one - so the bottom of the app
+              sits behind the browser chrome and its controls cannot be tapped. dvh tracks the viewport that
+              is actually visible. The vh line before it is the fallback for anything without dvh support.
+            */
+            height: 100vh;
+            height: 100dvh;
             overflow: hidden;
             background: #0a0a0a;
+            /* Keep content clear of the notch and the home indicator (paired with viewport-fit=cover). */
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+            box-sizing: border-box;
+            /*
+              The app owns its own scrolling. Without this a vertical drag inside a list also drags the page
+              itself on iOS, so a list rubber-bands the whole dashboard instead of scrolling.
+            */
+            overscroll-behavior: none;
+            -webkit-text-size-adjust: 100%;
+        }
+
+        canvas {
+            /* Let Compose see multi-touch and drags rather than the browser claiming them for panning/zoom. */
+            touch-action: none;
         }
 
         /*

@@ -10,6 +10,7 @@
 
 package bot.nomnomz.dashboard.feature.moderation.ui
 
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -71,6 +72,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.PickerRef
 import bot.nomnomz.dashboard.core.designsystem.component.SearchPickerField
 import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.component.Switch
+import bot.nomnomz.dashboard.core.designsystem.theme.windowSize
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -3102,11 +3104,16 @@ private fun BlockedTermRow(term: String, manage: ManageDecision, onRemove: () ->
 private fun ModerationStatsBanner(stats: ModerationStats) {
     val spacing = LocalSpacing.current
 
-    Row(
+    // Four number-over-label chips. On a narrow pane a fixed Row squeezes them until the labels truncate to
+    // nonsense ("Deleted messa..."), so they WRAP instead; at Expanded there is room to spread them across
+    // the banner, which reads as a summary strip rather than a huddle in the corner.
+    FlowRow(
         modifier = Modifier
             .fillMaxWidth()
             .padding(spacing.s3),
-        horizontalArrangement = Arrangement.spacedBy(spacing.s4),
+        horizontalArrangement =
+            if (windowSize.isExpanded) Arrangement.SpaceBetween else Arrangement.spacedBy(spacing.s4),
+        verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
         StatChip(label = stringResource(Res.string.moderation_stats_bans_today), value = stats.bansToday)
         StatChip(label = stringResource(Res.string.moderation_stats_timeouts), value = stats.timeouts)

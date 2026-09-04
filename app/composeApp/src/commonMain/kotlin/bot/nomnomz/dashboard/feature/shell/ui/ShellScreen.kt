@@ -42,6 +42,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import bot.nomnomz.dashboard.core.designsystem.theme.WindowSizeClass
+import bot.nomnomz.dashboard.core.designsystem.theme.LocalWindowSizeClass
 import bot.nomnomz.dashboard.core.designsystem.theme.Breakpoints
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenu
 import bot.nomnomz.dashboard.core.designsystem.component.DropdownMenuItem
@@ -50,6 +52,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.Sheet
 import bot.nomnomz.dashboard.core.designsystem.component.SheetSide
 import bot.nomnomz.dashboard.core.designsystem.icon.ChevronDownGlyph
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.key
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
@@ -404,7 +407,10 @@ fun ShellScreen(
         graph.dashboardHubClient.connectionState.collectAsStateWithLifecycle()
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize().background(tokens.background)) {
-        val compact: Boolean = maxWidth < Breakpoints.Compact
+        // Narrow OR short: a landscape phone is wide enough for the sidebar and far too short for it
+        // (844 x 390), so height has to be part of the question or handsets get the monitor layout.
+        val compact: Boolean =
+            maxWidth < Breakpoints.Compact || maxHeight < Breakpoints.CompactHeight
 
         if (compact) {
             // Mobile: the sidebar is a modal Sheet behind a hamburger; picking a page closes it.
@@ -544,7 +550,12 @@ private fun ShellContent(
 ) {
     val activeChannelId: String? by graph.channelSwitcherController.activeChannelId.collectAsStateWithLifecycle()
     key(activeChannelId) {
-    Box(modifier = modifier) {
+    // Every screen's layout branch reads LocalWindowSizeClass, and it is measured HERE — on the content
+    // pane, after the sidebar has taken its fixed width. Measuring the window instead would tell a screen
+    // it has 900 dp when the sidebar leaves it 660, and it would lay out for room it does not have.
+    BoxWithConstraints(modifier = modifier) {
+        CompositionLocalProvider(LocalWindowSizeClass provides WindowSizeClass.of(maxWidth)) {
+        Box(modifier = Modifier.fillMaxSize()) {
         when (selected) {
             ShellRoute.Dashboard -> HomeScreen(
                 controller = graph.homeController,
@@ -726,6 +737,8 @@ private fun ShellContent(
             ShellRoute.MyData -> MyDataScreen(controller = graph.myDataController)
             ShellRoute.Admin -> AdminScreen(controller = graph.adminController)
         }
+        }
+        } // CompositionLocalProvider(LocalWindowSizeClass)
     }
     } // key(activeChannelId)
 }
