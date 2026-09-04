@@ -56,7 +56,15 @@ public sealed class AdminListsSortFilterTests
             Substitute.For<IPlatformBotReadinessGate>()
         );
 
-        return (new(adminService, db, Substitute.For<IDekRotationService>(), Substitute.For<IProviderCredentialService>()), db);
+        return (
+            new(
+                adminService,
+                db,
+                Substitute.For<IDekRotationService>(),
+                Substitute.For<IProviderCredentialService>()
+            ),
+            db
+        );
     }
 
     private static void SeedChannel(

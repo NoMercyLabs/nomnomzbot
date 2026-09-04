@@ -105,7 +105,9 @@ public sealed class ProviderCredentialServiceTests
         result
             .Value.Select(r => r.Provider)
             .Should()
-            .OnlyHaveUniqueItems("a duplicated provider row would let one edit silently overwrite another");
+            .OnlyHaveUniqueItems(
+                "a duplicated provider row would let one edit silently overwrite another"
+            );
     }
 
     [Fact]
@@ -124,11 +126,7 @@ public sealed class ProviderCredentialServiceTests
     public async Task An_environment_credential_is_reported_as_coming_from_the_environment()
     {
         (ProviderCredentialService service, _) = Build(
-            new()
-            {
-                ["Twitch:ClientId"] = "env-client-id",
-                ["Twitch:ClientSecret"] = "env-secret",
-            }
+            new() { ["Twitch:ClientId"] = "env-client-id", ["Twitch:ClientSecret"] = "env-secret" }
         );
 
         ProviderCredentialDto twitch = Row((await service.ListAsync()).Value, "twitch");
@@ -144,11 +142,7 @@ public sealed class ProviderCredentialServiceTests
         // The failure that motivated the surface: the operator fixes a rotated secret in .env, keeps getting
         // 401s, and cannot see the stale stored value that is actually being sent.
         (ProviderCredentialService service, _) = Build(
-            new()
-            {
-                ["Twitch:ClientId"] = "env-client-id",
-                ["Twitch:ClientSecret"] = "env-secret",
-            }
+            new() { ["Twitch:ClientId"] = "env-client-id", ["Twitch:ClientSecret"] = "env-secret" }
         );
 
         await service.SaveAsync("twitch", new("stored-client-id", "stored-secret"));
@@ -185,7 +179,9 @@ public sealed class ProviderCredentialServiceTests
 
         await service.SaveAsync("twitch", new(null, "stored-secret"));
 
-        Domain.Platform.Entities.Configuration row = db.Configurations.Single(c => c.Key == "twitch.client_secret");
+        Domain.Platform.Entities.Configuration row = db.Configurations.Single(c =>
+            c.Key == "twitch.client_secret"
+        );
         row.Value.Should().BeNull("a sealed secret must never sit beside a plaintext copy");
         row.SecureValue.Should().NotBeNullOrEmpty();
 
@@ -240,7 +236,9 @@ public sealed class ProviderCredentialServiceTests
 
         await service.SaveAsync("twitch", new(null, "twitch-secret"));
 
-        Domain.Platform.Entities.Configuration row = db.Configurations.Single(c => c.Key == "twitch.client_secret");
+        Domain.Platform.Entities.Configuration row = db.Configurations.Single(c =>
+            c.Key == "twitch.client_secret"
+        );
         string? asSpotify = await new ReversibleProtector().TryUnprotectAsync(
             row.SecureValue!,
             SystemCredentialsProvider.ContextFor("spotify.client_secret")
@@ -289,11 +287,7 @@ public sealed class ProviderCredentialServiceTests
     public async Task Clearing_hands_resolution_back_to_the_environment()
     {
         (ProviderCredentialService service, SeedTestDbContext db) = Build(
-            new()
-            {
-                ["Twitch:ClientId"] = "env-client-id",
-                ["Twitch:ClientSecret"] = "env-secret",
-            }
+            new() { ["Twitch:ClientId"] = "env-client-id", ["Twitch:ClientSecret"] = "env-secret" }
         );
         await service.SaveAsync("twitch", new("stored-client-id", "stored-secret"));
 

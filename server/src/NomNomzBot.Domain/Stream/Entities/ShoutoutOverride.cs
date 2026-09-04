@@ -14,12 +14,16 @@ using NomNomzBot.Domain.Platform;
 namespace NomNomzBot.Domain.Stream.Entities;
 
 /// <summary>
-/// One broadcaster's own custom shoutout line for a SPECIFIC target — old-bot parity (the legacy bot's
-/// <c>Shoutout</c> row, keyed by (channel, shouted user)): a personal note the broadcaster writes for
-/// someone they shout out, independent of whether that target has ever connected to NomNomzBot or set
-/// their own <see cref="Identity.Entities.Channel.ShoutoutTemplate"/>. Takes priority over the target's own
-/// template (ShoutoutAction's lookup order), since it is the broadcaster's own deliberate choice about how
-/// THEY specifically want to introduce this person — never editable by anyone but this broadcaster.
+/// One broadcaster's own custom line for a SPECIFIC person — old-bot parity (the legacy bot's
+/// <c>Shoutout</c> row, keyed by (channel, target)): a personal note the broadcaster writes for someone,
+/// independent of whether that target has ever connected to NomNomzBot or set their own
+/// <see cref="Identity.Entities.Channel.ShoutoutTemplate"/>. Takes priority over the target's own template
+/// (ShoutoutAction's lookup order), since it is the broadcaster's own deliberate choice about how THEY
+/// specifically want to introduce this person — never editable by anyone but this broadcaster.
+///
+/// <para><see cref="Kind"/> says WHICH line: the shoutout, or the message used when raiding them. They are
+/// the same fact about the same person — "here is what I say about you" — so they share one row shape and
+/// one editor rather than growing a second parallel table that would inevitably drift.</para>
 /// </summary>
 public class ShoutoutOverride : SoftDeletableEntity, ITenantScoped
 {
@@ -37,4 +41,25 @@ public class ShoutoutOverride : SoftDeletableEntity, ITenantScoped
 
     [MaxLength(1000)]
     public string MessageTemplate { get; set; } = null!;
+
+    /// <summary>
+    /// Which line this is: <see cref="ShoutoutOverrideKinds.Shoutout"/> (the default, and what every row
+    /// written before this column existed is) or <see cref="ShoutoutOverrideKinds.Raid"/>.
+    /// </summary>
+    [MaxLength(20)]
+    public string Kind { get; set; } = ShoutoutOverrideKinds.Shoutout;
+}
+
+/// <summary>The closed set of per-person message kinds. A row's kind is one of exactly these.</summary>
+public static class ShoutoutOverrideKinds
+{
+    /// <summary>The line posted when this person is shouted out.</summary>
+    public const string Shoutout = "shoutout";
+
+    /// <summary>The line posted when this channel raids this person.</summary>
+    public const string Raid = "raid";
+
+    public static bool IsKnown(string? kind) => kind is Shoutout or Raid;
+
+    public static IReadOnlyList<string> All { get; } = [Shoutout, Raid];
 }

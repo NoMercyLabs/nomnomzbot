@@ -1531,16 +1531,23 @@ public class ModerationController : BaseController
         return NoContent();
     }
 
+    /// <param name="Kind">
+    /// Which line this is — <c>shoutout</c> or <c>raid</c>. Rows written before the kind existed read as
+    /// <c>shoutout</c>, which is what they were.
+    /// </param>
     public record ShoutoutOverrideDto(
         string TargetTwitchUserId,
         string TargetDisplayName,
-        string MessageTemplate
+        string MessageTemplate,
+        string Kind
     );
 
+    /// <param name="Kind">Defaults to <c>shoutout</c> so an existing caller keeps its meaning.</param>
     public record UpsertShoutoutOverrideRequest(
         string TargetTwitchUserId,
         string TargetDisplayName,
-        string MessageTemplate
+        string MessageTemplate,
+        string Kind = ShoutoutOverrideKinds.Shoutout
     );
 
     /// <summary>
@@ -1562,7 +1569,8 @@ public class ModerationController : BaseController
             .Select(o => new ShoutoutOverrideDto(
                 o.TargetTwitchUserId,
                 o.TargetDisplayName,
-                o.MessageTemplate
+                o.MessageTemplate,
+                o.Kind
             ))
             .ToListAsync(ct);
 
@@ -1585,6 +1593,11 @@ public class ModerationController : BaseController
             return BadRequestResponse("A target Twitch user id is required.");
         if (string.IsNullOrWhiteSpace(request.MessageTemplate))
             return BadRequestResponse("A non-empty message template is required.");
+        if (!ShoutoutOverrideKinds.IsKnown(request.Kind))
+            return BadRequestResponse(
+                $"'{request.Kind}' is not a message kind. Use one of: "
+                    + $"{string.Join(", ", ShoutoutOverrideKinds.All)}."
+            );
 
         Result helperValidation = _templateHelperValidator.Validate(
             request.MessageTemplate,
@@ -1593,10 +1606,13 @@ public class ModerationController : BaseController
         if (helperValidation.IsFailure)
             return ResultResponse(helperValidation);
 
+        // Keyed on (target, KIND): a person's shoutout line and the line used when raiding them are two
+        // separate rows, so saving one can never overwrite the other.
         ShoutoutOverride? existing = await _db.ShoutoutOverrides.FirstOrDefaultAsync(
             o =>
                 o.BroadcasterId == broadcasterId
-                && o.TargetTwitchUserId == request.TargetTwitchUserId,
+                && o.TargetTwitchUserId == request.TargetTwitchUserId
+                && o.Kind == request.Kind,
             ct
         );
         if (existing is null)
@@ -1607,6 +1623,7 @@ public class ModerationController : BaseController
                     TargetTwitchUserId = request.TargetTwitchUserId,
                     TargetDisplayName = request.TargetDisplayName,
                     MessageTemplate = request.MessageTemplate.Trim(),
+                    Kind = request.Kind,
                 }
             );
         else
@@ -1630,18 +1647,28 @@ public class ModerationController : BaseController
     public async Task<IActionResult> DeleteShoutoutOverride(
         string channelId,
         string targetTwitchUserId,
-        CancellationToken ct
+        CancellationToken ct,
+        [FromQuery] string kind = ShoutoutOverrideKinds.Shoutout
     )
     {
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
+        if (!ShoutoutOverrideKinds.IsKnown(kind))
+            return BadRequestResponse(
+                $"'{kind}' is not a message kind. Use one of: "
+                    + $"{string.Join(", ", ShoutoutOverrideKinds.All)}."
+            );
 
+        // Kind-scoped, like the write: clearing someone's raid line must leave their shoutout alone.
         ShoutoutOverride? existing = await _db.ShoutoutOverrides.FirstOrDefaultAsync(
-            o => o.BroadcasterId == broadcasterId && o.TargetTwitchUserId == targetTwitchUserId,
+            o =>
+                o.BroadcasterId == broadcasterId
+                && o.TargetTwitchUserId == targetTwitchUserId
+                && o.Kind == kind,
             ct
         );
         if (existing is null)
-            return NotFoundResponse("No shoutout override found for this target.");
+            return NotFoundResponse($"No {kind} override found for this target.");
 
         _db.ShoutoutOverrides.Remove(existing);
         await _db.SaveChangesAsync(ct);
