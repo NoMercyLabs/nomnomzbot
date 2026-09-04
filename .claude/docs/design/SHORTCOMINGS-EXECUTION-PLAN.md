@@ -98,9 +98,11 @@ obvious answer, so they get decided FIRST, in the spec, with the reasoning writt
    or a live reference tenants point at? This decides whether an owner edit is a migration, a fan-out job, or
    nothing at all. Pick one and say why the other two lose.
 
-- [ ] **S-ADMIN-1 Spec first.** Write `.claude/docs/design/spec/platform-admin.md`: the two decisions above,
-      the §5 REST table (routes + Gate-2 action keys, `<plane>/<Role>·action:key` cells), the entity shapes,
-      and the audit contract. Nothing here is built until this is settled and re-indexed (`aitm index-docs`).
+Spec settled in `spec/platform-admin.md` (`93289b10`): propagation = per-publish mode with a counted
+blast-radius preview; platform content is a TEMPLATE tenants instantiate. S-ADMIN-2 splits by content
+kind on that spine: **2a** spine + system commands (backend), **2b** the admin dashboard surface for
+them, **2c** first-party widgets, **2d** system pipelines, **2e** code scripts.
+
 - [ ] **S-ADMIN-2 Platform content authoring — the owner's explicit ask.** Author and edit, at platform
       level, with versioning and a stated propagation outcome per publish: **system commands** (the
       `DefaultCommandsSeeder` set), **first-party widgets** (the `FirstPartyWidgetCatalogueSeeder` gallery,
