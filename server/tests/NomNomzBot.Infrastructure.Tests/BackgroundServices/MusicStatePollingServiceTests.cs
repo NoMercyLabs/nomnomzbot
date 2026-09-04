@@ -341,6 +341,7 @@ public sealed class MusicStatePollingServiceTests
             scopes,
             bus,
             clock,
+            new MusicRealtimeSignal(),
             NullLogger<MusicStatePollingService>.Instance
         );
 

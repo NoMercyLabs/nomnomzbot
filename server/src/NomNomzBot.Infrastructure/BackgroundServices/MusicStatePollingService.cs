@@ -14,6 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.Interfaces;
@@ -79,6 +80,7 @@ public sealed class MusicStatePollingService : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IEventBus _eventBus;
     private readonly TimeProvider _timeProvider;
+    private readonly IMusicRealtimeSignal _realtime;
     private readonly ILogger<MusicStatePollingService> _logger;
 
     private readonly ConcurrentDictionary<Guid, ChannelPlaybackSnapshot> _lastState = new();
@@ -88,12 +90,14 @@ public sealed class MusicStatePollingService : BackgroundService
         IServiceScopeFactory scopeFactory,
         IEventBus eventBus,
         TimeProvider timeProvider,
+        IMusicRealtimeSignal realtime,
         ILogger<MusicStatePollingService> logger
     )
     {
         _scopeFactory = scopeFactory;
         _eventBus = eventBus;
         _timeProvider = timeProvider;
+        _realtime = realtime;
         _logger = logger;
     }
 
@@ -105,7 +109,11 @@ public sealed class MusicStatePollingService : BackgroundService
         );
 
         using PeriodicTimer timer = new(PollInterval, _timeProvider);
-        do
+        // Only ONE outstanding WaitForNextTickAsync is allowed at a time, so the pending tick is held across
+        // iterations: when a realtime nudge wins the race the tick stays armed rather than being re-requested.
+        Task<bool> tick = timer.WaitForNextTickAsync(stoppingToken).AsTask();
+
+        while (true)
         {
             try
             {
@@ -122,7 +130,30 @@ public sealed class MusicStatePollingService : BackgroundService
             {
                 _logger.LogError(ex, "MusicStatePollingService: tick failed");
             }
-        } while (await timer.WaitForNextTickAsync(stoppingToken));
+
+            // Whichever comes first: the 1s floor, or a provider's realtime transport saying playback just
+            // changed. The nudge is what closes the gap the owner sees on the overlay — a track change used
+            // to wait out a full poll interval plus the widget's own interpolation before it showed.
+            Task nudge = _realtime.WaitForNudgeAsync(stoppingToken);
+            Task winner;
+            try
+            {
+                winner = await Task.WhenAny(tick, nudge);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            if (winner != tick)
+                continue; // Nudged: poll now, and leave the timer armed for its own tick.
+
+            // The timer returns false only when it is disposed or the token fired — either way, stop.
+            if (!await tick)
+                return;
+
+            tick = timer.WaitForNextTickAsync(stoppingToken).AsTask();
+        }
     }
 
     /// <summary>
