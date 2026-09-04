@@ -279,6 +279,6 @@ public sealed class SongRequestQueuePersistenceTests
     ) =>
         queue.Enqueue(
             ownerKey,
-            new(trackUri, $"Track {trackUri}", "Artist", null, 200000, ownerKey)
+            new(trackUri, $"Track {trackUri}", "Artist", null, 200000, ownerKey, 0, null, "")
         );
 }

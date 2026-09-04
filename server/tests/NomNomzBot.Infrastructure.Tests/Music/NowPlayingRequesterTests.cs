@@ -30,7 +30,7 @@ public sealed class NowPlayingRequesterTests
     private const string Channel = "0192a000-0000-7000-8000-0000000ac901";
 
     private static SongRequestEntry Entry(string uri, string requestedBy) =>
-        new(uri, "Track", "Artist", null, 100_000, requestedBy);
+        new(uri, "Track", "Artist", null, 100_000, requestedBy, 0, null, "");
 
     private static ISongRequestQueueStore StoreWithInFlight(SongRequestEntry? entry)
     {

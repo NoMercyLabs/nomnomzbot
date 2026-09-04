@@ -48,6 +48,7 @@ internal sealed class SpotifyDealerConnection
     private readonly Func<CancellationToken, Task<string?>> _resolveAccessTokenAsync;
     private readonly IEventBus _eventBus;
     private readonly IMusicRealtimeSignal _realtime;
+    private readonly ISongRequestQueueStore _queueStore;
     private readonly TimeProvider _clock;
     private readonly ILogger _logger;
 
@@ -67,6 +68,7 @@ internal sealed class SpotifyDealerConnection
         Func<CancellationToken, Task<string?>> resolveAccessTokenAsync,
         IEventBus eventBus,
         IMusicRealtimeSignal realtime,
+        ISongRequestQueueStore queueStore,
         TimeProvider clock,
         ILogger logger
     )
@@ -77,6 +79,7 @@ internal sealed class SpotifyDealerConnection
         _resolveAccessTokenAsync = resolveAccessTokenAsync;
         _eventBus = eventBus;
         _realtime = realtime;
+        _queueStore = queueStore;
         _clock = clock;
         _logger = logger;
     }
@@ -215,6 +218,14 @@ internal sealed class SpotifyDealerConnection
                 Provider = "spotify",
                 TrackUri = state.TrackUri,
                 ArtistId = state.ArtistId,
+                // Same resolution MusicService's poll/mutation-publish legs use (RequesterOfPlayingTrack) —
+                // matches the in-flight fair-queue entry's track uri against what the dealer just reported
+                // playing, so the overlay never attributes a track to whoever last requested SOMETHING.
+                RequestedBy = MusicService.RequesterOfPlayingTrack(
+                    _queueStore,
+                    _broadcasterId.ToString(),
+                    state.TrackUri
+                ),
                 ShuffleEnabled = state.ShuffleEnabled,
                 RepeatMode = state.RepeatMode,
                 VolumePercent = state.VolumePercent,

@@ -602,6 +602,9 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             trackInfo.AlbumArtUrl,
             trackInfo.DurationMs,
             requestedBy ?? "anonymous",
+            // No admission path charges for a song request yet (S067b) — every live request is free.
+            Cost: 0,
+            RequesterUserId: null,
             Code: NextSongCode(broadcasterId)
         );
 

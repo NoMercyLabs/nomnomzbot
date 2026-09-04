@@ -145,6 +145,10 @@ public sealed class SongRequestQueueStore : ISongRequestQueueStore
 /// mirror <c>SongRequestQueueItem.Cost</c>/<c>RequesterUserId</c> (S067b) — carried through the in-memory
 /// fair queue so a removal/ban can refund a paid request without a database round-trip. No admission path
 /// sets them today (nothing charges for a song request yet), so they default to "free".</summary>
+// Code has no default: it used to (`= ""`) and that let SongRequestQueuePersistence's restore path
+// silently construct a code-less entry — an easy positional-arg miss to make again. Every construction
+// site must now decide the code explicitly (empty is still a legal, documented value — see below — it
+// just can never be an accident).
 public sealed record SongRequestEntry(
     string TrackUri,
     string TrackName,
@@ -152,11 +156,12 @@ public sealed record SongRequestEntry(
     string? ImageUrl,
     int DurationMs,
     string RequestedBy,
-    int Cost = 0,
-    Guid? RequesterUserId = null,
+    int Cost,
+    Guid? RequesterUserId,
     // The short speakable handle a viewer uses to name THIS request (Domain SongCode) — e.g.
     // "!wrongsong K7QM". Empty for an entry created before codes existed, or restored from a persisted
-    // queue that predates them; every command that takes a code treats empty as "no match", never as a
-    // wildcard, so an old entry can't be retracted by someone typing a blank code.
-    string Code = ""
+    // queue that predates them (the persistence table carries no Code column yet); every command that
+    // takes a code treats empty as "no match", never as a wildcard, so an old entry can't be retracted
+    // by someone typing a blank code.
+    string Code
 );

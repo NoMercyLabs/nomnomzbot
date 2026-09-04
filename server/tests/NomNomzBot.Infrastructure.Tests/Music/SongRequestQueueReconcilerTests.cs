@@ -38,11 +38,11 @@ public sealed class SongRequestQueueReconcilerTests
         FairQueue<SongRequestEntry> queue = store.GetOrCreate(ChannelId.ToString());
         queue.Enqueue(
             "viewer-a",
-            new("spotify:track:a", "Track a", "Artist", null, 200000, "viewer-a", Code: "K7QM")
+            new("spotify:track:a", "Track a", "Artist", null, 200000, "viewer-a", 0, null, "K7QM")
         );
         queue.Enqueue(
             "viewer-b",
-            new("spotify:track:b", "Track b", "Artist", null, 200000, "viewer-b", Code: "P9WT")
+            new("spotify:track:b", "Track b", "Artist", null, 200000, "viewer-b", 0, null, "P9WT")
         );
         store.SetInFlight(
             ChannelId.ToString(),
@@ -166,7 +166,7 @@ public sealed class SongRequestQueueReconcilerTests
         // persisted queue carries two copies of it.
         queue.Enqueue(
             "viewer-late",
-            new("spotify:track:a", "Track a", "Artist", null, 200000, "viewer-late")
+            new("spotify:track:a", "Track a", "Artist", null, 200000, "viewer-late", 0, null, "")
         );
         // In-flight is the FIRST copy — the one actually handed to the provider.
         store.SetInFlight(
@@ -238,7 +238,17 @@ public sealed class SongRequestQueueReconcilerTests
         foreach (string id in trackIds)
             queue.Enqueue(
                 $"viewer-{id}",
-                new($"spotify:track:{id}", $"Track {id}", "Artist", null, 200000, $"viewer-{id}")
+                new(
+                    $"spotify:track:{id}",
+                    $"Track {id}",
+                    "Artist",
+                    null,
+                    200000,
+                    $"viewer-{id}",
+                    0,
+                    null,
+                    ""
+                )
             );
 
         RecordingEventBus bus = new();

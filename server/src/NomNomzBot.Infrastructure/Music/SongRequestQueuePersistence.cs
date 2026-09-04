@@ -179,7 +179,14 @@ public sealed class SongRequestQueuePersistence : ISongRequestQueuePersistence
                                     r.Artist,
                                     r.ImageUrl,
                                     r.DurationMs,
-                                    r.OwnerKey
+                                    r.OwnerKey,
+                                    r.Cost,
+                                    r.RequesterUserId,
+                                    // SongRequestQueueItem carries no Code column yet, so a restored entry
+                                    // can never recover the code it had before the restart — explicitly
+                                    // empty (a documented, legal value; see SongRequestEntry.Code), not a
+                                    // silently-defaulted one.
+                                    Code: string.Empty
                                 )
                             )
                         ),

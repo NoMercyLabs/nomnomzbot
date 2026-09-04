@@ -44,6 +44,7 @@ public sealed class SpotifyDealerHostedService : BackgroundService
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IEventBus _eventBus;
     private readonly IMusicRealtimeSignal _realtime;
+    private readonly ISongRequestQueueStore _queueStore;
     private readonly TimeProvider _clock;
     private readonly ILogger<SpotifyDealerHostedService> _logger;
 
@@ -55,6 +56,7 @@ public sealed class SpotifyDealerHostedService : BackgroundService
         IHttpClientFactory httpClientFactory,
         IEventBus eventBus,
         IMusicRealtimeSignal realtime,
+        ISongRequestQueueStore queueStore,
         TimeProvider clock,
         ILogger<SpotifyDealerHostedService> logger
     )
@@ -64,6 +66,7 @@ public sealed class SpotifyDealerHostedService : BackgroundService
         _httpClientFactory = httpClientFactory;
         _eventBus = eventBus;
         _realtime = realtime;
+        _queueStore = queueStore;
         _clock = clock;
         _logger = logger;
     }
@@ -168,6 +171,7 @@ public sealed class SpotifyDealerHostedService : BackgroundService
             ct => ResolveAccessTokenAsync(channelId, ct),
             _eventBus,
             _realtime,
+            _queueStore,
             _clock,
             _logger
         );
