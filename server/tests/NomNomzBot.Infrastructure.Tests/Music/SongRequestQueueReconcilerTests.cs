@@ -25,6 +25,45 @@ public sealed class SongRequestQueueReconcilerTests
 {
     private static readonly Guid ChannelId = Guid.Parse("0192a000-0000-7000-8000-000000007901");
 
+    /// <summary>
+    /// S-MUSIC-4c: the reconciler's own snapshot publish used to construct <see cref="SongRequestQueueSnapshotItem"/>
+    /// with only 3 positional args, so <c>Code</c> silently defaulted to "" and the <c>sr_queue</c> overlay never
+    /// saw a real code for a request that fell out of the queue via the reconciler path (as opposed to
+    /// <see cref="MusicService"/>'s own add/remove publish, which had the same bug at its own call site).
+    /// </summary>
+    [Fact]
+    public async Task Queue_changed_snapshot_carries_each_remaining_entrys_real_code()
+    {
+        SongRequestQueueStore store = new();
+        FairQueue<SongRequestEntry> queue = store.GetOrCreate(ChannelId.ToString());
+        queue.Enqueue(
+            "viewer-a",
+            new("spotify:track:a", "Track a", "Artist", null, 200000, "viewer-a", Code: "K7QM")
+        );
+        queue.Enqueue(
+            "viewer-b",
+            new("spotify:track:b", "Track b", "Artist", null, 200000, "viewer-b", Code: "P9WT")
+        );
+        store.SetInFlight(
+            ChannelId.ToString(),
+            queue.GetSnapshot().Single(e => e.Item.TrackUri == "spotify:track:a").Item
+        );
+        RecordingEventBus bus = new();
+        SongRequestQueueReconciler sut = new(
+            store,
+            new RecordingHandover(),
+            new NoOpSongRequestQueuePersistence(),
+            bus
+        );
+
+        await sut.HandleAsync(PlaybackOf("spotify:track:a"));
+
+        bus.Published.OfType<SongRequestQueueChangedEvent>()
+            .Single()
+            .Items.Should()
+            .ContainSingle(i => i.Title == "Track b" && i.Code == "P9WT");
+    }
+
     [Fact]
     public async Task The_handed_over_track_starting_frees_the_provider_and_hands_over_the_next()
     {

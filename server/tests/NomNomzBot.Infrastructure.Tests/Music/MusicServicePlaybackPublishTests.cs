@@ -57,6 +57,68 @@ public sealed class MusicServicePlaybackPublishTests
         published.ProgressMs.Should().Be(1000);
         published.Provider.Should().Be("spotify");
         published.ObservedAt.Should().NotBe(default);
+        // Nothing in our fair queue claims this track — the streamer started it themselves, so the
+        // overlay must get NO requester, never an empty string (S-MUSIC-5b).
+        published.RequestedBy.Should().BeNull();
+    }
+
+    /// <summary>
+    /// S-MUSIC-5b: the owner's ask was "the current playing song should say who redeemed it if it was
+    /// redeemed by !sr" — <c>SongCurrentAction</c> already names the requester in the !song chat reply via
+    /// <c>MusicService.RequesterOfPlayingTrack</c>; this proves the SAME fact reaches the standing
+    /// now-playing overlay's own event, not just the pull-based chat command.
+    /// </summary>
+    [Fact]
+    public async Task PlayAsync_publishes_the_requester_when_the_playing_track_was_requested()
+    {
+        SongRequestQueueStore queueStore = new();
+        queueStore.SetInFlight(
+            ChannelId.ToString(),
+            new("spotify:track:x", "Song A", "Artist", null, 200000, "viewer1")
+        );
+        (MusicService sut, RecordingEventBus bus, _) = Build(
+            TrackJson("Song A", isPlaying: true),
+            new NowPlayingCache(),
+            queueStore
+        );
+
+        Result ok = await sut.PlayAsync(ChannelId.ToString());
+
+        ok.IsSuccess.Should().BeTrue();
+        bus.Published.OfType<PlaybackStateChangedEvent>()
+            .Single()
+            .RequestedBy.Should()
+            .Be("viewer1");
+    }
+
+    /// <summary>The negative half: a queue entry exists but for a DIFFERENT track (the fair queue's
+    /// in-flight has already moved on, or nothing matches) — the overlay must get no requester, not the
+    /// stale one.</summary>
+    [Fact]
+    public async Task PlayAsync_publishes_no_requester_when_the_in_flight_entry_is_a_different_track()
+    {
+        SongRequestQueueStore queueStore = new();
+        queueStore.SetInFlight(
+            ChannelId.ToString(),
+            new(
+                "spotify:track:some-other-track",
+                "Some Other Track",
+                "Artist",
+                null,
+                200000,
+                "viewer1"
+            )
+        );
+        (MusicService sut, RecordingEventBus bus, _) = Build(
+            TrackJson("Song A", isPlaying: true),
+            new NowPlayingCache(),
+            queueStore
+        );
+
+        Result ok = await sut.PlayAsync(ChannelId.ToString());
+
+        ok.IsSuccess.Should().BeTrue();
+        bus.Published.OfType<PlaybackStateChangedEvent>().Single().RequestedBy.Should().BeNull();
     }
 
     [Fact]
@@ -238,6 +300,12 @@ public sealed class MusicServicePlaybackPublishTests
     private static (MusicService Sut, RecordingEventBus Bus, FakeSpotifyHttpHandler Handler) Build(
         string? currentTrackJson,
         INowPlayingCache nowPlayingCache
+    ) => Build(currentTrackJson, nowPlayingCache, new SongRequestQueueStore());
+
+    private static (MusicService Sut, RecordingEventBus Bus, FakeSpotifyHttpHandler Handler) Build(
+        string? currentTrackJson,
+        INowPlayingCache nowPlayingCache,
+        SongRequestQueueStore queueStore
     )
     {
         MusicTestDbContext db = MusicTestDbContext.New();
@@ -276,7 +344,7 @@ public sealed class MusicServicePlaybackPublishTests
             db,
             bus,
             new BlockedTrackService(db),
-            new SongRequestQueueStore(),
+            queueStore,
             new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
             new InMemoryIntegrationCapabilityStore(),

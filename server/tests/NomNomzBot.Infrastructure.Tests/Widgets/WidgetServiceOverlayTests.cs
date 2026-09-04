@@ -449,7 +449,7 @@ public sealed class WidgetServiceOverlayTests
                     45_000,
                     true,
                     80,
-                    null,
+                    "viewer1",
                     "spotify",
                     "spotify:track:abc123"
                 )
@@ -470,6 +470,46 @@ public sealed class WidgetServiceOverlayTests
         result.Value.DurationMs.Should().Be(210_000);
         result.Value.ProgressMs.Should().Be(45_000);
         result.Value.IsPlaying.Should().BeTrue();
+        // S-MUSIC-5b: the requester rides the overlay's initial-seed snapshot (now_playing.vue's
+        // fetchCurrentState), the same fact the standing widget event carries on every playback change.
+        result.Value.RequestedBy.Should().Be("viewer1");
+    }
+
+    /// <summary>The negative half of S-MUSIC-5b: a track the streamer started themselves — nothing in the
+    /// fair queue claims it — must carry NO requester, not an empty string standing in for "unknown".</summary>
+    [Fact]
+    public async Task Now_playing_snapshot_carries_no_requester_for_a_track_nobody_requested()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        Guid channel = Guid.CreateVersion7();
+        await SeedChannelAsync(database, channel);
+
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetNowPlayingAsync(channel.ToString(), Arg.Any<CancellationToken>())
+            .Returns(
+                new NowPlaying(
+                    "Song A",
+                    "Artist A",
+                    "Album A",
+                    "https://example.com/art.png",
+                    210_000,
+                    45_000,
+                    true,
+                    80,
+                    null,
+                    "spotify",
+                    "spotify:track:abc123"
+                )
+            );
+
+        await using WidgetTestDbContext db = database.NewContext();
+        WidgetService service = NewService(db, Substitute.For<IWidgetBuildService>(), music);
+
+        Result<OverlayNowPlayingSnapshot?> result = await service.GetNowPlayingSnapshotAsync("tok");
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.RequestedBy.Should().BeNull();
     }
 
     [Fact]

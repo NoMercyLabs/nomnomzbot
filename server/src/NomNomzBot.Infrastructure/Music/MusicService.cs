@@ -1545,6 +1545,11 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                 Provider = track?.Provider,
                 TrackUri = track?.TrackUri,
                 ArtistId = track?.ArtistId,
+                RequestedBy = RequesterOfPlayingTrack(
+                    _queueStore,
+                    tenantId.ToString(),
+                    track?.TrackUri
+                ),
                 ShuffleEnabled = track?.ShuffleEnabled ?? false,
                 RepeatMode = track?.RepeatMode ?? MusicRepeatMode.Off,
                 VolumePercent = track?.VolumePercent ?? 100,
@@ -1591,7 +1596,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                 .Select(e => new SongRequestQueueSnapshotItem(
                     e.Item.TrackName,
                     e.Item.RequestedBy,
-                    e.Item.DurationMs / 1000
+                    e.Item.DurationMs / 1000,
+                    e.Item.Code
                 ))
                 .ToList();
     }

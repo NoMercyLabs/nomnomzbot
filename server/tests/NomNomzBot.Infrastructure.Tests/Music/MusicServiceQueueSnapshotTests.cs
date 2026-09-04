@@ -15,6 +15,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Domain.Music.Events;
+using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
@@ -46,11 +47,13 @@ public sealed class MusicServiceQueueSnapshotTests
             .Published.OfType<SongRequestQueueChangedEvent>()
             .Single();
         changed.BroadcasterId.Should().Be(ChannelId);
-        changed
-            .Items.Should()
-            .ContainSingle()
-            .Which.Should()
-            .Be(new SongRequestQueueSnapshotItem("Song Q", "viewer1", 200));
+        SongRequestQueueSnapshotItem item = changed.Items.Should().ContainSingle().Subject;
+        item.Title.Should().Be("Song Q");
+        item.RequestedBy.Should().Be("viewer1");
+        item.DurationSec.Should().Be(200);
+        // The real speakable code the request was assigned — not the empty default a positional
+        // 3-arg construction used to silently fall back to (S-MUSIC-4c).
+        item.Code.Should().NotBeNullOrEmpty().And.HaveLength(SongCode.Length);
         // The accepted-request fact still rides its own event alongside the snapshot.
         bus.Published.OfType<SongRequestedEvent>().Single().TrackName.Should().Be("Song Q");
     }

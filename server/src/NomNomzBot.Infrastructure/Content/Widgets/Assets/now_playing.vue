@@ -36,6 +36,8 @@ const artist = ref<string>('')
 const artUrl = ref<string>('')
 const trackProvider = ref<string>('')
 const trackUri = ref<string>('')
+// Who redeemed this track via !sr — empty string (never rendered) when the streamer started it themselves.
+const requestedBy = ref<string>('')
 const spotifyStatus = ref<string>('') // '' | 'connecting' | 'active' | 'muted' | 'blocked' | 'error'
 const durationMs = ref<number>(0)
 const progressMs = ref<number>(0)
@@ -134,6 +136,7 @@ function onNowPlaying(d: any): void {
   artUrl.value = data.artUrl || ''
   trackProvider.value = data.provider || ''
   trackUri.value = data.trackUri || ''
+  requestedBy.value = typeof data.requestedBy === 'string' ? data.requestedBy : ''
   durationMs.value = Number.isFinite(Number(data.durationMs)) ? Number(data.durationMs) : 0
   progressMs.value = Number.isFinite(Number(data.progressMs)) ? Number(data.progressMs) : 0
   stopTicking()
@@ -331,6 +334,7 @@ function enableAudio(): void {
         <span ref="marqueeEl" class="track-text">{{ track }}</span>
       </div>
       <div v-if="artist" class="artist">{{ artist }}</div>
+      <div v-if="requestedBy" class="requester">requested by {{ requestedBy }}</div>
       <div v-if="cfg.showProgressBar" class="bar"><div class="fill" :style="{ width: progressPct + '%' }"></div></div>
     </div>
     <span
@@ -420,6 +424,13 @@ function enableAudio(): void {
 .artist {
   font-size: 12px;
   opacity: 0.75;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.requester {
+  font-size: 11px;
+  opacity: 0.6;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

@@ -33,6 +33,12 @@ public sealed class PlaybackStateChangedEvent : DomainEventBase
     public string? Provider { get; init; }
     public string? TrackUri { get; init; }
     public string? ArtistId { get; init; }
+
+    /// <summary>Who asked for this track via <c>!sr</c>, or null when the streamer started it themselves
+    /// (or nothing in our fair queue matches the currently playing track). S-MUSIC-5b: the same fact
+    /// <c>SongCurrentAction</c> already names in the <c>!song</c> chat reply, carried onward so the
+    /// standing now-playing overlay can show it too.</summary>
+    public string? RequestedBy { get; init; }
     public bool ShuffleEnabled { get; init; }
     public MusicRepeatMode RepeatMode { get; init; }
     public int VolumePercent { get; init; }

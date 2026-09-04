@@ -118,7 +118,8 @@ public sealed class SongRequestQueueReconciler : IEventHandler<PlaybackStateChan
                         .Select(e => new SongRequestQueueSnapshotItem(
                             e.Item.TrackName,
                             e.Item.RequestedBy,
-                            e.Item.DurationMs / 1000
+                            e.Item.DurationMs / 1000,
+                            e.Item.Code
                         )),
                 ],
             },

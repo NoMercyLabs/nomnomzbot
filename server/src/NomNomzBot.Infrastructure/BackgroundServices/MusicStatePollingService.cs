@@ -291,6 +291,7 @@ public sealed class MusicStatePollingService : BackgroundService
                 Provider = nowPlaying?.Provider,
                 TrackUri = nowPlaying?.TrackUri,
                 ArtistId = nowPlaying?.ArtistId,
+                RequestedBy = nowPlaying?.RequestedBy,
                 ShuffleEnabled = nowPlaying?.ShuffleEnabled ?? false,
                 RepeatMode = nowPlaying?.RepeatMode ?? MusicRepeatMode.Off,
                 VolumePercent = next.VolumePercent,

@@ -54,6 +54,7 @@ public sealed class WidgetNowPlayingHandlerTests
                 TrackUri = "https://www.youtube.com/watch?v=abc123",
                 DurationMs = 210_000,
                 ProgressMs = 45_000,
+                RequestedBy = "viewer1",
             }
         );
 
@@ -69,6 +70,60 @@ public sealed class WidgetNowPlayingHandlerTests
             );
     }
 
+    /// <summary>S-MUSIC-5b's negative case: a track the streamer started themselves carries no requester
+    /// in the widget event — JSON null, never an empty string standing in for "nobody".</summary>
+    [Fact]
+    public async Task Playback_change_carries_no_requester_when_nobody_requested_the_track()
+    {
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid channel = Guid.CreateVersion7();
+        Widget nowPlaying = new()
+        {
+            Id = Guid.NewGuid(),
+            BroadcasterId = channel,
+            Name = "Now playing",
+            IsEnabled = true,
+            EventSubscriptions = ["now_playing"],
+        };
+        db.Widgets.Add(nowPlaying);
+        await db.SaveChangesAsync();
+        WidgetNowPlayingHandler handler = new(db, widgets);
+
+        await handler.HandleAsync(
+            new()
+            {
+                BroadcasterId = channel,
+                IsPlaying = true,
+                TrackName = "Song A",
+                Provider = "spotify",
+                RequestedBy = null,
+            }
+        );
+
+        await widgets
+            .Received(1)
+            .SendWidgetEventAsync(
+                channel.ToString(),
+                nowPlaying.Id.ToString(),
+                Arg.Is<WidgetEventDto>(evt =>
+                    evt.EventType == "now_playing" && RequesterIsNull(evt.Data)
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    private static bool RequesterIsNull(object? data)
+    {
+        if (data is null)
+            return false;
+        JsonElement json = JsonSerializer.SerializeToElement(
+            data,
+            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }
+        );
+        return json.GetProperty("requestedBy").ValueKind == JsonValueKind.Null;
+    }
+
     private static bool PayloadMatches(object? data)
     {
         if (data is null)
@@ -82,6 +137,8 @@ public sealed class WidgetNowPlayingHandlerTests
             && json.GetProperty("artist").GetString() == "Artist A"
             && json.GetProperty("artUrl").GetString() == "https://example.com/art.png"
             && json.GetProperty("provider").GetString() == "youtube"
-            && json.GetProperty("trackUri").GetString() == "https://www.youtube.com/watch?v=abc123";
+            && json.GetProperty("trackUri").GetString() == "https://www.youtube.com/watch?v=abc123"
+            // S-MUSIC-5b: the requester rides the same now_playing widget event.
+            && json.GetProperty("requestedBy").GetString() == "viewer1";
     }
 }

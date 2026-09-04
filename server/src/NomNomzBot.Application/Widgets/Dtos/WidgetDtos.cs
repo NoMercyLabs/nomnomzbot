@@ -123,7 +123,10 @@ public sealed record OverlayNowPlayingSnapshot(
     string? TrackUri,
     int DurationMs,
     int ProgressMs,
-    DateTimeOffset ObservedAt
+    DateTimeOffset ObservedAt,
+    // Who asked for this track via !sr, or null when the streamer started it themselves (S-MUSIC-5b) —
+    // field-for-field identical in meaning to the now_playing widget event's own requestedBy.
+    string? RequestedBy = null
 );
 
 /// <summary>
