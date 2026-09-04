@@ -1,0 +1,79 @@
+# -----------------------------------------------------------------------------
+#  Copyright (c) NoMercy Labs.
+#
+#  This file is part of NomNomzBot, free software licensed under the GNU Affero
+#  General Public License v3.0 or later. You may redistribute and/or modify it
+#  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+#
+#  SPDX-License-Identifier: AGPL-3.0-or-later
+# -----------------------------------------------------------------------------
+#
+# The EDITOR. The root docker-compose.yml runs the bot; run both when you want Postgres/Redis.
+#
+#   docker compose -f devbox/docker-compose.yml up -d --build
+#   open http://localhost:8443
+
+name: nomnomzbot-devbox
+
+services:
+  devbox:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        USER_UID: ${DEVBOX_UID:-1000}
+        USER_GID: ${DEVBOX_GID:-1000}
+    image: nomnomzbot-devbox:local
+    container_name: nomnomzbot-devbox
+    hostname: devbox
+    restart: unless-stopped
+    init: true
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      PASSWORD: ${DEVBOX_PASSWORD:-}
+      DEVBOX_ENABLE_SSH: ${DEVBOX_ENABLE_SSH:-1}
+      DEVBOX_WORKSPACE: /workspace
+      DEVBOX_AUTH: "git,gh,claude,docker"
+      DEVBOX_BOOTSTRAP: "cd /workspace/server && dotnet tool restore"
+      TZ: ${TZ:-Europe/Amsterdam}
+      GRADLE_USER_HOME: /home/dev/.gradle
+      NUGET_PACKAGES: /home/dev/.nuget/packages
+      ArtifactsPath: /home/dev/artifacts
+      GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx3g -Dkotlin.daemon.jvmargs=-Xmx2g"
+      DOTNET_GCHeapHardLimit: "0xC0000000"
+    ports:
+      - "${DEVBOX_PORT:-8443}:8080"   # code-server (browser VS Code)
+      - "${DEVBOX_SSH_PORT:-2222}:2222" # VS Code Remote-SSH
+      - "${DEVBOX_API_PORT:-5080}:5080" # the API, when you run it inside the box
+      - "${DEVBOX_WEB_PORT:-5090}:5090" # the dashboard dev server
+    volumes:
+      - ..:/workspace
+      - devbox-home:/home/dev
+      - devbox-nuget:/home/dev/.nuget
+      - devbox-gradle:/home/dev/.gradle
+      - devbox-dotnet:/home/dev/.dotnet
+      - devbox-extensions:/home/dev/.local/share/code-server
+      - devbox-vscode-server:/home/dev/.vscode-server
+      - devbox-artifacts:/home/dev/artifacts
+      - ./ssh:/home/dev/.ssh-host:ro
+      - ${DEVBOX_GITCONFIG:-~/.gitconfig}:/home/dev/.gitconfig:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    mem_limit: ${DEVBOX_MEM_LIMIT:-8g}
+    shm_size: 1gb
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+volumes:
+  devbox-home:
+  devbox-nuget:
+  devbox-gradle:
+  devbox-dotnet:
+  devbox-extensions:
+  devbox-vscode-server:
+  devbox-artifacts:

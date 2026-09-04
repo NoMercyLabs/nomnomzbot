@@ -1,0 +1,64 @@
+{
+  "workbench.colorTheme": "One Dark Pro Darker",
+  "workbench.iconTheme": "vscode-icons",
+  "workbench.startupEditor": "none",
+  // The container is the sandbox; Restricted Mode inside it only stops extensions from loading.
+  "security.workspace.trust.enabled": false,
+  "editor.fontSize": 18,
+  "editor.fontLigatures": false,
+  "editor.minimap.enabled": false,
+  "editor.detectIndentation": true,
+  "editor.quickSuggestions": { "strings": true },
+  "editor.largeFileOptimizations": false,
+  "terminal.integrated.allowChords": false,
+  "git.enableSmartCommit": true,
+  "vsicons.dontShowNewVersionMessage": true,
+  "editor.formatOnSave": true,
+  "editor.renderWhitespace": "trailing",
+  "editor.rulers": [110],
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "files.eol": "\n",
+  "files.exclude": {
+    "**/bin": true,
+    "**/obj": true,
+    "**/build": true,
+    "**/.gradle": true,
+    "**/node_modules": true
+  },
+  "files.watcherExclude": {
+    "**/bin/**": true,
+    "**/obj/**": true,
+    "**/build/**": true,
+    "**/.gradle/**": true,
+    "**/node_modules/**": true
+  },
+  "search.exclude": {
+    "**/bin": true,
+    "**/obj": true,
+    "**/build": true,
+    "**/dist": true,
+    "**/node_modules": true
+  },
+  "terminal.integrated.defaultProfile.linux": "bash",
+  "terminal.integrated.profiles.linux": {
+    "bash": { "path": "/bin/bash" },
+    "pwsh": { "path": "/usr/bin/pwsh" }
+  },
+  "dotnet.server.useOmnisharp": false,
+  "omnisharp.enableEditorConfigSupport": true,
+  "omnisharp.enableRoslynAnalyzers": true,
+  "[csharp]": {
+    // Matches the commit gate: scripts/slice-check.ps1 runs `dotnet csharpier check`.
+    "editor.defaultFormatter": "csharpier.csharpier-vscode",
+    "editor.tabSize": 4
+  },
+  "[kotlin]": { "editor.tabSize": 4 },
+  "[xml]": { "editor.tabSize": 4 },
+  "[json]": { "editor.tabSize": 2 },
+  "[yaml]": { "editor.tabSize": 2 },
+  "git.autofetch": true,
+  "git.confirmSync": false,
+  "telemetry.telemetryLevel": "off",
+  "java.jdt.ls.java.home": "/usr/lib/jvm/java-21-openjdk-amd64"
+}

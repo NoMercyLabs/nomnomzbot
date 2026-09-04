@@ -1,0 +1,4 @@
+# Public keys dropped here are personal, not project state.
+authorized_keys
+*.pub
+!.gitignore
