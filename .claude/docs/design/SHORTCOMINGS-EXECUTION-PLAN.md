@@ -19,20 +19,17 @@ Slice IDs are stable; the order is the queue.
 
 ---
 
-## OVERLAY RENDER PROOF — the one thing the overlay work still lacks
+## OVERLAY RENDER PROOF — done for the chat overlay, owed for the dashboard
 
-The music block is closed: the Spotify dealer socket pushes (`25bfb900`), the widget interpolates only
-the progress bar, `!wrongsong` undoes both a waiting and a playing request, every queued song carries a
-speakable code that now survives a restart (`e9191d0f`), and now-playing names the requester on both
-transports. What none of the overlay work has is a browser.
+The chat overlay is now verified in a real browser: linear and radial paints render their true stops,
+a paintless chatter renders unchanged with no stray style, and the image-layer paint was found
+rendering as flat solid colour and fixed (`9d6dd1e8` — `background-size` was unset, so the browser
+clipped the top-left corner of a 384x128 texture into the name box). Every payload and mapper test was
+green throughout: this class of defect is only visible on screen.
 
-- [ ] **S-7TV-THEME-RENDER Prove the paint on a rendered overlay.** The chat overlay carries the
-      flattened paint CSS and image-layer paints are no longer dropped (`49f336b3`, `3950ceaf`);
-      the Lucky Feather ships as a bundle preset carrying the holder's paint (`338d3c3b`). None of
-      it has been seen in a browser. Real subjects: SoraRiku312 (image paint), LunaPlink and
-      stoneyEU (linear), LanyDelRey (radial); the owner's own accounts have NO paint, so his own
-      messages correctly show nothing and cannot be the test. Done-when: a paint-bearing chatter
-      renders painted and a paintless one renders exactly as before, both on the rendered overlay.
+The Lucky Feather overlay carries the same paint code and got the same fix, but has NOT itself been
+opened in a browser.
+
 
 ## OWNER REQUEST 2026-09-04 (b) — the admin plane a SaaS owner actually operates from
 
