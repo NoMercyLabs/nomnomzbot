@@ -80,13 +80,19 @@ class CompactMultiColumnRowGuardTest {
         val analytics: File = File("src/commonMain/kotlin/bot/nomnomz/dashboard/feature/analytics/ui/AnalyticsScreen.kt")
         val source: String = analytics.readText()
 
+        // Word-boundary matches, not bare `contains`: a plain substring check also passes for a
+        // renamed symbol that merely KEEPS the token as a suffix (`MutatedCompactDailyRow(`), so the
+        // guard reads green through a rename it should catch. Proven by mutating this file.
+        fun callsComposable(name: String): Boolean =
+            Regex("""\b$name\(""").containsMatchIn(source)
+
         if (!source.contains("windowSize.isCompact")) {
             fail("AnalyticsScreen no longer branches on the size class for its daily-trends/viewer tables")
         }
-        if (!source.contains("CompactDailyRow(")) {
+        if (!callsComposable("CompactDailyRow")) {
             fail("AnalyticsScreen's Compact branch no longer routes to CompactDailyRow — the daily table would squeeze again")
         }
-        if (!source.contains("CompactViewerRow(")) {
+        if (!callsComposable("CompactViewerRow")) {
             fail("AnalyticsScreen's Compact branch no longer routes to CompactViewerRow — the viewer table would squeeze again")
         }
     }
