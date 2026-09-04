@@ -177,7 +177,10 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
         TwitchHelixRequest helixRequest = new(
             HttpMethod.Post,
             "eventsub/subscriptions",
-            needsUserToken ? TwitchHelixAuth.User : TwitchHelixAuth.App,
+            // Strict: borrowing the bot token here fails the create as "subscription missing proper
+            // authorization" AND binds this broadcaster's websocket to the bot user, eating one of its
+            // 3 allowed transports. Fail loudly so the channel surfaces as needing a grant instead.
+            needsUserToken ? TwitchHelixAuth.UserStrict : TwitchHelixAuth.App,
             needsUserToken ? request.BroadcasterId : null,
             Body: body
         );
@@ -208,13 +211,18 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
 
     public async Task<Result> DeleteSubscriptionAsync(
         string twitchSubscriptionId,
+        Guid? ownerBroadcasterId = null,
         CancellationToken ct = default
     )
     {
+        // Sign the delete with the SAME identity that created the subscription. Twitch scopes this endpoint
+        // to the calling token's own user: deleting a broadcaster-owned subscription with the bot token is
+        // not "already gone", it is "not yours", and both answer 404.
         TwitchHelixRequest request = new(
             HttpMethod.Delete,
             "eventsub/subscriptions",
-            TwitchHelixAuth.App,
+            ownerBroadcasterId is null ? TwitchHelixAuth.App : TwitchHelixAuth.UserStrict,
+            ownerBroadcasterId,
             Query: [new("id", twitchSubscriptionId)]
         );
 
@@ -239,10 +247,14 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
             if (cursor is not null)
                 query.Add(new("after", cursor));
 
+            // Twitch returns only the subscriptions belonging to the CALLING token's user. Listing with the
+            // bot/app token therefore reports zero broadcaster-owned subscriptions no matter how many exist,
+            // so reconcile concludes they are all missing and re-creates them — 409 conflict, every pass.
             TwitchHelixRequest request = new(
                 HttpMethod.Get,
                 "eventsub/subscriptions",
-                TwitchHelixAuth.App,
+                TwitchHelixAuth.UserStrict,
+                broadcasterId,
                 Query: query.Count > 0 ? query : null
             );
 
@@ -498,6 +510,12 @@ public sealed class WebSocketEventSubTransport : IEventSubTransport
                 try
                 {
                     connectUrl = await ConnectAndReceiveAsync(connectUrl, firstWelcome, ct);
+                    // The reconnect URL yields a NEW session id in its welcome — Twitch does not carry the
+                    // old one across. Until that welcome lands this session id is dead, so clear it: leaving
+                    // it set let every concurrent subscribe POST a session_id Twitch had already retired,
+                    // answered as 400 "websocket transport session does not exist or has already
+                    // disconnected", and then written back onto the row to poison the next cleanup pass.
+                    _sessionId = null;
                     backoff = TimeSpan.FromSeconds(1); // a clean reconnect-url swap resets backoff
                     continue;
                 }

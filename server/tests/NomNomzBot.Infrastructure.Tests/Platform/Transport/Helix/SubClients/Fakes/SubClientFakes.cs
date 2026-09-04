@@ -153,6 +153,7 @@ public sealed class StubScopeTokenResolver(params string[] grantedScopes) : ITwi
 
     public Task<Result<TwitchAccessContext>> GetBroadcasterTokenAsync(
         Guid broadcasterId,
+        bool allowBotFallback = true,
         CancellationToken ct = default
     ) => throw new NotSupportedException();
 

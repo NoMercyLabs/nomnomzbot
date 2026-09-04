@@ -723,6 +723,13 @@ public sealed class TwitchEventSubReconnectTests
         /// <summary>Every subscription id passed to delete (proves stale-session cleanup / reconcile pruning).</summary>
         public List<string> Deletes { get; } = [];
 
+        /// <summary>
+        /// The owner passed alongside each delete, in the same order as <see cref="Deletes"/>. Twitch scopes
+        /// DELETE to the calling token's user, so a broadcaster-owned subscription deleted as the bot 404s
+        /// instead of deleting — recording the owner is what lets a test see that.
+        /// </summary>
+        public List<Guid?> DeleteOwners { get; } = [];
+
         /// <summary>Every owner key a create was routed to, in issue order (proves per-owner session routing).</summary>
         public List<string> EnsuredOwners { get; } = [];
 
@@ -772,10 +779,12 @@ public sealed class TwitchEventSubReconnectTests
 
         public Task<Result> DeleteSubscriptionAsync(
             string twitchSubscriptionId,
+            Guid? ownerBroadcasterId = null,
             CancellationToken ct = default
         )
         {
             Deletes.Add(twitchSubscriptionId);
+            DeleteOwners.Add(ownerBroadcasterId);
             return Task.FromResult(Result.Success());
         }
 

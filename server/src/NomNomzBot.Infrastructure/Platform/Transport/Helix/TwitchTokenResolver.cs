@@ -96,16 +96,29 @@ public sealed class TwitchTokenResolver(
 
     public async Task<Result<TwitchAccessContext>> GetBroadcasterTokenAsync(
         Guid broadcasterId,
+        bool allowBotFallback = true,
         CancellationToken ct = default
     )
     {
         IntegrationConnection? connection = await ConnectionAsync(broadcasterId, UserProvider, ct);
 
-        // No user token for this tenant — fall back to the bot token (read scopes only).
-        if (connection is null)
-            return await GetBotTokenAsync(ct);
+        if (connection is not null)
+            return await BuildContextAsync(connection, ct);
 
-        return await BuildContextAsync(connection, ct);
+        // No user token for this tenant. The bot token carries read scopes and is enough for plain Helix
+        // GETs, so borrowing it keeps a partially-onboarded channel useful. But it is the WRONG identity,
+        // and on any endpoint Twitch subjects to the token's own user — EventSub creates/deletes above all —
+        // borrowing it fails the call AND aliases the tenant's websocket onto the bot user, burning one of
+        // its 3 transports. Those callers pass allowBotFallback: false and get a loud no_token instead.
+        if (!allowBotFallback)
+        {
+            return Result.Failure<TwitchAccessContext>(
+                "No Twitch token for this broadcaster.",
+                TwitchErrorCodes.NoToken
+            );
+        }
+
+        return await GetBotTokenAsync(ct);
     }
 
     public async Task<Result<TwitchAccessContext>> GetUserTokenAsync(

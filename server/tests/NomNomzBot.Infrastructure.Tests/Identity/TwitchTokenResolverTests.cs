@@ -133,6 +133,56 @@ public sealed class TwitchTokenResolverTests
         result.Value.ServiceName.Should().Be(BotProvider);
     }
 
+    /// <summary>
+    /// The bot-token fallback above is a read-scope convenience for plain Helix GETs. It is catastrophic on
+    /// the EventSub create path: a <c>channel.*</c> subscription whose condition names broadcaster X but is
+    /// POSTed with the bot's token is rejected as "subscription missing proper authorization", and the
+    /// broadcaster's dedicated websocket then binds to the BOT's identity — so every token-less tenant eats
+    /// one of the bot user's 3 allowed transports until Twitch refuses the rest. Observed in production
+    /// 2026-09-04: 18 channels, 6 broadcaster tokens, 889 x 403 and a permanent reconnect spiral.
+    /// Callers that need a genuine broadcaster grant must be able to demand one and fail loudly instead.
+    /// </summary>
+    [Fact]
+    public async Task GetBroadcasterToken_WithNoUserConnection_AndFallbackDisabled_FailsWithNoToken()
+    {
+        (TwitchTokenResolver resolver, IntegrationTokenVault vault, _) = Build();
+        // A perfectly good bot token exists — the strict caller must still refuse to borrow it.
+        await StoreConnectionAsync(vault, null, BotProvider, "bot-access-PLAINTEXT", "bot-user-1");
+
+        Result<TwitchAccessContext> result = await resolver.GetBroadcasterTokenAsync(
+            Tenant,
+            allowBotFallback: false
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be(TwitchErrorCodes.NoToken);
+    }
+
+    /// <summary>
+    /// The strict flag must not change the happy path: a tenant that HAS its own grant still gets it.
+    /// </summary>
+    [Fact]
+    public async Task GetBroadcasterToken_WithFallbackDisabled_StillReturnsTheTenantsOwnToken()
+    {
+        (TwitchTokenResolver resolver, IntegrationTokenVault vault, _) = Build();
+        await StoreConnectionAsync(
+            vault,
+            Tenant,
+            AuthEnums.IntegrationProvider.Twitch,
+            "broadcaster-access-PLAINTEXT",
+            "twitch-user-1"
+        );
+
+        Result<TwitchAccessContext> result = await resolver.GetBroadcasterTokenAsync(
+            Tenant,
+            allowBotFallback: false
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.AccessToken.Should().Be("broadcaster-access-PLAINTEXT");
+        result.Value.BroadcasterId.Should().Be(Tenant);
+    }
+
     [Fact]
     public async Task GetBotToken_WithRegisteredBotAccount_ReturnsThePlatformBotToken()
     {
