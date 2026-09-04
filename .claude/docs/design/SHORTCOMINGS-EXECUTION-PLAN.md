@@ -97,11 +97,44 @@ posture, and stacking them makes every one of them harder to find.
       kind / read ignores the person) each proven RED; backend `A_shoutout_reads_the_shoutout_line_and_
       never_the_same_persons_raid_line` proven RED against a relaxed filter; full backend suite 6,213 green;
       jvmTest + compileKotlinWasmJs green.
-- [ ] **S-UX-3 Split the remaining page by job**, per the S-UX-1 map: Moderation desk / Review queue /
-      Enforcement rules / History. Amend `frontend-ia.md` §Moderation FIRST (it lists one page; four is a
-      contract change), then move the sections with their state-holder plumbing. Done-when: no single
-      moderation page carries more than one job, each has a primary action a person can name, and the
-      read/manage floors in the IA table are stated per page rather than inherited from the old one.
+- [x] **S-UX-3 Split the remaining page by job.** DONE (`4982c305`). Four pages — Moderation desk /
+      Review Queue / Enforcement Rules / History — built as the same screen with a different active
+      section rather than four copies of a 90-parameter composable. `frontend-ia.md` §Moderation amended
+      first. Every list item names its owning page, pinned by `ModerationSectionOwnershipTest` with two
+      mutations proven RED. No capability removed: all 47 owned sections survive and the count is asserted.
+- [x] **S-UX-5 Device breakpoints — the mechanism.** DONE (`11b82cd4`). `WindowSizeClass` (Compact/Medium/
+      Expanded at Material widths) provided once at the shell, measured on the CONTENT PANE so a screen is
+      not told it has the room the sidebar already spent. Mobile fixes the web build needed today: the
+      shell now collapses on a SHORT viewport too (a landscape phone is 844x390 and was getting the desktop
+      sidebar), `100dvh` so the bottom of the app is not behind mobile browser chrome, safe-area insets,
+      overscroll/touch-action, and a guard that keeps pinch-zoom available.
+- [ ] **S-UX-6 Device breakpoints — the per-screen sweep.** The mechanism exists; most screens have not
+      been given a Compact layout yet. Measured by weighted-child count (`Modifier.weight(` per file), the
+      screens most likely to squeeze on a narrow pane, worst first:
+
+      | Screen | weighted children | Screen | weighted children |
+      |---|---|---|---|
+      | `PipelinesScreen` | 34 | `GiveawaysScreen` | 8 |
+      | `HomeScreen` | 21 | `AdminScreen` | 8 |
+      | `SettingsScreen` | 20 | `WebhooksScreen` | 7 |
+      | `EconomyScreen` | 20 | `DiscordScreen` | 6 |
+      | `ModerationScreen` | 14 | `SupportersScreen` | 5 |
+      | `AnalyticsScreen` | 14 | `SetupWizardScreen` | 5 |
+      | `TtsScreen` | 10 | `GamesScreen` | 5 |
+      | `ShellScreen` | 10 | `CustomEventsScreen` / `CommunityScreen` / `ChatScreen` / `BundlesScreen` | 5 |
+
+      A high count is a SUSPECT, not a defect: `label (weight 1f) + small control` is correct at every
+      width, and that is what most of Moderation's and Community's turned out to be. The sweep is per
+      screen: open it at Compact, find what actually breaks, fix that. Do not mass-convert on the count.
+
+      **Not everything with a width branch belongs in the size class.** `HomeScreen`'s 8-tile strip
+      switches at 960 dp because that is where EIGHT TILES stop fitting — a content-fit question, measured
+      locally, and forcing it onto the 840 dp class boundary would give each tile 105 dp. Size class is for
+      layout MODE; content-fit checks stay local.
+
+      Done-when: every screen has been opened at Compact and Medium on the rendered client and either has a
+      layout for it or a stated reason it does not need one.
+
 - [ ] **S-UX-4 Prove it got simpler, do not assert it.** Before/after counts per page (sections,
       composables, lines), and every moved control re-verified on the rendered client — a control that
       moved and stopped working is worse than the mess it left. The `DesignSystemStyleGuardTest` Sleak
