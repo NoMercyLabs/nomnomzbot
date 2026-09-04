@@ -56,6 +56,12 @@ function paintNameStyle(p: ChatPaint | null): Record<string, string> {
     style['background-clip'] = 'text'
     style['-webkit-background-clip'] = 'text'
     style.color = 'transparent'
+    // Same defect chat_box.vue hit: an image paint is a 384x128 texture, and without an explicit
+    // size the browser clips the unscaled top-left corner to the name box, which reads as one flat
+    // colour. Proven on the rendered overlay; no payload-level test can see it.
+    style['background-size'] = 'cover'
+    style['background-position'] = 'center'
+    style['background-repeat'] = 'no-repeat'
   } else if (p.color) {
     style.color = p.color
   }

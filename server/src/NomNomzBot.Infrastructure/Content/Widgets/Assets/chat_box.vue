@@ -164,6 +164,13 @@ function paintNameStyle(p: ChatPaint | null): Record<string, string> {
     style['background-clip'] = 'text'
     style['-webkit-background-clip'] = 'text'
     style.color = 'transparent'
+    // An image paint is a 384x128 texture clipped to a ~95x24 name. Without an explicit size the
+    // browser paints the unscaled top-left corner, which reads as one flat colour and looks like a
+    // broken paint - proven on the rendered overlay, invisible to any payload-level test. Gradient
+    // layers do not need this: a CSS gradient sizes itself to the box.
+    style['background-size'] = 'cover'
+    style['background-position'] = 'center'
+    style['background-repeat'] = 'no-repeat'
   } else if (p.color) {
     style.color = p.color
   }
