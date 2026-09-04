@@ -40,11 +40,49 @@ The diagnosis is not "too many features". It is that ONE page carries four unrel
 person, tuning automatic enforcement, reviewing a queue, and reading history. Each wants a different
 posture, and stacking them makes every one of them harder to find.
 
-- [ ] **S-UX-1 Map before moving anything.** For each of the 16 sections: which job it serves (act on a
-      person / configure automation / work a queue / read history), how often it is opened, and which
-      role opens it. The output is a placement decision per section with a reason, not a rearrangement —
-      a section moved without a stated job just relocates the confusion. Load the `sleak` skill first;
-      its hierarchy rules are the bar, and CLAUDE.md now requires it before any UI work.
+- [x] **S-UX-1 Map before moving anything.** DONE — the map is below. Counted on the real file: **49
+      list items** across **19 distinct sections** in one scroll, serving four different jobs.
+
+      | Section | Job | Opened | Goes to |
+      |---|---|---|---|
+      | Stats / shield toggle / quick action | act on a person, NOW | every stream | **Moderation desk** |
+      | Moderators (add / remove) | configure who may moderate | rarely | **Moderation desk** (see note) |
+      | Bans list | act on a person | often | **Moderation desk** |
+      | Unban requests | work a queue | daily | **Review queue** |
+      | Reports | work a queue | daily | **Review queue** |
+      | AutoMod queue | work a queue | per stream | **Review queue** |
+      | Spam review queue | work a queue | per stream | **Review queue** |
+      | Spam detections | work a queue | per stream | **Review queue** |
+      | Spam campaigns | work a queue | per incident | **Review queue** |
+      | Follow-bot blocks | work a queue | per incident | **Review queue** |
+      | Blocked terms | configure automation | rarely | **Enforcement rules** |
+      | AutoMod (own filters) | configure automation | rarely | **Enforcement rules** |
+      | Twitch AutoMod levels | configure automation | rarely | **Enforcement rules** |
+      | Chat filters | configure automation | rarely | **Enforcement rules** |
+      | Rules | configure automation | rarely | **Enforcement rules** |
+      | Trust automation + policy | configure automation | rarely | **Enforcement rules** |
+      | Spam defense | configure automation | rarely | **Enforcement rules** |
+      | Escalation policy | configure automation | rarely | **Enforcement rules** |
+      | Shared bans | configure automation | rarely | **Enforcement rules** |
+      | Shoutout default template | configure a message | rarely | **Enforcement rules** (see note) |
+      | Mod log | read history | when something is disputed | **History** |
+      | Nuke batches | read history | after a raid/spam wave | **History** |
+
+      **Two placement decisions worth arguing, since neither is obvious:**
+      *Moderators* is configuration, not enforcement, so it looks like it belongs with roles. It stays on
+      the desk because the moment a broadcaster reaches for it is mid-incident — "give this person the
+      power to help me right now" — and sending them to a settings page then is the wrong trade.
+      *Shoutout default template* is not moderation at all; it sits here only because the per-person
+      editor used to. With that editor now in Community (S-UX-2), the default is a lone stray. It moves
+      with the settings group for now and is flagged for a later home beside the channel's other default
+      messages, rather than being left to justify a section of its own.
+
+      **The count that matters:** four jobs, so four surfaces. The largest becomes Enforcement rules with
+      ten sections — still a lot, but ten things a person visits deliberately and reads carefully is a
+      different problem from nineteen things stacked in front of someone mid-stream.
+
+      **Spec impact:** `frontend-ia.md` §Moderation lists exactly one page. S-UX-3 must amend that table
+      before the split lands — the IA is authoritative and a split that contradicts it is drift, not a fix.
 - [x] **S-UX-2 Per-person things move to Community, behind the person.** DONE. The per-person editor is
       gone from Moderation (−158 lines: three list items and both composables) and lives in the Community
       viewer panel (+196 lines), beside watch time, engagement and the viewer's custom data. Because the
@@ -59,12 +97,11 @@ posture, and stacking them makes every one of them harder to find.
       kind / read ignores the person) each proven RED; backend `A_shoutout_reads_the_shoutout_line_and_
       never_the_same_persons_raid_line` proven RED against a relaxed filter; full backend suite 6,213 green;
       jvmTest + compileKotlinWasmJs green.
-- [ ] **S-UX-3 Split the remaining page by job.** Enforcement configuration (automod, heat auto-timeout,
-      escalation, chat filters, blocked terms, rules) is a settings surface an operator visits rarely and
-      reads carefully. Queues (unban requests, reports, automod queue) are worked daily under time
-      pressure. The mod log and nuke batches are history. Those three postures do not belong in one
-      scroll. Done-when: no single moderation page carries more than one job, and each has a primary
-      action a person can name.
+- [ ] **S-UX-3 Split the remaining page by job**, per the S-UX-1 map: Moderation desk / Review queue /
+      Enforcement rules / History. Amend `frontend-ia.md` §Moderation FIRST (it lists one page; four is a
+      contract change), then move the sections with their state-holder plumbing. Done-when: no single
+      moderation page carries more than one job, each has a primary action a person can name, and the
+      read/manage floors in the IA table are stated per page rather than inherited from the old one.
 - [ ] **S-UX-4 Prove it got simpler, do not assert it.** Before/after counts per page (sections,
       composables, lines), and every moved control re-verified on the rendered client — a control that
       moved and stopped working is worse than the mess it left. The `DesignSystemStyleGuardTest` Sleak
