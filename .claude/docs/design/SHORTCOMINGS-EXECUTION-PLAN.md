@@ -62,8 +62,6 @@ normalised and ToS-gray ships, with the documented path kept as fallback.
 - [ ] **S-MUSIC-5 Now playing says who asked for it.** Owner: "the current playing song should say who
       redeemed it if it was redeemed by the sr command." Carry the requester through to the widget and the
       `!song` response; blank when the track was not requested.
-- [ ] **S-OWN18b Resub "they also said".** Owner: the subscription thank-you must handle the user's own
-      resub message the way the old bot did, including the "they also said" part. Never filed before now.
 - [ ] **S-7TV-THEME Custom 7TV profile theme on overlays.** Owner: users with a 7TV subscription and a custom
       profile name theme should get it applied — the feather overlay using it as the backdrop for the profile
       image, and the same in the chat overlay and chat header. Never filed before now.
