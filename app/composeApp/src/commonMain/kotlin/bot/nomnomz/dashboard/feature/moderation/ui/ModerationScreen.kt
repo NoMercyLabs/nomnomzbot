@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.lazy.LazyItemScope
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import bot.nomnomz.dashboard.core.designsystem.component.Button
@@ -414,8 +416,40 @@ import org.jetbrains.compose.resources.stringResource
 // The screen is a pure projection of the controller's state; it loads on first composition and offers a
 // retry on failure. Each ban is actionable — an Unban affordance that, only once the moderator confirms it
 // in the shared ConfirmDialog, lifts the ban via the controller (which reloads the list on success).
+/**
+ * Which job a moderation page is for. The moderation surface used to be one scroll of 19 sections serving
+ * four unrelated jobs: acting on a person mid-stream, working a queue, changing rules that apply forever,
+ * and reading history. Those want different postures, so they are four pages — and every section names the
+ * one that owns it, so a section can never appear on two pages or fall off all of them.
+ */
+enum class ModerationSection {
+    /** The live desk: stats, shield, quick action, moderators, bans. */
+    Desk,
+
+    /** Work items awaiting a decision: appeals, reports, AutoMod and spam queues. */
+    Queue,
+
+    /** Configuration that governs every future enforcement. */
+    Rules,
+
+    /** What already happened: the mod log and nuke batches. */
+    History,
+}
+
+/** Emits [content] only when this page is the one that owns the section. */
+private fun LazyListScope.sectionItem(
+    active: ModerationSection,
+    owner: ModerationSection,
+    key: String,
+    content: @Composable LazyItemScope.() -> Unit,
+) {
+    if (active == owner) item(key = key, content = content)
+}
+
 @Composable
 fun ModerationScreen(
+    // Which of the four moderation pages this is (see [ModerationSection]).
+    section: ModerationSection,
     controller: ModerationController,
     role: ManagementRole?,
     templateHelpersApi: TemplateHelpersApi,
@@ -456,6 +490,7 @@ fun ModerationScreen(
                 )
             is ModerationState.Ready ->
                 BansList(
+                    section = section,
                     bans = current.bans,
                     modLog = current.modLog,
                     shieldEnabled = current.shieldEnabled,
@@ -618,6 +653,7 @@ private const val STANDING_PROVIDER: String = "twitch"
 
 @Composable
 private fun BansList(
+    section: ModerationSection,
     bans: List<BannedUser>,
     modLog: List<ModLogEntry>,
     shieldEnabled: Boolean,
@@ -749,12 +785,12 @@ private fun BansList(
                 ActionErrorBanner(message = stringResource(Res.string.moderation_action_error, detail))
             }
         }
-        item(key = "stats") {
+        sectionItem(section, ModerationSection.Desk, "stats") {
             Card(modifier = Modifier.fillMaxWidth()) {
                 ModerationStatsBanner(stats = stats)
             }
         }
-        item(key = "shield-toggle") {
+        sectionItem(section, ModerationSection.Desk, "shield-toggle") {
             Card(modifier = Modifier.fillMaxWidth()) {
                 if (shieldAvailable) {
                     ShieldToggle(enabled = shieldEnabled, manage = manage, onToggle = onToggleShield)
@@ -764,7 +800,7 @@ private fun BansList(
             }
         }
         // "Moderate a viewer" and "Send Announcement" quick-action buttons.
-        item(key = "action-button") {
+        sectionItem(section, ModerationSection.Desk, "action-button") {
             Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
                 ManageGate(decision = manage) { enabled ->
                     TextButton(
@@ -803,7 +839,7 @@ private fun BansList(
                 }
             }
         }
-        item(key = "moderators-header") {
+        sectionItem(section, ModerationSection.Desk, "moderators-header") {
             Text(
                 text = stringResource(Res.string.moderation_moderators_title),
                 style = typography.lg,
@@ -811,9 +847,9 @@ private fun BansList(
                 maxLines = 1,
             )
         }
-        item(key = "moderators-add") { AddModeratorRow(manage = manage, onAdd = onAddModerator) }
+        sectionItem(section, ModerationSection.Desk, "moderators-add") { AddModeratorRow(manage = manage, onAdd = onAddModerator) }
         if (moderators.isNotEmpty()) {
-            item(key = "moderators-card") {
+            sectionItem(section, ModerationSection.Desk, "moderators-card") {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column {
                         moderators.forEachIndexed { index, moderator ->
@@ -831,7 +867,7 @@ private fun BansList(
             }
         }
         if (!bansAvailable || bans.isNotEmpty()) {
-            item(key = "bans-header") {
+            sectionItem(section, ModerationSection.Desk, "bans-header") {
                 Text(
                     text = stringResource(Res.string.moderation_bans_title),
                     style = typography.lg,
@@ -839,7 +875,7 @@ private fun BansList(
                     maxLines = 1,
                 )
             }
-            item(key = "bans-card") {
+            sectionItem(section, ModerationSection.Desk, "bans-card") {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     if (!bansAvailable) {
                         // A read failure is NOT "no bans" — the live Twitch list is unavailable here.
@@ -864,7 +900,7 @@ private fun BansList(
             }
         }
         if (unbanRequests.isNotEmpty()) {
-            item(key = "unban-header") {
+            sectionItem(section, ModerationSection.Queue, "unban-header") {
                 Text(
                     text = stringResource(Res.string.moderation_unban_requests_title),
                     style = typography.lg,
@@ -872,7 +908,7 @@ private fun BansList(
                     maxLines = 1,
                 )
             }
-            item(key = "unban-card") {
+            sectionItem(section, ModerationSection.Queue, "unban-card") {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column {
                         unbanRequests.forEachIndexed { index, request ->
@@ -891,7 +927,7 @@ private fun BansList(
             }
         }
         if (reports.isNotEmpty()) {
-            item(key = "reports-header") {
+            sectionItem(section, ModerationSection.Queue, "reports-header") {
                 Text(
                     text = stringResource(Res.string.moderation_reports_title),
                     style = typography.lg,
@@ -899,7 +935,7 @@ private fun BansList(
                     maxLines = 1,
                 )
             }
-            item(key = "reports-card") {
+            sectionItem(section, ModerationSection.Queue, "reports-card") {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column {
                         reports.forEachIndexed { index, report ->
@@ -918,7 +954,7 @@ private fun BansList(
             }
         }
         if (automodQueue.isNotEmpty()) {
-            item(key = "automod-queue-header") {
+            sectionItem(section, ModerationSection.Queue, "automod-queue-header") {
                 Text(
                     text = stringResource(Res.string.moderation_automod_queue_title),
                     style = typography.lg,
@@ -926,7 +962,7 @@ private fun BansList(
                     maxLines = 1,
                 )
             }
-            item(key = "automod-queue-card") {
+            sectionItem(section, ModerationSection.Queue, "automod-queue-card") {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column {
                         automodQueue.forEachIndexed { index, item ->
@@ -945,7 +981,7 @@ private fun BansList(
             }
         }
         if (modLog.isNotEmpty()) {
-            item(key = "log-header") {
+            sectionItem(section, ModerationSection.History, "log-header") {
                 Text(
                     text = stringResource(Res.string.moderation_log_title),
                     style = typography.lg,
@@ -953,7 +989,7 @@ private fun BansList(
                     maxLines = 1,
                 )
             }
-            item(key = "log-card") {
+            sectionItem(section, ModerationSection.History, "log-card") {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column {
                         modLog.forEachIndexed { index, entry ->
@@ -967,7 +1003,7 @@ private fun BansList(
             }
         }
         // Always shown in Ready so the add input is reachable even with no terms yet.
-        item(key = "terms-header") {
+        sectionItem(section, ModerationSection.Rules, "terms-header") {
             Text(
                 text = stringResource(Res.string.moderation_terms_title),
                 style = typography.lg,
@@ -977,15 +1013,15 @@ private fun BansList(
         }
         if (!blockedTermsAvailable) {
             // The live blocked-terms list is unavailable here — don't offer an add input that would just fail.
-            item(key = "terms-unavailable") {
+            sectionItem(section, ModerationSection.Rules, "terms-unavailable") {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     SectionUnavailable(stringResource(Res.string.moderation_terms_unavailable))
                 }
             }
         } else {
-            item(key = "terms-add") { AddTermRow(manage = manage, onAdd = onAddTerm) }
+            sectionItem(section, ModerationSection.Rules, "terms-add") { AddTermRow(manage = manage, onAdd = onAddTerm) }
             if (blockedTerms.isNotEmpty()) {
-                item(key = "terms-card") {
+                sectionItem(section, ModerationSection.Rules, "terms-card") {
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column {
                             blockedTerms.forEachIndexed { index, term ->
@@ -999,7 +1035,7 @@ private fun BansList(
                 }
             }
         }
-        item(key = "shoutout-header") {
+        sectionItem(section, ModerationSection.Rules, "shoutout-header") {
             Text(
                 text = stringResource(Res.string.moderation_shoutout_title),
                 style = typography.lg,
@@ -1007,7 +1043,7 @@ private fun BansList(
                 maxLines = 1,
             )
         }
-        item(key = "shoutout-card") {
+        sectionItem(section, ModerationSection.Rules, "shoutout-card") {
             Card(modifier = Modifier.fillMaxWidth()) {
                 ShoutoutTemplateEditor(
                     template = shoutoutTemplate,
@@ -1017,7 +1053,7 @@ private fun BansList(
                 )
             }
         }
-        item(key = "automod-header") {
+        sectionItem(section, ModerationSection.Rules, "automod-header") {
             Text(
                 text = stringResource(Res.string.moderation_automod_title),
                 style = typography.lg,
@@ -1025,7 +1061,7 @@ private fun BansList(
                 maxLines = 1,
             )
         }
-        item(key = "automod-card") {
+        sectionItem(section, ModerationSection.Rules, "automod-card") {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column {
                     AutomodRow(
@@ -1128,7 +1164,7 @@ private fun BansList(
             }
         }
         // Trust & Automation (S-OWN23 T4): what the bot does on its own, and every number behind it.
-        item(key = "trust-automation-header") {
+        sectionItem(section, ModerationSection.Rules, "trust-automation-header") {
             Text(
                 text = trustAutomationSectionTitle(),
                 style = typography.lg,
@@ -1136,10 +1172,10 @@ private fun BansList(
                 maxLines = 1,
             )
         }
-        item(key = "automation-panel") {
+        sectionItem(section, ModerationSection.Rules, "automation-panel") {
             Card(modifier = Modifier.fillMaxWidth()) { AutomationPanel(lines = automationLines) }
         }
-        item(key = "twitch-automod-card") {
+        sectionItem(section, ModerationSection.Rules, "twitch-automod-card") {
             Card(modifier = Modifier.fillMaxWidth()) {
                 TwitchAutoModEditor(
                     settings = twitchAutoMod,
@@ -1151,7 +1187,7 @@ private fun BansList(
         // The trust editor renders only when the policy read succeeded (Moderator+ read floor); the writes inside
         // it stay gated at the Broadcaster floor.
         trustPolicy?.let { policy ->
-            item(key = "trust-policy-card") {
+            sectionItem(section, ModerationSection.Rules, "trust-policy-card") {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     TrustPolicyEditor(
                         policy = policy,
@@ -1166,7 +1202,7 @@ private fun BansList(
         // (Moderator+ floor), and the writes inside it stay gated at the Broadcaster floor, because
         // changing these weights is where enforcement gets switched on at all.
         spamDefense?.let { policy ->
-            item(key = "spam-defense-card") {
+            sectionItem(section, ModerationSection.Rules, "spam-defense-card") {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     SpamDefenseSection(
                         policy = policy,
@@ -1180,7 +1216,7 @@ private fun BansList(
         // the same Moderator+ floor — a caller who cannot see the settings cannot see the verdicts
         // either, and neither is meaningful without the other.
         spamDefense?.let {
-            item(key = "spam-review-queue-header") {
+            sectionItem(section, ModerationSection.Queue, "spam-review-queue-header") {
                 Text(
                     text = stringResource(Res.string.spam_review_queue_title),
                     style = typography.lg,
@@ -1188,7 +1224,7 @@ private fun BansList(
                     maxLines = 1,
                 )
             }
-            item(key = "spam-review-queue-card") {
+            sectionItem(section, ModerationSection.Queue, "spam-review-queue-card") {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     SpamDetectionsSection(
                         detections = spamDetections,
@@ -1198,7 +1234,7 @@ private fun BansList(
                     )
                 }
             }
-            item(key = "spam-detections-header") {
+            sectionItem(section, ModerationSection.Queue, "spam-detections-header") {
                 Text(
                     text = stringResource(Res.string.spam_detections_title),
                     style = typography.lg,
@@ -1206,7 +1242,7 @@ private fun BansList(
                     maxLines = 1,
                 )
             }
-            item(key = "spam-detections-card") {
+            sectionItem(section, ModerationSection.Queue, "spam-detections-card") {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     SpamDetectionsSection(
                         detections = spamDetections,
@@ -1216,7 +1252,7 @@ private fun BansList(
                     )
                 }
             }
-            item(key = "spam-campaigns-header") {
+            sectionItem(section, ModerationSection.Queue, "spam-campaigns-header") {
                 Text(
                     text = stringResource(Res.string.spam_campaigns_title),
                     style = typography.lg,
@@ -1224,12 +1260,12 @@ private fun BansList(
                     maxLines = 1,
                 )
             }
-            item(key = "spam-campaigns-card") {
+            sectionItem(section, ModerationSection.Queue, "spam-campaigns-card") {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     SpamCampaignsSection(campaigns = spamCampaigns)
                 }
             }
-            item(key = "spam-follow-blocks-header") {
+            sectionItem(section, ModerationSection.Queue, "spam-follow-blocks-header") {
                 Text(
                     text = stringResource(Res.string.spam_follow_blocks_title),
                     style = typography.lg,
@@ -1237,7 +1273,7 @@ private fun BansList(
                     maxLines = 1,
                 )
             }
-            item(key = "spam-follow-blocks-card") {
+            sectionItem(section, ModerationSection.Queue, "spam-follow-blocks-card") {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     FollowBotBlocksSection(
                         blocks = followBotBlocks,
@@ -1249,7 +1285,7 @@ private fun BansList(
         }
         // Escalation ladder (J.10). Rendered only when the policy read succeeded (Moderator+ read floor).
         escalationPolicy?.let { policy ->
-            item(key = "escalation-header") {
+            sectionItem(section, ModerationSection.Rules, "escalation-header") {
                 Text(
                     text = stringResource(Res.string.moderation_escalation_title),
                     style = typography.lg,
@@ -1257,7 +1293,7 @@ private fun BansList(
                     maxLines = 1,
                 )
             }
-            item(key = "escalation-card") {
+            sectionItem(section, ModerationSection.Rules, "escalation-card") {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     EscalationLadderCard(
                         policy = policy,
@@ -1269,7 +1305,7 @@ private fun BansList(
         }
         // Shared-chat bans trust web (J.9). Rendered only when the SuperMod-gated read succeeded.
         sharedBanSettings?.let { settings ->
-            item(key = "shared-bans-header") {
+            sectionItem(section, ModerationSection.Rules, "shared-bans-header") {
                 Text(
                     text = stringResource(Res.string.moderation_shared_title),
                     style = typography.lg,
@@ -1277,7 +1313,7 @@ private fun BansList(
                     maxLines = 1,
                 )
             }
-            item(key = "shared-bans-card") {
+            sectionItem(section, ModerationSection.Rules, "shared-bans-card") {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     SharedBansCard(
                         settings = settings,
@@ -1292,7 +1328,7 @@ private fun BansList(
         }
         // Network-nuke batch history (J.2a). Shown only when there is a batch to revert or review.
         if (nukeBatches.isNotEmpty()) {
-            item(key = "nuke-header") {
+            sectionItem(section, ModerationSection.History, "nuke-header") {
                 Text(
                     text = stringResource(Res.string.moderation_nuke_batches_title),
                     style = typography.lg,
@@ -1300,7 +1336,7 @@ private fun BansList(
                     maxLines = 1,
                 )
             }
-            item(key = "nuke-card") {
+            sectionItem(section, ModerationSection.History, "nuke-card") {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column {
                         nukeBatches.forEachIndexed { index, batch ->
@@ -1317,7 +1353,7 @@ private fun BansList(
                 }
             }
         }
-        item(key = "rules-header") {
+        sectionItem(section, ModerationSection.Rules, "rules-header") {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -1341,7 +1377,7 @@ private fun BansList(
             }
         }
         if (rules.isNotEmpty()) {
-            item(key = "rules-card") {
+            sectionItem(section, ModerationSection.Rules, "rules-card") {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column {
                         rules.forEachIndexed { index, rule ->
@@ -1359,7 +1395,7 @@ private fun BansList(
                 }
             }
         }
-        item(key = "chat-filters-header") {
+        sectionItem(section, ModerationSection.Rules, "chat-filters-header") {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -1383,7 +1419,7 @@ private fun BansList(
             }
         }
         if (chatFilters.isNotEmpty()) {
-            item(key = "chat-filters-card") {
+            sectionItem(section, ModerationSection.Rules, "chat-filters-card") {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column {
                         chatFilters.forEachIndexed { index, filter ->

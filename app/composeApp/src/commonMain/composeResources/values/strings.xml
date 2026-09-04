@@ -167,6 +167,9 @@
     <string name="shell_nav_chat_triggers">Chat Triggers</string>
     <string name="shell_nav_timers">Timers</string>
     <string name="shell_nav_moderation">Moderation</string>
+    <string name="shell_nav_moderation_queue">Review Queue</string>
+    <string name="shell_nav_moderation_rules">Enforcement Rules</string>
+    <string name="shell_nav_moderation_history">History</string>
     <string name="shell_nav_rewards">Channel Points</string>
     <string name="shell_nav_economy">Economy</string>
     <string name="shell_nav_games">Games</string>

@@ -164,6 +164,9 @@
     <string name="shell_nav_chat_triggers">Chattriggers</string>
     <string name="shell_nav_timers">Timers</string>
     <string name="shell_nav_moderation">Moderatie</string>
+    <string name="shell_nav_moderation_queue">Wachtrij</string>
+    <string name="shell_nav_moderation_rules">Handhavingsregels</string>
+    <string name="shell_nav_moderation_history">Geschiedenis</string>
     <string name="shell_nav_rewards">Kanaalpunten</string>
     <string name="shell_nav_economy">Economie</string>
     <string name="shell_nav_games">Games</string>

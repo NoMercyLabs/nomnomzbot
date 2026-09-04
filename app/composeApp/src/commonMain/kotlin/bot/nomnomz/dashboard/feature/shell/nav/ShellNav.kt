@@ -28,6 +28,9 @@ enum class ShellRoute {
     PickLists,
     Timers,
     Moderation,
+    ModerationQueue,
+    ModerationRules,
+    ModerationHistory,
     Rewards,
     Economy,
     Games,
@@ -125,7 +128,15 @@ object ShellNav {
             NavPage(ShellRoute.Timers, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "timers:read"),
             NavPage(ShellRoute.Quotes, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "quotes:read"),
             NavPage(ShellRoute.PickLists, NavGroup.Chat, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "picklists:read"),
+            // The moderation surface is four pages, one per job (frontend-ia.md §Moderation). They share the
+            // `moderation:read` key because they read the same data; only the MANAGE floor differs.
             NavPage(ShellRoute.Moderation, NavGroup.Moderation, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "moderation:read"),
+            NavPage(ShellRoute.ModerationQueue, NavGroup.Moderation, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "moderation:read"),
+            // Editor to MANAGE: changing the rules that govern every future enforcement is a different act
+            // from applying one, and the other configuration surfaces here already sit at Editor. Reading
+            // stays at Moderator so a mod can see the rules they are enforcing.
+            NavPage(ShellRoute.ModerationRules, NavGroup.Moderation, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "moderation:read"),
+            NavPage(ShellRoute.ModerationHistory, NavGroup.Moderation, ManagementRole.Moderator, ManagementRole.Moderator, readActionKey = "moderation:read"),
             NavPage(ShellRoute.Rewards, NavGroup.Loyalty, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "reward:read"),
             NavPage(ShellRoute.Economy, NavGroup.Loyalty, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "economy:config:read"),
             NavPage(ShellRoute.Games, NavGroup.Loyalty, ManagementRole.Moderator, ManagementRole.Editor, readActionKey = "economy:games:read"),

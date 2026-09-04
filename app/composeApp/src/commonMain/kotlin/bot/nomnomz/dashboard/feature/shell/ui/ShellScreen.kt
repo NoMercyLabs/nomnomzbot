@@ -113,6 +113,7 @@ import bot.nomnomz.dashboard.feature.bundles.ui.BundlesScreen
 import bot.nomnomz.dashboard.feature.home.ui.HomeScreen
 import bot.nomnomz.dashboard.feature.integrations.ui.IntegrationsScreen
 import bot.nomnomz.dashboard.feature.liveops.ui.ScheduleScreen
+import bot.nomnomz.dashboard.feature.moderation.ui.ModerationSection
 import bot.nomnomz.dashboard.feature.moderation.ui.ModerationScreen
 import bot.nomnomz.dashboard.feature.music.ui.MusicScreen
 import bot.nomnomz.dashboard.feature.pipelines.ui.PipelinesScreen
@@ -162,6 +163,9 @@ import nomnomzbot.composeapp.generated.resources.shell_group_stream
 import nomnomzbot.composeapp.generated.resources.shell_hub_state_connected
 import nomnomzbot.composeapp.generated.resources.shell_hub_state_disconnected
 import nomnomzbot.composeapp.generated.resources.shell_hub_state_reconnecting
+import nomnomzbot.composeapp.generated.resources.shell_nav_moderation_queue
+import nomnomzbot.composeapp.generated.resources.shell_nav_moderation_rules
+import nomnomzbot.composeapp.generated.resources.shell_nav_moderation_history
 import nomnomzbot.composeapp.generated.resources.shell_nav_alerts
 import nomnomzbot.composeapp.generated.resources.shell_nav_analytics
 import nomnomzbot.composeapp.generated.resources.shell_nav_chat
@@ -587,8 +591,20 @@ private fun ShellContent(
                     hubEvents = graph.dashboardHubClient.events,
                     templateHelpersApi = graph.templateHelpersApi,
                 )
-            ShellRoute.Moderation ->
+            // The four moderation pages are the SAME screen with a different active section: they read one
+            // controller and one load, and only differ in which sections they render (see [ModerationSection]).
+            ShellRoute.Moderation,
+            ShellRoute.ModerationQueue,
+            ShellRoute.ModerationRules,
+            ShellRoute.ModerationHistory ->
                 ModerationScreen(
+                    section =
+                        when (selected) {
+                            ShellRoute.ModerationQueue -> ModerationSection.Queue
+                            ShellRoute.ModerationRules -> ModerationSection.Rules
+                            ShellRoute.ModerationHistory -> ModerationSection.History
+                            else -> ModerationSection.Desk
+                        },
                     controller = graph.moderationController,
                     role = role,
                     templateHelpersApi = graph.templateHelpersApi,
@@ -1433,6 +1449,9 @@ private fun ShellRoute.icon(): DrawableResource =
         ShellRoute.PickLists -> PickListsGlyph
         ShellRoute.CodeScripts -> CodeScriptsGlyph
         ShellRoute.Moderation -> ModerationGlyph
+        ShellRoute.ModerationQueue -> ModerationQueueGlyph
+        ShellRoute.ModerationRules -> ModerationRulesGlyph
+        ShellRoute.ModerationHistory -> ModerationHistoryGlyph
         ShellRoute.Rewards -> RewardsGlyph
         ShellRoute.Economy -> EconomyGlyph
         ShellRoute.Games -> GamesGlyph
@@ -1479,6 +1498,9 @@ private fun ShellRoute.label(): String =
             ShellRoute.PickLists -> Res.string.shell_nav_pick_lists
             ShellRoute.Timers -> Res.string.shell_nav_timers
             ShellRoute.Moderation -> Res.string.shell_nav_moderation
+            ShellRoute.ModerationQueue -> Res.string.shell_nav_moderation_queue
+            ShellRoute.ModerationRules -> Res.string.shell_nav_moderation_rules
+            ShellRoute.ModerationHistory -> Res.string.shell_nav_moderation_history
             ShellRoute.Rewards -> Res.string.shell_nav_rewards
             ShellRoute.Economy -> Res.string.shell_nav_economy
             ShellRoute.Games -> Res.string.shell_nav_games

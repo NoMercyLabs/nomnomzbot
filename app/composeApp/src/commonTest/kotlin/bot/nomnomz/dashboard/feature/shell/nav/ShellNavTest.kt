@@ -152,6 +152,11 @@ class ShellNavTest {
                 ShellRoute.Chat,
                 ShellRoute.Commands,
                 ShellRoute.Moderation,
+                // The moderation split (S-UX-3): the desk, the queue and history all ACT at Moderator.
+                // ModerationRules is deliberately absent — changing the rules that govern every future
+                // enforcement floors at Editor, so a Mod reads them and cannot rewrite them.
+                ShellRoute.ModerationQueue,
+                ShellRoute.ModerationHistory,
                 ShellRoute.Community,
                 ShellRoute.Giveaways,
                 // Media Share: the mod clip queue moderate actions floor at Moderator (media:moderate); the config
