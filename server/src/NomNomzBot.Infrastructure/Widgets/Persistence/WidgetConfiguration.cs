@@ -48,10 +48,13 @@ public class WidgetConfiguration : IEntityTypeConfiguration<Widget>
                 JsonValueConverter.Comparer<Dictionary<string, object>>()
             );
 
+        builder.Property(e => e.PlatformSourceHash).HasMaxLength(64);
+
         builder.HasIndex(e => e.BroadcasterId);
         builder.HasIndex(e => e.Source);
         builder.HasIndex(e => e.GalleryItemId);
         builder.HasIndex(e => e.ActiveVersionId);
+        builder.HasIndex(e => e.PlatformSourceDefinitionId);
 
         builder
             .HasOne(e => e.Channel)

@@ -69,6 +69,23 @@ public class Widget : SoftDeletableEntity, ITenantScoped
     /// <summary>Config-schema generation for forward-compatible settings migration (defaults to 1).</summary>
     public int ConfigSchemaVersion { get; set; } = 1;
 
+    /// <summary>Which <c>PlatformContentDefinition</c> (Kind=<c>widget</c>) this row was installed from; null
+    /// for a widget never installed via the platform-content spine (platform-admin.md §3.3). Generalizes the
+    /// same staleness pattern already applied to <c>ChannelBuiltinCommand</c>.</summary>
+    public Guid? PlatformSourceDefinitionId { get; set; }
+
+    /// <summary>The <c>PlatformContentVersion.Version</c> installed.</summary>
+    public int? PlatformSourceVersion { get; set; }
+
+    /// <summary>The <c>ContentHash</c> at install/last-sync time — compared against this row's live content
+    /// hash (of source + settings + subscriptions, canonicalized) to decide "untouched" for
+    /// <c>update_in_place_where_untouched</c> publishes.</summary>
+    [MaxLength(64)]
+    public string? PlatformSourceHash { get; set; }
+
+    /// <summary>When this row last received a platform-originated update.</summary>
+    public DateTime? PlatformSourceSyncedAt { get; set; }
+
     [ForeignKey(nameof(BroadcasterId))]
     public virtual Channel Channel { get; set; } = null!;
 }
