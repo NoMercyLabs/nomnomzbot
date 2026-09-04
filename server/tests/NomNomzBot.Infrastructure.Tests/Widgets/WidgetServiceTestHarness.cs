@@ -13,7 +13,9 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Domain.EventStore.Entities;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.PlatformContent.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Content.PlatformContent.Persistence;
 using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 using NomNomzBot.Infrastructure.Platform.Persistence.Interceptors;
 using NomNomzBot.Infrastructure.Widgets.Persistence;
@@ -68,6 +70,12 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.ApplyConfiguration(new WidgetGalleryItemConfiguration());
         modelBuilder.ApplyConfiguration(new WidgetGallerySubmissionEventConfiguration());
 
+        // S-ADMIN-2c-b: InstallFromGalleryAsync resolves a PlatformContentDefinition/Version pair to stamp
+        // Widget.PlatformSourceDefinitionId — the REAL configurations, so the install test exercises the same
+        // mapping production runs on.
+        modelBuilder.ApplyConfiguration(new PlatformContentDefinitionConfiguration());
+        modelBuilder.ApplyConfiguration(new PlatformContentVersionConfiguration());
+
         // EF discovers an entity type from EVERY DbSet<T> property on the context (an IApplicationDbContext
         // requirement) — even the throwing ones — and would then try to map their jsonb-of-complex-type columns,
         // unsupported on SQLite. Ignore every entity this slice does not exercise so the model stays minimal and
@@ -102,6 +110,8 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
                 && t != typeof(User)
                 && t != typeof(WidgetGalleryItem)
                 && t != typeof(WidgetGallerySubmissionEvent)
+                && t != typeof(PlatformContentDefinition)
+                && t != typeof(PlatformContentVersion)
             ),
     ];
 
@@ -110,6 +120,9 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
     public DbSet<WidgetVersion> WidgetVersions => Set<WidgetVersion>();
     public DbSet<Channel> Channels => Set<Channel>();
     public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
+    public DbSet<PlatformContentDefinition> PlatformContentDefinitions =>
+        Set<PlatformContentDefinition>();
+    public DbSet<PlatformContentVersion> PlatformContentVersions => Set<PlatformContentVersion>();
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
     public DbSet<NomNomzBot.Domain.Quotes.Entities.Quote> Quotes =>
@@ -340,10 +353,6 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Economy.Entities.GamePlay> GamePlays =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Marketplace.Entities.InstalledBundle> InstalledBundles =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentDefinition> PlatformContentDefinitions =>
-        throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentVersion> PlatformContentVersions =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentPublishJob> PlatformContentPublishJobs =>
         throw new NotSupportedException();

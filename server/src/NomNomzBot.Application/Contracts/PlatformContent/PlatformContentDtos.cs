@@ -87,5 +87,6 @@ public sealed record PlatformContentPublishJobDto(
     int? ConfirmedAffectedCount,
     string Status,
     DateTime? CompletedAt,
-    string? FailureReason
+    string? FailureReason,
+    IReadOnlyList<Guid> RebuildFailedWidgetIds
 );

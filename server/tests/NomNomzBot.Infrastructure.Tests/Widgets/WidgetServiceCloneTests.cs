@@ -276,6 +276,97 @@ public sealed class WidgetServiceCloneTests
     }
 
     [Fact]
+    public async Task Install_from_gallery_stamps_the_matching_published_platform_content_definition()
+    {
+        // S-ADMIN-2c-b: an install of a first-party gallery item genuinely backed by the platform-content spine
+        // (a published PlatformContentDefinition, Kind=widget, whose Key matches the gallery item's NaturalKey)
+        // stamps Widget.PlatformSourceDefinitionId/Version/SyncedAt — the missing link the publish fan-out needs
+        // to ever reach a real tenant row.
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        Guid channel = Guid.CreateVersion7();
+        await SeedChannelAsync(database, channel);
+        Guid galleryItem = await SeedGalleryItemAsync(database, trustTier: "first_party");
+
+        Guid definitionId = Guid.CreateVersion7();
+        Guid versionId = Guid.CreateVersion7();
+        await using (WidgetTestDbContext seed = database.NewContext())
+        {
+            seed.PlatformContentDefinitions.Add(
+                new()
+                {
+                    Id = definitionId,
+                    Kind = "widget",
+                    Key = "alerts", // matches SeedGalleryItemAsync's NaturalKey
+                    DisplayName = "Alerts",
+                    CurrentVersionId = versionId,
+                    LatestDraftVersionId = versionId,
+                    CreatedAt = Clock.GetUtcNow().UtcDateTime,
+                    CreatedByPrincipalId = Guid.CreateVersion7(),
+                }
+            );
+            seed.PlatformContentVersions.Add(
+                new()
+                {
+                    Id = versionId,
+                    DefinitionId = definitionId,
+                    Version = 3,
+                    ContentHash = new string('a', 64),
+                    PayloadJson = "{}",
+                    DraftedAt = Clock.GetUtcNow().UtcDateTime,
+                    DraftedByPrincipalId = Guid.CreateVersion7(),
+                    PublishedAt = Clock.GetUtcNow().UtcDateTime,
+                }
+            );
+            await seed.SaveChangesAsync();
+        }
+
+        Guid installedWidgetId;
+        await using (WidgetTestDbContext db = database.NewContext())
+        {
+            Result<WidgetDetail> result = await NewService(db)
+                .InstallFromGalleryAsync(channel.ToString(), galleryItem.ToString());
+            result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+            installedWidgetId = result.Value.Id;
+        }
+
+        // The real, persisted row — not the returned DTO.
+        await using WidgetTestDbContext verify = database.NewContext();
+        Widget widget = await verify
+            .Widgets.AsNoTracking()
+            .SingleAsync(w => w.Id == installedWidgetId);
+        widget.PlatformSourceDefinitionId.Should().Be(definitionId);
+        widget.PlatformSourceVersion.Should().Be(3);
+        widget.PlatformSourceSyncedAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task Install_from_gallery_leaves_platform_source_null_when_no_definition_matches()
+    {
+        // A community/unverified item (no NaturalKey) or a first-party item whose key has no matching
+        // published definition must NEVER guess a link — the row stays unstamped.
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        Guid channel = Guid.CreateVersion7();
+        await SeedChannelAsync(database, channel);
+        Guid galleryItem = await SeedGalleryItemAsync(database, trustTier: "first_party");
+
+        Guid installedWidgetId;
+        await using (WidgetTestDbContext db = database.NewContext())
+        {
+            Result<WidgetDetail> result = await NewService(db)
+                .InstallFromGalleryAsync(channel.ToString(), galleryItem.ToString());
+            result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+            installedWidgetId = result.Value.Id;
+        }
+
+        await using WidgetTestDbContext verify = database.NewContext();
+        Widget widget = await verify
+            .Widgets.AsNoTracking()
+            .SingleAsync(w => w.Id == installedWidgetId);
+        widget.PlatformSourceDefinitionId.Should().BeNull();
+        widget.PlatformSourceVersion.Should().BeNull();
+    }
+
+    [Fact]
     public async Task Install_from_an_unverified_gallery_item_fails()
     {
         using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();

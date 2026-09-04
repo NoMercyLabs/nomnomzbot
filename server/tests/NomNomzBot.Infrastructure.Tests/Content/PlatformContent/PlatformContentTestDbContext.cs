@@ -91,6 +91,7 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
     public DbSet<PlatformContentPublishJob> PlatformContentPublishJobs =>
         Set<PlatformContentPublishJob>();
     public DbSet<Widget> Widgets => Set<Widget>();
+    public DbSet<WidgetVersion> WidgetVersions => Set<WidgetVersion>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -112,6 +113,7 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
         b.ApplyConfiguration(new PlatformContentVersionConfiguration());
         b.ApplyConfiguration(new PlatformContentPublishJobConfiguration());
         b.ApplyConfiguration(new WidgetConfiguration());
+        b.ApplyConfiguration(new WidgetVersionConfiguration());
 
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing
         // getter bodies; ignore every entity these tests do not exercise so the model stays minimal.
@@ -130,6 +132,7 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
         typeof(PlatformContentVersion),
         typeof(PlatformContentPublishJob),
         typeof(Widget),
+        typeof(WidgetVersion),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -209,7 +212,6 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayCode> GiveawayCodes =>
         throw new NotSupportedException();
-    public DbSet<WidgetVersion> WidgetVersions => throw new NotSupportedException();
     public DbSet<WidgetGalleryItem> WidgetGalleryItems => throw new NotSupportedException();
     public DbSet<WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>
         throw new NotSupportedException();

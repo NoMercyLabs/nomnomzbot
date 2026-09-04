@@ -25,6 +25,7 @@ using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Domain.PlatformContent.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Domain.Widgets.Events;
 
@@ -321,6 +322,7 @@ public class WidgetService : IWidgetService
             EventSubscriptions = [.. item.DefaultEventSubscriptions],
             Settings = new(item.DefaultSettings),
         };
+        await StampPlatformSourceAsync(widget, item, cancellationToken);
         _db.Widgets.Add(widget);
         await _db.SaveChangesAsync(cancellationToken);
         await PublishConfigChangedAsync(broadcasterGuid, widget.Id, "created", cancellationToken);
@@ -1374,6 +1376,50 @@ public class WidgetService : IWidgetService
             v.CompiledAt,
             v.CreatedAt
         );
+    }
+
+    /// <summary>
+    /// Stamps <see cref="Widget.PlatformSourceDefinitionId"/> (+ siblings) when the gallery item being installed
+    /// is genuinely backed by the platform-content spine (S-ADMIN-2c-b): a published <c>PlatformContentDefinition</c>
+    /// with <c>Kind = widget</c> whose <c>Key</c> equals the item's <see cref="WidgetGalleryItem.NaturalKey"/> —
+    /// the same natural-key linking rule the command kind uses, never a name match. Only a first-party item can
+    /// carry a <c>NaturalKey</c> (community submissions leave it null), so this is a no-op for a community
+    /// install. Leaves the row unstamped (null) when no definition matches, the definition has never been
+    /// published, or the key is ambiguous — never guesses.
+    /// </summary>
+    private async Task StampPlatformSourceAsync(
+        Widget widget,
+        WidgetGalleryItem item,
+        CancellationToken cancellationToken
+    )
+    {
+        if (item.NaturalKey is null)
+            return;
+
+        List<PlatformContentDefinition> matches = await _db
+            .PlatformContentDefinitions.Where(d =>
+                d.Kind == PlatformContentKinds.Widget
+                && d.Key == item.NaturalKey
+                && d.RetiredAt == null
+            )
+            .ToListAsync(cancellationToken);
+        if (matches.Count != 1)
+            return; // no match, or ambiguous — never guess.
+
+        PlatformContentDefinition definition = matches[0];
+        if (definition.CurrentVersionId is not { } currentVersionId)
+            return; // drafted but never published — nothing installable to attribute yet.
+
+        PlatformContentVersion? version = await _db.PlatformContentVersions.FirstOrDefaultAsync(
+            v => v.Id == currentVersionId,
+            cancellationToken
+        );
+        if (version is null)
+            return;
+
+        widget.PlatformSourceDefinitionId = definition.Id;
+        widget.PlatformSourceVersion = version.Version;
+        widget.PlatformSourceSyncedAt = _timeProvider.GetUtcNow().UtcDateTime;
     }
 
     /// <summary>E5 dashboard live-sync: fired after every successful write so other open dashboards refetch.</summary>
