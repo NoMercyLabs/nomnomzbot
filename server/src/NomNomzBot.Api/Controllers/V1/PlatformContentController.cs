@@ -12,6 +12,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
@@ -47,7 +48,7 @@ public class PlatformContentController(
     )]
     public async Task<IActionResult> ListDefinitions(
         [FromQuery] string? kind,
-        [FromQuery] NomNomzBot.Api.Models.PageRequestDto page,
+        [FromQuery] Models.PageRequestDto page,
         CancellationToken ct
     )
     {
@@ -177,6 +178,11 @@ public class PlatformContentController(
 
     /// <summary>Sets <c>RetiredAt</c>; never touches already-installed tenant copies (§3.1).</summary>
     [HttpDelete("definitions/{id:guid}")]
+    [NotDestructive(
+        "Stamps RetiredAt on the one catalogue definition addressed by the route and writes nothing "
+            + "else: §3.1 keeps every already-installed tenant copy running, so there is no fan-out to "
+            + "count. Retiring only stops the definition being offered again."
+    )]
     [Authorize(Policy = IamPermissionKeys.ContentAuthor)]
     [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
     public async Task<IActionResult> RetireDefinition(Guid id, CancellationToken ct)
