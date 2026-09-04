@@ -26,6 +26,7 @@ using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Contracts.Kick;
+using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Contracts.Platform;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Contracts.YouTube;
@@ -300,10 +301,7 @@ public static class DependencyInjection
         // §3.10 manage surface (music-sr.md) — capability-gating front over the registered providers;
         // scoped because it delegates to the scoped IMusicProvider instances. Explicit registration:
         // the interface does not match the I<X>Service convention scan.
-        services.AddScoped<
-            Application.Contracts.Music.IMusicProviderManageApi,
-            MusicProviderManageApi
-        >();
+        services.AddScoped<IMusicProviderManageApi, MusicProviderManageApi>();
 
         // Runtime-observed integration capabilities (e.g. spotify.premium from a player-403) —
         // singleton observation cache feeding IntegrationStatusDto.Capabilities. Explicit: the
@@ -356,6 +354,12 @@ public static class DependencyInjection
         // channel) so Pause/Play/the play-pause toggle can publish their state-changed event immediately
         // off a known-fresh snapshot instead of a second live provider round trip in the critical path.
         services.AddSingleton<INowPlayingCache, NowPlayingCache>();
+        // Singleton: a provider's realtime transport and the poller are both long-lived, and the whole
+        // point is that a nudge raised by one is seen by the other.
+        services.AddSingleton<MusicRealtimeSignal>();
+        services.AddSingleton<IMusicRealtimeSignal>(sp =>
+            sp.GetRequiredService<MusicRealtimeSignal>()
+        );
 
         // S001b — durable mirror of the fair queue (write-through on every mutation) + the once-at-startup
         // restore that replays it back into the (freshly empty) singleton store above before any live
@@ -829,10 +833,7 @@ public static class DependencyInjection
         // just-vaulted OAuth tokens into the legacy `Service` store the music providers still read from, so a
         // connected music integration is actually usable instead of looping on "reconnect". Scoped — writes
         // through the per-request DbContext. Not an I<X>Service, so it is registered explicitly here.
-        services.AddScoped<
-            Application.Contracts.Music.IMusicProviderTokenMirror,
-            MusicProviderTokenMirror
-        >();
+        services.AddScoped<IMusicProviderTokenMirror, MusicProviderTokenMirror>();
 
         // Login-provider descriptors (platform-identity §3.2) — data, not a fork. Singleton (static list); the
         // feature-flag lookup inside EnabledAsync is resolved through a fresh scope. Not an I<X>Service, so it
