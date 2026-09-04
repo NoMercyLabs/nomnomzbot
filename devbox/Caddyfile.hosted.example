@@ -1,0 +1,37 @@
+# -----------------------------------------------------------------------------
+#  Copyright (c) NoMercy Labs.
+#
+#  This file is part of NomNomzBot, free software licensed under the GNU Affero
+#  General Public License v3.0 or later. You may redistribute and/or modify it
+#  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+#
+#  SPDX-License-Identifier: AGPL-3.0-or-later
+# -----------------------------------------------------------------------------
+#
+# OPTIONAL - only for putting the devbox on a shared host (the Proxmox box) so a second person
+# can reach it. Merge this block into that host's Caddy config; it is deliberately NOT part of
+# the repo-root Caddyfile, which serves the BOT and must not grow an editor on it by accident.
+#
+# The devbox is a shell with the docker socket. Exposing it is exposing the host. Two locks,
+# both required:
+#   1. TLS + a Caddy basic-auth gate (below)
+#   2. code-server's own password (DEVBOX_PASSWORD in devbox/.env)
+#
+# Generate the basic-auth hash with:  docker run --rm caddy caddy hash-password --plaintext 'secret'
+
+devbox.example.com {
+	# Remove this line to open it to the internet - do that only with a hash you trust.
+	@allowed remote_ip 192.168.2.0/24
+
+	basic_auth {
+		aaoa $2a$14$REPLACE_WITH_THE_HASH_FROM_caddy_hash_password
+	}
+
+	reverse_proxy nomnomzbot-devbox:8080 {
+		# code-server is a WebSocket app; Caddy proxies the upgrade natively, but the long-lived
+		# terminal/file-watcher sockets need the read timeout lifted.
+		transport http {
+			read_timeout 0
+		}
+	}
+}

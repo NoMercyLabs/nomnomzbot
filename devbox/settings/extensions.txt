@@ -1,0 +1,49 @@
+# Open VSX ids, one per line. Re-applied when this file changes; a missing one is skipped.
+
+# --- look and feel ---
+zhuangtongfa.material-theme          # One Dark Pro Darker
+vscode-icons-team.vscode-icons
+
+# --- .NET (server/) ---
+muhammad-sammy.csharp                # ms-dotnettools.* is not published on Open VSX
+csharpier.csharpier-vscode           # the repo's pinned formatter - server/.config/dotnet-tools.json
+editorconfig.editorconfig            # server/.editorconfig is a hard gate (IDE0008 var = error)
+
+# --- Kotlin / Gradle (app/ - KMP + Compose Multiplatform) ---
+jetbrains.kotlin-server
+redhat.java                          # JDT language server - Gradle Kotlin DSL + the JVM target
+vscjava.vscode-gradle
+
+# --- widgets (Vue SFC) ---
+vue.volar
+sdras.vue-vscode-snippets
+esbenp.prettier-vscode
+
+# --- infra / scripting ---
+ms-vscode.powershell                 # scripts/*.ps1
+docker.docker
+redhat.vscode-yaml                   # docker-compose, CI workflows
+redhat.vscode-xml                    # composeResources/values*/strings.xml - i18n lives here
+tamasfe.even-better-toml
+mikestead.dotenv
+
+# --- data ---
+qwtel.sqlite-viewer                  # the dev runtime is SelfHostLite on SQLite
+mechatroner.rainbow-csv
+
+# --- git / CI ---
+mhutchie.git-graph
+github.vscode-github-actions
+github.vscode-pull-request-github
+
+# --- docs ---
+yzhang.markdown-all-in-one
+davidanson.vscode-markdownlint
+bierner.markdown-mermaid              # the design specs use mermaid
+
+# --- everyday ---
+gruntfuggly.todo-tree
+aaron-bond.better-comments
+streetsidesoftware.code-spell-checker
+oderwat.indent-rainbow
+anthropic.claude-code

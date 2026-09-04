@@ -1,0 +1,55 @@
+{
+  // Attaches to the same container the browser editor runs in.
+  "name": "NomNomzBot Devbox",
+  "dockerComposeFile": ["../devbox/docker-compose.yml"],
+  "service": "devbox",
+  "workspaceFolder": "/workspace",
+  "remoteUser": "dev",
+  "overrideCommand": false,
+  "shutdownAction": "none",
+  "postAttachCommand": "devbox-auth",
+  "forwardPorts": [5080, 5090, 8080],
+  "portsAttributes": {
+    "5080": { "label": "API", "onAutoForward": "notify" },
+    "5090": { "label": "Dashboard (Wasm dev server)", "onAutoForward": "notify" },
+    "8080": { "label": "code-server", "onAutoForward": "silent" }
+  },
+  "customizations": {
+    "vscode": {
+      // Marketplace ids; devbox/settings/extensions.txt carries the Open VSX ids for code-server.
+      "extensions": [
+        "zhuangtongfa.material-theme",
+        "vscode-icons-team.vscode-icons",
+        "ms-dotnettools.csdevkit",
+        "ms-dotnettools.csharp",
+        "csharpier.csharpier-vscode",
+        "editorconfig.editorconfig",
+        "jetbrains.kotlin-server",
+        "redhat.java",
+        "vscjava.vscode-gradle",
+        "vue.volar",
+        "sdras.vue-vscode-snippets",
+        "esbenp.prettier-vscode",
+        "ms-vscode.powershell",
+        "docker.docker",
+        "redhat.vscode-yaml",
+        "redhat.vscode-xml",
+        "tamasfe.even-better-toml",
+        "mikestead.dotenv",
+        "qwtel.sqlite-viewer",
+        "mechatroner.rainbow-csv",
+        "mhutchie.git-graph",
+        "github.vscode-github-actions",
+        "github.vscode-pull-request-github",
+        "yzhang.markdown-all-in-one",
+        "davidanson.vscode-markdownlint",
+        "bierner.markdown-mermaid",
+        "gruntfuggly.todo-tree",
+        "aaron-bond.better-comments",
+        "streetsidesoftware.code-spell-checker",
+        "oderwat.indent-rainbow",
+        "anthropic.claude-code"
+      ]
+    }
+  }
+}
