@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import bot.nomnomz.dashboard.core.designsystem.component.FieldPair
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
@@ -676,27 +677,32 @@ private fun MarketplaceTab(
     var type: String by remember { mutableStateOf("") }
 
     Column(verticalArrangement = Arrangement.spacedBy(spacing.s4)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
+        FieldPair(
             verticalAlignment = Alignment.Bottom,
-            horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-        ) {
-            AppTextField(
-                value = query,
-                onValueChange = { query = it },
-                label = stringResource(Res.string.bundles_marketplace_search_label),
-                modifier = Modifier.weight(1f),
-            )
-            AppTextField(
-                value = type,
-                onValueChange = { type = it },
-                label = stringResource(Res.string.bundles_marketplace_type_label),
-                modifier = Modifier.weight(1f),
-            )
-            Button(onClick = { onBrowse(query.trim().ifBlank { null }, type.trim().ifBlank { null }) }) {
-                Text(text = stringResource(Res.string.bundles_marketplace_browse))
-            }
-        }
+            first = { fieldModifier ->
+                AppTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    label = stringResource(Res.string.bundles_marketplace_search_label),
+                    modifier = fieldModifier,
+                )
+            },
+            second = { fieldModifier ->
+                AppTextField(
+                    value = type,
+                    onValueChange = { type = it },
+                    label = stringResource(Res.string.bundles_marketplace_type_label),
+                    modifier = fieldModifier,
+                )
+            },
+            action = {
+                Button(
+                    onClick = { onBrowse(query.trim().ifBlank { null }, type.trim().ifBlank { null }) }
+                ) {
+                    Text(text = stringResource(Res.string.bundles_marketplace_browse))
+                }
+            },
+        )
 
         if (!available) {
             Card(modifier = Modifier.fillMaxWidth()) {

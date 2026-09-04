@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.ui.focus.onFocusChanged
+import bot.nomnomz.dashboard.core.designsystem.component.FieldPair
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
 import bot.nomnomz.dashboard.core.designsystem.component.Card
@@ -954,29 +955,40 @@ private fun FieldMapEditor(
         )
 
         rows.forEachIndexed { index, row ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                AppTextField(
-                    value = row.key,
-                    onValueChange = { text -> onRowsChange(rows.replaceAt(index, row.copy(key = text))) },
-                    label = stringResource(Res.string.custom_events_field_name),
-                    modifier = Modifier.weight(1f),
-                )
-                AppTextField(
-                    value = row.path,
-                    onValueChange = { text -> onRowsChange(rows.replaceAt(index, row.copy(path = text))) },
-                    label = stringResource(Res.string.custom_events_field_path),
-                    modifier = Modifier.weight(1f).onFocusChanged { state -> if (state.isFocused) onRowFocused(index) },
-                )
-                GlyphButton(
-                    icon = TrashGlyph,
-                    label = stringResource(Res.string.custom_events_delete_confirm),
-                    onClick = { onRowsChange(rows.filterIndexed { rowIndex, _ -> rowIndex != index }) },
-                )
-            }
+            FieldPair(
+                first = { fieldModifier ->
+                    AppTextField(
+                        value = row.key,
+                        onValueChange = { text ->
+                            onRowsChange(rows.replaceAt(index, row.copy(key = text)))
+                        },
+                        label = stringResource(Res.string.custom_events_field_name),
+                        modifier = fieldModifier,
+                    )
+                },
+                second = { fieldModifier ->
+                    AppTextField(
+                        value = row.path,
+                        onValueChange = { text ->
+                            onRowsChange(rows.replaceAt(index, row.copy(path = text)))
+                        },
+                        label = stringResource(Res.string.custom_events_field_path),
+                        modifier =
+                            fieldModifier.onFocusChanged { state ->
+                                if (state.isFocused) onRowFocused(index)
+                            },
+                    )
+                },
+                action = {
+                    GlyphButton(
+                        icon = TrashGlyph,
+                        label = stringResource(Res.string.custom_events_delete_confirm),
+                        onClick = {
+                            onRowsChange(rows.filterIndexed { rowIndex, _ -> rowIndex != index })
+                        },
+                    )
+                },
+            )
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {

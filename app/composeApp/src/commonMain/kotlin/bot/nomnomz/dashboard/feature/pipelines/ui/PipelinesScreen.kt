@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import bot.nomnomz.dashboard.core.designsystem.component.FieldPair
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.EntityPickerField
@@ -2603,30 +2604,32 @@ private fun GenericParamFields(entries: SnapshotStateList<GenericEntry>, templat
     Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
         LabeledText(stringResource(Res.string.pipelines_generic_params_label))
         entries.forEachIndexed { index, entry ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                AppTextField(
-                    value = entry.key,
-                    onValueChange = { entry.key = it },
-                    label = stringResource(Res.string.pipelines_generic_param_key),
-                    modifier = Modifier.weight(1f),
-                )
-                AppTextField(
-                    value = entry.value,
-                    onValueChange = { entry.value = it },
-                    label = stringResource(Res.string.pipelines_generic_param_value),
-                    modifier = Modifier.weight(1f),
-                )
-                GlyphButton(
-                    icon = TrashGlyph,
-                    label = stringResource(Res.string.pipelines_generic_remove),
-                    onClick = { entries.removeAt(index) },
-                    tint = LocalTokens.current.destructive,
-                )
-            }
+            FieldPair(
+                first = { fieldModifier ->
+                    AppTextField(
+                        value = entry.key,
+                        onValueChange = { entry.key = it },
+                        label = stringResource(Res.string.pipelines_generic_param_key),
+                        modifier = fieldModifier,
+                    )
+                },
+                second = { fieldModifier ->
+                    AppTextField(
+                        value = entry.value,
+                        onValueChange = { entry.value = it },
+                        label = stringResource(Res.string.pipelines_generic_param_value),
+                        modifier = fieldModifier,
+                    )
+                },
+                action = {
+                    GlyphButton(
+                        icon = TrashGlyph,
+                        label = stringResource(Res.string.pipelines_generic_remove),
+                        onClick = { entries.removeAt(index) },
+                        tint = LocalTokens.current.destructive,
+                    )
+                },
+            )
         }
         GlyphButton(
             icon = AddGlyph,

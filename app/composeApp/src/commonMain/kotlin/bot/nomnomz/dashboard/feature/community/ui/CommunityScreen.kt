@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
+import bot.nomnomz.dashboard.core.designsystem.component.FieldPair
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.Card
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
@@ -67,6 +68,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.Spinner
 import bot.nomnomz.dashboard.core.designsystem.component.TabsList
 import bot.nomnomz.dashboard.core.designsystem.component.TabsTrigger
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
+import bot.nomnomz.dashboard.core.designsystem.theme.windowSize
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
@@ -1348,26 +1350,28 @@ private fun ViewerDataSection(
     }
 
     if (write.isAllowed) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+        FieldPair(
             verticalAlignment = Alignment.Top,
-        ) {
-            AppTextField(
-                value = newKey,
-                onValueChange = { newKey = it; keyError = false },
-                label = stringResource(Res.string.community_data_key),
-                isError = keyError,
-                errorText = if (keyError) stringResource(Res.string.community_data_key_required) else null,
-                modifier = Modifier.weight(1f),
-            )
-            AppTextField(
-                value = newValue,
-                onValueChange = { newValue = it },
-                label = stringResource(Res.string.community_data_value),
-                modifier = Modifier.weight(1f),
-            )
-        }
+            first = { fieldModifier ->
+                AppTextField(
+                    value = newKey,
+                    onValueChange = { newKey = it; keyError = false },
+                    label = stringResource(Res.string.community_data_key),
+                    isError = keyError,
+                    errorText =
+                        if (keyError) stringResource(Res.string.community_data_key_required) else null,
+                    modifier = fieldModifier,
+                )
+            },
+            second = { fieldModifier ->
+                AppTextField(
+                    value = newValue,
+                    onValueChange = { newValue = it },
+                    label = stringResource(Res.string.community_data_value),
+                    modifier = fieldModifier,
+                )
+            },
+        )
         Button(
             onClick = {
                 val key: String = newKey.trim().lowercase()
