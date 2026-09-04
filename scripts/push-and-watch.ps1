@@ -104,7 +104,12 @@ try {
         # A green run is not a deployed commit. A run can be CANCELLED by the concurrency rule when a
         # newer push lands mid-run, which skips the image build and the deploy entirely while every
         # local signal still says "pushed, green". The only ground truth is what the box reports.
-        [string]$head = (git rev-parse HEAD).Trim()
+        #
+        # Compare against the sha THIS RUN shipped, not `git rev-parse HEAD`: on a tree several agents
+        # push to, HEAD moves while the ~25min image build runs, and comparing against the moved HEAD
+        # reported NOT DEPLOYED three times for runs that had each deployed their own commit correctly.
+        # A newer commit not being live is the NEXT run's business, not this one's.
+        [string]$head = $sha
         Write-Host ''
         Write-Host "== confirming the box is actually serving $($head.Substring(0,8)) =="
         [string]$live = ''
