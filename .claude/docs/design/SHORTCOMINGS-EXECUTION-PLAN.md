@@ -19,6 +19,82 @@ Slice IDs are stable; the order is the queue.
 
 ---
 
+## OWNER REQUEST 2026-09-04 (b) — the admin plane a SaaS owner actually operates from
+
+Owner, verbatim: "add a slice that completely overhauls the admin dashboard and gives me every tool i could
+ever need managing the saas, including the editing of system commands, widgets, pipelines and code scripts.
+and i mean everything i could ever need to configure as a saas owner/admin".
+
+> **`saas` mode is a RESTRICTED option** — operating NomNomzBot as a hosted service for third parties is
+> reserved to NoMercy Labs under the licence. Self-hosting your own bot is always free. Everything below is
+> the operator surface for that restricted mode and must keep carrying this marker.
+
+**Measured today (2026-09-04), not assumed.** The admin plane is **11 tabs** — Overview, Channels, Users,
+System, Billing, IAM, Tenants, Audit, Spam Defaults, Providers — across 2,732 lines. Backing it: 10 admin
+controllers (`AdminController`, `PlatformAdminController` with 9 routes, `PlatformIamController`,
+`AdminBillingController`, `FeatureFlagAdminController`, `PlatformAnalyticsController`,
+`AdminSpamDefenseController`, …).
+
+**The structural gap, and it is the owner's exact ask.** Every piece of content the platform ships to every
+tenant is seeded from **C# code**: `DefaultCommandsSeeder`, `FirstPartyWidgetCatalogueSeeder`,
+`RaidFlowSeeder` / `RaidStartFlowSeeder` / `RaidCommitFlowSeeder`, `EventResponseDefaultsSeeder`,
+`TtsVoiceSeeder`, `BillingTierSeeder`, `IamCatalogSeeder`, `ActionDefinitionSeeder`, `PronounSeeder`,
+`ConfigSeeder` — 17 seeders in all. Per-tenant editors exist for all of it (`CommandsController`,
+`WidgetsController`, `PipelinesController`, `CodeScriptsController`, `BuiltinsController`,
+`TemplatesController`, `BundlesController`, `MarketplaceController`, `CatalogController`), but **nothing
+edits the platform-level originals**. Changing one default command today means editing C#, building, and
+deploying — the SaaS owner cannot author the product they are selling.
+
+**Settle the spec before writing code** (house rule). Two questions decide the whole shape and neither has an
+obvious answer, so they get decided FIRST, in the spec, with the reasoning written down:
+
+1. **Propagation.** The owner edits a system command that 400 tenants already have. What happens to a tenant
+   who renamed it? Who edited its response? Who deleted it? The existing seeder principle — *adopt an empty
+   stub, never overwrite built content, never match on name alone* — is the starting point, but "the owner
+   fixed a broken default and wants it to actually reach people" is a real need that principle refuses. The
+   answer is probably per-edit (`publish as new` / `update in place where untouched` / `force`), and it must
+   be visible in the UI before the owner commits, per the standing rule that consequences are shown.
+2. **Seed vs template vs live.** Is platform content a row the seeder writes, a template tenants instantiate,
+   or a live reference tenants point at? This decides whether an owner edit is a migration, a fan-out job, or
+   nothing at all. Pick one and say why the other two lose.
+
+- [ ] **S-ADMIN-1 Spec first.** Write `.claude/docs/design/spec/platform-admin.md`: the two decisions above,
+      the §5 REST table (routes + Gate-2 action keys, `<plane>/<Role>·action:key` cells), the entity shapes,
+      and the audit contract. Nothing here is built until this is settled and re-indexed (`aitm index-docs`).
+- [ ] **S-ADMIN-2 Platform content authoring — the owner's explicit ask.** Author and edit, at platform
+      level, with versioning and a stated propagation outcome per publish: **system commands** (the
+      `DefaultCommandsSeeder` set), **first-party widgets** (the `FirstPartyWidgetCatalogueSeeder` gallery,
+      with its Vue source and its render gallery), **system pipelines** (the raid flows and event-response
+      defaults, in the real tree-model pipeline editor — not a second, worse editor), and **code scripts**
+      (sandboxed, with the same VS Code-web editor and typed SDK the tenant surface gets). Done-when: a
+      default command can be fixed, published, and its effect on an untouched tenant AND a customised tenant
+      both demonstrated on the rendered client.
+- [ ] **S-ADMIN-3 Tenant operations.** Act-as/impersonate (permission-gated and audited — the existing
+      unscoped/unaudited impersonation is a known hole), suspend and unsuspend with the suspension actually
+      ENFORCED, quota and limit overrides per tenant, force a re-migration, export and erase a tenant whole.
+- [ ] **S-ADMIN-4 Plans, billing and entitlements.** Author tiers and prices (today `BillingTierSeeder`),
+      map features to tiers, issue comps and grants, see invoices, dunning state and failed payments, and
+      refund. The limits story stays the one already decided: recover real cost, never upsell for its own sake.
+- [ ] **S-ADMIN-5 Flags and rollout.** Per-tenant and per-cohort flags on top of `FeatureFlagAdminController`,
+      staged rollout with a percentage, and a kill switch per integration that degrades gracefully rather
+      than erroring.
+- [ ] **S-ADMIN-6 Operate and diagnose.** Background job queue with retry, EventSub subscription health per
+      tenant, outbound webhook delivery log with replay, per-tenant usage and cost, error budget, and the
+      event store replay tools — the things you reach for at 2am, in one place.
+- [ ] **S-ADMIN-7 Support desk.** Find a person across every tenant, see their real state (roles, standing,
+      heat, entitlements, connections), and replay what happened to them. This is the tab that closes support
+      tickets; today it does not exist.
+- [ ] **S-ADMIN-8 Trust and safety, platform-wide.** Beyond the existing spam defaults: cross-tenant abuse
+      signals, network-wide blocks, and a review queue for the calls the platform made automatically.
+- [ ] **S-ADMIN-9 Make it navigable.** Eleven tabs is already past what one tab strip carries, and the work
+      above adds more. Same discipline as the Moderation split (S-UX-1/3): group by JOB, one primary action
+      per surface, Sleak loaded before any of it is drawn, and breakpoints honoured — an owner does reach for
+      this from a phone during an incident.
+
+**Bar for the whole slice, non-negotiable:** every control does the real thing against the real backend and
+is verified on the rendered client; no read-only panels pretending to be tools; no fabricated numbers; every
+destructive or cross-tenant action shows its blast radius before it runs and lands in the audit log.
+
 ## OWNER REQUEST 2026-09-04 — untangle the UI, starting with Moderation (PRIORITY, worked next)
 
 Owner, verbatim: "i noticed that the moderation page now has a MASSIVE list of options and has become
@@ -124,8 +200,15 @@ posture, and stacking them makes every one of them harder to find.
       | `ShellScreen` | 10 | `CustomEventsScreen` / `CommunityScreen` / `ChatScreen` / `BundlesScreen` | 5 |
 
       A high count is a SUSPECT, not a defect: `label (weight 1f) + small control` is correct at every
-      width, and that is what most of Moderation's and Community's turned out to be. The sweep is per
-      screen: open it at Compact, find what actually breaks, fix that. Do not mass-convert on the count.
+      width. But the count is also the WRONG instrument, and reading it as one already produced a wrong
+      call here: Moderation's hits really were label+control, that was generalised to Community without
+      checking, and Community's viewer-data row turned out to be two text fields sharing a dialog.
+
+      The instrument that actually finds this: **a Row containing two or more ENTRY FIELDS, both
+      weighted.** Searched across every screen, that is five sites, now all on the `FieldPair` primitive
+      (stacks at Compact) and guarded by `SideBySideFieldGuardTest` so a sixth cannot be hand-written.
+      What remains in the sweep is everything that is NOT a field pair: dialog widths, multi-column
+      cards, tables, tab strips, and charts.
 
       **Not everything with a width branch belongs in the size class.** `HomeScreen`'s 8-tile strip
       switches at 960 dp because that is where EIGHT TILES stop fitting — a content-fit question, measured
@@ -134,6 +217,21 @@ posture, and stacking them makes every one of them harder to find.
 
       Done-when: every screen has been opened at Compact and Medium on the rendered client and either has a
       layout for it or a stated reason it does not need one.
+
+**Verification altitude — what is and is not proven for S-UX-2/3/5/6 (2026-09-04).** Every guard in this
+campaign so far is a **source-text check or a state-holder test**. Those are real (each was mutated and went
+red), but they enter BELOW the layer a streamer uses:
+
+| Proven | Not proven |
+|---|---|
+| The controller reads/writes a person's shoutout and raid lines, kind-scoped | That the Community panel renders those fields and a save survives a reload |
+| Every moderation section names exactly one owning page | That the four pages render, and that their nav entries appear and route |
+| `index.html` in the SOURCE TREE carries the mobile viewport fixes | That the built bundle a phone downloads carries them |
+| `FieldPair` branches on the size class, and all five call sites use it | That a phone-width viewport actually shows them stacked |
+
+The rendered client has not been driven: the Playwright and Chrome MCP servers both failed to connect this
+session, so no browser was available. That is S-UX-4's job and it stays open. Do not let the green guards
+above read as "it works on a phone" — they prove the code says the right thing, not that the screen does.
 
 - [ ] **S-UX-4 Prove it got simpler, do not assert it.** Before/after counts per page (sections,
       composables, lines), and every moved control re-verified on the rendered client — a control that
