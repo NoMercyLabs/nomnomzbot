@@ -113,9 +113,22 @@ the unfloored `/effective/me` self-introspection (§7), never on the raw default
 | **Quotes** | `Quotes` | Moderator | Editor | `commands-pipelines.md` — quote book CRUD + recall command |
 
 #### Moderation
+
+Four pages, one per job. They were one page until 2026-09-04, and that page had grown to 19 sections in a
+single scroll — enforcement settings a broadcaster reads once a year stacked in front of queues a moderator
+works under time pressure mid-stream. The split is by **posture**, not by topic: what someone is doing when
+they open it decides which page a section lives on.
+
 | Page | Route | Read | Manage | Backend spec |
 |---|---|---|---|---|
-| **Moderation** | `Moderation` | Moderator | Moderator | `moderation.md` — bans/timeouts/automod/filters (its own first-class group) |
+| **Moderation** | `Moderation` | Moderator | Moderator | `moderation.md` — the live desk: stats, shield, quick action on a person, moderators, bans. Primary action: act on someone now |
+| **Review Queue** | `ModerationQueue` | Moderator | Moderator | `moderation.md` + `spam-defense.md` — unban requests, reports, AutoMod queue, spam review/detections/campaigns, follow-bot blocks. Primary action: decide the next item |
+| **Enforcement Rules** | `ModerationRules` | Moderator | Editor | `moderation.md` — AutoMod (own + Twitch levels), blocked terms, chat filters, rules, trust policy, spam defense, escalation, shared bans. Primary action: change a rule |
+| **History** | `ModerationHistory` | Moderator | Moderator | `moderation.md` — mod log, nuke batches. Primary action: find what happened |
+
+Enforcement Rules manages at **Editor**, not Moderator: changing the rules that govern every future
+enforcement is a different act from applying one, and the other configuration surfaces in this dashboard
+already sit at Editor. Reading stays at Moderator so a mod can see the rules they are enforcing.
 
 #### Loyalty
 | Page | Route | Read | Manage | Backend spec |

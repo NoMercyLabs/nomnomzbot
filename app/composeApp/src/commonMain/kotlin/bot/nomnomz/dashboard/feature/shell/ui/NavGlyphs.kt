@@ -24,6 +24,12 @@ val QuotesGlyph: DrawableResource = AppIcons.CreativeQuoteOpen
 val PickListsGlyph: DrawableResource = AppIcons.ListBox
 val CodeScriptsGlyph: DrawableResource = AppIcons.TerminalBox
 val ModerationGlyph: DrawableResource = AppIcons.Shield
+// The three sibling moderation pages carry their JOB, not a variation on the shield: an inbox for the
+// items awaiting a decision, a filter for the rules that decide automatically, a clock for what already
+// happened. Four near-identical shields in one nav group would be unreadable at a glance.
+val ModerationQueueGlyph: DrawableResource = AppIcons.Inbox
+val ModerationRulesGlyph: DrawableResource = AppIcons.Filter
+val ModerationHistoryGlyph: DrawableResource = AppIcons.History
 val RewardsGlyph: DrawableResource = AppIcons.Gift
 val EconomyGlyph: DrawableResource = AppIcons.Coins
 val GamesGlyph: DrawableResource = AppIcons.Game
