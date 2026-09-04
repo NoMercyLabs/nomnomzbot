@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 
+import bot.nomnomz.dashboard.core.designsystem.component.FieldPair
 import bot.nomnomz.dashboard.core.designsystem.component.Button
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonSize
 import bot.nomnomz.dashboard.core.designsystem.component.ButtonVariant
@@ -776,29 +777,32 @@ private fun GameConfigDialog(
 
                 DialogSectionLabel(stringResource(Res.string.games_dialog_advanced_section))
                 configEntries.forEachIndexed { index, entry ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-                    ) {
-                        AppTextField(
-                            value = entry.first,
-                            onValueChange = { configEntries[index] = it to entry.second },
-                            modifier = Modifier.weight(1f),
-                            label = stringResource(Res.string.games_dialog_config_key_hint),
-                        )
-                        AppTextField(
-                            value = entry.second,
-                            onValueChange = { configEntries[index] = entry.first to it },
-                            modifier = Modifier.weight(1f),
-                            label = stringResource(Res.string.games_dialog_config_value_hint),
-                        )
-                        GlyphButton(
-                            icon = TrashGlyph,
-                            label = stringResource(Res.string.games_dialog_config_remove, entry.first),
-                            onClick = { configEntries.removeAt(index) },
-                        )
-                    }
+                    FieldPair(
+                        first = { fieldModifier ->
+                            AppTextField(
+                                value = entry.first,
+                                onValueChange = { configEntries[index] = it to entry.second },
+                                modifier = fieldModifier,
+                                label = stringResource(Res.string.games_dialog_config_key_hint),
+                            )
+                        },
+                        second = { fieldModifier ->
+                            AppTextField(
+                                value = entry.second,
+                                onValueChange = { configEntries[index] = entry.first to it },
+                                modifier = fieldModifier,
+                                label = stringResource(Res.string.games_dialog_config_value_hint),
+                            )
+                        },
+                        action = {
+                            GlyphButton(
+                                icon = TrashGlyph,
+                                label =
+                                    stringResource(Res.string.games_dialog_config_remove, entry.first),
+                                onClick = { configEntries.removeAt(index) },
+                            )
+                        },
+                    )
                 }
                 TextButton(onClick = { configEntries.add("" to "") }) {
                     Text(text = stringResource(Res.string.games_dialog_config_add), color = tokens.primary)
