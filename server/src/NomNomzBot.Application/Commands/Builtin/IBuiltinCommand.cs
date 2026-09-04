@@ -48,6 +48,14 @@ public sealed class BuiltinCommandContext
     public string TriggeringUserLogin { get; init; } = string.Empty;
 
     /// <summary>
+    /// The id of the chat message that triggered this command, so a builtin can enrich THAT line in the
+    /// overlay after doing its work — a song request replacing "!sr some song" with the resolved track's
+    /// card. Empty when the builtin was invoked from somewhere other than a chat message (the dashboard,
+    /// a test), in which case there is no line to enrich and enrichment is skipped.
+    /// </summary>
+    public string MessageId { get; init; } = string.Empty;
+
+    /// <summary>
     /// The caller's live badge level on the unified ladder (roles-permissions §0) — builtins that enforce
     /// a standing floor (e.g. a game's Permission) pass it through instead of re-resolving.
     /// </summary>

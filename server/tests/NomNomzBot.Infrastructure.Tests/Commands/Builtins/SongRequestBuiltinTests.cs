@@ -14,7 +14,9 @@ using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands.Builtins;
 using NSubstitute;
 
@@ -339,7 +341,7 @@ public sealed class SongRequestBuiltinTests
             .ComposeAsync(Arg.Any<BuiltinResponseRequest>(), Arg.Any<CancellationToken>())
             .Returns(ci => Task.FromResult(ci.Arg<BuiltinResponseRequest>().NeutralFallback));
 
-        return new(music, composer);
+        return new(music, composer, Substitute.For<IEventBus>());
     }
 
     private static SongRequestBuiltin BuildWithRealComposer(Result<MusicTrack> requestResult)
@@ -372,13 +374,128 @@ public sealed class SongRequestBuiltinTests
                 return Task.FromResult(template);
             });
 
-        return new(music, new BuiltinResponseComposer(resolver));
+        return new(music, new BuiltinResponseComposer(resolver), Substitute.For<IEventBus>());
+    }
+
+    [Fact]
+    public async Task A_resolved_request_enriches_the_callers_own_chat_line_with_the_track()
+    {
+        // The owner's ask: the bubble should show the track, not "!sr <query>". A search query carries no url
+        // at all, so the link-preview step can never help it — the provider's own answer is what reaches the
+        // overlay, which is also better data than scraping OpenGraph would have produced.
+        IEventBus bus = Substitute.For<IEventBus>();
+        SongRequestBuiltin sut = BuildWithBus(
+            bus,
+            Result.Success(
+                new MusicTrack(
+                    "spotify:track:abc",
+                    "Never Gonna Give You Up",
+                    "Rick Astley",
+                    "Whenever You Need Somebody",
+                    "https://i.scdn.co/image/art.jpg",
+                    213_000,
+                    "spotify"
+                )
+            )
+        );
+
+        await sut.ExecuteAsync(
+            Context("never gonna give you up", roleLevel: 0),
+            CancellationToken.None
+        );
+
+        ChatMessageEnrichedEvent published = bus.ReceivedCalls()
+            .Select(call => call.GetArguments()[0])
+            .OfType<ChatMessageEnrichedEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject;
+
+        published.MessageId.Should().Be("msg-1");
+        published.BroadcasterId.Should().Be(Broadcaster);
+        published.Title.Should().Be("Never Gonna Give You Up");
+        published.Description.Should().Be("Rick Astley");
+        published.ImageUrl.Should().Be("https://i.scdn.co/image/art.jpg");
+        published.Provider.Should().Be("spotify");
+        // Spotify's internal uri is not fetchable or clickable — the card must carry a real web link.
+        published.LinkUrl.Should().Be("https://open.spotify.com/track/abc");
+    }
+
+    [Fact]
+    public async Task A_failed_request_leaves_the_chat_line_exactly_as_the_viewer_typed_it()
+    {
+        // Enriching on a failure would replace the viewer's own words with a card for a track that was never
+        // queued — the overlay would be asserting something untrue.
+        IEventBus bus = Substitute.For<IEventBus>();
+        SongRequestBuiltin sut = BuildWithBus(
+            bus,
+            Result.Failure<MusicTrack>("NOT_FOUND", "No tracks found")
+        );
+
+        await sut.ExecuteAsync(
+            Context("something that does not exist", roleLevel: 0),
+            CancellationToken.None
+        );
+
+        bus.ReceivedCalls()
+            .Select(call => call.GetArguments()[0])
+            .OfType<ChatMessageEnrichedEvent>()
+            .Should()
+            .BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_request_that_did_not_come_from_chat_enriches_nothing()
+    {
+        // The dashboard and the API can queue a track too. There is no chat line to enrich then, and keying an
+        // enrichment on an empty id would have every overlay match it against nothing — or worse, match a line
+        // whose own id failed to arrive.
+        IEventBus bus = Substitute.For<IEventBus>();
+        SongRequestBuiltin sut = BuildWithBus(
+            bus,
+            Result.Success(
+                new MusicTrack("spotify:track:abc", "T", "A", null, null, 1000, "spotify")
+            )
+        );
+
+        await sut.ExecuteAsync(
+            Context("a song", roleLevel: 0, messageId: ""),
+            CancellationToken.None
+        );
+
+        bus.ReceivedCalls()
+            .Select(call => call.GetArguments()[0])
+            .OfType<ChatMessageEnrichedEvent>()
+            .Should()
+            .BeEmpty();
+    }
+
+    private static SongRequestBuiltin BuildWithBus(IEventBus bus, Result<MusicTrack> requestResult)
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .RequestTrackAsync(
+                Broadcaster.ToString(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<int?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(requestResult);
+
+        IBuiltinResponseComposer composer = Substitute.For<IBuiltinResponseComposer>();
+        composer
+            .ComposeAsync(Arg.Any<BuiltinResponseRequest>(), Arg.Any<CancellationToken>())
+            .Returns(ci => Task.FromResult(ci.Arg<BuiltinResponseRequest>().NeutralFallback));
+
+        return new(music, composer, bus);
     }
 
     private static BuiltinCommandContext Context(
         string args,
         int roleLevel,
-        string personality = PersonalityTone.Informative
+        string personality = PersonalityTone.Informative,
+        string messageId = "msg-1"
     ) =>
         new()
         {
@@ -388,5 +505,6 @@ public sealed class SongRequestBuiltinTests
             RoleLevel = roleLevel,
             Args = args,
             Personality = personality,
+            MessageId = messageId,
         };
 }

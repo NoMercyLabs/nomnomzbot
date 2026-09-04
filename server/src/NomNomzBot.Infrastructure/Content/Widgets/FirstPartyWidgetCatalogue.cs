@@ -177,7 +177,7 @@ public static class FirstPartyWidgetCatalogue
                 ["hideBots"] = true,
                 ["accentColor"] = "#9146ff",
             },
-            DefaultEventSubscriptions: ["ChatMessage"]
+            DefaultEventSubscriptions: ["ChatMessage", "ChatMessageEnriched"]
         ),
         new(
             Key: "now_playing",
@@ -303,7 +303,7 @@ public static class FirstPartyWidgetCatalogue
                 ["providers"] = new List<string>(),
                 ["accentColor"] = "#9146ff",
             },
-            DefaultEventSubscriptions: ["ChatMessage"]
+            DefaultEventSubscriptions: ["ChatMessage", "ChatMessageEnriched"]
         ),
         new(
             Key: "custom_data",
