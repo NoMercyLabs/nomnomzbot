@@ -38,6 +38,8 @@ public sealed class NotificationDispatcherTests
 {
     private static readonly FakeTimeProvider Clock = new(new(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
 
+    private static DuplicateNotificationSuppressor NewSuppressor() => new();
+
     private static EventJournalService NewJournal(EventStoreTestDbContext db)
     {
         EventStoreTestUnitOfWork uow = new(db);
@@ -84,6 +86,7 @@ public sealed class NotificationDispatcherTests
             NewJournal(db),
             bus,
             new EventSubTranslatorRegistry([]),
+            NewSuppressor(),
             Clock,
             NullLogger<NotificationDispatcher>.Instance
         );
@@ -144,6 +147,7 @@ public sealed class NotificationDispatcherTests
             NewJournal(db),
             bus,
             new EventSubTranslatorRegistry([]),
+            NewSuppressor(),
             Clock,
             NullLogger<NotificationDispatcher>.Instance
         );
@@ -193,6 +197,7 @@ public sealed class NotificationDispatcherTests
             NewJournal(db),
             bus,
             new EventSubTranslatorRegistry([]),
+            NewSuppressor(),
             Clock,
             NullLogger<NotificationDispatcher>.Instance
         );
@@ -222,6 +227,7 @@ public sealed class NotificationDispatcherTests
             NewJournal(db),
             bus,
             new EventSubTranslatorRegistry([translator]),
+            NewSuppressor(),
             Clock,
             NullLogger<NotificationDispatcher>.Instance
         );
@@ -234,6 +240,102 @@ public sealed class NotificationDispatcherTests
         // The redelivery is deduped (same message-id ⇒ same EventId) and must NOT fan out a second time.
         await dispatcher.DispatchAsync(Notification(tenant, "follow-msg"));
         translator.Calls.Should().Be(1, "a duplicate already fanned out on its first delivery");
+    }
+
+    [Fact]
+    public async Task Dispatch_SameRealEvent_TwoDifferentMessageIds_FansOutOnlyOnce()
+    {
+        // S-DUPE root cause: Twitch's ~1-minute reconnect grace window can hand ONE real occurrence to both a
+        // dying session's subscription and its freshly re-homed replacement — two genuine wire deliveries, two
+        // DIFFERENT message ids, identical payload bytes. The message-id journal dedupe (proven above) cannot
+        // catch this because the ids differ; only the semantic guard can. Reproduces the owner's live report
+        // ("2 messages per twitch event") by asserting the count of fan-outs — the real consequence (one more
+        // chat send per fan-out downstream) — not a return value.
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        Guid tenant = Guid.NewGuid();
+        CapturingEventBus bus = new();
+        RecordingTranslator translator = new("channel.follow");
+
+        await using EventStoreTestDbContext db = database.NewContext();
+        NotificationDispatcher dispatcher = new(
+            NewJournal(db),
+            bus,
+            new EventSubTranslatorRegistry([translator]),
+            NewSuppressor(),
+            Clock,
+            NullLogger<NotificationDispatcher>.Instance
+        );
+
+        Result<NotificationDispatchResult> first = await dispatcher.DispatchAsync(
+            Notification(tenant, "reconnect-old-session-msg")
+        );
+        Result<NotificationDispatchResult> second = await dispatcher.DispatchAsync(
+            Notification(tenant, "reconnect-new-session-msg") // different message-id, same payload
+        );
+
+        first.IsSuccess.Should().BeTrue();
+        second.IsSuccess.Should().BeTrue();
+
+        // Different message ids ⇒ different EventIds ⇒ both are genuinely new journal rows (unlike the exact
+        // redelivery case above) — the semantic guard operates ON TOP of, not instead of, the journal dedupe.
+        second.Value.EventId.Should().NotBe(first.Value.EventId);
+        second
+            .Value.StreamPosition.Should()
+            .Be(2, "both wire deliveries are journaled — dedupe is fan-out only");
+        second
+            .Value.WasDuplicate.Should()
+            .BeTrue("the second delivery is the same real event, semantically");
+
+        translator
+            .Calls.Should()
+            .Be(1, "one real-world event must produce exactly one fan-out, not two");
+    }
+
+    [Fact]
+    public async Task Dispatch_TwoDistinctEvents_SameViewerSameText_BothFanOut()
+    {
+        // The false-positive guard: two genuinely separate occurrences that merely LOOK alike (same viewer,
+        // same visible text) must never collapse into one. Twitch stamps distinguishing detail into the
+        // payload itself (here: a chat message's own message_id differs between two real sends) — the
+        // semantic guard keys on the full payload, so distinct payloads are never suppressed.
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        Guid tenant = Guid.NewGuid();
+        CapturingEventBus bus = new();
+        RecordingTranslator translator = new("channel.chat.message");
+
+        await using EventStoreTestDbContext db = database.NewContext();
+        NotificationDispatcher dispatcher = new(
+            NewJournal(db),
+            bus,
+            new EventSubTranslatorRegistry([translator]),
+            NewSuppressor(),
+            Clock,
+            NullLogger<NotificationDispatcher>.Instance
+        );
+
+        await dispatcher.DispatchAsync(
+            Notification(
+                tenant,
+                "chat-msg-1",
+                type: "channel.chat.message",
+                payload: """{"chatter_user_id":"42","message":{"text":"hi"},"message_id":"wire-msg-1"}"""
+            )
+        );
+        Result<NotificationDispatchResult> second = await dispatcher.DispatchAsync(
+            Notification(
+                tenant,
+                "chat-msg-2",
+                type: "channel.chat.message",
+                payload: """{"chatter_user_id":"42","message":{"text":"hi"},"message_id":"wire-msg-2"}"""
+            )
+        );
+
+        second
+            .Value.WasDuplicate.Should()
+            .BeFalse("a genuinely distinct send must not be suppressed");
+        translator
+            .Calls.Should()
+            .Be(2, "two deliberate sends must produce two fan-outs, not one collapsed");
     }
 
     [Fact]
@@ -253,6 +355,7 @@ public sealed class NotificationDispatcherTests
             NewJournal(db),
             bus,
             new EventSubTranslatorRegistry([translator]),
+            NewSuppressor(),
             Clock,
             NullLogger<NotificationDispatcher>.Instance
         );
