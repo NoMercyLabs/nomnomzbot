@@ -238,6 +238,9 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.ApplyConfiguration(
             new NomNomzBot.Infrastructure.Moderation.Persistence.ChatFilterConfiguration()
         );
+        modelBuilder.ApplyConfiguration(
+            new NomNomzBot.Infrastructure.Platform.Persistence.Configurations.IdempotencyKeyConfiguration()
+        );
         modelBuilder.Entity<NomNomzBot.Domain.Commands.Entities.PipelineExecution>(b =>
         {
             // Pipeline itself is Ignore()d below (not exercised by these tests) — drop the nav so EF
@@ -271,7 +274,6 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.Ignore<NomNomzBot.Domain.Platform.Entities.EventSubSubscription>();
         modelBuilder.Ignore<NomNomzBot.Domain.Platform.Entities.EventSubConduit>();
         modelBuilder.Ignore<NomNomzBot.Domain.Platform.Entities.EventSubConduitShard>();
-        modelBuilder.Ignore<NomNomzBot.Domain.Platform.Entities.IdempotencyKey>();
         modelBuilder.Ignore<NomNomzBot.Domain.Chat.Entities.ChatMessage>();
         modelBuilder.Ignore<NomNomzBot.Domain.Identity.Entities.ChannelEvent>();
         // Stream is mapped minimally for the economy per-stream-cap tests — its List<string> columns are
@@ -375,7 +377,7 @@ internal sealed class EventStoreTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Platform.Entities.EventSubConduitShard> EventSubConduitShards =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.IdempotencyKey> IdempotencyKeys =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Platform.Entities.IdempotencyKey>();
     public DbSet<NomNomzBot.Domain.Chat.Entities.ChatMessage> ChatMessages =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Chat.Entities.YouTubeLiveChatBan> YouTubeLiveChatBans =>
