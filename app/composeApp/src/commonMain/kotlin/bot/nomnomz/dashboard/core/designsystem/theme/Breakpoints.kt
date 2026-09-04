@@ -19,9 +19,33 @@ import androidx.compose.ui.unit.dp
  * so every width-based layout switch in the app happens at the same few widths.
  */
 internal object Breakpoints {
-    /** Below this width a persistent sidebar shell collapses to its compact (drawer) layout. */
+    /**
+     * Below this WINDOW width a persistent sidebar shell collapses to its compact (drawer) layout.
+     *
+     * Deliberately not one of the [WindowSizeClass] widths below, and not a screen-layout decision: this
+     * asks whether there is room for the sidebar AND a usable content pane beside it, which needs more
+     * width than the content alone. A screen must branch on [LocalWindowSizeClass] — the size of the space
+     * it was actually given — never on this.
+     */
     val Compact: Dp = 720.dp
+
+    /**
+     * Below this WINDOW height a persistent sidebar shell also collapses to its drawer layout, whatever the
+     * width is.
+     *
+     * A phone in landscape is WIDE and SHORT — 844 x 390 on a common handset — so a width-only rule hands it
+     * the desktop sidebar and leaves 390 dp of height for a full-height nav column plus content. Height is
+     * the binding constraint there, not width, and only checking width is why landscape phones get a layout
+     * meant for a monitor.
+     */
+    val CompactHeight: Dp = 500.dp
 
     /** Below this width wide multi-column strips (e.g. the 8 stat tiles) scroll instead of squeezing. */
     val Wide: Dp = 960.dp
+
+    /** Material's standard breakpoints, the vocabulary [WindowSizeClass] is built from. */
+    val MediumMinWidth: Dp = 600.dp
+
+    /** Material's standard breakpoints, the vocabulary [WindowSizeClass] is built from. */
+    val ExpandedMinWidth: Dp = 840.dp
 }

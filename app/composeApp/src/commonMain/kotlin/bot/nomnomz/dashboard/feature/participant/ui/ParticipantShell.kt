@@ -141,7 +141,10 @@ fun ParticipantShell(
         onExitPreview?.let { PreviewBanner(onExit = it) }
 
     BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxWidth().background(tokens.background)) {
-        val compact: Boolean = maxWidth < Breakpoints.Compact
+        // Narrow OR short: a landscape phone is wide enough for the sidebar and far too short for it
+        // (844 x 390), so height has to be part of the question or handsets get the monitor layout.
+        val compact: Boolean =
+            maxWidth < Breakpoints.Compact || maxHeight < Breakpoints.CompactHeight
         val selectedLabel: String = selected.label()
 
         if (compact) {
