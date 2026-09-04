@@ -11,9 +11,9 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using NomNomzBot.Application.Abstractions.Persistence;
-using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Platform.Dtos;
 using NomNomzBot.Application.Platform.Services;
 
@@ -148,7 +148,10 @@ public sealed class ProviderCredentialService : IProviderCredentialService
         string? storedId = await ReadStoredAsync($"{provider}.client_id", cancellationToken);
         string? envId = _configuration[$"{section}:ClientId"];
 
-        string? storedSecret = await ReadStoredAsync($"{provider}.client_secret", cancellationToken);
+        string? storedSecret = await ReadStoredAsync(
+            $"{provider}.client_secret",
+            cancellationToken
+        );
         string? envSecret = _configuration[$"{section}:ClientSecret"];
 
         return new(

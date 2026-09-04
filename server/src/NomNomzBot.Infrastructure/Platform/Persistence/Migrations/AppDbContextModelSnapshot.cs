@@ -9005,6 +9005,11 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<Guid?>("DeletedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<string>("MessageTemplate")
                         .IsRequired()
                         .HasMaxLength(1000)

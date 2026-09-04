@@ -47482,6 +47482,14 @@
             }
           },
           {
+            "name": "kind",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": "shoutout"
+            }
+          },
+          {
             "name": "version",
             "in": "path",
             "required": true,
@@ -94659,7 +94667,8 @@
         "required": [
           "targetTwitchUserId",
           "targetDisplayName",
-          "messageTemplate"
+          "messageTemplate",
+          "kind"
         ],
         "type": "object",
         "properties": {
@@ -94671,6 +94680,10 @@
           },
           "messageTemplate": {
             "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "description": "Which line this is — `shoutout` or `raid`. Rows written before the kind existed read as\n`shoutout`, which is what they were."
           }
         }
       },
@@ -109143,6 +109156,11 @@
           },
           "messageTemplate": {
             "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "description": "Defaults to `shoutout` so an existing caller keeps its meaning.",
+            "default": "shoutout"
           }
         }
       },

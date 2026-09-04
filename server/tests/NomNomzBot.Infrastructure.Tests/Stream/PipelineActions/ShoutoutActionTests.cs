@@ -17,6 +17,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Domain.Stream.Entities;
 using NomNomzBot.Infrastructure.Stream.PipelineActions;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
@@ -129,7 +130,7 @@ public sealed class ShoutoutActionTests
 
         result.Succeeded.Should().BeTrue();
         await chat.Received(1).SendShoutoutAsync(Channel, "123456", Arg.Any<CancellationToken>());
-        await users.DidNotReceiveWithAnyArgs().GetUsersByLoginsAsync(default!, default);
+        await users.DidNotReceiveWithAnyArgs().GetUsersByLoginsAsync(default!);
     }
 
     [Fact]
@@ -161,7 +162,7 @@ public sealed class ShoutoutActionTests
 
         result.Succeeded.Should().BeFalse();
         result.ErrorMessage.Should().Contain("ghost_channel");
-        await chat.DidNotReceiveWithAnyArgs().SendShoutoutAsync(default, default!, default);
+        await chat.DidNotReceiveWithAnyArgs().SendShoutoutAsync(default, default!);
     }
 
     [Fact]
@@ -260,6 +261,102 @@ public sealed class ShoutoutActionTests
             .SendAnnouncementAsync(
                 Channel,
                 "Go watch numerictarget being awesome!",
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    /// <summary>
+    /// The per-target rows now carry a <c>Kind</c> — the same person can have a shoutout line AND a raid line
+    /// (they are both edited from the Community viewer panel). A shoutout must read the SHOUTOUT row: picking
+    /// the raid row would announce "sending you over to them" while the person is still in chat.
+    /// </summary>
+    [Fact]
+    public async Task A_shoutout_reads_the_shoutout_line_and_never_the_same_persons_raid_line()
+    {
+        ITwitchChatApi chat = Substitute.For<ITwitchChatApi>();
+        chat.SendShoutoutAsync(Channel, Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        chat.SendAnnouncementAsync(
+                Channel,
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+        ITwitchUsersApi users = Substitute.For<ITwitchUsersApi>();
+        users
+            .GetUsersByIdsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchUser>>([User("123456", "numerictarget")]));
+        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
+        resolver
+            .ResolveAsync(
+                Arg.Any<string>(),
+                Arg.Any<IDictionary<string, string>>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(callInfo => Task.FromResult(NaiveResolve(callInfo)));
+
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Channels.Add(
+            new()
+            {
+                Id = Channel,
+                Name = "stoney",
+                NameNormalized = "stoney",
+                OwnerUserId = Guid.NewGuid(),
+            }
+        );
+        // The RAID line is deliberately listed first, so an implementation that just takes the first matching
+        // target row picks the wrong one and this test fails.
+        db.ShoutoutOverrides.Add(
+            new()
+            {
+                BroadcasterId = Channel,
+                TargetTwitchUserId = "123456",
+                TargetDisplayName = "numerictarget",
+                MessageTemplate = "Everyone head over to {target.name} now!",
+                Kind = ShoutoutOverrideKinds.Raid,
+            }
+        );
+        db.ShoutoutOverrides.Add(
+            new()
+            {
+                BroadcasterId = Channel,
+                TargetTwitchUserId = "123456",
+                TargetDisplayName = "numerictarget",
+                MessageTemplate = "Go give {target.name} a follow!",
+                Kind = ShoutoutOverrideKinds.Shoutout,
+            }
+        );
+        await db.SaveChangesAsync();
+
+        ShoutoutAction sut = new(
+            chat,
+            users,
+            Substitute.For<IChannelRegistry>(),
+            db,
+            resolver,
+            Substitute.For<ITtsDispatchService>(),
+            TimeProvider.System,
+            NullLogger<ShoutoutAction>.Instance
+        );
+
+        ActionResult result = await sut.ExecuteAsync(Ctx(), Shoutout("123456"));
+
+        result.Succeeded.Should().BeTrue();
+        await chat.Received(1)
+            .SendAnnouncementAsync(
+                Channel,
+                "Go give numerictarget a follow!",
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+        await chat.DidNotReceive()
+            .SendAnnouncementAsync(
+                Channel,
+                "Everyone head over to numerictarget now!",
                 Arg.Any<string?>(),
                 Arg.Any<CancellationToken>()
             );
@@ -480,7 +577,7 @@ public sealed class ShoutoutActionTests
         // Automated invocation (e.g. presence-detection): tts omitted stays silent.
         tts.ClearReceivedCalls();
         await sut.ExecuteAsync(Ctx(), Shoutout("123456"));
-        await tts.DidNotReceiveWithAnyArgs().RequestSpeakAsync(default!, default);
+        await tts.DidNotReceiveWithAnyArgs().RequestSpeakAsync(default!);
     }
 
     /// <summary>
@@ -532,9 +629,8 @@ public sealed class ShoutoutActionTests
         result.Succeeded.Should().BeTrue();
         result.Output.Should().NotBeNullOrWhiteSpace();
         result.Output.Should().Contain("cooldown");
-        await chat.DidNotReceiveWithAnyArgs().SendShoutoutAsync(default, default!, default);
-        await chat.DidNotReceiveWithAnyArgs()
-            .SendAnnouncementAsync(default, default!, default, default);
+        await chat.DidNotReceiveWithAnyArgs().SendShoutoutAsync(default, default!);
+        await chat.DidNotReceiveWithAnyArgs().SendAnnouncementAsync(default, default!, default);
     }
 
     [Fact]

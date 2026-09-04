@@ -49,7 +49,12 @@ public sealed class AdminListsSearchTests
             Substitute.For<IPlatformBotReadinessGate>()
         );
 
-        AdminController controller = new(adminService, db, Substitute.For<IDekRotationService>(), Substitute.For<IProviderCredentialService>());
+        AdminController controller = new(
+            adminService,
+            db,
+            Substitute.For<IDekRotationService>(),
+            Substitute.For<IProviderCredentialService>()
+        );
         return (controller, db);
     }
 

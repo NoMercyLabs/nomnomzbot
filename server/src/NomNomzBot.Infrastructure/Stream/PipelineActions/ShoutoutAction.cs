@@ -245,7 +245,12 @@ public sealed class ShoutoutAction : ICommandAction
         ShoutoutOverride? perTargetOverride = await _db
             .ShoutoutOverrides.AsNoTracking()
             .FirstOrDefaultAsync(
-                o => o.BroadcasterId == ctx.BroadcasterId && o.TargetTwitchUserId == target.Id,
+                o =>
+                    o.BroadcasterId == ctx.BroadcasterId
+                    && o.TargetTwitchUserId == target.Id
+                    // Only the shoutout line — a raid line for the same person is a different message
+                    // and must never be posted as a shoutout.
+                    && o.Kind == ShoutoutOverrideKinds.Shoutout,
                 ctx.CancellationToken
             );
 
@@ -256,10 +261,10 @@ public sealed class ShoutoutAction : ICommandAction
         string template =
             !string.IsNullOrWhiteSpace(templateOverride) ? templateOverride
             : !string.IsNullOrWhiteSpace(perTargetOverride?.MessageTemplate)
-                ? perTargetOverride!.MessageTemplate
+                ? perTargetOverride.MessageTemplate
             : !string.IsNullOrWhiteSpace(targetChannel?.ShoutoutTemplate)
-                ? targetChannel!.ShoutoutTemplate!
-            : !string.IsNullOrWhiteSpace(channel?.ShoutoutTemplate) ? channel!.ShoutoutTemplate!
+                ? targetChannel.ShoutoutTemplate
+            : !string.IsNullOrWhiteSpace(channel?.ShoutoutTemplate) ? channel.ShoutoutTemplate
             : DefaultTemplate;
 
         Dictionary<string, string> seed = new(ctx.Variables, StringComparer.OrdinalIgnoreCase)
@@ -295,7 +300,7 @@ public sealed class ShoutoutAction : ICommandAction
         // parity (ShoutoutQueueService.ExecuteShoutoutAsync called SendCachedTts(ttsText, TargetUserId, ...)).
         // Stamping the broadcaster's own id here instead collapsed every shoutout onto one voice, silently
         // losing the per-target variety a streamer configured through UserTtsVoices.
-        if (action.GetBool("tts", false) && channel is not null)
+        if (action.GetBool("tts") && channel is not null)
         {
             Result<TtsDispatchOutcome> speakResult = await _tts.RequestSpeakAsync(
                 new(
