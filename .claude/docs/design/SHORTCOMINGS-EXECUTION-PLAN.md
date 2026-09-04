@@ -19,6 +19,55 @@ Slice IDs are stable; the order is the queue.
 
 ---
 
+## OWNER REQUEST 2026-09-04 (c) — music: the old bot pushed, we poll (PRIORITY, worked first)
+
+Owner asked whether the Spotify/YouTube widget had been compared against his own chat overlay. It had not —
+the earlier S-OWN21 investigation traced our publish path in code, found it internally consistent, and
+stopped. Comparing the widgets, and then the old bot, is what actually explained it.
+
+**What the comparison shows.** `chat_box.vue` is pure push: it subscribes to `ChatMessage` and renders what
+arrives, nothing else. `now_playing.vue` is three sources stitched together — a `GET /api/v1/overlay/
+now-playing` seed on mount, pushed `now_playing` events, and a **100 ms local ticker that predicts progress
+between them**. Chat cannot drift because it never guesses; now-playing guesses continuously and is only
+corrected when an event lands. Names and subscriptions are fine on both sides (`FirstPartyWidgetCatalogue`
+declares `now_playing`/`track_saved_changed`/`sr_queue`, the handlers emit exactly those) — that is not it.
+
+**What the old bot did, and this is the answer.** `SpotifyWebsocketService.cs` in `nomercy-bot` connects to
+**`wss://dealer.spotify.com/`** — Spotify's own realtime socket, the one the web player uses — and on every
+`PLAYER_STATE_CHANGED` frame publishes `spotify.state.changed` to the widgets immediately. It also handles
+`spotify.track.like` off the same socket. We replaced that with `MusicStatePollingService` polling the public
+Web API once a second. One second of poll, plus change-detection, plus a widget predicting in between, is
+exactly the lag the owner sees — and it is why his Stream Deck plugin "does just fine": it is not waiting on
+our poller. The dealer socket is undocumented, which the project's own rule already covers: incumbent-
+normalised and ToS-gray ships, with the documented path kept as fallback.
+
+- [ ] 🔴 **S-MUSIC-1 Push, not poll.** Add a Spotify realtime transport on `wss://dealer.spotify.com/`
+      publishing `PlaybackStateChangedEvent` the moment a frame lands, with `MusicStatePollingService` kept
+      as the fallback for when the socket is unavailable, unauthorised, or the provider is YouTube. Reconnect
+      with backoff and re-subscribe like `TwitchEventSubHostedService` already does. Done-when: a track change
+      made in the Spotify client shows on the overlay without waiting for a poll tick, verified on the
+      rendered overlay and not from a log line.
+- [ ] **S-MUSIC-2 Stop the widget guessing.** With push in place the 100 ms local progress ticker is
+      predicting against data that now arrives on time. Keep interpolation only for the progress BAR between
+      frames, and never let it change track identity, play state, or anything the operator reads as fact.
+- [ ] 🔴 **S-MUSIC-3 `!wrongsong` — the old bot's semantics, which we never implemented.** Owner: it "breaks
+      the queue and does not do what it is intended to do". The legacy implementation is the spec:
+      `SpotifyApiService.TryConsumeSkip(trackId)` marks a retracted track, and the websocket handler
+      auto-skips it the moment it starts playing. So: not yet playing → remove from the queue; already
+      playing → skip to the next and remove. Done-when: both paths demonstrated against a real queue.
+- [ ] **S-MUSIC-4 A short code per queued song.** Owner: "a 4 letter+digit hash to each song in the queue so
+      that we can use that as a unique identifier". Removes the guesswork from `!wrongsong` (and from every
+      other queue command) by naming the song instead of "your latest". Collision-free within a queue,
+      readable aloud on stream, shown in the `sr_queue` widget and in chat confirmations.
+- [ ] **S-MUSIC-5 Now playing says who asked for it.** Owner: "the current playing song should say who
+      redeemed it if it was redeemed by the sr command." Carry the requester through to the widget and the
+      `!song` response; blank when the track was not requested.
+- [ ] **S-OWN18b Resub "they also said".** Owner: the subscription thank-you must handle the user's own
+      resub message the way the old bot did, including the "they also said" part. Never filed before now.
+- [ ] **S-7TV-THEME Custom 7TV profile theme on overlays.** Owner: users with a 7TV subscription and a custom
+      profile name theme should get it applied — the feather overlay using it as the backdrop for the profile
+      image, and the same in the chat overlay and chat header. Never filed before now.
+
 ## OWNER REQUEST 2026-09-04 (b) — the admin plane a SaaS owner actually operates from
 
 Owner, verbatim: "add a slice that completely overhauls the admin dashboard and gives me every tool i could
