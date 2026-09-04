@@ -169,6 +169,9 @@ public sealed class WidgetNowPlayingHandler(IApplicationDbContext db, IWidgetNot
                 durationMs = @event.DurationMs,
                 progressMs = @event.ProgressMs,
                 observedAt = @event.ObservedAt,
+                // Who asked for this track via !sr, or null (never "") when the streamer started it
+                // themselves — the overlay renders no requester row at all for a null (S-MUSIC-5b).
+                requestedBy = @event.RequestedBy,
             },
             // Standing music-state snapshot, not a ChannelEvent-backed feed item.
             channelEventId: null,

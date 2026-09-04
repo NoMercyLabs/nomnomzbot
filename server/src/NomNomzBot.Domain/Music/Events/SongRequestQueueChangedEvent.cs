@@ -30,7 +30,9 @@ public sealed record SongRequestQueueSnapshotItem(
     string RequestedBy,
     int DurationSec,
     // The short speakable handle a viewer uses to name THIS request (Domain SongCode) — e.g. "K7QM" —
-    // so the overlay can show it and a viewer can read it aloud for !wrongsong. Empty for a snapshot
-    // built before codes existed; the overlay hides the badge rather than showing a blank one.
-    string Code = ""
+    // so the overlay can show it and a viewer can read it aloud for !wrongsong. Deliberately NO default:
+    // a positional default here is exactly what let two production publishers construct this record
+    // without ever passing the real code, silently shipping an empty badge (S-MUSIC-4c). Every call
+    // site must now name a code explicitly — pass "" only for a snapshot built before codes existed.
+    string Code
 );

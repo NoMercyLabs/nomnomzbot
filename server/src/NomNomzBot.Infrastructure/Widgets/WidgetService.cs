@@ -1191,7 +1191,8 @@ public class WidgetService : IWidgetService
                 nowPlaying.TrackUri,
                 nowPlaying.DurationMs,
                 nowPlaying.ProgressMs,
-                _timeProvider.GetUtcNow()
+                _timeProvider.GetUtcNow(),
+                nowPlaying.RequestedBy
             )
         );
     }

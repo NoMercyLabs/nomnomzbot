@@ -104,6 +104,41 @@ public sealed class MusicStatePollingServiceTests
         published[1].TrackName.Should().Be("Song B");
     }
 
+    /// <summary>S-MUSIC-5b: the poller's own <see cref="PlaybackStateChangedEvent"/> publish (a Spotify-app
+    /// state change the bot didn't cause) must carry the requester too — the SAME fact
+    /// <see cref="MusicService.GetNowPlayingAsync"/> already resolved onto <see cref="NowPlaying.RequestedBy"/>,
+    /// just forwarded instead of dropped.</summary>
+    [Fact]
+    public async Task Requested_track_publishes_the_requester()
+    {
+        (MusicStatePollingService sut, RecordingEventBus bus, FakeMusicService music, _, _) =
+            Build([ChannelA]);
+        music.SetResponse(
+            ChannelA,
+            NowPlayingState("Song A", isPlaying: true, progressMs: 1_000, requestedBy: "viewer1")
+        );
+
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        bus.Published.OfType<PlaybackStateChangedEvent>()
+            .Single()
+            .RequestedBy.Should()
+            .Be("viewer1");
+    }
+
+    /// <summary>The negative half: the streamer's own track carries no requester at all — null, not "".</summary>
+    [Fact]
+    public async Task A_track_nobody_requested_publishes_no_requester()
+    {
+        (MusicStatePollingService sut, RecordingEventBus bus, FakeMusicService music, _, _) =
+            Build([ChannelA]);
+        music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
+
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        bus.Published.OfType<PlaybackStateChangedEvent>().Single().RequestedBy.Should().BeNull();
+    }
+
     [Fact]
     public async Task Pause_flip_publishes_the_new_play_state()
     {
@@ -353,7 +388,8 @@ public sealed class MusicStatePollingServiceTests
         bool isPlaying,
         int progressMs,
         int volumePercent = 100,
-        bool canSkipNext = true
+        bool canSkipNext = true,
+        string? requestedBy = null
     ) =>
         new(
             trackName,
@@ -364,7 +400,7 @@ public sealed class MusicStatePollingServiceTests
             progressMs,
             isPlaying,
             volumePercent,
-            null,
+            requestedBy,
             "spotify",
             CanSkipNext: canSkipNext
         );
