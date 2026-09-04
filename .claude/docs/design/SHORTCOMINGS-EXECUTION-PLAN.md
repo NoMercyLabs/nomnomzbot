@@ -179,6 +179,21 @@ posture, and stacking them makes every one of them harder to find.
       locally, and forcing it onto the 840 dp class boundary would give each tile 105 dp. Size class is for
       layout MODE; content-fit checks stay local.
 
+      **S-UX-6a CLOSED (`f61d5bc4`)** — Pipelines / Home / Settings / Economy. The 42 dialogs across those
+      four screens turned out to share ONE primitive, so the fix is a size-class branch in `Dialog.kt`
+      rather than 42 screen edits. `DialogCompactWidthGuardTest` pins it and enumerates the real
+      commonMain tree so a hand-rolled `Window`/`AlertDialog` bypassing the primitive fails the build.
+      Nothing else in those four needed a Compact layout, each with a stated reason: Pipelines' branch
+      lanes already stack (`LaneSection`) and its param editor is on `FieldPair`; Home's only tab strip
+      already horizontal-scrolls (`Tabs.kt:119`) and its 8-tile strip keeps its own local content-fit
+      split; Settings has no tab strip and its matrix rows are label+control; Economy has no grid, table
+      or chart. Source-level only — not opened in a browser at Compact.
+
+      Remaining: every screen below Economy in the table above. Fold in this finding while sweeping
+      Settings: `feature/settings/ui/SettingsScreen.kt:1596`, EventJournalSection's Export/Import/Rebuild
+      button row has no weight or wrap handling and crowds at narrow widths — an action-row concern,
+      outside the five categories, so 6a left it.
+
       Done-when: every screen has been opened at Compact and Medium on the rendered client and either has a
       layout for it or a stated reason it does not need one.
 

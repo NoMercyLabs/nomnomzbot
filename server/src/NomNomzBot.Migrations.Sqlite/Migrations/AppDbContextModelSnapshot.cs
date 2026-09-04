@@ -1026,10 +1026,25 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<string>("OverridesJson")
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("PlatformSourceDefinitionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PlatformSourceHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("PlatformSourceSyncedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("PlatformSourceVersion")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("PlatformSourceDefinitionId");
 
                     b.HasIndex("BroadcasterId", "BuiltinKey")
                         .IsUnique()
@@ -5338,6 +5353,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("AffectedTenantCount")
+                        .HasColumnType("INTEGER");
+
                     b.Property<bool>("BreakGlass")
                         .HasColumnType("INTEGER");
 
@@ -5365,6 +5383,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("PublishJobId")
+                        .HasColumnType("TEXT");
+
                     b.Property<Guid?>("RoleId")
                         .HasColumnType("TEXT");
 
@@ -5387,6 +5408,8 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.HasIndex("OccurredAt");
 
                     b.HasIndex("PrincipalId");
+
+                    b.HasIndex("PublishJobId");
 
                     b.HasIndex("TargetPrincipalId");
 
@@ -8492,6 +8515,157 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.ToTable("Storages");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.PlatformContent.Entities.PlatformContentDefinition", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CreatedByPrincipalId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("CurrentVersionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("LatestDraftVersionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("RetiredAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Kind", "Key")
+                        .IsUnique();
+
+                    b.ToTable("PlatformContentDefinitions");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.PlatformContent.Entities.PlatformContentPublishJob", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("ConfirmedAffectedCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("DefinitionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("FromVersion")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("PreviewAffectedCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("PreviewSkippedCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("RequestedByPrincipalId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ToVersion")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DefinitionId");
+
+                    b.ToTable("PlatformContentPublishJobs");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.PlatformContent.Entities.PlatformContentVersion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ContentHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("DefinitionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("DraftedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("DraftedByPrincipalId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PayloadJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PublishNote")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("PublishedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("PublishedByPrincipalId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RenderGalleryRefs")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DefinitionId", "Version")
+                        .IsUnique();
+
+                    b.ToTable("PlatformContentVersions");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Quotes.Entities.Quote", b =>
                 {
                     b.Property<Guid>("Id")
@@ -11186,6 +11360,17 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Channel");
+                });
+
+            modelBuilder.Entity("NomNomzBot.Domain.PlatformContent.Entities.PlatformContentVersion", b =>
+                {
+                    b.HasOne("NomNomzBot.Domain.PlatformContent.Entities.PlatformContentDefinition", "Definition")
+                        .WithMany()
+                        .HasForeignKey("DefinitionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Definition");
                 });
 
             modelBuilder.Entity("NomNomzBot.Domain.Quotes.Entities.Quote", b =>
