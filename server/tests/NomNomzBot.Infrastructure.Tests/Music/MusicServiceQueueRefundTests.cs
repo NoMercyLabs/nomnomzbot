@@ -160,7 +160,8 @@ public sealed class MusicServiceQueueRefundTests
                     DurationMs: 200000,
                     requestedBy,
                     cost,
-                    requesterUserId
+                    requesterUserId,
+                    Code: ""
                 )
             );
 

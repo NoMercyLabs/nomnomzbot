@@ -170,5 +170,5 @@ public sealed class SongRequestQueueInFlightDurabilityTests
     }
 
     private static SongRequestEntry Entry(string trackUri, string requestedBy) =>
-        new(trackUri, $"Track {trackUri}", "Artist", null, 200000, requestedBy);
+        new(trackUri, $"Track {trackUri}", "Artist", null, 200000, requestedBy, 0, null, "");
 }

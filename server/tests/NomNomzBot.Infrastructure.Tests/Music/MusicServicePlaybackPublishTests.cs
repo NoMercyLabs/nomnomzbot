@@ -74,7 +74,7 @@ public sealed class MusicServicePlaybackPublishTests
         SongRequestQueueStore queueStore = new();
         queueStore.SetInFlight(
             ChannelId.ToString(),
-            new("spotify:track:x", "Song A", "Artist", null, 200000, "viewer1")
+            new("spotify:track:x", "Song A", "Artist", null, 200000, "viewer1", 0, null, "")
         );
         (MusicService sut, RecordingEventBus bus, _) = Build(
             TrackJson("Song A", isPlaying: true),
@@ -106,7 +106,10 @@ public sealed class MusicServicePlaybackPublishTests
                 "Artist",
                 null,
                 200000,
-                "viewer1"
+                "viewer1",
+                0,
+                null,
+                ""
             )
         );
         (MusicService sut, RecordingEventBus bus, _) = Build(

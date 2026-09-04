@@ -98,6 +98,73 @@ public sealed class SpotifyDealerConnectionTests
         realtime.DrainNudged().Should().Contain(ChannelId);
     }
 
+    /// <summary>
+    /// S-MUSIC-5c: the dealer push path is now the PRIMARY transport for playback state (it beats the poller
+    /// on every tick), so it must resolve <c>RequestedBy</c> itself rather than leaving the overlay's fast path
+    /// silently naming nobody. Uses the exact same resolution <c>MusicService</c>'s poll/mutation-publish legs
+    /// use (<see cref="MusicService.RequesterOfPlayingTrack"/>) against the SAME <see cref="ISongRequestQueueStore"/>
+    /// singleton — matching the in-flight fair-queue entry's track uri against what the frame reports playing.
+    /// </summary>
+    [Fact]
+    public async Task PlayerStateChangedFrame_PublishesTheRequester_WhenThePlayingTrackWasRequested()
+    {
+        RecordingEventBus bus = new();
+        MusicRealtimeSignal realtime = new();
+        FakeTimeProvider clock = new(new(2026, 9, 4, 12, 0, 0, TimeSpan.Zero));
+        SongRequestQueueStore queueStore = new();
+        queueStore.SetInFlight(
+            ChannelId.ToString(),
+            new(
+                "spotify:track:track123",
+                "Test Song",
+                "Test Artist",
+                null,
+                200000,
+                "viewer1",
+                0,
+                null,
+                ""
+            )
+        );
+        SpotifyDealerConnection connection = NewConnection(bus, realtime, clock, queueStore);
+
+        bool handled = await connection.HandleFrameAsync(
+            PlayerStateChangedFrame,
+            CancellationToken.None
+        );
+
+        handled.Should().BeTrue();
+        bus.Published.OfType<PlaybackStateChangedEvent>()
+            .Single()
+            .RequestedBy.Should()
+            .Be("viewer1");
+    }
+
+    /// <summary>The negative half: nobody's fair-queue entry matches the track the frame reports playing (the
+    /// streamer started it themselves, or the in-flight entry has already moved on) — the overlay must get no
+    /// requester, never an empty string.</summary>
+    [Fact]
+    public async Task PlayerStateChangedFrame_PublishesNoRequester_WhenNobodyRequestedThePlayingTrack()
+    {
+        RecordingEventBus bus = new();
+        MusicRealtimeSignal realtime = new();
+        FakeTimeProvider clock = new(new(2026, 9, 4, 12, 0, 0, TimeSpan.Zero));
+        SpotifyDealerConnection connection = NewConnection(
+            bus,
+            realtime,
+            clock,
+            new SongRequestQueueStore() // nothing in flight for this channel
+        );
+
+        bool handled = await connection.HandleFrameAsync(
+            PlayerStateChangedFrame,
+            CancellationToken.None
+        );
+
+        handled.Should().BeTrue();
+        bus.Published.OfType<PlaybackStateChangedEvent>().Single().RequestedBy.Should().BeNull();
+    }
+
     [Fact]
     public async Task UnrecognisedFrame_IsIgnored_AndPublishesNothing()
     {
@@ -146,6 +213,7 @@ public sealed class SpotifyDealerConnectionTests
             _ => Task.FromResult<string?>("test-access-token"),
             bus,
             realtime,
+            new SongRequestQueueStore(),
             clock,
             NullLogger.Instance
         );
@@ -193,7 +261,8 @@ public sealed class SpotifyDealerConnectionTests
     private static SpotifyDealerConnection NewConnection(
         RecordingEventBus bus,
         MusicRealtimeSignal realtime,
-        FakeTimeProvider clock
+        FakeTimeProvider clock,
+        ISongRequestQueueStore? queueStore = null
     ) =>
         new(
             ChannelId,
@@ -202,6 +271,7 @@ public sealed class SpotifyDealerConnectionTests
             _ => Task.FromResult<string?>("test-access-token"),
             bus,
             realtime,
+            queueStore ?? new SongRequestQueueStore(),
             clock,
             NullLogger.Instance
         );

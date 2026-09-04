@@ -78,6 +78,7 @@ public sealed class SpotifyDealerHostedServiceTests
             NoopHttpClientFactory.Instance,
             new RecordingEventBus(),
             new MusicRealtimeSignal(),
+            new SongRequestQueueStore(),
             new FakeTimeProvider(new(2026, 9, 4, 0, 0, 0, TimeSpan.Zero)),
             NullLogger<SpotifyDealerHostedService>.Instance
         );
@@ -126,6 +127,7 @@ public sealed class SpotifyDealerHostedServiceTests
             NoopHttpClientFactory.Instance,
             new RecordingEventBus(),
             new MusicRealtimeSignal(),
+            new SongRequestQueueStore(),
             new FakeTimeProvider(new(2026, 9, 4, 0, 0, 0, TimeSpan.Zero)),
             NullLogger<SpotifyDealerHostedService>.Instance
         );

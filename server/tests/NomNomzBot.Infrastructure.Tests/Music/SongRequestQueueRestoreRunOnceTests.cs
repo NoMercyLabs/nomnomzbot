@@ -63,7 +63,7 @@ public sealed class SongRequestQueueRestoreRunOnceTests
         FairQueue<SongRequestEntry> seedQueue = new();
         seedQueue.Enqueue(
             "viewer1",
-            new("track-1", "Track One", "Artist", null, 200000, "viewer1")
+            new("track-1", "Track One", "Artist", null, 200000, "viewer1", 0, null, "")
         );
         await seedPersistence.SyncAsync(ChannelId, seedQueue.GetSnapshot(), CancellationToken.None);
 
