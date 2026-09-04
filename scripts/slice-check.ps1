@@ -46,6 +46,18 @@ else {
     $server = Join-Path $repo 'server'
 }
 
+# A stray testhost, a running API, or a lingering VBCSCompiler holds the output DLLs, and the build
+# then reports CS2012 file-lock errors that read exactly like real compile errors. verify-tree.ps1
+# has always killed these first; this gate did not, and the false red sends the slice hunting a
+# compiler bug that is not there.
+Get-Process -Name 'testhost', 'NomNomzBot.Api', 'VBCSCompiler' -ErrorAction SilentlyContinue | Stop-Process -Force
+if (-not $IsWindows) {
+    Get-Process -Name 'dotnet' -ErrorAction SilentlyContinue |
+        Where-Object { $_.CommandLine -match 'testhost|NomNomzBot\.Api' } |
+        Stop-Process -Force -ErrorAction SilentlyContinue
+}
+Start-Sleep -Seconds 2
+
 Push-Location $server
 try {
     Write-Host '== build =='
@@ -53,6 +65,28 @@ try {
 
     Write-Host '== test (slice filter) =='
     Invoke-Native 'slice tests failed' { dotnet test $TestProject -c Debug --no-build --filter $Filter }
+
+    # Blast radius: every suite that covers a layer this slice edited, UNFILTERED.
+    # A filtered run only proves the slice's own tests pass. It cannot see the test somebody else
+    # wrote against the thing you just changed - which is exactly how a seeder gaining a seventh
+    # system role passed this gate, was committed, and turned CI red on a test in a project the
+    # filter never touched. CI runs everything; so does this now.
+    [System.Collections.Generic.HashSet[string]]$affected = [System.Collections.Generic.HashSet[string]]::new(
+        [System.StringComparer]::OrdinalIgnoreCase)
+    $affected.Add($TestProject) | Out-Null
+    foreach ($path in $Paths) {
+        [string]$p = $path -replace '\\', '/'
+        # a test file already names its own project; source maps to the suite that covers it
+        if ($p -match 'server/tests/(NomNomzBot\.[A-Za-z0-9.]+Tests)/') { $affected.Add("tests/$($Matches[1])") | Out-Null }
+        elseif ($p -match 'server/src/NomNomzBot\.(Domain|Application|Infrastructure|Api)/') { $affected.Add("tests/NomNomzBot.$($Matches[1]).Tests") | Out-Null }
+    }
+    foreach ($project in $affected) {
+        if (-not (Test-Path (Join-Path $server $project))) { continue }
+        Write-Host "== test (full suite: $project) =="
+        Invoke-Native "$project failed unfiltered - the slice broke a test it does not own" {
+            dotnet test $project -c Debug --no-build
+        }
+    }
 
     Write-Host '== format (slice files only) =='
     # -Paths are given repo-relative. In -AtCommit mode the build runs inside the worktree, so they must
