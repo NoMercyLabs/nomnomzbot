@@ -15,12 +15,15 @@ namespace NomNomzBot.Application.Contracts.Music;
 /// and <c>MusicStatePollingService</c>.
 ///
 /// <para>
-/// The poller reads the provider's DOCUMENTED API and owns all the state shaping — dedupe, change detection,
-/// the <c>PlaybackStateChangedEvent</c> shape. A realtime transport only says WHEN to look. Keeping it to a
-/// nudge is deliberate: Spotify's realtime frames come off an undocumented endpoint whose payload shape can
-/// change under us, and parsing that into playback state would make an undocumented wire format the source of
-/// truth for what the overlay shows. As a trigger it cannot corrupt anything — the worst a bad frame does is
-/// cause one extra poll, and if the socket dies entirely the 1s timer still runs.
+/// The poller reads the provider's DOCUMENTED API and owns the correctness-of-record state shaping — dedupe,
+/// change detection, per-action Can* permission flags. A realtime transport is free to ALSO publish its own
+/// optimistic <c>PlaybackStateChangedEvent</c> straight from a frame the instant it arrives (S-MUSIC-1 —
+/// <c>SpotifyDealerConnection</c> does exactly this, so the overlay never waits out a poll tick plus its own
+/// interpolation for a track change) — but it must still <see cref="Nudge"/> the poller when it does. The
+/// nudge is what re-baselines the poller's dedupe snapshot from the documented API on the very next pass, so a
+/// later natural poll tick never re-publishes a stale-looking "change" against a baseline the undocumented
+/// frame already moved past. As a trigger it cannot corrupt anything on its own — the worst a bad frame does
+/// is cause one extra poll, and if the socket dies entirely the 1s timer still runs.
 /// </para>
 /// </summary>
 public interface IMusicRealtimeSignal
