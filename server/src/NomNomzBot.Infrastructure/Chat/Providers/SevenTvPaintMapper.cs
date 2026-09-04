@@ -113,7 +113,10 @@ public static class SevenTvPaintMapper
 
         string? textShadow = ShadowList(shadows);
 
-        if (backgroundImage is null && color is null && textShadow is null)
+        // An image-only paint carries no colour and often no shadow, so everything above can be null and it
+        // is STILL a paint the chatter is wearing. Dropping it would make "wears a paint we cannot draw"
+        // indistinguishable from "wears none", and the consumer could never fall back to their 7TV colour.
+        if (backgroundImage is null && color is null && textShadow is null && !imageOnly)
             return null;
 
         return new()
