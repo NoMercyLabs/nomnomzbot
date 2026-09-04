@@ -1726,6 +1726,22 @@ public sealed class SpotifyMusicProvider
         if (response.StatusCode == HttpStatusCode.Unauthorized)
         {
             _capabilities.Report(broadcasterId, ProviderName, NeedsReauthCapabilityKey, true);
+
+            // The capability store is process memory only, so on its own this leaves
+            // IntegrationConnection.Status = connected forever. The poller's eligibility query reads that
+            // status, so a token dead for weeks kept being polled once per second, re-reading the same dead
+            // bearer and re-reporting the same in-memory flag. Observed live: one connection at 4,704
+            // consecutive failures, still polling. Persisting the failure is what lets the connection reach
+            // needs_reauth, drop out of the poll set, and raise the re-auth prompt the owner can act on.
+            if (await FindConnectionIdAsync(broadcasterId, cancellationToken) is { } connectionId)
+            {
+                await _vault.MarkRefreshFailureAsync(
+                    connectionId,
+                    "Spotify rejected the access token (401).",
+                    cancellationToken
+                );
+            }
+
             return;
         }
 

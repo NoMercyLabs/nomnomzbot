@@ -16,6 +16,7 @@ using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -238,6 +239,17 @@ public sealed class MusicStatePollingService : BackgroundService
                 && s.Enabled
                 && s.AccessToken != null
                 && providerKeys.Contains(s.Name)
+                // Status-aware, not just "a token row exists". The legacy Services mirror keeps its
+                // AccessToken even after the canonical IntegrationConnection has been flipped to
+                // needs_reauth or revoked, so filtering on this table alone re-polls dead credentials once
+                // per second forever — the 401 storm, and the 4,704-failure connection still in the poll
+                // set. The canonical connection decides who is genuinely still connected.
+                && db.IntegrationConnections.Any(c =>
+                    c.BroadcasterId == s.BroadcasterId
+                    && c.Provider == s.Name
+                    && c.DeletedAt == null
+                    && c.Status == AuthEnums.IntegrationStatus.Connected
+                )
             )
             .Select(s => s.BroadcasterId!.Value)
             .Distinct()
