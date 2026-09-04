@@ -50,6 +50,14 @@ let heartPulseTimeout: number | undefined
 
 let tickInterval: number | undefined
 
+// The progress bar is INTERPOLATED between pushes, and interpolation is a claim about the world. These two
+// anchor it to a measured clock instead of a count of timer callbacks: `progressMs += 100` every 100 ms
+// assumes each callback lands exactly on time, and a browser source that OBS has throttled (hidden scene,
+// minimised, busy machine) fires them late and sparsely — the bar then runs slow and drifts further behind
+// the longer the track plays.
+let baseProgressMs = 0
+let baseAtMs = 0
+
 const progressPct = computed<number>(() => {
   if (!durationMs.value) return 0
   return Math.min((progressMs.value / durationMs.value) * 100, 100)
@@ -57,7 +65,24 @@ const progressPct = computed<number>(() => {
 
 function startTicking(): void {
   stopTicking()
-  tickInterval = window.setInterval(() => { progressMs.value += 100 }, 100)
+  baseProgressMs = progressMs.value
+  baseAtMs = performance.now()
+  tickInterval = window.setInterval(() => {
+    const elapsed: number = performance.now() - baseAtMs
+    const next: number = baseProgressMs + elapsed
+
+    // Never run past the end of the track. The old ticker counted up forever, so once a track finished the
+    // widget kept insisting it was still playing with a full bar until the next push arrived — asserting
+    // something it could not know. Stopping at the duration says "this track is done" and waits to be told
+    // what is next, rather than inventing it.
+    if (durationMs.value > 0 && next >= durationMs.value) {
+      progressMs.value = durationMs.value
+      stopTicking()
+      return
+    }
+
+    progressMs.value = next
+  }, 100)
 }
 
 function stopTicking(): void {
