@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Application.Contracts.CustomCode;
@@ -40,7 +41,8 @@ public sealed class ScriptHostBridgeFactory(
     IViewerAnalyticsService viewerAnalytics,
     ITtsConfigService ttsConfig,
     IScheduledPipelineService scheduledPipelines,
-    IApplicationDbContext db
+    IApplicationDbContext db,
+    ISevenTvUserPaintResolver paintResolver
 ) : IScriptHostBridgeFactory
 {
     public IScriptHostBridge Create(Guid broadcasterId, string triggeringUserId) =>
@@ -59,6 +61,7 @@ public sealed class ScriptHostBridgeFactory(
             viewerAnalytics,
             ttsConfig,
             scheduledPipelines,
-            db
+            db,
+            paintResolver
         );
 }

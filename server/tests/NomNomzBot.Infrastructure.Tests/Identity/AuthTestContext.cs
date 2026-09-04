@@ -28,6 +28,7 @@ using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Platform.Auth;
 using NomNomzBot.Infrastructure.Platform.Configuration;
+using NomNomzBot.Infrastructure.Platform.Persistence.Converters;
 using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 using NomNomzBot.Infrastructure.Platform.Security;
 
@@ -330,6 +331,23 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         b.Entity<User>().HasKey(e => e.Id);
         b.Entity<User>().Ignore(e => e.Channel).Ignore(e => e.Pronoun);
 
+        // Widget: mapped scalar-only, mirroring WidgetTestDbContext's own Widget config exactly.
+        b.Entity<NomNomzBot.Domain.Widgets.Entities.Widget>(e =>
+        {
+            e.HasKey(w => w.Id);
+            e.Ignore(w => w.Channel);
+            e.Property(w => w.EventSubscriptions)
+                .HasConversion(
+                    JsonValueConverter.Converter<List<string>>(),
+                    JsonValueConverter.Comparer<List<string>>()
+                );
+            e.Property(w => w.Settings)
+                .HasConversion(
+                    JsonValueConverter.Converter<Dictionary<string, object>>(),
+                    JsonValueConverter.Comparer<Dictionary<string, object>>()
+                );
+        });
+
         // Scalar-only mapping (navs ignored) so the platform-identity tests resolve + list identities here.
         b.Entity<UserIdentity>().HasKey(e => e.Id);
         b.Entity<UserIdentity>().Ignore(e => e.User).Ignore(e => e.Connection);
@@ -404,7 +422,8 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing
         // getter bodies, then tries to map their jsonb-of-complex-type columns (unsupported on InMemory).
         // Ignore every entity these tests do not exercise so the model stays minimal and provider-agnostic.
-        b.Ignore<NomNomzBot.Domain.Widgets.Entities.Widget>();
+        // Widget itself is now explicitly mapped above (the marketplace bundle-import round-trip tests need
+        // it); only its still-unexercised siblings stay ignored.
         b.Ignore<NomNomzBot.Domain.Widgets.Entities.WidgetVersion>();
         b.Ignore<NomNomzBot.Domain.Widgets.Entities.WidgetGalleryItem>();
         b.Ignore<NomNomzBot.Domain.Widgets.Entities.WidgetGallerySubmissionEvent>();
@@ -596,8 +615,12 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.PickLists.Entities.PickList> PickLists =>
         throw new NotSupportedException();
+
+    // Widget: mapped scalar-only (Channel nav ignored, Settings/EventSubscriptions JSON-converted — the
+    // same shape WidgetTestDbContext uses) so the marketplace bundle-import round-trip tests can drive the
+    // real BundleImportService's widget-conflict check through this harness.
     public DbSet<NomNomzBot.Domain.Widgets.Entities.Widget> Widgets =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Widgets.Entities.Widget>();
     public DbSet<NomNomzBot.Domain.Widgets.Entities.WidgetVersion> WidgetVersions =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Widgets.Entities.WidgetGalleryItem> WidgetGalleryItems =>

@@ -12,6 +12,7 @@ using System.Net;
 using FluentAssertions;
 using Newtonsoft.Json.Linq;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
@@ -27,6 +28,7 @@ using NomNomzBot.Application.Tts.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Domain.Chat.ValueObjects;
 using NomNomzBot.Infrastructure.CustomCode;
 using NomNomzBot.Infrastructure.Sandbox;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -57,7 +59,8 @@ public sealed class ScriptHostBridgeTests
         IViewerAnalyticsService? analytics = null,
         ITtsConfigService? ttsConfig = null,
         IScheduledPipelineService? scheduler = null,
-        IApplicationDbContext? db = null
+        IApplicationDbContext? db = null,
+        ISevenTvUserPaintResolver? paintResolver = null
     ) =>
         BuildFor(
             Channel,
@@ -73,7 +76,8 @@ public sealed class ScriptHostBridgeTests
             analytics,
             ttsConfig,
             scheduler,
-            db
+            db,
+            paintResolver
         );
 
     // Same wiring, but bound to an arbitrary tenant — the tenant-isolation tests need a channel-B bridge.
@@ -91,7 +95,8 @@ public sealed class ScriptHostBridgeTests
         IViewerAnalyticsService? analytics = null,
         ITtsConfigService? ttsConfig = null,
         IScheduledPipelineService? scheduler = null,
-        IApplicationDbContext? db = null
+        IApplicationDbContext? db = null,
+        ISevenTvUserPaintResolver? paintResolver = null
     ) =>
         new(
             channel,
@@ -108,7 +113,8 @@ public sealed class ScriptHostBridgeTests
             analytics ?? Substitute.For<IViewerAnalyticsService>(),
             ttsConfig ?? Substitute.For<ITtsConfigService>(),
             scheduler ?? Substitute.For<IScheduledPipelineService>(),
-            db ?? AuthTestBuilder.NewContext()
+            db ?? AuthTestBuilder.NewContext(),
+            paintResolver ?? Substitute.For<ISevenTvUserPaintResolver>()
         );
 
     private sealed class StubHandler(string body) : HttpMessageHandler
@@ -316,6 +322,63 @@ public sealed class ScriptHostBridgeTests
             .Resolve("user.get")("user.get", ["@nobody"], CancellationToken.None)
             .Should()
             .BeNull();
+    }
+
+    [Fact]
+    public async Task User_get_includes_the_flattened_7tv_paint_when_the_resolver_returns_one()
+    {
+        // SoraRiku312 / image paint 01JEY00EDNVW20AWX2NPG4HTNF — one of the real 7TV fixture subjects
+        // (SevenTvUserPaintResolverParseTests carries the live shapes; this stubs the SAME flattened contract).
+        AuthDbContext db = await SeedViewerAsync(
+            Guid.Parse("0192a000-0000-7000-8000-00000000e0d1"),
+            "sorariku312",
+            "555910"
+        );
+        ChatPaint paint = new()
+        {
+            Id = "01JEY00EDNVW20AWX2NPG4HTNF",
+            Name = "Sora's Image Paint",
+            BackgroundImage = "url(https://cdn.7tv.app/paint/sora.png)",
+            Color = "#ff66aa",
+            TextShadow = "0 0 4px #ff66aa",
+            IsImageOnly = true,
+        };
+        ISevenTvUserPaintResolver resolver = Substitute.For<ISevenTvUserPaintResolver>();
+        resolver.ResolveAsync("555910", Arg.Any<CancellationToken>()).Returns(paint);
+
+        string? json = Build(db: db, paintResolver: resolver)
+            .Resolve("user.get")("user.get", ["@sorariku312"], CancellationToken.None);
+
+        JObject profile = JObject.Parse(json!);
+        profile.Should().ContainKey("paint");
+        JObject paintJson = (JObject)profile["paint"]!;
+        paintJson["backgroundImage"]!
+            .Value<string>()
+            .Should()
+            .Be("url(https://cdn.7tv.app/paint/sora.png)");
+        paintJson["color"]!.Value<string>().Should().Be("#ff66aa");
+        paintJson["textShadow"]!.Value<string>().Should().Be("0 0 4px #ff66aa");
+        paintJson["isImageOnly"]!.Value<bool>().Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task User_get_omits_the_paint_field_entirely_when_the_viewer_wears_none()
+    {
+        // LunaPlink — real subject, no paint stubbed: the resolver returns null (its honest "wears none" /
+        // "7TV doesn't know them" answer), and the profile JSON must carry NO `paint` key — not `"paint":null`.
+        AuthDbContext db = await SeedViewerAsync(
+            Guid.Parse("0192a000-0000-7000-8000-00000000e0d2"),
+            "lunaplink",
+            "555911"
+        );
+        ISevenTvUserPaintResolver resolver = Substitute.For<ISevenTvUserPaintResolver>();
+        resolver.ResolveAsync("555911", Arg.Any<CancellationToken>()).Returns((ChatPaint?)null);
+
+        string? json = Build(db: db, paintResolver: resolver)
+            .Resolve("user.get")("user.get", ["@lunaplink"], CancellationToken.None);
+
+        JObject profile = JObject.Parse(json!);
+        profile.Should().NotContainKey("paint");
     }
 
     [Fact]

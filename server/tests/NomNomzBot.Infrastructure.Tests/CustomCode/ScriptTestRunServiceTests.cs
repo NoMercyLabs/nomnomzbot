@@ -63,7 +63,8 @@ public sealed class ScriptTestRunServiceTests
             Substitute.For<NomNomzBot.Application.Contracts.Analytics.IViewerAnalyticsService>(),
             Substitute.For<NomNomzBot.Application.Tts.Services.ITtsConfigService>(),
             Substitute.For<NomNomzBot.Application.Commands.Services.IScheduledPipelineService>(),
-            db
+            db,
+            Substitute.For<NomNomzBot.Application.Chat.Services.ISevenTvUserPaintResolver>()
         );
 
         return (new(db, tenant, new JintScriptExecutor(), broker, bridgeFactory), db, storage);
