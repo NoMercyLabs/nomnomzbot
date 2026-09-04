@@ -28,5 +28,9 @@ public sealed class SongRequestQueueChangedEvent : DomainEventBase
 public sealed record SongRequestQueueSnapshotItem(
     string Title,
     string RequestedBy,
-    int DurationSec
+    int DurationSec,
+    // The short speakable handle a viewer uses to name THIS request (Domain SongCode) — e.g. "K7QM" —
+    // so the overlay can show it and a viewer can read it aloud for !wrongsong. Empty for a snapshot
+    // built before codes existed; the overlay hides the badge rather than showing a blank one.
+    string Code = ""
 );

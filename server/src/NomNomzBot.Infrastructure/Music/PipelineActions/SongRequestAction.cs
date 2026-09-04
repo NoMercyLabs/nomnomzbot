@@ -122,12 +122,48 @@ public sealed class SongRequestAction : ICommandAction
 
         MusicTrack track = requested.Value;
 
+        // RequestTrackAsync's result carries no code (it is a search-result shape shared with SearchAsync);
+        // the code lives on the fair-queue entry the admission gate just created, so read it back off the
+        // queue snapshot — the caller's newest entry matching what was just queued.
+        string code = await ResolveJustQueuedCodeAsync(ctx, track);
+
         await _chat.SendMessageAsync(
             ctx.BroadcasterId,
-            $"@{ctx.TriggeredByDisplayName} Added to queue: {track.Name} by {track.Artist}",
+            string.IsNullOrEmpty(code)
+                ? $"@{ctx.TriggeredByDisplayName} Added to queue: {track.Name} by {track.Artist}"
+                : $"@{ctx.TriggeredByDisplayName} Added to queue: {track.Name} by {track.Artist} (code {code})",
             ctx.CancellationToken
         );
         return ActionResult.Success($"queued: {track.Name}");
+    }
+
+    /// <summary>The just-admitted request's short speakable code (Domain SongCode), or empty when it
+    /// cannot be found — e.g. a provider that dequeues faster than this read, or a legacy entry.</summary>
+    private async Task<string> ResolveJustQueuedCodeAsync(
+        PipelineExecutionContext ctx,
+        MusicTrack track
+    )
+    {
+        MusicQueue queue = await _music.GetQueueAsync(
+            ctx.BroadcasterId.ToString(),
+            ctx.CancellationToken
+        );
+        for (int i = queue.Queue.Count - 1; i >= 0; i--)
+        {
+            MusicQueueItem candidate = queue.Queue[i];
+            if (
+                string.Equals(
+                    candidate.RequestedBy,
+                    ctx.TriggeredByDisplayName,
+                    StringComparison.OrdinalIgnoreCase
+                )
+                && string.Equals(candidate.TrackName, track.Name, StringComparison.Ordinal)
+                && string.Equals(candidate.Artist, track.Artist, StringComparison.Ordinal)
+            )
+                return candidate.Code;
+        }
+
+        return string.Empty;
     }
 
     private static string ResolveParam(string value, Dictionary<string, string> vars)
