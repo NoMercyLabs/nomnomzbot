@@ -41,7 +41,8 @@ public sealed class SevenTvPaintCatalogue : ISevenTvPaintCatalogue
           layers { ty { __typename
             ... on PaintLayerTypeSingleColor { color { hex } }
             ... on PaintLayerTypeLinearGradient { angle repeating stops { at color { hex } } }
-            ... on PaintLayerTypeRadialGradient { repeating shape stops { at color { hex } } } } }
+            ... on PaintLayerTypeRadialGradient { repeating shape stops { at color { hex } } }
+            ... on PaintLayerTypeImage { images { url mime scale frameCount } } } }
           shadows { color { hex } offsetX offsetY blur } } } } }
         """;
 
@@ -203,7 +204,35 @@ public sealed class SevenTvPaintCatalogue : ISevenTvPaintCatalogue
                     Angle: ty?.GetPropertyOrNull("angle")?.GetDoubleOrZero() ?? 0,
                     Repeating: ty?.GetPropertyOrNull("repeating")?.ValueKind == JsonValueKind.True,
                     Shape: ty?.GetPropertyOrNull("shape")?.GetString()?.ToLowerInvariant(),
-                    Stops: ReadStops(ty)
+                    Stops: ReadStops(ty),
+                    Images: ReadImages(ty)
+                )
+            );
+        }
+
+        return result;
+    }
+
+    private static IReadOnlyList<SevenTvPaintMapper.ImageVariant> ReadImages(JsonElement? ty)
+    {
+        JsonElement? images = ty?.GetPropertyOrNull("images");
+        if (images is not { ValueKind: JsonValueKind.Array })
+            return [];
+
+        List<SevenTvPaintMapper.ImageVariant> result = [];
+        foreach (JsonElement image in images.Value.EnumerateArray())
+        {
+            string? url = image.GetPropertyOrNull("url")?.GetString();
+            string? mime = image.GetPropertyOrNull("mime")?.GetString();
+            if (string.IsNullOrEmpty(url) || string.IsNullOrEmpty(mime))
+                continue;
+
+            result.Add(
+                new(
+                    url,
+                    mime,
+                    (int)(image.GetPropertyOrNull("scale")?.GetDoubleOrZero() ?? 0),
+                    (int)(image.GetPropertyOrNull("frameCount")?.GetDoubleOrZero() ?? 0)
                 )
             );
         }

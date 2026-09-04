@@ -34,6 +34,13 @@ public static class SevenTvPaintMapper
     /// <summary>One colour stop: a position in 0..1 and an <c>#RRGGBBAA</c> colour.</summary>
     public readonly record struct Stop(double At, string Hex);
 
+    /// <summary>
+    /// One raster asset 7TV offers for an image layer — one of several scale/format variants for the SAME
+    /// picture. <c>FrameCount</c> greater than 1 marks the animated encoding of that format (7TV ships both
+    /// an animated and a static-preview variant side by side, not just one).
+    /// </summary>
+    public readonly record struct ImageVariant(string Url, string Mime, int Scale, int FrameCount);
+
     /// <summary>One layer, already discriminated by <paramref name="Type"/>.</summary>
     public sealed record Layer(
         string Type,
@@ -41,7 +48,8 @@ public static class SevenTvPaintMapper
         double Angle = 0,
         bool Repeating = false,
         string? Shape = null,
-        IReadOnlyList<Stop>? Stops = null
+        IReadOnlyList<Stop>? Stops = null,
+        IReadOnlyList<ImageVariant>? Images = null
     );
 
     /// <summary>One drop shadow. Offsets and blur are in px, as 7TV supplies them.</summary>
@@ -69,6 +77,10 @@ public static class SevenTvPaintMapper
         string? backgroundImage = null;
         string? color = null;
         bool imageOnly = false;
+        // Distinct from `imageOnly`: that flag says "an image LAYER was present"; this says the winning
+        // backgroundImage specifically came FROM one — needed because a later gradient layer can still win
+        // the loop after an earlier image layer failed to resolve a url (see the two IsImageOnly tests).
+        bool backgroundIsImage = false;
 
         foreach (Layer layer in layers)
         {
@@ -94,10 +106,16 @@ public static class SevenTvPaintMapper
                     break;
 
                 case Image:
-                    // The asset lives behind a url this mapper is not given. Flagged so a consumer can decide
-                    // whether its surface can live with the fallback colour instead of silently showing one.
                     imageOnly = true;
-                    continue;
+                    // 7TV ships several scale/format variants of the SAME picture, not one asset — pick the
+                    // one an overlay should actually use before this can render anything.
+                    string? imageUrl = BestImageVariantUrl(layer.Images);
+                    if (imageUrl is not null)
+                    {
+                        backgroundImage = $"url(\"{imageUrl}\")";
+                        backgroundIsImage = true;
+                    }
+                    break;
 
                 default:
                     continue;
@@ -126,9 +144,54 @@ public static class SevenTvPaintMapper
             BackgroundImage = backgroundImage,
             Color = color,
             TextShadow = textShadow,
-            IsImageOnly = imageOnly && backgroundImage is null,
+            // True either when we could not resolve the image (nothing to draw, the pre-existing meaning)
+            // OR when what WAS resolved is a raster picture rather than a CSS gradient function — a consumer
+            // needs to know that to pick e.g. background-size: cover over an unscaled gradient.
+            IsImageOnly = imageOnly && (backgroundImage is null || backgroundIsImage),
         };
     }
+
+    /// <summary>
+    /// Picks ONE asset out of the several scale/format variants 7TV offers for an image layer — the same
+    /// picture repeated as webp/avif/gif/png at 1x-4x, animated and static. Prefers the animated encoding
+    /// (this is a live overlay, not a static thumbnail) in the smallest well-supported format at the
+    /// largest available scale — webp first (small, animates, broadly supported in a Chromium overlay
+    /// browser source), falling back through avif/gif/png, then to whatever exists if none of those match.
+    /// </summary>
+    private static string? BestImageVariantUrl(IReadOnlyList<ImageVariant>? images)
+    {
+        if (images is not { Count: > 0 })
+            return null;
+
+        bool hasAnimated = images.Any(i => i.FrameCount > 1);
+        IEnumerable<ImageVariant> pool = hasAnimated ? images.Where(i => i.FrameCount > 1) : images;
+        ImageVariant[] candidates = [.. pool];
+
+        foreach (string mime in PreferredImageMimes)
+        {
+            ImageVariant? best = candidates
+                .Where(i => string.Equals(i.Mime, mime, StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(i => i.Scale)
+                .Cast<ImageVariant?>()
+                .FirstOrDefault();
+            if (best is not null)
+                return best.Value.Url;
+        }
+
+        return candidates
+            .OrderByDescending(i => i.Scale)
+            .Cast<ImageVariant?>()
+            .FirstOrDefault()
+            ?.Url;
+    }
+
+    private static readonly string[] PreferredImageMimes =
+    [
+        "image/webp",
+        "image/avif",
+        "image/gif",
+        "image/png",
+    ];
 
     private static bool HasStops(Layer layer) => layer.Stops is { Count: > 0 };
 

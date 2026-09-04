@@ -31,8 +31,9 @@ public sealed record ChatPaint
     public required string Name { get; init; }
 
     /// <summary>
-    /// A ready-to-use CSS <c>background-image</c> value (a gradient function), or null when the paint is a
-    /// flat colour or an image that produced none. A consumer applies it with background-clip: text.
+    /// A ready-to-use CSS <c>background-image</c> value — either a gradient function or a raster
+    /// <c>url(...)</c> (see <see cref="IsImageOnly"/> for which) — or null when the paint is a flat colour or
+    /// an image whose asset could not be resolved. A consumer applies it with background-clip: text.
     /// </summary>
     public string? BackgroundImage { get; init; }
 
@@ -46,8 +47,10 @@ public sealed record ChatPaint
     public string? TextShadow { get; init; }
 
     /// <summary>
-    /// True when the paint is purely an image layer, so a consumer knows the colour above is a stand-in
-    /// rather than the real thing and can decide whether that is good enough for its surface.
+    /// True when this paint is an image layer — whether or not <see cref="BackgroundImage"/> resolved to a
+    /// url. When it DID resolve, this tells a consumer the value is a raster picture (so e.g.
+    /// background-size: cover fits it, not an unscaled gradient) rather than the colour above being a mere
+    /// stand-in for an asset it could not draw at all.
     /// </summary>
     public bool IsImageOnly { get; init; }
 }
