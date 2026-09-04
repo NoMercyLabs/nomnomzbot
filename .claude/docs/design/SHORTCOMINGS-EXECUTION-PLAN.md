@@ -76,8 +76,18 @@ obvious answer, so they get decided FIRST, in the spec, with the reasoning writt
 Spec settled in `spec/platform-admin.md` (`93289b10`): propagation = per-publish mode with a counted
 blast-radius preview; platform content is a TEMPLATE tenants instantiate. S-ADMIN-2 splits by content
 kind on that spine: **2a** spine + system commands CLOSED (`78f816eb`), **2b** the admin surface for
-them CLOSED (`6b342371`), remaining: **2c** first-party widgets, **2d** system pipelines, **2e** code
-scripts — each reusing the real tenant-side editor, never a second worse one.
+them CLOSED (`6b342371`), **2c** widget kind on the spine CLOSED (`debe2e42`). Remaining: **2c-b** make
+the widget publish actually reach a viewer, **2d** system pipelines, **2e** code scripts — each reusing
+the real tenant-side editor, never a second worse one.
+
+- [ ] **S-ADMIN-2c-b Widget publish has to reach a viewer.** `debe2e42` shipped the widget kind with
+      passing tests over a capability that currently does nothing: nothing stamps
+      `Widget.PlatformSourceDefinitionId` on install (installs run through the separate
+      `WidgetGalleryItem`/`SourceRevision` path), so the fan-out reaches zero rows and every blast
+      radius truthfully reads 0; and a successful publish updates `Settings`/`EventSubscriptions` but
+      never rebuilds the compiled `WidgetVersion`, so viewers keep the old bundle. Also owed: the
+      Content tab is still command-only, with no Vue-source / settings-schema / event-subscription
+      authoring for the widget kind.
 
 2a shipped the entities, BOTH migration sets (proven on a POPULATED database via `migration-check.ps1`,
 not an empty one), the publish engine and `PlatformContentController`'s 9 routes. Two guards it added
