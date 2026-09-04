@@ -22,6 +22,7 @@ using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.Exceptions;
 using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Music;
@@ -327,7 +328,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                     e.Item.ImageUrl,
                     e.Item.DurationMs,
                     e.Item.RequestedBy,
-                    e.Item.Cost
+                    e.Item.Cost,
+                    e.Item.Code
                 ))
                 .ToList();
 
@@ -599,7 +601,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             trackInfo.Artist,
             trackInfo.AlbumArtUrl,
             trackInfo.DurationMs,
-            requestedBy ?? "anonymous"
+            requestedBy ?? "anonymous",
+            Code: NextSongCode(broadcasterId)
         );
 
         // Add to fair queue — via the singleton store, so this entry is visible to every later
@@ -826,6 +829,36 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
     /// followed, crediting them for songs they never asked for.
     /// </para>
     /// </summary>
+    /// <summary>
+    /// A song code no other request in this channel is using — the pending queue AND the one already handed
+    /// to the provider, which is still referable by code until it finishes.
+    ///
+    /// <para>
+    /// Falls back to an empty code rather than failing the request: a song request that succeeds without a
+    /// handle is a small loss, a song request refused because the bot could not name it is a real one.
+    /// </para>
+    /// </summary>
+    private string NextSongCode(string broadcasterId)
+    {
+        HashSet<string> taken = new(StringComparer.Ordinal);
+
+        FairQueue<SongRequestEntry>? queue = _queueStore.TryGet(broadcasterId);
+        if (queue is not null)
+        {
+            foreach ((SongRequestEntry queued, int _, string _) in queue.GetSnapshot())
+            {
+                if (!string.IsNullOrEmpty(queued.Code))
+                    taken.Add(queued.Code);
+            }
+        }
+
+        SongRequestEntry? inFlight = _queueStore.GetInFlight(broadcasterId);
+        if (inFlight is not null && !string.IsNullOrEmpty(inFlight.Code))
+            taken.Add(inFlight.Code);
+
+        return SongCode.NextAvailable(taken) ?? string.Empty;
+    }
+
     internal static string? RequesterOfPlayingTrack(
         ISongRequestQueueStore queueStore,
         string broadcasterId,

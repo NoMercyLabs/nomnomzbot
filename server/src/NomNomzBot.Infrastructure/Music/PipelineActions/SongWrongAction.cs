@@ -14,12 +14,20 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Domain.Music.ValueObjects;
 
 namespace NomNomzBot.Infrastructure.Music.PipelineActions;
 
 /// <summary>
 /// Wrong-song action (the legacy <c>!wrongsong</c>): undoes the TRIGGERING user's most recent song request.
 /// Requests are attributed by display name — exactly how <c>song_request</c> enqueues them.
+///
+/// <para>
+/// Given a song code (<c>!wrongsong K7QM</c>) it retracts THAT request. Without one it falls back to the
+/// caller's most recent — which is ambiguous the moment somebody has two in the queue, and is exactly the
+/// guesswork the code exists to remove. A code that belongs to someone else is refused: naming a request
+/// must not become a way to remove other people's.
+/// </para>
 ///
 /// <para>
 /// Two cases, and the second is the one that made this look broken. If the request is still WAITING it is
@@ -66,26 +74,55 @@ public sealed class SongWrongAction : ICommandAction
         string broadcasterId = ctx.BroadcasterId.ToString();
         MusicQueue queue = await _music.GetQueueAsync(broadcasterId, ctx.CancellationToken);
 
-        // The queue snapshot is position-ordered; the caller's LAST entry is their newest request.
+        // "!wrongsong K7QM" — the first chat argument, the same slot every other arg-taking action reads.
+        string? requestedCode = ctx.Variables.TryGetValue("args.1", out string? firstArg)
+            ? SongCode.TryParse(firstArg)
+            : null;
+
+        // The queue snapshot is position-ordered; without a code the caller's LAST entry is their newest.
         int position = -1;
         MusicQueueItem? item = null;
         for (int i = 0; i < queue.Queue.Count; i++)
         {
-            if (
-                string.Equals(
-                    queue.Queue[i].RequestedBy,
-                    ctx.TriggeredByDisplayName,
-                    StringComparison.OrdinalIgnoreCase
-                )
-            )
+            if (!IsCallers(queue.Queue[i], ctx))
+                continue;
+
+            if (requestedCode is null)
             {
                 position = i;
                 item = queue.Queue[i];
+                continue;
             }
+
+            if (string.Equals(queue.Queue[i].Code, requestedCode, StringComparison.Ordinal))
+            {
+                position = i;
+                item = queue.Queue[i];
+                break;
+            }
+        }
+
+        // A code that names nothing of theirs is a mistake worth reporting, not a silent fallback to
+        // "remove your latest" — that would retract a different song than the one they asked for.
+        if (requestedCode is not null && item is null)
+        {
+            await _chat.SendMessageAsync(
+                ctx.BroadcasterId,
+                $"@{ctx.TriggeredByDisplayName} No request of yours with code {requestedCode}.",
+                ctx.CancellationToken
+            );
+            return ActionResult.Failure($"no request matching code {requestedCode}");
         }
 
         if (item is null)
             return await UndoThePlayingTrackAsync(ctx, queue);
+
+        static bool IsCallers(MusicQueueItem queued, PipelineExecutionContext context) =>
+            string.Equals(
+                queued.RequestedBy,
+                context.TriggeredByDisplayName,
+                StringComparison.OrdinalIgnoreCase
+            );
 
         bool removed = await _music.RemoveFromQueueAsync(
             broadcasterId,

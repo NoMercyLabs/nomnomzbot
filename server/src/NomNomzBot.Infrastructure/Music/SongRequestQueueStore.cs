@@ -134,7 +134,7 @@ public sealed class SongRequestQueueStore : ISongRequestQueueStore
             queue.Enqueue(ownerKey, entry);
 
         SongRequestEntry? inFlight =
-            inFlightIndex is int index && index >= 0 && index < orderedEntries.Count
+            inFlightIndex is int and >= 0 and int index && index < orderedEntries.Count
                 ? orderedEntries[index].Entry
                 : null;
         SetInFlight(broadcasterId, inFlight);
@@ -153,5 +153,10 @@ public sealed record SongRequestEntry(
     int DurationMs,
     string RequestedBy,
     int Cost = 0,
-    Guid? RequesterUserId = null
+    Guid? RequesterUserId = null,
+    // The short speakable handle a viewer uses to name THIS request (Domain SongCode) — e.g.
+    // "!wrongsong K7QM". Empty for an entry created before codes existed, or restored from a persisted
+    // queue that predates them; every command that takes a code treats empty as "no match", never as a
+    // wildcard, so an old entry can't be retracted by someone typing a blank code.
+    string Code = ""
 );

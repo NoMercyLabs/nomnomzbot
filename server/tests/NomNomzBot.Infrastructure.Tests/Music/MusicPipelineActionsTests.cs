@@ -38,9 +38,11 @@ public sealed class MusicPipelineActionsTests
 
     private static PipelineExecutionContext Ctx(
         string userId = "twitch-42",
-        string displayName = "Bamo"
-    ) =>
-        new()
+        string displayName = "Bamo",
+        string? args = null
+    )
+    {
+        PipelineExecutionContext context = new()
         {
             BroadcasterId = ChannelId,
             TriggeredByUserId = userId,
@@ -48,6 +50,13 @@ public sealed class MusicPipelineActionsTests
             MessageId = "msg-1",
             RawMessage = "!cmd",
         };
+
+        // The chat handler seeds command arguments here; args.1 is the first word after the trigger.
+        if (args is not null)
+            context.Variables["args.1"] = args;
+
+        return context;
+    }
 
     private static ActionDefinition Def(
         string type,
@@ -402,6 +411,113 @@ public sealed class MusicPipelineActionsTests
     }
 
     // ─── song_wrong (!wrongsong) ──────────────────────────────────────────────
+
+    [Fact]
+    public async Task Song_wrong_with_a_code_retracts_that_exact_request_not_the_newest()
+    {
+        // The whole point of the code: "your latest" is ambiguous once somebody has two in the queue. Here
+        // the caller names their FIRST one while a newer one of theirs sits behind it.
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetQueueAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(
+                new MusicQueue(
+                    null,
+                    [
+                        new("First Pick", "A", null, 100, "Bamo", 0, "K7QM"),
+                        new("Newest Pick", "C", null, 100, "Bamo", 0, "P4XT"),
+                    ]
+                )
+            );
+        music
+            .RemoveFromQueueAsync(ChannelId.ToString(), 0, Arg.Any<CancellationToken>())
+            .Returns(true);
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        SongWrongAction action = new(music, chat, NullLogger<SongWrongAction>.Instance);
+
+        ActionResult result = await action.ExecuteAsync(
+            Ctx(displayName: "Bamo", args: "K7QM"),
+            Def("song_wrong")
+        );
+
+        result.Output.Should().Be("removed: First Pick");
+        await music
+            .Received(1)
+            .RemoveFromQueueAsync(ChannelId.ToString(), 0, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Song_wrong_refuses_a_code_belonging_to_somebody_else()
+    {
+        // Naming a request must not become a way to remove other people's. Without the ownership check a
+        // viewer could clear the whole queue by reading codes off the overlay.
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetQueueAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(
+                new MusicQueue(null, [new("Their Pick", "A", null, 100, "SomeoneElse", 0, "K7QM")])
+            );
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        SongWrongAction action = new(music, chat, NullLogger<SongWrongAction>.Instance);
+
+        ActionResult result = await action.ExecuteAsync(
+            Ctx(displayName: "Bamo", args: "K7QM"),
+            Def("song_wrong")
+        );
+
+        result.Succeeded.Should().BeFalse();
+        await music.DidNotReceiveWithAnyArgs().RemoveFromQueueAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task Song_wrong_with_an_unknown_code_removes_nothing_at_all()
+    {
+        // Falling back to "remove your latest" here would retract a DIFFERENT song than the one they named
+        // — the failure mode is silent and the viewer only finds out when the wrong track disappears.
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetQueueAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(new MusicQueue(null, [new("Mine", "A", null, 100, "Bamo", 0, "P4XT")]));
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        SongWrongAction action = new(music, chat, NullLogger<SongWrongAction>.Instance);
+
+        ActionResult result = await action.ExecuteAsync(
+            Ctx(displayName: "Bamo", args: "K7QM"),
+            Def("song_wrong")
+        );
+
+        result.Succeeded.Should().BeFalse();
+        await music.DidNotReceiveWithAnyArgs().RemoveFromQueueAsync(default!, default);
+        await chat.Received(1)
+            .SendMessageAsync(
+                ChannelId,
+                Arg.Is<string>(m => m.Contains("K7QM")),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Song_wrong_ignores_an_argument_that_is_not_a_code()
+    {
+        // "!wrongsong the last one" is not naming a code — it falls back to the newest request rather than
+        // being refused, so a viewer who does not know about codes keeps the behaviour they had.
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetQueueAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(new MusicQueue(null, [new("Mine", "A", null, 100, "Bamo", 0, "P4XT")]));
+        music
+            .RemoveFromQueueAsync(ChannelId.ToString(), 0, Arg.Any<CancellationToken>())
+            .Returns(true);
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        SongWrongAction action = new(music, chat, NullLogger<SongWrongAction>.Instance);
+
+        ActionResult result = await action.ExecuteAsync(
+            Ctx(displayName: "Bamo", args: "the last one"),
+            Def("song_wrong")
+        );
+
+        result.Output.Should().Be("removed: Mine");
+    }
 
     [Fact]
     public async Task Song_wrong_skips_the_callers_track_when_it_is_already_playing()
