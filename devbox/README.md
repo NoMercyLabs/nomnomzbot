@@ -128,5 +128,13 @@ exposing it exposes the host.** Two locks, both required — Caddy basic auth an
 same editor. The extension list is re-applied whenever `extensions.txt` changes, and an id Open
 VSX does not carry is skipped, never fatal. Removing an id does not uninstall it — use
 `code-server --uninstall-extension <id>` for that. Add an extension to the list rather than
-installing it by hand, so the next person gets it too. Settings are **copied** on first start, so
-tweaking them inside the editor sticks.
+installing it by hand, so the next person gets it too.
+
+Settings are copied **only when the editor has no settings file yet**. So tweaking them inside the
+editor sticks — and editing the committed file changes nothing on a box that already ran. Change
+both, or delete the box's copy and restart it.
+
+Some of those settings are true because this is a container, not personal taste — leave them alone:
+`security.workspace.trust.enabled: false` (without it the workspace opens in Restricted Mode and
+every language extension stays dormant, which looks exactly like the extensions failing to
+install), the Linux terminal profile, and `files.eol: "\n"`.
