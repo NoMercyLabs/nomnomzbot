@@ -11,6 +11,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using NomNomzBot.Domain.PlatformContent.Entities;
+using NomNomzBot.Infrastructure.Platform.Persistence.Converters;
 
 namespace NomNomzBot.Infrastructure.Content.PlatformContent.Persistence;
 
@@ -24,6 +25,14 @@ public class PlatformContentPublishJobConfiguration
         builder.Property(e => e.Mode).IsRequired().HasMaxLength(40);
         builder.Property(e => e.Status).IsRequired().HasMaxLength(20);
         builder.Property(e => e.FailureReason).HasMaxLength(2000);
+
+        // [VC:JSON] hand-rolled Newtonsoft converter, TEXT-as-JSON on both Postgres and SQLite.
+        builder
+            .Property(e => e.RebuildFailedWidgetIds)
+            .HasConversion(
+                JsonValueConverter.Converter<List<Guid>>(),
+                JsonValueConverter.Comparer<List<Guid>>()
+            );
 
         builder.HasIndex(e => e.DefinitionId);
     }

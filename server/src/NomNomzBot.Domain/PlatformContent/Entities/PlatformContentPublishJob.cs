@@ -54,6 +54,13 @@ public class PlatformContentPublishJob
 
     [MaxLength(2000)]
     public string? FailureReason { get; set; }
+
+    /// <summary>Widget kind only (S-ADMIN-2c-b): tenant <c>Widget</c> rows whose compiled-bundle rebuild failed
+    /// during this fan-out. Their PREVIOUS successful <c>WidgetVersion</c>/bundle stays live — a rebuild failure
+    /// never blanks a working overlay — so this is the only record of which tenants did not receive the fix; an
+    /// admin re-runs the publish (or investigates) using this list. Empty (never null) when nothing failed, or
+    /// for a <c>command</c>-kind job.</summary>
+    public List<Guid> RebuildFailedWidgetIds { get; set; } = [];
 }
 
 /// <summary>The closed set of publish modes (§2.1). A publish job's mode is one of exactly these.</summary>

@@ -8601,6 +8601,10 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<int>("PreviewSkippedCount")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("RebuildFailedWidgetIds")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("RequestedAt")
                         .HasColumnType("TEXT");
 

@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.PlatformContent;
+using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Identity.Entities;
@@ -33,10 +34,79 @@ public sealed class PlatformContentServiceTests : IAsyncDisposable
     private readonly PlatformContentTestDbContext _db = PlatformContentTestDbContext.New();
     private readonly IPlatformIamService _iam = Substitute.For<IPlatformIamService>();
     private readonly IVueSfcCompiler _vueCompiler = Substitute.For<IVueSfcCompiler>();
+    private readonly IWidgetService _widgetService = Substitute.For<IWidgetService>();
     private readonly Guid _actingPrincipalId = Guid.NewGuid();
 
+    // Tenant widget ids the simulated CompileAsync (below) treats as a failed rebuild — set per-test.
+    private readonly HashSet<Guid> _simulateRebuildFailureFor = [];
+
     private PlatformContentService CreateService() =>
-        new(_db, _iam, new TestUnitOfWork(_db), _vueCompiler);
+        new(_db, _iam, new TestUnitOfWork(_db), _vueCompiler, _widgetService);
+
+    /// <summary>
+    /// Stands in for the real <c>WidgetService.CompileAsync</c>: appends a new <see cref="WidgetVersion"/> row
+    /// whose <c>CompiledBundle</c> is derived from the submitted source (so a test can prove the STORED bundle
+    /// actually changed, not just the widget's settings), and — mirroring the real method's own contract —
+    /// only repoints <c>Widget.ActiveVersionId</c> at it on a successful build. A widget id in
+    /// <see cref="_simulateRebuildFailureFor"/> simulates a build failure: the version is still recorded
+    /// (append-only, error row) but <c>ActiveVersionId</c> is left exactly as it was.
+    /// </summary>
+    private async Task<Result<WidgetVersionDetail>> SimulateCompileAsync(
+        NSubstitute.Core.CallInfo call
+    )
+    {
+        Guid widgetId = Guid.Parse(call.ArgAt<string>(1));
+        string sourceCode = call.ArgAt<CompileWidgetRequest>(2).SourceCode;
+
+        Widget? widget = await _db.Widgets.FirstOrDefaultAsync(w => w.Id == widgetId);
+        if (widget is null)
+            return Result.Failure<WidgetVersionDetail>("Widget not found.", "NOT_FOUND");
+
+        bool fail = _simulateRebuildFailureFor.Contains(widgetId);
+        int nextNumber =
+            1
+            + (
+                await _db
+                    .WidgetVersions.Where(v => v.WidgetId == widgetId)
+                    .Select(v => (int?)v.VersionNumber)
+                    .MaxAsync()
+                ?? 0
+            );
+
+        WidgetVersion version = new()
+        {
+            Id = Guid.CreateVersion7(),
+            WidgetId = widgetId,
+            BroadcasterId = widget.BroadcasterId,
+            VersionNumber = nextNumber,
+            SourceCode = sourceCode,
+            BuildStatus = fail ? "error" : "success",
+            CompiledBundle = fail ? null : $"compiled::{sourceCode}",
+            BuildError = fail ? "simulated rebuild failure" : null,
+            ContentHash = fail ? null : new string('b', 64),
+            CompiledAt = fail ? null : DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow,
+        };
+        _db.WidgetVersions.Add(version);
+        if (!fail)
+            widget.ActiveVersionId = version.Id;
+        await _db.SaveChangesAsync();
+
+        return Result.Success(
+            new WidgetVersionDetail(
+                version.Id,
+                widget.Id,
+                version.VersionNumber,
+                version.BuildStatus,
+                version.SourceCode,
+                version.BuildError,
+                version.BuildLog,
+                version.ContentHash,
+                version.CompiledAt,
+                version.CreatedAt
+            )
+        );
+    }
 
     public PlatformContentServiceTests()
     {
@@ -61,6 +131,18 @@ public sealed class PlatformContentServiceTests : IAsyncDisposable
         _vueCompiler
             .Compile(Arg.Any<string>(), Arg.Any<string>())
             .Returns(Result.Success(new VueSfcOutput("export default {}", "")));
+
+        // Widget-kind publishes rebuild each tenant's bundle through IWidgetService.CompileAsync — simulated
+        // (see SimulateCompileAsync) so tests can assert on the real persisted WidgetVersion/bundle rather than
+        // a bare mock verification.
+        _widgetService
+            .CompileAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CompileWidgetRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(call => SimulateCompileAsync(call));
     }
 
     private async Task<Widget> AddWidgetAsync(
@@ -850,6 +932,166 @@ public sealed class PlatformContentServiceTests : IAsyncDisposable
         Assert.Equal("widget:now-playing@v2", auditRow.TargetResource);
         Assert.Equal(1, auditRow.AffectedTenantCount);
         Assert.Equal(IamOutcome.Allowed, auditRow.Outcome);
+    }
+
+    // ---------------------------------------------------------------------------------------------------
+    // S-ADMIN-2c-b — a widget publish rebuilds the tenant's compiled bundle, not just Settings/Subscriptions.
+    // ---------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task Widget_Publish_RebuildsUntouchedTenantsCompiledBundle_ToReflectTheNewSource()
+    {
+        (PlatformContentDefinition definition, PlatformContentVersion v1) =
+            await SeedPublishedWidgetDefinitionAsync();
+        string v1SettingsHash = WidgetContentPayload.ComputeSettingsHash(
+            new Dictionary<string, object> { ["color"] = "red" },
+            ["music.now_playing"]
+        );
+
+        Channel channel = await AddChannelAsync("untouched-streamer");
+        Widget row = await AddWidgetAsync(
+            channel.Id,
+            new Dictionary<string, object> { ["color"] = "red" },
+            ["music.now_playing"],
+            definition.Id,
+            1,
+            v1SettingsHash
+        );
+
+        const string v2Payload =
+            "{\"sourceCode\":\"<template><div class=\\\"v2\\\"/></template>\",\"defaultSettings\":{\"color\":\"green\"},\"defaultEventSubscriptions\":[\"music.now_playing\"]}";
+        PlatformContentVersion v2 = new()
+        {
+            DefinitionId = definition.Id,
+            Version = 2,
+            ContentHash = PlatformContentHash.ComputeHash(v2Payload),
+            PayloadJson = v2Payload,
+            DraftedAt = DateTime.UtcNow,
+            DraftedByPrincipalId = _actingPrincipalId,
+        };
+        _db.PlatformContentVersions.Add(v2);
+        await _db.SaveChangesAsync();
+
+        PlatformContentService sut = CreateService();
+        Result<PlatformContentPublishJobDto> publishResult = await sut.PublishAsync(
+            _actingPrincipalId,
+            definition.Id,
+            v2.Id,
+            new PublishContentRequest(
+                PlatformContentPublishModes.UpdateInPlaceWhereUntouched,
+                PublishNote: null,
+                ConfirmedPreviewAffectedCount: 1
+            )
+        );
+
+        Assert.True(publishResult.IsSuccess, publishResult.ErrorMessage);
+        Assert.Empty(publishResult.Value.RebuildFailedWidgetIds);
+
+        Widget afterPublish = await _db.Widgets.AsNoTracking().SingleAsync(w => w.Id == row.Id);
+        Assert.NotNull(afterPublish.ActiveVersionId);
+
+        // Not just Settings — the STORED compiled bundle must actually reflect the new Vue source.
+        WidgetVersion active = await _db
+            .WidgetVersions.AsNoTracking()
+            .SingleAsync(v => v.Id == afterPublish.ActiveVersionId);
+        Assert.Equal("success", active.BuildStatus);
+        Assert.Contains("v2", active.CompiledBundle);
+    }
+
+    [Fact]
+    public async Task Widget_Publish_SkipsCustomisedTenant_AndRecordsAFailedTenantRebuildWithoutBlankingItsBundle()
+    {
+        (PlatformContentDefinition definition, PlatformContentVersion v1) =
+            await SeedPublishedWidgetDefinitionAsync();
+        string v1SettingsHash = WidgetContentPayload.ComputeSettingsHash(
+            new Dictionary<string, object> { ["color"] = "red" },
+            ["music.now_playing"]
+        );
+
+        Channel customisedChannel = await AddChannelAsync("customised-streamer");
+        Widget customisedRow = await AddWidgetAsync(
+            customisedChannel.Id,
+            new Dictionary<string, object> { ["color"] = "blue" }, // tenant edited it — excluded upstream
+            ["music.now_playing"],
+            definition.Id,
+            1,
+            v1SettingsHash
+        );
+
+        Channel failingChannel = await AddChannelAsync("failing-rebuild-streamer");
+        Widget failingRow = await AddWidgetAsync(
+            failingChannel.Id,
+            new Dictionary<string, object> { ["color"] = "red" },
+            ["music.now_playing"],
+            definition.Id,
+            1,
+            v1SettingsHash
+        );
+        // Give it a PREVIOUS successful bundle so we can prove it survives the failed rebuild untouched.
+        WidgetVersion previousGood = new()
+        {
+            Id = Guid.CreateVersion7(),
+            WidgetId = failingRow.Id,
+            BroadcasterId = failingChannel.Id,
+            VersionNumber = 1,
+            SourceCode = "<template><div class=\"v1\"/></template>",
+            BuildStatus = "success",
+            CompiledBundle = "compiled::v1-bundle",
+            ContentHash = new string('a', 64),
+            CompiledAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow,
+        };
+        _db.WidgetVersions.Add(previousGood);
+        failingRow.ActiveVersionId = previousGood.Id;
+        await _db.SaveChangesAsync();
+        _simulateRebuildFailureFor.Add(failingRow.Id);
+
+        const string v2Payload =
+            "{\"sourceCode\":\"<template><div class=\\\"v2\\\"/></template>\",\"defaultSettings\":{\"color\":\"green\"},\"defaultEventSubscriptions\":[\"music.now_playing\"]}";
+        PlatformContentVersion v2 = new()
+        {
+            DefinitionId = definition.Id,
+            Version = 2,
+            ContentHash = PlatformContentHash.ComputeHash(v2Payload),
+            PayloadJson = v2Payload,
+            DraftedAt = DateTime.UtcNow,
+            DraftedByPrincipalId = _actingPrincipalId,
+        };
+        _db.PlatformContentVersions.Add(v2);
+        await _db.SaveChangesAsync();
+
+        PlatformContentService sut = CreateService();
+        Result<PlatformContentPublishJobDto> publishResult = await sut.PublishAsync(
+            _actingPrincipalId,
+            definition.Id,
+            v2.Id,
+            new PublishContentRequest(
+                PlatformContentPublishModes.UpdateInPlaceWhereUntouched,
+                PublishNote: null,
+                ConfirmedPreviewAffectedCount: 1 // only failingRow is untouched-and-linked; customisedRow is skipped
+            )
+        );
+
+        Assert.True(publishResult.IsSuccess, publishResult.ErrorMessage);
+
+        // The failure is recorded on the job — never silently swallowed.
+        Assert.Contains(failingRow.Id, publishResult.Value.RebuildFailedWidgetIds);
+
+        // The customised tenant was never even attempted: its settings AND its bundle are untouched, and no
+        // new WidgetVersion was appended for it.
+        Widget customisedAfter = await _db
+            .Widgets.AsNoTracking()
+            .SingleAsync(w => w.Id == customisedRow.Id);
+        Assert.Equal("blue", customisedAfter.Settings["color"]);
+        Assert.Equal(0, await _db.WidgetVersions.CountAsync(v => v.WidgetId == customisedRow.Id));
+
+        // The failing tenant's settings were updated (fan-out still ran) but its PREVIOUS successful bundle
+        // stays live — a rebuild failure never blanks a working overlay.
+        Widget failingAfter = await _db
+            .Widgets.AsNoTracking()
+            .SingleAsync(w => w.Id == failingRow.Id);
+        Assert.Equal("green", failingAfter.Settings["color"]);
+        Assert.Equal(previousGood.Id, failingAfter.ActiveVersionId);
     }
 
     // ---------------------------------------------------------------------------------------------------

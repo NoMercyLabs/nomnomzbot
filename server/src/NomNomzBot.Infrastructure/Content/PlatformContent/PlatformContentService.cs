@@ -13,6 +13,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.PlatformContent;
+using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Identity;
@@ -43,7 +44,8 @@ public sealed class PlatformContentService(
     IApplicationDbContext db,
     IPlatformIamService iam,
     IUnitOfWork uow,
-    IVueSfcCompiler vueCompiler
+    IVueSfcCompiler vueCompiler,
+    IWidgetService widgetService
 ) : IPlatformContentService
 {
     public async Task<Result<PagedList<PlatformContentDefinitionDto>>> ListDefinitionsAsync(
@@ -400,22 +402,28 @@ public sealed class PlatformContentService(
         {
             if (request.Mode != PlatformContentPublishModes.PublishAsNew)
             {
-                confirmedCount =
-                    definition.Kind == PlatformContentKinds.Widget
-                        ? await ApplyWidgetFanOutAsync(
-                            definition,
-                            version,
-                            freshSelection.AffectedRowIds,
-                            now,
-                            ct
-                        )
-                        : await ApplyCommandFanOutAsync(
-                            definition,
-                            version,
-                            freshSelection.AffectedRowIds,
-                            now,
-                            ct
-                        );
+                if (definition.Kind == PlatformContentKinds.Widget)
+                {
+                    WidgetFanOutResult widgetResult = await ApplyWidgetFanOutAsync(
+                        definition,
+                        version,
+                        freshSelection.AffectedRowIds,
+                        now,
+                        ct
+                    );
+                    confirmedCount = widgetResult.Count;
+                    job.RebuildFailedWidgetIds = widgetResult.RebuildFailedWidgetIds;
+                }
+                else
+                {
+                    confirmedCount = await ApplyCommandFanOutAsync(
+                        definition,
+                        version,
+                        freshSelection.AffectedRowIds,
+                        now,
+                        ct
+                    );
+                }
             }
 
             version.PublishedAt = version.PublishedAt ?? now;
@@ -671,12 +679,21 @@ public sealed class PlatformContentService(
         return targets.Count;
     }
 
-    /// <summary>Writes the version's default settings/subscriptions onto every affected tenant
-    /// <see cref="Widget"/> row and stamps provenance. Does NOT compile a new <c>WidgetVersion</c>/bundle for
-    /// the tenant — the compile gate above already proved the SOURCE compiles; rebuilding each tenant's
-    /// active overlay bundle from that source is <c>WidgetService</c>'s job and is out of this slice's scope
-    /// (see the slice report).</summary>
-    private async Task<int> ApplyWidgetFanOutAsync(
+    private readonly record struct WidgetFanOutResult(int Count, List<Guid> RebuildFailedWidgetIds);
+
+    /// <summary>
+    /// Writes the version's default settings/subscriptions onto every affected tenant <see cref="Widget"/> row,
+    /// stamps provenance, and rebuilds each tenant's compiled bundle through the SAME
+    /// <see cref="IWidgetService.CompileAsync"/> machinery a streamer's own compile-on-save uses — the fan-out
+    /// no longer stops at "Settings changed but the viewer's overlay keeps rendering the stale bundle"
+    /// (S-ADMIN-2c-b). Failure policy: a tenant whose rebuild fails keeps its PREVIOUS successful
+    /// <c>WidgetVersion</c>/bundle live (<c>CompileAsync</c> only repoints <c>ActiveVersionId</c> on a
+    /// successful build, never on error) and is recorded in the returned
+    /// <see cref="WidgetFanOutResult.RebuildFailedWidgetIds"/> for
+    /// <see cref="PlatformContentPublishJob.RebuildFailedWidgetIds"/> — never silently swallowed. A customised
+    /// tenant was already excluded upstream by <see cref="SelectWidgetRowsAsync"/> and never reaches this loop.
+    /// </summary>
+    private async Task<WidgetFanOutResult> ApplyWidgetFanOutAsync(
         PlatformContentDefinition definition,
         PlatformContentVersion version,
         List<Guid> affectedRowIds,
@@ -691,13 +708,14 @@ public sealed class PlatformContentService(
                 out _
             )
         )
-            return 0;
+            return new WidgetFanOutResult(0, []);
 
         List<Widget> targets = await db
             .Widgets.Where(w => affectedRowIds.Contains(w.Id))
             .ToListAsync(ct);
 
         string settingsHash = payload!.ComputeSettingsHash();
+        List<Guid> rebuildFailedWidgetIds = [];
         foreach (Widget row in targets)
         {
             row.Settings = new Dictionary<string, object>(payload.DefaultSettings);
@@ -706,8 +724,43 @@ public sealed class PlatformContentService(
             row.PlatformSourceVersion = version.Version;
             row.PlatformSourceHash = settingsHash;
             row.PlatformSourceSyncedAt = now;
+
+            // Persist the settings/provenance write before rebuilding — CompileAsync loads its own tracked
+            // copy of the row from the same DbContext, so the settings must already be visible to it.
+            await uow.SaveChangesAsync(ct);
+
+            bool rebuilt = await TryRebuildTenantBundleAsync(row, payload.SourceCode, ct);
+            if (!rebuilt)
+                rebuildFailedWidgetIds.Add(row.Id);
         }
-        return targets.Count;
+        return new WidgetFanOutResult(targets.Count, rebuildFailedWidgetIds);
+    }
+
+    /// <summary>
+    /// One tenant's rebuild attempt. Never throws out of this method — an exception from the compiler/build
+    /// pipeline is caught and treated as a rebuild failure (recorded, not swallowed) exactly like a normal
+    /// build-error result, so one tenant's bad luck never aborts the rest of the fan-out.
+    /// </summary>
+    private async Task<bool> TryRebuildTenantBundleAsync(
+        Widget row,
+        string sourceCode,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            Result<WidgetVersionDetail> compiled = await widgetService.CompileAsync(
+                row.BroadcasterId.ToString(),
+                row.Id.ToString(),
+                new CompileWidgetRequest { SourceCode = sourceCode },
+                ct
+            );
+            return compiled is { IsSuccess: true, Value.BuildStatus: "success" };
+        }
+        catch (Exception)
+        {
+            return false;
+        }
     }
 
     private async Task AuditPublishOutcomeAsync(
@@ -867,6 +920,7 @@ public sealed class PlatformContentService(
             job.ConfirmedAffectedCount,
             job.Status,
             job.CompletedAt,
-            job.FailureReason
+            job.FailureReason,
+            job.RebuildFailedWidgetIds
         );
 }
