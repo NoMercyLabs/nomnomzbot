@@ -24,6 +24,13 @@ public enum TwitchHelixAuth
     User = 1,
     Operator = 2,
     BotApp = 3,
+
+    /// <summary>
+    /// The broadcaster's OWN user token, with no bot-token fallback — the call fails with <c>no_token</c>
+    /// when this tenant has not granted one. Use wherever Twitch checks the token's identity against the
+    /// subject rather than only its scopes; <see cref="User"/> may silently sign the call as the bot.
+    /// </summary>
+    UserStrict = 4,
 }
 
 /// <summary>

@@ -39,8 +39,18 @@ public interface ITwitchTokenResolver
     /// Returns the broadcaster's user token (service <c>twitch</c>) for tenant <paramref name="broadcasterId"/>,
     /// falling back to the bot token when no user token exists. Fails with <c>no_token</c> when neither is present.
     /// </summary>
+    /// <param name="allowBotFallback">
+    /// <c>true</c> (default) keeps the read-scope convenience: a tenant with no grant of its own borrows the
+    /// platform bot token, which is enough for the plain Helix GETs that only need read scopes.
+    /// <c>false</c> demands a genuine grant for THIS broadcaster and fails with <c>no_token</c> otherwise.
+    /// Required wherever Twitch checks the token's own identity against the subject rather than just its
+    /// scopes — above all EventSub creates and deletes, where borrowing the bot token both fails the call
+    /// ("subscription missing proper authorization") and silently binds the tenant's websocket to the bot
+    /// user, exhausting its 3-transport cap.
+    /// </param>
     Task<Result<TwitchAccessContext>> GetBroadcasterTokenAsync(
         Guid broadcasterId,
+        bool allowBotFallback = true,
         CancellationToken ct = default
     );
 

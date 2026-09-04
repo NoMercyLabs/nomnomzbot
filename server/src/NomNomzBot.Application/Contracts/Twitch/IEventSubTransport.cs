@@ -65,9 +65,18 @@ public interface IEventSubTransport
     /// </summary>
     IReadOnlyCollection<string> KnownOwnerKeys { get; }
 
-    /// <summary><c>DELETE /eventsub/subscriptions?id=</c>. Idempotent (404 → Success).</summary>
+    /// <summary>
+    /// <c>DELETE /eventsub/subscriptions?id=</c>. Idempotent (404 → Success).
+    /// </summary>
+    /// <param name="ownerBroadcasterId">
+    /// The tenant whose token CREATED the subscription, or <c>null</c> for a bot/app-owned one. Twitch scopes
+    /// the delete to the calling token's own user, so deleting a broadcaster-owned subscription with the bot
+    /// token returns 404 rather than deleting anything — which, combined with the idempotent 404 → Success
+    /// rule below, silently reports success while the subscription lives on and is retried forever.
+    /// </param>
     Task<Result> DeleteSubscriptionAsync(
         string twitchSubscriptionId,
+        Guid? ownerBroadcasterId = null,
         CancellationToken ct = default
     );
 

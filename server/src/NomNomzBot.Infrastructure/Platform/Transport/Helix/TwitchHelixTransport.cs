@@ -203,8 +203,23 @@ public sealed class TwitchHelixTransport(
         {
             TwitchHelixAuth.Operator when request.OperatorUserId is { } op =>
                 await tokenResolver.GetUserTokenAsync(op, ct),
+            // The bot-token fallback is a READ convenience: the bot's grant carries read scopes, so a
+            // partially-onboarded tenant can still populate dashboards. It is never right for a mutation —
+            // Twitch checks the token's own user against broadcaster_id on write endpoints, so borrowing the
+            // bot token turns a missing grant into a confusing 400/403 at the API instead of a clear
+            // no_token here. Observed in production: POST moderation/moderators 400, custom_rewards 403.
             TwitchHelixAuth.User when request.BroadcasterId is { } tenant =>
-                await tokenResolver.GetBroadcasterTokenAsync(tenant, ct),
+                await tokenResolver.GetBroadcasterTokenAsync(
+                    tenant,
+                    allowBotFallback: request.Method == HttpMethod.Get,
+                    ct
+                ),
+            TwitchHelixAuth.UserStrict when request.BroadcasterId is { } strictTenant =>
+                await tokenResolver.GetBroadcasterTokenAsync(
+                    strictTenant,
+                    allowBotFallback: false,
+                    ct
+                ),
             TwitchHelixAuth.BotApp => await tokenResolver.GetAppTokenAsync(ct),
             _ => await tokenResolver.GetBotTokenAsync(ct),
         };

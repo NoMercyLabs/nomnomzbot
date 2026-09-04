@@ -37,6 +37,7 @@ public sealed class FakeTwitchTokenResolver : ITwitchTokenResolver
 
     public Task<Result<TwitchAccessContext>> GetBroadcasterTokenAsync(
         Guid broadcasterId,
+        bool allowBotFallback = true,
         CancellationToken ct = default
     ) =>
         Task.FromResult(

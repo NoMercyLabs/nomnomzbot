@@ -524,7 +524,11 @@ public sealed class TwitchEventSubHostedService
         foreach (EventSubSubscription row in rows)
         {
             if (row.TwitchSubscriptionId is { } id)
-                await _transport.DeleteSubscriptionAsync(id, ct);
+                await _transport.DeleteSubscriptionAsync(
+                    id,
+                    DeleteOwnerFor(row.EventType, row.BroadcasterId),
+                    ct
+                );
 
             string old = row.Status;
             row.Status = "revoked";
@@ -850,7 +854,11 @@ public sealed class TwitchEventSubHostedService
 
         if (row.TwitchSubscriptionId is { } id)
         {
-            Result deleted = await _transport.DeleteSubscriptionAsync(id, ct);
+            Result deleted = await _transport.DeleteSubscriptionAsync(
+                id,
+                DeleteOwnerFor(row.EventType, row.BroadcasterId),
+                ct
+            );
             if (deleted.IsFailure)
                 return deleted;
         }
@@ -960,7 +968,11 @@ public sealed class TwitchEventSubHostedService
             if (!staleSession && !notDesired)
                 continue;
 
-            Result del = await _transport.DeleteSubscriptionAsync(live.TwitchSubscriptionId, ct);
+            Result del = await _transport.DeleteSubscriptionAsync(
+                live.TwitchSubscriptionId,
+                DeleteOwnerFor(owned.EventType, owned.BroadcasterId),
+                ct
+            );
             if (del.IsFailure)
             {
                 errors.Add($"delete {live.TwitchSubscriptionId}: {del.ErrorMessage}");
@@ -1074,13 +1086,29 @@ public sealed class TwitchEventSubHostedService
         EventSubOwnerKeys.For(broadcasterId, _conditionBuilder.RequiresBroadcasterToken(eventType));
 
     /// <summary>
+    /// The identity that must sign a DELETE for this subscription: the broadcaster for its own topics, the
+    /// bot (<c>null</c>) for the bot-owned chat-read set. Twitch scopes the delete to the calling token's
+    /// user, so a broadcaster-owned subscription deleted with the bot token answers 404 "not yours" — which
+    /// the transport's idempotent 404 rule then reports as success while the subscription survives. Mirrors
+    /// <see cref="OwnerKeyFor"/> deliberately: the token that deletes must be the token that created.
+    /// </summary>
+    private Guid? DeleteOwnerFor(string eventType, Guid broadcasterId) =>
+        _conditionBuilder.RequiresBroadcasterToken(eventType) ? broadcasterId : null;
+
+    /// <summary>
     /// Deletes THIS owner's subscriptions still registered at Twitch under a DEAD WebSocket session before
     /// re-registering. After a full drop Twitch holds the old session's subs in a <c>websocket_disconnected</c>
     /// state for ~1 minute; since a create's 409-conflict key is (type + condition) — session-independent — those
     /// lingering subs would 409 every re-create on the new session and strand this owner's topics. Driven off our
     /// OWN registry (never another owner's rows, never another live session): the owner's rows whose
-    /// <c>SessionId</c> is set and differs from the current one are the dead-session orphans. A genuine Twitch
-    /// <c>session_reconnect</c> keeps the same session id, so nothing is stale and nothing is deleted.
+    /// <c>SessionId</c> is set and differs from the current one are the dead-session orphans.
+    /// <para>
+    /// NOTE: a Twitch <c>session_reconnect</c> issues a NEW session id in the welcome on the reconnect URL —
+    /// it does not carry the old one across. (This doc previously claimed the opposite, which is why every
+    /// routine ~5-minute reconnect was treated as a full session death and ran a delete-everything +
+    /// re-register-everything storm.) So this DOES fire on an ordinary reconnect, and it must stay cheap and
+    /// correct rather than assume it is rare.
+    /// </para>
     /// </summary>
     private async Task CleanupOwnerStaleSubsAsync(
         string ownerKey,
@@ -1108,17 +1136,31 @@ public sealed class TwitchEventSubHostedService
             if (OwnerKeyFor(row.BroadcasterId, row.EventType) != ownerKey)
                 continue;
 
-            await _transport.DeleteSubscriptionAsync(row.TwitchSubscriptionId!, ct);
+            await _transport.DeleteSubscriptionAsync(
+                row.TwitchSubscriptionId!,
+                DeleteOwnerFor(row.EventType, row.BroadcasterId),
+                ct
+            );
+
+            // Forget the dead session's handle unconditionally — whether Twitch deleted it or reported it
+            // already gone, it is not ours any more and re-registering will mint a new one. Leaving these set
+            // is what made this method replay the IDENTICAL delete set on every reconnect: the rows still
+            // matched "SessionId != current" next time round, forever.
+            row.TwitchSubscriptionId = null;
+            row.SessionId = null;
             deleted++;
         }
 
         if (deleted > 0)
+        {
+            await db.SaveChangesAsync(ct);
             _logger.LogInformation(
                 "EventSub: deleted {Count} stale-session subscription(s) for owner {Owner} before re-registering on {SessionId}",
                 deleted,
                 ownerKey,
                 currentSessionId
             );
+        }
     }
 
     /// <summary>
