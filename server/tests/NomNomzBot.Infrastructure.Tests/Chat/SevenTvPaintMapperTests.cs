@@ -93,6 +93,216 @@ public sealed class SevenTvPaintMapperTests
     }
 
     [Fact]
+    public void A_real_radial_gradient_paint_becomes_a_css_gradient()
+    {
+        // "Mochi", verbatim from the live v4 API (2026-09-04) — the paint LanyDelRey (twitch id 80775337)
+        // actually wears, resolved live rather than invented.
+        ChatPaint? paint = SevenTvPaintMapper.Map(
+            "01JFT4JF6ETXCMHDEAVEH7PJJ1",
+            "Mochi",
+            [
+                new(
+                    "PaintLayerTypeRadialGradient",
+                    Shape: "circle",
+                    Stops:
+                    [
+                        new(0.0, "#FFADEDFF"),
+                        new(0.2, "#FF80DDFF"),
+                        new(0.5, "#FFFFFFFF"),
+                        new(0.8, "#B98AFFFF"),
+                        new(1.0, "#A366FFFF"),
+                    ]
+                ),
+            ],
+            [new("#4C00FFFF", 0, 0, 0.1)]
+        );
+
+        paint.Should().NotBeNull();
+        paint
+            .BackgroundImage.Should()
+            .Be(
+                "radial-gradient(circle, #FFADEDFF 0%, #FF80DDFF 20%, #FFFFFFFF 50%, #B98AFFFF 80%, #A366FFFF 100%)"
+            );
+        paint.Color.Should().Be("#FFADEDFF");
+        paint.TextShadow.Should().Be("0px 0px 0.1px #4C00FFFF");
+        paint.IsImageOnly.Should().BeFalse();
+    }
+
+    [Fact]
+    public void A_real_image_paint_picks_the_animated_webp_at_the_largest_scale()
+    {
+        // "NNYS 2024" (01JEY00EDNVW20AWX2NPG4HTNF), the paint SoraRiku312 (twitch id 63783703) actually
+        // wears — all 24 asset variants captured verbatim from the live v4 API (2026-09-04): 4 scales x
+        // {webp, avif, png} static (frameCount 1) plus 4 scales x {webp, avif, gif} animated (frameCount
+        // 150). No animated png exists for this paint, matching what 7TV actually ships.
+        SevenTvPaintMapper.ImageVariant[] images =
+        [
+            new(
+                "https://cdn.7tv.app/paint/01JEY00EDNVW20AWX2NPG4HTNF/layer/01JH1Q77D54RJ8DKK9M5WCYR27/1x_static.webp",
+                "image/webp",
+                1,
+                1
+            ),
+            new(
+                "https://cdn.7tv.app/paint/01JEY00EDNVW20AWX2NPG4HTNF/layer/01JH1Q77D54RJ8DKK9M5WCYR27/2x_static.webp",
+                "image/webp",
+                2,
+                1
+            ),
+            new(
+                "https://cdn.7tv.app/paint/01JEY00EDNVW20AWX2NPG4HTNF/layer/01JH1Q77D54RJ8DKK9M5WCYR27/3x_static.webp",
+                "image/webp",
+                3,
+                1
+            ),
+            new(
+                "https://cdn.7tv.app/paint/01JEY00EDNVW20AWX2NPG4HTNF/layer/01JH1Q77D54RJ8DKK9M5WCYR27/4x_static.webp",
+                "image/webp",
+                4,
+                1
+            ),
+            new(
+                "https://cdn.7tv.app/paint/01JEY00EDNVW20AWX2NPG4HTNF/layer/01JH1Q77D54RJ8DKK9M5WCYR27/1x_static.avif",
+                "image/avif",
+                1,
+                1
+            ),
+            new(
+                "https://cdn.7tv.app/paint/01JEY00EDNVW20AWX2NPG4HTNF/layer/01JH1Q77D54RJ8DKK9M5WCYR27/2x_static.avif",
+                "image/avif",
+                2,
+                1
+            ),
+            new(
+                "https://cdn.7tv.app/paint/01JEY00EDNVW20AWX2NPG4HTNF/layer/01JH1Q77D54RJ8DKK9M5WCYR27/3x_static.avif",
+                "image/avif",
+                3,
+                1
+            ),
+            new(
+                "https://cdn.7tv.app/paint/01JEY00EDNVW20AWX2NPG4HTNF/layer/01JH1Q77D54RJ8DKK9M5WCYR27/4x_static.avif",
+                "image/avif",
+                4,
+                1
+            ),
+            new(
+                "https://cdn.7tv.app/paint/01JEY00EDNVW20AWX2NPG4HTNF/layer/01JH1Q77D54RJ8DKK9M5WCYR27/1x_static.png",
+                "image/png",
+                1,
+                1
+            ),
+            new(
+                "https://cdn.7tv.app/paint/01JEY00EDNVW20AWX2NPG4HTNF/layer/01JH1Q77D54RJ8DKK9M5WCYR27/2x_static.png",
+                "image/png",
+                2,
+                1
+            ),
+            new(
+                "https://cdn.7tv.app/paint/01JEY00EDNVW20AWX2NPG4HTNF/layer/01JH1Q77D54RJ8DKK9M5WCYR27/3x_static.png",
+                "image/png",
+                3,
+                1
+            ),
+            new(
+                "https://cdn.7tv.app/paint/01JEY00EDNVW20AWX2NPG4HTNF/layer/01JH1Q77D54RJ8DKK9M5WCYR27/4x_static.png",
+                "image/png",
+                4,
+                1
+            ),
+            new(
+                "https://cdn.7tv.app/paint/01JEY00EDNVW20AWX2NPG4HTNF/layer/01JH1Q77D54RJ8DKK9M5WCYR27/1x.webp",
+                "image/webp",
+                1,
+                150
+            ),
+            new(
+                "https://cdn.7tv.app/paint/01JEY00EDNVW20AWX2NPG4HTNF/layer/01JH1Q77D54RJ8DKK9M5WCYR27/2x.webp",
+                "image/webp",
+                2,
+                150
+            ),
+            new(
+                "https://cdn.7tv.app/paint/01JEY00EDNVW20AWX2NPG4HTNF/layer/01JH1Q77D54RJ8DKK9M5WCYR27/3x.webp",
+                "image/webp",
+                3,
+                150
+            ),
+            new(
+                "https://cdn.7tv.app/paint/01JEY00EDNVW20AWX2NPG4HTNF/layer/01JH1Q77D54RJ8DKK9M5WCYR27/4x.webp",
+                "image/webp",
+                4,
+                150
+            ),
+            new(
+                "https://cdn.7tv.app/paint/01JEY00EDNVW20AWX2NPG4HTNF/layer/01JH1Q77D54RJ8DKK9M5WCYR27/1x.avif",
+                "image/avif",
+                1,
+                150
+            ),
+            new(
+                "https://cdn.7tv.app/paint/01JEY00EDNVW20AWX2NPG4HTNF/layer/01JH1Q77D54RJ8DKK9M5WCYR27/2x.avif",
+                "image/avif",
+                2,
+                150
+            ),
+            new(
+                "https://cdn.7tv.app/paint/01JEY00EDNVW20AWX2NPG4HTNF/layer/01JH1Q77D54RJ8DKK9M5WCYR27/3x.avif",
+                "image/avif",
+                3,
+                150
+            ),
+            new(
+                "https://cdn.7tv.app/paint/01JEY00EDNVW20AWX2NPG4HTNF/layer/01JH1Q77D54RJ8DKK9M5WCYR27/4x.avif",
+                "image/avif",
+                4,
+                150
+            ),
+            new(
+                "https://cdn.7tv.app/paint/01JEY00EDNVW20AWX2NPG4HTNF/layer/01JH1Q77D54RJ8DKK9M5WCYR27/1x.gif",
+                "image/gif",
+                1,
+                150
+            ),
+            new(
+                "https://cdn.7tv.app/paint/01JEY00EDNVW20AWX2NPG4HTNF/layer/01JH1Q77D54RJ8DKK9M5WCYR27/2x.gif",
+                "image/gif",
+                2,
+                150
+            ),
+            new(
+                "https://cdn.7tv.app/paint/01JEY00EDNVW20AWX2NPG4HTNF/layer/01JH1Q77D54RJ8DKK9M5WCYR27/3x.gif",
+                "image/gif",
+                3,
+                150
+            ),
+            new(
+                "https://cdn.7tv.app/paint/01JEY00EDNVW20AWX2NPG4HTNF/layer/01JH1Q77D54RJ8DKK9M5WCYR27/4x.gif",
+                "image/gif",
+                4,
+                150
+            ),
+        ];
+
+        ChatPaint? paint = SevenTvPaintMapper.Map(
+            "01JEY00EDNVW20AWX2NPG4HTNF",
+            "NNYS 2024",
+            [new("PaintLayerTypeImage", Images: images)],
+            []
+        );
+
+        paint.Should().NotBeNull();
+        // Animated (frameCount 150) beats static; webp beats avif/gif/png; 4x beats 1x-3x.
+        paint
+            .BackgroundImage.Should()
+            .Be(
+                "url(\"https://cdn.7tv.app/paint/01JEY00EDNVW20AWX2NPG4HTNF/layer/01JH1Q77D54RJ8DKK9M5WCYR27/4x.webp\")"
+            );
+        // A resolved raster picture is still flagged image-only, so a consumer knows to size it as a
+        // texture (background-size: cover) rather than trusting an unscaled gradient sizing default.
+        paint.IsImageOnly.Should().BeTrue();
+    }
+
+    [Fact]
     public void An_image_only_paint_says_so_rather_than_pretending_it_rendered()
     {
         // 131 of 1,024 live paints are image-only. The asset url is not part of this mapping, so a consumer

@@ -133,4 +133,53 @@ public sealed class SevenTvPaintCatalogueParseTests
         paints.Should().ContainKey("good");
         paints.Should().NotContainKey("broken", "a layer with no type renders nothing");
     }
+
+    [Fact]
+    public void An_image_layer_arrives_with_its_asset_variants_and_the_animated_one_wins()
+    {
+        // "NNYS 2024" (01JEY00EDNVW20AWX2NPG4HTNF), the paint SoraRiku312 (twitch id 63783703) actually
+        // wears — trimmed to two of its real asset variants (a static webp and the matching animated webp),
+        // captured verbatim from the live v4 API with the PaintLayerTypeImage fragment added to the query
+        // (2026-09-04). Proves the catalogue's own JSON walk reads "images", not just the mapper's unit
+        // tests against a hand-built Layer.
+        const string payload = """
+            {"data":{"paints":{"paints":[
+             {"id":"01JEY00EDNVW20AWX2NPG4HTNF","name":"NNYS 2024","data":{
+               "layers":[{"ty":{"__typename":"PaintLayerTypeImage","images":[
+                 {"url":"https://cdn.7tv.app/paint/01JEY00EDNVW20AWX2NPG4HTNF/layer/01JH1Q77D54RJ8DKK9M5WCYR27/1x_static.webp",
+                  "mime":"image/webp","scale":1,"frameCount":1},
+                 {"url":"https://cdn.7tv.app/paint/01JEY00EDNVW20AWX2NPG4HTNF/layer/01JH1Q77D54RJ8DKK9M5WCYR27/1x.webp",
+                  "mime":"image/webp","scale":1,"frameCount":150}]}}],
+               "shadows":[{"color":{"hex":"#1A71FFFF"},"offsetX":0.0,"offsetY":0.0,"blur":0.1}]}}
+            ]}}}
+            """;
+
+        ChatPaint paint = SevenTvPaintCatalogue.Parse(payload)["01JEY00EDNVW20AWX2NPG4HTNF"];
+
+        // The animated variant (frameCount 150) beats the static one (frameCount 1) at the same scale/mime.
+        paint
+            .BackgroundImage.Should()
+            .Be(
+                "url(\"https://cdn.7tv.app/paint/01JEY00EDNVW20AWX2NPG4HTNF/layer/01JH1Q77D54RJ8DKK9M5WCYR27/1x.webp\")"
+            );
+        paint.IsImageOnly.Should().BeTrue();
+    }
+
+    [Fact]
+    public void A_paint_with_no_layers_and_no_shadows_produces_no_entry_at_all()
+    {
+        // "Breathing" (01GE2QA6V0000BGYWMCXGPGCTQ) — one of the 7 live paints with zero layers, captured
+        // verbatim (2026-09-04); unlike its zero-layer siblings it ALSO has zero shadows, so there is
+        // nothing whatsoever to render. It must not appear in the catalogue at all — same as a chatter
+        // wearing no paint, not an entry with every field null.
+        const string payload = """
+            {"data":{"paints":{"paints":[
+             {"id":"01GE2QA6V0000BGYWMCXGPGCTQ","name":"Breathing","data":{"layers":[],"shadows":[]}}
+            ]}}}
+            """;
+
+        IReadOnlyDictionary<string, ChatPaint> paints = SevenTvPaintCatalogue.Parse(payload);
+
+        paints.Should().BeEmpty();
+    }
 }
