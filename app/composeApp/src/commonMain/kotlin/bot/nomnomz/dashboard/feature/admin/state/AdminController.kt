@@ -43,8 +43,18 @@ import bot.nomnomz.dashboard.core.network.IamPrincipalSummary
 import bot.nomnomz.dashboard.core.network.IamRole
 import bot.nomnomz.dashboard.core.network.ImpersonationTokenDto
 import bot.nomnomz.dashboard.core.network.InviteCode
+import bot.nomnomz.dashboard.core.network.CreateContentDefinitionBody
+import bot.nomnomz.dashboard.core.network.DraftContentVersionBody
 import bot.nomnomz.dashboard.core.network.PlatformAdminApi
+import bot.nomnomz.dashboard.core.network.PlatformContentApi
+import bot.nomnomz.dashboard.core.network.PlatformContentDefinition
+import bot.nomnomz.dashboard.core.network.PlatformContentDefinitionDetail
+import bot.nomnomz.dashboard.core.network.PlatformContentPublishJob
+import bot.nomnomz.dashboard.core.network.PlatformContentPublishModes
 import bot.nomnomz.dashboard.core.network.PlatformEvent
+import bot.nomnomz.dashboard.core.network.PublishContentBody
+import bot.nomnomz.dashboard.core.network.PublishPreview
+import bot.nomnomz.dashboard.core.network.PublishPreviewBody
 import bot.nomnomz.dashboard.core.network.PlatformIamApi
 import bot.nomnomz.dashboard.core.network.ReinstateTenantBody
 import bot.nomnomz.dashboard.core.network.SuspendTenantBody
@@ -145,6 +155,26 @@ data class AdminState(
      * confirm dialog can render a calm, specific explanation instead of the raw server message. Null for any
      * other failure (network error, unexpected 5xx, …) — those still surface via [actionError] alone. */
     val impersonationRefusal: ImpersonationRefusal? = null,
+    // ── Platform content authoring (S-ADMIN-2b) ──
+    val contentDefinitions: List<PlatformContentDefinition> = emptyList(),
+    val contentLoading: Boolean = false,
+    val contentError: String? = null,
+    /** The definition currently open in the editor, incl. its full version history. Null when the list is
+     * showing and nothing is open yet. */
+    val selectedContentDefinition: PlatformContentDefinitionDetail? = null,
+    val contentDetailLoading: Boolean = false,
+    val contentDetailError: String? = null,
+    /** The blast-radius preview for the version+mode combination currently staged for publish — the real
+     * counted answer from `publish-preview`, never a guess. Cleared whenever the definition, version, or
+     * mode selection changes so a stale count can never be confirmed against. */
+    val publishPreview: PublishPreview? = null,
+    val publishPreviewLoading: Boolean = false,
+    val publishPreviewError: String? = null,
+    val publishSubmitting: Boolean = false,
+    val publishError: String? = null,
+    /** The completed publish job, shown as confirmation once a publish commits. */
+    val lastPublishJob: PlatformContentPublishJob? = null,
+    val contentActionError: String? = null,
 )
 
 /** One tab whose data comes from [AdminController.load]/[AdminController.loadChannels]/[AdminController.loadUsers]
@@ -179,6 +209,7 @@ class AdminController(
     private val spamDefenseApi: SpamDefenseApi? = null,
     private val iamApi: PlatformIamApi,
     private val platformAdminApi: PlatformAdminApi,
+    private val contentApi: PlatformContentApi? = null,
     private val hubClient: AdminHubClient? = null,
     private val baseUrl: () -> String? = { null },
     private val accessToken: () -> String? = { null },
@@ -722,6 +753,9 @@ class AdminController(
             AdminSection.FeatureFlags,
             AdminSection.Billing,
         )
+
+        const val FORCE_REQUIRES_JUSTIFICATION_MESSAGE: String =
+            "Force publish requires a justification — describe why every tenant's copy must be overwritten."
     }
     /**
      * Loads the platform-wide spam-defence defaults. Lazy like the other heavier admin slices — it is
@@ -752,6 +786,164 @@ class AdminController(
         }
     }
 
+    // ── Platform content authoring (S-ADMIN-2b) ────────────────────────────────
+
+    /** Reads the definitions list. A failure surfaces on [AdminState.contentError] rather than leaving the
+     * panel silently empty — an empty list and a failed load must never look the same. */
+    suspend fun loadContentDefinitions(kind: String? = null) {
+        val content: PlatformContentApi = contentApi ?: return
+        _state.value = _state.value.copy(contentLoading = true, contentError = null)
+        when (val result = content.listDefinitions(kind = kind)) {
+            is ApiResult.Ok ->
+                _state.value = _state.value.copy(contentDefinitions = result.value.data, contentLoading = false)
+            is ApiResult.Failure ->
+                _state.value = _state.value.copy(contentLoading = false, contentError = result.error.message)
+        }
+    }
+
+    /** Opens one definition's editor: the definition itself plus its FULL version history, so the owner can
+     * see exactly what shipped in every prior version before drafting a new one. */
+    suspend fun openContentDefinition(definitionId: String) {
+        val content: PlatformContentApi = contentApi ?: return
+        _state.value = _state.value.copy(
+            contentDetailLoading = true,
+            contentDetailError = null,
+            publishPreview = null,
+            lastPublishJob = null,
+        )
+        when (val result = content.getDefinition(definitionId)) {
+            is ApiResult.Ok ->
+                _state.value = _state.value.copy(
+                    selectedContentDefinition = result.value,
+                    contentDetailLoading = false,
+                )
+            is ApiResult.Failure ->
+                _state.value = _state.value.copy(
+                    contentDetailLoading = false,
+                    contentDetailError = result.error.message,
+                )
+        }
+    }
+
+    fun closeContentDefinition() {
+        _state.value = _state.value.copy(
+            selectedContentDefinition = null,
+            publishPreview = null,
+            lastPublishJob = null,
+            contentActionError = null,
+        )
+    }
+
+    /** Creates a new definition (kind `command` — the only kind the backend implements this slice) with its
+     * first draft version, then reloads the list and opens it. */
+    suspend fun createContentDefinition(key: String, displayName: String, description: String?, payloadJson: String) {
+        val content: PlatformContentApi = contentApi ?: return
+        _state.value = _state.value.copy(contentActionError = null)
+        val body = CreateContentDefinitionBody(
+            kind = "command",
+            key = key,
+            displayName = displayName,
+            description = description?.takeIf { it.isNotBlank() },
+            payloadJson = payloadJson,
+        )
+        when (val result = content.createDefinition(body)) {
+            is ApiResult.Ok -> {
+                loadContentDefinitions()
+                openContentDefinition(result.value.id)
+            }
+            is ApiResult.Failure -> _state.value = _state.value.copy(contentActionError = result.error.message)
+        }
+    }
+
+    /** Drafts a new version on the currently-open definition. Nothing tenant-facing changes yet — a draft is
+     * only a version row until it is explicitly published (§2.1). */
+    suspend fun draftContentVersion(payloadJson: String) {
+        val content: PlatformContentApi = contentApi ?: return
+        val definitionId: String = _state.value.selectedContentDefinition?.definition?.id ?: return
+        _state.value = _state.value.copy(contentActionError = null)
+        when (val result = content.draftVersion(definitionId, DraftContentVersionBody(payloadJson = payloadJson))) {
+            is ApiResult.Ok -> openContentDefinition(definitionId)
+            is ApiResult.Failure -> _state.value = _state.value.copy(contentActionError = result.error.message)
+        }
+    }
+
+    /**
+     * Runs the exact blast-radius query the publish will use (§2.1) and stages the result on
+     * [AdminState.publishPreview] — the number the publish confirm control gates on. Selecting a different
+     * mode calls this again, which is the whole point: the count is per-mode, never assumed.
+     */
+    suspend fun previewContentPublish(definitionId: String, versionId: String, mode: String) {
+        val content: PlatformContentApi = contentApi ?: return
+        _state.value = _state.value.copy(
+            publishPreviewLoading = true,
+            publishPreviewError = null,
+            publishPreview = null,
+        )
+        when (val result = content.previewPublish(definitionId, versionId, PublishPreviewBody(mode = mode))) {
+            is ApiResult.Ok ->
+                _state.value = _state.value.copy(publishPreview = result.value, publishPreviewLoading = false)
+            is ApiResult.Failure ->
+                _state.value = _state.value.copy(
+                    publishPreviewLoading = false,
+                    publishPreviewError = result.error.message,
+                )
+        }
+    }
+
+    /**
+     * Commits a publish. [confirmedAffectedCount] must be the exact [PublishPreview.affectedCount] the most
+     * recent preview returned — the server fails closed with `PREVIEW_STALE` otherwise (§4), and the UI never
+     * has a path to submit without first calling [previewContentPublish]. `force` requires a non-blank
+     * [publishNote] — enforced here too, not only server-side, so a blank justification never reaches the
+     * network (mirrors [impersonateTenantOwner]'s own client-side gate on its justification field).
+     */
+    suspend fun publishContentVersion(
+        definitionId: String,
+        versionId: String,
+        mode: String,
+        publishNote: String?,
+        confirmedAffectedCount: Int,
+    ) {
+        val content: PlatformContentApi = contentApi ?: return
+        val trimmedNote: String? = publishNote?.trim()?.takeIf { it.isNotEmpty() }
+        if (mode == PlatformContentPublishModes.Force && trimmedNote == null) {
+            _state.value = _state.value.copy(publishError = FORCE_REQUIRES_JUSTIFICATION_MESSAGE)
+            return
+        }
+        _state.value = _state.value.copy(publishSubmitting = true, publishError = null)
+        val body = PublishContentBody(
+            mode = mode,
+            publishNote = trimmedNote,
+            confirmedPreviewAffectedCount = confirmedAffectedCount,
+        )
+        when (val result = content.publish(definitionId, versionId, body)) {
+            is ApiResult.Ok -> {
+                _state.value = _state.value.copy(publishSubmitting = false, publishPreview = null)
+                // Refresh first, THEN record the job. openContentDefinition() clears lastPublishJob
+                // because opening a different definition must not show a stale outcome - so setting
+                // the job before the refresh loses exactly the counted confirmation the operator
+                // needs after fanning a publish out across tenants.
+                openContentDefinition(definitionId)
+                _state.value = _state.value.copy(lastPublishJob = result.value)
+            }
+            is ApiResult.Failure ->
+                _state.value = _state.value.copy(publishSubmitting = false, publishError = result.error.message)
+        }
+    }
+
+    /** Soft-retires a definition: `RetiredAt` stops future installs and never touches already-installed
+     * tenant copies (§3.1) — a truthful, non-destructive "remove from the catalogue". */
+    suspend fun retireContentDefinition(definitionId: String) {
+        val content: PlatformContentApi = contentApi ?: return
+        _state.value = _state.value.copy(contentActionError = null)
+        when (val result = content.retireDefinition(definitionId)) {
+            is ApiResult.Ok -> {
+                closeContentDefinition()
+                loadContentDefinitions()
+            }
+            is ApiResult.Failure -> _state.value = _state.value.copy(contentActionError = result.error.message)
+        }
+    }
 }
 
 // Mirrors ConnectController's CurrentUser→SessionUser projection (kept local to avoid coupling the admin panel to
