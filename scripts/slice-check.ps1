@@ -113,6 +113,19 @@ try {
     # That is not hypothetical - it turned master's CI red on 04db9e97 (2026-08-25) with the two
     # AddSongRequestQueueItemIsInFlight migrations. Repo-wide drift is gone since S115, so this check
     # is ~10s over ~2850 files and any hit is a real regression, not legacy noise.
+    # Migrations are GENERATED, so nobody owns their formatting and there is no other agent to collide
+    # with - format them rather than merely reporting them. Detecting this twice (04db9e97, and again
+    # on 32bd9ef8 with AddWidgetPlatformSourceProvenance) proves a check the author can forget to run
+    # is not a gate. Both assemblies, because a migration is always added to both.
+    Write-Host '== csharpier format (generated migrations, both assemblies) =='
+    foreach ($migrations in @(
+            'src/NomNomzBot.Infrastructure/Platform/Persistence/Migrations',
+            'src/NomNomzBot.Migrations.Sqlite/Migrations')) {
+        if (Test-Path (Join-Path $server $migrations)) {
+            Invoke-Native "csharpier format failed on $migrations" { dotnet csharpier format $migrations }
+        }
+    }
+
     Write-Host '== csharpier check (repo-wide, catches files created after the scoped format) =='
     Invoke-Native 'csharpier check failed OUTSIDE the slice files - a generated or forgotten file is unformatted (run: dotnet csharpier format . from server/)' { dotnet csharpier check . }
 
