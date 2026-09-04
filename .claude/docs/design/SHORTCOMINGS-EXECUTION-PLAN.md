@@ -19,27 +19,12 @@ Slice IDs are stable; the order is the queue.
 
 ---
 
-## OWNER REQUEST 2026-09-04 (c) — music: the old bot pushed, we poll (PRIORITY, worked first)
+## OVERLAY RENDER PROOF — the one thing the overlay work still lacks
 
-Owner asked whether the Spotify/YouTube widget had been compared against his own chat overlay. It had not —
-the earlier S-OWN21 investigation traced our publish path in code, found it internally consistent, and
-stopped. Comparing the widgets, and then the old bot, is what actually explained it.
-
-**What the comparison shows.** `chat_box.vue` is pure push: it subscribes to `ChatMessage` and renders what
-arrives, nothing else. `now_playing.vue` is three sources stitched together — a `GET /api/v1/overlay/
-now-playing` seed on mount, pushed `now_playing` events, and a **100 ms local ticker that predicts progress
-between them**. Chat cannot drift because it never guesses; now-playing guesses continuously and is only
-corrected when an event lands. Names and subscriptions are fine on both sides (`FirstPartyWidgetCatalogue`
-declares `now_playing`/`track_saved_changed`/`sr_queue`, the handlers emit exactly those) — that is not it.
-
-**What the old bot did, and this is the answer.** `SpotifyWebsocketService.cs` in `nomercy-bot` connects to
-**`wss://dealer.spotify.com/`** — Spotify's own realtime socket, the one the web player uses — and on every
-`PLAYER_STATE_CHANGED` frame publishes `spotify.state.changed` to the widgets immediately. It also handles
-`spotify.track.like` off the same socket. We replaced that with `MusicStatePollingService` polling the public
-Web API once a second. One second of poll, plus change-detection, plus a widget predicting in between, is
-exactly the lag the owner sees — and it is why his Stream Deck plugin "does just fine": it is not waiting on
-our poller. The dealer socket is undocumented, which the project's own rule already covers: incumbent-
-normalised and ToS-gray ships, with the documented path kept as fallback.
+The music block is closed: the Spotify dealer socket pushes (`25bfb900`), the widget interpolates only
+the progress bar, `!wrongsong` undoes both a waiting and a playing request, every queued song carries a
+speakable code that now survives a restart (`e9191d0f`), and now-playing names the requester on both
+transports. What none of the overlay work has is a browser.
 
 - [ ] **S-7TV-THEME-RENDER Prove the paint on a rendered overlay.** The chat overlay carries the
       flattened paint CSS and image-layer paints are no longer dropped (`49f336b3`, `3950ceaf`);
