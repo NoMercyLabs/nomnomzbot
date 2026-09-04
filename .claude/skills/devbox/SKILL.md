@@ -83,4 +83,15 @@ silent. Confirm on the page, not in a log:
 - The theme and file icons actually rendered, not the defaults — proof their extensions resolved
   on Open VSX.
 - The terminal opens a shell, and the status bar shows no activation errors.
+- **The first terminal prints the credential report** — `✓`/`✗` per tool from `DEVBOX_AUTH`
+  (`git,gh,claude,docker`) with the command to fix each. If it does not, the hook did not reach
+  that shell; check it as an interactive shell, not a `docker exec` one:
+
+  ```bash
+  docker exec -t -u dev nomnomzbot-devbox bash -i -c true    # must print the report
+  docker exec nomnomzbot-devbox rm -f /tmp/.devbox-auth-shown  # show it again
+  ```
+
+  The report is once per container run. `/etc/profile.d` alone does not reach the integrated
+  terminal — that is a non-login shell — so the hook is sourced from `/etc/bash.bashrc` too.
 - Open a `.cs` and a `.kt` and confirm IntelliSense answers.
