@@ -18,8 +18,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -61,6 +61,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.designsystem.theme.windowSize
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -1593,46 +1594,50 @@ private fun EventJournalSection(controller: JournalPortabilityController, manage
             color = tokens.mutedForeground,
         )
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(spacing.s4),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            ManageGate(decision = manage) { enabled ->
-                Button(
-                    onClick = { scope.launch { controller.export() } },
-                    enabled = !state.busy && enabled,
-                    modifier = Modifier.wrapContentWidth(),
+        // Three actions + a status line: at Expanded/Medium they share one Row (the status line takes the
+        // remaining width), but a fixed Row never wraps — on a Compact pane the three buttons crowd against
+        // the status text until it clips. The buttons move into a FlowRow (wraps onto a second line) with the
+        // status line below, full width, instead of squeezed beside them.
+        if (windowSize.isCompact) {
+            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(spacing.s4),
+                    verticalArrangement = Arrangement.spacedBy(spacing.s2),
                 ) {
-                    Text(stringResource(Res.string.journal_export))
-                }
-            }
-            ManageGate(decision = manage) { enabled ->
-                TextButton(
-                    onClick = { confirmImport = true },
-                    enabled = !state.busy && enabled,
-                    modifier = Modifier.wrapContentWidth(),
-                ) {
-                    Text(
-                        text = stringResource(Res.string.journal_import),
-                        color = if (enabled) tokens.primary else tokens.mutedForeground,
+                    JournalActionButtons(
+                        state = state,
+                        manage = manage,
+                        onExport = { scope.launch { controller.export() } },
+                        onRequestImport = { confirmImport = true },
+                        onRequestRebuild = { confirmRebuild = true },
                     )
                 }
+                JournalStatus(
+                    state = state,
+                    onDismiss = { controller.dismiss() },
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
-            ManageGate(decision = manage) { enabled ->
-                TextButton(
-                    onClick = { confirmRebuild = true },
-                    enabled = !state.busy && enabled,
-                    modifier = Modifier.wrapContentWidth(),
-                ) {
-                    Text(
-                        text = stringResource(Res.string.journal_rebuild),
-                        color = if (enabled) tokens.destructive else tokens.mutedForeground,
-                    )
-                }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(spacing.s4),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                JournalActionButtons(
+                    state = state,
+                    manage = manage,
+                    onExport = { scope.launch { controller.export() } },
+                    onRequestImport = { confirmImport = true },
+                    onRequestRebuild = { confirmRebuild = true },
+                )
+                JournalStatus(
+                    state = state,
+                    onDismiss = { controller.dismiss() },
+                    modifier = Modifier.weight(1f),
+                )
             }
-
-            JournalStatus(state = state, onDismiss = { controller.dismiss() })
         }
     }
     }
@@ -1668,10 +1673,60 @@ private fun EventJournalSection(controller: JournalPortabilityController, manage
     }
 }
 
-// The journal section's status line: a spinner while busy, then the export confirmation, the import counts, or an
-// error — each dismissible. Mirrors the SaveBar feedback pattern so the page reads consistently.
+// The journal section's Export/Import/Rebuild trio, each Editor-gated. Extracted so both the Expanded Row
+// layout and the Compact FlowRow layout ([EventJournalSection]) render the exact same buttons rather than
+// duplicating three ManageGate blocks per breakpoint.
 @Composable
-private fun RowScope.JournalStatus(state: JournalPortabilityState, onDismiss: () -> Unit) {
+private fun JournalActionButtons(
+    state: JournalPortabilityState,
+    manage: ManageDecision,
+    onExport: () -> Unit,
+    onRequestImport: () -> Unit,
+    onRequestRebuild: () -> Unit,
+) {
+    val tokens = LocalTokens.current
+
+    ManageGate(decision = manage) { enabled ->
+        Button(
+            onClick = onExport,
+            enabled = !state.busy && enabled,
+            modifier = Modifier.wrapContentWidth(),
+        ) {
+            Text(stringResource(Res.string.journal_export))
+        }
+    }
+    ManageGate(decision = manage) { enabled ->
+        TextButton(
+            onClick = onRequestImport,
+            enabled = !state.busy && enabled,
+            modifier = Modifier.wrapContentWidth(),
+        ) {
+            Text(
+                text = stringResource(Res.string.journal_import),
+                color = if (enabled) tokens.primary else tokens.mutedForeground,
+            )
+        }
+    }
+    ManageGate(decision = manage) { enabled ->
+        TextButton(
+            onClick = onRequestRebuild,
+            enabled = !state.busy && enabled,
+            modifier = Modifier.wrapContentWidth(),
+        ) {
+            Text(
+                text = stringResource(Res.string.journal_rebuild),
+                color = if (enabled) tokens.destructive else tokens.mutedForeground,
+            )
+        }
+    }
+}
+
+// The journal section's status line: a spinner while busy, then the export confirmation, the import counts, or an
+// error — each dismissible. Mirrors the SaveBar feedback pattern so the page reads consistently. Takes its own
+// [modifier] (rather than a `RowScope` receiver) so the caller can place it inside either a Row (Expanded/Medium,
+// `Modifier.weight(1f)`) or a Column (Compact, `Modifier.fillMaxWidth()`) — see [EventJournalSection].
+@Composable
+private fun JournalStatus(state: JournalPortabilityState, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
@@ -1679,63 +1734,88 @@ private fun RowScope.JournalStatus(state: JournalPortabilityState, onDismiss: ()
     when {
         state.busy -> {
             val workingLabel: String = stringResource(Res.string.journal_working)
-            Spinner(
-                modifier = Modifier
-                    .size(spacing.s6)
-                    .clearAndSetSemantics { contentDescription = workingLabel },
-            )
-            Box(modifier = Modifier.weight(1f))
+            Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+                Spinner(
+                    modifier = Modifier
+                        .size(spacing.s6)
+                        .clearAndSetSemantics { contentDescription = workingLabel },
+                )
+            }
         }
         state.error != null -> {
-            Text(
-                text = stringResource(Res.string.journal_error, state.error),
-                style = typography.sm,
-                color = tokens.destructive,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.journal_dismiss)) }
+            Row(
+                modifier = modifier,
+                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(Res.string.journal_error, state.error),
+                    style = typography.sm,
+                    color = tokens.destructive,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onDismiss) { Text(stringResource(Res.string.journal_dismiss)) }
+            }
         }
         state.imported != null -> {
-            Text(
-                text = stringResource(
-                    Res.string.journal_imported,
-                    state.imported.imported,
-                    state.imported.skippedDuplicate,
-                    state.imported.upcast,
-                ),
-                style = typography.sm,
-                color = tokens.mutedForeground,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.journal_dismiss)) }
+            Row(
+                modifier = modifier,
+                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(
+                        Res.string.journal_imported,
+                        state.imported.imported,
+                        state.imported.skippedDuplicate,
+                        state.imported.upcast,
+                    ),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onDismiss) { Text(stringResource(Res.string.journal_dismiss)) }
+            }
         }
         state.exported -> {
-            Text(
-                text = stringResource(Res.string.journal_exported),
-                style = typography.sm,
-                color = tokens.mutedForeground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.journal_dismiss)) }
+            Row(
+                modifier = modifier,
+                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(Res.string.journal_exported),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onDismiss) { Text(stringResource(Res.string.journal_dismiss)) }
+            }
         }
         state.rebuildTaskId != null -> {
-            Text(
-                text = stringResource(Res.string.journal_rebuilding, state.rebuildTaskId),
-                style = typography.sm,
-                color = tokens.mutedForeground,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.journal_dismiss)) }
+            Row(
+                modifier = modifier,
+                horizontalArrangement = Arrangement.spacedBy(spacing.s2),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(Res.string.journal_rebuilding, state.rebuildTaskId),
+                    style = typography.sm,
+                    color = tokens.mutedForeground,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onDismiss) { Text(stringResource(Res.string.journal_dismiss)) }
+            }
         }
-        else -> Box(modifier = Modifier.weight(1f))
+        else -> {}
     }
 }
 

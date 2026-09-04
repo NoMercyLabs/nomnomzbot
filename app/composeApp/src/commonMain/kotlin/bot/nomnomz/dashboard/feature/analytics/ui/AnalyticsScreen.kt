@@ -19,6 +19,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -60,6 +61,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.Separator
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.designsystem.theme.windowSize
 import bot.nomnomz.dashboard.core.network.AnalyticsSummary
 import bot.nomnomz.dashboard.core.network.DailyMetricRow
 import bot.nomnomz.dashboard.core.network.StreamAnalytics
@@ -522,26 +524,51 @@ private fun DailyTrendsSection(daily: List<DailyMetricRow>) {
                 color = tokens.mutedForeground,
             )
         } else {
+            val chattersLabel: String = stringResource(Res.string.analytics_col_chatters)
+            val messagesLabel: String = stringResource(Res.string.analytics_col_messages)
+            val followersLabel: String = stringResource(Res.string.analytics_col_followers)
+            val peakLabel: String = stringResource(Res.string.analytics_col_peak)
+            val isCompact: Boolean = windowSize.isCompact
+
             Card(modifier = Modifier.fillMaxWidth()) {
-                // Header row
-                DailyRow(
-                    date = stringResource(Res.string.analytics_col_date),
-                    chatters = stringResource(Res.string.analytics_col_chatters),
-                    messages = stringResource(Res.string.analytics_col_messages),
-                    followers = stringResource(Res.string.analytics_col_followers),
-                    peak = stringResource(Res.string.analytics_col_peak),
-                    isHeader = true,
-                )
-                daily.reversed().forEach { row: DailyMetricRow ->
-                    Separator()
+                // At Expanded/Medium a 5-column header + Row-per-day reads as a table. At Compact the same
+                // fixed Row squeezes five weighted cells until every value truncates, so each day becomes a
+                // two-line card instead: the date, then the metrics as "label value" pairs that wrap — no
+                // column header needed there since every value carries its own label.
+                if (!isCompact) {
                     DailyRow(
-                        date = row.activityDate.take(10),
-                        chatters = row.uniqueChatters.toString(),
-                        messages = row.totalMessages.toString(),
-                        followers = row.newFollowers.toString(),
-                        peak = row.peakViewers?.toString() ?: "—",
-                        isHeader = false,
+                        date = stringResource(Res.string.analytics_col_date),
+                        chatters = chattersLabel,
+                        messages = messagesLabel,
+                        followers = followersLabel,
+                        peak = peakLabel,
+                        isHeader = true,
                     )
+                }
+                daily.reversed().forEachIndexed { index: Int, row: DailyMetricRow ->
+                    if (index > 0 || !isCompact) Separator()
+                    if (isCompact) {
+                        CompactDailyRow(
+                            date = row.activityDate.take(10),
+                            chattersLabel = chattersLabel,
+                            chatters = row.uniqueChatters.toString(),
+                            messagesLabel = messagesLabel,
+                            messages = row.totalMessages.toString(),
+                            followersLabel = followersLabel,
+                            followers = row.newFollowers.toString(),
+                            peakLabel = peakLabel,
+                            peak = row.peakViewers?.toString() ?: "—",
+                        )
+                    } else {
+                        DailyRow(
+                            date = row.activityDate.take(10),
+                            chatters = row.uniqueChatters.toString(),
+                            messages = row.totalMessages.toString(),
+                            followers = row.newFollowers.toString(),
+                            peak = row.peakViewers?.toString() ?: "—",
+                            isHeader = false,
+                        )
+                    }
                 }
             }
         }
@@ -570,6 +597,49 @@ private fun DailyRow(
         Text(text = followers, style = style, color = color, modifier = Modifier.weight(1.2f), textAlign = TextAlign.End)
         Text(text = peak, style = style, color = color, modifier = Modifier.weight(1f), textAlign = TextAlign.End)
     }
+}
+
+// Compact counterpart to [DailyRow]: the date on its own line, then the four metrics as wrapping "label value"
+// pairs instead of five weighted columns fighting for a phone-width row.
+@Composable
+private fun CompactDailyRow(
+    date: String,
+    chattersLabel: String,
+    chatters: String,
+    messagesLabel: String,
+    messages: String,
+    followersLabel: String,
+    followers: String,
+    peakLabel: String,
+    peak: String,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
+        verticalArrangement = Arrangement.spacedBy(spacing.s1),
+    ) {
+        Text(text = date, style = typography.sm.copy(fontWeight = FontWeight.SemiBold), color = tokens.cardForeground)
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+            verticalArrangement = Arrangement.spacedBy(spacing.s0_5),
+        ) {
+            CompactMetric(chattersLabel, chatters)
+            CompactMetric(messagesLabel, messages)
+            CompactMetric(followersLabel, followers)
+            CompactMetric(peakLabel, peak)
+        }
+    }
+}
+
+// One "label value" chip inside a Compact-row [FlowRow] — shared by [CompactDailyRow] and [CompactViewerRow].
+@Composable
+private fun CompactMetric(label: String, value: String) {
+    val tokens = LocalTokens.current
+    val typography = LocalTypography.current
+    Text(text = "$label $value", style = typography.xs, color = tokens.mutedForeground)
 }
 
 @Composable
@@ -699,17 +769,27 @@ private fun ViewersSection(
                 )
                 ViewerSortSelector(sort = current.sort, onSort = onSort)
 
+                val watchLabel: String = stringResource(Res.string.analytics_viewers_col_watch)
+                val messagesLabel: String = stringResource(Res.string.analytics_viewers_col_messages)
+                val lastSeenLabel: String = stringResource(Res.string.analytics_viewers_col_last_seen)
+                val isCompact: Boolean = windowSize.isCompact
+
+                // Same table-vs-card split as [DailyTrendsSection]: at Compact the fixed 4-column Row leaves
+                // no room for the name once watch/messages/last-seen also claim space, so each viewer becomes
+                // a two-line card (name, then the metrics as wrapping "label value" pairs) with no header row.
                 Card(modifier = Modifier.fillMaxWidth()) {
-                    ViewerListRow(
-                        name = stringResource(Res.string.analytics_viewers_col_name),
-                        watch = stringResource(Res.string.analytics_viewers_col_watch),
-                        messages = stringResource(Res.string.analytics_viewers_col_messages),
-                        lastSeen = stringResource(Res.string.analytics_viewers_col_last_seen),
-                        isHeader = true,
-                        onClick = null,
-                    )
+                    if (!isCompact) {
+                        ViewerListRow(
+                            name = stringResource(Res.string.analytics_viewers_col_name),
+                            watch = watchLabel,
+                            messages = messagesLabel,
+                            lastSeen = lastSeenLabel,
+                            isHeader = true,
+                            onClick = null,
+                        )
+                    }
                     if (current.viewers.isEmpty()) {
-                        Separator()
+                        if (!isCompact) Separator()
                         Text(
                             text = stringResource(Res.string.analytics_viewers_empty),
                             style = typography.sm,
@@ -719,17 +799,30 @@ private fun ViewersSection(
                                 .padding(horizontal = spacing.s4, vertical = spacing.s4),
                         )
                     } else {
-                        current.viewers.forEach { entry: ViewerProfileListEntry ->
-                            Separator()
+                        current.viewers.forEachIndexed { index: Int, entry: ViewerProfileListEntry ->
+                            if (index > 0 || !isCompact) Separator()
                             val label: String = entry.displayName ?: entry.viewerUserId
-                            ViewerListRow(
-                                name = label,
-                                watch = watchHoursLabel(entry.totalWatchSeconds),
-                                messages = entry.totalMessages.toString(),
-                                lastSeen = entry.lastSeenAt?.take(10) ?: "—",
-                                isHeader = false,
-                                onClick = { onOpenViewer(entry.viewerUserId, label) },
-                            )
+                            if (isCompact) {
+                                CompactViewerRow(
+                                    name = label,
+                                    watchLabel = watchLabel,
+                                    watch = watchHoursLabel(entry.totalWatchSeconds),
+                                    messagesLabel = messagesLabel,
+                                    messages = entry.totalMessages.toString(),
+                                    lastSeenLabel = lastSeenLabel,
+                                    lastSeen = entry.lastSeenAt?.take(10) ?: "—",
+                                    onClick = { onOpenViewer(entry.viewerUserId, label) },
+                                )
+                            } else {
+                                ViewerListRow(
+                                    name = label,
+                                    watch = watchHoursLabel(entry.totalWatchSeconds),
+                                    messages = entry.totalMessages.toString(),
+                                    lastSeen = entry.lastSeenAt?.take(10) ?: "—",
+                                    isHeader = false,
+                                    onClick = { onOpenViewer(entry.viewerUserId, label) },
+                                )
+                            }
                         }
                     }
                 }
@@ -812,6 +905,42 @@ private fun ViewerListRow(
         Text(text = watch, style = style, color = color, modifier = Modifier.weight(1.2f), textAlign = TextAlign.End)
         Text(text = messages, style = style, color = color, modifier = Modifier.weight(1.2f), textAlign = TextAlign.End)
         Text(text = lastSeen, style = style, color = color, modifier = Modifier.weight(1.4f), textAlign = TextAlign.End)
+    }
+}
+
+// Compact counterpart to [ViewerListRow]: the name on its own line (still the click target), then the three
+// metrics as wrapping "label value" pairs instead of four weighted columns squeezed onto a phone-width row.
+@Composable
+private fun CompactViewerRow(
+    name: String,
+    watchLabel: String,
+    watch: String,
+    messagesLabel: String,
+    messages: String,
+    lastSeenLabel: String,
+    lastSeen: String,
+    onClick: (() -> Unit)?,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(horizontal = spacing.s4, vertical = spacing.s3),
+        verticalArrangement = Arrangement.spacedBy(spacing.s1),
+    ) {
+        Text(text = name, style = typography.base, color = tokens.cardForeground, maxLines = 1)
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+            verticalArrangement = Arrangement.spacedBy(spacing.s0_5),
+        ) {
+            CompactMetric(watchLabel, watch)
+            CompactMetric(messagesLabel, messages)
+            CompactMetric(lastSeenLabel, lastSeen)
+        }
     }
 }
 
