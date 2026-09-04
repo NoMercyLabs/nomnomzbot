@@ -116,71 +116,13 @@
       to window.__customLocale; this makes navigator.languages return it so Compose resources resolve
       against the chosen language. When unset (System default) the browser's own locale is used.
     -->
-    <script>
-        var nnzBaseLanguages = Object.getOwnPropertyDescriptor(Navigator.prototype, "languages");
-        Object.defineProperty(Navigator.prototype, "languages", Object.assign({}, nnzBaseLanguages, {
-            get: function () {
-                if (window.__customLocale) {
-                    return [window.__customLocale];
-                }
-                return nnzBaseLanguages.get.apply(this);
-            }
-        }));
-    </script>
+    <script src="nnz-locale.js"></script>
     <!--
       Boot + recovery guard. Defined BEFORE composeApp.js so window.__nnzAppReady exists when the app first
       renders, and so uncaught crashes during load are caught. The page must never sit frozen: either the app
       renders (overlay hidden), or the operator is offered a reload.
     -->
-    <script>
-        (function () {
-            var ready = false;
-
-            function el(id) { return document.getElementById(id); }
-
-            // The Compose app calls this once it has rendered a frame — tear the overlay down.
-            window.__nnzAppReady = function () {
-                ready = true;
-                var boot = el("nnz-boot");
-                if (boot) boot.style.display = "none";
-            };
-
-            function showRecovery(title, sub) {
-                var boot = el("nnz-boot");
-                if (!boot) return;
-                boot.style.display = "flex";
-                var spinner = el("nnz-boot-spinner");
-                if (spinner) spinner.style.display = "none";
-                el("nnz-boot-title").textContent = title;
-                el("nnz-boot-sub").textContent = sub;
-                el("nnz-boot-reload").style.display = "";
-            }
-
-            // Load stalled — the app never signaled ready. Almost always the API is briefly unreachable
-            // (restart / 502); it clears on its own, and a reload retries. Never leave a blank screen.
-            setTimeout(function () {
-                if (ready) return;
-                showRecovery(
-                    "Still loading…",
-                    "The server may be restarting. This clears on its own — or reload to retry."
-                );
-                var spinner = el("nnz-boot-spinner");
-                if (spinner) spinner.style.display = "";
-                el("nnz-boot-title").textContent = "Still loading…";
-            }, 12000);
-
-            // Any uncaught crash (e.g. a resource bundle that 502'd mid-load) shows a recovery screen with a
-            // reload rather than a frozen page. Only genuine uncaught errors reach window 'error'; benign
-            // console warnings (WebGL info, rAF timing) do not. Unhandled rejections only count during boot,
-            // to avoid covering a working dashboard over a stray late rejection.
-            window.addEventListener("error", function () {
-                showRecovery("The dashboard hit a snag", "A reload usually fixes it.");
-            });
-            window.addEventListener("unhandledrejection", function () {
-                if (!ready) showRecovery("The dashboard hit a snag", "A reload usually fixes it.");
-            });
-        })();
-    </script>
+    <script src="nnz-boot.js"></script>
 </head>
 <body>
 <div id="nnz-boot" role="status" aria-live="polite">
@@ -188,7 +130,7 @@
         <div class="nnz-spinner" id="nnz-boot-spinner"></div>
         <div class="nnz-title" id="nnz-boot-title">Loading NomNomzBot&hellip;</div>
         <div class="nnz-sub" id="nnz-boot-sub"></div>
-        <button type="button" id="nnz-boot-reload" style="display:none" onclick="location.reload()">Reload</button>
+        <button type="button" id="nnz-boot-reload" style="display:none">Reload</button>
     </div>
 </div>
 <script src="composeApp.js"></script>
