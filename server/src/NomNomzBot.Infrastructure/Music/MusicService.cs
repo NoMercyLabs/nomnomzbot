@@ -809,7 +809,36 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
 
         _nowPlayingCache.Set(tenantId, track, DateTimeOffset.UtcNow);
 
-        return ToNowPlaying(track);
+        return ToNowPlaying(
+            track,
+            RequesterOfPlayingTrack(_queueStore, broadcasterId, track.TrackUri)
+        );
+    }
+
+    /// <summary>
+    /// Who asked for the track the provider is playing, or null when nobody did (the streamer started it
+    /// themselves, or it is whatever their playlist rolled onto next).
+    ///
+    /// <para>
+    /// The in-flight entry is the ONE request handed to the provider, so it is the only candidate — but it
+    /// is matched on the track uri rather than trusted blindly. The provider moves on by itself the moment a
+    /// track ends, and without that check the last requester's name would stay stuck on every track that
+    /// followed, crediting them for songs they never asked for.
+    /// </para>
+    /// </summary>
+    internal static string? RequesterOfPlayingTrack(
+        ISongRequestQueueStore queueStore,
+        string broadcasterId,
+        string? playingTrackUri
+    )
+    {
+        SongRequestEntry? inFlight = queueStore.GetInFlight(broadcasterId);
+        if (inFlight is null || string.IsNullOrEmpty(playingTrackUri))
+            return null;
+
+        return string.Equals(inFlight.TrackUri, playingTrackUri, StringComparison.Ordinal)
+            ? inFlight.RequestedBy
+            : null;
     }
 
     public async Task<bool?> TryGetCachedIsPlayingAsync(
@@ -822,7 +851,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         return _nowPlayingCache.TryGet(tenantId, NowPlayingCacheFreshness)?.Track.IsPlaying;
     }
 
-    private static NowPlaying ToNowPlaying(TrackInfo track) =>
+    private static NowPlaying ToNowPlaying(TrackInfo track, string? requestedBy = null) =>
         new(
             track.TrackName,
             track.Artist,
@@ -835,7 +864,7 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             // providers/states that don't — never a stand-in for "we don't actually know".
             track.VolumePercent
                 ?? 100,
-            null,
+            requestedBy,
             track.Provider,
             track.TrackUri,
             track.ShuffleEnabled,

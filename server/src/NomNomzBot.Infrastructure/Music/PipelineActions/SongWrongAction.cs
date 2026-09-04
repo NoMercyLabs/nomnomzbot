@@ -11,15 +11,30 @@
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Music.PipelineActions;
 
 /// <summary>
-/// Wrong-song action (the legacy <c>!wrongsong</c>): removes the TRIGGERING user's most recent
-/// still-queued request from the song-request queue. Requests are attributed by display name —
-/// exactly how <c>song_request</c> enqueues them.
+/// Wrong-song action (the legacy <c>!wrongsong</c>): undoes the TRIGGERING user's most recent song request.
+/// Requests are attributed by display name — exactly how <c>song_request</c> enqueues them.
+///
+/// <para>
+/// Two cases, and the second is the one that made this look broken. If the request is still WAITING it is
+/// simply dropped from the queue and never plays. If it is ALREADY PLAYING there is nothing left in the
+/// pending queue to remove — the provider took it — so this used to answer "you have no queued requests to
+/// remove" while the wrong song kept playing. It now skips to the next track, which is what undoing a
+/// request that already started actually means.
+/// </para>
+///
+/// <para>
+/// The legacy bot did this from the other end: <c>SpotifyApiService.TryConsumeSkip(trackId)</c> marked a
+/// retracted track and its realtime socket auto-skipped it when it started. We have no such socket (the
+/// endpoint it used is a restricted API), so the skip happens here, at the moment the user asks for it,
+/// rather than being armed and waiting.
+/// </para>
 ///
 /// Usage example:
 ///   { "type": "song_wrong" }
@@ -70,14 +85,7 @@ public sealed class SongWrongAction : ICommandAction
         }
 
         if (item is null)
-        {
-            await _chat.SendMessageAsync(
-                ctx.BroadcasterId,
-                $"@{ctx.TriggeredByDisplayName} You have no queued requests to remove.",
-                ctx.CancellationToken
-            );
-            return ActionResult.Failure("no queued request for the triggering user");
-        }
+            return await UndoThePlayingTrackAsync(ctx, queue);
 
         bool removed = await _music.RemoveFromQueueAsync(
             broadcasterId,
@@ -93,5 +101,63 @@ public sealed class SongWrongAction : ICommandAction
             ctx.CancellationToken
         );
         return ActionResult.Success($"removed: {item.TrackName}");
+    }
+
+    /// <summary>
+    /// Nothing of the caller's is waiting in the queue. If the track PLAYING RIGHT NOW is theirs, undoing it
+    /// means skipping it; otherwise they genuinely have nothing to undo.
+    /// </summary>
+    private async Task<ActionResult> UndoThePlayingTrackAsync(
+        PipelineExecutionContext ctx,
+        MusicQueue queue
+    )
+    {
+        NowPlaying? playing = queue.CurrentTrack;
+        bool playingIsTheirs =
+            playing is not null
+            && !string.IsNullOrEmpty(playing.RequestedBy)
+            && string.Equals(
+                playing.RequestedBy,
+                ctx.TriggeredByDisplayName,
+                StringComparison.OrdinalIgnoreCase
+            );
+
+        if (!playingIsTheirs)
+        {
+            await _chat.SendMessageAsync(
+                ctx.BroadcasterId,
+                $"@{ctx.TriggeredByDisplayName} You have no queued requests to remove.",
+                ctx.CancellationToken
+            );
+            return ActionResult.Failure("no queued request for the triggering user");
+        }
+
+        Result skipped = await _music.SkipAsync(
+            ctx.BroadcasterId.ToString(),
+            ctx.CancellationToken
+        );
+        if (!skipped.IsSuccess)
+        {
+            // Say so rather than staying silent: the wrong song is still playing, and a quiet failure reads
+            // as "the bot ignored me" while the user waits for it to stop.
+            await _chat.SendMessageAsync(
+                ctx.BroadcasterId,
+                $"@{ctx.TriggeredByDisplayName} Couldn't skip your track — try again in a moment.",
+                ctx.CancellationToken
+            );
+            _logger.LogWarning(
+                "song_wrong: skip failed for {BroadcasterId}: {Error}",
+                ctx.BroadcasterId,
+                skipped.ErrorMessage
+            );
+            return ActionResult.Failure("failed to skip the playing request");
+        }
+
+        await _chat.SendMessageAsync(
+            ctx.BroadcasterId,
+            $"@{ctx.TriggeredByDisplayName} Skipped your request: {playing!.TrackName} by {playing.Artist}",
+            ctx.CancellationToken
+        );
+        return ActionResult.Success($"skipped: {playing.TrackName}");
     }
 }

@@ -404,6 +404,146 @@ public sealed class MusicPipelineActionsTests
     // ─── song_wrong (!wrongsong) ──────────────────────────────────────────────
 
     [Fact]
+    public async Task Song_wrong_skips_the_callers_track_when_it_is_already_playing()
+    {
+        // The owner's report — "!wrongsong breaks the queue". Once the provider takes a request it is no
+        // longer in the pending queue, so the old code found nothing and answered "you have no queued
+        // requests to remove" while the wrong song kept playing. Undoing a request that already started
+        // means skipping it.
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetQueueAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(
+                new MusicQueue(
+                    Playing() with
+                    {
+                        RequestedBy = "Bamo",
+                        TrackName = "Wrong Track",
+                    },
+                    [new("Someone Elses", "B", null, 100, "SomeoneElse")]
+                )
+            );
+        music
+            .SkipAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success());
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        SongWrongAction action = new(music, chat, NullLogger<SongWrongAction>.Instance);
+
+        ActionResult result = await action.ExecuteAsync(
+            Ctx(displayName: "Bamo"),
+            Def("song_wrong")
+        );
+
+        result.Succeeded.Should().BeTrue();
+        result.Output.Should().Be("skipped: Wrong Track");
+        await music.Received(1).SkipAsync(ChannelId.ToString(), Arg.Any<CancellationToken>());
+        // Someone else's pending request must survive — undo affects the caller's track only.
+        await music.DidNotReceiveWithAnyArgs().RemoveFromQueueAsync(default!, default);
+    }
+
+    [Fact]
+    public async Task Song_wrong_never_skips_a_track_somebody_else_requested()
+    {
+        // A viewer typing !wrongsong must not be able to skip the track another viewer is being played.
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetQueueAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(new MusicQueue(Playing() with { RequestedBy = "SomeoneElse" }, []));
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        SongWrongAction action = new(music, chat, NullLogger<SongWrongAction>.Instance);
+
+        ActionResult result = await action.ExecuteAsync(
+            Ctx(displayName: "Bamo"),
+            Def("song_wrong")
+        );
+
+        result.Succeeded.Should().BeFalse();
+        await music.DidNotReceiveWithAnyArgs().SkipAsync(default!);
+    }
+
+    [Fact]
+    public async Task Song_wrong_never_skips_a_track_nobody_requested()
+    {
+        // The streamer's own playlist rolls on between requests. RequestedBy is null then, and treating
+        // null as "matches whoever asked" would let any viewer skip the streamer's own music.
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetQueueAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(new MusicQueue(Playing() with { RequestedBy = null }, []));
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        SongWrongAction action = new(music, chat, NullLogger<SongWrongAction>.Instance);
+
+        ActionResult result = await action.ExecuteAsync(
+            Ctx(displayName: "Bamo"),
+            Def("song_wrong")
+        );
+
+        result.Succeeded.Should().BeFalse();
+        await music.DidNotReceiveWithAnyArgs().SkipAsync(default!);
+    }
+
+    [Fact]
+    public async Task Song_wrong_says_so_when_the_skip_itself_fails()
+    {
+        // The wrong song is still playing. Reporting success here would leave the viewer waiting for it to
+        // stop, believing the bot had acted.
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetQueueAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(new MusicQueue(Playing() with { RequestedBy = "Bamo" }, []));
+        music
+            .SkipAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure("PROVIDER_UNAVAILABLE", "nope"));
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        SongWrongAction action = new(music, chat, NullLogger<SongWrongAction>.Instance);
+
+        ActionResult result = await action.ExecuteAsync(
+            Ctx(displayName: "Bamo"),
+            Def("song_wrong")
+        );
+
+        result.Succeeded.Should().BeFalse();
+        await chat.Received(1)
+            .SendMessageAsync(
+                ChannelId,
+                Arg.Is<string>(m => m.Contains("Couldn't skip")),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Song_wrong_prefers_a_still_queued_request_over_skipping_what_is_playing()
+    {
+        // A viewer with a track playing AND another waiting is undoing the one that has not been heard yet.
+        // Skipping the playing track instead would take away a song the channel is already enjoying.
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .GetQueueAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
+            .Returns(
+                new MusicQueue(
+                    Playing() with
+                    {
+                        RequestedBy = "Bamo",
+                    },
+                    [new("Still Waiting", "C", null, 100, "Bamo")]
+                )
+            );
+        music
+            .RemoveFromQueueAsync(ChannelId.ToString(), 0, Arg.Any<CancellationToken>())
+            .Returns(true);
+        IChatProvider chat = Substitute.For<IChatProvider>();
+        SongWrongAction action = new(music, chat, NullLogger<SongWrongAction>.Instance);
+
+        ActionResult result = await action.ExecuteAsync(
+            Ctx(displayName: "Bamo"),
+            Def("song_wrong")
+        );
+
+        result.Output.Should().Be("removed: Still Waiting");
+        await music.DidNotReceiveWithAnyArgs().SkipAsync(default!);
+    }
+
+    [Fact]
     public async Task Song_wrong_removes_only_the_callers_newest_queued_request()
     {
         // Queue: [0] Bamo's first, [1] someone else's, [2] Bamo's newest → position 2 goes.
