@@ -218,7 +218,7 @@ public sealed class YouTubeAccessTokenProvider : IYouTubeAccessTokenProvider
             _logger.LogInformation("Refreshed YouTube token for {BroadcasterId}", broadcasterId);
             return json.AccessToken;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             _logger.LogError(
                 ex,

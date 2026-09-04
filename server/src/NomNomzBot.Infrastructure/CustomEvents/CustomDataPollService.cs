@@ -107,7 +107,7 @@ internal sealed class CustomDataPollService : ICustomDataPollService
             {
                 (outcome, errorMessage) = await PollSourceAsync(source, ct);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!ct.IsCancellationRequested)
             {
                 outcome = PollOutcome.Failure;
                 errorMessage = ex.Message;

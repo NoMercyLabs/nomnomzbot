@@ -96,7 +96,7 @@ public sealed class ElevenLabsTtsProvider : ITtsProvider
                 ContentHash = hash,
             };
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             _logger.LogError(ex, "ElevenLabs TTS: Synthesis failed");
             return EmptyResult(voiceId);
@@ -126,7 +126,7 @@ public sealed class ElevenLabsTtsProvider : ITtsProvider
 
             return data?.Voices?.Select(MapVoice).ToList() ?? [];
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             _logger.LogError(ex, "ElevenLabs TTS: Failed to fetch voices");
             return [];

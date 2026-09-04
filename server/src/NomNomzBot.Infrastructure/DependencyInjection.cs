@@ -441,8 +441,16 @@ public static class DependencyInjection
         // the product User-Agent by default, stamped with the running build version. A client may still override.
         services.ConfigureHttpClientDefaults(builder =>
             builder.ConfigureHttpClient(client =>
-                client.DefaultRequestHeaders.UserAgent.ParseAdd(Platform.Http.AppUserAgent.Value)
-            )
+            {
+                client.DefaultRequestHeaders.UserAgent.ParseAdd(Platform.Http.AppUserAgent.Value);
+                // A bounded ceiling by default, not by each registration remembering one. HttpClient's own
+                // default is 100s, which behaves less like a timeout than a hang — and a resilience
+                // pipeline's per-attempt timeout does NOT cover the wait for a rate-limiter permit, so a
+                // queued request rides this ceiling. The one client that omitted it ("spotify") blocked the
+                // full 100s behind the music poller's backlog and surfaced as unhandled 500s. A client that
+                // genuinely needs longer overrides this at registration, which runs after the defaults.
+                client.Timeout = TimeSpan.FromSeconds(30);
+            })
         );
 
         services

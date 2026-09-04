@@ -48,7 +48,7 @@ public sealed class TwitchIdentityResolver : ITwitchIdentityResolver
                 .Select(c => c.TwitchChannelId)
                 .FirstOrDefaultAsync(ct);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch when (!ct.IsCancellationRequested)
         {
             return null;
         }
@@ -72,7 +72,7 @@ public sealed class TwitchIdentityResolver : ITwitchIdentityResolver
 
             return id == Guid.Empty ? null : id;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch when (!ct.IsCancellationRequested)
         {
             return null;
         }
@@ -98,7 +98,7 @@ public sealed class TwitchIdentityResolver : ITwitchIdentityResolver
 
             return id == Guid.Empty ? null : id;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch when (!ct.IsCancellationRequested)
         {
             return null;
         }
@@ -132,7 +132,7 @@ public sealed class TwitchIdentityResolver : ITwitchIdentityResolver
                 .Select(c => c.User.TwitchUserId)
                 .FirstOrDefaultAsync(ct);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch when (!ct.IsCancellationRequested)
         {
             return null;
         }

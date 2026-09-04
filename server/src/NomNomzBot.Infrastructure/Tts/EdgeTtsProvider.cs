@@ -106,7 +106,7 @@ public sealed class EdgeTtsProvider : ITtsProvider
         {
             await ws.ConnectAsync(new(url), cancellationToken);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             _logger.LogError(ex, "Edge TTS: Failed to connect");
             return EmptyResult(voiceId);

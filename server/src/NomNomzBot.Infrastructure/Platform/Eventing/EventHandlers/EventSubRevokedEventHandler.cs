@@ -77,7 +77,7 @@ public sealed class EventSubRevokedEventHandler(
                 cancellationToken
             );
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             logger.LogError(
                 ex,

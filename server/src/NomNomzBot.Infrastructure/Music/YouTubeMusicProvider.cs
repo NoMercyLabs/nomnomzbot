@@ -917,7 +917,7 @@ public sealed class YouTubeMusicProvider : IMusicProvider, IMusicProviderManageA
         {
             return await _http.SendAsync(request, cancellationToken);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             _logger.LogError(ex, "YouTube manage request failed: {Method} {Url}", method, url);
             return null;
@@ -945,7 +945,7 @@ public sealed class YouTubeMusicProvider : IMusicProvider, IMusicProviderManageA
             );
             return (response.StatusCode, body);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             _logger.LogError(ex, "YouTube manage read failed: GET {Url}", url);
             return (null, null);
@@ -1063,7 +1063,7 @@ public sealed class YouTubeMusicProvider : IMusicProvider, IMusicProviderManageA
             );
             return (body, MusicProviderFailureReason.None);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             _logger.LogError(ex, "YouTube Data API {Operation} threw", operation);
             return (null, MusicProviderFailureReason.Unavailable);

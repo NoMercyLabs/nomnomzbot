@@ -762,7 +762,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         {
             result = await builtin.ExecuteAsync(builtinCtx, ct);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             // A throwing builtin used to take the whole chat handler down with it: the message was never
             // answered, nothing named the command, and the failure was indistinguishable from the command

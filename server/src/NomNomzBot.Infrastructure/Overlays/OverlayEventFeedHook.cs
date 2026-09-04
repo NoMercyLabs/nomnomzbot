@@ -63,7 +63,7 @@ public sealed class OverlayEventFeedHook(
                 cancellationToken
             );
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             // Best-effort delivery: a hub push failure never rolls back the commit or blocks other hooks.
             logger.LogWarning(

@@ -108,7 +108,7 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
         {
             response = await _http.SendAsync(request, ct);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             _logger.LogError(ex, "Discord DM-channel open failed (transport).");
             return Result.Failure<string>("Discord request failed.", "DISCORD_TRANSPORT");
@@ -631,7 +631,7 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
         {
             response = await _http.SendAsync(request, ct);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             _logger.LogError(ex, "Discord read failed (transport).");
             return Result.Failure<T>("Discord request failed.", "DISCORD_TRANSPORT");
@@ -681,7 +681,7 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
         {
             response = await _http.SendAsync(request, ct);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             _logger.LogError(ex, "Discord post to channel failed (transport).");
             return Result.Failure<string>("Discord request failed.", "DISCORD_TRANSPORT");
@@ -734,7 +734,7 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
         {
             response = await _http.SendAsync(request, ct);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             _logger.LogError(ex, "Discord member-role change failed (transport).");
             return Result.Failure("Discord request failed.", "DISCORD_TRANSPORT");

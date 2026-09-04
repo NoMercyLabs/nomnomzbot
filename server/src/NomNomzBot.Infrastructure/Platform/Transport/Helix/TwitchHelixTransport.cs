@@ -247,7 +247,7 @@ public sealed class TwitchHelixTransport(
                 using HttpRequestMessage message = BuildMessage(request, url, context, clientId);
                 response = await _http.SendAsync(message, ct);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!ct.IsCancellationRequested)
             {
                 logger.LogError(ex, "Helix transport failed for {Path}", request.Path);
                 return Result.Failure<HttpResponseMessage>(

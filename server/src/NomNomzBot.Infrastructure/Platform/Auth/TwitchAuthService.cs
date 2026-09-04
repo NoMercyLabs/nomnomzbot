@@ -316,7 +316,7 @@ public sealed class TwitchAuthService : ITwitchAuthService
             {
                 await RefreshTokenAsync(entry.BroadcasterId, entry.Provider, ct);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!ct.IsCancellationRequested)
             {
                 _logger.LogError(
                     ex,
@@ -358,7 +358,7 @@ public sealed class TwitchAuthService : ITwitchAuthService
             {
                 await _http.PostAsync(RevokeEndpoint, form, ct);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!ct.IsCancellationRequested)
             {
                 _logger.LogWarning(
                     ex,

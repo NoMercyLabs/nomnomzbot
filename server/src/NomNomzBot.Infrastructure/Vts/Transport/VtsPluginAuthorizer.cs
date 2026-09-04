@@ -74,7 +74,7 @@ public sealed class VtsPluginAuthorizer : IVtsPluginAuthorizer
         {
             socket = await _socketFactory.ConnectAsync(new(config.Endpoint), ct);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             _logger.LogWarning(
                 ex,

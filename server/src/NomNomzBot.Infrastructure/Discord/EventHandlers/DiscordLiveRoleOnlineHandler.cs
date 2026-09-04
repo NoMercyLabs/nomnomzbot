@@ -55,7 +55,7 @@ public sealed class DiscordLiveRoleOnlineHandler : IEventHandler<ChannelOnlineEv
                 cancellationToken
             );
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             // Best-effort like the go-live notification handler — a Discord-side failure must never disturb
             // the live flow; it is recorded here, never silently swallowed.

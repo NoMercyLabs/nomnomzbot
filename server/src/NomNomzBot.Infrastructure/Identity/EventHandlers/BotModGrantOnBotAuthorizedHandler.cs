@@ -76,7 +76,7 @@ public sealed class BotModGrantOnBotAuthorizedHandler(
                 channelIds.Count
             );
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             logger.LogError(
                 ex,

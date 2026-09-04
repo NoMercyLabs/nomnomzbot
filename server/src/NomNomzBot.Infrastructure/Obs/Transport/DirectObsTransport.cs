@@ -199,7 +199,7 @@ public sealed class DirectObsTransport : IObsTransport, IAsyncDisposable, IDispo
                 "OBS_TIMEOUT"
             );
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             await DropSessionAsync(broadcasterId, ex.Message);
             return Result.Failure<JsonElement>(
@@ -299,7 +299,7 @@ public sealed class DirectObsTransport : IObsTransport, IAsyncDisposable, IDispo
                 await db.SaveChangesAsync(ct);
                 return Result.Success(session);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!ct.IsCancellationRequested)
             {
                 _logger.LogWarning(
                     ex,

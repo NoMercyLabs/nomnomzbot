@@ -132,7 +132,7 @@ public sealed class KickWebhookVerifier : IKickWebhookVerifier
             _cachedAtUtc = now;
             return pem;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             _logger.LogError(ex, "Failed to fetch the Kick webhook public key");
             return _cachedPem;

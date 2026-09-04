@@ -660,7 +660,7 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
 
             return (ReadIdentityValue(subject, "id", "sub", "user_id"), accountName);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             _logger.LogWarning(
                 ex,

@@ -65,7 +65,7 @@ public sealed class IntegrationTokenBootSweepService : IHostedService
         {
             await services.GetRequiredService<ITwitchAuthService>().RefreshExpiringTokensAsync(ct);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             _logger.LogError(ex, "Boot token sweep failed for Twitch.");
         }
@@ -87,7 +87,7 @@ public sealed class IntegrationTokenBootSweepService : IHostedService
             {
                 await kick.GetAsync(broadcasterId, ct);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!ct.IsCancellationRequested)
             {
                 _logger.LogError(
                     ex,
@@ -121,7 +121,7 @@ public sealed class IntegrationTokenBootSweepService : IHostedService
             {
                 await youTube.GetAccessTokenAsync(broadcasterId, ct);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!ct.IsCancellationRequested)
             {
                 _logger.LogError(
                     ex,

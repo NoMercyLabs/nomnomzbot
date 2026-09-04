@@ -261,7 +261,7 @@ internal sealed class SpotifyDealerConnection
                     response.StatusCode
                 );
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             _logger.LogWarning(
                 ex,

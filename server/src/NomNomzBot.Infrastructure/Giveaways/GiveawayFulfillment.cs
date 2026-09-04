@@ -175,7 +175,7 @@ public sealed class GiveawayFulfillment : IGiveawayFulfillment
                 ct
             );
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             // A prize-pipeline fault must not unwind the draw — the winner row stands; the broadcaster
             // re-runs via redraw or manually.

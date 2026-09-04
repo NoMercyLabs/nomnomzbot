@@ -390,7 +390,7 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
 
             return Result.Success();
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             _logger.LogError(ex, "YouTube live-chat write threw for {Operation}", operation);
             return Result.Failure("YouTube is temporarily unavailable.", "SERVICE_UNAVAILABLE");
@@ -434,7 +434,7 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
                 )
                 : Result.Success(body);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             _logger.LogError(ex, "YouTube live-chat write threw for {Operation}", operation);
             return Result.Failure<TBody>(
@@ -489,7 +489,7 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
                 );
             return envelope?.Error?.Errors?.FirstOrDefault()?.Reason;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch when (!cancellationToken.IsCancellationRequested)
         {
             // An unparsable/empty error body is not itself a failure — it just means no reason is
             // available, so the caller falls back to the safe MISSING_SCOPE default.
@@ -601,7 +601,7 @@ public sealed class YouTubeLiveChatClient : IYouTubeLiveChatClient
             );
             return (response.StatusCode, body, null);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             _logger.LogError(
                 ex,
