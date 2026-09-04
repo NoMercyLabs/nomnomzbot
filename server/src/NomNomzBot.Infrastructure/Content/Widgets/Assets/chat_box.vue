@@ -116,6 +116,15 @@ interface LinkCard {
   provider?: string
 }
 
+// The chatter's 7TV name-theme paint (ChatPaintDto), already flattened to CSS by the server. Absent — not an
+// empty object — for a viewer wearing none, so 'no paint' never emits a stray style attribute.
+interface ChatPaint {
+  backgroundImage: string | null
+  color: string | null
+  textShadow: string | null
+  isImageOnly: boolean
+}
+
 interface ChatLine {
   id: string
   // The RAW chat message id, unlike `id` which is suffixed with a sequence to stay unique when the same
@@ -139,6 +148,27 @@ interface ChatLine {
   replyUserName: string
   replyMessageBody: string
   provider: string      // 'twitch' | 'kick' | 'youtube'
+  paint: ChatPaint | null
+}
+
+// A paint's colour/gradient renders as the NAME's own style — not the line's — the same way 7TV's own
+// extension paints only the name, never the whole chat bubble. A gradient needs background-clip: text (and a
+// transparent fill colour to show it through); a flat colour just sets color. Image-only paints carry no
+// usable colour (SevenTvPaintMapper flags them but resolves no url here), so they fall through to the theme's
+// default name colour rather than rendering blank.
+function paintNameStyle(p: ChatPaint | null): Record<string, string> {
+  if (!p) return {}
+  const style: Record<string, string> = {}
+  if (p.backgroundImage) {
+    style['background-image'] = p.backgroundImage
+    style['background-clip'] = 'text'
+    style['-webkit-background-clip'] = 'text'
+    style.color = 'transparent'
+  } else if (p.color) {
+    style.color = p.color
+  }
+  if (p.textShadow) style['text-shadow'] = p.textShadow
+  return style
 }
 
 const PROVIDER_LABEL: Record<string, string> = { twitch: 'Twitch', kick: 'Kick', youtube: 'YouTube' }
@@ -234,6 +264,12 @@ function onChat(m: any): void {
     replyUserName: typeof m.replyParentUserName === 'string' ? m.replyParentUserName : '',
     replyMessageBody: typeof m.replyParentMessageBody === 'string' ? m.replyParentMessageBody : '',
     provider: typeof m.provider === 'string' ? m.provider.toLowerCase() : 'twitch',
+    paint: m.paint && typeof m.paint === 'object' ? {
+      backgroundImage: typeof m.paint.backgroundImage === 'string' ? m.paint.backgroundImage : null,
+      color: typeof m.paint.color === 'string' ? m.paint.color : null,
+      textShadow: typeof m.paint.textShadow === 'string' ? m.paint.textShadow : null,
+      isImageOnly: !!m.paint.isImageOnly,
+    } : null,
   }
   const next: ChatLine[] = lines.value.concat([line])
   while (next.length > Math.max(1, cfg.maxMessages)) next.shift()
@@ -295,7 +331,11 @@ onUnmounted(() => {
         <img v-if="l.avatarUrl" class="avatar" :src="l.avatarUrl" alt="">
         <img v-for="(b, i) in l.badgeUrls" :key="i" class="badge" :src="b" alt="">
         <span v-if="l.role" class="role-badge" :class="'role-badge-' + l.role">{{ l.role }}</span>
-        <span class="name" :style="{ color: l.color ? contrastColor(l.color, cfg.theme) : '' }">{{ l.name }}</span>
+        <span
+          class="name"
+          :class="{ 'name-painted': l.paint && (l.paint.backgroundImage || l.paint.color) }"
+          :style="l.paint ? paintNameStyle(l.paint) : { color: l.color ? contrastColor(l.color, cfg.theme) : '' }"
+        >{{ l.name }}</span>
         <span v-if="l.pronouns" class="pron">({{ l.pronouns }})</span>
         <span v-if="l.isCheer && l.bitsAmount > 0" class="line-cheer-bits">{{ l.bitsAmount }} bits</span>
       </span>
@@ -504,6 +544,11 @@ onUnmounted(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
   vertical-align: bottom;
+}
+/* A 7TV paint owns the name's colour outright — background-clip: text needs an opaque background box to clip
+   against, which inline-block already gives .name for its ellipsis truncation. */
+.name-painted {
+  -webkit-text-fill-color: transparent;
 }
 .pron {
   font-size: 12px;

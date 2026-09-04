@@ -48,7 +48,24 @@ public record DashboardChatMessageDto(
     // The platform the message arrived on (twitch | kick | youtube) — lets a merged multi-platform chat
     // feed label each line by source. Defaults to twitch (the dominant provider and stored-history default,
     // since ChatMessage has no per-row provider column yet).
-    string Provider = "twitch"
+    string Provider = "twitch",
+    // The chatter's 7TV name-theme paint, already flattened to CSS — null when they wear none, 7TV does not
+    // know them, or the lookup failed. A widget applies it to the name/backdrop it renders for this chatter;
+    // absent (not an empty object) so a viewer with no paint produces no style attribute at all.
+    ChatPaintDto? Paint = null
+);
+
+/// <summary>
+/// A 7TV paint, already flattened to the CSS a widget applies directly — the wire mirror of
+/// <see cref="NomNomzBot.Domain.Chat.ValueObjects.ChatPaint"/> (chat-decoration spec, 7TV paint theming).
+/// </summary>
+public record ChatPaintDto(
+    string Id,
+    string Name,
+    string? BackgroundImage,
+    string? Color,
+    string? TextShadow,
+    bool IsImageOnly
 );
 
 /// <summary>A single fragment of a chat message: text | emote | cheermote | mention | link | gif.</summary>

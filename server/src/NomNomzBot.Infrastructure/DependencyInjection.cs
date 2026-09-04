@@ -316,6 +316,16 @@ public static class DependencyInjection
             infrastructure,
             ServiceLifetime.Singleton
         );
+        // 7TV paint theming: the global catalogue (singleton — holds its own in-memory cache of the whole
+        // paint set) and the per-chatter resolver on top of it. Not "*Service" name-convention, so explicit.
+        services.AddSingleton<
+            Application.Chat.Services.ISevenTvPaintCatalogue,
+            Chat.Providers.SevenTvPaintCatalogue
+        >();
+        services.AddSingleton<
+            Application.Chat.Services.ISevenTvUserPaintResolver,
+            Chat.Providers.SevenTvUserPaintResolver
+        >();
         services.AddSingleton<
             Application.Chat.Services.IThirdPartyEmoteProviderRegistry,
             ThirdPartyEmoteProviderRegistry
@@ -378,6 +388,13 @@ public static class DependencyInjection
         // the dashboard/overlay/StreamDeck now-playing surfaces only ever update on a bot-caused mutation and
         // otherwise go stale indefinitely (BackgroundServices/MusicStatePollingService.cs).
         services.AddHostedService<MusicStatePollingService>();
+        // Push, not poll (S-MUSIC-1): Spotify's own realtime dealer socket (wss://dealer.spotify.com/),
+        // reverse-engineered from the legacy reference implementation — publishes PlaybackStateChangedEvent
+        // the instant a PLAYER_STATE_CHANGED frame lands, closing the gap the flat 1s poll above leaves on
+        // the overlay. MusicStatePollingService (registered just above) is unconditionally the fallback: this
+        // service only ever ADDS a connection for a channel it can authenticate as Spotify, never gates the
+        // poller. Reuses the same IWebSocketChannelFactory singleton wired for Twitch's EventSub transport.
+        services.AddHostedService<Music.Realtime.SpotifyDealerHostedService>();
         // Scoped: it resolves the channel's feature toggles through the scoped IFeatureService (cache-backed, so the
         // hot path stays cheap). Consumes the singleton adapters + cache fine.
         services.AddScoped<Application.Chat.Services.IChatMessageDecorator, ChatMessageDecorator>();

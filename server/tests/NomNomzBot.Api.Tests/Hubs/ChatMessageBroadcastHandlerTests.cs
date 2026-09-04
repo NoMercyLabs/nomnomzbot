@@ -14,6 +14,7 @@ using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Domain.Chat.Events;
+using NomNomzBot.Domain.Chat.ValueObjects;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
@@ -34,6 +35,7 @@ public sealed class ChatMessageBroadcastHandlerTests
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
         IChatMessageDecorator decorator = Substitute.For<IChatMessageDecorator>();
         IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        ISevenTvUserPaintResolver paintResolver = Substitute.For<ISevenTvUserPaintResolver>();
         IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
         await using WidgetTestDbContext db = WidgetTestDbContext.New();
         Guid channel = Guid.CreateVersion7();
@@ -49,6 +51,7 @@ public sealed class ChatMessageBroadcastHandlerTests
             notifier,
             decorator,
             enricher,
+            paintResolver,
             widgets,
             db,
             TimeProvider.System,
@@ -74,6 +77,7 @@ public sealed class ChatMessageBroadcastHandlerTests
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
         IChatMessageDecorator decorator = Substitute.For<IChatMessageDecorator>();
         IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        ISevenTvUserPaintResolver paintResolver = Substitute.For<ISevenTvUserPaintResolver>();
         IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
         await using WidgetTestDbContext db = WidgetTestDbContext.New();
         Guid channel = Guid.CreateVersion7();
@@ -89,6 +93,7 @@ public sealed class ChatMessageBroadcastHandlerTests
             notifier,
             decorator,
             enricher,
+            paintResolver,
             widgets,
             db,
             TimeProvider.System,
@@ -109,11 +114,139 @@ public sealed class ChatMessageBroadcastHandlerTests
     }
 
     [Fact]
+    public async Task Message_from_a_chatter_with_a_7TV_paint_carries_its_flattened_CSS_in_the_overlay_payload()
+    {
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        IChatMessageDecorator decorator = Substitute.For<IChatMessageDecorator>();
+        IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        ISevenTvUserPaintResolver paintResolver = Substitute.For<ISevenTvUserPaintResolver>();
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid channel = Guid.CreateVersion7();
+
+        decorator
+            .DecorateAsync(Arg.Any<ChatMessageReceivedEvent>(), Arg.Any<CancellationToken>())
+            .Returns(new DecoratedChatMessage { Fragments = [] });
+        enricher
+            .EnrichAsync(channel, "u1", Arg.Any<CancellationToken>())
+            .Returns((HubUserEnrichment?)null);
+        paintResolver
+            .ResolveAsync("u1", Arg.Any<CancellationToken>())
+            .Returns(
+                new ChatPaint
+                {
+                    Id = "01GHA42XER0001KT343YQ6DM2E",
+                    Name = "Ginger Tabby S",
+                    BackgroundImage = "linear-gradient(66deg, #CA804EFF 57%, #C89041FF 100%)",
+                    Color = "#CA804EFF",
+                    TextShadow = "0px 0px 0.5px #000000FF",
+                    IsImageOnly = false,
+                }
+            );
+
+        ChatMessageBroadcastHandler handler = new(
+            notifier,
+            decorator,
+            enricher,
+            paintResolver,
+            widgets,
+            db,
+            TimeProvider.System,
+            Substitute.For<IChannelRegistry>()
+        );
+
+        await handler.HandleAsync(Event(channel));
+
+        // Dashboard hub payload: the flattened paint travels as a structured field, not a re-derived one.
+        await notifier
+            .Received(1)
+            .SendChatMessageAsync(
+                channel.ToString(),
+                Arg.Is<DashboardChatMessageDto>(dto =>
+                    dto.Paint != null
+                    && dto.Paint.BackgroundImage
+                        == "linear-gradient(66deg, #CA804EFF 57%, #C89041FF 100%)"
+                    && dto.Paint.TextShadow == "0px 0px 0.5px #000000FF"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+
+        // The chat overlay (chat_box.vue) reads the "ChatMessage" OVERLAY event's serialized JSON, not the
+        // dashboard object graph — the DONE-WHEN payload the widget actually receives.
+        await widgets
+            .Received(1)
+            .BroadcastOverlayEventAsync(
+                channel.ToString(),
+                Arg.Is<OverlayEventDto>(evt =>
+                    evt.Type == "ChatMessage"
+                    && evt.Payload.Contains(
+                        "\"backgroundImage\":\"linear-gradient(66deg, #CA804EFF 57%, #C89041FF 100%)\""
+                    )
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Message_from_a_chatter_with_no_7TV_paint_carries_no_paint_field_not_an_empty_one()
+    {
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        IChatMessageDecorator decorator = Substitute.For<IChatMessageDecorator>();
+        IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        ISevenTvUserPaintResolver paintResolver = Substitute.For<ISevenTvUserPaintResolver>();
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid channel = Guid.CreateVersion7();
+
+        decorator
+            .DecorateAsync(Arg.Any<ChatMessageReceivedEvent>(), Arg.Any<CancellationToken>())
+            .Returns(new DecoratedChatMessage { Fragments = [] });
+        enricher
+            .EnrichAsync(channel, "u1", Arg.Any<CancellationToken>())
+            .Returns((HubUserEnrichment?)null);
+        paintResolver.ResolveAsync("u1", Arg.Any<CancellationToken>()).Returns((ChatPaint?)null);
+
+        ChatMessageBroadcastHandler handler = new(
+            notifier,
+            decorator,
+            enricher,
+            paintResolver,
+            widgets,
+            db,
+            TimeProvider.System,
+            Substitute.For<IChannelRegistry>()
+        );
+
+        await handler.HandleAsync(Event(channel));
+
+        await notifier
+            .Received(1)
+            .SendChatMessageAsync(
+                channel.ToString(),
+                Arg.Is<DashboardChatMessageDto>(dto => dto.Paint == null),
+                Arg.Any<CancellationToken>()
+            );
+
+        // Serialized to the overlay JSON, an absent Paint must not appear as a stray "paint":{} — that would
+        // make chat_box.vue's `l.paint ? ... : ...` branch true for a viewer wearing nothing.
+        await widgets
+            .Received(1)
+            .BroadcastOverlayEventAsync(
+                channel.ToString(),
+                Arg.Is<OverlayEventDto>(evt =>
+                    evt.Type == "ChatMessage" && !evt.Payload.Contains("\"backgroundImage\"")
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
     public async Task A_youtube_message_broadcasts_raw_fragments_without_twitch_decoration_or_enrichment()
     {
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
         IChatMessageDecorator decorator = Substitute.For<IChatMessageDecorator>();
         IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        ISevenTvUserPaintResolver paintResolver = Substitute.For<ISevenTvUserPaintResolver>();
         IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
         await using WidgetTestDbContext db = WidgetTestDbContext.New();
         Guid channel = Guid.CreateVersion7();
@@ -122,6 +255,7 @@ public sealed class ChatMessageBroadcastHandlerTests
             notifier,
             decorator,
             enricher,
+            paintResolver,
             widgets,
             db,
             TimeProvider.System,
@@ -170,6 +304,9 @@ public sealed class ChatMessageBroadcastHandlerTests
         await enricher
             .DidNotReceiveWithAnyArgs()
             .EnrichAsync(default, default!, Arg.Any<CancellationToken>());
+        await paintResolver
+            .DidNotReceiveWithAnyArgs()
+            .ResolveAsync(default!, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -178,6 +315,7 @@ public sealed class ChatMessageBroadcastHandlerTests
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
         IChatMessageDecorator decorator = Substitute.For<IChatMessageDecorator>();
         IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        ISevenTvUserPaintResolver paintResolver = Substitute.For<ISevenTvUserPaintResolver>();
         IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
         await using WidgetTestDbContext db = WidgetTestDbContext.New();
         Guid channel = Guid.CreateVersion7();
@@ -193,6 +331,7 @@ public sealed class ChatMessageBroadcastHandlerTests
             notifier,
             decorator,
             enricher,
+            paintResolver,
             widgets,
             db,
             TimeProvider.System,
@@ -224,6 +363,7 @@ public sealed class ChatMessageBroadcastHandlerTests
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
         IChatMessageDecorator decorator = Substitute.For<IChatMessageDecorator>();
         IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        ISevenTvUserPaintResolver paintResolver = Substitute.For<ISevenTvUserPaintResolver>();
         IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
         await using WidgetTestDbContext db = WidgetTestDbContext.New();
         Guid channel = Guid.CreateVersion7();
@@ -259,6 +399,7 @@ public sealed class ChatMessageBroadcastHandlerTests
             notifier,
             decorator,
             enricher,
+            paintResolver,
             widgets,
             db,
             TimeProvider.System,
@@ -299,6 +440,7 @@ public sealed class ChatMessageBroadcastHandlerTests
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
         IChatMessageDecorator decorator = Substitute.For<IChatMessageDecorator>();
         IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        ISevenTvUserPaintResolver paintResolver = Substitute.For<ISevenTvUserPaintResolver>();
         IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
         await using WidgetTestDbContext db = WidgetTestDbContext.New();
         Guid channel = Guid.CreateVersion7();
@@ -312,6 +454,7 @@ public sealed class ChatMessageBroadcastHandlerTests
             notifier,
             decorator,
             enricher,
+            paintResolver,
             widgets,
             db,
             TimeProvider.System,
@@ -335,6 +478,7 @@ public sealed class ChatMessageBroadcastHandlerTests
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
         IChatMessageDecorator decorator = Substitute.For<IChatMessageDecorator>();
         IHubUserEnricher enricher = Substitute.For<IHubUserEnricher>();
+        ISevenTvUserPaintResolver paintResolver = Substitute.For<ISevenTvUserPaintResolver>();
         IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
         await using WidgetTestDbContext db = WidgetTestDbContext.New();
         Guid channel = Guid.CreateVersion7();
@@ -360,6 +504,7 @@ public sealed class ChatMessageBroadcastHandlerTests
             notifier,
             decorator,
             enricher,
+            paintResolver,
             widgets,
             db,
             TimeProvider.System,
