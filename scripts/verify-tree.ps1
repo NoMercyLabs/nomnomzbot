@@ -86,11 +86,23 @@ finally { Pop-Location }
     [bool](git -C $repo diff --name-only HEAD~1 -- app 2>$null | Select-Object -First 1)
 
 if ($IncludeApp -or $appChanged) {
+    # A Kotlin daemon left behind by a concurrent agent or a killed run keeps a handle on the output
+    # tree, and gradle then reports "Could not delete build/classes/kotlin/jvm/main/..." - a lock,
+    # printed as BUILD FAILED, indistinguishable from a compile error unless you read the message.
+    # Same failure mode the dotnet side already guards against above, so guard it the same way.
+    & (Join-Path $root 'app/gradlew.bat') -p (Join-Path $root 'app') --stop 2>&1 | Out-Null
+    Get-Process -Name 'kotlin-daemon' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue `
+        (Join-Path $root 'app/composeApp/build/classes/kotlin/jvm/main')
+
     Write-Host '== jvmTest (test task invalidated so it cannot be skipped as up-to-date) =='
     Push-Location $root
     try {
+        # compileKotlinWasmJs rides along deliberately: jvmTest CANNOT catch a wasmJs break. The JVM
+        # stdlib carries members the Wasm target does not (getOrDefault, toSortedMap), so a screen can
+        # be fully green here and fail the web build - which is the build a user actually loads.
         & (Join-Path $root 'app/gradlew.bat') -p (Join-Path $root 'app') `
-            :composeApp:cleanJvmTest :composeApp:jvmTest --console=plain | Out-Host
+            :composeApp:cleanJvmTest :composeApp:jvmTest :composeApp:compileKotlinWasmJs --console=plain | Out-Host
         if ($LASTEXITCODE -ne 0) { $failed = $true }
     }
     finally { Pop-Location }
