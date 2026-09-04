@@ -465,6 +465,7 @@ class AppGraph {
             communityApi = communityApi,
             usersApi = usersApi,
             viewerDataApi = viewerDataApi,
+            moderationApi = moderationApi,
             analyticsApi = analyticsApi,
             gdprApi = gdprApi,
             fileBridge = journalFileBridge,
