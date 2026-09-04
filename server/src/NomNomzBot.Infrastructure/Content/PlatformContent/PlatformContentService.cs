@@ -33,8 +33,11 @@ namespace NomNomzBot.Infrastructure.Content.PlatformContent;
 /// <see cref="IamAuditLog.AffectedTenantCount"/>/<see cref="IamAuditLog.PublishJobId"/> (§5) — those two
 /// fields are only known after the fan-out runs, so they cannot ride the upfront gate-check row.
 /// </summary>
-public sealed class PlatformContentService(IApplicationDbContext db, IPlatformIamService iam, IUnitOfWork uow)
-    : IPlatformContentService
+public sealed class PlatformContentService(
+    IApplicationDbContext db,
+    IPlatformIamService iam,
+    IUnitOfWork uow
+) : IPlatformContentService
 {
     public async Task<Result<PagedList<PlatformContentDefinitionDto>>> ListDefinitionsAsync(
         Guid actingPrincipalId,
@@ -44,7 +47,12 @@ public sealed class PlatformContentService(IApplicationDbContext db, IPlatformIa
         CancellationToken ct = default
     )
     {
-        Result gate = await RequireAsync(actingPrincipalId, IamPermissionKeys.ContentRead, null, ct);
+        Result gate = await RequireAsync(
+            actingPrincipalId,
+            IamPermissionKeys.ContentRead,
+            null,
+            ct
+        );
         if (gate.IsFailure)
             return gate.WithValue<PagedList<PlatformContentDefinitionDto>>(null!);
 
@@ -69,7 +77,9 @@ public sealed class PlatformContentService(IApplicationDbContext db, IPlatformIa
             .. rows.Select(r => ToDto(r, versionNumberByVersionId)),
         ];
 
-        return Result.Success(new PagedList<PlatformContentDefinitionDto>(items, page, pageSize, total));
+        return Result.Success(
+            new PagedList<PlatformContentDefinitionDto>(items, page, pageSize, total)
+        );
     }
 
     public async Task<Result<PlatformContentDefinitionDetailDto>> GetDefinitionAsync(
@@ -78,14 +88,17 @@ public sealed class PlatformContentService(IApplicationDbContext db, IPlatformIa
         CancellationToken ct = default
     )
     {
-        Result gate = await RequireAsync(actingPrincipalId, IamPermissionKeys.ContentRead, null, ct);
+        Result gate = await RequireAsync(
+            actingPrincipalId,
+            IamPermissionKeys.ContentRead,
+            null,
+            ct
+        );
         if (gate.IsFailure)
             return gate.WithValue<PlatformContentDefinitionDetailDto>(null!);
 
-        PlatformContentDefinition? definition = await db.PlatformContentDefinitions.FirstOrDefaultAsync(
-            d => d.Id == definitionId,
-            ct
-        );
+        PlatformContentDefinition? definition =
+            await db.PlatformContentDefinitions.FirstOrDefaultAsync(d => d.Id == definitionId, ct);
         if (definition is null)
             return Result.Failure<PlatformContentDefinitionDetailDto>(
                 "Content definition not found.",
@@ -113,7 +126,12 @@ public sealed class PlatformContentService(IApplicationDbContext db, IPlatformIa
         CancellationToken ct = default
     )
     {
-        Result gate = await RequireAsync(actingPrincipalId, IamPermissionKeys.ContentAuthor, null, ct);
+        Result gate = await RequireAsync(
+            actingPrincipalId,
+            IamPermissionKeys.ContentAuthor,
+            null,
+            ct
+        );
         if (gate.IsFailure)
             return gate.WithValue<PlatformContentDefinitionDto>(null!);
 
@@ -170,23 +188,30 @@ public sealed class PlatformContentService(IApplicationDbContext db, IPlatformIa
         CancellationToken ct = default
     )
     {
-        Result gate = await RequireAsync(actingPrincipalId, IamPermissionKeys.ContentAuthor, null, ct);
+        Result gate = await RequireAsync(
+            actingPrincipalId,
+            IamPermissionKeys.ContentAuthor,
+            null,
+            ct
+        );
         if (gate.IsFailure)
             return gate.WithValue<PlatformContentVersionDto>(null!);
 
-        PlatformContentDefinition? definition = await db.PlatformContentDefinitions.FirstOrDefaultAsync(
-            d => d.Id == definitionId,
-            ct
-        );
+        PlatformContentDefinition? definition =
+            await db.PlatformContentDefinitions.FirstOrDefaultAsync(d => d.Id == definitionId, ct);
         if (definition is null)
-            return Result.Failure<PlatformContentVersionDto>("Content definition not found.", "NOT_FOUND");
+            return Result.Failure<PlatformContentVersionDto>(
+                "Content definition not found.",
+                "NOT_FOUND"
+            );
 
         int nextVersion =
             1
-            + await db
-                .PlatformContentVersions.Where(v => v.DefinitionId == definitionId)
-                .Select(v => (int?)v.Version)
-                .MaxAsync(ct) ?? 1;
+                + await db
+                    .PlatformContentVersions.Where(v => v.DefinitionId == definitionId)
+                    .Select(v => (int?)v.Version)
+                    .MaxAsync(ct)
+            ?? 1;
 
         DateTime now = DateTime.UtcNow;
         PlatformContentVersion version = new()
@@ -214,7 +239,12 @@ public sealed class PlatformContentService(IApplicationDbContext db, IPlatformIa
         CancellationToken ct = default
     )
     {
-        Result gate = await RequireAsync(actingPrincipalId, IamPermissionKeys.ContentRead, null, ct);
+        Result gate = await RequireAsync(
+            actingPrincipalId,
+            IamPermissionKeys.ContentRead,
+            null,
+            ct
+        );
         if (gate.IsFailure)
             return gate.WithValue<PlatformContentVersionDto>(null!);
 
@@ -223,7 +253,10 @@ public sealed class PlatformContentService(IApplicationDbContext db, IPlatformIa
             ct
         );
         if (version is null)
-            return Result.Failure<PlatformContentVersionDto>("Content version not found.", "NOT_FOUND");
+            return Result.Failure<PlatformContentVersionDto>(
+                "Content version not found.",
+                "NOT_FOUND"
+            );
 
         return Result.Success(ToDto(version));
     }
@@ -236,7 +269,12 @@ public sealed class PlatformContentService(IApplicationDbContext db, IPlatformIa
         CancellationToken ct = default
     )
     {
-        Result gate = await RequireAsync(actingPrincipalId, IamPermissionKeys.ContentAuthor, null, ct);
+        Result gate = await RequireAsync(
+            actingPrincipalId,
+            IamPermissionKeys.ContentAuthor,
+            null,
+            ct
+        );
         if (gate.IsFailure)
             return gate.WithValue<PublishPreviewDto>(null!);
 
@@ -256,7 +294,11 @@ public sealed class PlatformContentService(IApplicationDbContext db, IPlatformIa
             .ToListAsync(ct);
 
         return Result.Success(
-            new PublishPreviewDto(selection.AffectedRowIds.Count, selection.SkippedCount, sampleNames)
+            new PublishPreviewDto(
+                selection.AffectedRowIds.Count,
+                selection.SkippedCount,
+                sampleNames
+            )
         );
     }
 
@@ -400,7 +442,12 @@ public sealed class PlatformContentService(IApplicationDbContext db, IPlatformIa
         CancellationToken ct = default
     )
     {
-        Result gate = await RequireAsync(actingPrincipalId, IamPermissionKeys.ContentRead, null, ct);
+        Result gate = await RequireAsync(
+            actingPrincipalId,
+            IamPermissionKeys.ContentRead,
+            null,
+            ct
+        );
         if (gate.IsFailure)
             return gate.WithValue<PlatformContentPublishJobDto>(null!);
 
@@ -409,7 +456,10 @@ public sealed class PlatformContentService(IApplicationDbContext db, IPlatformIa
             ct
         );
         if (job is null)
-            return Result.Failure<PlatformContentPublishJobDto>("Publish job not found.", "NOT_FOUND");
+            return Result.Failure<PlatformContentPublishJobDto>(
+                "Publish job not found.",
+                "NOT_FOUND"
+            );
 
         return Result.Success(ToDto(job));
     }
@@ -420,14 +470,17 @@ public sealed class PlatformContentService(IApplicationDbContext db, IPlatformIa
         CancellationToken ct = default
     )
     {
-        Result gate = await RequireAsync(actingPrincipalId, IamPermissionKeys.ContentAuthor, null, ct);
+        Result gate = await RequireAsync(
+            actingPrincipalId,
+            IamPermissionKeys.ContentAuthor,
+            null,
+            ct
+        );
         if (gate.IsFailure)
             return gate;
 
-        PlatformContentDefinition? definition = await db.PlatformContentDefinitions.FirstOrDefaultAsync(
-            d => d.Id == definitionId,
-            ct
-        );
+        PlatformContentDefinition? definition =
+            await db.PlatformContentDefinitions.FirstOrDefaultAsync(d => d.Id == definitionId, ct);
         if (definition is null)
             return Result.Failure("Content definition not found.", "NOT_FOUND");
 
@@ -511,9 +564,10 @@ public sealed class PlatformContentService(IApplicationDbContext db, IPlatformIa
                 TargetResource = $"{definition.Kind}:{definition.Key}@v{version.Version}",
                 Justification = justification,
                 BreakGlass = permission == IamPermissionKeys.ContentPublishForce,
-                Outcome = job.Status == PlatformContentPublishJobStatuses.Failed
-                    ? IamOutcome.Partial
-                    : outcome,
+                Outcome =
+                    job.Status == PlatformContentPublishJobStatuses.Failed
+                        ? IamOutcome.Partial
+                        : outcome,
                 OccurredAt = DateTime.UtcNow,
                 AffectedTenantCount = job.ConfirmedAffectedCount,
                 PublishJobId = job.Id,
@@ -524,7 +578,12 @@ public sealed class PlatformContentService(IApplicationDbContext db, IPlatformIa
 
     private async Task<
         Result<(PlatformContentDefinition Definition, PlatformContentVersion Version)>
-    > LoadDefinitionAndVersionAsync(Guid definitionId, Guid versionId, string mode, CancellationToken ct)
+    > LoadDefinitionAndVersionAsync(
+        Guid definitionId,
+        Guid versionId,
+        string mode,
+        CancellationToken ct
+    )
     {
         if (!PlatformContentPublishModes.IsKnown(mode))
             return Result.Failure<(PlatformContentDefinition, PlatformContentVersion)>(
@@ -532,10 +591,8 @@ public sealed class PlatformContentService(IApplicationDbContext db, IPlatformIa
                 "VALIDATION_FAILED"
             );
 
-        PlatformContentDefinition? definition = await db.PlatformContentDefinitions.FirstOrDefaultAsync(
-            d => d.Id == definitionId,
-            ct
-        );
+        PlatformContentDefinition? definition =
+            await db.PlatformContentDefinitions.FirstOrDefaultAsync(d => d.Id == definitionId, ct);
         if (definition is null)
             return Result.Failure<(PlatformContentDefinition, PlatformContentVersion)>(
                 "Content definition not found.",
@@ -588,7 +645,9 @@ public sealed class PlatformContentService(IApplicationDbContext db, IPlatformIa
         );
         if (allowed.IsFailure)
             return allowed;
-        return allowed.Value ? Result.Success() : Result.Failure($"Requires {permissionKey}.", "FORBIDDEN");
+        return allowed.Value
+            ? Result.Success()
+            : Result.Failure($"Requires {permissionKey}.", "FORBIDDEN");
     }
 
     // --- Mapping -----------------------------------------------------------------------------------------
@@ -604,7 +663,8 @@ public sealed class PlatformContentService(IApplicationDbContext db, IPlatformIa
             definition.DisplayName,
             definition.Description,
             definition.CurrentVersionId,
-            definition.CurrentVersionId is { } id && versionNumberByVersionId.TryGetValue(id, out int v)
+            definition.CurrentVersionId is { } id
+            && versionNumberByVersionId.TryGetValue(id, out int v)
                 ? v
                 : null,
             definition.LatestDraftVersionId,

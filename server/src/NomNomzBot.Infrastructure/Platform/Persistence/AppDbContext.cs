@@ -377,6 +377,13 @@ public class AppDbContext : DbContext, IApplicationDbContext
     public DbSet<Domain.Marketplace.Entities.InstalledBundle> InstalledBundles =>
         Set<Domain.Marketplace.Entities.InstalledBundle>();
 
+    public DbSet<Domain.PlatformContent.Entities.PlatformContentDefinition> PlatformContentDefinitions =>
+        Set<Domain.PlatformContent.Entities.PlatformContentDefinition>();
+    public DbSet<Domain.PlatformContent.Entities.PlatformContentVersion> PlatformContentVersions =>
+        Set<Domain.PlatformContent.Entities.PlatformContentVersion>();
+    public DbSet<Domain.PlatformContent.Entities.PlatformContentPublishJob> PlatformContentPublishJobs =>
+        Set<Domain.PlatformContent.Entities.PlatformContentPublishJob>();
+
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         base.ConfigureConventions(configurationBuilder);

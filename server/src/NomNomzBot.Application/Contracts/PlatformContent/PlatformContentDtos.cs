@@ -53,7 +53,10 @@ public sealed record CreateContentDefinitionRequest(
     string PayloadJson
 );
 
-public sealed record DraftContentVersionRequest(string PayloadJson, IReadOnlyList<string>? RenderGalleryRefs);
+public sealed record DraftContentVersionRequest(
+    string PayloadJson,
+    IReadOnlyList<string>? RenderGalleryRefs
+);
 
 public sealed record PublishPreviewRequest(string Mode);
 

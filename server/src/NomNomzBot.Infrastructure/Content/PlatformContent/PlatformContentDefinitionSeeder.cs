@@ -101,10 +101,8 @@ public sealed class PlatformContentDefinitionSeeder : ISeeder
 
         await _db.SaveChangesAsync(ct);
 
-        Dictionary<string, PlatformContentDefinition> definitionsByKey = definitionsById.Values.ToDictionary(
-            d => d.Key,
-            StringComparer.Ordinal
-        );
+        Dictionary<string, PlatformContentDefinition> definitionsByKey =
+            definitionsById.Values.ToDictionary(d => d.Key, StringComparer.Ordinal);
 
         List<ChannelBuiltinCommand> unstamped = await _db
             .ChannelBuiltinCommands.Where(b =>
@@ -118,7 +116,12 @@ public sealed class PlatformContentDefinitionSeeder : ISeeder
         DateTime syncedAt = DateTime.UtcNow;
         foreach (ChannelBuiltinCommand row in unstamped)
         {
-            if (!definitionsByKey.TryGetValue(row.BuiltinKey, out PlatformContentDefinition? definition))
+            if (
+                !definitionsByKey.TryGetValue(
+                    row.BuiltinKey,
+                    out PlatformContentDefinition? definition
+                )
+            )
                 continue;
 
             row.PlatformSourceDefinitionId = definition.Id;

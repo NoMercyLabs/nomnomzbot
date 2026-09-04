@@ -89,6 +89,12 @@ internal sealed class MarketplaceTestDbContext : DbContext, IApplicationDbContex
     public DbSet<ScheduledPipelineTask> ScheduledPipelineTasks => throw new NotSupportedException();
     public DbSet<CustomDataSource> CustomDataSources => Set<CustomDataSource>();
     public DbSet<InstalledBundle> InstalledBundles => Set<InstalledBundle>();
+    public DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentDefinition> PlatformContentDefinitions =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentVersion> PlatformContentVersions =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentPublishJob> PlatformContentPublishJobs =>
+        throw new NotSupportedException();
     public DbSet<Channel> Channels => Set<Channel>();
     public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
     public DbSet<EventResponse> EventResponses => Set<EventResponse>();

@@ -292,7 +292,11 @@ public abstract class BaseController : ControllerBase
             or "KEY_NOT_ACTIVE"
             or "KEY_DESTROYED"
             or "PROJECTION_RUN_IN_PROGRESS"
-            or "FIRST_PARTY_IMMUTABLE" => ConflictResponse(
+            or "FIRST_PARTY_IMMUTABLE"
+            // A stale blast-radius preview (platform-admin.md §4): the affected-tenant count changed
+            // between preview and publish — the client's confirmed count no longer matches reality, so
+            // publish fails closed and the client must re-run publish-preview.
+            or "PREVIEW_STALE" => ConflictResponse(
                 WithDetail(result.ErrorMessage, result.ErrorDetail),
                 result.ErrorCode
             ),

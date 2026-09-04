@@ -52,7 +52,7 @@ public sealed class IamCatalogSeederTests
     }
 
     [Fact]
-    public async Task Seeds_the_six_system_roles_with_super_admin_holding_every_permission()
+    public async Task Seeds_the_seven_system_roles_with_super_admin_holding_every_permission()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         await SeedAsync(db);
@@ -68,6 +68,7 @@ public sealed class IamCatalogSeederTests
                 "platform-billing",
                 "platform-iam-admin",
                 "platform-analyst",
+                "platform-content-author",
             ]);
         roles.Should().OnlyContain(r => r.IsSystem, "§C.2: all seeded roles are IsSystem");
 
@@ -92,6 +93,22 @@ public sealed class IamCatalogSeederTests
                 IamPermissionKeys.BillingWrite,
                 IamPermissionKeys.BillingRefund,
             ]);
+
+        IamRole contentAuthor = roles.Single(r => r.Name == "platform-content-author");
+        List<string> contentAuthorKeys = await db
+            .IamRolePermissions.Where(j => j.RoleId == contentAuthor.Id)
+            .Join(db.IamPermissions, j => j.PermissionId, p => p.Id, (j, p) => p.Key)
+            .ToListAsync();
+        contentAuthorKeys
+            .Should()
+            .BeEquivalentTo(
+                [
+                    IamPermissionKeys.ContentRead,
+                    IamPermissionKeys.ContentAuthor,
+                    IamPermissionKeys.ContentPublish,
+                ],
+                "an author writes and publishes but cannot force a publish past the gates"
+            );
     }
 
     [Fact]

@@ -14,7 +14,8 @@ using NomNomzBot.Domain.PlatformContent.Entities;
 
 namespace NomNomzBot.Infrastructure.Content.PlatformContent.Persistence;
 
-public class PlatformContentPublishJobConfiguration : IEntityTypeConfiguration<PlatformContentPublishJob>
+public class PlatformContentPublishJobConfiguration
+    : IEntityTypeConfiguration<PlatformContentPublishJob>
 {
     public void Configure(EntityTypeBuilder<PlatformContentPublishJob> builder)
     {

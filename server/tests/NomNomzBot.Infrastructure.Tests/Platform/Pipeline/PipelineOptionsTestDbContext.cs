@@ -393,4 +393,10 @@ internal sealed class PipelineOptionsTestDbContext : DbContext, IApplicationDbCo
     public DbSet<CustomDataSource> CustomDataSources => Set<CustomDataSource>();
     public DbSet<NomNomzBot.Domain.Marketplace.Entities.InstalledBundle> InstalledBundles =>
         Set<NomNomzBot.Domain.Marketplace.Entities.InstalledBundle>();
+    public DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentDefinition> PlatformContentDefinitions =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentVersion> PlatformContentVersions =>
+        throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentPublishJob> PlatformContentPublishJobs =>
+        throw new NotSupportedException();
 }

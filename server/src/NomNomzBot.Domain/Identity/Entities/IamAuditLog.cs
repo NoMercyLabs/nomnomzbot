@@ -38,4 +38,11 @@ public class IamAuditLog
     public IamOutcome Outcome { get; set; }
     public string? SourceIpCipher { get; set; }
     public DateTime OccurredAt { get; set; }
+
+    /// <summary>Set on <c>content:publish</c> rows to the job's <c>ConfirmedAffectedCount</c>; null for
+    /// non-fan-out actions (platform-admin.md §5).</summary>
+    public int? AffectedTenantCount { get; set; }
+
+    /// <summary>FK <c>PlatformContentPublishJob</c>; null for non-publish actions.</summary>
+    public Guid? PublishJobId { get; set; }
 }

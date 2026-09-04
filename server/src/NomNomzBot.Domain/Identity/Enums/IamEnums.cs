@@ -20,6 +20,9 @@ public enum IamCategory
     Audit,
     Iam,
     FeatureFlag,
+
+    /// <summary>Platform content authoring/propagation (platform-admin.md §4).</summary>
+    Content,
 }
 
 /// <summary>Whether a platform IAM principal is a human employee or a service account.</summary>
@@ -29,9 +32,13 @@ public enum IamPrincipalType
     ServiceAccount,
 }
 
-/// <summary>The outcome recorded on an IAM access evaluation (audit).</summary>
+/// <summary>The outcome recorded on an IAM access evaluation (audit). <c>Allowed</c>/<c>Denied</c> cover a
+/// plain access evaluation; <c>Failed</c>/<c>Partial</c> cover a multi-step action's own result — e.g. a
+/// <c>content:publish</c> fan-out that failed mid-way (platform-admin.md §5).</summary>
 public enum IamOutcome
 {
     Allowed,
     Denied,
+    Failed,
+    Partial,
 }

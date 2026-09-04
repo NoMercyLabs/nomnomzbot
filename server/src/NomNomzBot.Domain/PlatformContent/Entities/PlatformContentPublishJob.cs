@@ -75,7 +75,8 @@ public static class PlatformContentPublishModes
     public static bool IsKnown(string? mode) =>
         mode is PublishAsNew or UpdateInPlaceWhereUntouched or Force;
 
-    public static IReadOnlyList<string> All { get; } = [PublishAsNew, UpdateInPlaceWhereUntouched, Force];
+    public static IReadOnlyList<string> All { get; } =
+    [PublishAsNew, UpdateInPlaceWhereUntouched, Force];
 }
 
 /// <summary>The closed set of publish job statuses. A job's status is one of exactly these.</summary>
