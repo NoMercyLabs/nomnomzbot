@@ -14,6 +14,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Domain.Chat.Events;
+using NomNomzBot.Domain.Chat.ValueObjects;
 using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -38,6 +39,7 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
     private readonly IDashboardNotifier _notifier;
     private readonly IChatMessageDecorator _decorator;
     private readonly IHubUserEnricher _enricher;
+    private readonly ISevenTvUserPaintResolver _paintResolver;
     private readonly IWidgetNotifier _widgets;
     private readonly IApplicationDbContext _db;
     private readonly TimeProvider _timeProvider;
@@ -47,6 +49,7 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
         IDashboardNotifier notifier,
         IChatMessageDecorator decorator,
         IHubUserEnricher enricher,
+        ISevenTvUserPaintResolver paintResolver,
         IWidgetNotifier widgets,
         IApplicationDbContext db,
         TimeProvider timeProvider,
@@ -56,6 +59,7 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
         _notifier = notifier;
         _decorator = decorator;
         _enricher = enricher;
+        _paintResolver = paintResolver;
         _widgets = widgets;
         _db = db;
         _timeProvider = timeProvider;
@@ -83,10 +87,14 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
         IReadOnlyList<ChatFragmentDto> fragments;
         IReadOnlyList<ChatBadgeDto> badges;
         HubUserEnrichment? enrichment = null;
+        ChatPaintDto? paint = null;
         if (isTwitch)
         {
             DecoratedChatMessage decorated = await _decorator.DecorateAsync(evt, ct);
             enrichment = await _enricher.EnrichAsync(evt.BroadcasterId, evt.UserId, ct);
+            // 7TV paints are a Twitch-side cosmetic (there is no Kick/YouTube equivalent yet), so this only
+            // runs on the same branch that already keys everything else off the chatter's Twitch id.
+            paint = MapPaint(await _paintResolver.ResolveAsync(evt.UserId, ct));
             fragments = [.. decorated.Fragments.Select(ChatFragmentMapper.MapFragment)];
             badges = [.. decorated.Badges.Select(ChatFragmentMapper.MapBadge)];
         }
@@ -123,7 +131,8 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
             Timestamp: _timeProvider.GetUtcNow().ToString("O"),
             AvatarUrl: enrichment?.AvatarUrl,
             Pronouns: enrichment?.Pronouns,
-            Provider: evt.Provider
+            Provider: evt.Provider,
+            Paint: paint
         );
 
         await _notifier.SendChatMessageAsync(evt.BroadcasterId.ToString(), dto, ct);
@@ -164,4 +173,18 @@ public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageRecei
             _registry.Get(broadcasterId)?.CommandPrefix ?? "!",
             StringComparison.Ordinal
         );
+
+    // null in, null out — a viewer wearing no paint must produce no Paint object on the wire (never an empty
+    // one), so a widget can key its styling off "is this field present" without inspecting every sub-field.
+    private static ChatPaintDto? MapPaint(ChatPaint? paint) =>
+        paint is null
+            ? null
+            : new ChatPaintDto(
+                paint.Id,
+                paint.Name,
+                paint.BackgroundImage,
+                paint.Color,
+                paint.TextShadow,
+                paint.IsImageOnly
+            );
 }
