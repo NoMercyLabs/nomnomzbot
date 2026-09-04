@@ -116,6 +116,8 @@ import bot.nomnomz.dashboard.core.network.AdminApi
 import bot.nomnomz.dashboard.core.network.AdminApiImpl
 import bot.nomnomz.dashboard.core.network.PlatformAdminApi
 import bot.nomnomz.dashboard.core.network.PlatformAdminApiImpl
+import bot.nomnomz.dashboard.core.network.PlatformContentApi
+import bot.nomnomz.dashboard.core.network.PlatformContentApiImpl
 import bot.nomnomz.dashboard.core.network.PlatformIamApi
 import bot.nomnomz.dashboard.core.network.PlatformIamApiImpl
 import bot.nomnomz.dashboard.core.network.PronounsApi
@@ -372,6 +374,7 @@ class AppGraph {
     val adminApi: AdminApi = AdminApiImpl(apiClient)
     val platformIamApi: PlatformIamApi = PlatformIamApiImpl(apiClient)
     val platformAdminApi: PlatformAdminApi = PlatformAdminApiImpl(apiClient)
+    val platformContentApi: PlatformContentApi = PlatformContentApiImpl(apiClient)
     val pronounsApi: PronounsApi = PronounsApiImpl(apiClient)
     val obsApi: ObsApi = RestObsApi(apiClient)
     val vtsApi: VtsApi = RestVtsApi(apiClient)
@@ -696,6 +699,7 @@ class AppGraph {
             spamDefenseApi = spamDefenseApi,
             iamApi = platformIamApi,
             platformAdminApi = platformAdminApi,
+            contentApi = platformContentApi,
             hubClient = adminHubClient,
             baseUrl = sessionStore::baseUrl,
             accessToken = sessionStore::accessToken,

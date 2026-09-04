@@ -133,6 +133,7 @@ import nomnomzbot.composeapp.generated.resources.admin_system_cpu
 import nomnomzbot.composeapp.generated.resources.admin_system_memory
 import nomnomzbot.composeapp.generated.resources.admin_system_version
 import nomnomzbot.composeapp.generated.resources.admin_tab_billing
+import nomnomzbot.composeapp.generated.resources.admin_tab_content
 import nomnomzbot.composeapp.generated.resources.admin_tab_channels
 import nomnomzbot.composeapp.generated.resources.admin_tab_flags
 import nomnomzbot.composeapp.generated.resources.admin_tab_overview
@@ -202,6 +203,14 @@ fun AdminScreen(controller: AdminController) {
             // person they are looking at has platform access at all. Without it every row would read
             // "no platform access", which is a lie told confidently.
             2 -> if (state.principals.isEmpty() && state.roles.isEmpty()) controller.loadIam()
+            TAB_CONTENT -> {
+                // Own-permission gating (ContentTab's ManageGate calls) reads state.principals/
+                // effectivePermissions, same as the Users tab's UserPlatformAccess — load IAM alongside the
+                // content list so the tab never renders every write control as denied just because the
+                // permission lookup hasn't landed yet.
+                if (state.principals.isEmpty() && state.roles.isEmpty()) controller.loadIam()
+                if (state.contentDefinitions.isEmpty()) controller.loadContentDefinitions()
+            }
             TAB_IAM -> if (state.principals.isEmpty() && state.roles.isEmpty()) controller.loadIam()
             TAB_TENANTS -> if (state.tenants.isEmpty()) controller.loadTenants()
             TAB_AUDIT -> if (state.auditEntries.isEmpty()) controller.loadAudit()
@@ -216,6 +225,7 @@ fun AdminScreen(controller: AdminController) {
         stringResource(Res.string.admin_tab_system),
         stringResource(Res.string.admin_tab_flags),
         stringResource(Res.string.admin_tab_billing),
+        stringResource(Res.string.admin_tab_content),
         stringResource(Res.string.admin_tab_iam),
         stringResource(Res.string.admin_tab_tenants),
         stringResource(Res.string.admin_tab_audit),
@@ -266,6 +276,7 @@ fun AdminScreen(controller: AdminController) {
             5 -> TabContentOrSpinner(isLoading = AdminSection.Billing in state.loadingSections, tokens = tokens) {
                 BillingTab(state = state, controller = controller)
             }
+            TAB_CONTENT -> ContentTab(state = state, controller = controller, currentUserId = controller.currentUserId)
             TAB_IAM -> IamTab(state = state, controller = controller)
             TAB_TENANTS -> TenantsTab(state = state, controller = controller)
             TAB_AUDIT -> AuditTab(state = state, controller = controller)
@@ -275,11 +286,12 @@ fun AdminScreen(controller: AdminController) {
     }
 }
 
-private const val TAB_IAM: Int = 6
-private const val TAB_TENANTS: Int = 7
-private const val TAB_AUDIT: Int = 8
-private const val TAB_SPAM_DEFAULTS: Int = 9
-private const val TAB_PROVIDERS: Int = 10
+private const val TAB_CONTENT: Int = 6
+private const val TAB_IAM: Int = 7
+private const val TAB_TENANTS: Int = 8
+private const val TAB_AUDIT: Int = 9
+private const val TAB_SPAM_DEFAULTS: Int = 10
+private const val TAB_PROVIDERS: Int = 11
 
 /** Renders [content] normally, or a centered [Spinner] in its place while [isLoading] — scoped to the current
  * tab's content area only, so a sibling tab's fetch never blocks this one. */
