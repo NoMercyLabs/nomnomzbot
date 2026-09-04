@@ -95,14 +95,13 @@ them CLOSED (`6b342371`), **2c** widget kind on the spine CLOSED (`debe2e42`). R
 the widget publish actually reach a viewer, **2d** system pipelines, **2e** code scripts — each reusing
 the real tenant-side editor, never a second worse one.
 
-- [ ] **S-ADMIN-2c-b Widget publish has to reach a viewer.** `debe2e42` shipped the widget kind with
-      passing tests over a capability that currently does nothing: nothing stamps
-      `Widget.PlatformSourceDefinitionId` on install (installs run through the separate
-      `WidgetGalleryItem`/`SourceRevision` path), so the fan-out reaches zero rows and every blast
-      radius truthfully reads 0; and a successful publish updates `Settings`/`EventSubscriptions` but
-      never rebuilds the compiled `WidgetVersion`, so viewers keep the old bundle. Also owed: the
-      Content tab is still command-only, with no Vue-source / settings-schema / event-subscription
-      authoring for the widget kind.
+- [ ] **S-ADMIN-2c-c Regenerate the contract snapshot.** `6c8e6dd0` added
+      `RebuildFailedWidgetIds` to `PlatformContentPublishJobDto`, so `server/openapi/v1.json` is
+      stale. Not breaking today — the guards are green because the Kotlin client does not consume
+      the field yet — but it must be regenerated FROM A RUNNING API, never hand-edited, and the
+      admin Content tab should surface a failed tenant rebuild rather than leaving it in the DTO
+      unread. Also owed from 2c: the Content tab is still command-only, with no Vue-source /
+      settings-schema / event-subscription authoring for the widget kind.
 
 2a shipped the entities, BOTH migration sets (proven on a POPULATED database via `migration-check.ps1`,
 not an empty one), the publish engine and `PlatformContentController`'s 9 routes. Two guards it added
