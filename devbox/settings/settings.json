@@ -13,6 +13,9 @@
   "terminal.integrated.allowChords": false,
   "git.enableSmartCommit": true,
   "vsicons.dontShowNewVersionMessage": true,
+  // todo-tree ships no ripgrep binary for this platform and errors on first activation without one;
+  // the Dockerfile installs the distro package.
+  "todo-tree.ripgrep": "/usr/bin/rg",
   "editor.formatOnSave": true,
   "editor.renderWhitespace": "trailing",
   "editor.rulers": [110],
