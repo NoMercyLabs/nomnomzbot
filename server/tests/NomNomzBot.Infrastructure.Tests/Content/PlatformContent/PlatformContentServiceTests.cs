@@ -852,5 +852,77 @@ public sealed class PlatformContentServiceTests : IAsyncDisposable
         Assert.Equal(IamOutcome.Allowed, auditRow.Outcome);
     }
 
+    // ---------------------------------------------------------------------------------------------------
+    // §3.1: retiring a definition stops it being offered again and touches NOTHING that is already
+    // installed. This is what makes RetireDefinition's [NotDestructive] classification true rather than
+    // merely present — the scanner accepts any classification, so only this test can catch a retire that
+    // grows a cascade.
+    // ---------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task RetireDefinition_StampsRetiredAt_AndLeavesEveryInstalledTenantCopyRunning()
+    {
+        (PlatformContentDefinition definition, PlatformContentVersion v1) =
+            await SeedPublishedDefinitionAsync();
+
+        Channel untouchedChannel = await AddChannelAsync("untouched-streamer");
+        ChannelBuiltinCommand untouchedRow = await AddBuiltinAsync(
+            untouchedChannel.Id,
+            "sr",
+            overridesJson: null,
+            definition.Id,
+            sourceVersion: 1,
+            v1.ContentHash
+        );
+
+        Channel customisedChannel = await AddChannelAsync("customised-streamer");
+        const string customPayload = "{\"cooldownSeconds\":99}";
+        ChannelBuiltinCommand customisedRow = await AddBuiltinAsync(
+            customisedChannel.Id,
+            "sr",
+            customPayload,
+            definition.Id,
+            sourceVersion: 1,
+            sourceHash: "a-hash-that-no-longer-matches"
+        );
+
+        PlatformContentService sut = CreateService();
+        Result result = await sut.RetireDefinitionAsync(_actingPrincipalId, definition.Id);
+
+        Assert.True(result.IsSuccess, result.ErrorMessage);
+
+        PlatformContentDefinition retired = await _db
+            .PlatformContentDefinitions.AsNoTracking()
+            .SingleAsync(d => d.Id == definition.Id);
+        Assert.NotNull(retired.RetiredAt);
+
+        // Both installed copies keep running, byte for byte: enabled, their own overrides, and still
+        // pointing at the definition they came from. A retire that cascaded would blank one of these.
+        ChannelBuiltinCommand untouchedAfter = await _db
+            .ChannelBuiltinCommands.AsNoTracking()
+            .SingleAsync(b => b.Id == untouchedRow.Id);
+        Assert.True(untouchedAfter.IsEnabled);
+        Assert.Null(untouchedAfter.OverridesJson);
+        Assert.Equal(definition.Id, untouchedAfter.PlatformSourceDefinitionId);
+        Assert.Equal(1, untouchedAfter.PlatformSourceVersion);
+        Assert.Equal(v1.ContentHash, untouchedAfter.PlatformSourceHash);
+
+        ChannelBuiltinCommand customisedAfter = await _db
+            .ChannelBuiltinCommands.AsNoTracking()
+            .SingleAsync(b => b.Id == customisedRow.Id);
+        Assert.True(customisedAfter.IsEnabled);
+        Assert.Equal(customPayload, customisedAfter.OverridesJson);
+        Assert.Equal(definition.Id, customisedAfter.PlatformSourceDefinitionId);
+        Assert.Equal(1, customisedAfter.PlatformSourceVersion);
+
+        // The published version itself survives — retiring the catalogue entry does not unpublish what
+        // tenants are already running from.
+        PlatformContentVersion versionAfter = await _db
+            .PlatformContentVersions.AsNoTracking()
+            .SingleAsync(v => v.Id == v1.Id);
+        Assert.NotNull(versionAfter.PublishedAt);
+        Assert.Equal(2, await _db.ChannelBuiltinCommands.CountAsync());
+    }
+
     public async ValueTask DisposeAsync() => await _db.DisposeAsync();
 }
