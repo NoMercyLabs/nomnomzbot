@@ -163,7 +163,7 @@ public sealed class DirectVtsTransport : IVtsTransport, IAsyncDisposable, IDispo
                 "VTS_TIMEOUT"
             );
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             await DropSessionAsync(broadcasterId, ex.Message);
             return Result.Failure<JsonDocument>(
@@ -257,7 +257,7 @@ public sealed class DirectVtsTransport : IVtsTransport, IAsyncDisposable, IDispo
                 await db.SaveChangesAsync(ct);
                 return connected;
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!ct.IsCancellationRequested)
             {
                 _logger.LogWarning(
                     ex,

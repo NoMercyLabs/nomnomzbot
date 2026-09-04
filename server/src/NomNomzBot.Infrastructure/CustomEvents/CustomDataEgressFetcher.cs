@@ -90,7 +90,7 @@ internal sealed class CustomDataEgressFetcher : ICustomDataEgressFetcher
         {
             response = await client.SendAsync(request, ct);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             return CustomDataEgressFetchResult.Fail(
                 CustomDataEgressFetchOutcome.HttpError,

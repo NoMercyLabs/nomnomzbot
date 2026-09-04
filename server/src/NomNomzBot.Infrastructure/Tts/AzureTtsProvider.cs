@@ -93,7 +93,7 @@ public sealed class AzureTtsProvider : ITtsProvider
                 ContentHash = hash,
             };
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             _logger.LogError(ex, "Azure TTS: Synthesis failed");
             return EmptyResult(voiceId);
@@ -139,7 +139,7 @@ public sealed class AzureTtsProvider : ITtsProvider
                 }),
             ];
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             _logger.LogError(ex, "Azure TTS: Failed to fetch voice list");
             return [];

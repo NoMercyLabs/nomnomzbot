@@ -117,7 +117,7 @@ public sealed class TwitchAppTokenProvider : ITwitchAppTokenProvider
         {
             resp = await _http.PostAsync(TokenEndpoint, form, ct);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             _logger.LogWarning(ex, "App token mint request failed.");
             return Result.Failure<string>(

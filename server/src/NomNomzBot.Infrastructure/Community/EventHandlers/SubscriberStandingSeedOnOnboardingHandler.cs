@@ -119,7 +119,7 @@ public sealed class SubscriberStandingSeedOnOnboardingHandler(
                 seeded
             );
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             logger.LogError(
                 ex,

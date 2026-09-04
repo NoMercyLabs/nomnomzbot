@@ -119,7 +119,7 @@ public sealed class MusicProviderServiceBackfillSeeder : ISeeder
                 if (await TryMirrorAsync(connection, broadcasterId, provider, ct))
                     backfilled++;
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!ct.IsCancellationRequested)
             {
                 // Fail-safe: one bad grant (crypto-shredded DEK, provider mid-migration, …) must not abort the
                 // startup seed for every other connection.

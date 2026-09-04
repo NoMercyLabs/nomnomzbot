@@ -100,7 +100,7 @@ public sealed class YouTubeServiceConnectionBackfillSeeder : ISeeder
                 if (await TryBackfillAsync(service, ct))
                     backfilled++;
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!ct.IsCancellationRequested)
             {
                 // Fail-safe: one malformed/undecryptable legacy row must not abort startup for every other
                 // channel's backfill.

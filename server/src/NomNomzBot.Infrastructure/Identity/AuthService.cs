@@ -1302,7 +1302,7 @@ public sealed class AuthService : IAuthService
                 user.CreatedAt
             );
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             _logger.LogError(ex, "Failed to fetch current Twitch user from token");
             return null;
@@ -1343,7 +1343,7 @@ public sealed class AuthService : IAuthService
             string? color = data?.Data?.FirstOrDefault()?.Color;
             return string.IsNullOrWhiteSpace(color) ? null : color;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             _logger.LogDebug(ex, "Best-effort chat color fetch failed; continuing without it");
             return null;

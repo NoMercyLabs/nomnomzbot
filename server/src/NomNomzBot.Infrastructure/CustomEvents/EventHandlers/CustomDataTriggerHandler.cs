@@ -68,7 +68,7 @@ public sealed class CustomDataTriggerHandler : IEventHandler<CustomDataReceivedE
                 cancellationToken
             );
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             // A trigger fault never propagates back into the event bus (a fault must not break ingest).
             _logger.LogWarning(

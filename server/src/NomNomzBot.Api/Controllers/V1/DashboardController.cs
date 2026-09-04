@@ -137,7 +137,7 @@ public class DashboardController : BaseController
             twitchTitle = channelInfoResult.IsSuccess ? channelInfoResult.Value.Title : null;
             twitchGame = channelInfoResult.IsSuccess ? channelInfoResult.Value.GameName : null;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             _logger.LogError(
                 ex,

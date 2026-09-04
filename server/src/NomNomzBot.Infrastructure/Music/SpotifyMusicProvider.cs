@@ -441,7 +441,7 @@ public sealed class SpotifyMusicProvider
                 cancellationToken: cancellationToken
             );
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             _logger.LogError(
                 ex,
@@ -1595,7 +1595,7 @@ public sealed class SpotifyMusicProvider
             _logger.LogInformation("Refreshed Spotify token for {BroadcasterId}", broadcasterId);
             return json.AccessToken;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             _logger.LogError(
                 ex,
@@ -1697,7 +1697,13 @@ public sealed class SpotifyMusicProvider
 
             return response;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        // Filter on the CALLER'S token, not the exception type. `ex is not OperationCanceledException`
+        // reads as "let shutdown through", but TaskCanceledException DERIVES from
+        // OperationCanceledException and HttpClient raises exactly that on its own timeout — so a slow
+        // Spotify call escaped this catch entirely and reached the controller as an unhandled 500 on
+        // GET /music/queue. Only a genuinely cancelled caller means "stop"; every other cancellation is a
+        // failed call to log and report as null. Same fix already applied in MusicStatePollingService.
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             _logger.LogError(ex, "Spotify API request failed: {Method} {Url}", method, url);
             return null;
@@ -1777,7 +1783,7 @@ public sealed class SpotifyMusicProvider
             // is forward-only, so without buffering the caller's re-read would see an empty body.
             await response.Content.LoadIntoBufferAsync();
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             _logger.LogError(ex, "Spotify player command failed: {Method} {Url}", method, url);
             return null;
@@ -1813,7 +1819,7 @@ public sealed class SpotifyMusicProvider
                     cancellationToken
                 );
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
             {
                 _logger.LogError(ex, "Spotify auto-transfer to last device failed");
                 transfer = response; // fall through with the original NO_ACTIVE_DEVICE response
@@ -1893,7 +1899,7 @@ public sealed class SpotifyMusicProvider
         {
             return await _http.SendAsync(request, cancellationToken);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             _logger.LogError(ex, "Spotify manage request failed: {Method} {Url}", method, url);
             return null;

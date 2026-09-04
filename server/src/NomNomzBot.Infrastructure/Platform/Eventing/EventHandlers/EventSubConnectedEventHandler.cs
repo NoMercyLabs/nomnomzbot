@@ -60,7 +60,7 @@ public sealed class EventSubConnectedEventHandler(
                 @event.BroadcasterId
             );
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             logger.LogError(
                 ex,

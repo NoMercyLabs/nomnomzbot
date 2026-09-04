@@ -61,7 +61,7 @@ public sealed class TtsVoiceCatalogSync : ITtsVoiceCatalogSync
             {
                 voices = await provider.GetVoicesAsync(cancellationToken);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
             {
                 _logger.LogWarning(
                     ex,

@@ -68,7 +68,7 @@ public sealed class TtsService : ITtsService
         {
             result = await provider.SynthesizeAsync(text, voiceId, ct);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             _logger.LogError(
                 ex,
@@ -117,7 +117,7 @@ public sealed class TtsService : ITtsService
                 IReadOnlyList<TtsVoiceInfo> voices = await provider.GetVoicesAsync(ct);
                 allVoices.AddRange(voices);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!ct.IsCancellationRequested)
             {
                 _logger.LogWarning(
                     ex,

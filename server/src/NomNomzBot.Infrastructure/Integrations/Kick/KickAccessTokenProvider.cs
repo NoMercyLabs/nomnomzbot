@@ -300,7 +300,7 @@ public sealed class KickAccessTokenProvider : IKickAccessTokenProvider
             );
             return token.AccessToken;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             _logger.LogError(
                 ex,

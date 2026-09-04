@@ -56,7 +56,7 @@ public sealed class RewardSeedOnOnboardingHandler(
                     result.ErrorCode
                 );
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             logger.LogError(
                 ex,

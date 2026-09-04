@@ -206,7 +206,7 @@ public sealed class TwitchTokenResolver(
         {
             connection = await ConnectionAsync(broadcasterId, UserProvider, ct);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch when (!ct.IsCancellationRequested)
         {
             // DB schema mismatch or transient error — degrade to "scope not granted" so the
             // sub-client returns a missing_scope failure rather than a 500.

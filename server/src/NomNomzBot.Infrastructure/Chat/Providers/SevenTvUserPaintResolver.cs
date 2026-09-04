@@ -91,7 +91,7 @@ public sealed class SevenTvUserPaintResolver : ISevenTvUserPaintResolver
             string json = await response.Content.ReadAsStringAsync(cancellationToken);
             return ParsePaintId(json);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             // A cosmetic is decoration. It must never cost a chatter their message, so every failure here is
             // swallowed to a debug line and the caller simply gets no paint.

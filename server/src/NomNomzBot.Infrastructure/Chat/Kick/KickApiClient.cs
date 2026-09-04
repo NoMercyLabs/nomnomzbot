@@ -345,7 +345,7 @@ public sealed class KickApiClient : IKickApiClient
             HttpResponseMessage response = await _http.SendAsync(request, cancellationToken);
             return MapStatus(response.StatusCode);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             _logger.LogError(ex, "Kick API call threw for {Operation}", operation);
             return Result.Failure("Kick is temporarily unavailable.", "SERVICE_UNAVAILABLE");
@@ -378,7 +378,7 @@ public sealed class KickApiClient : IKickApiClient
                 ? Result.Failure<TBody>("Kick is temporarily unavailable.", "SERVICE_UNAVAILABLE")
                 : Result.Success(body);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             _logger.LogError(ex, "Kick API call threw for {Operation}", operation);
             return Result.Failure<TBody>("Kick is temporarily unavailable.", "SERVICE_UNAVAILABLE");

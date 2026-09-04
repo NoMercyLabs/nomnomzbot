@@ -116,7 +116,7 @@ public sealed class InboundWebhookAutomationBridge : IEventHandler<InboundWebhoo
                 cancellationToken
             );
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             // A pipeline fault never propagates back into the event bus (bookkeeping must not break ingest).
             _logger.LogWarning(

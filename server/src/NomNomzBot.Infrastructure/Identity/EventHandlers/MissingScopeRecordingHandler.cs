@@ -96,7 +96,7 @@ public sealed class MissingScopeRecordingHandler(
                 CancellationToken.None
             );
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             logger.LogError(
                 ex,
