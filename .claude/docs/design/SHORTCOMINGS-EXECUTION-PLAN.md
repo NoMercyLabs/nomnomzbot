@@ -47,19 +47,12 @@ normalised and ToS-gray ships, with the documented path kept as fallback.
       with backoff and re-subscribe like `TwitchEventSubHostedService` already does. Done-when: a track change
       made in the Spotify client shows on the overlay without waiting for a poll tick, verified on the
       rendered overlay and not from a log line.
-- [ ] **S-MUSIC-2 Stop the widget guessing.** With push in place the 100 ms local progress ticker is
-      predicting against data that now arrives on time. Keep interpolation only for the progress BAR between
-      frames, and never let it change track identity, play state, or anything the operator reads as fact.
-- [ ] 🔴 **S-MUSIC-3 `!wrongsong` — the old bot's semantics, which we never implemented.** Owner: it "breaks
-      the queue and does not do what it is intended to do". The legacy implementation is the spec:
-      `SpotifyApiService.TryConsumeSkip(trackId)` marks a retracted track, and the websocket handler
-      auto-skips it the moment it starts playing. So: not yet playing → remove from the queue; already
-      playing → skip to the next and remove. Done-when: both paths demonstrated against a real queue.
 - [ ] **S-MUSIC-4 A short code per queued song.** Owner: "a 4 letter+digit hash to each song in the queue so
       that we can use that as a unique identifier". Removes the guesswork from `!wrongsong` (and from every
       other queue command) by naming the song instead of "your latest". Collision-free within a queue,
       readable aloud on stream, shown in the `sr_queue` widget and in chat confirmations.
-- [ ] **S-MUSIC-5 Now playing says who asked for it.** Owner: "the current playing song should say who
+- [ ] **S-MUSIC-5b Now playing says who asked for it — the widget half.** `!song` already names the
+      requester (`SongCurrentAction.cs`); `now_playing.vue` has no requester field at all. Owner: "the current playing song should say who
       redeemed it if it was redeemed by the sr command." Carry the requester through to the widget and the
       `!song` response; blank when the track was not requested.
 - [ ] **S-7TV-THEME Custom 7TV profile theme on overlays.** Owner: users with a 7TV subscription and a custom
@@ -163,74 +156,6 @@ The diagnosis is not "too many features". It is that ONE page carries four unrel
 person, tuning automatic enforcement, reviewing a queue, and reading history. Each wants a different
 posture, and stacking them makes every one of them harder to find.
 
-- [x] **S-UX-1 Map before moving anything.** DONE — the map is below. Counted on the real file: **49
-      list items** across **19 distinct sections** in one scroll, serving four different jobs.
-
-      | Section | Job | Opened | Goes to |
-      |---|---|---|---|
-      | Stats / shield toggle / quick action | act on a person, NOW | every stream | **Moderation desk** |
-      | Moderators (add / remove) | configure who may moderate | rarely | **Moderation desk** (see note) |
-      | Bans list | act on a person | often | **Moderation desk** |
-      | Unban requests | work a queue | daily | **Review queue** |
-      | Reports | work a queue | daily | **Review queue** |
-      | AutoMod queue | work a queue | per stream | **Review queue** |
-      | Spam review queue | work a queue | per stream | **Review queue** |
-      | Spam detections | work a queue | per stream | **Review queue** |
-      | Spam campaigns | work a queue | per incident | **Review queue** |
-      | Follow-bot blocks | work a queue | per incident | **Review queue** |
-      | Blocked terms | configure automation | rarely | **Enforcement rules** |
-      | AutoMod (own filters) | configure automation | rarely | **Enforcement rules** |
-      | Twitch AutoMod levels | configure automation | rarely | **Enforcement rules** |
-      | Chat filters | configure automation | rarely | **Enforcement rules** |
-      | Rules | configure automation | rarely | **Enforcement rules** |
-      | Trust automation + policy | configure automation | rarely | **Enforcement rules** |
-      | Spam defense | configure automation | rarely | **Enforcement rules** |
-      | Escalation policy | configure automation | rarely | **Enforcement rules** |
-      | Shared bans | configure automation | rarely | **Enforcement rules** |
-      | Shoutout default template | configure a message | rarely | **Enforcement rules** (see note) |
-      | Mod log | read history | when something is disputed | **History** |
-      | Nuke batches | read history | after a raid/spam wave | **History** |
-
-      **Two placement decisions worth arguing, since neither is obvious:**
-      *Moderators* is configuration, not enforcement, so it looks like it belongs with roles. It stays on
-      the desk because the moment a broadcaster reaches for it is mid-incident — "give this person the
-      power to help me right now" — and sending them to a settings page then is the wrong trade.
-      *Shoutout default template* is not moderation at all; it sits here only because the per-person
-      editor used to. With that editor now in Community (S-UX-2), the default is a lone stray. It moves
-      with the settings group for now and is flagged for a later home beside the channel's other default
-      messages, rather than being left to justify a section of its own.
-
-      **The count that matters:** four jobs, so four surfaces. The largest becomes Enforcement rules with
-      ten sections — still a lot, but ten things a person visits deliberately and reads carefully is a
-      different problem from nineteen things stacked in front of someone mid-stream.
-
-      **Spec impact:** `frontend-ia.md` §Moderation lists exactly one page. S-UX-3 must amend that table
-      before the split lands — the IA is authoritative and a split that contradicts it is drift, not a fix.
-- [x] **S-UX-2 Per-person things move to Community, behind the person.** DONE. The per-person editor is
-      gone from Moderation (−158 lines: three list items and both composables) and lives in the Community
-      viewer panel (+196 lines), beside watch time, engagement and the viewer's custom data. Because the
-      person is already open there, the operator no longer retypes the Twitch id and display name the old
-      editor demanded. `ShoutoutOverride` gained a `Kind` discriminator so the shoutout line and the raid
-      line are two independent rows for the same person — `ShoutoutAction` reads only `shoutout`, and the
-      write/delete are keyed on (target, kind) so editing one never touches the other. Migrations landed in
-      BOTH sets defaulting existing rows to `shoutout` (the generated default was `""`, which would have
-      orphaned every custom shoutout already written — proven on a populated upgrade, not just an empty db).
-      Moderation keeps the channel-wide DEFAULT template: that is configuration, not a person.
-      Evidence: 31 CommunityControllerTest cases green; 3 mutations (write ignores kind / delete ignores
-      kind / read ignores the person) each proven RED; backend `A_shoutout_reads_the_shoutout_line_and_
-      never_the_same_persons_raid_line` proven RED against a relaxed filter; full backend suite 6,213 green;
-      jvmTest + compileKotlinWasmJs green.
-- [x] **S-UX-3 Split the remaining page by job.** DONE (`4982c305`). Four pages — Moderation desk /
-      Review Queue / Enforcement Rules / History — built as the same screen with a different active
-      section rather than four copies of a 90-parameter composable. `frontend-ia.md` §Moderation amended
-      first. Every list item names its owning page, pinned by `ModerationSectionOwnershipTest` with two
-      mutations proven RED. No capability removed: all 47 owned sections survive and the count is asserted.
-- [x] **S-UX-5 Device breakpoints — the mechanism.** DONE (`11b82cd4`). `WindowSizeClass` (Compact/Medium/
-      Expanded at Material widths) provided once at the shell, measured on the CONTENT PANE so a screen is
-      not told it has the room the sidebar already spent. Mobile fixes the web build needed today: the
-      shell now collapses on a SHORT viewport too (a landscape phone is 844x390 and was getting the desktop
-      sidebar), `100dvh` so the bottom of the app is not behind mobile browser chrome, safe-area insets,
-      overscroll/touch-action, and a guard that keeps pinch-zoom available.
 - [ ] **S-UX-6 Device breakpoints — the per-screen sweep.** The mechanism exists; most screens have not
       been given a Compact layout yet. Measured by weighted-child count (`Modifier.weight(` per file), the
       screens most likely to squeeze on a narrow pane, worst first:
