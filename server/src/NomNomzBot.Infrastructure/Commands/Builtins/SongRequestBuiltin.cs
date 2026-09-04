@@ -12,7 +12,9 @@ using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Commands.Builtins;
 
@@ -25,11 +27,17 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
 {
     private readonly IMusicService _music;
     private readonly IBuiltinResponseComposer _composer;
+    private readonly IEventBus _events;
 
-    public SongRequestBuiltin(IMusicService music, IBuiltinResponseComposer composer)
+    public SongRequestBuiltin(
+        IMusicService music,
+        IBuiltinResponseComposer composer,
+        IEventBus events
+    )
     {
         _music = music;
         _composer = composer;
+        _events = events;
     }
 
     public string BuiltinKey => BuiltinResponseSlots.SongRequest.Key;
@@ -153,6 +161,28 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
         // resolution — the same OG-preview pipeline any pasted link already gets — turns this confirmation
         // into a real preview card (art, title, artist) instead of plain text.
         string trackLink = TrackWebLink(track);
+
+        // Replace the caller's own "!sr <url-or-query>" line in the overlay with the track's card. A QUERY
+        // carries no link at all, so the link-preview step can never help it — but the provider just told us
+        // the name, artist and artwork, which is better data than scraping OpenGraph would have produced
+        // anyway. Fire-and-forget by design: an overlay that misses this still shows the original line, and a
+        // failure here must never fail the song request itself.
+        if (!string.IsNullOrEmpty(context.MessageId))
+        {
+            await _events.PublishAsync(
+                new ChatMessageEnrichedEvent
+                {
+                    BroadcasterId = context.BroadcasterId,
+                    MessageId = context.MessageId,
+                    LinkUrl = trackLink,
+                    Title = track.Name,
+                    Description = track.Artist,
+                    ImageUrl = track.ImageUrl,
+                    Provider = track.Provider,
+                },
+                ct
+            );
+        }
 
         string message = await _composer.ComposeAsync(
             new()

@@ -278,6 +278,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 TriggeringUserId = @event.UserId,
                 TriggeringUserDisplayName = @event.UserDisplayName,
                 TriggeringUserLogin = @event.UserLogin,
+                MessageId = @event.MessageId,
                 RoleLevel = BadgeLevel(@event),
                 Args = args,
                 // A reply carries the parent message + author so a built-in can capture it (e.g. !quote add).
@@ -466,6 +467,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                         TriggeringUserId = @event.UserId,
                         TriggeringUserDisplayName = @event.UserDisplayName,
                         TriggeringUserLogin = @event.UserLogin,
+                        MessageId = @event.MessageId,
                         RoleLevel = BadgeLevel(@event),
                         Args = args,
                         ReplyParentMessageBody = @event.ReplyParentMessageBody,

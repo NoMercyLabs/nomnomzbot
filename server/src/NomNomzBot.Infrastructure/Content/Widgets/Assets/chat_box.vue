@@ -108,8 +108,22 @@ function clockLabel(iso: any): string {
 
 const KNOWN_BOTS: string[] = ['nightbot', 'streamelements', 'streamlabs', 'moobot', 'fossabot', 'wizebot']
 
+interface LinkCard {
+  linkUrl?: string
+  title?: string
+  description?: string
+  imageUrl?: string
+  provider?: string
+}
+
 interface ChatLine {
   id: string
+  // The RAW chat message id, unlike `id` which is suffixed with a sequence to stay unique when the same
+  // message id arrives twice. Enrichment arrives keyed on this one.
+  sourceId: string
+  // Set when the bot later learned what this line meant — a song request resolving to a real track. When
+  // present it REPLACES the body: the point is not to show "!sr <query>" and a card, it is to show the track.
+  card: LinkCard | null
   name: string
   color: string
   pronouns: string
@@ -173,6 +187,25 @@ function fragColor(c: any): Record<string, string> {
   return hex ? { color: hex } : {}
 }
 
+// A line already on screen turned out to mean something richer — a song request resolving to a real track.
+// Matched on the RAW message id; an id we never rendered (the line already scrolled off, or this overlay
+// started after it) simply finds nothing and is ignored.
+function onEnriched(e: any): void {
+  const id: string = e && e.messageId ? String(e.messageId) : ''
+  if (!id) return
+
+  const line: ChatLine | undefined = lines.value.find((l: ChatLine) => l.sourceId === id)
+  if (!line) return
+
+  line.card = {
+    linkUrl: e.linkUrl || undefined,
+    title: e.title || undefined,
+    description: e.description || undefined,
+    imageUrl: e.imageUrl || undefined,
+    provider: e.provider || undefined,
+  }
+}
+
 function onChat(m: any): void {
   if (!m || typeof m !== 'object') return
   const text: string = m.message || ''
@@ -182,6 +215,8 @@ function onChat(m: any): void {
 
   const line: ChatLine = {
     id: (m.id || '') + '-' + (++seq),
+    sourceId: m.id || '',
+    card: null,
     name: m.displayName || m.username || 'Someone',
     color: hexColor(m.color),
     pronouns: m.pronouns || '',
@@ -229,12 +264,14 @@ onMounted(() => {
     if (typeof s.showTimestamps === 'boolean') cfg.showTimestamps = s.showTimestamps
   })
   nnz.on('ChatMessage', onChat)
+  nnz.on('ChatMessageEnriched', onEnriched)
 })
 
 onUnmounted(() => {
   fadeTimers.forEach((t: number) => window.clearTimeout(t))
   if (!nnz) return
   nnz.off('ChatMessage', onChat)
+  nnz.off('ChatMessageEnriched', onEnriched)
 })
 </script>
 
@@ -263,7 +300,15 @@ onUnmounted(() => {
         <span v-if="l.isCheer && l.bitsAmount > 0" class="line-cheer-bits">{{ l.bitsAmount }} bits</span>
       </span>
       <span class="body">
-        <template v-if="l.fragments.length">
+        <!-- The bot resolved what this line meant: show THAT, not the command the viewer typed. -->
+        <a v-if="l.card" class="link-card" :href="l.card.linkUrl" target="_blank" rel="noopener noreferrer">
+          <img v-if="l.card.imageUrl" class="link-card-art" :src="l.card.imageUrl" alt="">
+          <span class="link-card-text">
+            <span class="link-card-title">{{ l.card.title }}</span>
+            <span v-if="l.card.description" class="link-card-sub">{{ l.card.description }}</span>
+          </span>
+        </a>
+        <template v-else-if="l.fragments.length">
           <template v-for="(fr, i) in l.fragments" :key="i">
             <!-- Backend-sanitized rich HTML (e.g. a subscriber's <marquee>/formatting). Rendered as-is; the server
                  is the only place that turns text into an html fragment, and it sanitizes before it ever gets here. -->
@@ -282,7 +327,17 @@ onUnmounted(() => {
             <!-- @mention: a highlighted chip always, additionally tinted with the mentioned user's chat colour
                  when known — a mention must stand out even with no known colour. -->
             <span v-else-if="fr.type === 'mention' && fr.mention" class="mention" :style="fragColor(fr.mention.color)">{{ '@' + (fr.mention.displayName || fr.mention.username || '') }}</span>
-            <!-- Shared link -->
+            <!-- Shared link. With an OpenGraph preview resolved it renders as a card rather than a bare url —
+                 that preview was already being fetched and attached by the backend and then thrown away here,
+                 so a pasted link showed as raw text no matter what the server had learned about it. -->
+            <a v-else-if="fr.type === 'link' && fr.linkUrl && fr.linkPreview && fr.linkPreview.title"
+               class="link-card" :href="fr.linkUrl" target="_blank" rel="noopener noreferrer">
+              <img v-if="fr.linkPreview.imageUrl" class="link-card-art" :src="fr.linkPreview.imageUrl" alt="">
+              <span class="link-card-text">
+                <span class="link-card-title">{{ fr.linkPreview.title }}</span>
+                <span v-if="fr.linkPreview.description" class="link-card-sub">{{ fr.linkPreview.description }}</span>
+              </span>
+            </a>
             <a v-else-if="fr.type === 'link' && fr.linkUrl" class="link" :href="fr.linkUrl" target="_blank" rel="noopener noreferrer">{{ fr.text || fr.linkUrl }}</a>
             <!-- Plain text (the default, escaped) -->
             <span v-else>{{ fr.text || '' }}</span>
@@ -472,6 +527,46 @@ onUnmounted(() => {
   vertical-align: middle;
   margin: 0 1px;
 }
+/* Link/track card. Inline-flex so it sits in the message body like any other fragment rather than breaking
+   the line, and capped in width so a long title cannot blow out the chat column. */
+.link-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  text-decoration: none;
+  vertical-align: middle;
+}
+
+.link-card-art {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex: none;
+}
+
+.link-card-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.link-card-title,
+.link-card-sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.link-card-sub {
+  opacity: 0.7;
+  font-size: 0.85em;
+}
+
 /* Minimal functional styling for the remaining body fragment types — the visual design is themed elsewhere. */
 .cheermote {
   height: 1.5em;
