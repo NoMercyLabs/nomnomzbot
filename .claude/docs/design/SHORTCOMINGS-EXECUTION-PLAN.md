@@ -75,8 +75,9 @@ obvious answer, so they get decided FIRST, in the spec, with the reasoning writt
 
 Spec settled in `spec/platform-admin.md` (`93289b10`): propagation = per-publish mode with a counted
 blast-radius preview; platform content is a TEMPLATE tenants instantiate. S-ADMIN-2 splits by content
-kind on that spine: ~~**2a** spine + system commands (backend)~~ CLOSED (`78f816eb`), **2b** the admin
-dashboard surface for them, **2c** first-party widgets, **2d** system pipelines, **2e** code scripts.
+kind on that spine: **2a** spine + system commands CLOSED (`78f816eb`), **2b** the admin surface for
+them CLOSED (`6b342371`), remaining: **2c** first-party widgets, **2d** system pipelines, **2e** code
+scripts — each reusing the real tenant-side editor, never a second worse one.
 
 2a shipped the entities, BOTH migration sets (proven on a POPULATED database via `migration-check.ps1`,
 not an empty one), the publish engine and `PlatformContentController`'s 9 routes. Two guards it added
