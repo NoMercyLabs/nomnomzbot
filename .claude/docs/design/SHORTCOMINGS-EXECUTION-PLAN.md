@@ -19,6 +19,24 @@ Slice IDs are stable; the order is the queue.
 
 ---
 
+## OWNER BUG 2026-09-04 — two chat messages per Twitch event (TOP PRIORITY)
+
+Owner, verbatim: "i have 2 messages per twitch event! prevent this from happeneing next slice".
+
+Redelivery dedup already exists and is NOT the hole: `NotificationDispatcher` derives a deterministic
+event id from the EventSub message id (`EventSubMessageId.ForMessageId`), so Twitch re-sending the same
+message id resolves to the stored row. A duplicate therefore means TWO DIFFERENT message ids for one
+real event — duplicate subscriptions for a (topic, broadcaster) accumulating across the ~5-minute
+reconnect, two sessions for one broadcaster, two responders to one trigger, or two running instances.
+
+- [ ] **S-DUPE One event, one response.** Find the specific root cause with file:line evidence and fix
+      it, AND add a structural guard so it cannot return by another of those routes — the owner asked
+      for prevention, not just this instance. A semantic dedup (broadcaster + subscription type +
+      the event's own natural key + a short window) collapses a double delivery whatever caused it.
+      Hard constraint: a LEGITIMATE repeat — the same viewer sending the same text twice on purpose,
+      two separate follows — must still get its own response. Swallowing those is a worse bug than the
+      one being fixed, and the tests must prove both directions.
+
 ## OVERLAY RENDER PROOF — done for the chat overlay, owed for the dashboard
 
 The chat overlay is now verified in a real browser: linear and radial paints render their true stops,
