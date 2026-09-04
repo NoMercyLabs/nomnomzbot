@@ -13,30 +13,37 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.PlatformContent;
+using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.PlatformContent.Entities;
+using NomNomzBot.Domain.Widgets.Entities;
 
 namespace NomNomzBot.Infrastructure.Content.PlatformContent;
 
 /// <summary>
-/// <see cref="IPlatformContentService"/> — this slice implements <c>Kind = "command"</c> only (system
-/// commands, backed by <see cref="ChannelBuiltinCommand"/>); publish is refused with
-/// <c>VALIDATION_FAILED</c> for the other three kinds since their tenant-side fan-out target does not
-/// exist yet (widgets-overlays / system pipelines / code scripts are separate follow-up slices per
-/// platform-admin.md §6). Every public method re-asserts the caller's Plane-C permission via
-/// <see cref="IPlatformIamService.AuthorizePlatformAsync"/> — the one call that both decides AND audits
-/// (roles-permissions.md's single authorization funnel, mirrored from <c>PlatformAdminService</c>). A
-/// <c>content:publish</c> fan-out additionally appends its OWN audit row once the job completes, carrying
-/// <see cref="IamAuditLog.AffectedTenantCount"/>/<see cref="IamAuditLog.PublishJobId"/> (§5) — those two
-/// fields are only known after the fan-out runs, so they cannot ride the upfront gate-check row.
+/// <see cref="IPlatformContentService"/> — this slice implements <c>Kind = "command"</c> (system commands,
+/// backed by <see cref="ChannelBuiltinCommand"/>) and <c>Kind = "widget"</c> (first-party overlay widgets,
+/// backed by <see cref="Widget"/>); publish is refused with <c>VALIDATION_FAILED</c> for the remaining two
+/// kinds since their tenant-side fan-out target does not exist yet (system pipelines / code scripts are
+/// separate follow-up slices per platform-admin.md §6). A widget version's <c>PayloadJson</c> is a
+/// <see cref="WidgetContentPayload"/> (Vue SFC source + default settings/subscriptions); publish compiles the
+/// source through <see cref="IVueSfcCompiler"/> BEFORE anything is written — a widget that cannot compile is
+/// rejected at publish time, never discovered by a viewer with a blank overlay. Every public method
+/// re-asserts the caller's Plane-C permission via <see cref="IPlatformIamService.AuthorizePlatformAsync"/> —
+/// the one call that both decides AND audits (roles-permissions.md's single authorization funnel, mirrored
+/// from <c>PlatformAdminService</c>). A <c>content:publish</c> fan-out additionally appends its OWN audit row
+/// once the job completes, carrying <see cref="IamAuditLog.AffectedTenantCount"/>/
+/// <see cref="IamAuditLog.PublishJobId"/> (§5) — those two fields are only known after the fan-out runs, so
+/// they cannot ride the upfront gate-check row.
 /// </summary>
 public sealed class PlatformContentService(
     IApplicationDbContext db,
     IPlatformIamService iam,
-    IUnitOfWork uow
+    IUnitOfWork uow,
+    IVueSfcCompiler vueCompiler
 ) : IPlatformContentService
 {
     public async Task<Result<PagedList<PlatformContentDefinitionDto>>> ListDefinitionsAsync(
@@ -287,11 +294,18 @@ public sealed class PlatformContentService(
 
         PublishSelection selection = await SelectTenantRowsAsync(definition, version, mode, ct);
 
-        List<string> sampleNames = await db
-            .ChannelBuiltinCommands.Where(b => selection.AffectedRowIds.Contains(b.Id))
-            .Join(db.Channels, b => b.BroadcasterId, c => c.Id, (b, c) => c.Name)
-            .Take(10)
-            .ToListAsync(ct);
+        List<string> sampleNames =
+            definition.Kind == PlatformContentKinds.Widget
+                ? await db
+                    .Widgets.Where(w => selection.AffectedRowIds.Contains(w.Id))
+                    .Join(db.Channels, w => w.BroadcasterId, c => c.Id, (w, c) => c.Name)
+                    .Take(10)
+                    .ToListAsync(ct)
+                : await db
+                    .ChannelBuiltinCommands.Where(b => selection.AffectedRowIds.Contains(b.Id))
+                    .Join(db.Channels, b => b.BroadcasterId, c => c.Id, (b, c) => c.Name)
+                    .Take(10)
+                    .ToListAsync(ct);
 
         return Result.Success(
             new PublishPreviewDto(
@@ -344,6 +358,13 @@ public sealed class PlatformContentService(
 
         (PlatformContentDefinition definition, PlatformContentVersion version) = loaded.Value;
 
+        if (definition.Kind == PlatformContentKinds.Widget)
+        {
+            Result compileGate = ValidateWidgetPayloadCompiles(version.PayloadJson);
+            if (compileGate.IsFailure)
+                return compileGate.WithValue<PlatformContentPublishJobDto>(null!);
+        }
+
         PublishSelection freshSelection = await SelectTenantRowsAsync(
             definition,
             version,
@@ -379,19 +400,22 @@ public sealed class PlatformContentService(
         {
             if (request.Mode != PlatformContentPublishModes.PublishAsNew)
             {
-                List<ChannelBuiltinCommand> targets = await db
-                    .ChannelBuiltinCommands.Where(b => freshSelection.AffectedRowIds.Contains(b.Id))
-                    .ToListAsync(ct);
-
-                foreach (ChannelBuiltinCommand row in targets)
-                {
-                    row.OverridesJson = version.PayloadJson == "{}" ? null : version.PayloadJson;
-                    row.PlatformSourceDefinitionId = definition.Id;
-                    row.PlatformSourceVersion = version.Version;
-                    row.PlatformSourceHash = version.ContentHash;
-                    row.PlatformSourceSyncedAt = now;
-                }
-                confirmedCount = targets.Count;
+                confirmedCount =
+                    definition.Kind == PlatformContentKinds.Widget
+                        ? await ApplyWidgetFanOutAsync(
+                            definition,
+                            version,
+                            freshSelection.AffectedRowIds,
+                            now,
+                            ct
+                        )
+                        : await ApplyCommandFanOutAsync(
+                            definition,
+                            version,
+                            freshSelection.AffectedRowIds,
+                            now,
+                            ct
+                        );
             }
 
             version.PublishedAt = version.PublishedAt ?? now;
@@ -489,6 +513,31 @@ public sealed class PlatformContentService(
         return Result.Success();
     }
 
+    // --- Compile gate (widget kind) -------------------------------------------------------------------
+
+    /// <summary>Compiles the widget payload's Vue SFC source through <see cref="IVueSfcCompiler"/> — a
+    /// stateless, DB-free check that runs BEFORE any tenant row is touched. A malformed payload or a source
+    /// that fails to compile fails the whole publish with <c>VALIDATION_FAILED</c>.</summary>
+    private Result ValidateWidgetPayloadCompiles(string payloadJson)
+    {
+        if (
+            !WidgetContentPayload.TryParse(
+                payloadJson,
+                out WidgetContentPayload? payload,
+                out string? error
+            )
+        )
+            return Result.Failure(error!, "VALIDATION_FAILED");
+
+        Result<VueSfcOutput> compiled = vueCompiler.Compile(payload!.SourceCode, "widget.vue");
+        return compiled.IsFailure
+            ? Result.Failure(
+                $"Widget source failed to compile: {compiled.ErrorMessage}",
+                "VALIDATION_FAILED"
+            )
+            : Result.Success();
+    }
+
     // --- Selection / fan-out -------------------------------------------------------------------------
 
     private readonly record struct PublishSelection(List<Guid> AffectedRowIds, int SkippedCount);
@@ -505,9 +554,20 @@ public sealed class PlatformContentService(
         CancellationToken ct
     )
     {
-        if (definition.Kind != PlatformContentKinds.Command)
-            return new PublishSelection([], 0);
+        return definition.Kind switch
+        {
+            PlatformContentKinds.Command => await SelectCommandRowsAsync(definition, mode, ct),
+            PlatformContentKinds.Widget => await SelectWidgetRowsAsync(definition, mode, ct),
+            _ => new PublishSelection([], 0),
+        };
+    }
 
+    private async Task<PublishSelection> SelectCommandRowsAsync(
+        PlatformContentDefinition definition,
+        string mode,
+        CancellationToken ct
+    )
+    {
         List<ChannelBuiltinCommand> installed = await db
             .ChannelBuiltinCommands.Where(b => b.BuiltinKey == definition.Key)
             .ToListAsync(ct);
@@ -542,6 +602,112 @@ public sealed class PlatformContentService(
                 }
                 return new PublishSelection(untouched, skipped);
         }
+    }
+
+    /// <summary>
+    /// The "installed" set for a widget definition is every tenant <see cref="Widget"/> row already stamped
+    /// with THIS <see cref="PlatformContentDefinition.Id"/> — a widget is opt-in per tenant (created by
+    /// install-from-gallery or an earlier publish), unlike a builtin command's one-row-per-channel shape, so
+    /// there is no name-derived candidate set to fall back to (the seeder principle's "never match by name"
+    /// guardrail applies here too).
+    /// </summary>
+    private async Task<PublishSelection> SelectWidgetRowsAsync(
+        PlatformContentDefinition definition,
+        string mode,
+        CancellationToken ct
+    )
+    {
+        List<Widget> installed = await db
+            .Widgets.Where(w => w.PlatformSourceDefinitionId == definition.Id)
+            .ToListAsync(ct);
+
+        switch (mode)
+        {
+            case PlatformContentPublishModes.PublishAsNew:
+                return new PublishSelection([], 0);
+
+            case PlatformContentPublishModes.Force:
+                return new PublishSelection([.. installed.Select(w => w.Id)], 0);
+
+            case PlatformContentPublishModes.UpdateInPlaceWhereUntouched:
+            default:
+                List<Guid> untouched = [];
+                int skipped = 0;
+                foreach (Widget row in installed)
+                {
+                    string liveHash = WidgetContentPayload.ComputeSettingsHash(
+                        row.Settings,
+                        row.EventSubscriptions
+                    );
+                    if (row.PlatformSourceHash == liveHash)
+                        untouched.Add(row.Id);
+                    else
+                        skipped++;
+                }
+                return new PublishSelection(untouched, skipped);
+        }
+    }
+
+    private async Task<int> ApplyCommandFanOutAsync(
+        PlatformContentDefinition definition,
+        PlatformContentVersion version,
+        List<Guid> affectedRowIds,
+        DateTime now,
+        CancellationToken ct
+    )
+    {
+        List<ChannelBuiltinCommand> targets = await db
+            .ChannelBuiltinCommands.Where(b => affectedRowIds.Contains(b.Id))
+            .ToListAsync(ct);
+
+        foreach (ChannelBuiltinCommand row in targets)
+        {
+            row.OverridesJson = version.PayloadJson == "{}" ? null : version.PayloadJson;
+            row.PlatformSourceDefinitionId = definition.Id;
+            row.PlatformSourceVersion = version.Version;
+            row.PlatformSourceHash = version.ContentHash;
+            row.PlatformSourceSyncedAt = now;
+        }
+        return targets.Count;
+    }
+
+    /// <summary>Writes the version's default settings/subscriptions onto every affected tenant
+    /// <see cref="Widget"/> row and stamps provenance. Does NOT compile a new <c>WidgetVersion</c>/bundle for
+    /// the tenant — the compile gate above already proved the SOURCE compiles; rebuilding each tenant's
+    /// active overlay bundle from that source is <c>WidgetService</c>'s job and is out of this slice's scope
+    /// (see the slice report).</summary>
+    private async Task<int> ApplyWidgetFanOutAsync(
+        PlatformContentDefinition definition,
+        PlatformContentVersion version,
+        List<Guid> affectedRowIds,
+        DateTime now,
+        CancellationToken ct
+    )
+    {
+        if (
+            !WidgetContentPayload.TryParse(
+                version.PayloadJson,
+                out WidgetContentPayload? payload,
+                out _
+            )
+        )
+            return 0;
+
+        List<Widget> targets = await db
+            .Widgets.Where(w => affectedRowIds.Contains(w.Id))
+            .ToListAsync(ct);
+
+        string settingsHash = payload!.ComputeSettingsHash();
+        foreach (Widget row in targets)
+        {
+            row.Settings = new Dictionary<string, object>(payload.DefaultSettings);
+            row.EventSubscriptions = [.. payload.DefaultEventSubscriptions];
+            row.PlatformSourceDefinitionId = definition.Id;
+            row.PlatformSourceVersion = version.Version;
+            row.PlatformSourceHash = settingsHash;
+            row.PlatformSourceSyncedAt = now;
+        }
+        return targets.Count;
     }
 
     private async Task AuditPublishOutcomeAsync(
@@ -599,7 +765,7 @@ public sealed class PlatformContentService(
                 "NOT_FOUND"
             );
 
-        if (definition.Kind != PlatformContentKinds.Command)
+        if (definition.Kind is not (PlatformContentKinds.Command or PlatformContentKinds.Widget))
             return Result.Failure<(PlatformContentDefinition, PlatformContentVersion)>(
                 $"Publishing kind '{definition.Kind}' is not supported yet.",
                 "VALIDATION_FAILED"

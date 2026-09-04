@@ -12,10 +12,12 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.PlatformContent;
+using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.PlatformContent.Entities;
+using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Infrastructure.Content.PlatformContent;
 using NSubstitute;
 
@@ -30,9 +32,11 @@ public sealed class PlatformContentServiceTests : IAsyncDisposable
 {
     private readonly PlatformContentTestDbContext _db = PlatformContentTestDbContext.New();
     private readonly IPlatformIamService _iam = Substitute.For<IPlatformIamService>();
+    private readonly IVueSfcCompiler _vueCompiler = Substitute.For<IVueSfcCompiler>();
     private readonly Guid _actingPrincipalId = Guid.NewGuid();
 
-    private PlatformContentService CreateService() => new(_db, _iam, new TestUnitOfWork(_db));
+    private PlatformContentService CreateService() =>
+        new(_db, _iam, new TestUnitOfWork(_db), _vueCompiler);
 
     public PlatformContentServiceTests()
     {
@@ -50,6 +54,77 @@ public sealed class PlatformContentServiceTests : IAsyncDisposable
                 Arg.Any<string?>()
             )
             .Returns(Result.Success(true));
+
+        // Widget-kind publishes gate on a real compile; default to a clean compile so command-kind tests and
+        // widget-kind "happy path" tests never need to stub this explicitly — only the compile-rejection test
+        // overrides it.
+        _vueCompiler
+            .Compile(Arg.Any<string>(), Arg.Any<string>())
+            .Returns(Result.Success(new VueSfcOutput("export default {}", "")));
+    }
+
+    private async Task<Widget> AddWidgetAsync(
+        Guid broadcasterId,
+        Dictionary<string, object> settings,
+        List<string> eventSubscriptions,
+        Guid? sourceDefinitionId,
+        int? sourceVersion,
+        string? sourceHash
+    )
+    {
+        Widget row = new()
+        {
+            Id = Guid.CreateVersion7(),
+            BroadcasterId = broadcasterId,
+            Name = "now-playing",
+            Framework = "vue",
+            Source = "first_party",
+            Settings = settings,
+            EventSubscriptions = eventSubscriptions,
+            PlatformSourceDefinitionId = sourceDefinitionId,
+            PlatformSourceVersion = sourceVersion,
+            PlatformSourceHash = sourceHash,
+            PlatformSourceSyncedAt = sourceDefinitionId is null ? null : DateTime.UtcNow,
+        };
+        _db.Widgets.Add(row);
+        await _db.SaveChangesAsync();
+        return row;
+    }
+
+    private async Task<(
+        PlatformContentDefinition Definition,
+        PlatformContentVersion V1
+    )> SeedPublishedWidgetDefinitionAsync(string key = "now-playing")
+    {
+        const string payload =
+            "{\"sourceCode\":\"<template><div/></template>\",\"defaultSettings\":{\"color\":\"red\"},\"defaultEventSubscriptions\":[\"music.now_playing\"]}";
+        PlatformContentDefinition definition = new()
+        {
+            Kind = PlatformContentKinds.Widget,
+            Key = key,
+            DisplayName = key,
+            CreatedAt = DateTime.UtcNow,
+            CreatedByPrincipalId = _actingPrincipalId,
+        };
+        _db.PlatformContentDefinitions.Add(definition);
+
+        PlatformContentVersion v1 = new()
+        {
+            DefinitionId = definition.Id,
+            Version = 1,
+            ContentHash = PlatformContentHash.ComputeHash(payload),
+            PayloadJson = payload,
+            DraftedAt = DateTime.UtcNow,
+            DraftedByPrincipalId = _actingPrincipalId,
+            PublishedAt = DateTime.UtcNow,
+            PublishedByPrincipalId = _actingPrincipalId,
+        };
+        _db.PlatformContentVersions.Add(v1);
+        definition.CurrentVersionId = v1.Id;
+        definition.LatestDraftVersionId = v1.Id;
+        await _db.SaveChangesAsync();
+
+        return (definition, v1);
     }
 
     private async Task<Channel> AddChannelAsync(string name)
@@ -509,6 +584,272 @@ public sealed class PlatformContentServiceTests : IAsyncDisposable
         Assert.True(publishResult.IsFailure);
         Assert.Equal("PREVIEW_STALE", publishResult.ErrorCode);
         Assert.Equal(0, await _db.PlatformContentPublishJobs.CountAsync());
+    }
+
+    // ---------------------------------------------------------------------------------------------------
+    // S-ADMIN-2c — widget kind on the same spine (platform-admin.md §3.1, generalized to Widget).
+    // ---------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task Widget_UpdateInPlaceWhereUntouched_ChangesUntouchedTenant_LeavesCustomisedTenantUnchanged()
+    {
+        (PlatformContentDefinition definition, PlatformContentVersion v1) =
+            await SeedPublishedWidgetDefinitionAsync();
+        string v1SettingsHash = WidgetContentPayload.ComputeSettingsHash(
+            new Dictionary<string, object> { ["color"] = "red" },
+            ["music.now_playing"]
+        );
+
+        Channel untouchedChannel = await AddChannelAsync("untouched-streamer");
+        Widget untouchedRow = await AddWidgetAsync(
+            untouchedChannel.Id,
+            new Dictionary<string, object> { ["color"] = "red" },
+            ["music.now_playing"],
+            definition.Id,
+            1,
+            v1SettingsHash
+        );
+
+        Channel customisedChannel = await AddChannelAsync("customised-streamer");
+        Widget customisedRow = await AddWidgetAsync(
+            customisedChannel.Id,
+            new Dictionary<string, object> { ["color"] = "blue" }, // tenant edited the colour
+            ["music.now_playing"],
+            definition.Id,
+            1,
+            v1SettingsHash
+        );
+
+        const string v2Payload =
+            "{\"sourceCode\":\"<template><div/></template>\",\"defaultSettings\":{\"color\":\"green\"},\"defaultEventSubscriptions\":[\"music.now_playing\"]}";
+        PlatformContentVersion v2 = new()
+        {
+            DefinitionId = definition.Id,
+            Version = 2,
+            ContentHash = PlatformContentHash.ComputeHash(v2Payload),
+            PayloadJson = v2Payload,
+            DraftedAt = DateTime.UtcNow,
+            DraftedByPrincipalId = _actingPrincipalId,
+        };
+        _db.PlatformContentVersions.Add(v2);
+        await _db.SaveChangesAsync();
+
+        PlatformContentService sut = CreateService();
+
+        Result<PlatformContentPublishJobDto> publishResult = await sut.PublishAsync(
+            _actingPrincipalId,
+            definition.Id,
+            v2.Id,
+            new PublishContentRequest(
+                PlatformContentPublishModes.UpdateInPlaceWhereUntouched,
+                PublishNote: null,
+                ConfirmedPreviewAffectedCount: 1
+            )
+        );
+
+        Assert.True(publishResult.IsSuccess, publishResult.ErrorMessage);
+        Assert.Equal(1, publishResult.Value.ConfirmedAffectedCount);
+
+        Widget untouchedAfter = await _db
+            .Widgets.AsNoTracking()
+            .SingleAsync(w => w.Id == untouchedRow.Id);
+        Assert.Equal("green", untouchedAfter.Settings["color"]);
+        Assert.Equal(2, untouchedAfter.PlatformSourceVersion);
+
+        Widget customisedAfter = await _db
+            .Widgets.AsNoTracking()
+            .SingleAsync(w => w.Id == customisedRow.Id);
+        Assert.Equal("blue", customisedAfter.Settings["color"]);
+        Assert.Equal(1, customisedAfter.PlatformSourceVersion);
+    }
+
+    [Fact]
+    public async Task Widget_PreviewPublish_ReturnsRealCounts_AndWritesNothing()
+    {
+        (PlatformContentDefinition definition, PlatformContentVersion v1) =
+            await SeedPublishedWidgetDefinitionAsync();
+        string v1SettingsHash = WidgetContentPayload.ComputeSettingsHash(
+            new Dictionary<string, object> { ["color"] = "red" },
+            ["music.now_playing"]
+        );
+
+        Channel untouched1 = await AddChannelAsync("untouched-1");
+        await AddWidgetAsync(
+            untouched1.Id,
+            new Dictionary<string, object> { ["color"] = "red" },
+            ["music.now_playing"],
+            definition.Id,
+            1,
+            v1SettingsHash
+        );
+        Channel customised = await AddChannelAsync("customised");
+        await AddWidgetAsync(
+            customised.Id,
+            new Dictionary<string, object> { ["color"] = "purple" },
+            ["music.now_playing"],
+            definition.Id,
+            1,
+            v1SettingsHash
+        );
+        Channel neverInstalled = await AddChannelAsync("never-installed");
+        await AddWidgetAsync(
+            neverInstalled.Id,
+            new Dictionary<string, object> { ["color"] = "red" },
+            ["music.now_playing"],
+            sourceDefinitionId: null,
+            null,
+            null
+        );
+
+        const string v2Payload =
+            "{\"sourceCode\":\"<template><div/></template>\",\"defaultSettings\":{\"color\":\"green\"},\"defaultEventSubscriptions\":[\"music.now_playing\"]}";
+        PlatformContentVersion v2 = new()
+        {
+            DefinitionId = definition.Id,
+            Version = 2,
+            ContentHash = PlatformContentHash.ComputeHash(v2Payload),
+            PayloadJson = v2Payload,
+            DraftedAt = DateTime.UtcNow,
+            DraftedByPrincipalId = _actingPrincipalId,
+        };
+        _db.PlatformContentVersions.Add(v2);
+        await _db.SaveChangesAsync();
+
+        PlatformContentService sut = CreateService();
+
+        Result<PublishPreviewDto> preview = await sut.PreviewPublishAsync(
+            _actingPrincipalId,
+            definition.Id,
+            v2.Id,
+            PlatformContentPublishModes.UpdateInPlaceWhereUntouched
+        );
+
+        Assert.True(preview.IsSuccess, preview.ErrorMessage);
+        Assert.Equal(1, preview.Value.AffectedCount); // untouched1 only
+        Assert.Equal(1, preview.Value.SkippedCount); // customised (never-installed isn't in the candidate set)
+
+        // Nothing written: every widget row still holds its original settings, and no publish job exists.
+        List<Widget> rows = await _db.Widgets.AsNoTracking().ToListAsync();
+        Assert.All(rows, w => Assert.True(w.PlatformSourceVersion is null or 1));
+        Assert.Equal(0, await _db.PlatformContentPublishJobs.CountAsync());
+    }
+
+    [Fact]
+    public async Task Widget_Publish_RejectsWhenSourceFailsToCompile_WritesNothing()
+    {
+        (PlatformContentDefinition definition, PlatformContentVersion v1) =
+            await SeedPublishedWidgetDefinitionAsync();
+        string v1SettingsHash = WidgetContentPayload.ComputeSettingsHash(
+            new Dictionary<string, object> { ["color"] = "red" },
+            ["music.now_playing"]
+        );
+        Channel channel = await AddChannelAsync("streamer");
+        Widget row = await AddWidgetAsync(
+            channel.Id,
+            new Dictionary<string, object> { ["color"] = "red" },
+            ["music.now_playing"],
+            definition.Id,
+            1,
+            v1SettingsHash
+        );
+
+        const string brokenPayload =
+            "{\"sourceCode\":\"<template><div></template>\",\"defaultSettings\":{\"color\":\"green\"},\"defaultEventSubscriptions\":[\"music.now_playing\"]}";
+        PlatformContentVersion v2 = new()
+        {
+            DefinitionId = definition.Id,
+            Version = 2,
+            ContentHash = PlatformContentHash.ComputeHash(brokenPayload),
+            PayloadJson = brokenPayload,
+            DraftedAt = DateTime.UtcNow,
+            DraftedByPrincipalId = _actingPrincipalId,
+        };
+        _db.PlatformContentVersions.Add(v2);
+        await _db.SaveChangesAsync();
+
+        _vueCompiler
+            .Compile(Arg.Any<string>(), Arg.Any<string>())
+            .Returns(
+                Result.Failure<VueSfcOutput>("Unclosed tag <div>.", "WIDGET_VUE_COMPILE_FAILED")
+            );
+
+        PlatformContentService sut = CreateService();
+
+        Result<PlatformContentPublishJobDto> publishResult = await sut.PublishAsync(
+            _actingPrincipalId,
+            definition.Id,
+            v2.Id,
+            new PublishContentRequest(
+                PlatformContentPublishModes.UpdateInPlaceWhereUntouched,
+                PublishNote: null,
+                ConfirmedPreviewAffectedCount: 1
+            )
+        );
+
+        Assert.True(publishResult.IsFailure);
+        Assert.Equal("VALIDATION_FAILED", publishResult.ErrorCode);
+        Assert.Equal(0, await _db.PlatformContentPublishJobs.CountAsync());
+
+        Widget rowAfter = await _db.Widgets.AsNoTracking().SingleAsync(w => w.Id == row.Id);
+        Assert.Equal("red", rowAfter.Settings["color"]);
+        Assert.Equal(1, rowAfter.PlatformSourceVersion);
+    }
+
+    [Fact]
+    public async Task Widget_Publish_WritesAuditRecordWithAffectedCountAndJobId()
+    {
+        (PlatformContentDefinition definition, PlatformContentVersion v1) =
+            await SeedPublishedWidgetDefinitionAsync();
+        string v1SettingsHash = WidgetContentPayload.ComputeSettingsHash(
+            new Dictionary<string, object> { ["color"] = "red" },
+            ["music.now_playing"]
+        );
+        Channel channel = await AddChannelAsync("streamer");
+        await AddWidgetAsync(
+            channel.Id,
+            new Dictionary<string, object> { ["color"] = "red" },
+            ["music.now_playing"],
+            definition.Id,
+            1,
+            v1SettingsHash
+        );
+
+        const string v2Payload =
+            "{\"sourceCode\":\"<template><div/></template>\",\"defaultSettings\":{\"color\":\"green\"},\"defaultEventSubscriptions\":[\"music.now_playing\"]}";
+        PlatformContentVersion v2 = new()
+        {
+            DefinitionId = definition.Id,
+            Version = 2,
+            ContentHash = PlatformContentHash.ComputeHash(v2Payload),
+            PayloadJson = v2Payload,
+            DraftedAt = DateTime.UtcNow,
+            DraftedByPrincipalId = _actingPrincipalId,
+        };
+        _db.PlatformContentVersions.Add(v2);
+        await _db.SaveChangesAsync();
+
+        PlatformContentService sut = CreateService();
+
+        Result<PlatformContentPublishJobDto> publishResult = await sut.PublishAsync(
+            _actingPrincipalId,
+            definition.Id,
+            v2.Id,
+            new PublishContentRequest(
+                PlatformContentPublishModes.UpdateInPlaceWhereUntouched,
+                null,
+                1
+            )
+        );
+        Assert.True(publishResult.IsSuccess, publishResult.ErrorMessage);
+        Guid jobId = publishResult.Value.Id;
+
+        IamAuditLog auditRow = await _db
+            .IamAuditLogs.AsNoTracking()
+            .SingleAsync(a => a.PublishJobId == jobId);
+        Assert.Equal("content:publish", auditRow.Permission);
+        Assert.Equal("widget:now-playing@v2", auditRow.TargetResource);
+        Assert.Equal(1, auditRow.AffectedTenantCount);
+        Assert.Equal(IamOutcome.Allowed, auditRow.Outcome);
     }
 
     public async ValueTask DisposeAsync() => await _db.DisposeAsync();

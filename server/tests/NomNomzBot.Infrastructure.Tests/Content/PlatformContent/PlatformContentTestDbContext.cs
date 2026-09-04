@@ -35,6 +35,7 @@ using NomNomzBot.Infrastructure.Commands.Persistence;
 using NomNomzBot.Infrastructure.Content.PlatformContent.Persistence;
 using NomNomzBot.Infrastructure.Platform.Persistence.Configurations;
 using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
+using NomNomzBot.Infrastructure.Widgets.Persistence;
 
 namespace NomNomzBot.Infrastructure.Tests.Content.PlatformContent;
 
@@ -89,6 +90,7 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
     public DbSet<PlatformContentVersion> PlatformContentVersions => Set<PlatformContentVersion>();
     public DbSet<PlatformContentPublishJob> PlatformContentPublishJobs =>
         Set<PlatformContentPublishJob>();
+    public DbSet<Widget> Widgets => Set<Widget>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -109,6 +111,7 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
         b.ApplyConfiguration(new PlatformContentDefinitionConfiguration());
         b.ApplyConfiguration(new PlatformContentVersionConfiguration());
         b.ApplyConfiguration(new PlatformContentPublishJobConfiguration());
+        b.ApplyConfiguration(new WidgetConfiguration());
 
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing
         // getter bodies; ignore every entity these tests do not exercise so the model stays minimal.
@@ -126,6 +129,7 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
         typeof(PlatformContentDefinition),
         typeof(PlatformContentVersion),
         typeof(PlatformContentPublishJob),
+        typeof(Widget),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -205,7 +209,6 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Giveaways.Entities.GiveawayCode> GiveawayCodes =>
         throw new NotSupportedException();
-    public DbSet<Widget> Widgets => throw new NotSupportedException();
     public DbSet<WidgetVersion> WidgetVersions => throw new NotSupportedException();
     public DbSet<WidgetGalleryItem> WidgetGalleryItems => throw new NotSupportedException();
     public DbSet<WidgetGallerySubmissionEvent> WidgetGallerySubmissionEvents =>

@@ -10414,6 +10414,19 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
 
+                    b.Property<Guid?>("PlatformSourceDefinitionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PlatformSourceHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime?>("PlatformSourceSyncedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("PlatformSourceVersion")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Settings")
                         .IsRequired()
                         .HasColumnType("text");
@@ -10435,6 +10448,8 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.HasIndex("BroadcasterId");
 
                     b.HasIndex("GalleryItemId");
+
+                    b.HasIndex("PlatformSourceDefinitionId");
 
                     b.HasIndex("Source");
 
