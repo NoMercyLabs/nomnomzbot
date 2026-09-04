@@ -15,31 +15,36 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 name: "PlatformSourceDefinitionId",
                 table: "Widgets",
                 type: "uuid",
-                nullable: true);
+                nullable: true
+            );
 
             migrationBuilder.AddColumn<string>(
                 name: "PlatformSourceHash",
                 table: "Widgets",
                 type: "character varying(64)",
                 maxLength: 64,
-                nullable: true);
+                nullable: true
+            );
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "PlatformSourceSyncedAt",
                 table: "Widgets",
                 type: "timestamp with time zone",
-                nullable: true);
+                nullable: true
+            );
 
             migrationBuilder.AddColumn<int>(
                 name: "PlatformSourceVersion",
                 table: "Widgets",
                 type: "integer",
-                nullable: true);
+                nullable: true
+            );
 
             migrationBuilder.CreateIndex(
                 name: "IX_Widgets_PlatformSourceDefinitionId",
                 table: "Widgets",
-                column: "PlatformSourceDefinitionId");
+                column: "PlatformSourceDefinitionId"
+            );
         }
 
         /// <inheritdoc />
@@ -47,23 +52,16 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
         {
             migrationBuilder.DropIndex(
                 name: "IX_Widgets_PlatformSourceDefinitionId",
-                table: "Widgets");
+                table: "Widgets"
+            );
 
-            migrationBuilder.DropColumn(
-                name: "PlatformSourceDefinitionId",
-                table: "Widgets");
+            migrationBuilder.DropColumn(name: "PlatformSourceDefinitionId", table: "Widgets");
 
-            migrationBuilder.DropColumn(
-                name: "PlatformSourceHash",
-                table: "Widgets");
+            migrationBuilder.DropColumn(name: "PlatformSourceHash", table: "Widgets");
 
-            migrationBuilder.DropColumn(
-                name: "PlatformSourceSyncedAt",
-                table: "Widgets");
+            migrationBuilder.DropColumn(name: "PlatformSourceSyncedAt", table: "Widgets");
 
-            migrationBuilder.DropColumn(
-                name: "PlatformSourceVersion",
-                table: "Widgets");
+            migrationBuilder.DropColumn(name: "PlatformSourceVersion", table: "Widgets");
         }
     }
 }
