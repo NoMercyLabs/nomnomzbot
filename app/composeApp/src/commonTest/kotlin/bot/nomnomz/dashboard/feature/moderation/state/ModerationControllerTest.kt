@@ -1107,7 +1107,7 @@ class ModerationControllerModeratorTests {
     }
 }
 
-private class FakeModerationApi(
+internal class FakeModerationApi(
     private val bansResults: List<ApiResult<List<BannedUser>>>,
     private val unbanResult: ApiResult<Unit> = ApiResult.Ok(Unit),
     private val modLogResult: ApiResult<List<ModLogEntry>> = ApiResult.Ok(emptyList()),
@@ -1155,18 +1155,44 @@ private class FakeModerationApi(
     override suspend fun setShoutoutTemplate(channelId: String, template: String?): ApiResult<Unit> =
         ApiResult.Ok(Unit)
 
+    // A REAL in-memory store, keyed the way the backend keys the row: (target, kind). A stub that swallowed
+    // the write and always read back an empty list could not tell "saved the raid line" apart from "saved
+    // nothing", nor catch a write that clobbered the other kind — which is the whole contract here.
+    val savedOverrides: MutableList<ShoutoutOverride> = mutableListOf()
+    var shoutoutOverridesResult: ApiResult<List<ShoutoutOverride>>? = null
+    var setShoutoutOverrideResult: ApiResult<Unit>? = null
+
     override suspend fun shoutoutOverrides(channelId: String): ApiResult<List<ShoutoutOverride>> =
-        ApiResult.Ok(emptyList())
+        shoutoutOverridesResult ?: ApiResult.Ok(savedOverrides.toList())
 
     override suspend fun setShoutoutOverride(
         channelId: String,
         targetTwitchUserId: String,
         targetDisplayName: String,
         messageTemplate: String,
-    ): ApiResult<Unit> = ApiResult.Ok(Unit)
+        kind: String,
+    ): ApiResult<Unit> {
+        setShoutoutOverrideResult?.let { return it }
+        savedOverrides.removeAll { it.targetTwitchUserId == targetTwitchUserId && it.kind == kind }
+        savedOverrides.add(
+            ShoutoutOverride(
+                targetTwitchUserId = targetTwitchUserId,
+                targetDisplayName = targetDisplayName,
+                messageTemplate = messageTemplate,
+                kind = kind,
+            )
+        )
+        return ApiResult.Ok(Unit)
+    }
 
-    override suspend fun deleteShoutoutOverride(channelId: String, targetTwitchUserId: String): ApiResult<Unit> =
-        ApiResult.Ok(Unit)
+    override suspend fun deleteShoutoutOverride(
+        channelId: String,
+        targetTwitchUserId: String,
+        kind: String,
+    ): ApiResult<Unit> {
+        savedOverrides.removeAll { it.targetTwitchUserId == targetTwitchUserId && it.kind == kind }
+        return ApiResult.Ok(Unit)
+    }
 
     // Single-result convenience for the read-only tests (one bans() result, default-OK unban).
     constructor(

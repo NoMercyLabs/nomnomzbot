@@ -10,6 +10,10 @@
 
 package bot.nomnomz.dashboard.feature.community.state
 
+import bot.nomnomz.dashboard.core.network.BannedUser
+import bot.nomnomz.dashboard.core.network.ShoutoutOverride
+import bot.nomnomz.dashboard.core.network.ShoutoutOverrideKind
+import bot.nomnomz.dashboard.feature.moderation.state.FakeModerationApi
 import bot.nomnomz.dashboard.core.designsystem.component.PickerOption
 import bot.nomnomz.dashboard.core.network.AnalyticsApi
 import bot.nomnomz.dashboard.core.network.AnalyticsSummary
@@ -60,7 +64,7 @@ class CommunityControllerTest {
                 membersResults = listOf(ApiResult.Ok(emptyList())),
                 memberResult = ApiResult.Ok(real),
             )
-        val controller = CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeUsersApi(), FakeViewerDataApi(), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge())
+        val controller = CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeUsersApi(), FakeViewerDataApi(), FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge())
         controller.load()
 
         val member: CommunityMember? = controller.memberDetail("42")
@@ -75,7 +79,7 @@ class CommunityControllerTest {
     fun member_detail_is_null_when_the_lookup_fails() = runTest {
         // Default memberResult is a 404 failure — the row then falls back to the name-only placeholder.
         val api = FakeCommunityApi(membersResults = listOf(ApiResult.Ok(emptyList())))
-        val controller = CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeUsersApi(), FakeViewerDataApi(), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge())
+        val controller = CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), api, FakeUsersApi(), FakeViewerDataApi(), FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge())
         controller.load()
 
         assertNull(controller.memberDetail("99"))
@@ -100,7 +104,7 @@ class CommunityControllerTest {
                     )
                 ),
                 FakeUsersApi(),
-                FakeViewerDataApi(), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge(),
+                FakeViewerDataApi(), FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge(),
             )
 
         controller.load()
@@ -121,7 +125,7 @@ class CommunityControllerTest {
                 FakeChannelsApi(ApiResult.Failure(ApiError(404, "NO_CHANNEL", "none onboarded"))),
                 FakeCommunityApi(ApiResult.Ok(emptyList())),
                 FakeUsersApi(),
-                FakeViewerDataApi(), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge(),
+                FakeViewerDataApi(), FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge(),
             )
 
         controller.load()
@@ -138,7 +142,7 @@ class CommunityControllerTest {
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 FakeCommunityApi(ApiResult.Failure(ApiError(500, "ERR", "boom"))),
                 FakeUsersApi(),
-                FakeViewerDataApi(), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge(),
+                FakeViewerDataApi(), FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge(),
             )
 
         controller.load()
@@ -155,7 +159,7 @@ class CommunityControllerTest {
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 FakeCommunityApi(ApiResult.Ok(emptyList())),
                 FakeUsersApi(),
-                FakeViewerDataApi(), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge(),
+                FakeViewerDataApi(), FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge(),
             )
 
         controller.load()
@@ -176,7 +180,7 @@ class CommunityControllerTest {
                     )
             )
         val controller =
-            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi(), FakeViewerDataApi(), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge())
+            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi(), FakeViewerDataApi(), FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge())
 
         controller.load()
         controller.setTrust("u1", CommunityTrustLevel.Vip)
@@ -199,7 +203,7 @@ class CommunityControllerTest {
                 trustResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope.")),
             )
         val controller =
-            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi(), FakeViewerDataApi(), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge())
+            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi(), FakeViewerDataApi(), FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge())
 
         controller.load()
         controller.setTrust("u1", CommunityTrustLevel.Moderator)
@@ -227,7 +231,7 @@ class CommunityControllerTest {
                     )
             )
         val controller =
-            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi(), FakeViewerDataApi(), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge())
+            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi(), FakeViewerDataApi(), FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge())
 
         controller.load()
         controller.ban("u1", "Spamming links")
@@ -250,7 +254,7 @@ class CommunityControllerTest {
                 banResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope.")),
             )
         val controller =
-            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi(), FakeViewerDataApi(), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge())
+            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi(), FakeViewerDataApi(), FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge())
 
         controller.load()
         controller.ban("u1", "Spamming links")
@@ -276,7 +280,7 @@ class CommunityControllerTest {
                     )
             )
         val controller =
-            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi(), FakeViewerDataApi(), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge())
+            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi(), FakeViewerDataApi(), FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge())
 
         controller.load()
         controller.unban("u1")
@@ -299,7 +303,7 @@ class CommunityControllerTest {
                 unbanResult = ApiResult.Failure(ApiError(403, "FORBIDDEN", "Missing scope.")),
             )
         val controller =
-            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi(), FakeViewerDataApi(), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge())
+            CommunityController(FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))), communityApi, FakeUsersApi(), FakeViewerDataApi(), FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge())
 
         controller.load()
         controller.unban("u1")
@@ -320,7 +324,7 @@ class CommunityControllerTest {
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 FakeCommunityApi(ApiResult.Ok(emptyList())),
                 FakeUsersApi(),
-                FakeViewerDataApi(), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge(),
+                FakeViewerDataApi(), FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge(),
             )
 
         // A successful upsert returns null (no error to surface) — the consequence the dialog keys off.
@@ -338,6 +342,7 @@ class CommunityControllerTest {
                     setResult =
                         ApiResult.Failure(ApiError(400, "TOO_LONG", "Value exceeds 500 characters."))
                 ),
+                FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())),
                 gdprApi = FakeGdprApi(),
                 fileBridge = FakeFileBridge(),
             )
@@ -369,6 +374,7 @@ class CommunityControllerTest {
                 FakeCommunityApi(ApiResult.Ok(listOf(member))),
                 FakeUsersApi(),
                 FakeViewerDataApi(),
+                FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())),
                 analyticsApi = analytics,
                 gdprApi = FakeGdprApi(),
                 fileBridge = FakeFileBridge(),
@@ -396,6 +402,7 @@ class CommunityControllerTest {
                 FakeCommunityApi(ApiResult.Ok(listOf(member))),
                 FakeUsersApi(),
                 FakeViewerDataApi(),
+                FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())),
                 analyticsApi = analytics,
                 gdprApi = FakeGdprApi(),
                 fileBridge = FakeFileBridge(),
@@ -416,6 +423,7 @@ class CommunityControllerTest {
                 FakeCommunityApi(ApiResult.Ok(emptyList())),
                 FakeUsersApi(),
                 FakeViewerDataApi(data = mapOf("deaths" to "12", "favorite_game" to "Elden Ring")),
+                FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())),
                 gdprApi = FakeGdprApi(),
                 fileBridge = FakeFileBridge(),
             )
@@ -442,7 +450,7 @@ class CommunityControllerTest {
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 communityApi,
                 FakeUsersApi(),
-                FakeViewerDataApi(), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge(),
+                FakeViewerDataApi(), FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge(),
             )
 
         controller.load()
@@ -472,7 +480,7 @@ class CommunityControllerTest {
                 FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
                 communityApi,
                 FakeUsersApi(),
-                FakeViewerDataApi(), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge(),
+                FakeViewerDataApi(), FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())), gdprApi = FakeGdprApi(), fileBridge = FakeFileBridge(),
             )
         controller.load()
 
@@ -503,6 +511,7 @@ class CommunityControllerTest {
                 FakeCommunityApi(ApiResult.Ok(emptyList())),
                 FakeUsersApi(),
                 FakeViewerDataApi(),
+                FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())),
                 gdprApi = gdpr,
                 fileBridge = bridge,
             )
@@ -522,6 +531,7 @@ class CommunityControllerTest {
                 FakeCommunityApi(ApiResult.Ok(emptyList())),
                 FakeUsersApi(),
                 FakeViewerDataApi(),
+                FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())),
                 gdprApi = FakeGdprApi(),
                 fileBridge = bridge,
             )
@@ -544,6 +554,7 @@ class CommunityControllerTest {
                 FakeCommunityApi(ApiResult.Ok(emptyList())),
                 FakeUsersApi(),
                 FakeViewerDataApi(),
+                FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())),
                 gdprApi =
                     FakeGdprApi(
                         ApiResult.Failure(ApiError(403, "FORBIDDEN", "compliance:erasure required."))
@@ -567,6 +578,7 @@ class CommunityControllerTest {
                 FakeCommunityApi(ApiResult.Ok(emptyList())),
                 FakeUsersApi(),
                 FakeViewerDataApi(),
+                FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())),
                 gdprApi = FakeGdprApi(),
                 fileBridge = bridge,
             )
@@ -574,6 +586,155 @@ class CommunityControllerTest {
 
         assertNull(controller.exportUserData("u1"))
     }
+
+    // ── Per-person message lines (S-UX-2) ────────────────────────────────────────────────────────────────
+    // These moved out of the Moderation page's per-person editor and into the Community viewer panel, where
+    // the operator has the person open already. The contract that makes that safe is the (target, kind) key:
+    // a channel's shoutout line and its raid line for the same person are two independent rows.
+
+    @Test
+    fun a_persons_shoutout_and_raid_lines_are_read_back_separately() = runTest {
+        val moderationApi = FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>()))
+        moderationApi.savedOverrides.add(
+            ShoutoutOverride("42", "Friend", "Go follow Friend!", ShoutoutOverrideKind.Shoutout)
+        )
+        moderationApi.savedOverrides.add(
+            ShoutoutOverride("42", "Friend", "Sending you to Friend!", ShoutoutOverrideKind.Raid)
+        )
+        // Someone else's line must not bleed into this person's panel.
+        moderationApi.savedOverrides.add(
+            ShoutoutOverride("99", "Stranger", "Not this one", ShoutoutOverrideKind.Shoutout)
+        )
+        val controller = communityController(moderationApi)
+        controller.load()
+
+        val lines: Map<String, String>? = controller.getPersonalMessages("42")
+
+        assertEquals(
+            mapOf(
+                ShoutoutOverrideKind.Shoutout to "Go follow Friend!",
+                ShoutoutOverrideKind.Raid to "Sending you to Friend!",
+            ),
+            lines,
+        )
+    }
+
+    @Test
+    fun a_person_with_no_lines_reads_as_empty_not_as_a_failure() = runTest {
+        // Empty and unreadable must stay distinguishable: the panel shows editable fields for the first,
+        // and an error for the second. Collapsing them would offer an editor over data it could not read.
+        val controller = communityController(FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())))
+        controller.load()
+
+        assertEquals(emptyMap(), controller.getPersonalMessages("42"))
+    }
+
+    @Test
+    fun a_failed_read_of_a_persons_lines_is_null_not_an_empty_map() = runTest {
+        val moderationApi = FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>()))
+        moderationApi.shoutoutOverridesResult = ApiResult.Failure(ApiError(500, "ERR", "boom"))
+        val controller = communityController(moderationApi)
+        controller.load()
+
+        assertNull(controller.getPersonalMessages("42"))
+    }
+
+    @Test
+    fun saving_a_raid_line_leaves_the_same_persons_shoutout_line_alone() = runTest {
+        // The bug this guards: one row per person would make the raid editor silently overwrite the shoutout
+        // the broadcaster wrote, and they would only find out on their next shoutout.
+        val moderationApi = FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>()))
+        val controller = communityController(moderationApi)
+        controller.load()
+
+        assertNull(
+            controller.setPersonalMessage("42", "Friend", ShoutoutOverrideKind.Shoutout, "Go follow Friend!")
+        )
+        assertNull(
+            controller.setPersonalMessage("42", "Friend", ShoutoutOverrideKind.Raid, "Sending you to Friend!")
+        )
+
+        assertEquals(
+            mapOf(
+                ShoutoutOverrideKind.Shoutout to "Go follow Friend!",
+                ShoutoutOverrideKind.Raid to "Sending you to Friend!",
+            ),
+            controller.getPersonalMessages("42"),
+        )
+    }
+
+    @Test
+    fun re_saving_one_kind_replaces_that_line_rather_than_adding_a_second() = runTest {
+        val moderationApi = FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>()))
+        val controller = communityController(moderationApi)
+        controller.load()
+
+        controller.setPersonalMessage("42", "Friend", ShoutoutOverrideKind.Shoutout, "First try")
+        controller.setPersonalMessage("42", "Friend", ShoutoutOverrideKind.Shoutout, "Better wording")
+
+        assertEquals(
+            mapOf(ShoutoutOverrideKind.Shoutout to "Better wording"),
+            controller.getPersonalMessages("42"),
+        )
+        assertEquals(1, moderationApi.savedOverrides.size)
+    }
+
+    @Test
+    fun clearing_the_raid_line_keeps_the_shoutout_line() = runTest {
+        val moderationApi = FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>()))
+        val controller = communityController(moderationApi)
+        controller.load()
+        controller.setPersonalMessage("42", "Friend", ShoutoutOverrideKind.Shoutout, "Go follow Friend!")
+        controller.setPersonalMessage("42", "Friend", ShoutoutOverrideKind.Raid, "Sending you to Friend!")
+
+        assertNull(controller.clearPersonalMessage("42", ShoutoutOverrideKind.Raid))
+
+        assertEquals(
+            mapOf(ShoutoutOverrideKind.Shoutout to "Go follow Friend!"),
+            controller.getPersonalMessages("42"),
+        )
+    }
+
+    @Test
+    fun a_write_before_a_channel_resolves_reports_the_no_channel_error_rather_than_reading_as_saved() =
+        runTest {
+            // load() never ran, so there is no channel to write to. Returning null here would tell the panel
+            // the line was saved and let the operator close the dialog believing it.
+            val controller =
+                communityController(FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>())))
+
+            assertNotNull(
+                controller.setPersonalMessage("42", "Friend", ShoutoutOverrideKind.Shoutout, "Go follow!")
+            )
+            assertNotNull(controller.clearPersonalMessage("42", ShoutoutOverrideKind.Shoutout))
+        }
+
+    @Test
+    fun a_rejected_line_surfaces_the_backends_own_message() = runTest {
+        // The backend rejects an unknown kind and an over-long template with a specific reason. Swallowing it
+        // and showing a generic "could not save" would hide the one thing that tells the operator what to fix.
+        val moderationApi = FakeModerationApi(ApiResult.Ok(emptyList<BannedUser>()))
+        moderationApi.setShoutoutOverrideResult =
+            ApiResult.Failure(ApiError(400, "BAD_REQUEST", "'nonsense' is not a message kind."))
+        val controller = communityController(moderationApi)
+        controller.load()
+
+        assertEquals(
+            "'nonsense' is not a message kind.",
+            controller.setPersonalMessage("42", "Friend", "nonsense", "Go follow!"),
+        )
+    }
+
+    private fun communityController(moderationApi: FakeModerationApi): CommunityController =
+        CommunityController(
+            FakeChannelsApi(ApiResult.Ok(ChannelSummary(id = "ch1"))),
+            FakeCommunityApi(ApiResult.Ok(emptyList())),
+            FakeUsersApi(),
+            FakeViewerDataApi(),
+            moderationApi,
+            gdprApi = FakeGdprApi(),
+            fileBridge = FakeFileBridge(),
+        )
 }
 
 private class FakeChannelsApi(private val result: ApiResult<ChannelSummary>) : ChannelsApi {

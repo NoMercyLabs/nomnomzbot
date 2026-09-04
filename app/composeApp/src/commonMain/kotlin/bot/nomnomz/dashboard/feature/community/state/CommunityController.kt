@@ -22,6 +22,8 @@ import bot.nomnomz.dashboard.core.network.CommunityPage
 import bot.nomnomz.dashboard.core.io.JournalFileIO
 import bot.nomnomz.dashboard.core.network.DataExport
 import bot.nomnomz.dashboard.core.network.GdprApi
+import bot.nomnomz.dashboard.core.network.ModerationApi
+import bot.nomnomz.dashboard.core.network.ShoutoutOverride
 import bot.nomnomz.dashboard.core.network.UserStats
 import bot.nomnomz.dashboard.core.network.UsersApi
 import bot.nomnomz.dashboard.core.network.ViewerAnalyticsProfile
@@ -41,6 +43,10 @@ class CommunityController(
     private val communityApi: CommunityApi,
     private val usersApi: UsersApi,
     private val viewerDataApi: ViewerDataApi,
+    // The per-person message lines (shoutout / raid) live behind the moderation API but belong to the PERSON,
+    // so they are edited here — in the panel that already shows who this viewer is — rather than on a
+    // channel-wide settings page where they were unfindable among fifteen unrelated sections.
+    private val moderationApi: ModerationApi,
     // Optional: the channel-scoped analytics facade the per-viewer detail panel reads a FOREIGN viewer's stats
     // through (`analytics/viewers/{internalUserId}`), which a moderator may call for anyone — unlike the self-only
     // usersApi.stats. Nullable so existing state-holder tests construct the controller without it.
@@ -300,6 +306,61 @@ class CommunityController(
             is ApiResult.Ok -> null
             is ApiResult.Failure -> result.error.message
         }
+
+    /**
+     * This channel's own custom lines for [targetTwitchUserId] — the shoutout line and the raid line — as a
+     * kind-keyed map. Returns an empty map when this person has neither, or null when the load failed, so the
+     * panel can tell "nothing written yet" apart from "could not read".
+     */
+    suspend fun getPersonalMessages(targetTwitchUserId: String): Map<String, String>? {
+        val channel: String = channelId ?: return null
+        return when (val result: ApiResult<List<ShoutoutOverride>> = moderationApi.shoutoutOverrides(channel)) {
+            is ApiResult.Ok ->
+                result.value
+                    .filter { it.targetTwitchUserId == targetTwitchUserId }
+                    .associate { it.kind to it.messageTemplate }
+            is ApiResult.Failure -> null
+        }
+    }
+
+    /**
+     * Write this channel's [kind] line for [targetTwitchUserId] ([ShoutoutOverrideKind]). Returns null on
+     * success or the backend's message on failure. Saving one kind never disturbs the other — the backend keys
+     * the row on (target, kind).
+     */
+    suspend fun setPersonalMessage(
+        targetTwitchUserId: String,
+        targetDisplayName: String,
+        kind: String,
+        messageTemplate: String,
+    ): String? {
+        val channel: String = channelId ?: return NoChannelError
+        return when (
+            val result: ApiResult<Unit> =
+                moderationApi.setShoutoutOverride(
+                    channelId = channel,
+                    targetTwitchUserId = targetTwitchUserId,
+                    targetDisplayName = targetDisplayName,
+                    messageTemplate = messageTemplate,
+                    kind = kind,
+                )
+        ) {
+            is ApiResult.Ok -> null
+            is ApiResult.Failure -> result.error.message
+        }
+    }
+
+    /** Clear this channel's [kind] line for [targetTwitchUserId]. Returns null on success, else the error. */
+    suspend fun clearPersonalMessage(targetTwitchUserId: String, kind: String): String? {
+        val channel: String = channelId ?: return NoChannelError
+        return when (
+            val result: ApiResult<Unit> =
+                moderationApi.deleteShoutoutOverride(channel, targetTwitchUserId, kind)
+        ) {
+            is ApiResult.Ok -> null
+            is ApiResult.Failure -> result.error.message
+        }
+    }
 
     /** Delete one custom-data [key] for [userId]. Returns null on success, or the error message on failure. */
     suspend fun deleteViewerDatum(userId: String, key: String): String? =

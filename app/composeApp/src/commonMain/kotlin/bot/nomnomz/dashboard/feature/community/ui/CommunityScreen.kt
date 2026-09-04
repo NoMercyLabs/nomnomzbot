@@ -70,6 +70,7 @@ import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.network.ShoutoutOverrideKind
 import bot.nomnomz.dashboard.core.network.ChatActivityEntry
 import bot.nomnomz.dashboard.core.network.CommunityMember
 import bot.nomnomz.dashboard.core.network.CommunityTrustLevel
@@ -85,6 +86,18 @@ import bot.nomnomz.dashboard.feature.shell.nav.rememberManageDecisionAtFloor
 import kotlinx.coroutines.launch
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.shell_nav_community
+import nomnomzbot.composeapp.generated.resources.community_messages_section
+import nomnomzbot.composeapp.generated.resources.community_messages_shoutout_label
+import nomnomzbot.composeapp.generated.resources.community_messages_raid_label
+import nomnomzbot.composeapp.generated.resources.community_messages_shoutout_help
+import nomnomzbot.composeapp.generated.resources.community_messages_raid_help
+import nomnomzbot.composeapp.generated.resources.community_messages_placeholder
+import nomnomzbot.composeapp.generated.resources.community_messages_save
+import nomnomzbot.composeapp.generated.resources.community_messages_clear
+import nomnomzbot.composeapp.generated.resources.community_messages_clear_title
+import nomnomzbot.composeapp.generated.resources.community_messages_clear_message
+import nomnomzbot.composeapp.generated.resources.community_messages_clear_confirm
+import nomnomzbot.composeapp.generated.resources.community_messages_error
 import nomnomzbot.composeapp.generated.resources.community_action_error
 import nomnomzbot.composeapp.generated.resources.community_chatter_row_type
 import nomnomzbot.composeapp.generated.resources.community_data_add
@@ -202,6 +215,10 @@ fun CommunityScreen(controller: CommunityController, role: ManagementRole?) {
     // the stats load so the data section shows even when the self-only stats call fails for a foreign viewer.
     var viewerData: Map<String, String>? by remember { mutableStateOf(null) }
     var viewerDataError: String? by remember { mutableStateOf(null) }
+    // This channel's own shoutout / raid lines for the selected viewer, keyed by kind. Loaded alongside the
+    // custom data; [personalMessagesError] separates a failed read from "this person has none written".
+    var personalMessages: Map<String, String>? by remember { mutableStateOf(null) }
+    var personalMessagesError: Boolean by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { controller.load() }
 
@@ -216,12 +233,17 @@ fun CommunityScreen(controller: CommunityController, role: ManagementRole?) {
         statsLoading = true
         viewerData = null
         viewerDataError = null
+        personalMessages = null
+        personalMessagesError = false
         viewerAnalytics = controller.getViewerAnalytics(target)
         statsData = controller.getUserStats(target.id)
         // Only a true error when NEITHER source produced anything (e.g. a foreign viewer with no internal id).
         statsError = viewerAnalytics == null && statsData == null
         statsLoading = false
         viewerData = controller.getViewerData(target.id)
+        val lines: Map<String, String>? = controller.getPersonalMessages(target.id)
+        personalMessagesError = lines == null
+        personalMessages = lines
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -273,6 +295,8 @@ fun CommunityScreen(controller: CommunityController, role: ManagementRole?) {
             viewerData = viewerData,
             dataWrite = dataWrite,
             dataError = viewerDataError,
+            personalMessages = personalMessages,
+            personalMessagesError = personalMessagesError,
             onSetDatum = { key, value ->
                 scope.launch {
                     val err: String? = controller.setViewerDatum(target.id, key, value)
@@ -285,6 +309,31 @@ fun CommunityScreen(controller: CommunityController, role: ManagementRole?) {
                     val err: String? = controller.deleteViewerDatum(target.id, key)
                     viewerDataError = err
                     if (err == null) viewerData = controller.getViewerData(target.id)
+                }
+            },
+            onSavePersonalMessage = { kind, messageTemplate ->
+                scope.launch {
+                    // The person is already resolved here, so the id and display name come from the row the
+                    // operator opened - they never retype a Twitch id the way the moderation page made them.
+                    val err: String? =
+                        controller.setPersonalMessage(target.id, name, kind, messageTemplate)
+                    viewerDataError = err
+                    if (err == null) {
+                        val lines: Map<String, String>? = controller.getPersonalMessages(target.id)
+                        personalMessagesError = lines == null
+                        personalMessages = lines
+                    }
+                }
+            },
+            onClearPersonalMessage = { kind ->
+                scope.launch {
+                    val err: String? = controller.clearPersonalMessage(target.id, kind)
+                    viewerDataError = err
+                    if (err == null) {
+                        val lines: Map<String, String>? = controller.getPersonalMessages(target.id)
+                        personalMessagesError = lines == null
+                        personalMessages = lines
+                    }
                 }
             },
             onExport = {
@@ -912,8 +961,14 @@ private fun ViewerStatsDialog(
     viewerData: Map<String, String>?,
     dataWrite: ManageDecision,
     dataError: String?,
+    // This channel's own lines for this person, keyed by [ShoutoutOverrideKind]. Null while loading or on a
+    // read failure; an empty map means "loaded, nothing written yet".
+    personalMessages: Map<String, String>?,
+    personalMessagesError: Boolean,
     onSetDatum: (key: String, value: String) -> Unit,
     onDeleteDatum: (key: String) -> Unit,
+    onSavePersonalMessage: (kind: String, messageTemplate: String) -> Unit,
+    onClearPersonalMessage: (kind: String) -> Unit,
     onExport: () -> Unit,
     onErase: () -> Unit,
     onDismiss: () -> Unit,
@@ -1017,6 +1072,18 @@ private fun ViewerStatsDialog(
                 Spacer(modifier = Modifier.height(spacing.s2))
                 Separator()
                 Spacer(modifier = Modifier.height(spacing.s2))
+                PersonalMessagesSection(
+                    name = name,
+                    messages = personalMessages,
+                    loadFailed = personalMessagesError,
+                    write = dataWrite,
+                    onSave = onSavePersonalMessage,
+                    onClear = onClearPersonalMessage,
+                )
+
+                Spacer(modifier = Modifier.height(spacing.s2))
+                Separator()
+                Spacer(modifier = Modifier.height(spacing.s2))
                 ViewerDataSection(
                     data = viewerData,
                     write = dataWrite,
@@ -1077,6 +1144,135 @@ private fun StatRow(label: String, value: String) {
     ) {
         Text(text = label, style = typography.sm, color = tokens.mutedForeground, modifier = Modifier.padding(end = spacing.s2))
         Text(text = value, style = typography.sm, color = tokens.foreground)
+    }
+}
+
+// This channel's OWN lines for this person: what the bot says when shouting them out, and what it says when
+// raiding them. Both are facts about a PERSON, so they are edited here - where the operator already sees who
+// this viewer is - rather than on a channel-wide settings page where a per-person editor asked them to retype
+// a Twitch id they had just looked up. Empty means "no custom line": the channel default is used, which is why
+// clearing is a plain action and not a destructive one.
+@Composable
+private fun PersonalMessagesSection(
+    name: String,
+    messages: Map<String, String>?,
+    loadFailed: Boolean,
+    write: ManageDecision,
+    onSave: (kind: String, messageTemplate: String) -> Unit,
+    onClear: (kind: String) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val typography = LocalTypography.current
+
+    Text(
+        text = stringResource(Res.string.community_messages_section),
+        style = typography.xs,
+        color = tokens.mutedForeground,
+    )
+
+    if (loadFailed) {
+        Text(
+            text = stringResource(Res.string.community_messages_error),
+            style = typography.sm,
+            color = tokens.destructive,
+        )
+        return
+    }
+
+    PersonalMessageField(
+        name = name,
+        kind = ShoutoutOverrideKind.Shoutout,
+        label = stringResource(Res.string.community_messages_shoutout_label),
+        help = stringResource(Res.string.community_messages_shoutout_help),
+        saved = messages?.get(ShoutoutOverrideKind.Shoutout),
+        write = write,
+        onSave = onSave,
+        onClear = onClear,
+    )
+    PersonalMessageField(
+        name = name,
+        kind = ShoutoutOverrideKind.Raid,
+        label = stringResource(Res.string.community_messages_raid_label),
+        help = stringResource(Res.string.community_messages_raid_help),
+        saved = messages?.get(ShoutoutOverrideKind.Raid),
+        write = write,
+        onSave = onSave,
+        onClear = onClear,
+    )
+}
+
+// One editable line. [saved] is the backend's current value (null = none written). The field re-seeds from
+// [saved] whenever it changes, so a save or a clear is reflected without the operator retyping. Save is
+// disabled until the text actually differs from what is stored - a Save that would write the same string is a
+// button that does nothing - and Clear only appears when there is something to clear.
+@Composable
+private fun PersonalMessageField(
+    name: String,
+    kind: String,
+    label: String,
+    help: String,
+    saved: String?,
+    write: ManageDecision,
+    onSave: (kind: String, messageTemplate: String) -> Unit,
+    onClear: (kind: String) -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val typography = LocalTypography.current
+
+    var draft: String by remember(kind) { mutableStateOf(saved.orEmpty()) }
+    var pendingClear: Boolean by remember(kind) { mutableStateOf(false) }
+    LaunchedEffect(saved) { draft = saved.orEmpty() }
+
+    ManageGate(decision = write) { enabled ->
+        Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
+            AppTextField(
+                value = draft,
+                onValueChange = { draft = it },
+                label = label,
+                placeholder = stringResource(Res.string.community_messages_placeholder),
+                enabled = enabled,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Text(text = help, style = typography.xs, color = tokens.mutedForeground)
+
+            Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                val canSave: Boolean = enabled && draft.trim().isNotBlank() && draft.trim() != saved.orEmpty()
+                TextButton(onClick = { if (canSave) onSave(kind, draft.trim()) }, enabled = canSave) {
+                    Text(
+                        text = stringResource(Res.string.community_messages_save),
+                        style = typography.sm,
+                        color = if (canSave) tokens.primary else tokens.mutedForeground,
+                        maxLines = 1,
+                    )
+                }
+                if (!saved.isNullOrBlank()) {
+                    TextButton(onClick = { pendingClear = true }, enabled = enabled) {
+                        Text(
+                            text = stringResource(Res.string.community_messages_clear),
+                            style = typography.sm,
+                            color = if (enabled) tokens.foreground else tokens.mutedForeground,
+                            maxLines = 1,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    if (pendingClear) {
+        ConfirmDialog(
+            title = stringResource(Res.string.community_messages_clear_title),
+            message = stringResource(Res.string.community_messages_clear_message, label.lowercase(), name),
+            confirmLabel = stringResource(Res.string.community_messages_clear_confirm),
+            dismissLabel = stringResource(Res.string.community_stats_close),
+            destructive = false,
+            onConfirm = {
+                pendingClear = false
+                onClear(kind)
+            },
+            onDismiss = { pendingClear = false },
+        )
     }
 }
 

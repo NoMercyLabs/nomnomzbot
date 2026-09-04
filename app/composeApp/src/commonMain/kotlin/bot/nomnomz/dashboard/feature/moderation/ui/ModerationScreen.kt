@@ -104,7 +104,6 @@ import bot.nomnomz.dashboard.core.network.ModerationStanding
 import bot.nomnomz.dashboard.core.network.ModerationStats
 import bot.nomnomz.dashboard.core.network.SharedBanSettings
 import bot.nomnomz.dashboard.core.network.SharedBanTrustedChannel
-import bot.nomnomz.dashboard.core.network.ShoutoutOverride
 import bot.nomnomz.dashboard.core.network.UserModerationContext
 import bot.nomnomz.dashboard.core.network.UserModerationHistorySummary
 import bot.nomnomz.dashboard.core.network.UserTrustSummary
@@ -203,12 +202,6 @@ import nomnomzbot.composeapp.generated.resources.moderation_shoutout_title
 import nomnomzbot.composeapp.generated.resources.moderation_shoutout_help
 import nomnomzbot.composeapp.generated.resources.moderation_shoutout_label
 import nomnomzbot.composeapp.generated.resources.moderation_shoutout_save
-import nomnomzbot.composeapp.generated.resources.moderation_shoutout_overrides_title
-import nomnomzbot.composeapp.generated.resources.moderation_shoutout_override_target_id_label
-import nomnomzbot.composeapp.generated.resources.moderation_shoutout_override_target_name_label
-import nomnomzbot.composeapp.generated.resources.moderation_shoutout_override_message_label
-import nomnomzbot.composeapp.generated.resources.moderation_shoutout_override_add
-import nomnomzbot.composeapp.generated.resources.moderation_shoutout_override_remove_action
 import nomnomzbot.composeapp.generated.resources.moderation_banned_by
 import nomnomzbot.composeapp.generated.resources.moderation_banned_on
 import nomnomzbot.composeapp.generated.resources.moderation_context_action_short
@@ -483,7 +476,6 @@ fun ModerationScreen(
                     sharedBanSettings = current.sharedBanSettings,
                     nukeBatches = current.nukeBatches,
                     shoutoutTemplate = current.shoutoutTemplate,
-                    shoutoutOverrides = current.shoutoutOverrides,
                     templateHelpersApi = templateHelpersApi,
                     // Computed from the very config objects enforcement reads — never a hardcoded claim.
                     automationLines =
@@ -577,10 +569,6 @@ fun ModerationScreen(
                         scope.launch { controller.sendAnnouncement(msg, color) }
                     },
                     onSaveShoutoutTemplate = { t -> scope.launch { controller.setShoutoutTemplate(t) } },
-                    onSaveShoutoutOverride = { id, name, template ->
-                        scope.launch { controller.setShoutoutOverride(id, name, template) }
-                    },
-                    onDeleteShoutoutOverride = { id -> scope.launch { controller.deleteShoutoutOverride(id) } },
                 )
         }
     }
@@ -650,7 +638,6 @@ private fun BansList(
     sharedBanSettings: SharedBanSettings?,
     nukeBatches: List<NetworkNukeBatch>,
     shoutoutTemplate: String?,
-    shoutoutOverrides: List<ShoutoutOverride>,
     templateHelpersApi: TemplateHelpersApi,
     // The derived "what happens automatically" account, plus the two broadcaster-gated editors behind it.
     automationLines: List<AutomationLine>,
@@ -714,8 +701,6 @@ private fun BansList(
     ) -> Unit,
     onSendAnnouncement: (message: String, color: String?) -> Unit,
     onSaveShoutoutTemplate: (String) -> Unit,
-    onSaveShoutoutOverride: (targetTwitchUserId: String, targetDisplayName: String, messageTemplate: String) -> Unit,
-    onDeleteShoutoutOverride: (targetTwitchUserId: String) -> Unit,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -1030,39 +1015,6 @@ private fun BansList(
                     templateHelpersApi = templateHelpersApi,
                     onSave = onSaveShoutoutTemplate,
                 )
-            }
-        }
-        item(key = "shoutout-overrides-header") {
-            Text(
-                text = stringResource(Res.string.moderation_shoutout_overrides_title),
-                style = typography.lg,
-                color = tokens.cardForeground,
-                maxLines = 1,
-            )
-        }
-        item(key = "shoutout-overrides-add") {
-            AddShoutoutOverrideRow(
-                manage = manage,
-                templateHelpersApi = templateHelpersApi,
-                onAdd = onSaveShoutoutOverride,
-            )
-        }
-        if (shoutoutOverrides.isNotEmpty()) {
-            item(key = "shoutout-overrides-card") {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column {
-                        shoutoutOverrides.forEachIndexed { index, override ->
-                            ShoutoutOverrideRow(
-                                override = override,
-                                manage = manage,
-                                onRemove = { onDeleteShoutoutOverride(override.targetTwitchUserId) },
-                            )
-                            if (index < shoutoutOverrides.lastIndex) {
-                                Separator()
-                            }
-                        }
-                    }
-                }
             }
         }
         item(key = "automod-header") {
@@ -2943,116 +2895,6 @@ private fun ShoutoutTemplateEditor(
                     )
                 }
             }
-        }
-    }
-}
-
-// This broadcaster's own personal shoutout line for one target — old-bot parity. Three fields: the
-// target's Twitch id (what !so actually matches on), a display name shown in the list, and the message.
-@Composable
-private fun AddShoutoutOverrideRow(
-    manage: ManageDecision,
-    templateHelpersApi: TemplateHelpersApi,
-    onAdd: (targetTwitchUserId: String, targetDisplayName: String, messageTemplate: String) -> Unit,
-) {
-    val spacing = LocalSpacing.current
-    var targetId: String by remember { mutableStateOf("") }
-    var targetName: String by remember { mutableStateOf("") }
-    var template: String by remember { mutableStateOf("") }
-
-    ManageGate(decision = manage) { enabled ->
-        Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
-                AppTextField(
-                    value = targetId,
-                    onValueChange = { targetId = it },
-                    label = stringResource(Res.string.moderation_shoutout_override_target_id_label),
-                    enabled = enabled,
-                    modifier = Modifier.weight(1f),
-                )
-                AppTextField(
-                    value = targetName,
-                    onValueChange = { targetName = it },
-                    label = stringResource(Res.string.moderation_shoutout_override_target_name_label),
-                    enabled = enabled,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-            AppTextField(
-                value = template,
-                onValueChange = { template = it },
-                label = stringResource(Res.string.moderation_shoutout_override_message_label),
-                enabled = enabled,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            TemplateHelpersLink(
-                context = TemplateHelperContext.Pipeline,
-                api = templateHelpersApi,
-                onInsert = { token -> template = if (template.isBlank()) token else "$template $token" },
-            )
-            val canSubmit: Boolean =
-                enabled && targetId.isNotBlank() && targetName.isNotBlank() && template.isNotBlank()
-            val tokens = LocalTokens.current
-            TextButton(
-                onClick = {
-                    if (canSubmit) {
-                        onAdd(targetId.trim(), targetName.trim(), template.trim())
-                        targetId = ""
-                        targetName = ""
-                        template = ""
-                    }
-                },
-                enabled = canSubmit,
-            ) {
-                Text(
-                    text = stringResource(Res.string.moderation_shoutout_override_add),
-                    color = if (canSubmit) tokens.primary else tokens.mutedForeground,
-                    maxLines = 1,
-                )
-            }
-        }
-    }
-}
-
-// One saved override row: target name + message + a Remove action (Editor floor).
-@Composable
-private fun ShoutoutOverrideRow(override: ShoutoutOverride, manage: ManageDecision, onRemove: () -> Unit) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-
-    val removeLabel: String =
-        stringResource(Res.string.moderation_shoutout_override_remove_action, override.targetDisplayName)
-
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = override.targetDisplayName,
-                style = typography.base,
-                color = tokens.cardForeground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = override.messageTemplate,
-                style = typography.sm,
-                color = tokens.mutedForeground,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        ManageGate(decision = manage) { enabled ->
-            GlyphButton(
-                icon = TrashGlyph,
-                label = removeLabel,
-                onClick = onRemove,
-                enabled = enabled,
-                tint = tokens.destructive,
-            )
         }
     }
 }
