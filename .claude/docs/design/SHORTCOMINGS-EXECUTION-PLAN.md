@@ -41,16 +41,6 @@ exactly the lag the owner sees — and it is why his Stream Deck plugin "does ju
 our poller. The dealer socket is undocumented, which the project's own rule already covers: incumbent-
 normalised and ToS-gray ships, with the documented path kept as fallback.
 
-- [ ] 🔴 **S-MUSIC-1 Push, not poll.** Add a Spotify realtime transport on `wss://dealer.spotify.com/`
-      publishing `PlaybackStateChangedEvent` the moment a frame lands, with `MusicStatePollingService` kept
-      as the fallback for when the socket is unavailable, unauthorised, or the provider is YouTube. Reconnect
-      with backoff and re-subscribe like `TwitchEventSubHostedService` already does. Done-when: a track change
-      made in the Spotify client shows on the overlay without waiting for a poll tick, verified on the
-      rendered overlay and not from a log line.
-- [ ] **S-MUSIC-4 A short code per queued song.** Owner: "a 4 letter+digit hash to each song in the queue so
-      that we can use that as a unique identifier". Removes the guesswork from `!wrongsong` (and from every
-      other queue command) by naming the song instead of "your latest". Collision-free within a queue,
-      readable aloud on stream, shown in the `sr_queue` widget and in chat confirmations.
 - [ ] **S-MUSIC-5b Now playing says who asked for it — the widget half.** `!song` already names the
       requester (`SongCurrentAction.cs`); `now_playing.vue` has no requester field at all. Owner: "the current playing song should say who
       redeemed it if it was redeemed by the sr command." Carry the requester through to the widget and the
