@@ -12,6 +12,7 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
@@ -28,6 +29,7 @@ using NomNomzBot.Application.Tts.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Domain.Chat.ValueObjects;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Infrastructure.Sandbox;
 
@@ -65,10 +67,20 @@ public sealed class ScriptHostBridge(
     IViewerAnalyticsService viewerAnalytics,
     ITtsConfigService ttsConfig,
     IScheduledPipelineService scheduledPipelines,
-    IApplicationDbContext db
+    IApplicationDbContext db,
+    ISevenTvUserPaintResolver paintResolver
 ) : IScriptHostBridge
 {
     private const int MaxResponseBytes = 256 * 1024;
+
+    // user.get's paint field is OMITTED (not null, not {}) for a viewer wearing no cosmetic — a script must be
+    // able to key off "is this field present" without inspecting every sub-field. The default JsonConvert
+    // settings elsewhere in this file serialize a null property AS null, so this one response needs its own
+    // NullValueHandling.Ignore settings rather than the ambient default.
+    private static readonly JsonSerializerSettings OmitNullSettings = new()
+    {
+        NullValueHandling = NullValueHandling.Ignore,
+    };
 
     // How many 100-row pages a name/title lookup will walk before giving up (bounded-and-allow).
     private const int MaxLookupPages = 10;
@@ -130,7 +142,8 @@ public sealed class ScriptHostBridge(
     private string? GetUser(string capabilityKey, IReadOnlyList<string> args, CancellationToken ct)
     {
         // The optional id arg names a user; default to the trigger user (host-supplied, never guest-forged).
-        // Public profile only — id/username/displayName/avatar. Email and other PII are deliberately withheld.
+        // Public profile only — id/username/displayName/avatar(/paint). Email and other PII are deliberately
+        // withheld.
         string subject =
             args.Count > 0 && !string.IsNullOrWhiteSpace(args[0]) ? args[0] : triggeringUserId;
         if (string.IsNullOrWhiteSpace(subject))
@@ -143,6 +156,14 @@ public sealed class ScriptHostBridge(
         if (user is null)
             return null;
 
+        // The 7TV "paint" this chatter wears, folded onto the SAME profile response rather than a second
+        // capability key — a script that wants "who is this and how do they render" makes one round trip, not
+        // two. Mirrors DashboardBroadcastHandler.MapPaint's null-in/null-out shape exactly: a viewer wearing no
+        // paint (or on a platform 7TV does not cover) produces no `paint` field at all, never an empty object.
+        ChatPaint? paint = string.IsNullOrEmpty(user.TwitchUserId)
+            ? null
+            : paintResolver.ResolveAsync(user.TwitchUserId, ct).GetAwaiter().GetResult();
+
         return JsonConvert.SerializeObject(
             new
             {
@@ -150,7 +171,17 @@ public sealed class ScriptHostBridge(
                 username = user.Username,
                 displayName = user.DisplayName,
                 avatarUrl = user.ProfileImageUrl,
-            }
+                paint = paint is null
+                    ? null
+                    : new
+                    {
+                        backgroundImage = paint.BackgroundImage,
+                        color = paint.Color,
+                        textShadow = paint.TextShadow,
+                        isImageOnly = paint.IsImageOnly,
+                    },
+            },
+            OmitNullSettings
         );
     }
 
