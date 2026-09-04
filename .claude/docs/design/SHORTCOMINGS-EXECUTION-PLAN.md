@@ -41,9 +41,13 @@ exactly the lag the owner sees — and it is why his Stream Deck plugin "does ju
 our poller. The dealer socket is undocumented, which the project's own rule already covers: incumbent-
 normalised and ToS-gray ships, with the documented path kept as fallback.
 
-- [ ] **S-7TV-THEME Custom 7TV profile theme on overlays.** Owner: users with a 7TV subscription and a custom
-      profile name theme should get it applied — the feather overlay using it as the backdrop for the profile
-      image, and the same in the chat overlay and chat header. Never filed before now.
+- [ ] **S-7TV-THEME-RENDER Prove the paint on a rendered overlay.** The chat overlay carries the
+      flattened paint CSS and image-layer paints are no longer dropped (`49f336b3`, `3950ceaf`);
+      the Lucky Feather ships as a bundle preset carrying the holder's paint (`338d3c3b`). None of
+      it has been seen in a browser. Real subjects: SoraRiku312 (image paint), LunaPlink and
+      stoneyEU (linear), LanyDelRey (radial); the owner's own accounts have NO paint, so his own
+      messages correctly show nothing and cannot be the test. Done-when: a paint-bearing chatter
+      renders painted and a paintless one renders exactly as before, both on the rendered overlay.
 
 ## OWNER REQUEST 2026-09-04 (b) — the admin plane a SaaS owner actually operates from
 
