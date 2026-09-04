@@ -32,12 +32,29 @@ namespace NomNomzBot.Infrastructure.Platform.Eventing;
 /// stream position. The pre-check makes the duplicate observable (<c>WasDuplicate</c>) without a second append,
 /// and the typed fan-out runs on the genuinely-new path only (a redelivery already fanned out the first time).
 /// </para>
+/// <para>
+/// That message-id dedupe cannot see the same real-world event delivered under TWO DIFFERENT message ids — the
+/// WebSocket reconnect grace window can hand one occurrence to both a dying session's subscription and its
+/// freshly re-homed replacement (S-DUPE). <see cref="IDuplicateNotificationSuppressor"/> is the second guard:
+/// a genuinely-new message-id still gets journaled (the raw delivery is always a truthful record), but the
+/// typed fan-out is skipped when the (broadcaster, subscription type, raw payload) triple was already claimed
+/// inside <see cref="SemanticDedupeWindow"/> — a legitimate repeat carries different payload bytes (a chat
+/// message's own <c>message_id</c>, a follow's <c>followed_at</c>, …) and is never suppressed.
+/// </para>
 /// </summary>
 public sealed class NotificationDispatcher : INotificationDispatcher
 {
+    // Twitch keeps a dying WebSocket session's subscriptions alive for ~1 minute after a reconnect
+    // (WebSocketEventSubTransport's stale-session comments) — a duplicate delivery riding that grace window
+    // lands within, at most, low tens of seconds of the original. Kept well short of a minute so a legitimate
+    // rapid repeat with coincidentally identical payload bytes (rare, but possible on a payload-sparse topic)
+    // is not swallowed by a needlessly wide window.
+    private static readonly TimeSpan SemanticDedupeWindow = TimeSpan.FromSeconds(30);
+
     private readonly IEventJournal _journal;
     private readonly IEventBus _eventBus;
     private readonly IEventSubTranslatorRegistry _translators;
+    private readonly IDuplicateNotificationSuppressor _duplicateSuppressor;
     private readonly TimeProvider _clock;
     private readonly ILogger<NotificationDispatcher> _logger;
 
@@ -45,6 +62,7 @@ public sealed class NotificationDispatcher : INotificationDispatcher
         IEventJournal journal,
         IEventBus eventBus,
         IEventSubTranslatorRegistry translators,
+        IDuplicateNotificationSuppressor duplicateSuppressor,
         TimeProvider clock,
         ILogger<NotificationDispatcher> logger
     )
@@ -52,6 +70,7 @@ public sealed class NotificationDispatcher : INotificationDispatcher
         _journal = journal;
         _eventBus = eventBus;
         _translators = translators;
+        _duplicateSuppressor = duplicateSuppressor;
         _clock = clock;
         _logger = logger;
     }
@@ -103,17 +122,45 @@ public sealed class NotificationDispatcher : INotificationDispatcher
             );
         }
 
-        // We reached the append because the pre-check found no existing row, so this is the genuinely-new
-        // path. (A concurrent redelivery is still safe: the journal's Unique(EventId) collapses it to one row;
-        // the next delivery's pre-check then observes it as the duplicate.)
-        await FanOutTypedAsync(notification, ct);
-        await PublishJournaledAsync(notification, appended.Value, wasDuplicate: false, ct);
+        // We reached the append because the pre-check found no existing row, so this is genuinely a new
+        // message-id. (A concurrent redelivery of the SAME message-id is still safe: the journal's
+        // Unique(EventId) collapses it to one row; the next delivery's pre-check then observes it as the
+        // duplicate.) That does not yet rule out a semantic duplicate — the same real-world event delivered
+        // under a DIFFERENT message-id (S-DUPE) — so claim the (broadcaster, type, payload) triple before
+        // fanning out; a second claim within the window skips fan-out but the row above still journals the
+        // genuine wire delivery.
+        bool claimedFirst = _duplicateSuppressor.TryClaim(
+            notification.BroadcasterId,
+            notification.SubscriptionType,
+            notification.Event.GetRawText(),
+            _clock.GetUtcNow(),
+            SemanticDedupeWindow
+        );
+        bool semanticDuplicate = !claimedFirst;
+
+        if (semanticDuplicate)
+            _logger.LogInformation(
+                "EventSub dispatch: suppressed a semantic duplicate of {Type} for {Broadcaster} "
+                    + "(message-id {MessageId} — same event, different delivery)",
+                notification.SubscriptionType,
+                notification.BroadcasterId,
+                notification.MessageId
+            );
+        else
+            await FanOutTypedAsync(notification, ct);
+
+        await PublishJournaledAsync(
+            notification,
+            appended.Value,
+            wasDuplicate: semanticDuplicate,
+            ct
+        );
 
         return Result.Success(
             new NotificationDispatchResult(
                 eventId,
                 appended.Value.StreamPosition,
-                WasDuplicate: false
+                WasDuplicate: semanticDuplicate
             )
         );
     }

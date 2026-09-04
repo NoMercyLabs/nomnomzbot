@@ -1556,6 +1556,10 @@ public static class DependencyInjection
         );
         services.AddSingleton<IEventSubTranslatorRegistry, EventSubTranslatorRegistry>();
 
+        // Second-layer dedupe guard (S-DUPE): singleton so its claim ledger survives the per-notification
+        // scope the dispatcher is resolved in — it must see claims made by earlier, already-disposed scopes.
+        services.AddSingleton<IDuplicateNotificationSuppressor, DuplicateNotificationSuppressor>();
+
         // The notification dispatcher is the single dedupe + journal + fan-out path both transports call.
         // Scoped: journals via the scoped IEventJournal (DbContext + IUnitOfWork).
         services.AddScoped<INotificationDispatcher, NotificationDispatcher>();
