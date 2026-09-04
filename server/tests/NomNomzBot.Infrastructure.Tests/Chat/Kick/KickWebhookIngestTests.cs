@@ -60,11 +60,26 @@ public sealed class KickWebhookIngestTests
         }
         """;
 
+    /// <param name="databaseName">
+    /// Pass the SAME name to two <see cref="Build"/> calls to put both ingests on ONE shared store — the test
+    /// analogue of two processes (a blue/green deploy overlap, or two instances behind a load balancer) racing
+    /// the same Kick redelivery. Omit it and each test gets its own isolated database, as before.
+    /// </param>
     private static (KickWebhookIngest Ingest, AuthDbContext Db, RecordingEventBus Bus) Build(
-        FakeBotSelfEchoGuard? guard = null
+        FakeBotSelfEchoGuard? guard = null,
+        string? databaseName = null,
+        bool throwOnPublish = false
     )
     {
-        AuthDbContext db = AuthTestBuilder.NewContext();
+        AuthDbContext db = databaseName is null
+            ? AuthTestBuilder.NewContext()
+            : AuthTestBuilder.NewContext(databaseName);
+        // A second ingest on the same store must not re-seed the channel the first one already wrote.
+        if (db.Channels.Any(c => c.Id == Tenant))
+        {
+            RecordingEventBus existingBus = new() { ThrowOnPublish = throwOnPublish };
+            return (BuildIngest(db, existingBus, guard), db, existingBus);
+        }
         db.Channels.Add(
             new()
             {
@@ -81,8 +96,16 @@ public sealed class KickWebhookIngestTests
         );
         db.SaveChanges();
 
-        RecordingEventBus bus = new();
-        KickWebhookIngest ingest = new(
+        RecordingEventBus bus = new() { ThrowOnPublish = throwOnPublish };
+        return (BuildIngest(db, bus, guard), db, bus);
+    }
+
+    private static KickWebhookIngest BuildIngest(
+        AuthDbContext db,
+        RecordingEventBus bus,
+        FakeBotSelfEchoGuard? guard
+    ) =>
+        new(
             db,
             bus,
             Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
@@ -90,8 +113,6 @@ public sealed class KickWebhookIngestTests
             NullLogger<KickWebhookIngest>.Instance,
             guard ?? new FakeBotSelfEchoGuard()
         );
-        return (ingest, db, bus);
-    }
 
     /// <summary>
     /// A hand-written <see cref="IBotSelfEchoGuard"/> double mirroring the real
@@ -763,6 +784,79 @@ public sealed class KickWebhookIngestTests
         bus.Published.OfType<GiftSubscriptionEvent>()
             .Should()
             .ContainSingle("a redelivery must not double-credit the gift");
+    }
+
+    [Fact]
+    public async Task A_delivery_whose_dispatch_throws_is_not_re_dispatched_on_retry()
+    {
+        // This is the test that actually separates claim-first from check-then-act, and it is deterministic
+        // where a Task.WhenAll race is not (two EF calls over one SQLite store do not reliably interleave —
+        // an earlier version of this test passed against BOTH shapes and therefore proved nothing).
+        //
+        // Old shape: read, dispatch, THEN write the claim. If dispatch throws, the claim is never written, so
+        // Kick's next redelivery of that same id dispatches again — the double side effect the guard exists
+        // to prevent. New shape: the claim is written FIRST, so the id is spent whatever dispatch does, which
+        // is exactly the "processed at most once" contract this code documents.
+        string database = Guid.NewGuid().ToString();
+        (KickWebhookIngest ingest, AuthDbContext db, RecordingEventBus bus) = Build(
+            databaseName: database,
+            throwOnPublish: true
+        );
+
+        string body = $$"""
+            {
+              "broadcaster": {{Broadcaster}},
+              "follower": { "user_id": 778, "username": "RacingFan", "channel_slug": "racingfan" }
+            }
+            """;
+
+        await Assert.ThrowsAnyAsync<Exception>(() =>
+            ingest.HandleAsync("channel.followed", body, "kick-evt-throw-1")
+        );
+
+        db.IdempotencyKeys.Count(k => k.Key == "kick-evt-throw-1")
+            .Should()
+            .Be(
+                1,
+                "the delivery id must be claimed before dispatch, so a failed dispatch still spends it"
+            );
+
+        // Kick redelivers. A second ingest over the SAME store is the redelivery arriving anywhere.
+        (KickWebhookIngest retry, _, RecordingEventBus retryBus) = Build(databaseName: database);
+        await retry.HandleAsync("channel.followed", body, "kick-evt-throw-1");
+
+        retryBus
+            .Published.OfType<FollowEvent>()
+            .Should()
+            .BeEmpty("the id was already claimed, so the redelivery must not dispatch again");
+        bus.Published.OfType<FollowEvent>()
+            .Should()
+            .BeEmpty("the first dispatch threw before publishing");
+    }
+
+    [Fact]
+    public async Task Two_deliveries_with_DIFFERENT_ids_both_fire()
+    {
+        // The guard that stops the fix becoming a worse bug: suppressing genuinely distinct events would be
+        // more damaging than the duplicate it replaces.
+        string database = Guid.NewGuid().ToString();
+        (KickWebhookIngest first, _, RecordingEventBus firstBus) = Build(databaseName: database);
+        (KickWebhookIngest second, _, RecordingEventBus secondBus) = Build(databaseName: database);
+
+        string body = $$"""
+            {
+              "broadcaster": {{Broadcaster}},
+              "follower": { "user_id": 779, "username": "SecondFan", "channel_slug": "secondfan" }
+            }
+            """;
+
+        await first.HandleAsync("channel.followed", body, "kick-evt-distinct-a");
+        await second.HandleAsync("channel.followed", body, "kick-evt-distinct-b");
+
+        int fired =
+            firstBus.Published.OfType<FollowEvent>().Count()
+            + secondBus.Published.OfType<FollowEvent>().Count();
+        fired.Should().Be(2, "two separate Kick deliveries are two real events, not a redelivery");
     }
 
     [Fact]

@@ -88,30 +88,81 @@ public sealed class KickWebhookIngest : IKickWebhookIngest
         // guarded here by the Kick-Event-Message-Id header so a redelivered follow/sub/gift/ban/redemption
         // is processed at most once instead of double-crediting or double-firing its alert.
         bool guardRedelivery = eventType != "chat.message.sent" && messageId.Length > 0;
-        if (guardRedelivery)
-        {
-            bool alreadyProcessed = await _db.IdempotencyKeys.AnyAsync(
-                k => k.Scope == RedeliveryScope && k.Key == messageId,
-                cancellationToken
-            );
-            if (alreadyProcessed)
-                return;
-        }
+        if (guardRedelivery && !await TryClaimRedeliveryAsync(messageId, cancellationToken))
+            return;
 
         await DispatchAsync(eventType, rawBody, cancellationToken);
+    }
 
-        if (guardRedelivery)
+    /// <summary>
+    /// Claims a Kick delivery id BEFORE dispatching it, with the same atomic insert-and-catch the EventSub
+    /// suppressor uses (<see cref="Application.Contracts.Twitch.IDuplicateNotificationSuppressor"/>). The
+    /// previous shape read <c>AnyAsync</c>, dispatched, and only then inserted the key — so two concurrent
+    /// deliveries of one redelivered event both passed the read and both fanned out, and the write that was
+    /// meant to stop the second happened after the damage. Kick redelivers on its own schedule, so this does
+    /// not need a deploy overlap to fire. Claiming first makes the unique constraint the arbiter: exactly one
+    /// caller wins, and the loser's <see cref="DbUpdateException"/> IS the "already processed" answer.
+    /// <para>
+    /// Kept as its own claim rather than routed through the EventSub suppressor: that interface is keyed on
+    /// (broadcaster, subscription type, raw payload) because Twitch gives no reliable per-delivery id, while
+    /// Kick hands us an explicit <c>Kick-Event-Message-Id</c> header, which is a better key than a payload
+    /// hash. Two call sites sharing a pattern is not yet cause to unify them behind an interface that fits
+    /// neither.
+    /// </para>
+    /// </summary>
+    /// <summary>
+    /// The "not tenant-scoped" broadcaster value for a Kick delivery claim. A Kick <c>Kick-Event-Message-Id</c>
+    /// is unique across the platform, so the claim needs no tenant — but it cannot be NULL, because the unique
+    /// index counts NULLs as distinct and would admit every duplicate.
+    /// </summary>
+    private static readonly Guid NotTenantScoped = Guid.Empty;
+
+    private async Task<bool> TryClaimRedeliveryAsync(
+        string messageId,
+        CancellationToken cancellationToken
+    )
+    {
+        DateTimeOffset now = _clock.GetUtcNow();
+
+        // Release an expired claim for this exact key first, so a legitimate later delivery carrying a reused
+        // id is not suppressed forever. Targeted at the unique key, not a scan.
+        DateTime nowUtc = now.UtcDateTime;
+        await _db
+            .IdempotencyKeys.Where(k =>
+                k.Scope == RedeliveryScope
+                && k.Key == messageId
+                && k.BroadcasterId == NotTenantScoped
+                && k.ExpiresAt <= nowUtc
+            )
+            .ExecuteDeleteAsync(cancellationToken);
+
+        _db.IdempotencyKeys.Add(
+            new Domain.Platform.Entities.IdempotencyKey
+            {
+                Scope = RedeliveryScope,
+                Key = messageId,
+                // MUST be non-null. The unique index is (Scope, Key, BroadcasterId), and SQL treats NULLs as
+                // DISTINCT in a unique index — so leaving this null lets every claim insert succeed and the
+                // constraint silently stops arbitrating. A Kick delivery id is globally unique already, so it
+                // is not tenant-scoped; Guid.Empty is the explicit "no tenant" value that still collides.
+                BroadcasterId = NotTenantScoped,
+                CreatedAt = nowUtc,
+                ExpiresAt = now.Add(RedeliveryRetention).UtcDateTime,
+            }
+        );
+
+        try
         {
-            _db.IdempotencyKeys.Add(
-                new Domain.Platform.Entities.IdempotencyKey
-                {
-                    Scope = RedeliveryScope,
-                    Key = messageId,
-                    CreatedAt = _clock.GetUtcNow().UtcDateTime,
-                    ExpiresAt = _clock.GetUtcNow().Add(RedeliveryRetention).UtcDateTime,
-                }
-            );
             await _db.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+        catch (DbUpdateException ex)
+        {
+            // Lost the race — another process, or an earlier delivery still inside the retention window,
+            // already holds this claim. Detach so the failed insert does not linger in the change tracker.
+            foreach (Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry entry in ex.Entries)
+                entry.State = Microsoft.EntityFrameworkCore.EntityState.Detached;
+            return false;
         }
     }
 

@@ -207,15 +207,28 @@ internal sealed class RecordingEventBus : IEventBus
 {
     public List<IDomainEvent> Published { get; } = [];
 
+    /// <summary>
+    /// Opt-in: make every publish throw, so a test can prove what an ingest does when its DISPATCH fails
+    /// rather than only when it succeeds. Default off — every existing user is unaffected.
+    /// </summary>
+    public bool ThrowOnPublish { get; init; }
+
     public Task PublishAsync<TEvent>(TEvent @event, CancellationToken cancellationToken = default)
         where TEvent : class, IDomainEvent
     {
+        if (ThrowOnPublish)
+            throw new InvalidOperationException("publish failed (test double)");
         Published.Add(@event);
         return Task.CompletedTask;
     }
 
     public void PublishFireAndForget<TEvent>(TEvent @event)
-        where TEvent : class, IDomainEvent => Published.Add(@event);
+        where TEvent : class, IDomainEvent
+    {
+        if (ThrowOnPublish)
+            throw new InvalidOperationException("publish failed (test double)");
+        Published.Add(@event);
+    }
 }
 
 /// <summary>
@@ -400,7 +413,12 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
 
         // At-most-once webhook/event redelivery marker (scalar-only, no navs) — mapped so KickWebhookIngest's
         // redelivery-dedupe tests can prove a repeated follow/sub/gift/ban/redemption is processed once.
-        b.Entity<NomNomzBot.Domain.Platform.Entities.IdempotencyKey>().HasKey(e => e.Id);
+        // The REAL configuration is applied, not a bare HasKey: the dedupe is an atomic insert that relies on
+        // the unique (Scope, Key, BroadcasterId) index to reject the loser of a race. With only a primary key
+        // mapped, the second insert would succeed and a concurrency test would pass while proving nothing.
+        b.ApplyConfiguration(
+            new NomNomzBot.Infrastructure.Platform.Persistence.Configurations.IdempotencyKeyConfiguration()
+        );
 
         // Mapped standalone (navs ignored, Channel.Moderators already ignored above) so the
         // ChannelAccessService tests can exercise the moderator-grant branch of tenant resolution.
