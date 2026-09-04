@@ -41,10 +41,6 @@ exactly the lag the owner sees — and it is why his Stream Deck plugin "does ju
 our poller. The dealer socket is undocumented, which the project's own rule already covers: incumbent-
 normalised and ToS-gray ships, with the documented path kept as fallback.
 
-- [ ] **S-MUSIC-5b Now playing says who asked for it — the widget half.** `!song` already names the
-      requester (`SongCurrentAction.cs`); `now_playing.vue` has no requester field at all. Owner: "the current playing song should say who
-      redeemed it if it was redeemed by the sr command." Carry the requester through to the widget and the
-      `!song` response; blank when the track was not requested.
 - [ ] **S-7TV-THEME Custom 7TV profile theme on overlays.** Owner: users with a 7TV subscription and a custom
       profile name theme should get it applied — the feather overlay using it as the backdrop for the profile
       image, and the same in the chat overlay and chat header. Never filed before now.
