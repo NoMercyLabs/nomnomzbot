@@ -292,5 +292,8 @@ public sealed record MusicQueueItem(
     string? ImageUrl,
     int DurationMs,
     string? RequestedBy,
-    int Cost = 0
+    int Cost = 0,
+    // The short speakable handle for this request (e.g. "K7QM") — what a viewer types to name it in
+    // !wrongsong. Empty for a request queued before codes existed.
+    string Code = ""
 );
