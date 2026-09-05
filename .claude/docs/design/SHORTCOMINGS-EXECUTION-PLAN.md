@@ -199,8 +199,18 @@ which is the exact method the test drives on a real `BillingTierService` — fal
 true after — and the expiry test asserts the capability is DENIED once expired, not merely that a
 field was read. The admin surface renders reason and expiry and shows the counted blast radius before
 the issue button enables.
-- [ ] **S-ADMIN-4c Invoices, dunning and refunds.** See invoices, dunning state and failed payments,
-      and refund. Never show a payment state the billing code does not actually act on.
+**S-ADMIN-4c CLOSED (`e0e766be`).** Invoices list with their real shape and ordering, refunds record
+the refunded amount and audit the actor with a second refund of the same invoice REJECTED rather than
+double-paying, and dunning is derived through one shared `Invoice.ResolveDunningStatus` — the same
+path the rest of the system reads, not a decorative badge. Both migration sets; snapshot regenerated
+through the script; the tab shows the counted amount before the destructive button commits.
+
+**Format-string trap found and fixed (`18c514de`).** `admin_tier_price` spelled the minor units
+`%2$02d`, which reads correct and is not: compose-resources ignores width and flag specifiers on a
+POSITIONAL argument, so a price of 10.05 rendered as 10.5 and had shipped that way since the tier
+editor landed. Nothing rendered that string in a test. Padding now happens in Kotlin, and a test
+asserts the rendered text — reverting the fix makes it fail. Both string tables swept: the only other
+positional flag is `%4$+d` in `games_history_row`, which no call site uses.
 **S-ADMIN-5 CLOSED (`2bfad340`).** Per-tenant and per-cohort flags, a staged percentage rollout and
 per-integration kill switches — all proven by enforcement, not persistence: a kill switch disables
 only the killed tenant, a tenant lands on the same side of a partial rollout every time, a 30%
