@@ -73,8 +73,11 @@ rendering as flat solid colour and fixed (`9d6dd1e8` — `background-size` was u
 clipped the top-left corner of a 384x128 texture into the name box). Every payload and mapper test was
 green throughout: this class of defect is only visible on screen.
 
-The Lucky Feather overlay carries the same paint code and got the same fix, but has NOT itself been
-opened in a browser.
+The Lucky Feather overlay is now verified in a browser too (2026-09-05): real `steal` events fired
+through its actual `lucky_feather.vue` source against the LAN dev box, with real 7TV fixtures — a
+paintless chatter renders a plain name with no stray style, a linear paint shows true diagonal
+banding, a radial paint shows real pink-white-purple stops, and an image paint shows the whole webp
+texture rather than a clipped corner. No defect: the `9d6dd1e8` fix already covers this widget.
 
 
 ## OWNER REQUEST 2026-09-04 (b) — the admin plane a SaaS owner actually operates from
