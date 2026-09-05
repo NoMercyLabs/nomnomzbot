@@ -70,6 +70,24 @@ public class Pipeline : SoftDeletableEntity, ITenantScoped
     /// for the dispatcher until then.</summary>
     public virtual ICollection<PipelineTrigger> Triggers { get; set; } = [];
 
+    /// <summary>Which <c>PlatformContentDefinition</c> (Kind=<c>pipeline</c>) this row was installed/seeded
+    /// from; null for a pipeline never installed via the platform-content spine (platform-admin.md §3.3).
+    /// Generalizes the same provenance shape already applied to <c>ChannelBuiltinCommand</c> and
+    /// <c>Widget</c>.</summary>
+    public Guid? PlatformSourceDefinitionId { get; set; }
+
+    /// <summary>The <c>PlatformContentVersion.Version</c> installed.</summary>
+    public int? PlatformSourceVersion { get; set; }
+
+    /// <summary>The <c>ContentHash</c> at install/last-sync time — compared against the canonicalized hash
+    /// of this row's live <see cref="GraphJsonCache"/> to decide "untouched" for
+    /// <c>update_in_place_where_untouched</c> publishes.</summary>
+    [MaxLength(64)]
+    public string? PlatformSourceHash { get; set; }
+
+    /// <summary>When this row last received a platform-originated update.</summary>
+    public DateTime? PlatformSourceSyncedAt { get; set; }
+
     [ForeignKey(nameof(BroadcasterId))]
     public virtual Channel Channel { get; set; } = null!;
 }

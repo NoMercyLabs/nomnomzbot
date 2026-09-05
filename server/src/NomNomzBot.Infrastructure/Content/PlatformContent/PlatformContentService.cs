@@ -8,8 +8,11 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Commands.Dtos;
+using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.PlatformContent;
@@ -21,18 +24,25 @@ using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.PlatformContent.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
+using PipelineEntity = NomNomzBot.Domain.Commands.Entities.Pipeline;
 
 namespace NomNomzBot.Infrastructure.Content.PlatformContent;
 
 /// <summary>
 /// <see cref="IPlatformContentService"/> — this slice implements <c>Kind = "command"</c> (system commands,
-/// backed by <see cref="ChannelBuiltinCommand"/>) and <c>Kind = "widget"</c> (first-party overlay widgets,
-/// backed by <see cref="Widget"/>); publish is refused with <c>VALIDATION_FAILED</c> for the remaining two
-/// kinds since their tenant-side fan-out target does not exist yet (system pipelines / code scripts are
-/// separate follow-up slices per platform-admin.md §6). A widget version's <c>PayloadJson</c> is a
-/// <see cref="WidgetContentPayload"/> (Vue SFC source + default settings/subscriptions); publish compiles the
-/// source through <see cref="IVueSfcCompiler"/> BEFORE anything is written — a widget that cannot compile is
-/// rejected at publish time, never discovered by a viewer with a blank overlay. Every public method
+/// backed by <see cref="ChannelBuiltinCommand"/>), <c>Kind = "widget"</c> (first-party overlay widgets,
+/// backed by <see cref="Widget"/>) and <c>Kind = "pipeline"</c> (system pipelines, backed by
+/// <see cref="PipelineEntity"/>); publish is refused with <c>VALIDATION_FAILED</c> for the remaining kind
+/// (code scripts) since its tenant-side fan-out target does not exist yet (a separate follow-up slice per
+/// platform-admin.md §6). A widget version's <c>PayloadJson</c> is a <see cref="WidgetContentPayload"/> (Vue
+/// SFC source + default settings/subscriptions); publish compiles the source through
+/// <see cref="IVueSfcCompiler"/> BEFORE anything is written — a widget that cannot compile is rejected at
+/// publish time, never discovered by a viewer with a blank overlay. A pipeline version's <c>PayloadJson</c>
+/// is the SAME wire-shape action graph <c>UpdatePipelineDto.GraphJsonCache</c> accepts (the tree editor's own
+/// format, built by <c>PipelineGraphBuilder</c>) — publish never re-implements graph validation or step
+/// persistence; it calls <see cref="IPipelineService.UpdateAsync"/> per affected tenant, the SAME entry point
+/// the dashboard's own pipeline editor uses, so a system pipeline is edited, validated and persisted through
+/// ONE machinery (platform-admin.md §2.2's "no second, worse pipeline editor"). Every public method
 /// re-asserts the caller's Plane-C permission via <see cref="IPlatformIamService.AuthorizePlatformAsync"/> —
 /// the one call that both decides AND audits (roles-permissions.md's single authorization funnel, mirrored
 /// from <c>PlatformAdminService</c>). A <c>content:publish</c> fan-out additionally appends its OWN audit row
@@ -45,7 +55,8 @@ public sealed class PlatformContentService(
     IPlatformIamService iam,
     IUnitOfWork uow,
     IVueSfcCompiler vueCompiler,
-    IWidgetService widgetService
+    IWidgetService widgetService,
+    IPipelineService pipelineService
 ) : IPlatformContentService
 {
     public async Task<Result<PagedList<PlatformContentDefinitionDto>>> ListDefinitionsAsync(
@@ -296,18 +307,24 @@ public sealed class PlatformContentService(
 
         PublishSelection selection = await SelectTenantRowsAsync(definition, version, mode, ct);
 
-        List<string> sampleNames =
-            definition.Kind == PlatformContentKinds.Widget
-                ? await db
-                    .Widgets.Where(w => selection.AffectedRowIds.Contains(w.Id))
-                    .Join(db.Channels, w => w.BroadcasterId, c => c.Id, (w, c) => c.Name)
-                    .Take(10)
-                    .ToListAsync(ct)
-                : await db
-                    .ChannelBuiltinCommands.Where(b => selection.AffectedRowIds.Contains(b.Id))
-                    .Join(db.Channels, b => b.BroadcasterId, c => c.Id, (b, c) => c.Name)
-                    .Take(10)
-                    .ToListAsync(ct);
+        List<string> sampleNames = definition.Kind switch
+        {
+            PlatformContentKinds.Widget => await db
+                .Widgets.Where(w => selection.AffectedRowIds.Contains(w.Id))
+                .Join(db.Channels, w => w.BroadcasterId, c => c.Id, (w, c) => c.Name)
+                .Take(10)
+                .ToListAsync(ct),
+            PlatformContentKinds.Pipeline => await db
+                .Pipelines.Where(p => selection.AffectedRowIds.Contains(p.Id))
+                .Join(db.Channels, p => p.BroadcasterId, c => c.Id, (p, c) => c.Name)
+                .Take(10)
+                .ToListAsync(ct),
+            _ => await db
+                .ChannelBuiltinCommands.Where(b => selection.AffectedRowIds.Contains(b.Id))
+                .Join(db.Channels, b => b.BroadcasterId, c => c.Id, (b, c) => c.Name)
+                .Take(10)
+                .ToListAsync(ct),
+        };
 
         return Result.Success(
             new PublishPreviewDto(
@@ -367,6 +384,13 @@ public sealed class PlatformContentService(
                 return compileGate.WithValue<PlatformContentPublishJobDto>(null!);
         }
 
+        if (definition.Kind == PlatformContentKinds.Pipeline)
+        {
+            Result parseGate = ValidatePipelinePayloadIsJson(version.PayloadJson);
+            if (parseGate.IsFailure)
+                return parseGate.WithValue<PlatformContentPublishJobDto>(null!);
+        }
+
         PublishSelection freshSelection = await SelectTenantRowsAsync(
             definition,
             version,
@@ -413,6 +437,18 @@ public sealed class PlatformContentService(
                     );
                     confirmedCount = widgetResult.Count;
                     job.RebuildFailedWidgetIds = widgetResult.RebuildFailedWidgetIds;
+                }
+                else if (definition.Kind == PlatformContentKinds.Pipeline)
+                {
+                    PipelineFanOutResult pipelineResult = await ApplyPipelineFanOutAsync(
+                        definition,
+                        version,
+                        freshSelection.AffectedRowIds,
+                        now,
+                        ct
+                    );
+                    confirmedCount = pipelineResult.Count;
+                    job.ValidationFailedPipelineIds = pipelineResult.ValidationFailedPipelineIds;
                 }
                 else
                 {
@@ -546,6 +582,28 @@ public sealed class PlatformContentService(
             : Result.Success();
     }
 
+    /// <summary>Pipeline kind's publish gate: the payload must at least be well-formed JSON before the
+    /// fan-out starts — a garbled draft never gets a chance to reach a single tenant row. The GRAPH itself
+    /// (action/condition types, step wiring) is deliberately NOT validated here: that validation runs once
+    /// PER TENANT inside <see cref="ApplyPipelineFanOutAsync"/> via <see cref="IPipelineService.UpdateAsync"/>
+    /// — the same gate the dashboard's own editor goes through — so this method stays a cheap parse check,
+    /// never a second, competing implementation of pipeline graph validation.</summary>
+    private static Result ValidatePipelinePayloadIsJson(string payloadJson)
+    {
+        try
+        {
+            using JsonDocument _ = JsonDocument.Parse(payloadJson);
+            return Result.Success();
+        }
+        catch (JsonException ex)
+        {
+            return Result.Failure(
+                $"Pipeline content payload is not valid JSON: {ex.Message}",
+                "VALIDATION_FAILED"
+            );
+        }
+    }
+
     // --- Selection / fan-out -------------------------------------------------------------------------
 
     private readonly record struct PublishSelection(List<Guid> AffectedRowIds, int SkippedCount);
@@ -566,6 +624,7 @@ public sealed class PlatformContentService(
         {
             PlatformContentKinds.Command => await SelectCommandRowsAsync(definition, mode, ct),
             PlatformContentKinds.Widget => await SelectWidgetRowsAsync(definition, mode, ct),
+            PlatformContentKinds.Pipeline => await SelectPipelineRowsAsync(definition, mode, ct),
             _ => new PublishSelection([], 0),
         };
     }
@@ -647,6 +706,47 @@ public sealed class PlatformContentService(
                         row.Settings,
                         row.EventSubscriptions
                     );
+                    if (row.PlatformSourceHash == liveHash)
+                        untouched.Add(row.Id);
+                    else
+                        skipped++;
+                }
+                return new PublishSelection(untouched, skipped);
+        }
+    }
+
+    /// <summary>
+    /// The "installed" set for a pipeline definition is every tenant <see cref="PipelineEntity"/> row
+    /// already stamped with THIS <see cref="PlatformContentDefinition.Id"/> — seeded by
+    /// <c>RaidFlowSeeder</c>/<c>RaidStartFlowSeeder</c>/<c>RaidCommitFlowSeeder</c> (or a later install), same
+    /// opt-in-per-tenant shape as the widget kind (no name-derived candidate set to fall back to; the
+    /// seeder principle's "never match by name" guardrail applies here too).
+    /// </summary>
+    private async Task<PublishSelection> SelectPipelineRowsAsync(
+        PlatformContentDefinition definition,
+        string mode,
+        CancellationToken ct
+    )
+    {
+        List<PipelineEntity> installed = await db
+            .Pipelines.Where(p => p.PlatformSourceDefinitionId == definition.Id)
+            .ToListAsync(ct);
+
+        switch (mode)
+        {
+            case PlatformContentPublishModes.PublishAsNew:
+                return new PublishSelection([], 0);
+
+            case PlatformContentPublishModes.Force:
+                return new PublishSelection([.. installed.Select(p => p.Id)], 0);
+
+            case PlatformContentPublishModes.UpdateInPlaceWhereUntouched:
+            default:
+                List<Guid> untouched = [];
+                int skipped = 0;
+                foreach (PipelineEntity row in installed)
+                {
+                    string liveHash = PlatformContentHash.ComputeHash(row.GraphJsonCache);
                     if (row.PlatformSourceHash == liveHash)
                         untouched.Add(row.Id);
                     else
@@ -763,6 +863,66 @@ public sealed class PlatformContentService(
         }
     }
 
+    private readonly record struct PipelineFanOutResult(
+        int Count,
+        List<Guid> ValidationFailedPipelineIds
+    );
+
+    /// <summary>
+    /// Runs the version's graph through <see cref="IPipelineService.UpdateAsync"/> for every affected tenant
+    /// <see cref="PipelineEntity"/> — the SAME create/validate/persist path the dashboard's own pipeline
+    /// tree editor uses (platform-admin.md §2.2), never a bespoke re-implementation. <c>UpdateAsync</c>
+    /// validates the graph through <c>ICommandConfigValidator</c> BEFORE touching the row's
+    /// <c>GraphJsonCache</c>/<c>PipelineStep</c> rows (<c>PipelineService.ValidateAndSerializeGraphAsync</c>
+    /// runs, and only on success does the entity get mutated and saved) — so a tenant whose graph fails
+    /// validation is left with its exact PREVIOUS working graph untouched, and is recorded in
+    /// <see cref="PipelineFanOutResult.ValidationFailedPipelineIds"/> rather than silently skipped. Only a
+    /// tenant whose update actually succeeded gets its provenance (<see cref="PipelineEntity.PlatformSourceDefinitionId"/>/
+    /// <c>Version</c>/<c>Hash</c>/<c>SyncedAt</c>) stamped — a failed tenant's stored provenance hash is left
+    /// exactly as it was, so it is offered again on the next publish rather than being mistaken for
+    /// "already on the new version". One tenant's failure never aborts the rest of the fan-out.
+    /// </summary>
+    private async Task<PipelineFanOutResult> ApplyPipelineFanOutAsync(
+        PlatformContentDefinition definition,
+        PlatformContentVersion version,
+        List<Guid> affectedRowIds,
+        DateTime now,
+        CancellationToken ct
+    )
+    {
+        JsonElement graph = JsonSerializer.Deserialize<JsonElement>(version.PayloadJson);
+
+        List<PipelineEntity> targets = await db
+            .Pipelines.Where(p => affectedRowIds.Contains(p.Id))
+            .ToListAsync(ct);
+
+        List<Guid> validationFailedPipelineIds = [];
+        int appliedCount = 0;
+        foreach (PipelineEntity row in targets)
+        {
+            Result<PipelineDto> updateResult = await pipelineService.UpdateAsync(
+                row.BroadcasterId.ToString(),
+                row.Id,
+                new UpdatePipelineDto { GraphJsonCache = graph },
+                ct
+            );
+
+            if (updateResult.IsFailure)
+            {
+                validationFailedPipelineIds.Add(row.Id);
+                continue;
+            }
+
+            row.PlatformSourceDefinitionId = definition.Id;
+            row.PlatformSourceVersion = version.Version;
+            row.PlatformSourceHash = version.ContentHash;
+            row.PlatformSourceSyncedAt = now;
+            appliedCount++;
+        }
+
+        return new PipelineFanOutResult(appliedCount, validationFailedPipelineIds);
+    }
+
     private async Task AuditPublishOutcomeAsync(
         Guid actingPrincipalId,
         string permission,
@@ -818,7 +978,14 @@ public sealed class PlatformContentService(
                 "NOT_FOUND"
             );
 
-        if (definition.Kind is not (PlatformContentKinds.Command or PlatformContentKinds.Widget))
+        if (
+            definition.Kind
+            is not (
+                PlatformContentKinds.Command
+                or PlatformContentKinds.Widget
+                or PlatformContentKinds.Pipeline
+            )
+        )
             return Result.Failure<(PlatformContentDefinition, PlatformContentVersion)>(
                 $"Publishing kind '{definition.Kind}' is not supported yet.",
                 "VALIDATION_FAILED"
@@ -921,6 +1088,7 @@ public sealed class PlatformContentService(
             job.Status,
             job.CompletedAt,
             job.FailureReason,
-            job.RebuildFailedWidgetIds
+            job.RebuildFailedWidgetIds,
+            job.ValidationFailedPipelineIds
         );
 }

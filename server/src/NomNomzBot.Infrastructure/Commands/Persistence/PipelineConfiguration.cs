@@ -34,5 +34,11 @@ public class PipelineConfiguration : IEntityTypeConfiguration<Pipeline>
         builder
             .HasIndex(e => new { e.BroadcasterId, e.IsEnabled })
             .HasDatabaseName("IX_Pipeline_BroadcasterId_IsEnabled");
+
+        builder.Property(e => e.PlatformSourceHash).HasMaxLength(64);
+
+        builder
+            .HasIndex(e => e.PlatformSourceDefinitionId)
+            .HasDatabaseName("IX_Pipeline_PlatformSourceDefinitionId");
     }
 }

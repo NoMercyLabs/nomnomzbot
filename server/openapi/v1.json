@@ -93798,7 +93798,8 @@
           "status",
           "completedAt",
           "failureReason",
-          "rebuildFailedWidgetIds"
+          "rebuildFailedWidgetIds",
+          "validationFailedPipelineIds"
         ],
         "type": "object",
         "properties": {
@@ -93883,6 +93884,14 @@
             ]
           },
           "rebuildFailedWidgetIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          "validationFailedPipelineIds": {
             "type": "array",
             "items": {
               "type": "string",

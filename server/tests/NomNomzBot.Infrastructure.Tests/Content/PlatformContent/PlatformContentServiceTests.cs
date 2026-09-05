@@ -35,13 +35,20 @@ public sealed class PlatformContentServiceTests : IAsyncDisposable
     private readonly IPlatformIamService _iam = Substitute.For<IPlatformIamService>();
     private readonly IVueSfcCompiler _vueCompiler = Substitute.For<IVueSfcCompiler>();
     private readonly IWidgetService _widgetService = Substitute.For<IWidgetService>();
+
+    // This file exercises the command/widget kinds only — the pipeline kind's REAL IPipelineService
+    // collaboration is proven end-to-end against a real PipelineService/PipelineEngine in
+    // PlatformContentServicePipelineTests, which is why a bare substitute (never invoked here) is
+    // sufficient for this file's constructor requirement.
+    private readonly Application.Commands.Services.IPipelineService _pipelineService =
+        Substitute.For<Application.Commands.Services.IPipelineService>();
     private readonly Guid _actingPrincipalId = Guid.NewGuid();
 
     // Tenant widget ids the simulated CompileAsync (below) treats as a failed rebuild — set per-test.
     private readonly HashSet<Guid> _simulateRebuildFailureFor = [];
 
     private PlatformContentService CreateService() =>
-        new(_db, _iam, new TestUnitOfWork(_db), _vueCompiler, _widgetService);
+        new(_db, _iam, new TestUnitOfWork(_db), _vueCompiler, _widgetService, _pipelineService);
 
     /// <summary>
     /// Stands in for the real <c>WidgetService.CompileAsync</c>: appends a new <see cref="WidgetVersion"/> row

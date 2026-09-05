@@ -143,6 +143,31 @@ public sealed class RaidStartFlowSeeder : ISeeder
         await _db.SaveChangesAsync(ct);
     }
 
+    /// <summary>The wire-shape action graph (<c>PipelineGraphBuilder</c>'s <c>steps[].action</c> shape) for
+    /// THIS flow, exactly as seeded onto a fresh channel — the v1 payload
+    /// <c>PipelinePlatformContentSeeder</c> (S-ADMIN-2d) publishes as the <c>pipeline</c>-kind platform
+    /// content definition keyed <c>raid_start</c>. Built from fresh, unpersisted <see cref="PipelineStep"/>
+    /// rows (never touches the DB) so both the tenant-seeding path above and the platform-content payload
+    /// come from the SAME step list — they can never drift apart.</summary>
+    internal static string BuildPlatformContentPayloadJson()
+    {
+        int order = 0;
+        List<PipelineStep> steps =
+        [
+            .. BuildSteps()
+                .Select(step => new PipelineStep
+                {
+                    Id = Guid.NewGuid(),
+                    ActionType = step.ActionType,
+                    ConfigJson = step.ConfigJson,
+                    ContinueOnError = step.ContinueOnError,
+                    Order = order++,
+                    IsEnabled = true,
+                }),
+        ];
+        return PipelineGraphBuilder.BuildGraphJson(steps);
+    }
+
     private sealed record SeedStep(
         string ActionType,
         string ConfigJson,
