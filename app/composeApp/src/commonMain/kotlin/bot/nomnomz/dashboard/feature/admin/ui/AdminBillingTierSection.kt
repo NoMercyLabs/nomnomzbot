@@ -158,7 +158,9 @@ private fun TierRow(tier: AdminTier, onEdit: () -> Unit) {
                     text = stringResource(
                         Res.string.admin_tier_price,
                         tier.priceCents / 100,
-                        tier.priceCents % 100,
+                        // compose-resources ignores width/flags on a positional spec, so "%2$02d" rendered
+                        // the literal text instead of zero-padding: 10.5 where 10.05 was meant. Pad here.
+                        (tier.priceCents % 100).toString().padStart(2, '0'),
                         tier.currency.uppercase(),
                     ),
                     style = typography.xs,

@@ -123,6 +123,50 @@ class AdminBillingTierEditorRenderTest {
             ).assertExists()
         }
     }
+
+    /**
+     * A price whose minor units are under ten must render zero-padded: 1005 cents is 10.05, never 10.5.
+     * The resource originally spelled this "%2$02d", which reads correct and is not — compose-resources
+     * ignores width and flag specifiers on a POSITIONAL argument, so the padding silently never applied
+     * and every such price shipped wrong. Nothing rendered this string in a test, which is why it went
+     * unnoticed; asserting the rendered text is the only thing that catches it.
+     */
+    @Test
+    fun a_price_with_minor_units_under_ten_renders_zero_padded() {
+        val tier = AdminTier(
+            id = "tier-basic",
+            key = "basic",
+            displayName = "Basic",
+            priceCents = 1005,
+            currency = "usd",
+            allowsCustomBotName = false,
+            prioritySupport = false,
+            sortOrder = 0,
+            limits = emptyList(),
+            isPublic = true,
+        )
+        val controller = AdminController(
+            api = FakeAdminApiForTierTest(
+                tiers = listOf(tier),
+                preview = AdminTierChangePreview(affectedTenantCount = 0, sampleChannelNames = emptyList()),
+            ),
+            iamApi = FakeIamApiForTierTest(),
+            platformAdminApi = FakePlatformAdminApiForTierTest(),
+        )
+
+        runTest { controller.load() }
+
+        runComposeUiTest {
+            setContent {
+                EnglishContent {
+                    ObservingBillingTab(controller = controller)
+                }
+            }
+            waitForIdle()
+
+            onNodeWithText("10.05 USD / month").assertExists()
+        }
+    }
 }
 
 private class FakeAdminApiForTierTest(
