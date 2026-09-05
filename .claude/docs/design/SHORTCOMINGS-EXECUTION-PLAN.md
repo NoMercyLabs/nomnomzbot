@@ -192,8 +192,13 @@ returns the real counted number of tenants on the tier, and an apply carrying a 
 fails closed rather than fanning out against numbers the owner never saw — three Api.Tests, plus
 `AdminBillingTierEditorRenderTest` green on the module.
 
-- [ ] **S-ADMIN-4b Comps and grants.** Issue a comp or a per-tenant entitlement grant, with an expiry,
-      a reason, a counted blast radius before it applies, and an audit entry after.
+**S-ADMIN-4b CLOSED (`b36f42b3`), verified.** Comps and per-tenant entitlement grants, with both
+migration sets and the snapshot regenerated through the script. The grant is proven to be read by the
+REAL gate, not a parallel path: `RequireTierAction` calls `IBillingTierService.IsTierAtLeastAsync`,
+which is the exact method the test drives on a real `BillingTierService` — false before the grant,
+true after — and the expiry test asserts the capability is DENIED once expired, not merely that a
+field was read. The admin surface renders reason and expiry and shows the counted blast radius before
+the issue button enables.
 - [ ] **S-ADMIN-4c Invoices, dunning and refunds.** See invoices, dunning state and failed payments,
       and refund. Never show a payment state the billing code does not actually act on.
 **S-ADMIN-5 CLOSED (`2bfad340`).** Per-tenant and per-cohort flags, a staged percentage rollout and
