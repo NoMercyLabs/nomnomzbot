@@ -835,6 +835,23 @@ public sealed class AuthService : IAuthService
         CancellationToken cancellationToken
     )
     {
+        // The shared bot is a PLATFORM identity, not a per-channel one: on this deployment NoMercy Labs owns
+        // the nomz_bot account and the Twitch client it speaks through. Both endpoints that reach here are
+        // [AllowAnonymous] — necessarily so, since the first-run wizard has no one signed in yet and a
+        // device-code poll carries no JWT — which meant ANY visitor could complete the bot device flow with
+        // their own Twitch account and install themselves as the platform's shared bot. That happened live on
+        // 2026-09-04: a channel account landed beside nomz_bot, both rows active, leaving every "which
+        // account is the bot" lookup non-deterministic.
+        //
+        // First-run stays open so the wizard works. Re-authorizing the SAME bot stays open so an expired
+        // grant can be renewed. Silently REPLACING an established shared bot from an anonymous endpoint is
+        // the case that must not exist — a genuine change of bot identity is an admin action against the
+        // existing bot, not a stranger completing an OAuth dance. A channel that wants its own bot uses the
+        // per-channel custom path (HandleTwitchChannelBotCallbackAsync), which is scoped to that channel.
+        Result slot = await EnsureSharedBotSlotAvailableAsync(botUser, cancellationToken);
+        if (slot.IsFailure)
+            return slot.WithValue<BotStatusDto>(null!);
+
         BotAccount bot = await UpsertBotAccountAsync(
             AuthEnums.BotIdentityType.Shared,
             botUser,
@@ -1203,6 +1220,52 @@ public sealed class AuthService : IAuthService
             );
 
         return Result.Success((botUser, tokens));
+    }
+
+    /// <summary>
+    /// Guards the single shared-bot slot. The shared bot is a PLATFORM identity — on this deployment NoMercy
+    /// Labs owns the <c>nomz_bot</c> account and the Twitch client it speaks through — but both endpoints
+    /// that reach it are <c>[AllowAnonymous]</c>, and necessarily so: the first-run wizard has nobody signed
+    /// in yet, and a device-code poll carries no JWT. That left the slot open to ANY visitor completing the
+    /// bot device flow with their own Twitch account. It happened live on 2026-09-04 — a channel account
+    /// landed beside <c>nomz_bot</c>, both rows active and both pointing at the same <c>twitch_bot</c>
+    /// connection, so every "which account is the bot" lookup became order-dependent.
+    /// <para>
+    /// First run (no shared bot yet) stays open so the wizard works, and re-authorizing the SAME bot stays
+    /// open so an expired grant can be renewed. Only a silent TAKEOVER is refused: changing bot identity is
+    /// an admin action against the existing bot, not a stranger finishing an OAuth dance. A channel that
+    /// wants its own bot uses the per-channel custom path, which is scoped to that channel.
+    /// </para>
+    /// </summary>
+    internal async Task<Result> EnsureSharedBotSlotAvailableAsync(
+        TwitchUserInfo candidate,
+        CancellationToken cancellationToken = default
+    )
+    {
+        BotAccount? incumbent = await _db
+            .BotAccounts.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(
+                b =>
+                    b.IdentityType == AuthEnums.BotIdentityType.Shared
+                    && b.Platform == AuthEnums.Platform.Twitch
+                    && b.IsActive
+                    && b.DeletedAt == null,
+                cancellationToken
+            );
+
+        if (incumbent is null || incumbent.BotUserId == candidate.Id)
+            return Result.Success();
+
+        _logger.LogWarning(
+            "Refused to replace the shared bot {Incumbent} with {Candidate}: the shared bot is a platform identity and cannot be taken over through the anonymous device flow.",
+            incumbent.BotUsername,
+            candidate.Login
+        );
+
+        return Result.Failure(
+            $"A shared bot ({incumbent.BotUsername}) is already connected. Disconnect it from the admin plane before connecting a different one.",
+            "SHARED_BOT_ALREADY_CONNECTED"
+        );
     }
 
     private async Task<BotAccount> UpsertBotAccountAsync(
