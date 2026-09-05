@@ -1315,6 +1315,37 @@ public class AuthController : BaseController
         return ResultResponse(result);
     }
 
+    /// <summary>
+    /// Poll a bot device login for ONE channel; on <c>authorized</c> that channel gets its own custom bot,
+    /// vaulted against it and authorized for it, leaving the shared platform bot untouched.
+    /// <para>
+    /// This is the endpoint the dashboard's channel Integrations page must use. Previously only the shared
+    /// flow existed, so a channel connecting "its bot" replaced the platform bot every other channel speaks
+    /// through — the 2026-09-04 incident. Unlike that flow this one is authenticated and tenant-scoped: the
+    /// caller must already be able to manage this channel, so there is no bootstrap window to leave open.
+    /// </para>
+    /// </summary>
+    [HttpPost("twitch/channels/{channelId:guid}/bot/device/poll")]
+    // Gate-2, not a bare [Authorize]: connecting a bot to a channel is an integration WRITE on that channel,
+    // and bare [Authorize] would let any authenticated user attach a bot to any channel. Matches the key
+    // IntegrationsController already uses for its own writes.
+    [RequireAction("integration:write")]
+    [EnableRateLimiting("device-poll")]
+    [ProducesResponseType<StatusResponseDto<DeviceBotPollDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> PollChannelBotDeviceLogin(
+        Guid channelId,
+        [FromBody] DevicePollRequest body,
+        CancellationToken ct
+    )
+    {
+        Result<DeviceBotPollDto> result = await _authService.PollChannelBotDeviceLoginAsync(
+            channelId,
+            body.DeviceCode,
+            ct
+        );
+        return ResultResponse(result);
+    }
+
     // Mirrors SystemController's own IsSetupCompleteAsync exactly (same two facts, same "explicitly finalized
     // OR (a RECORDED Twitch app decision + platform bot) both present" rule) so this controller's bootstrap-
     // window gate can never drift from the one setup/* already enforces.

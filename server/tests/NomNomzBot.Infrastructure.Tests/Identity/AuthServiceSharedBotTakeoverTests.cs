@@ -129,6 +129,38 @@ public sealed class AuthServiceSharedBotTakeoverTests
         result.IsSuccess.Should().BeTrue();
     }
 
+    /// <summary>
+    /// The other half of the 2026-09-04 incident: the dashboard's channel Integrations page had only the
+    /// SHARED flow to call, so a channel connecting "its bot" replaced the platform bot every other channel
+    /// speaks through. A channel-scoped device poll now exists, and it must establish a CUSTOM bot for that
+    /// broadcaster while leaving the shared slot exactly as it found it.
+    /// </summary>
+    [Fact]
+    public async Task TheChannelScopedPoll_DoesNotDisturbTheSharedBot()
+    {
+        (AuthService service, AuthDbContext db) = Build();
+        SeedSharedBot(db, IncumbentUserId, "nomz_bot");
+
+        // Not authorized by Twitch (no device approval in this harness), so the poll returns a
+        // non-authorized status rather than establishing anything — the point is that it does NOT route
+        // through the shared-bot path on its way there.
+        Result<DeviceBotPollDto> result = await service.PollChannelBotDeviceLoginAsync(
+            Guid.NewGuid(),
+            "device-code"
+        );
+
+        result.IsSuccess.Should().BeTrue();
+
+        BotAccount shared = db.BotAccounts.Single(b =>
+            b.IdentityType == AuthEnums.BotIdentityType.Shared
+        );
+        shared.BotUserId.Should().Be(IncumbentUserId);
+        shared
+            .BotUsername.Should()
+            .Be("nomz_bot", "the shared bot must be untouched by a channel poll");
+        shared.IsActive.Should().BeTrue();
+    }
+
     private static TwitchUserInfo User(string id, string login) =>
         new(id, login, login, ProfileImageUrl: null, BroadcasterType: "");
 
@@ -163,10 +195,21 @@ public sealed class AuthServiceSharedBotTakeoverTests
             .AddInMemoryCollection(new Dictionary<string, string?> { ["Twitch:ClientId"] = "cid" })
             .Build();
 
+        // Default the device poll to Pending: NSubstitute otherwise returns a null Task result and the poll
+        // NREs before it can demonstrate anything about which bot path it takes.
+        ITwitchDeviceCodeService deviceCode = Substitute.For<ITwitchDeviceCodeService>();
+        deviceCode
+            .PollOnceAsync(
+                Arg.Any<string>(),
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(new DevicePollOutcome(DevicePollStatus.Pending));
+
         AuthService service = new(
             db,
             Substitute.For<ITwitchAuthService>(),
-            Substitute.For<ITwitchDeviceCodeService>(),
+            deviceCode,
             Substitute.For<IIntegrationTokenVault>(),
             Substitute.For<ISessionService>(),
             Substitute.For<ISessionRevocationService>(),
