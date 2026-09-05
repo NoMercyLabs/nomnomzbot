@@ -445,7 +445,14 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.Ignore<TtsUsageRecord>();
         modelBuilder.Ignore<TtsCacheEntry>();
         modelBuilder.Ignore<DeletionAuditLog>();
-        modelBuilder.Ignore<NomNomzBot.Domain.Commands.Entities.Timer>();
+        // Timer is MAPPED (not ignored): TemplateSyntaxBackfillSeeder reads Timers to rewrite stored
+        // ${x} templates, so a harness used to exercise the seeders has to model it or the seeder
+        // throws "Cannot create a DbSet for 'Timer'" before it does any work.
+        modelBuilder.Entity<NomNomzBot.Domain.Commands.Entities.Timer>(b =>
+        {
+            b.HasKey(t => t.Id);
+            b.Ignore(t => t.Pipeline);
+        });
         modelBuilder.Ignore<WatchStreak>();
         modelBuilder.Ignore<PipelineExecution>();
         modelBuilder.Ignore<CommandCooldownState>();
