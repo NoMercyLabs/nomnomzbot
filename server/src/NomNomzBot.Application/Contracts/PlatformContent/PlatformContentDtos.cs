@@ -88,5 +88,6 @@ public sealed record PlatformContentPublishJobDto(
     string Status,
     DateTime? CompletedAt,
     string? FailureReason,
-    IReadOnlyList<Guid> RebuildFailedWidgetIds
+    IReadOnlyList<Guid> RebuildFailedWidgetIds,
+    IReadOnlyList<Guid> ValidationFailedPipelineIds
 );

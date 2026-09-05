@@ -1470,6 +1470,19 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<string>("ParameterNamesJson")
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("PlatformSourceDefinitionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PlatformSourceHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("PlatformSourceSyncedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("PlatformSourceVersion")
+                        .HasColumnType("INTEGER");
+
                     b.Property<long>("TriggerCount")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
@@ -1486,6 +1499,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("PlatformSourceDefinitionId")
+                        .HasDatabaseName("IX_Pipeline_PlatformSourceDefinitionId");
 
                     b.HasIndex("BroadcasterId", "IsEnabled")
                         .HasDatabaseName("IX_Pipeline_BroadcasterId_IsEnabled");
@@ -8618,6 +8634,10 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
 
                     b.Property<int>("ToVersion")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("ValidationFailedPipelineIds")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 

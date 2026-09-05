@@ -93,6 +93,15 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
     public DbSet<Widget> Widgets => Set<Widget>();
     public DbSet<WidgetVersion> WidgetVersions => Set<WidgetVersion>();
 
+    // S-ADMIN-2d — the pipeline kind's own tenant-side machinery: a real Pipeline/PipelineStep graph, run
+    // through the real PipelineEngine (PipelineRunState/PipelineExecution are the engine's own bookkeeping
+    // tables, touched even by a run that never suspends).
+    public DbSet<Pipeline> Pipelines => Set<Pipeline>();
+    public DbSet<PipelineStep> PipelineSteps => Set<PipelineStep>();
+    public DbSet<PipelineStepCondition> PipelineStepConditions => Set<PipelineStepCondition>();
+    public DbSet<PipelineRunState> PipelineRunStates => Set<PipelineRunState>();
+    public DbSet<PipelineExecution> PipelineExecutions => Set<PipelineExecution>();
+
     protected override void OnModelCreating(ModelBuilder b)
     {
         b.Entity<Channel>(e =>
@@ -115,6 +124,19 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
         b.ApplyConfiguration(new WidgetConfiguration());
         b.ApplyConfiguration(new WidgetVersionConfiguration());
 
+        b.Entity<Pipeline>(e =>
+        {
+            e.Ignore(p => p.Channel);
+            e.Ignore(p => p.Triggers);
+        });
+        b.ApplyConfiguration(new PipelineConfiguration());
+        b.Entity<PipelineStep>(e => e.Ignore(s => s.Pipeline));
+        b.ApplyConfiguration(new PipelineStepConfiguration());
+        b.ApplyConfiguration(new PipelineStepConditionConfiguration());
+        b.Entity<PipelineRunState>(e => e.Ignore(r => r.Pipeline));
+        b.Entity<PipelineExecution>(e => e.Ignore(x => x.Pipeline));
+        b.ApplyConfiguration(new PipelineExecutionConfiguration());
+
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing
         // getter bodies; ignore every entity these tests do not exercise so the model stays minimal.
         foreach (Type entity in UnmappedEntities)
@@ -133,6 +155,11 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
         typeof(PlatformContentPublishJob),
         typeof(Widget),
         typeof(WidgetVersion),
+        typeof(Pipeline),
+        typeof(PipelineStep),
+        typeof(PipelineStepCondition),
+        typeof(PipelineRunState),
+        typeof(PipelineExecution),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -276,14 +303,8 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
         throw new NotSupportedException();
     public DbSet<EventResponse> EventResponses => throw new NotSupportedException();
     public DbSet<WatchStreak> WatchStreaks => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Commands.Entities.Pipeline> Pipelines =>
-        throw new NotSupportedException();
     public DbSet<ScheduledPipelineTask> ScheduledPipelineTasks => throw new NotSupportedException();
-    public DbSet<PipelineStep> PipelineSteps => throw new NotSupportedException();
-    public DbSet<PipelineStepCondition> PipelineStepConditions => throw new NotSupportedException();
     public DbSet<PipelineTrigger> PipelineTriggers => throw new NotSupportedException();
-    public DbSet<PipelineExecution> PipelineExecutions => throw new NotSupportedException();
-    public DbSet<PipelineRunState> PipelineRunStates => throw new NotSupportedException();
     public DbSet<CommandCooldownState> CommandCooldownStates => throw new NotSupportedException();
     public DbSet<NamedCounter> NamedCounters => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.ViewerData.Entities.ViewerDatum> ViewerData =>

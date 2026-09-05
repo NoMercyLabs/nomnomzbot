@@ -148,6 +148,30 @@ public sealed class RaidCommitFlowSeeder : ISeeder
         await _db.SaveChangesAsync(ct);
     }
 
+    /// <summary>The wire-shape action graph for THIS flow, exactly as seeded onto a fresh channel — the v1
+    /// payload <c>PipelinePlatformContentSeeder</c> (S-ADMIN-2d) publishes as the <c>pipeline</c>-kind
+    /// platform content definition keyed <c>raid_commit</c>. See
+    /// <c>RaidStartFlowSeeder.BuildPlatformContentPayloadJson</c> for why this reuses <see cref="BuildSteps"/>
+    /// rather than a second, hand-duplicated step list.</summary>
+    internal static string BuildPlatformContentPayloadJson()
+    {
+        int order = 0;
+        List<PipelineStep> steps =
+        [
+            .. BuildSteps()
+                .Select(step => new PipelineStep
+                {
+                    Id = Guid.NewGuid(),
+                    ActionType = step.ActionType,
+                    ConfigJson = step.ConfigJson,
+                    ContinueOnError = step.ContinueOnError,
+                    Order = order++,
+                    IsEnabled = true,
+                }),
+        ];
+        return PipelineGraphBuilder.BuildGraphJson(steps);
+    }
+
     private sealed record SeedStep(
         string ActionType,
         string ConfigJson,

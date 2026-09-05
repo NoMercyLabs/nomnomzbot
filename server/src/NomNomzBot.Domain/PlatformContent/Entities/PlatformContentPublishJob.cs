@@ -61,6 +61,14 @@ public class PlatformContentPublishJob
     /// admin re-runs the publish (or investigates) using this list. Empty (never null) when nothing failed, or
     /// for a <c>command</c>-kind job.</summary>
     public List<Guid> RebuildFailedWidgetIds { get; set; } = [];
+
+    /// <summary>Pipeline kind only: tenant <c>Pipeline</c> rows whose new graph failed
+    /// <c>ICommandConfigValidator</c> validation during this fan-out. Their PREVIOUS working graph (and
+    /// <c>PipelineStep</c> rows) stay live — a validation failure never leaves a tenant with a broken
+    /// pipeline — so this is the only record of which tenants did not receive the update; an admin
+    /// investigates the broken version using this list. Empty (never null) when nothing failed, or for a
+    /// non-<c>pipeline</c>-kind job.</summary>
+    public List<Guid> ValidationFailedPipelineIds { get; set; } = [];
 }
 
 /// <summary>The closed set of publish modes (§2.1). A publish job's mode is one of exactly these.</summary>

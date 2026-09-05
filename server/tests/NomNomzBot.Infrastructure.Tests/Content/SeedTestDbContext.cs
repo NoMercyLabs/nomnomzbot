@@ -302,10 +302,12 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Economy.Entities.GamePlay>();
     public DbSet<NomNomzBot.Domain.Marketplace.Entities.InstalledBundle> InstalledBundles =>
         Set<NomNomzBot.Domain.Marketplace.Entities.InstalledBundle>();
+
+    // PipelinePlatformContentSeeder (S-ADMIN-2d) reads/writes real PlatformContentDefinition/Version rows.
     public DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentDefinition> PlatformContentDefinitions =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentDefinition>();
     public DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentVersion> PlatformContentVersions =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentVersion>();
     public DbSet<NomNomzBot.Domain.PlatformContent.Entities.PlatformContentPublishJob> PlatformContentPublishJobs =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Economy.Entities.GameSession> GameSessions =>
@@ -395,6 +397,13 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         modelBuilder.ApplyConfiguration(new PipelineStepConfiguration());
         // RaidCommitFlowSeeder reads/writes real EventResponse rows.
         modelBuilder.ApplyConfiguration(new EventResponseConfiguration());
+        // PipelinePlatformContentSeeder (S-ADMIN-2d) reads/writes real PlatformContentDefinition/Version rows.
+        modelBuilder.ApplyConfiguration(
+            new NomNomzBot.Infrastructure.Content.PlatformContent.Persistence.PlatformContentDefinitionConfiguration()
+        );
+        modelBuilder.ApplyConfiguration(
+            new NomNomzBot.Infrastructure.Content.PlatformContent.Persistence.PlatformContentVersionConfiguration()
+        );
 
         // Every entity NOT under test is ignored — EF would otherwise auto-discover them from
         // the DbSet<T> properties (an IApplicationDbContext requirement) and try to map their
