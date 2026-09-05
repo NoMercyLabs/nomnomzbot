@@ -649,9 +649,40 @@ public sealed class AuthService : IAuthService
         return Result.Success(new DeviceLoginPollDto(DeviceLoginStatus.Authorized, session.Value));
     }
 
-    public async Task<Result<DeviceBotPollDto>> PollBotDeviceLoginAsync(
+    public Task<Result<DeviceBotPollDto>> PollBotDeviceLoginAsync(
         string deviceCode,
         CancellationToken cancellationToken = default
+    ) =>
+        PollBotDeviceCoreAsync(
+            deviceCode,
+            (botUser, tokens, ct) => EstablishSharedBotAsync(botUser, tokens, ct),
+            "shared",
+            cancellationToken
+        );
+
+    public Task<Result<DeviceBotPollDto>> PollChannelBotDeviceLoginAsync(
+        Guid broadcasterId,
+        string deviceCode,
+        CancellationToken cancellationToken = default
+    ) =>
+        PollBotDeviceCoreAsync(
+            deviceCode,
+            (botUser, tokens, ct) => EstablishChannelBotAsync(broadcasterId, botUser, tokens, ct),
+            "channel",
+            cancellationToken
+        );
+
+    /// <summary>
+    /// The half both bot device polls share: poll Twitch, resolve the approving account, then hand off to the
+    /// caller's establishment step. Only that step differs — shared platform bot vs one channel's own bot —
+    /// and keeping the rest here means the terminal-vs-transient status handling below cannot drift between
+    /// them.
+    /// </summary>
+    private async Task<Result<DeviceBotPollDto>> PollBotDeviceCoreAsync(
+        string deviceCode,
+        Func<TwitchUserInfo, TokenResult, CancellationToken, Task<Result<BotStatusDto>>> establish,
+        string kind,
+        CancellationToken cancellationToken
     )
     {
         DevicePollOutcome outcome = await _deviceCode.PollOnceAsync(
@@ -678,15 +709,12 @@ public sealed class AuthService : IAuthService
             return Result.Success(new DeviceBotPollDto(DeviceLoginStatus.Error));
         }
 
-        Result<BotStatusDto> bot = await EstablishSharedBotAsync(
-            botUser,
-            outcome.Tokens,
-            cancellationToken
-        );
+        Result<BotStatusDto> bot = await establish(botUser, outcome.Tokens, cancellationToken);
         if (bot.IsFailure)
         {
             _logger.LogWarning(
-                "Bot device login authorized by Twitch but establishing the shared bot failed: {Error} ({Code})",
+                "Bot device login authorized by Twitch but establishing the {Kind} bot failed: {Error} ({Code})",
+                kind,
                 bot.ErrorMessage,
                 bot.ErrorCode
             );
@@ -994,6 +1022,27 @@ public sealed class AuthService : IAuthService
             return exchange.WithValue<BotStatusDto>(null!);
         (TwitchUserInfo botUser, TokenResult tokens) = exchange.Value;
 
+        return await EstablishChannelBotAsync(broadcasterId, botUser, tokens, cancellationToken);
+    }
+
+    /// <summary>
+    /// Establishes a channel's OWN bot (<c>IdentityType=custom</c>) from already-acquired tokens: upserts the
+    /// BotAccount, vaults a connection scoped to THIS broadcaster, and records the ChannelBotAuthorization.
+    /// Shared by the redirect callback above and the channel-scoped device flow — the two differ only in how
+    /// the tokens were obtained, so the establishment lives here once.
+    /// <para>
+    /// This is the path a channel that wants its own bot must take. It is emphatically NOT
+    /// <see cref="EstablishSharedBotAsync"/>: that one owns the single platform-wide bot identity, and a
+    /// channel reaching it overwrites the bot every other channel speaks through (the 2026-09-04 incident).
+    /// </para>
+    /// </summary>
+    private async Task<Result<BotStatusDto>> EstablishChannelBotAsync(
+        Guid broadcasterId,
+        TwitchUserInfo botUser,
+        TokenResult tokens,
+        CancellationToken cancellationToken
+    )
+    {
         BotAccount bot = await UpsertBotAccountAsync(
             AuthEnums.BotIdentityType.Custom,
             botUser,

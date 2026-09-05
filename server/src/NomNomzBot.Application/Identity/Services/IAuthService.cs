@@ -84,8 +84,30 @@ public interface IAuthService
         CancellationToken cancellationToken = default
     );
 
-    /// <summary>Poll a bot device login once. On <c>authorized</c> the shared bot account is connected + vaulted.</summary>
+    /// <summary>
+    /// Poll a bot device login once. On <c>authorized</c> the SHARED platform bot is connected + vaulted.
+    /// This is the platform-wide identity every channel without its own bot speaks through — connecting it
+    /// replaces the bot for the whole deployment, so it refuses a takeover when one is already established.
+    /// A single channel wanting its own bot must use <see cref="PollChannelBotDeviceLoginAsync"/> instead.
+    /// </summary>
     Task<Result<DeviceBotPollDto>> PollBotDeviceLoginAsync(
+        string deviceCode,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Poll a bot device login once for ONE channel. On <c>authorized</c> a per-channel custom bot
+    /// (<c>IdentityType=custom</c>) is connected, vaulted against that broadcaster, and authorized for it —
+    /// leaving the shared platform bot untouched.
+    /// <para>
+    /// This exists because the dashboard's channel Integrations page previously had only the shared flow to
+    /// call, so a channel connecting "its bot" silently took over the platform bot for every other channel.
+    /// The device code itself is minted by <see cref="StartBotDeviceLoginAsync"/> — same scopes, same user
+    /// approval; only the establishment differs.
+    /// </para>
+    /// </summary>
+    Task<Result<DeviceBotPollDto>> PollChannelBotDeviceLoginAsync(
+        Guid broadcasterId,
         string deviceCode,
         CancellationToken cancellationToken = default
     );
