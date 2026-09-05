@@ -108,6 +108,8 @@ internal sealed class SupporterTestDbContext : DbContext, IApplicationDbContext
     public DbSet<SupporterConnection> SupporterConnections => Set<SupporterConnection>();
     public DbSet<SupporterEvent> SupporterEvents => Set<SupporterEvent>();
     public DbSet<Channel> Channels => Set<Channel>();
+    public DbSet<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride> TenantLimitOverrides =>
+        throw new NotSupportedException();
     public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
     public DbSet<User> Users => Set<User>();
     public DbSet<EventResponse> EventResponses => Set<EventResponse>();

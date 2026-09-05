@@ -158,6 +158,8 @@ internal sealed class TtsTestDbContext : DbContext, IApplicationDbContext
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
     public DbSet<TtsCacheEntry> TtsCacheEntries => throw new NotSupportedException();
     public DbSet<Channel> Channels => throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride> TenantLimitOverrides =>
+        throw new NotSupportedException();
     public DbSet<PlatformConnection> PlatformConnections => throw new NotSupportedException();
     public DbSet<User> Users => throw new NotSupportedException();
     public DbSet<EventResponse> EventResponses => throw new NotSupportedException();

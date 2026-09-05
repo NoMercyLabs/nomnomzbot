@@ -156,7 +156,12 @@ public sealed class BillingTierChangeImmediacyTests
         ) = await SeedSaasChannelOnLowTierAsync();
 
         BillingTierService tiers = new(db);
-        ResourceQuotaService quota = new(tiers, new NoUsageMeteringService(), db);
+        ResourceQuotaService quota = new(
+            tiers,
+            new NoUsageMeteringService(),
+            db,
+            TimeProvider.System
+        );
 
         // At the low tier (1,000-byte ceiling), uploading a 900-byte clip on top of the existing 800 bytes
         // (resulting total 1,700) is refused.
@@ -199,7 +204,12 @@ public sealed class BillingTierChangeImmediacyTests
         ) = await SeedSaasChannelOnLowTierAsync();
 
         BillingTierService tiers = new(db);
-        ResourceQuotaService quota = new(tiers, new NoUsageMeteringService(), db);
+        ResourceQuotaService quota = new(
+            tiers,
+            new NoUsageMeteringService(),
+            db,
+            TimeProvider.System
+        );
         BillingController controller = new(
             subscriptions: null!,
             tiers: tiers,

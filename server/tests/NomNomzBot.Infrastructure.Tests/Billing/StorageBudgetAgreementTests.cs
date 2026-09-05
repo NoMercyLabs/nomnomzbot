@@ -53,7 +53,7 @@ public sealed class StorageBudgetAgreementTests
             new RecordingEventBus(),
             new FakeTimeProvider()
         );
-        ResourceQuotaService quota = new(tiers, metering, db);
+        ResourceQuotaService quota = new(tiers, metering, db, new FakeTimeProvider());
         SoundClipService soundClips = new(
             db,
             new FakeSoundClipStore(),

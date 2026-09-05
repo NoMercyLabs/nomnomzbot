@@ -83,6 +83,8 @@ internal sealed class AdminListsSearchTestDbContext : DbContext, IApplicationDbC
 
     public DbSet<User> Users => Set<User>();
     public DbSet<Channel> Channels => Set<Channel>();
+    public DbSet<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride> TenantLimitOverrides =>
+        throw new NotSupportedException();
     public DbSet<ChannelSubscription> ChannelSubscriptions => Set<ChannelSubscription>();
     public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
 

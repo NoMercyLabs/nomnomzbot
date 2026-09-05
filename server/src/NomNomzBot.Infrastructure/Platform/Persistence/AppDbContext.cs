@@ -321,6 +321,8 @@ public class AppDbContext : DbContext, IApplicationDbContext
         Set<Domain.Billing.Entities.BillingTier>();
     public DbSet<Domain.Billing.Entities.TierLimit> TierLimits =>
         Set<Domain.Billing.Entities.TierLimit>();
+    public DbSet<Domain.Billing.Entities.TenantLimitOverride> TenantLimitOverrides =>
+        Set<Domain.Billing.Entities.TenantLimitOverride>();
     public DbSet<Domain.Billing.Entities.Subscription> Subscriptions =>
         Set<Domain.Billing.Entities.Subscription>();
     public DbSet<Domain.Billing.Entities.Invoice> Invoices =>

@@ -83,6 +83,8 @@ internal sealed class TtsConfigControllerOwnVoiceTestDbContext : DbContext, IApp
     }
 
     public DbSet<Channel> Channels => Set<Channel>();
+    public DbSet<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride> TenantLimitOverrides =>
+        throw new NotSupportedException();
     public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
     public DbSet<UserIdentity> UserIdentities => Set<UserIdentity>();
     public DbSet<TtsConfig> TtsConfigs => Set<TtsConfig>();

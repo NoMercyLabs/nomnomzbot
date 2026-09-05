@@ -231,6 +231,145 @@ public class PlatformAdminController(
         return GetPaginatedResponse(result.Value, request);
     }
 
+    /// <summary>Every LIVE per-tenant quota override.</summary>
+    [HttpGet("tenants/{broadcasterId:guid}/limits")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
+    [Authorize(Policy = IamPermissionKeys.TenantRead)]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<TenantLimitOverrideDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> ListTenantLimitOverrides(
+        Guid broadcasterId,
+        CancellationToken ct
+    )
+    {
+        Result<Guid> acting = await ActingPrincipalIdAsync(ct);
+        if (acting.IsFailure)
+            return ResultResponse(acting.WithValue<IReadOnlyList<TenantLimitOverrideDto>>(null!));
+        return ResultResponse(
+            await admin.ListTenantLimitOverridesAsync(acting.Value, broadcasterId, ct)
+        );
+    }
+
+    /// <summary>Sets (or replaces) the one LIVE override for one limit key on this tenant.</summary>
+    [HttpPut("tenants/{broadcasterId:guid}/limits")]
+    [Authorize(Policy = IamPermissionKeys.TenantQuotaManage)]
+    [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
+    [ProducesResponseType<StatusResponseDto<TenantLimitOverrideDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SetTenantLimitOverride(
+        Guid broadcasterId,
+        [FromBody] SetTenantLimitOverrideRequest request,
+        CancellationToken ct
+    )
+    {
+        Result<Guid> acting = await ActingPrincipalIdAsync(ct);
+        if (acting.IsFailure)
+            return ResultResponse(acting.WithValue<TenantLimitOverrideDto>(null!));
+        return ResultResponse(
+            await admin.SetTenantLimitOverrideAsync(acting.Value, broadcasterId, request, ct)
+        );
+    }
+
+    /// <summary>Clears the LIVE override for one limit key, reverting to normal resolution.</summary>
+    [NotDestructive(
+        "Soft-deletes one TenantLimitOverride row; the tenant reverts to its normal tier/safety-baseline resolution and a new override can be set at any time."
+    )]
+    [HttpDelete("tenants/{broadcasterId:guid}/limits/{limitKey}")]
+    [Authorize(Policy = IamPermissionKeys.TenantQuotaManage)]
+    [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
+    public async Task<IActionResult> ClearTenantLimitOverride(
+        Guid broadcasterId,
+        string limitKey,
+        CancellationToken ct
+    )
+    {
+        Result<Guid> acting = await ActingPrincipalIdAsync(ct);
+        if (acting.IsFailure)
+            return ResultResponse(acting);
+        return ResultResponse(
+            await admin.ClearTenantLimitOverrideAsync(acting.Value, broadcasterId, limitKey, ct)
+        );
+    }
+
+    /// <summary>
+    /// Forces a re-application of pending EF Core migrations — database-wide, audited against the tenant the
+    /// operator was working on when they reached for it.
+    /// </summary>
+    [HttpPost("tenants/{broadcasterId:guid}/remigrate")]
+    [Authorize(Policy = IamPermissionKeys.TenantRemigrate)]
+    [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
+    [ProducesResponseType<StatusResponseDto<TenantRemigrationResultDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ForceRemigration(
+        Guid broadcasterId,
+        [FromBody] ForceRemigrationRequest request,
+        CancellationToken ct
+    )
+    {
+        Result<Guid> acting = await ActingPrincipalIdAsync(ct);
+        if (acting.IsFailure)
+            return ResultResponse(acting.WithValue<TenantRemigrationResultDto>(null!));
+        return ResultResponse(
+            await admin.ForceRemigrationAsync(
+                acting.Value,
+                broadcasterId,
+                request.Justification,
+                ct
+            )
+        );
+    }
+
+    /// <summary>
+    /// The counted blast radius of erasing this tenant whole — every tenant-scoped table, real row counts.
+    /// The erase confirm MUST render this before the destructive action can be armed.
+    /// </summary>
+    [HttpGet("tenants/{broadcasterId:guid}/erase/preview")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
+    [Authorize(Policy = IamPermissionKeys.TenantErase)]
+    [ProducesResponseType<StatusResponseDto<ChannelDeletePreviewDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> PreviewEraseTenant(Guid broadcasterId, CancellationToken ct)
+    {
+        Result<Guid> acting = await ActingPrincipalIdAsync(ct);
+        if (acting.IsFailure)
+            return ResultResponse(acting.WithValue<ChannelDeletePreviewDto>(null!));
+        return ResultResponse(await admin.PreviewEraseTenantAsync(acting.Value, broadcasterId, ct));
+    }
+
+    /// <summary>
+    /// Erases a tenant whole: a SOFT delete (30-day restore window) of the channel — the platform-operator
+    /// sibling of the owner's own self-service delete, audited under the dedicated <c>tenant:erase</c> key.
+    /// The blast radius shown by <see cref="PreviewEraseTenant"/> MUST be rendered before this is armed.
+    /// </summary>
+    [DestructiveAction(HasCountedBlastRadius = true)]
+    [HttpPost("tenants/{broadcasterId:guid}/erase")]
+    [Authorize(Policy = IamPermissionKeys.TenantErase)]
+    [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
+    public async Task<IActionResult> EraseTenant(
+        Guid broadcasterId,
+        [FromBody] EraseTenantRequest request,
+        CancellationToken ct
+    )
+    {
+        Result<Guid> acting = await ActingPrincipalIdAsync(ct);
+        if (acting.IsFailure)
+            return ResultResponse(acting);
+        return ResultResponse(
+            await admin.EraseTenantAsync(acting.Value, broadcasterId, request.Justification, ct)
+        );
+    }
+
+    /// <summary>A machine-readable JSON export of every row this tenant owns — the operator sibling of the owner's own data.</summary>
+    [HttpGet("tenants/{broadcasterId:guid}/export")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
+    [Authorize(Policy = IamPermissionKeys.TenantErase)]
+    [ProducesResponseType<StatusResponseDto<string>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ExportTenant(Guid broadcasterId, CancellationToken ct)
+    {
+        Result<Guid> acting = await ActingPrincipalIdAsync(ct);
+        if (acting.IsFailure)
+            return ResultResponse(acting.WithValue<string>(null!));
+        return ResultResponse(await admin.ExportTenantAsync(acting.Value, broadcasterId, ct));
+    }
+
     /// <summary>
     /// The caller's IAM principal id for the service's audited re-check, via the shared resolver (fix D2 item
     /// 4) — a resolve failure DENIES rather than substituting <c>Guid.Empty</c>.
@@ -241,3 +380,9 @@ public class PlatformAdminController(
 
 /// <summary>Body for the reinstate action — the justification lands in the audit row.</summary>
 public sealed record ReinstateTenantRequest(string Justification);
+
+/// <summary>Body for forcing a re-migration — the justification lands in the audit row.</summary>
+public sealed record ForceRemigrationRequest(string Justification);
+
+/// <summary>Body for erasing a tenant whole — the justification lands in the audit row.</summary>
+public sealed record EraseTenantRequest(string Justification);

@@ -105,3 +105,34 @@ public sealed record IamAuditEntryDto(
     string Outcome,
     DateTime OccurredAt
 );
+
+/// <summary>Body for setting a per-tenant quota exception (S-ADMIN-3). <c>LimitValue = -1</c> means unlimited.</summary>
+public sealed record SetTenantLimitOverrideRequest(
+    string LimitKey,
+    long LimitValue,
+    string Reason,
+    DateTime? ExpiresAt
+);
+
+/// <summary>One live per-tenant quota exception, for the operator console.</summary>
+public sealed record TenantLimitOverrideDto(
+    Guid Id,
+    Guid BroadcasterId,
+    string LimitKey,
+    long LimitValue,
+    string Reason,
+    Guid GrantedByPrincipalId,
+    DateTime CreatedAt,
+    DateTime? ExpiresAt
+);
+
+/// <summary>
+/// Outcome of an operator-forced re-application of pending EF Core migrations (S-ADMIN-3) — a database-wide
+/// recovery lever, not a per-tenant DDL operation (the schema is shared). Reports what was pending
+/// immediately before the call and what is still pending immediately after, so a caller can tell a genuine
+/// "already up to date" from a real apply.
+/// </summary>
+public sealed record TenantRemigrationResultDto(
+    IReadOnlyList<string> MigrationsAppliedThisCall,
+    IReadOnlyList<string> StillPending
+);

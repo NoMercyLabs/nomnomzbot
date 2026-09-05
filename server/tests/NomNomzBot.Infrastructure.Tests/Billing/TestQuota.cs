@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Billing;
@@ -65,7 +66,8 @@ internal static class TestQuota
             ResourceQuotaService real = new(
                 Substitute.For<IBillingTierService>(),
                 Substitute.For<IUsageMeteringService>(),
-                db
+                db,
+                new FakeTimeProvider()
             );
             quota
                 .GetCurrentCountAsync(

@@ -59,6 +59,24 @@ public static class IamPermissionKeys
     // gated separately and is the one publish mode that can destroy tenant work.
     public const string ContentPublishForce = "content:publish:force";
 
+    // Per-tenant quota exception (S-ADMIN-3): set/clear a TenantLimitOverride row. Distinct from
+    // tenant:suspend/tenant:access — granting more (or less) headroom is a billing-adjacent lever, not a
+    // support visit or a lifecycle change.
+    public const string TenantQuotaManage = "tenant:quota:manage";
+
+    // Forces a re-application of pending EF Core migrations from the admin surface (S-ADMIN-3) rather than
+    // only at process startup — the operator's recovery lever when a deploy's auto-migration step was
+    // skipped or interrupted. Database-wide by nature (one shared schema), audited against the tenant the
+    // operator was working when they reached for it.
+    public const string TenantRemigrate = "tenant:remigrate";
+
+    // Erases a tenant WHOLE (S-ADMIN-3) — every BroadcasterId-scoped row across the schema, soft-deleted
+    // where the entity supports it and hard-deleted where it does not, plus the Channel itself tombstoned
+    // to `churned`. Distinct from compliance:erasure, which erases one SUBJECT's personal data across
+    // channels (Art. 4(7)) — this erases one CHANNEL's data across subjects. The most destructive tenant
+    // operation in the product; always audited, always preview-before-execute.
+    public const string TenantErase = "tenant:erase";
+
     /// <summary>Every seeded Plane-C key (§C.1). The legacy alias <c>iam:audit:read</c> collapses to <c>audit:read</c>.</summary>
     public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -81,5 +99,8 @@ public static class IamPermissionKeys
         ContentAuthor,
         ContentPublish,
         ContentPublishForce,
+        TenantQuotaManage,
+        TenantRemigrate,
+        TenantErase,
     };
 }
