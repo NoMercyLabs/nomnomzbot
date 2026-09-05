@@ -86,7 +86,11 @@ docker cp "${Container}:/tmp/openapi-fetched.json" $snapshot
 
 # A freshly generated document line-diffs enormously against the committed one purely from key
 # ordering, so judge it SEMANTICALLY. A path or schema DISAPPEARING is the signal that matters.
-[int]$paths = (Get-Content -Raw -LiteralPath $snapshot | ConvertFrom-Json).paths.PSObject.Properties.Count
+# @(...) first: on a PSCustomObject, `.PSObject.Properties.Count` member-enumerates and yields an
+# Object[] (one Count per property), which then fails to cast to [int]. Wrapping forces one array.
+[int]$paths = @(
+    (Get-Content -Raw -LiteralPath $snapshot | ConvertFrom-Json).paths.PSObject.Properties
+).Count
 Write-Host "   snapshot now carries $paths paths"
 
 if (-not $KeepRunning) {
