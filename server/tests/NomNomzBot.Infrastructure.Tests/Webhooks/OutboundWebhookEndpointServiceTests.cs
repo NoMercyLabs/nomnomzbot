@@ -78,6 +78,30 @@ public sealed class OutboundWebhookEndpointServiceTests
                 delivery.NextRetryAt = null;
                 return Task.FromResult(Result.Success(WebhookDeliveryStatus.Delivered));
             });
+        // The real dispatcher's replay APPENDS a new delivery and never touches the original; the mock
+        // mirrors that, so a test asserting "the original attempt survived" is testing the service's
+        // choice to delegate rather than a convenience of the fake.
+        dispatcher
+            .ReplayDeliveryAsync(Arg.Any<OutboundWebhookDelivery>(), Arg.Any<CancellationToken>())
+            .Returns(ci =>
+            {
+                OutboundWebhookDelivery original = ci.ArgAt<OutboundWebhookDelivery>(0);
+                OutboundWebhookDelivery replay = new()
+                {
+                    BroadcasterId = original.BroadcasterId,
+                    EndpointId = original.EndpointId,
+                    WebhookMessageId = Guid.NewGuid(),
+                    JournalEventId = original.JournalEventId,
+                    EventType = original.EventType,
+                    RenderedBody = original.RenderedBody,
+                    Attempt = 1,
+                    Status = WebhookDeliveryStatus.Delivered,
+                    CreatedAt = Now.UtcDateTime,
+                };
+                db.OutboundWebhookDeliveries.Add(replay);
+                db.SaveChanges();
+                return Task.FromResult(Result.Success(replay));
+            });
         return (
             new(
                 db,
@@ -715,12 +739,22 @@ public sealed class OutboundWebhookEndpointServiceTests
         result.Value.Status.Should().Be(nameof(WebhookDeliveryStatus.Delivered));
         await dispatcher
             .Received(1)
-            .AttemptDeliveryAsync(
+            .ReplayDeliveryAsync(
                 Arg.Is<OutboundWebhookDelivery>(d =>
                     d.Id == delivery.Id && d.RenderedBody == """{"who": "frozen-at-enqueue-time"}"""
                 ),
                 Arg.Any<CancellationToken>()
             );
+
+        // A retry APPENDS. The failed attempt the operator was looking at when they pressed retry must still
+        // be readable afterwards; bumping Attempt on that row (the old behaviour) destroyed it.
+        db.OutboundWebhookDeliveries.Count().Should().Be(2);
+        OutboundWebhookDelivery originalAfter = db.OutboundWebhookDeliveries.Single(d =>
+            d.Id == delivery.Id
+        );
+        originalAfter.Status.Should().Be(WebhookDeliveryStatus.Failed);
+        originalAfter.Attempt.Should().Be(1);
+        result.Value.Id.Should().NotBe(delivery.Id);
     }
 
     [Fact]
@@ -781,7 +815,7 @@ public sealed class OutboundWebhookEndpointServiceTests
         result.ErrorCode.Should().Be("NOT_FOUND");
         await dispatcher
             .DidNotReceive()
-            .AttemptDeliveryAsync(Arg.Any<OutboundWebhookDelivery>(), Arg.Any<CancellationToken>());
+            .ReplayDeliveryAsync(Arg.Any<OutboundWebhookDelivery>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -821,6 +855,6 @@ public sealed class OutboundWebhookEndpointServiceTests
         result.ErrorCode.Should().Be("ENDPOINT_DISABLED");
         await dispatcher
             .DidNotReceive()
-            .AttemptDeliveryAsync(Arg.Any<OutboundWebhookDelivery>(), Arg.Any<CancellationToken>());
+            .ReplayDeliveryAsync(Arg.Any<OutboundWebhookDelivery>(), Arg.Any<CancellationToken>());
     }
 }

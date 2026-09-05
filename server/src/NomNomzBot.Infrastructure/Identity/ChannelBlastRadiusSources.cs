@@ -191,6 +191,7 @@ public static class ChannelBlastRadiusSources
         Of(BlastRadiusCategoryKeys.ChannelBilling, db => db.UsageRecords),
         Of(BlastRadiusCategoryKeys.ChannelBilling, db => db.TtsUsageRecords),
         Of(BlastRadiusCategoryKeys.ChannelBilling, db => db.TenantLimitOverrides),
+        Of(BlastRadiusCategoryKeys.ChannelBilling, db => db.EntitlementGrants),
         // ── The remainder: infrastructure bookkeeping with no streamer-facing name ──
         Of(BlastRadiusCategoryKeys.ChannelOther, db => db.AuthSessions),
         Of(BlastRadiusCategoryKeys.ChannelOther, db => db.CryptoKeys),

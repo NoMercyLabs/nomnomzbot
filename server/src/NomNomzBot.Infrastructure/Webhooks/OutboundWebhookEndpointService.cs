@@ -23,7 +23,6 @@ using NomNomzBot.Application.Services;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Webhooks.Entities;
-using NomNomzBot.Domain.Webhooks.Enums;
 
 namespace NomNomzBot.Infrastructure.Webhooks;
 
@@ -364,14 +363,17 @@ public sealed class OutboundWebhookEndpointService(
                 "ENDPOINT_DISABLED"
             );
 
-        delivery.Attempt++;
-        Result<WebhookDeliveryStatus> attempt = await dispatcher.AttemptDeliveryAsync(delivery, ct);
-        if (attempt.IsFailure)
+        // A retry APPENDS a new delivery row; it never rewrites the original attempt. Bumping Attempt on the
+        // existing row overwrote the outcome the operator is looking at — the failed status, response code and
+        // timestamp that made them press retry in the first place — so a delivery log could never show what
+        // actually happened, only its latest state. Same rule the admin replay path follows.
+        Result<OutboundWebhookDelivery> replay = await dispatcher.ReplayDeliveryAsync(delivery, ct);
+        if (replay.IsFailure)
             return Result.Failure<OutboundWebhookDeliveryDto>(
-                attempt.ErrorMessage,
-                attempt.ErrorCode
+                replay.ErrorMessage,
+                replay.ErrorCode
             );
-        return Result.Success(ToDeliveryDto(delivery));
+        return Result.Success(ToDeliveryDto(replay.Value!));
     }
 
     /// <summary>E5 dashboard live-sync: fired after every successful write so other open dashboards refetch.</summary>
