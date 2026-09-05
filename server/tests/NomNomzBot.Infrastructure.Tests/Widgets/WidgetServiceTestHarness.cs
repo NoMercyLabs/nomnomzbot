@@ -119,6 +119,8 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
     public DbSet<Widget> Widgets => Set<Widget>();
     public DbSet<WidgetVersion> WidgetVersions => Set<WidgetVersion>();
     public DbSet<Channel> Channels => Set<Channel>();
+    public DbSet<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride> TenantLimitOverrides =>
+        throw new NotSupportedException();
     public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
     public DbSet<PlatformContentDefinition> PlatformContentDefinitions =>
         Set<PlatformContentDefinition>();

@@ -35,17 +35,13 @@ public sealed class ResourceQuotaServiceTests
 {
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-0000000000f9");
 
-    private static (ResourceQuotaService Sut, AuthDbContext Db) Build()
+    private static (ResourceQuotaService Sut, AuthDbContext Db, FakeTimeProvider Clock) Build()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         BillingTierService tiers = new(db);
-        UsageMeteringService metering = new(
-            db,
-            tiers,
-            new RecordingEventBus(),
-            new FakeTimeProvider()
-        );
-        return (new(tiers, metering, db), db);
+        FakeTimeProvider clock = new();
+        UsageMeteringService metering = new(db, tiers, new RecordingEventBus(), clock);
+        return (new(tiers, metering, db, clock), db, clock);
     }
 
     private static void SeedChannel(AuthDbContext db, string deploymentMode) =>
@@ -65,7 +61,7 @@ public sealed class ResourceQuotaServiceTests
     [Fact]
     public async Task NearFree_resource_refuses_the_Nplus1th_row_on_self_host()
     {
-        (ResourceQuotaService sut, AuthDbContext db) = Build();
+        (ResourceQuotaService sut, AuthDbContext db, _) = Build();
         SeedChannel(db, AuthEnums.DeploymentMode.SelfHostFull);
         await db.SaveChangesAsync();
 
@@ -82,7 +78,7 @@ public sealed class ResourceQuotaServiceTests
     [Fact]
     public async Task NearFree_resource_applies_the_same_baseline_to_a_saas_tenant_regardless_of_tier()
     {
-        (ResourceQuotaService sut, AuthDbContext db) = Build();
+        (ResourceQuotaService sut, AuthDbContext db, _) = Build();
         SeedChannel(db, AuthEnums.DeploymentMode.Saas);
         await new BillingTierSeeder(db).SeedAsync();
         await db.SaveChangesAsync();
@@ -112,7 +108,7 @@ public sealed class ResourceQuotaServiceTests
     [Fact]
     public async Task CostDriving_resource_is_unlimited_on_self_host()
     {
-        (ResourceQuotaService sut, AuthDbContext db) = Build();
+        (ResourceQuotaService sut, AuthDbContext db, _) = Build();
         SeedChannel(db, AuthEnums.DeploymentMode.SelfHostFull);
         await db.SaveChangesAsync();
 
@@ -125,7 +121,7 @@ public sealed class ResourceQuotaServiceTests
     [Fact]
     public async Task CostDriving_resource_is_tier_scaled_on_saas()
     {
-        (ResourceQuotaService sut, AuthDbContext db) = Build();
+        (ResourceQuotaService sut, AuthDbContext db, _) = Build();
         SeedChannel(db, AuthEnums.DeploymentMode.Saas);
         await new BillingTierSeeder(db).SeedAsync();
         await db.SaveChangesAsync();
@@ -148,12 +144,112 @@ public sealed class ResourceQuotaServiceTests
         overCap.Limit.Should().Be(500); // base tier's seeded tts_max_characters
     }
 
+    // ─── S-ADMIN-3: a per-tenant override wins over both baseline and tier ─────
+
+    [Fact]
+    public async Task TenantLimitOverride_raises_a_near_free_ceiling_above_the_uniform_safety_baseline()
+    {
+        (ResourceQuotaService sut, AuthDbContext db, _) = Build();
+        SeedChannel(db, AuthEnums.DeploymentMode.SelfHostFull);
+        db.TenantLimitOverrides.Add(
+            new()
+            {
+                BroadcasterId = Channel,
+                LimitKey = "custom_commands",
+                LimitValue = 5000,
+                Reason = "negotiated support exception",
+                GrantedByPrincipalId = Guid.NewGuid(),
+            }
+        );
+        await db.SaveChangesAsync();
+
+        // 1501 exceeds the registry's uniform safety baseline (1500) and would normally be refused (proven by
+        // NearFree_resource_refuses_the_Nplus1th_row_on_self_host above) — the override lifts it.
+        QuotaCheckDto check = (await sut.CheckAsync(Channel, "custom_commands", 1501)).Value;
+
+        check.Allowed.Should().BeTrue();
+        check.Limit.Should().Be(5000);
+    }
+
+    [Fact]
+    public async Task TenantLimitOverride_tightens_a_cost_driving_limit_below_the_tenants_tier()
+    {
+        (ResourceQuotaService sut, AuthDbContext db, _) = Build();
+        SeedChannel(db, AuthEnums.DeploymentMode.Saas);
+        await new BillingTierSeeder(db).SeedAsync();
+        await db.SaveChangesAsync();
+        BillingTier baseTier = await db.BillingTiers.FirstAsync(t => t.Key == "base");
+        db.Subscriptions.Add(
+            new()
+            {
+                BroadcasterId = Channel,
+                TierId = baseTier.Id,
+                Status = SubscriptionStatus.Active,
+            }
+        );
+        db.TenantLimitOverrides.Add(
+            new()
+            {
+                BroadcasterId = Channel,
+                LimitKey = "tts_max_characters",
+                LimitValue = 50,
+                Reason = "abuse-response tightening",
+                GrantedByPrincipalId = Guid.NewGuid(),
+            }
+        );
+        await db.SaveChangesAsync();
+
+        // The base tier alone would allow up to 500 (proven by CostDriving_resource_is_tier_scaled_on_saas) —
+        // the override tightens it to 50 for this tenant only.
+        QuotaCheckDto underOverride = (
+            await sut.CheckAsync(Channel, "tts_max_characters", 50)
+        ).Value;
+        QuotaCheckDto overOverride = (
+            await sut.CheckAsync(Channel, "tts_max_characters", 51)
+        ).Value;
+
+        underOverride.Allowed.Should().BeTrue();
+        overOverride.Allowed.Should().BeFalse();
+        overOverride.Limit.Should().Be(50);
+    }
+
+    [Fact]
+    public async Task TenantLimitOverride_stops_applying_once_expired()
+    {
+        (ResourceQuotaService sut, AuthDbContext db, FakeTimeProvider clock) = Build();
+        SeedChannel(db, AuthEnums.DeploymentMode.SelfHostFull);
+        db.TenantLimitOverrides.Add(
+            new()
+            {
+                BroadcasterId = Channel,
+                LimitKey = "custom_commands",
+                LimitValue = 5000,
+                Reason = "temporary exception",
+                GrantedByPrincipalId = Guid.NewGuid(),
+                ExpiresAt = clock.GetUtcNow().UtcDateTime.AddHours(1),
+            }
+        );
+        await db.SaveChangesAsync();
+
+        QuotaCheckDto whileOpen = (await sut.CheckAsync(Channel, "custom_commands", 1501)).Value;
+        whileOpen.Allowed.Should().BeTrue();
+        whileOpen.Limit.Should().Be(5000);
+
+        clock.Advance(TimeSpan.FromHours(2));
+
+        // Past ExpiresAt the override no longer applies — resolution falls back to the registry's uniform
+        // safety baseline (1500), refusing the same 1501st row again.
+        QuotaCheckDto afterExpiry = (await sut.CheckAsync(Channel, "custom_commands", 1501)).Value;
+        afterExpiry.Allowed.Should().BeFalse();
+        afterExpiry.Limit.Should().Be(1500);
+    }
+
     // ─── truthful usage: unknown key refuses loud, never silently allows ───────
 
     [Fact]
     public async Task An_undeclared_limit_key_fails_rather_than_silently_allowing()
     {
-        (ResourceQuotaService sut, AuthDbContext db) = Build();
+        (ResourceQuotaService sut, AuthDbContext db, _) = Build();
         SeedChannel(db, AuthEnums.DeploymentMode.SelfHostFull);
         await db.SaveChangesAsync();
 
@@ -185,7 +281,7 @@ public sealed class ResourceQuotaServiceTests
     [Fact]
     public async Task GetCurrentCountAsync_matches_the_count_a_write_would_see_at_the_cap()
     {
-        (ResourceQuotaService sut, AuthDbContext db) = Build();
+        (ResourceQuotaService sut, AuthDbContext db, _) = Build();
         SeedChannel(db, AuthEnums.DeploymentMode.SelfHostFull);
         // Seed exactly the registry's custom_commands safety baseline (1500).
         SeedCommands(db, Channel, 1500);
@@ -216,7 +312,7 @@ public sealed class ResourceQuotaServiceTests
     [Fact]
     public async Task GetUsageReportAsync_never_leaks_another_tenants_rows_into_the_count()
     {
-        (ResourceQuotaService sut, AuthDbContext db) = Build();
+        (ResourceQuotaService sut, AuthDbContext db, _) = Build();
         Guid channelA = Channel;
         Guid channelB = Guid.Parse("0192a000-0000-7000-8000-0000000000fa");
         SeedChannel(db, AuthEnums.DeploymentMode.SelfHostFull);
@@ -244,7 +340,7 @@ public sealed class ResourceQuotaServiceTests
     [Fact]
     public async Task Self_host_usage_report_never_carries_a_commercial_ceiling_for_near_free_resources()
     {
-        (ResourceQuotaService sut, AuthDbContext db) = Build();
+        (ResourceQuotaService sut, AuthDbContext db, _) = Build();
         SeedChannel(db, AuthEnums.DeploymentMode.SelfHostFull);
         await db.SaveChangesAsync();
 
@@ -266,7 +362,7 @@ public sealed class ResourceQuotaServiceTests
     [Fact]
     public async Task Sound_clip_storage_bytes_reads_the_real_sum_of_live_clip_sizes()
     {
-        (ResourceQuotaService sut, AuthDbContext db) = Build();
+        (ResourceQuotaService sut, AuthDbContext db, _) = Build();
         SeedChannel(db, AuthEnums.DeploymentMode.SelfHostFull);
         db.SoundClips.Add(
             new SoundClip
@@ -331,7 +427,7 @@ public sealed class ResourceQuotaServiceTests
     [Fact]
     public async Task Channel_asset_storage_bytes_reads_the_real_sum_of_live_asset_sizes_and_is_tier_scaled_on_saas()
     {
-        (ResourceQuotaService sut, AuthDbContext db) = Build();
+        (ResourceQuotaService sut, AuthDbContext db, _) = Build();
         SeedChannel(db, AuthEnums.DeploymentMode.Saas);
         await new BillingTierSeeder(db).SeedAsync();
         await db.SaveChangesAsync();

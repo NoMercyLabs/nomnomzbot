@@ -86,6 +86,8 @@ internal sealed class CommandsTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Platform.Entities.Record> Records =>
         Set<NomNomzBot.Domain.Platform.Entities.Record>();
     public DbSet<Channel> Channels => Set<Channel>();
+    public DbSet<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride> TenantLimitOverrides =>
+        throw new NotSupportedException();
     public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
 
     protected override void OnModelCreating(ModelBuilder b)

@@ -14,8 +14,10 @@ using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
+using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Domain.Billing.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Identity.Events;
@@ -35,7 +37,10 @@ public sealed class PlatformAdminService(
     IJwtTokenService jwt,
     IEventBus eventBus,
     TimeProvider clock,
-    ISessionRevocationService sessionRevocation
+    ISessionRevocationService sessionRevocation,
+    IChannelDeletePreviewService channelDeletePreview,
+    IChannelService channelService,
+    IDatabaseMigrator migrator
 ) : IPlatformAdminService
 {
     /// <summary>The seeded role a support-access grant assigns, narrowed to the target tenant (§3.2).</summary>
@@ -521,6 +526,231 @@ public sealed class PlatformAdminService(
 
         return Result.Success(
             new PagedList<IamAuditEntryDto>(items, pagination.Page, pagination.PageSize, total)
+        );
+    }
+
+    public async Task<Result<IReadOnlyList<TenantLimitOverrideDto>>> ListTenantLimitOverridesAsync(
+        Guid principalId,
+        Guid broadcasterId,
+        CancellationToken ct = default
+    )
+    {
+        Result authorized = await RequireAsync(principalId, "tenant:read", broadcasterId, null, ct);
+        if (authorized.IsFailure)
+            return authorized.WithValue<IReadOnlyList<TenantLimitOverrideDto>>(null!);
+
+        List<TenantLimitOverrideDto> overrides = await db
+            .TenantLimitOverrides.Where(o => o.BroadcasterId == broadcasterId)
+            .OrderBy(o => o.LimitKey)
+            .Select(o => new TenantLimitOverrideDto(
+                o.Id,
+                o.BroadcasterId,
+                o.LimitKey,
+                o.LimitValue,
+                o.Reason,
+                o.GrantedByPrincipalId,
+                o.CreatedAt,
+                o.ExpiresAt
+            ))
+            .ToListAsync(ct);
+
+        return Result.Success<IReadOnlyList<TenantLimitOverrideDto>>(overrides);
+    }
+
+    public async Task<Result<TenantLimitOverrideDto>> SetTenantLimitOverrideAsync(
+        Guid principalId,
+        Guid broadcasterId,
+        SetTenantLimitOverrideRequest request,
+        CancellationToken ct = default
+    )
+    {
+        if (string.IsNullOrWhiteSpace(request.Reason))
+            return Result.Failure<TenantLimitOverrideDto>(
+                "A reason is required to override a tenant's quota.",
+                "VALIDATION_FAILED"
+            );
+        if (!LimitedResourceRegistry.TryGet(request.LimitKey, out _))
+            return Result.Failure<TenantLimitOverrideDto>(
+                $"'{request.LimitKey}' is not a declared limited resource.",
+                "NOT_FOUND"
+            );
+
+        Result authorized = await RequireAsync(
+            principalId,
+            "tenant:quota:manage",
+            broadcasterId,
+            request.Reason,
+            ct
+        );
+        if (authorized.IsFailure)
+            return authorized.WithValue<TenantLimitOverrideDto>(null!);
+
+        if (!await db.Channels.AnyAsync(c => c.Id == broadcasterId, ct))
+            return Result.Failure<TenantLimitOverrideDto>("Unknown tenant.", "NOT_FOUND");
+
+        TenantLimitOverride? existing = await db.TenantLimitOverrides.FirstOrDefaultAsync(
+            o => o.BroadcasterId == broadcasterId && o.LimitKey == request.LimitKey,
+            ct
+        );
+
+        DateTime now = clock.GetUtcNow().UtcDateTime;
+        if (existing is null)
+        {
+            existing = new TenantLimitOverride
+            {
+                BroadcasterId = broadcasterId,
+                LimitKey = request.LimitKey,
+            };
+            db.TenantLimitOverrides.Add(existing);
+        }
+
+        existing.LimitValue = request.LimitValue;
+        existing.Reason = request.Reason;
+        existing.GrantedByPrincipalId = principalId;
+        existing.ExpiresAt = request.ExpiresAt;
+        await db.SaveChangesAsync(ct);
+
+        return Result.Success(
+            new TenantLimitOverrideDto(
+                existing.Id,
+                existing.BroadcasterId,
+                existing.LimitKey,
+                existing.LimitValue,
+                existing.Reason,
+                existing.GrantedByPrincipalId,
+                existing.CreatedAt == default ? now : existing.CreatedAt,
+                existing.ExpiresAt
+            )
+        );
+    }
+
+    public async Task<Result> ClearTenantLimitOverrideAsync(
+        Guid principalId,
+        Guid broadcasterId,
+        string limitKey,
+        CancellationToken ct = default
+    )
+    {
+        Result authorized = await RequireAsync(
+            principalId,
+            "tenant:quota:manage",
+            broadcasterId,
+            null,
+            ct
+        );
+        if (authorized.IsFailure)
+            return authorized;
+
+        TenantLimitOverride? existing = await db.TenantLimitOverrides.FirstOrDefaultAsync(
+            o => o.BroadcasterId == broadcasterId && o.LimitKey == limitKey,
+            ct
+        );
+        if (existing is null)
+            return Result.Failure("No override for that tenant and limit key.", "NOT_FOUND");
+
+        existing.DeletedAt = clock.GetUtcNow().UtcDateTime;
+        existing.DeletedBy = principalId;
+        await db.SaveChangesAsync(ct);
+        return Result.Success();
+    }
+
+    public async Task<Result<TenantRemigrationResultDto>> ForceRemigrationAsync(
+        Guid principalId,
+        Guid broadcasterId,
+        string justification,
+        CancellationToken ct = default
+    )
+    {
+        if (string.IsNullOrWhiteSpace(justification))
+            return Result.Failure<TenantRemigrationResultDto>(
+                "A justification is required to force a re-migration.",
+                "VALIDATION_FAILED"
+            );
+
+        Result authorized = await RequireAsync(
+            principalId,
+            "tenant:remigrate",
+            broadcasterId,
+            justification,
+            ct
+        );
+        if (authorized.IsFailure)
+            return authorized.WithValue<TenantRemigrationResultDto>(null!);
+
+        IReadOnlyList<string> pendingBefore = await migrator.GetPendingMigrationsAsync(ct);
+        await migrator.MigrateAsync(ct);
+        IReadOnlyList<string> pendingAfter = await migrator.GetPendingMigrationsAsync(ct);
+
+        List<string> applied = [.. pendingBefore.Except(pendingAfter, StringComparer.Ordinal)];
+        return Result.Success(new TenantRemigrationResultDto(applied, pendingAfter));
+    }
+
+    public async Task<Result<ChannelDeletePreviewDto>> PreviewEraseTenantAsync(
+        Guid principalId,
+        Guid broadcasterId,
+        CancellationToken ct = default
+    )
+    {
+        Result authorized = await RequireAsync(
+            principalId,
+            "tenant:erase",
+            broadcasterId,
+            null,
+            ct
+        );
+        if (authorized.IsFailure)
+            return authorized.WithValue<ChannelDeletePreviewDto>(null!);
+
+        return await channelDeletePreview.PreviewAsync(broadcasterId.ToString(), ct);
+    }
+
+    public async Task<Result> EraseTenantAsync(
+        Guid principalId,
+        Guid broadcasterId,
+        string justification,
+        CancellationToken ct = default
+    )
+    {
+        if (string.IsNullOrWhiteSpace(justification))
+            return Result.Failure(
+                "A justification is required to erase a tenant.",
+                "VALIDATION_FAILED"
+            );
+
+        Result authorized = await RequireAsync(
+            principalId,
+            "tenant:erase",
+            broadcasterId,
+            justification,
+            ct
+        );
+        if (authorized.IsFailure)
+            return authorized;
+
+        return await channelService.DeleteAsync(broadcasterId.ToString(), ct);
+    }
+
+    public async Task<Result<string>> ExportTenantAsync(
+        Guid principalId,
+        Guid broadcasterId,
+        CancellationToken ct = default
+    )
+    {
+        Result authorized = await RequireAsync(
+            principalId,
+            "tenant:erase",
+            broadcasterId,
+            null,
+            ct
+        );
+        if (authorized.IsFailure)
+            return authorized.WithValue<string>(null!);
+
+        if (!await db.Channels.AnyAsync(c => c.Id == broadcasterId, ct))
+            return Result.Failure<string>("Unknown tenant.", "NOT_FOUND");
+
+        return Result.Success(
+            await TenantExport.BuildAsync(db, broadcasterId, clock.GetUtcNow().UtcDateTime, ct)
         );
     }
 

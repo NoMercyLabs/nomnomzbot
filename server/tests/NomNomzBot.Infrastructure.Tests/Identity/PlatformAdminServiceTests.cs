@@ -17,10 +17,12 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
+using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Enums.Deployment;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Identity.Events;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Platform.Auth;
 using NSubstitute;
@@ -43,22 +45,43 @@ public sealed class PlatformAdminServiceTests
         PlatformAdminService Sut,
         AuthDbContext Db,
         RecordingEventBus Bus,
-        ISessionRevocationService Revocation
+        ISessionRevocationService Revocation,
+        IDatabaseMigrator Migrator
     ) Build(DeploymentMode mode = DeploymentMode.Saas)
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         RecordingEventBus bus = new();
         FakeTimeProvider clock = new(Now);
         ISessionRevocationService revocation = Substitute.For<ISessionRevocationService>();
+        // ChannelService.DeleteAsync only touches db/timeProvider/registry — the other four collaborators
+        // are never reached on that path, so a bare substitute is enough for them here.
+        NomNomzBot.Infrastructure.Identity.ChannelService channelService = new(
+            db,
+            clock,
+            bus,
+            Substitute.For<IChannelRegistry>(),
+            Substitute.For<Application.Contracts.Twitch.ITwitchEventSubService>(),
+            Substitute.For<Domain.Chat.Interfaces.IChatProvider>(),
+            Substitute.For<Application.Commands.Builtin.IBuiltinResponseComposer>()
+        );
+        // AuthDbContext maps a focused subset of the full model (S004d), so this harness never exercises
+        // ChannelDeletePreviewService's real counting pass (proved exhaustively elsewhere, against its own
+        // full-model harness, by ChannelDeleteBlastRadiusTests + ChannelBlastRadiusSourcesCompletenessTests)
+        // — only the admin-gate wrapping around it.
+        ChannelDeletePreviewService deletePreview = new(db, clock);
+        IDatabaseMigrator migrator = Substitute.For<IDatabaseMigrator>();
         PlatformAdminService sut = new(
             db,
             new PlatformIamService(db, bus, clock, new(mode)),
             Jwt(),
             bus,
             clock,
-            revocation
+            revocation,
+            deletePreview,
+            channelService,
+            migrator
         );
-        return (sut, db, bus, revocation);
+        return (sut, db, bus, revocation, migrator);
     }
 
     /// <summary>Seeds an OPEN, time-boxed support-access grant for <paramref name="principal"/> — the session an impersonation mint is required to ride on (S089a).</summary>
@@ -225,7 +248,7 @@ public sealed class PlatformAdminServiceTests
     [Fact]
     public async Task Suspend_flips_the_lifecycle_columns_audits_and_publishes()
     {
-        (PlatformAdminService sut, AuthDbContext db, RecordingEventBus bus, _) = Build();
+        (PlatformAdminService sut, AuthDbContext db, RecordingEventBus bus, _, _) = Build();
         Guid principal = SeedPrincipal(db, "tenant:suspend");
         Guid tenant = SeedTenant(db);
         await db.SaveChangesAsync();
@@ -260,7 +283,7 @@ public sealed class PlatformAdminServiceTests
     [Fact]
     public async Task Suspend_rejects_an_invalid_status_and_requires_the_permission()
     {
-        (PlatformAdminService sut, AuthDbContext db, _, _) = Build();
+        (PlatformAdminService sut, AuthDbContext db, _, _, _) = Build();
         Guid unpermitted = SeedPrincipal(db, "tenant:read"); // holds a key, but not tenant:suspend
         Guid tenant = SeedTenant(db);
         await db.SaveChangesAsync();
@@ -281,7 +304,7 @@ public sealed class PlatformAdminServiceTests
     [Fact]
     public async Task Reinstate_restores_active_and_clears_the_suspension_fields()
     {
-        (PlatformAdminService sut, AuthDbContext db, RecordingEventBus bus, _) = Build();
+        (PlatformAdminService sut, AuthDbContext db, RecordingEventBus bus, _, _) = Build();
         Guid principal = SeedPrincipal(db, "tenant:suspend");
         Guid tenant = SeedTenant(db);
         await db.SaveChangesAsync();
@@ -300,7 +323,7 @@ public sealed class PlatformAdminServiceTests
     [Fact]
     public async Task BeginTenantAccess_creates_a_scoped_timeboxed_support_assignment()
     {
-        (PlatformAdminService sut, AuthDbContext db, RecordingEventBus bus, _) = Build();
+        (PlatformAdminService sut, AuthDbContext db, RecordingEventBus bus, _, _) = Build();
         Guid principal = SeedPrincipal(db, "tenant:access");
         Guid tenant = SeedTenant(db);
         db.IamRoles.Add(new() { Id = Guid.NewGuid(), Name = "platform-support" });
@@ -343,7 +366,7 @@ public sealed class PlatformAdminServiceTests
     [Fact]
     public async Task BeginTenantAccess_defaults_a_bounded_future_expiry_when_the_request_omits_one()
     {
-        (PlatformAdminService sut, AuthDbContext db, _, _) = Build();
+        (PlatformAdminService sut, AuthDbContext db, _, _, _) = Build();
         Guid principal = SeedPrincipal(db, "tenant:access");
         Guid tenant = SeedTenant(db);
         db.IamRoles.Add(new() { Id = Guid.NewGuid(), Name = "platform-support" });
@@ -376,7 +399,7 @@ public sealed class PlatformAdminServiceTests
     [Fact]
     public async Task ActAsOwner_full_path_begin_access_then_impersonate_resolves_the_target_tenant()
     {
-        (PlatformAdminService sut, AuthDbContext db, _, _) = Build();
+        (PlatformAdminService sut, AuthDbContext db, _, _, _) = Build();
         Guid operatorUserId = SeedUser(db, "operator", isPlatformPrincipal: true);
         Guid principal = SeedPrincipalFor(
             db,
@@ -441,7 +464,7 @@ public sealed class PlatformAdminServiceTests
     [Fact]
     public async Task BeginTenantAccess_requires_a_justification()
     {
-        (PlatformAdminService sut, AuthDbContext db, _, _) = Build();
+        (PlatformAdminService sut, AuthDbContext db, _, _, _) = Build();
         Guid principal = SeedPrincipal(db, "tenant:access");
         Guid tenant = SeedTenant(db);
         await db.SaveChangesAsync();
@@ -458,7 +481,7 @@ public sealed class PlatformAdminServiceTests
     [Fact]
     public async Task EndTenantAccess_revokes_own_grant_and_rejects_a_foreign_one()
     {
-        (PlatformAdminService sut, AuthDbContext db, _, _) = Build();
+        (PlatformAdminService sut, AuthDbContext db, _, _, _) = Build();
         Guid principal = SeedPrincipal(db, "tenant:access");
         Guid other = SeedPrincipal(db, "tenant:access");
         Guid tenant = SeedTenant(db);
@@ -492,7 +515,7 @@ public sealed class PlatformAdminServiceTests
     [Fact]
     public async Task ListTenants_filters_by_status_and_GetTenant_returns_the_detail()
     {
-        (PlatformAdminService sut, AuthDbContext db, _, _) = Build();
+        (PlatformAdminService sut, AuthDbContext db, _, _, _) = Build();
         Guid principal = SeedPrincipal(db, "tenant:read", "tenant:suspend");
         Guid active = SeedTenant(db, "active_chan");
         Guid banned = SeedTenant(db, "banned_chan");
@@ -517,7 +540,7 @@ public sealed class PlatformAdminServiceTests
     [Fact]
     public async Task SearchAudit_filters_by_permission_and_target()
     {
-        (PlatformAdminService sut, AuthDbContext db, _, _) = Build();
+        (PlatformAdminService sut, AuthDbContext db, _, _, _) = Build();
         Guid principal = SeedPrincipal(db, "audit:read", "tenant:suspend");
         Guid tenant = SeedTenant(db);
         await db.SaveChangesAsync();
@@ -540,7 +563,7 @@ public sealed class PlatformAdminServiceTests
     [Fact]
     public async Task StartImpersonation_mints_a_target_scoped_token_that_never_leaks_the_operators_admin_role()
     {
-        (PlatformAdminService sut, AuthDbContext db, _, _) = Build();
+        (PlatformAdminService sut, AuthDbContext db, _, _, _) = Build();
 
         // A platform-marked admin (whose OWN login would carry the `admin` role) acting as a plain viewer.
         Guid adminUserId = SeedUser(db, "operator", isPlatformPrincipal: true);
@@ -601,7 +624,7 @@ public sealed class PlatformAdminServiceTests
     [Fact]
     public async Task StartImpersonation_carries_the_targets_admin_role_when_the_target_is_itself_an_admin()
     {
-        (PlatformAdminService sut, AuthDbContext db, _, _) = Build();
+        (PlatformAdminService sut, AuthDbContext db, _, _, _) = Build();
         Guid adminUserId = SeedUser(db, "operator", isPlatformPrincipal: true);
         Guid principal = SeedPrincipalFor(db, adminUserId, "operator", "user:impersonate");
         // The TARGET is itself a platform principal — the token must reflect the TARGET's roles, so `admin` IS present.
@@ -630,7 +653,7 @@ public sealed class PlatformAdminServiceTests
     [Fact]
     public async Task StartImpersonation_without_the_permission_is_forbidden_audited_and_mints_no_token()
     {
-        (PlatformAdminService sut, AuthDbContext db, _, _) = Build();
+        (PlatformAdminService sut, AuthDbContext db, _, _, _) = Build();
         Guid unpermitted = SeedPrincipal(db, "tenant:read"); // holds a key, but not user:impersonate
         Guid targetUserId = SeedUser(db, "viewer", isPlatformPrincipal: false);
         await db.SaveChangesAsync();
@@ -652,7 +675,7 @@ public sealed class PlatformAdminServiceTests
     [Fact]
     public async Task StartImpersonation_requires_a_justification_and_a_known_target()
     {
-        (PlatformAdminService sut, AuthDbContext db, _, _) = Build();
+        (PlatformAdminService sut, AuthDbContext db, _, _, _) = Build();
         Guid principal = SeedPrincipal(db, "user:impersonate");
         Guid targetUserId = SeedUser(db, "viewer", isPlatformPrincipal: false);
         Guid grant = SeedOpenGrant(db, principal, Now.UtcDateTime.AddHours(1));
@@ -670,7 +693,7 @@ public sealed class PlatformAdminServiceTests
     [Fact]
     public async Task StartImpersonation_without_an_open_support_session_is_refused()
     {
-        (PlatformAdminService sut, AuthDbContext db, _, _) = Build();
+        (PlatformAdminService sut, AuthDbContext db, _, _, _) = Build();
         Guid principal = SeedPrincipal(db, "user:impersonate");
         Guid targetUserId = SeedUser(db, "viewer", isPlatformPrincipal: false);
         await db.SaveChangesAsync();
@@ -691,7 +714,7 @@ public sealed class PlatformAdminServiceTests
     [Fact]
     public async Task StartImpersonation_clamps_the_token_expiry_to_the_sessions_remaining_time()
     {
-        (PlatformAdminService sut, AuthDbContext db, _, _) = Build();
+        (PlatformAdminService sut, AuthDbContext db, _, _, _) = Build();
         Guid principal = SeedPrincipal(db, "user:impersonate");
         Guid targetUserId = SeedUser(db, "viewer", isPlatformPrincipal: false);
         // The support session expires in 5 minutes — far shorter than the configured 60-minute JWT lifetime.
@@ -713,7 +736,7 @@ public sealed class PlatformAdminServiceTests
     [Fact]
     public async Task EndImpersonation_revokes_the_sid_so_the_same_token_stops_authenticating()
     {
-        (PlatformAdminService sut, AuthDbContext db, _, ISessionRevocationService revocation) =
+        (PlatformAdminService sut, AuthDbContext db, _, ISessionRevocationService revocation, _) =
             Build();
         Guid principal = SeedPrincipal(db, "user:impersonate");
         Guid targetUserId = SeedUser(db, "viewer", isPlatformPrincipal: false);
@@ -748,7 +771,7 @@ public sealed class PlatformAdminServiceTests
     {
         // Deployment mode is NOT a gate: the permission, the open time-boxed grant, the justification and the
         // audit row are what make an act-as safe, and they apply identically on a self-hosted instance.
-        (PlatformAdminService sut, AuthDbContext db, _, ISessionRevocationService revocation) =
+        (PlatformAdminService sut, AuthDbContext db, _, ISessionRevocationService revocation, _) =
             Build(DeploymentMode.SelfHostFull);
         Guid principal = SeedPrincipal(db, "user:impersonate");
         Guid targetUserId = SeedUser(db, "viewer", isPlatformPrincipal: false);
@@ -781,7 +804,7 @@ public sealed class PlatformAdminServiceTests
     {
         // platform-support no longer bundles user:impersonate (S089a) — a support principal holding
         // every OTHER support key is still denied the ability to mint an impersonation token.
-        (PlatformAdminService sut, AuthDbContext db, _, _) = Build();
+        (PlatformAdminService sut, AuthDbContext db, _, _, _) = Build();
         Guid support = SeedPrincipal(db, "tenant:read", "tenant:access", "audit:read");
         Guid targetUserId = SeedUser(db, "viewer", isPlatformPrincipal: false);
         Guid grant = SeedOpenGrant(db, support, Now.UtcDateTime.AddHours(1));
@@ -790,5 +813,226 @@ public sealed class PlatformAdminServiceTests
         (await sut.StartImpersonationAsync(support, targetUserId, grant, "not the owner"))
             .ErrorCode.Should()
             .Be("FORBIDDEN");
+    }
+
+    // ─── S-ADMIN-3: per-tenant quota overrides ──────────────────────────────────
+
+    [Fact]
+    public async Task SetTenantLimitOverride_persists_a_row_the_quota_service_can_read_back()
+    {
+        (PlatformAdminService sut, AuthDbContext db, _, _, _) = Build();
+        Guid principal = SeedPrincipal(db, "tenant:quota:manage");
+        Guid tenant = SeedTenant(db);
+        await db.SaveChangesAsync();
+
+        Result<TenantLimitOverrideDto> result = await sut.SetTenantLimitOverrideAsync(
+            principal,
+            tenant,
+            new SetTenantLimitOverrideRequest("custom_commands", 5000, "negotiated exception", null)
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        NomNomzBot.Domain.Billing.Entities.TenantLimitOverride? persisted =
+            await db.TenantLimitOverrides.FirstOrDefaultAsync(o =>
+                o.BroadcasterId == tenant && o.LimitKey == "custom_commands"
+            );
+        persisted.Should().NotBeNull();
+        persisted!.LimitValue.Should().Be(5000);
+        persisted.GrantedByPrincipalId.Should().Be(principal);
+    }
+
+    [Fact]
+    public async Task SetTenantLimitOverride_without_the_permission_is_forbidden_and_writes_nothing()
+    {
+        (PlatformAdminService sut, AuthDbContext db, _, _, _) = Build();
+        Guid principal = SeedPrincipal(db, "tenant:read"); // no tenant:quota:manage
+        Guid tenant = SeedTenant(db);
+        await db.SaveChangesAsync();
+
+        Result<TenantLimitOverrideDto> result = await sut.SetTenantLimitOverrideAsync(
+            principal,
+            tenant,
+            new SetTenantLimitOverrideRequest("custom_commands", 5000, "should not land", null)
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("FORBIDDEN");
+        (await db.TenantLimitOverrides.AnyAsync(o => o.BroadcasterId == tenant)).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ClearTenantLimitOverride_soft_deletes_the_row()
+    {
+        (PlatformAdminService sut, AuthDbContext db, _, _, _) = Build();
+        Guid principal = SeedPrincipal(db, "tenant:quota:manage");
+        Guid tenant = SeedTenant(db);
+        db.TenantLimitOverrides.Add(
+            new()
+            {
+                BroadcasterId = tenant,
+                LimitKey = "custom_commands",
+                LimitValue = 5000,
+                Reason = "temp",
+                GrantedByPrincipalId = principal,
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result result = await sut.ClearTenantLimitOverrideAsync(
+            principal,
+            tenant,
+            "custom_commands"
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        NomNomzBot.Domain.Billing.Entities.TenantLimitOverride cleared =
+            await db.TenantLimitOverrides.SingleAsync(o => o.BroadcasterId == tenant);
+        cleared.DeletedAt.Should().NotBeNull();
+        cleared.DeletedBy.Should().Be(principal);
+    }
+
+    // ─── S-ADMIN-3: force a re-migration ─────────────────────────────────────────
+
+    [Fact]
+    public async Task ForceRemigration_requires_the_permission_and_a_justification()
+    {
+        (PlatformAdminService sut, AuthDbContext db, _, _, IDatabaseMigrator migrator) = Build();
+        Guid principal = SeedPrincipal(db, "tenant:remigrate");
+        Guid tenant = SeedTenant(db);
+        await db.SaveChangesAsync();
+        migrator
+            .GetPendingMigrationsAsync(Arg.Any<CancellationToken>())
+            .Returns(
+                Task.FromResult<IReadOnlyList<string>>(["20260101_pending"]),
+                Task.FromResult<IReadOnlyList<string>>([])
+            );
+
+        Result<TenantRemigrationResultDto> blank = await sut.ForceRemigrationAsync(
+            principal,
+            tenant,
+            ""
+        );
+        blank.IsFailure.Should().BeTrue();
+        blank.ErrorCode.Should().Be("VALIDATION_FAILED");
+
+        Result<TenantRemigrationResultDto> forbidden = await sut.ForceRemigrationAsync(
+            Guid.NewGuid(),
+            tenant,
+            "recovering a skipped deploy step"
+        );
+        forbidden.IsFailure.Should().BeTrue();
+        forbidden.ErrorCode.Should().Be("FORBIDDEN");
+
+        Result<TenantRemigrationResultDto> ok = await sut.ForceRemigrationAsync(
+            principal,
+            tenant,
+            "recovering a skipped deploy step"
+        );
+        ok.IsSuccess.Should().BeTrue();
+        ok.Value.MigrationsAppliedThisCall.Should().Contain("20260101_pending");
+        ok.Value.StillPending.Should().BeEmpty();
+        await migrator.Received(1).MigrateAsync(Arg.Any<CancellationToken>());
+    }
+
+    // ─── S-ADMIN-3: erase a tenant whole ─────────────────────────────────────────
+
+    [Fact]
+    public async Task PreviewEraseTenant_requires_the_dedicated_key_and_a_known_tenant()
+    {
+        // ChannelDeletePreviewService's real counting behavior (every tenant-scoped table, real row counts,
+        // no leakage across tenants) is proved exhaustively by ChannelDeleteBlastRadiusTests +
+        // ChannelBlastRadiusSourcesCompletenessTests against its own full-model harness; this proves the
+        // ADMIN gate wrapping it: the dedicated key is required, and a permission denial / unknown tenant is
+        // both reached WITHOUT ever running the row-count pass (real assertion, not a mock check).
+        (PlatformAdminService sut, AuthDbContext db, _, _, _) = Build();
+        Guid principal = SeedPrincipal(db, "tenant:erase");
+        Guid tenant = SeedTenant(db);
+        await db.SaveChangesAsync();
+
+        // tenant:access alone (a support-visit key) must NOT unlock the preview of the most destructive
+        // tenant action — it is gated on the dedicated tenant:erase key.
+        Guid supportOnly = SeedPrincipal(db, "tenant:access");
+        await db.SaveChangesAsync();
+        (await sut.PreviewEraseTenantAsync(supportOnly, tenant)).ErrorCode.Should().Be("FORBIDDEN");
+
+        (await sut.PreviewEraseTenantAsync(principal, Guid.NewGuid()))
+            .ErrorCode.Should()
+            .Be("CHANNEL_NOT_FOUND");
+    }
+
+    [Fact]
+    public async Task EraseTenant_soft_deletes_the_channel_and_is_refused_without_justification()
+    {
+        (PlatformAdminService sut, AuthDbContext db, _, _, _) = Build();
+        Guid principal = SeedPrincipal(db, "tenant:erase");
+        Guid tenant = SeedTenant(db);
+        await db.SaveChangesAsync();
+
+        Result blank = await sut.EraseTenantAsync(principal, tenant, "");
+        blank.IsFailure.Should().BeTrue();
+        blank.ErrorCode.Should().Be("VALIDATION_FAILED");
+        NomNomzBot.Domain.Identity.Entities.Channel untouched = await db.Channels.SingleAsync(c =>
+            c.Id == tenant
+        );
+        untouched.DeletedAt.Should().BeNull();
+
+        Result erased = await sut.EraseTenantAsync(
+            principal,
+            tenant,
+            "owner requested offboarding"
+        );
+        erased.IsSuccess.Should().BeTrue();
+
+        // Soft delete — the house default, reversible for the restore window: DeletedAt stamped and the bot
+        // stopped serving the channel (Enabled = false), not a hard row delete.
+        NomNomzBot.Domain.Identity.Entities.Channel tombstone = await db.Channels.SingleAsync(c =>
+            c.Id == tenant
+        );
+        tombstone.DeletedAt.Should().NotBeNull();
+        tombstone.Enabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ExportTenant_is_forbidden_without_the_dedicated_key_and_refuses_an_unknown_tenant()
+    {
+        (PlatformAdminService sut, AuthDbContext db, _, _, _) = Build();
+        Guid supportOnly = SeedPrincipal(db, "tenant:access"); // not tenant:erase
+        Guid principal = SeedPrincipal(db, "tenant:erase");
+        Guid tenant = SeedTenant(db);
+        await db.SaveChangesAsync();
+
+        (await sut.ExportTenantAsync(supportOnly, tenant)).ErrorCode.Should().Be("FORBIDDEN");
+        (await sut.ExportTenantAsync(principal, Guid.NewGuid())).ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    [Fact]
+    public async Task TenantExport_builds_a_json_document_naming_the_tenants_own_rows()
+    {
+        // TenantExport is the mechanism ExportTenantAsync delegates to. AuthDbContext maps a focused subset
+        // of the full model (S004d), so this exercises the SAME production code over the one table it
+        // actually maps, mirroring ChannelDeleteBlastRadiusTests' own pattern for the sibling preview.
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        Guid tenant = SeedTenant(db);
+        db.Commands.Add(
+            new()
+            {
+                BroadcasterId = tenant,
+                Name = "exportme",
+                NameNormalized = "exportme",
+                TemplateResponse = "hi",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        string document = await TenantExport.BuildAsync(
+            db,
+            tenant,
+            Now.UtcDateTime,
+            [typeof(Command)],
+            CancellationToken.None
+        );
+
+        document.Should().Contain("exportme");
+        document.Should().Contain(tenant.ToString());
     }
 }

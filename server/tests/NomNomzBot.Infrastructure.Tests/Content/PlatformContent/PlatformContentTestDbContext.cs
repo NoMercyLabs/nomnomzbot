@@ -83,6 +83,8 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
     }
 
     public DbSet<Channel> Channels => Set<Channel>();
+    public DbSet<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride> TenantLimitOverrides =>
+        throw new NotSupportedException();
     public DbSet<ChannelBuiltinCommand> ChannelBuiltinCommands => Set<ChannelBuiltinCommand>();
     public DbSet<IamAuditLog> IamAuditLogs => Set<IamAuditLog>();
     public DbSet<PlatformContentDefinition> PlatformContentDefinitions =>

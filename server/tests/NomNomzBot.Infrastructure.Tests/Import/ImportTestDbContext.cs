@@ -43,6 +43,8 @@ internal sealed class ImportTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<TenantSequence> TenantSequences => Set<TenantSequence>();
     public DbSet<Channel> Channels => Set<Channel>();
+    public DbSet<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride> TenantLimitOverrides =>
+        throw new NotSupportedException();
     public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

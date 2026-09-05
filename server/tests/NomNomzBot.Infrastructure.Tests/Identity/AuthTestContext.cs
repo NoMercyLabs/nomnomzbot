@@ -329,6 +329,8 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
     public DbSet<ErasureRequest> ErasureRequests => Set<ErasureRequest>();
     public DbSet<Channel> Channels => Set<Channel>();
+    public DbSet<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride> TenantLimitOverrides =>
+        Set<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride>();
     public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
     public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();

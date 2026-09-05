@@ -64,6 +64,12 @@ public sealed class IamCatalogSeeder : ISeeder
         (IamPermissionKeys.ContentPublish, IamCategory.Content, true),
         // force overwrites tenant-edited copies — the most sensitive publish mode (§2.1).
         (IamPermissionKeys.ContentPublishForce, IamCategory.Content, true),
+        // Per-tenant quota exceptions and lifecycle recovery/destruction (S-ADMIN-3).
+        (IamPermissionKeys.TenantQuotaManage, IamCategory.Tenant, true),
+        (IamPermissionKeys.TenantRemigrate, IamCategory.Tenant, true),
+        // The most destructive tenant operation in the product — deliberately its own key, never bundled
+        // implicitly with tenant:suspend or tenant:access.
+        (IamPermissionKeys.TenantErase, IamCategory.Tenant, true),
     ];
 
     /// <summary>C.2 + C.3 rows: system role → its bundled permission keys, verbatim from §C.2.</summary>
@@ -91,6 +97,9 @@ public sealed class IamCatalogSeeder : ISeeder
                 IamPermissionKeys.ContentAuthor,
                 IamPermissionKeys.ContentPublish,
                 IamPermissionKeys.ContentPublishForce,
+                IamPermissionKeys.TenantQuotaManage,
+                IamPermissionKeys.TenantRemigrate,
+                IamPermissionKeys.TenantErase,
             ]
         ),
         (

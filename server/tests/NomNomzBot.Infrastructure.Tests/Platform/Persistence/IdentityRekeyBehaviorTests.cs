@@ -86,6 +86,8 @@ public sealed class IdentityRekeyBehaviorTests
             throw new NotSupportedException();
         public DbSet<ConsentRecord> ConsentRecords => Set<ConsentRecord>();
         public DbSet<Channel> Channels => Set<Channel>();
+        public DbSet<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride> TenantLimitOverrides =>
+            Set<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride>();
         public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
         public DbSet<Command> Commands => Set<Command>();
 
@@ -442,6 +444,8 @@ public sealed class IdentityRekeyBehaviorTests
         public DbSet<ConsentRecord> ConsentRecords => inner.ConsentRecords;
         public DbSet<ErasureRequest> ErasureRequests => throw new NotSupportedException();
         public DbSet<Channel> Channels => inner.Channels;
+        public DbSet<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride> TenantLimitOverrides =>
+            inner.TenantLimitOverrides;
         public DbSet<PlatformConnection> PlatformConnections => inner.PlatformConnections;
         public DbSet<Command> Commands => inner.Commands;
 

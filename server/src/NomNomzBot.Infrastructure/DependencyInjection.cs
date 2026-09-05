@@ -1679,6 +1679,9 @@ public static class DependencyInjection
 public interface IDatabaseMigrator
 {
     Task MigrateAsync(CancellationToken cancellationToken);
+
+    /// <summary>The migration ids not yet applied to the database, in the order they would apply.</summary>
+    Task<IReadOnlyList<string>> GetPendingMigrationsAsync(CancellationToken cancellationToken);
 }
 
 public sealed class DatabaseMigrator(AppDbContext dbContext) : IDatabaseMigrator
@@ -1686,5 +1689,12 @@ public sealed class DatabaseMigrator(AppDbContext dbContext) : IDatabaseMigrator
     public async Task MigrateAsync(CancellationToken cancellationToken)
     {
         await dbContext.Database.MigrateAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<string>> GetPendingMigrationsAsync(
+        CancellationToken cancellationToken
+    )
+    {
+        return [.. await dbContext.Database.GetPendingMigrationsAsync(cancellationToken)];
     }
 }

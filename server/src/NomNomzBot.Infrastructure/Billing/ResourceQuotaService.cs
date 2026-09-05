@@ -27,7 +27,8 @@ namespace NomNomzBot.Infrastructure.Billing;
 public sealed class ResourceQuotaService(
     IBillingTierService tiers,
     IUsageMeteringService metering,
-    IApplicationDbContext db
+    IApplicationDbContext db,
+    TimeProvider clock
 ) : IResourceQuotaService
 {
     public async Task<Result<QuotaCheckDto>> CheckAsync(
@@ -43,10 +44,26 @@ public sealed class ResourceQuotaService(
                 "NOT_FOUND"
             );
 
+        // A per-tenant override (S-ADMIN-3) wins over BOTH the NEAR_FREE safety baseline and the
+        // tier-resolved COST_DRIVING limit — it is the one operator-granted exception for this tenant alone,
+        // never a way to reconfigure a tier. An expired or absent row falls through to normal resolution.
+        DateTime now = clock.GetUtcNow().UtcDateTime;
+        long? overrideLimit = await db
+            .TenantLimitOverrides.Where(o =>
+                o.BroadcasterId == broadcasterId
+                && o.LimitKey == limitKey
+                && (o.ExpiresAt == null || o.ExpiresAt > now)
+            )
+            .Select(o => (long?)o.LimitValue)
+            .FirstOrDefaultAsync(ct);
+
         long limit =
-            descriptor.Class == ResourceClass.NearFree
-                ? descriptor.SafetyBaseline
-                : (await tiers.GetLimitAsync(broadcasterId, limitKey, ct)).Value;
+            overrideLimit
+            ?? (
+                descriptor.Class == ResourceClass.NearFree
+                    ? descriptor.SafetyBaseline
+                    : (await tiers.GetLimitAsync(broadcasterId, limitKey, ct)).Value
+            );
 
         bool allowed = limit == -1 || resultingCount <= limit;
         long remaining = limit == -1 ? -1 : Math.Max(0, limit - resultingCount);

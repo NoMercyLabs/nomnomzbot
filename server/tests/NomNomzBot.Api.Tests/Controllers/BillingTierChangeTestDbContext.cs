@@ -84,6 +84,8 @@ internal sealed class BillingTierChangeTestDbContext : DbContext, IApplicationDb
     }
 
     public DbSet<Channel> Channels => Set<Channel>();
+    public DbSet<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride> TenantLimitOverrides =>
+        Set<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride>();
     public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
     public DbSet<BillingTier> BillingTiers => Set<BillingTier>();
     public DbSet<TierLimit> TierLimits => Set<TierLimit>();
@@ -110,6 +112,7 @@ internal sealed class BillingTierChangeTestDbContext : DbContext, IApplicationDb
             e.Ignore(r => r.MetadataJson);
         });
         b.Entity<Domain.Assets.Entities.ChannelAsset>(e => e.HasKey(a => a.Id));
+        b.Entity<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride>(e => e.HasKey(o => o.Id));
 
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
@@ -128,6 +131,7 @@ internal sealed class BillingTierChangeTestDbContext : DbContext, IApplicationDb
         typeof(Domain.Commands.Entities.Timer),
         typeof(EventResponse),
         typeof(Domain.Assets.Entities.ChannelAsset),
+        typeof(NomNomzBot.Domain.Billing.Entities.TenantLimitOverride),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
