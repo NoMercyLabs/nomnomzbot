@@ -73,10 +73,14 @@ def main() -> None:
 
     # JwtTokenService builds the token from System.Security.Claims.ClaimTypes constants directly
     # (JwtSecurityToken's ctor writes Claim.Type verbatim as the JSON key — no short-name mapping),
-    # so the wire claim keys are these long XML-identity URIs, not "sub"/"name"/"role".
+    # so the wire claim keys are these long XML-identity URIs, not "sub"/"name"/"role". ClaimTypes.Role
+    # is the ONE exception to the xmlsoap.org family below — it resolves to a microsoft.com URI, and a
+    # token minted with the xmlsoap.org value there passes JWT validation but User.IsInRole(...) never
+    # matches it, so every admin-gated policy silently 403s (confirmed against JwtTokenService.cs:117,
+    # which signs roles with ClaimTypes.Role verbatim).
     NAME_IDENTIFIER = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"
     NAME = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"
-    ROLE = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/role"
+    ROLE = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
 
     now = int(time.time())
     header = {"alg": "HS256", "typ": "JWT"}

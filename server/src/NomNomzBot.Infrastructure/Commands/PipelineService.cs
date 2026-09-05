@@ -532,16 +532,23 @@ public class PipelineService : IPipelineService
         return Result.Success<string?>(rawJson);
     }
 
-    /// <summary>Maps the engine's action/condition graph shape onto the validator's input contract.</summary>
+    /// <summary>Maps the engine's action/condition graph shape onto the validator's input contract.
+    /// A block-kind step (if/switch/loop/random_branch/try) carries a placeholder <see cref="ActionDefinition"/>
+    /// with no registered <see cref="ICommandAction"/> behind it — the engine dispatches those on
+    /// <see cref="PipelineStepDefinition.BlockKind"/> instead (PipelineEngine.cs:1312), never on
+    /// <c>Action.Type</c> — so it is excluded here rather than fed to the known-action-type check, which
+    /// would otherwise reject every nested-block save with "Unknown action type 'block'" (S-PIPE-TREE).</summary>
     private static PipelineGraphInput ToValidatorInput(PipelineDefinition definition) =>
         new([
-            .. definition.Steps.Select(step => new PipelineStepInput(
-                step.Action.Type,
-                step.Action.Parameters?.ToDictionary(kv => kv.Key, kv => (object?)kv.Value)
-                    ?? new Dictionary<string, object?>(),
-                step.Condition?.Type,
-                step.Condition?.Parameters?.ToDictionary(kv => kv.Key, kv => (object?)kv.Value)
-            )),
+            .. definition
+                .Steps.Where(step => string.IsNullOrEmpty(step.BlockKind))
+                .Select(step => new PipelineStepInput(
+                    step.Action.Type,
+                    step.Action.Parameters?.ToDictionary(kv => kv.Key, kv => (object?)kv.Value)
+                        ?? new Dictionary<string, object?>(),
+                    step.Condition?.Type,
+                    step.Condition?.Parameters?.ToDictionary(kv => kv.Key, kv => (object?)kv.Value)
+                )),
         ]);
 
     private static PipelineDto ToDto(PipelineEntity p)
