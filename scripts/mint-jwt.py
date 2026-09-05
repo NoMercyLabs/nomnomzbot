@@ -13,6 +13,14 @@ shape, for driving a deployed instance as an authenticated human/E2E check witho
 going through the real Twitch device-code flow. stdlib only (hashlib/hmac/base64),
 so it runs anywhere Python 3 does without installing PyJWT.
 
+WHERE THE SECRET ACTUALLY COMES FROM — this costs an hour every time it is rediscovered:
+a self-host instance does NOT sign with the appsettings.json placeholder. Program.cs treats a weak or
+default Jwt:Secret as absent and calls SelfHostSecretStore.LoadOrCreateJwtSecret(), which generates a
+per-install value and persists it at <data-dir>/keys/jwt-secret.bin. Read the secret from THAT file,
+not from appsettings — on Linux the file is plaintext, on Windows it is DPAPI-sealed. The data dir is
+NOMNOMZ_DATA_DIR when set, otherwise the machine app-data dir. A mismatch shows up as
+401 "The signature key was not found", never as a clearer message.
+
 Usage:
   python3 scripts/mint-jwt.py --secret <base64 Jwt__Secret> --sub <userId guid>
       [--tenant <broadcasterId guid>] [--issuer nomnomzbot] [--audience nomnomzbot]
