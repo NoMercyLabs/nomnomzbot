@@ -11,7 +11,10 @@
 using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Caching;
+using NomNomzBot.Application.Abstractions.Platform;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Infrastructure.Platform;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -144,5 +147,69 @@ public sealed class FeatureFlagAdminServiceTests
         db.IamAuditLogs.Should().HaveCount(2);
         db.IamAuditLogs.Should()
             .Contain(a => a.Justification != null && a.Justification.Contains("new=(removed)"));
+    }
+
+    [Fact]
+    public async Task PreviewGlobalToggle_counts_active_channels_with_no_override()
+    {
+        (FeatureFlagAdminService sut, AuthDbContext db, _, _) = Build();
+        await SeedFlagAsync(db, "integration:spotify");
+        Guid overriddenTenant = Guid.Parse("0192a000-0000-7000-8000-0000000091aa");
+        Guid affectedTenant = Guid.Parse("0192a000-0000-7000-8000-0000000091bb");
+        Guid suspendedTenant = Guid.Parse("0192a000-0000-7000-8000-0000000091cc");
+        db.Channels.AddRange(
+            new Channel
+            {
+                Id = overriddenTenant,
+                OwnerUserId = Guid.NewGuid(),
+                Provider = AuthEnums.Platform.Twitch,
+                ExternalChannelId = "overridden-ext",
+                Name = "overridden",
+                NameNormalized = "overridden",
+                Status = AuthEnums.ChannelStatus.Active,
+            },
+            new Channel
+            {
+                Id = affectedTenant,
+                OwnerUserId = Guid.NewGuid(),
+                Provider = AuthEnums.Platform.Twitch,
+                ExternalChannelId = "affected-ext",
+                Name = "affected",
+                NameNormalized = "affected",
+                Status = AuthEnums.ChannelStatus.Active,
+            },
+            new Channel
+            {
+                Id = suspendedTenant,
+                OwnerUserId = Guid.NewGuid(),
+                Provider = AuthEnums.Platform.Twitch,
+                ExternalChannelId = "suspended-ext",
+                Name = "suspended",
+                NameNormalized = "suspended",
+                Status = AuthEnums.ChannelStatus.Suspended,
+            }
+        );
+        await db.SaveChangesAsync();
+        await sut.SetOverrideAsync("integration:spotify", overriddenTenant, new(false), null);
+
+        Result<FeatureFlagBlastRadiusDto> result = await sut.PreviewGlobalToggleAsync(
+            "integration:spotify"
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        // The overridden tenant is insulated from the global toggle either way, and the suspended tenant is
+        // not an active channel — only the un-overridden active channel actually feels a global flip.
+        result.Value.TenantsAffected.Should().Be(1);
+        result.Value.SampleChannelNames.Should().ContainSingle().Which.Should().Be("affected");
+    }
+
+    [Fact]
+    public async Task PreviewGlobalToggle_on_an_unknown_flag_is_not_found()
+    {
+        (FeatureFlagAdminService sut, _, _, _) = Build();
+
+        Result<FeatureFlagBlastRadiusDto> result = await sut.PreviewGlobalToggleAsync("missing");
+
+        result.ErrorCode.Should().Be("NOT_FOUND");
     }
 }

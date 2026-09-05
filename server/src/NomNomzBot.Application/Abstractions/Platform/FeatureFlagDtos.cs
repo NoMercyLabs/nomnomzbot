@@ -38,3 +38,18 @@ public sealed record SetFeatureFlagOverrideRequest(
     string? Reason = null,
     DateTime? ExpiresAt = null
 );
+
+/// <summary>
+/// The counted blast radius of flipping a flag's GLOBAL toggle — shown to the operator BEFORE the toggle
+/// commits (consequences-must-be-visible). <see cref="TenantsAffected"/> is the number of active channels
+/// whose effective state is actually governed by the global toggle right now: an unexpired per-tenant
+/// override insulates a channel from the global switch, so an overridden channel is never counted here — it
+/// will not change. This is the same reasoning that makes a per-integration kill switch safe to flip: the
+/// operator sees exactly how many tenants lose the integration, not an estimate.
+/// </summary>
+/// <param name="TenantsAffected">Real, counted number of active channels with no unexpired override for this flag.</param>
+/// <param name="SampleChannelNames">Up to 5 channel names from that set, so the operator recognises who is affected.</param>
+public sealed record FeatureFlagBlastRadiusDto(
+    int TenantsAffected,
+    IReadOnlyList<string> SampleChannelNames
+);

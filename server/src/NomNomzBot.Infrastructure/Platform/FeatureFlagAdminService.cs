@@ -192,6 +192,39 @@ public sealed class FeatureFlagAdminService(
         return Result.Success();
     }
 
+    public async Task<Result<FeatureFlagBlastRadiusDto>> PreviewGlobalToggleAsync(
+        string flagKey,
+        CancellationToken ct = default
+    )
+    {
+        FeatureFlag? flag = await db.FeatureFlags.FirstOrDefaultAsync(f => f.Key == flagKey, ct);
+        if (flag is null)
+            return Result.Failure<FeatureFlagBlastRadiusDto>(
+                "Feature flag not found.",
+                "NOT_FOUND"
+            );
+
+        DateTime now = clock.GetUtcNow().UtcDateTime;
+        IQueryable<Guid> overriddenBroadcasterIds = db
+            .FeatureFlagOverrides.Where(o =>
+                o.FeatureFlagId == flag.Id && (o.ExpiresAt == null || o.ExpiresAt > now)
+            )
+            .Select(o => o.BroadcasterId);
+
+        IQueryable<Channel> affected = db
+            .Channels.Where(c => c.Status == AuthEnums.ChannelStatus.Active)
+            .Where(c => !overriddenBroadcasterIds.Contains(c.Id));
+
+        int tenantsAffected = await affected.CountAsync(ct);
+        List<string> sample = await affected
+            .OrderBy(c => c.Name)
+            .Select(c => c.Name)
+            .Take(5)
+            .ToListAsync(ct);
+
+        return Result.Success(new FeatureFlagBlastRadiusDto(tenantsAffected, sample));
+    }
+
     private Task InvalidateAsync(string flagKey, Guid broadcasterId, CancellationToken ct) =>
         cache.RemoveAsync($"ff:{flagKey}:{broadcasterId}", ct);
 

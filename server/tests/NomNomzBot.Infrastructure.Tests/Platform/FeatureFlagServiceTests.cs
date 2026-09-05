@@ -150,4 +150,47 @@ public sealed class FeatureFlagServiceTests
 
         (await sut.IsEnabledForAsync("feat", Channel)).Should().BeFalse();
     }
+
+    [Fact]
+    public async Task A_tenant_lands_on_the_same_side_of_a_partial_rollout_every_time()
+    {
+        (FeatureFlagService sut, AuthDbContext db) = Build();
+        await SeedFlagAsync(db, global: true, rollout: 30);
+
+        bool first = await sut.IsEnabledForAsync("feat", Channel);
+        bool second = await sut.IsEnabledForAsync("feat", Channel);
+        bool third = await sut.IsEnabledForAsync("feat", Channel);
+
+        second.Should().Be(first);
+        third.Should().Be(first);
+    }
+
+    [Fact]
+    public async Task A_partial_rollout_admits_roughly_its_percentage_of_a_large_tenant_set()
+    {
+        (FeatureFlagService sut, AuthDbContext db) = Build();
+        await SeedFlagAsync(db, global: true, rollout: 30);
+
+        const int tenantCount = 5000;
+        int admitted = 0;
+        for (int i = 0; i < tenantCount; i++)
+        {
+            Guid tenant = Guid.NewGuid();
+            bool enabled = await sut.IsEnabledForAsync("feat", tenant);
+            bool enabledAgain = await sut.IsEnabledForAsync("feat", tenant);
+            // Same tenant, same side, every time — a percentage nothing evaluates could never keep this promise.
+            enabledAgain.Should().Be(enabled);
+            if (enabled)
+                admitted++;
+        }
+
+        double share = admitted / (double)tenantCount;
+        share
+            .Should()
+            .BeInRange(
+                0.25,
+                0.35,
+                "a stable FNV-1a bucket over a large random tenant set should land close to the configured 30% ramp"
+            );
+    }
 }

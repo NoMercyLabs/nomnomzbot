@@ -44,4 +44,14 @@ public interface IFeatureFlagAdminService
         Guid? actorUserId,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// Count the active channels that would actually feel a flip of this flag's GLOBAL toggle (consequences
+    /// must be visible before a kill-switch commits) — every active, non-overridden channel; an unexpired
+    /// per-tenant override is unaffected either way.
+    /// </summary>
+    Task<Result<FeatureFlagBlastRadiusDto>> PreviewGlobalToggleAsync(
+        string flagKey,
+        CancellationToken ct = default
+    );
 }

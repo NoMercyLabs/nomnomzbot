@@ -303,10 +303,6 @@ private class NoopAdminApiForWidgetTest : AdminApi {
     override suspend fun grantTier(broadcasterId: String, body: AdminGrantTierRequest) =
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
     override suspend fun grantFounderBadge(broadcasterId: String) = ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
-    override suspend fun getTiers() = ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
-    override suspend fun previewTierChange(tierId: String) = ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
-    override suspend fun createTier(body: bot.nomnomz.dashboard.core.network.AdminCreateTierRequest) = ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
-    override suspend fun updateTier(tierId: String, body: bot.nomnomz.dashboard.core.network.AdminUpdateTierRequest) = ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
     override suspend fun impersonate(subjectUserId: String, accessGrantId: String, justification: String) =
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
     override suspend fun endImpersonation(accessGrantId: String) = ApiResult.Ok(Unit)

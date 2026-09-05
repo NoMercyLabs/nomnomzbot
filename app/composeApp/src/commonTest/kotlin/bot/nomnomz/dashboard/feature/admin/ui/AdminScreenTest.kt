@@ -587,13 +587,6 @@ private class RecordingFeatureFlagAdminApi(
     override suspend fun revokeInviteCode(inviteCodeId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
     override suspend fun grantTier(broadcasterId: String, body: AdminGrantTierRequest): ApiResult<Unit> = ApiResult.Ok(Unit)
     override suspend fun grantFounderBadge(broadcasterId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
-    override suspend fun getTiers(): ApiResult<List<bot.nomnomz.dashboard.core.network.AdminTier>> = ApiResult.Ok(emptyList())
-    override suspend fun previewTierChange(tierId: String): ApiResult<bot.nomnomz.dashboard.core.network.AdminTierChangePreview> =
-        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
-    override suspend fun createTier(body: bot.nomnomz.dashboard.core.network.AdminCreateTierRequest): ApiResult<bot.nomnomz.dashboard.core.network.AdminTier> =
-        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
-    override suspend fun updateTier(tierId: String, body: bot.nomnomz.dashboard.core.network.AdminUpdateTierRequest): ApiResult<bot.nomnomz.dashboard.core.network.AdminTier> =
-        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
     override suspend fun impersonate(subjectUserId: String, accessGrantId: String, justification: String): ApiResult<ImpersonationTokenDto> =
         ApiResult.Failure(ApiError(500, null, "not stubbed"))
     override suspend fun endImpersonation(accessGrantId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
@@ -692,13 +685,6 @@ private class RecordingListSearchAdminApi(private val hasMore: Boolean = false) 
     override suspend fun revokeInviteCode(inviteCodeId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
     override suspend fun grantTier(broadcasterId: String, body: AdminGrantTierRequest): ApiResult<Unit> = ApiResult.Ok(Unit)
     override suspend fun grantFounderBadge(broadcasterId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
-    override suspend fun getTiers(): ApiResult<List<bot.nomnomz.dashboard.core.network.AdminTier>> = ApiResult.Ok(emptyList())
-    override suspend fun previewTierChange(tierId: String): ApiResult<bot.nomnomz.dashboard.core.network.AdminTierChangePreview> =
-        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
-    override suspend fun createTier(body: bot.nomnomz.dashboard.core.network.AdminCreateTierRequest): ApiResult<bot.nomnomz.dashboard.core.network.AdminTier> =
-        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
-    override suspend fun updateTier(tierId: String, body: bot.nomnomz.dashboard.core.network.AdminUpdateTierRequest): ApiResult<bot.nomnomz.dashboard.core.network.AdminTier> =
-        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
     override suspend fun impersonate(subjectUserId: String, accessGrantId: String, justification: String): ApiResult<ImpersonationTokenDto> =
         ApiResult.Failure(ApiError(500, null, "not stubbed"))
     override suspend fun endImpersonation(accessGrantId: String): ApiResult<Unit> = ApiResult.Ok(Unit)

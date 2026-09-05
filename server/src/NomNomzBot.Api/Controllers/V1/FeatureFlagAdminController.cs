@@ -66,6 +66,17 @@ public class FeatureFlagAdminController(
     ) =>
         ResultResponse(await flags.SetOverrideAsync(flagKey, broadcasterId, request, Caller(), ct));
 
+    /// <summary>
+    /// Preview the counted blast radius of flipping a flag's global toggle — the active channels with no
+    /// unexpired override, who would actually feel the change. Called by the dashboard before a kill-switch
+    /// commit so the operator sees the count first (consequences-must-be-visible).
+    /// </summary>
+    [HttpGet("{flagKey}/blast-radius")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
+    [ProducesResponseType<StatusResponseDto<FeatureFlagBlastRadiusDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> PreviewGlobalToggle(string flagKey, CancellationToken ct) =>
+        ResultResponse(await flags.PreviewGlobalToggleAsync(flagKey, ct));
+
     /// <summary>Clear a channel's feature-flag override, returning it to the global ramp.</summary>
     [NotDestructive(
         "Deletes one FeatureFlagOverride row; no entity carries a FeatureFlagOverrideId FK and the flag falls back to its default."
