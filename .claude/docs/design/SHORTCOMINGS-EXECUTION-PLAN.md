@@ -41,17 +41,18 @@ with no cache; there is no search cache in the provider or the service (`INowPla
 state only). So the stale value is held BETWEEN those, or the request is being answered from a
 per-requester/pending-request path rather than the new resolve.
 
-- [ ] **S-SR-STALE-3 The lag is in the EventSub transport — the last place left.** Two
-      slices eliminated their layers with committed passing tests: the music path
-      (`MusicServiceSequentialRequestsTests` — fresh search per call, no cache, queue keyed by
-      TrackUri) and the chat path (`ChatMessageHandlerSequentialSongRequestArgsTests`, `a12546a4`
-      — args derived fresh per message, context never pooled, handlers all Scoped, proven with a
-      plain chat line interleaved). Remaining suspects, all in `Platform/Eventing/**`: a receive
-      loop handing a REUSED buffer to the translator, fire-and-forget dispatch letting frame N+1
-      overwrite N, a partial-frame accumulator not cleared between messages, or an off-by-one
-      pairing a body with the next frame's metadata. Done-when: two `channel.chat.message` frames
-      delivered back to back through the REAL transport produce events whose text matches their
-      own frame, and the test fails on current code for the one-behind reason.
+- [ ] **S-SR-STALE PARKED — four layers eliminated, not reproducible in current code.** Owner saw
+      `!sr 9 to 5` answered with Jolene, the search result for the preceding `!sr joliene`. Eliminated,
+      each with committed passing tests: the music path (`MusicServiceSequentialRequestsTests`), the
+      chat path (`ChatMessageHandlerSequentialSongRequestArgsTests`, `a12546a4`), and the EventSub
+      transport + translator (`WebSocketEventSubTransportChatOrderingTests`, mutation-proven by
+      injecting a deliberate one-frame-behind bug and watching them fail). Spotify is deterministic:
+      `q=9 to 5` returns 9 to 5 across repeated calls and under no market / NL / US, and NO truncation
+      variant (`9`, `9 to`, `to 5`, `joliene 9 to 5`) returns Jolene — only the literal `joliene` does.
+      The observation is from 22:01 on 09-04; the box now runs `d4a9170c` (09-05 02:02), which already
+      contains the dealer socket and both duplicate-event fixes. Resume only on a fresh sighting, and
+      then log the exact outgoing Spotify query beside the message id that triggered it — eliminating
+      a fifth layer without new evidence is not worth the tokens.
 
 ## OWNER BUG 2026-09-04 — two chat messages per Twitch event (TOP PRIORITY)
 
@@ -149,9 +150,6 @@ carrying a stale preview count fails closed rather than fanning out against numb
       (sandboxed, with the same VS Code-web editor and typed SDK the tenant surface gets). Done-when: a
       default command can be fixed, published, and its effect on an untouched tenant AND a customised tenant
       both demonstrated on the rendered client.
-- [ ] **S-ADMIN-3 Tenant operations.** Act-as/impersonate (permission-gated and audited — the existing
-      unscoped/unaudited impersonation is a known hole), suspend and unsuspend with the suspension actually
-      ENFORCED, quota and limit overrides per tenant, force a re-migration, export and erase a tenant whole.
 - [ ] **S-ADMIN-4 Plans, billing and entitlements.** Author tiers and prices (today `BillingTierSeeder`),
       map features to tiers, issue comps and grants, see invoices, dunning state and failed payments, and
       refund. The limits story stays the one already decided: recover real cost, never upsell for its own sake.
