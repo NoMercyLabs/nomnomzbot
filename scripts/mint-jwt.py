@@ -48,6 +48,12 @@ def main() -> None:
     parser.add_argument("--username", default="mint-jwt")
     parser.add_argument("--minutes", type=int, default=60)
     parser.add_argument(
+        "--sid",
+        help="AuthSessions.Id to put in the 'sid' claim. Defaults to a random GUID, which is fine for "
+        "endpoints that only read claims but is rejected by anything validating the session still "
+        "exists and is unrevoked — use a real row's id to exercise those.",
+    )
+    parser.add_argument(
         "--roles",
         default="",
         help="Comma-separated roles -> ClaimTypes.Role claims. SessionService.RolesFor issues "
@@ -69,7 +75,7 @@ def main() -> None:
     claims = {
         NAME_IDENTIFIER: args.sub,
         NAME: args.username,
-        "sid": str(uuid.uuid4()),
+        "sid": args.sid or str(uuid.uuid4()),
         "jti": str(uuid.uuid4()),
         "iat": now,
         "iss": args.issuer,
