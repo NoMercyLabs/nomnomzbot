@@ -57,6 +57,14 @@ interface BotAuthApi {
      * the operator can connect a different bot account via [start] / [startDeviceLogin] — this is how the bot is
      * "changed": disconnect, then connect the new one.
      */
+    /**
+     * Poll a bot device login for ONE channel: on approval that channel gets its OWN bot, leaving the shared
+     * platform bot untouched. [pollDeviceLogin] above connects the PLATFORM-wide bot every channel without
+     * its own speaks through, so a channel-scoped surface must never call it — that is how a channel login
+     * replaced nomz_bot for the whole deployment on 2026-09-04.
+     */
+    suspend fun pollChannelDeviceLogin(channelId: String, deviceCode: String): ApiResult<DeviceBotPoll>
+
     suspend fun disconnect(): ApiResult<Unit>
 }
 
@@ -73,6 +81,15 @@ class RestBotAuthApi(private val client: ApiClient) : BotAuthApi {
 
     override suspend fun pollDeviceLogin(deviceCode: String): ApiResult<DeviceBotPoll> =
         client.postEnvelope("api/v1/auth/twitch/bot/device/poll", BotDevicePollBody(deviceCode))
+
+    override suspend fun pollChannelDeviceLogin(
+        channelId: String,
+        deviceCode: String,
+    ): ApiResult<DeviceBotPoll> =
+        client.postEnvelope(
+            "api/v1/auth/twitch/channels/$channelId/bot/device/poll",
+            BotDevicePollBody(deviceCode),
+        )
 
     override suspend fun status(): ApiResult<BotStatus> =
         client.getEnvelope("api/v1/auth/twitch/bot/status")

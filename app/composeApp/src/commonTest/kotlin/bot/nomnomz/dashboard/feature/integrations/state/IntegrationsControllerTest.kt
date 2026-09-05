@@ -914,6 +914,17 @@ private class FakeBotAuthApi(
         return deviceStart
     }
 
+    /** The channel-scoped poll the Integrations screen now uses; delegates so existing expectations hold. */
+    override suspend fun pollChannelDeviceLogin(
+        channelId: String,
+        deviceCode: String,
+    ): ApiResult<DeviceBotPoll> {
+        polledChannelId = channelId
+        return pollDeviceLogin(deviceCode)
+    }
+
+    var polledChannelId: String? = null
+
     override suspend fun pollDeviceLogin(deviceCode: String): ApiResult<DeviceBotPoll> {
         onPoll?.invoke()
         polledDeviceCode = deviceCode

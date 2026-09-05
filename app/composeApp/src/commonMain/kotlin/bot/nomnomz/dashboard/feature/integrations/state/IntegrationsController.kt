@@ -293,9 +293,13 @@ class IntegrationsController(
     suspend fun connectBot() = connectBotViaDevice()
 
     /**
-     * The secret-free bot connect: mint a device code, surface it (the screen opens twitch.tv/activate), and
-     * poll until the operator approves (→ the shared bot is connected + vaulted server-side, panel dismissed),
-     * declines, or the code expires. Single-flight: never start a second device login while one is in flight.
+     * The secret-free bot connect for THIS channel: mint a device code, surface it (the screen opens
+     * twitch.tv/activate), and poll until the operator approves (→ this channel's OWN bot is connected +
+     * vaulted server-side, panel dismissed), declines, or the code expires. Single-flight: never start a
+     * second device login while one is in flight.
+     *
+     * Deliberately channel-scoped. The platform-shared bot is a deployment-wide identity and is not
+     * connectable from a channel screen — see [BotAuthApi.pollChannelDeviceLogin].
      */
     suspend fun connectBotViaDevice() {
         val ready: IntegrationsState.Ready = _state.value as? IntegrationsState.Ready ?: return
@@ -328,6 +332,7 @@ class IntegrationsController(
      * mid-approval doesn't abort the connect. The delay is a coroutine suspend, never a thread block.
      */
     private suspend fun pollBotDevice(start: DeviceCodeStart) {
+        val channel: String = channelId ?: return
         val intervalMs: Long = start.interval.coerceAtLeast(1).toLong() * 1000L
         val deadlineMs: Long = start.expiresIn.coerceAtLeast(1).toLong() * 1000L
         var elapsedMs: Long = 0
@@ -336,12 +341,17 @@ class IntegrationsController(
             delay(intervalMs)
             elapsedMs += intervalMs
 
-            when (val poll: ApiResult<DeviceBotPoll> = botAuthApi.pollDeviceLogin(start.deviceCode)) {
+            // Channel-scoped poll, never the platform one. This screen belongs to ONE channel, so approving
+            // here must give THAT channel its own bot. Polling the shared endpoint instead is what let a
+            // channel's connect replace nomz_bot for every other channel on 2026-09-04.
+            val poll: ApiResult<DeviceBotPoll> =
+                botAuthApi.pollChannelDeviceLogin(channel, start.deviceCode)
+            when (poll) {
                 is ApiResult.Failure -> Unit // tolerate transient failures until the code's deadline.
                 is ApiResult.Ok ->
                     when (poll.value.status) {
                         DEVICE_AUTHORIZED -> {
-                            // The shared bot is vaulted server-side; re-read the authoritative status (no fakes).
+                            // This channel's bot is vaulted server-side; re-read the authoritative status (no fakes).
                             cancelBotDevice()
                             refresh()
                             return

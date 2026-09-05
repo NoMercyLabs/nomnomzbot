@@ -899,6 +899,12 @@ internal class FakeBotAuthApi(
         return deviceStart
     }
 
+    /** Setup connects the PLATFORM bot, so this channel-scoped poll is never exercised here. */
+    override suspend fun pollChannelDeviceLogin(
+        channelId: String,
+        deviceCode: String,
+    ): ApiResult<DeviceBotPoll> = pollDeviceLogin(deviceCode)
+
     override suspend fun pollDeviceLogin(deviceCode: String): ApiResult<DeviceBotPoll> {
         onPoll?.invoke()
         polledDeviceCode = deviceCode
