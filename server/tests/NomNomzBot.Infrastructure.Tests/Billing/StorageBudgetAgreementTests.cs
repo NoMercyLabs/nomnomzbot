@@ -46,7 +46,7 @@ public sealed class StorageBudgetAgreementTests
     ) Build()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
-        BillingTierService tiers = new(db);
+        BillingTierService tiers = new(db, TimeProvider.System);
         UsageMeteringService metering = new(
             db,
             tiers,

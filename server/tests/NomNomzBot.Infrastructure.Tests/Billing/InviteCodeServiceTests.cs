@@ -41,7 +41,7 @@ public sealed class InviteCodeServiceTests
         RecordingEventBus bus = new();
         SubscriptionService subs = new(
             db,
-            new BillingTierService(db),
+            new BillingTierService(db, TimeProvider.System),
             Substitute.For<IStripeGateway>(),
             Substitute.For<IConfiguration>(),
             bus,

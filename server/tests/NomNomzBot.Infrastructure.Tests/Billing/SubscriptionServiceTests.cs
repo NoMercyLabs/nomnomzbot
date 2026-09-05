@@ -47,7 +47,7 @@ public sealed class SubscriptionServiceTests
         config["App:BaseUrl"].Returns("https://bot.example");
         SubscriptionService sut = new(
             db,
-            new BillingTierService(db),
+            new BillingTierService(db, TimeProvider.System),
             stripe ?? Substitute.For<IStripeGateway>(),
             config,
             bus,

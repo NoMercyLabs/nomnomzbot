@@ -532,6 +532,51 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.ToTable("BillingTiers");
                 });
 
+            modelBuilder.Entity("NomNomzBot.Domain.Billing.Entities.EntitlementGrant", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("BroadcasterId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("GrantedTierId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("IssuedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("IssuedByAdminId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BroadcasterId", "ExpiresAt");
+
+                    b.ToTable("EntitlementGrants");
+                });
+
             modelBuilder.Entity("NomNomzBot.Domain.Billing.Entities.FoundersBadge", b =>
                 {
                     b.Property<Guid>("Id")

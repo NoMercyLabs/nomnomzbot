@@ -215,6 +215,44 @@ data class AdminUpdateTierRequest(
     val confirmedAffectedTenantCount: Int,
 )
 
+// ─── Comps and entitlement grants (S-ADMIN-4b) ───────────────────────────────
+
+/** A live comp (backend `EntitlementGrantDto`) — a time-boxed elevation of one tenant's effective tier. */
+@Serializable
+data class AdminEntitlementGrant(
+    val id: String,
+    val broadcasterId: String,
+    val grantedTierId: String,
+    val grantedTierKey: String,
+    val reason: String,
+    val expiresAt: String,
+    val issuedAt: String,
+    val issuedByAdminId: String? = null,
+)
+
+/**
+ * The counted blast radius of comping a tenant to a tier (backend `EntitlementGrantPreviewDto`) — the limit
+ * keys that would actually change for THIS tenant. [changedLimitCount] must be echoed back on
+ * [AdminIssueEntitlementGrantRequest.confirmedChangedLimitCount] or the issue is rejected.
+ */
+@Serializable
+data class AdminEntitlementGrantPreview(
+    val currentTierKey: String = "",
+    val grantedTierKey: String = "",
+    val changedLimitCount: Int = 0,
+    val changedLimitKeys: List<String> = emptyList(),
+)
+
+/** Issue a comp. [confirmedChangedLimitCount] must equal the count a fresh
+ * [AdminApi.previewEntitlementGrant] just returned — the server rejects (`PREVIEW_STALE`) a stale count. */
+@Serializable
+data class AdminIssueEntitlementGrantRequest(
+    val tierId: String,
+    val reason: String,
+    val expiresAt: String,
+    val confirmedChangedLimitCount: Int,
+)
+
 // ─── Impersonation (admin act-as) ────────────────────────────────────────────
 
 /**
@@ -280,6 +318,11 @@ interface AdminApi {
     suspend fun previewTierChange(tierId: String): ApiResult<AdminTierChangePreview>
     suspend fun createTier(body: AdminCreateTierRequest): ApiResult<AdminTier>
     suspend fun updateTier(tierId: String, body: AdminUpdateTierRequest): ApiResult<AdminTier>
+
+    // Comps and entitlement grants (S-ADMIN-4b)
+    suspend fun getEntitlementGrants(broadcasterId: String): ApiResult<List<AdminEntitlementGrant>>
+    suspend fun previewEntitlementGrant(broadcasterId: String, tierId: String): ApiResult<AdminEntitlementGrantPreview>
+    suspend fun issueEntitlementGrant(broadcasterId: String, body: AdminIssueEntitlementGrantRequest): ApiResult<AdminEntitlementGrant>
 
     // Impersonation (admin act-as)
     /** Mints an act-as token for [subjectUserId], scoped to the already-open [accessGrantId] support session,
@@ -412,6 +455,15 @@ class AdminApiImpl(private val client: ApiClient) : AdminApi {
 
     override suspend fun updateTier(tierId: String, body: AdminUpdateTierRequest): ApiResult<AdminTier> =
         client.putEnvelope("api/v1/admin/billing/tiers/$tierId", body)
+
+    override suspend fun getEntitlementGrants(broadcasterId: String): ApiResult<List<AdminEntitlementGrant>> =
+        client.getEnvelope("api/v1/admin/billing/channels/$broadcasterId/grants")
+
+    override suspend fun previewEntitlementGrant(broadcasterId: String, tierId: String): ApiResult<AdminEntitlementGrantPreview> =
+        client.getEnvelope("api/v1/admin/billing/channels/$broadcasterId/grants/preview?tierId=$tierId")
+
+    override suspend fun issueEntitlementGrant(broadcasterId: String, body: AdminIssueEntitlementGrantRequest): ApiResult<AdminEntitlementGrant> =
+        client.postEnvelope("api/v1/admin/billing/channels/$broadcasterId/grants", body)
 
     override suspend fun impersonate(subjectUserId: String, accessGrantId: String, justification: String): ApiResult<ImpersonationTokenDto> =
         client.postEnvelope(

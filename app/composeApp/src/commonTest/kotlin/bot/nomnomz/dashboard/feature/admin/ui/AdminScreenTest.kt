@@ -623,6 +623,12 @@ private class RecordingFeatureFlagAdminApi(
         body: bot.nomnomz.dashboard.core.network.AdminUpdateTierRequest,
     ): ApiResult<bot.nomnomz.dashboard.core.network.AdminTier> =
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    override suspend fun getEntitlementGrants(broadcasterId: String) =
+        ApiResult.Ok(emptyList<bot.nomnomz.dashboard.core.network.AdminEntitlementGrant>())
+    override suspend fun previewEntitlementGrant(broadcasterId: String, tierId: String) =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    override suspend fun issueEntitlementGrant(broadcasterId: String, body: bot.nomnomz.dashboard.core.network.AdminIssueEntitlementGrantRequest) =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
 }
 
 /** Records every search value AdminController forwards to [getChannels]/[getUsers] — S-OWN08b. */
@@ -720,6 +726,12 @@ private class RecordingListSearchAdminApi(private val hasMore: Boolean = false) 
         tierId: String,
         body: bot.nomnomz.dashboard.core.network.AdminUpdateTierRequest,
     ): ApiResult<bot.nomnomz.dashboard.core.network.AdminTier> =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    override suspend fun getEntitlementGrants(broadcasterId: String) =
+        ApiResult.Ok(emptyList<bot.nomnomz.dashboard.core.network.AdminEntitlementGrant>())
+    override suspend fun previewEntitlementGrant(broadcasterId: String, tierId: String) =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    override suspend fun issueEntitlementGrant(broadcasterId: String, body: bot.nomnomz.dashboard.core.network.AdminIssueEntitlementGrantRequest) =
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
 }
 

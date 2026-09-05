@@ -396,6 +396,12 @@ private class FakeAdminApi(
         body: bot.nomnomz.dashboard.core.network.AdminUpdateTierRequest,
     ): ApiResult<bot.nomnomz.dashboard.core.network.AdminTier> =
         ApiResult.Failure(ApiError(status = 501, code = "NOT_IMPLEMENTED", message = "unused"))
+    override suspend fun getEntitlementGrants(broadcasterId: String) =
+        ApiResult.Ok(emptyList<bot.nomnomz.dashboard.core.network.AdminEntitlementGrant>())
+    override suspend fun previewEntitlementGrant(broadcasterId: String, tierId: String) =
+        ApiResult.Failure(ApiError(status = 501, code = "NOT_IMPLEMENTED", message = "unused"))
+    override suspend fun issueEntitlementGrant(broadcasterId: String, body: bot.nomnomz.dashboard.core.network.AdminIssueEntitlementGrantRequest) =
+        ApiResult.Failure(ApiError(status = 501, code = "NOT_IMPLEMENTED", message = "unused"))
 }
 
 private class FakePlatformAdminApi(

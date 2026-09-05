@@ -32,7 +32,7 @@ public sealed class BillingTierServiceTests
     private static (BillingTierService Sut, AuthDbContext Db) Build()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
-        return (new(db), db);
+        return (new(db, TimeProvider.System), db);
     }
 
     private static async Task SeedTiersAsync(AuthDbContext db)

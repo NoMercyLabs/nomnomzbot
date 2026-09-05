@@ -24,7 +24,8 @@ namespace NomNomzBot.Infrastructure.Billing;
 /// (or the <c>base</c> entry tier when none is active — grandfathered, additions only). An unseeded limit key is
 /// treated as unlimited.
 /// </summary>
-public sealed class BillingTierService(IApplicationDbContext db) : IBillingTierService
+public sealed class BillingTierService(IApplicationDbContext db, TimeProvider clock)
+    : IBillingTierService
 {
     private const string SelfHostPrefix = "self_host";
     private const string BaseTierKey = "base";
@@ -158,11 +159,43 @@ public sealed class BillingTierService(IApplicationDbContext db) : IBillingTierS
             .Select(s => (Guid?)s.TierId)
             .FirstOrDefaultAsync(ct);
 
-        return tierId is { } id
+        BillingTier? billedTier = tierId is { } id
             ? await db.BillingTiers.FirstOrDefaultAsync(t => t.Id == id && t.DeletedAt == null, ct)
             : await db.BillingTiers.FirstOrDefaultAsync(
                 t => t.Key == BaseTierKey && t.DeletedAt == null,
                 ct
             );
+
+        BillingTier? compedTier = await ResolveLiveGrantTierAsync(broadcasterId, ct);
+        if (compedTier is null)
+            return billedTier;
+        if (billedTier is null || compedTier.SortOrder > billedTier.SortOrder)
+            return compedTier;
+        return billedTier;
+    }
+
+    /// <summary>
+    /// The highest-ranked tier granted by a still-LIVE <c>EntitlementGrant</c> (S-ADMIN-4b) — an expired or
+    /// soft-deleted grant never reaches here, so it stops elevating the tenant the moment it lapses.
+    /// </summary>
+    private async Task<BillingTier?> ResolveLiveGrantTierAsync(
+        Guid broadcasterId,
+        CancellationToken ct
+    )
+    {
+        DateTime now = clock.GetUtcNow().UtcDateTime;
+        List<Guid> grantedTierIds = await db
+            .EntitlementGrants.Where(g =>
+                g.BroadcasterId == broadcasterId && g.DeletedAt == null && g.ExpiresAt > now
+            )
+            .Select(g => g.GrantedTierId)
+            .ToListAsync(ct);
+        if (grantedTierIds.Count == 0)
+            return null;
+
+        return await db
+            .BillingTiers.Where(t => grantedTierIds.Contains(t.Id) && t.DeletedAt == null)
+            .OrderByDescending(t => t.SortOrder)
+            .FirstOrDefaultAsync(ct);
     }
 }

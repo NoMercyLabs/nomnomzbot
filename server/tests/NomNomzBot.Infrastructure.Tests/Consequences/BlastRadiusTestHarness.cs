@@ -302,6 +302,8 @@ internal sealed class BlastRadiusTestDbContext : DbContext, IApplicationDbContex
     public DbSet<Channel> Channels => Set<Channel>();
     public DbSet<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride> TenantLimitOverrides =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Billing.Entities.EntitlementGrant> EntitlementGrants =>
+        throw new NotSupportedException();
     public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
     public DbSet<Pipeline> Pipelines => Set<Pipeline>();
     public DbSet<PipelineStep> PipelineSteps => Set<PipelineStep>();

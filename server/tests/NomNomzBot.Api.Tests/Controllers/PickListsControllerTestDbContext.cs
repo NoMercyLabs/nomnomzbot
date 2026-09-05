@@ -85,6 +85,8 @@ internal sealed class PickListsControllerTestDbContext : DbContext, IApplication
     public DbSet<Channel> Channels => Set<Channel>();
     public DbSet<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride> TenantLimitOverrides =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Billing.Entities.EntitlementGrant> EntitlementGrants =>
+        throw new NotSupportedException();
     public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
 
     protected override void OnModelCreating(ModelBuilder b)

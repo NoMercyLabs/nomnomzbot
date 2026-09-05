@@ -100,6 +100,8 @@ internal sealed class ModerationServiceTestDbContext : DbContext, IApplicationDb
     public DbSet<Channel> Channels => Set<Channel>();
     public DbSet<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride> TenantLimitOverrides =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Billing.Entities.EntitlementGrant> EntitlementGrants =>
+        throw new NotSupportedException();
     public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
     public DbSet<User> Users => Set<User>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.ViewerReport> ViewerReports =>

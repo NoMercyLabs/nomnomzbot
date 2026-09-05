@@ -1516,6 +1516,10 @@ internal fun BillingTab(state: AdminState, controller: AdminController) {
 
         Separator()
 
+        EntitlementGrantSection(state = state, controller = controller)
+
+        Separator()
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,

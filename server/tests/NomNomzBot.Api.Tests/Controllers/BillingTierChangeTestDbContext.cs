@@ -86,6 +86,8 @@ internal sealed class BillingTierChangeTestDbContext : DbContext, IApplicationDb
     public DbSet<Channel> Channels => Set<Channel>();
     public DbSet<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride> TenantLimitOverrides =>
         Set<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride>();
+    public DbSet<NomNomzBot.Domain.Billing.Entities.EntitlementGrant> EntitlementGrants =>
+        Set<NomNomzBot.Domain.Billing.Entities.EntitlementGrant>();
     public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
     public DbSet<BillingTier> BillingTiers => Set<BillingTier>();
     public DbSet<TierLimit> TierLimits => Set<TierLimit>();
@@ -114,6 +116,7 @@ internal sealed class BillingTierChangeTestDbContext : DbContext, IApplicationDb
         });
         b.Entity<Domain.Assets.Entities.ChannelAsset>(e => e.HasKey(a => a.Id));
         b.Entity<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride>(e => e.HasKey(o => o.Id));
+        b.Entity<NomNomzBot.Domain.Billing.Entities.EntitlementGrant>(e => e.HasKey(g => g.Id));
         b.Entity<IamAuditLog>(e => e.HasKey(a => a.Id));
 
         foreach (Type entity in UnmappedEntities)
@@ -134,6 +137,7 @@ internal sealed class BillingTierChangeTestDbContext : DbContext, IApplicationDb
         typeof(EventResponse),
         typeof(Domain.Assets.Entities.ChannelAsset),
         typeof(NomNomzBot.Domain.Billing.Entities.TenantLimitOverride),
+        typeof(NomNomzBot.Domain.Billing.Entities.EntitlementGrant),
         typeof(IamAuditLog),
     ];
 

@@ -88,6 +88,8 @@ public sealed class IdentityRekeyBehaviorTests
         public DbSet<Channel> Channels => Set<Channel>();
         public DbSet<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride> TenantLimitOverrides =>
             Set<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride>();
+        public DbSet<NomNomzBot.Domain.Billing.Entities.EntitlementGrant> EntitlementGrants =>
+            Set<NomNomzBot.Domain.Billing.Entities.EntitlementGrant>();
         public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
         public DbSet<Command> Commands => Set<Command>();
 
@@ -446,6 +448,8 @@ public sealed class IdentityRekeyBehaviorTests
         public DbSet<Channel> Channels => inner.Channels;
         public DbSet<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride> TenantLimitOverrides =>
             inner.TenantLimitOverrides;
+        public DbSet<NomNomzBot.Domain.Billing.Entities.EntitlementGrant> EntitlementGrants =>
+            inner.EntitlementGrants;
         public DbSet<PlatformConnection> PlatformConnections => inner.PlatformConnections;
         public DbSet<Command> Commands => inner.Commands;
 

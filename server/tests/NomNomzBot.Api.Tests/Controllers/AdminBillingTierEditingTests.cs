@@ -50,6 +50,7 @@ public sealed class AdminBillingTierEditingTests
             Substitute.For<IInviteCodeService>(),
             Substitute.For<ISubscriptionService>(),
             tierAdmin,
+            Substitute.For<IEntitlementGrantService>(),
             currentUser
         );
     }

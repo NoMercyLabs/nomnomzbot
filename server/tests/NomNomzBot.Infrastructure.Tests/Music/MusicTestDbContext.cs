@@ -144,6 +144,8 @@ internal sealed class MusicTestDbContext : DbContext, IApplicationDbContext
     public DbSet<Channel> Channels => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride> TenantLimitOverrides =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Billing.Entities.EntitlementGrant> EntitlementGrants =>
+        throw new NotSupportedException();
     public DbSet<PlatformConnection> PlatformConnections => throw new NotSupportedException();
     public DbSet<ChannelModerator> ChannelModerators => throw new NotSupportedException();
     public DbSet<Command> Commands => throw new NotSupportedException();

@@ -29,6 +29,9 @@ import bot.nomnomz.dashboard.core.network.AdminStats
 import bot.nomnomz.dashboard.core.network.AdminSystem
 import bot.nomnomz.dashboard.core.network.AdminTenant
 import bot.nomnomz.dashboard.core.network.AdminTenantDetail
+import bot.nomnomz.dashboard.core.network.AdminEntitlementGrant
+import bot.nomnomz.dashboard.core.network.AdminEntitlementGrantPreview
+import bot.nomnomz.dashboard.core.network.AdminIssueEntitlementGrantRequest
 import bot.nomnomz.dashboard.core.network.AdminTier
 import bot.nomnomz.dashboard.core.network.AdminTierChangePreview
 import bot.nomnomz.dashboard.core.network.AdminUpdateTierRequest
@@ -127,6 +130,14 @@ data class AdminState(
     val tierEditId: String? = null,
     /** The counted blast radius for [tierEditId], once its preview call returns; null while loading. */
     val tierEditPreview: AdminTierChangePreview? = null,
+    // ── Comps and entitlement grants (S-ADMIN-4b) ──
+    /** The broadcaster the grant panel is currently looking at, or null before the operator picks one. */
+    val grantBroadcasterId: String? = null,
+    /** Every LIVE grant for [grantBroadcasterId], newest first. */
+    val entitlementGrants: List<AdminEntitlementGrant> = emptyList(),
+    /** The counted blast radius for the tier currently staged to comp [grantBroadcasterId] to; null while
+     * loading, and cleared whenever the staged tier changes so a stale count can never be confirmed against. */
+    val entitlementGrantPreview: AdminEntitlementGrantPreview? = null,
     /** Which of the tabs fed by [AdminController.load] are currently (re)fetching — per-tab, not whole-screen, so
      * a slow call on one tab never blocks the others or the tab bar. Empty once the initial load settles. */
     val loadingSections: Set<AdminSection> = emptySet(),
@@ -498,6 +509,53 @@ class AdminController(
     suspend fun confirmTierEdit(tierId: String, body: AdminUpdateTierRequest) {
         dismissTierEditPreview()
         writeThenReload { api.updateTier(tierId, body) }
+    }
+
+    // ── Comps and entitlement grants (S-ADMIN-4b) ──────────────────────────────
+
+    /** Selects the tenant the grant panel looks at and loads its LIVE grants. */
+    suspend fun selectGrantBroadcaster(broadcasterId: String) {
+        _state.value = _state.value.copy(
+            grantBroadcasterId = broadcasterId,
+            entitlementGrants = emptyList(),
+            entitlementGrantPreview = null,
+            actionError = null,
+        )
+        when (val result = api.getEntitlementGrants(broadcasterId)) {
+            is ApiResult.Ok -> _state.value = _state.value.copy(entitlementGrants = result.value)
+            is ApiResult.Failure -> _state.value = _state.value.copy(actionError = result.error.message)
+        }
+    }
+
+    /**
+     * Fetches the counted blast radius of comping [AdminState.grantBroadcasterId] to [tierId] — the limit
+     * keys that would actually change — so the operator sees it BEFORE the grant can be issued (consequences
+     * must be visible). [issueEntitlementGrant] echoes the previewed count back on issue.
+     */
+    suspend fun previewEntitlementGrant(tierId: String) {
+        val broadcasterId: String = _state.value.grantBroadcasterId ?: return
+        _state.value = _state.value.copy(entitlementGrantPreview = null, actionError = null)
+        when (val result = api.previewEntitlementGrant(broadcasterId, tierId)) {
+            is ApiResult.Ok -> _state.value = _state.value.copy(entitlementGrantPreview = result.value)
+            is ApiResult.Failure -> _state.value = _state.value.copy(actionError = result.error.message)
+        }
+    }
+
+    /** Clears the staged preview, e.g. when the operator changes the tier they are about to comp to. */
+    fun dismissEntitlementGrantPreview() {
+        _state.value = _state.value.copy(entitlementGrantPreview = null)
+    }
+
+    /** Issues the grant the panel previewed — [body.confirmedChangedLimitCount] must match
+     * [AdminState.entitlementGrantPreview]'s count or the server rejects it (`PREVIEW_STALE`) rather than
+     * comping against a blast radius the operator never actually saw. Reloads the grant list either way. */
+    suspend fun issueEntitlementGrant(body: AdminIssueEntitlementGrantRequest) {
+        val broadcasterId: String = _state.value.grantBroadcasterId ?: return
+        _state.value = _state.value.copy(entitlementGrantPreview = null, actionError = null)
+        when (val result = api.issueEntitlementGrant(broadcasterId, body)) {
+            is ApiResult.Ok -> selectGrantBroadcaster(broadcasterId)
+            is ApiResult.Failure -> _state.value = _state.value.copy(actionError = result.error.message)
+        }
     }
 
     /** Authors a brand-new tier. Zero blast radius by construction — no preview/confirm step. */

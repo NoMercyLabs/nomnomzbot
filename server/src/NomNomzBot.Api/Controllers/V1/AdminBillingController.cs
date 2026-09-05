@@ -38,6 +38,7 @@ public class AdminBillingController(
     IInviteCodeService invites,
     ISubscriptionService subscriptions,
     IBillingTierAdminService tiers,
+    IEntitlementGrantService grants,
     ICurrentUserService currentUser
 ) : BaseController
 {
@@ -151,4 +152,43 @@ public class AdminBillingController(
     [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
     public async Task<IActionResult> RefundInvoice(Guid invoiceId, CancellationToken ct) =>
         ResultResponse(await subscriptions.RefundInvoiceAsync(invoiceId, ct));
+
+    /// <summary>Every LIVE comp/entitlement grant (S-ADMIN-4b) for a channel, newest first.</summary>
+    [HttpGet("channels/{broadcasterId:guid}/grants")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
+    [Authorize(Policy = IamPermissionKeys.BillingRead)]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<EntitlementGrantDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> ListGrants(Guid broadcasterId, CancellationToken ct) =>
+        ResultResponse(await grants.ListGrantsAsync(broadcasterId, ct));
+
+    /// <summary>
+    /// The counted blast radius of comping this channel to <paramref name="tierId"/> — the limit keys that
+    /// would actually change. Call this before <see cref="IssueGrant"/> and echo its
+    /// <c>ChangedLimitCount</c> back as <c>ConfirmedChangedLimitCount</c>.
+    /// </summary>
+    [HttpGet("channels/{broadcasterId:guid}/grants/preview")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
+    [Authorize(Policy = IamPermissionKeys.BillingRead)]
+    [ProducesResponseType<StatusResponseDto<EntitlementGrantPreviewDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> PreviewGrant(
+        Guid broadcasterId,
+        [FromQuery] Guid tierId,
+        CancellationToken ct
+    ) => ResultResponse(await grants.PreviewGrantAsync(broadcasterId, tierId, ct));
+
+    /// <summary>
+    /// Issue a comp — a time-boxed entitlement grant with a mandatory reason and expiry. Fails closed
+    /// (<c>PREVIEW_STALE</c>, 409) if <see cref="IssueEntitlementGrantRequest.ConfirmedChangedLimitCount"/>
+    /// no longer matches a freshly recomputed diff.
+    /// </summary>
+    [HttpPost("channels/{broadcasterId:guid}/grants")]
+    [Authorize(Policy = IamPermissionKeys.BillingWrite)]
+    [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
+    public async Task<IActionResult> IssueGrant(
+        Guid broadcasterId,
+        [FromBody] IssueEntitlementGrantRequest request,
+        CancellationToken ct
+    ) => ResultResponse(await grants.IssueGrantAsync(broadcasterId, request, Caller(), ct));
 }

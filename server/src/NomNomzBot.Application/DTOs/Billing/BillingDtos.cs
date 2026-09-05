@@ -168,6 +168,42 @@ public sealed record InviteCodeRequest(string Code);
 /// <summary>Admin-grant a tier to a channel without Stripe.</summary>
 public sealed record GrantTierRequest(Guid TierId, bool IsInviteOnlyGrant);
 
+/// <summary>A live comp (S-ADMIN-4b) — a time-boxed entitlement grant, as read back for the admin surface.</summary>
+public sealed record EntitlementGrantDto(
+    Guid Id,
+    Guid BroadcasterId,
+    Guid GrantedTierId,
+    string GrantedTierKey,
+    string Reason,
+    DateTime ExpiresAt,
+    DateTime IssuedAt,
+    Guid? IssuedByAdminId
+);
+
+/// <summary>
+/// The counted blast radius of comping a tenant to <c>GrantedTierKey</c> — the limit keys whose effective
+/// value would actually change for THIS tenant, computed by diffing its current resolved entitlement against
+/// the target tier's limits. A grant that changes nothing (the tenant is already at or above every limit the
+/// target tier offers) still previews — with a zero count — so the operator sees that before issuing it.
+/// </summary>
+public sealed record EntitlementGrantPreviewDto(
+    string CurrentTierKey,
+    string GrantedTierKey,
+    int ChangedLimitCount,
+    IReadOnlyList<string> ChangedLimitKeys
+);
+
+/// <summary>
+/// Issue a comp. <see cref="ConfirmedChangedLimitCount"/> must equal the count a fresh preview just returned
+/// for this <c>(broadcasterId, tierId)</c> pair — a stale count is rejected, never silently applied.
+/// </summary>
+public sealed record IssueEntitlementGrantRequest(
+    Guid TierId,
+    string Reason,
+    DateTime ExpiresAt,
+    int ConfirmedChangedLimitCount
+);
+
 /// <summary>Create an invite code (admin).</summary>
 public sealed record CreateInviteCodeRequest(
     int MaxRedemptions,

@@ -183,6 +183,8 @@ internal sealed class VtsTestDbContext : DbContext, IApplicationDbContext
     public DbSet<Channel> Channels => Set<Channel>();
     public DbSet<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride> TenantLimitOverrides =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Billing.Entities.EntitlementGrant> EntitlementGrants =>
+        throw new NotSupportedException();
     public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
     public DbSet<User> Users => throw new NotSupportedException();
     public DbSet<EventResponse> EventResponses => throw new NotSupportedException();
