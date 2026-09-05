@@ -168,6 +168,8 @@ import nomnomzbot.composeapp.generated.resources.admin_filter_offline
 import nomnomzbot.composeapp.generated.resources.admin_filter_staff
 import nomnomzbot.composeapp.generated.resources.admin_filter_streamers
 import nomnomzbot.composeapp.generated.resources.admin_tab_providers
+import nomnomzbot.composeapp.generated.resources.admin_tab_eventsub_health
+import nomnomzbot.composeapp.generated.resources.admin_tab_webhook_deliveries
 import nomnomzbot.composeapp.generated.resources.admin_providers_explain
 import nomnomzbot.composeapp.generated.resources.admin_providers_empty
 import nomnomzbot.composeapp.generated.resources.admin_providers_no_client_id
@@ -225,6 +227,8 @@ fun AdminScreen(controller: AdminController) {
             TAB_AUDIT -> if (state.auditEntries.isEmpty()) controller.loadAudit()
             TAB_SPAM_DEFAULTS -> if (state.spamDefaults == null) controller.loadSpamDefaults()
             TAB_PROVIDERS -> if (state.providerCredentials.isEmpty()) controller.loadProviders()
+            TAB_EVENTSUB_HEALTH -> if (state.eventSubHealth.isEmpty()) controller.loadEventSubHealth()
+            TAB_WEBHOOK_DELIVERIES -> if (state.webhookDeliveries.isEmpty()) controller.loadWebhookDeliveries()
         }
     }
     val tabs: List<String> = listOf(
@@ -240,6 +244,8 @@ fun AdminScreen(controller: AdminController) {
         stringResource(Res.string.admin_tab_audit),
         stringResource(Res.string.admin_tab_spam_defaults),
         stringResource(Res.string.admin_tab_providers),
+        stringResource(Res.string.admin_tab_eventsub_health),
+        stringResource(Res.string.admin_tab_webhook_deliveries),
     )
 
     Column(modifier = Modifier.fillMaxSize().background(tokens.background)) {
@@ -291,6 +297,8 @@ fun AdminScreen(controller: AdminController) {
             TAB_AUDIT -> AuditTab(state = state, controller = controller)
             TAB_SPAM_DEFAULTS -> SpamDefaultsTab(state = state, controller = controller)
             TAB_PROVIDERS -> ProvidersTab(state = state, controller = controller)
+            TAB_EVENTSUB_HEALTH -> EventSubHealthTab(state = state, controller = controller)
+            TAB_WEBHOOK_DELIVERIES -> WebhookDeliveriesTab(state = state, controller = controller)
         }
     }
 }
@@ -301,6 +309,8 @@ private const val TAB_TENANTS: Int = 8
 private const val TAB_AUDIT: Int = 9
 private const val TAB_SPAM_DEFAULTS: Int = 10
 private const val TAB_PROVIDERS: Int = 11
+private const val TAB_EVENTSUB_HEALTH: Int = 12
+private const val TAB_WEBHOOK_DELIVERIES: Int = 13
 
 /** Renders [content] normally, or a centered [Spinner] in its place while [isLoading] — scoped to the current
  * tab's content area only, so a sibling tab's fetch never blocks this one. */

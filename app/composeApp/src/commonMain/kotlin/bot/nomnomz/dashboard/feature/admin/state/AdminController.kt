@@ -31,7 +31,9 @@ import bot.nomnomz.dashboard.core.network.AdminTenant
 import bot.nomnomz.dashboard.core.network.AdminTenantDetail
 import bot.nomnomz.dashboard.core.network.AdminEntitlementGrant
 import bot.nomnomz.dashboard.core.network.AdminEntitlementGrantPreview
+import bot.nomnomz.dashboard.core.network.AdminEventSubTenantHealth
 import bot.nomnomz.dashboard.core.network.AdminInvoice
+import bot.nomnomz.dashboard.core.network.AdminWebhookDelivery
 import bot.nomnomz.dashboard.core.network.AdminIssueEntitlementGrantRequest
 import bot.nomnomz.dashboard.core.network.AdminTier
 import bot.nomnomz.dashboard.core.network.AdminTierChangePreview
@@ -188,6 +190,18 @@ data class AdminState(
     val auditError: String? = null,
     /** A surfaced write-action error (e.g. self-deactivation VALIDATION_FAILED). Cleared on next action. */
     val actionError: String? = null,
+    // ── EventSub subscription health (S-ADMIN-6a) ──
+    val eventSubHealth: List<AdminEventSubTenantHealth> = emptyList(),
+    val eventSubHealthLoading: Boolean = false,
+    val eventSubHealthError: String? = null,
+    // ── Outbound webhook delivery log + replay (S-ADMIN-6a) ──
+    val webhookDeliveries: List<AdminWebhookDelivery> = emptyList(),
+    val webhookDeliveriesLoading: Boolean = false,
+    val webhookDeliveriesError: String? = null,
+    /** The delivery a replay confirmation is currently open for, or null when no confirm dialog is showing —
+     * what it will re-send (event type + target endpoint) comes straight off this row. */
+    val replayPendingDeliveryId: Long? = null,
+    val replayError: String? = null,
     // ── Impersonation (admin act-as) ──
     /** Set alongside [actionError] when a mint attempt fails for one of these two RECOGNIZED reasons, so the
      * confirm dialog can render a calm, specific explanation instead of the raw server message. Null for any
@@ -840,6 +854,54 @@ class AdminController(
                 _state.value = _state.value.copy(auditEntries = result.value.data, auditLoading = false)
             is ApiResult.Failure ->
                 _state.value = _state.value.copy(auditLoading = false, auditError = result.error.message)
+        }
+    }
+
+    // ── EventSub subscription health (S-ADMIN-6a) ───────────────────────────────
+
+    /** Loads the REAL EventSub registry, grouped by tenant — never a fabricated list. */
+    suspend fun loadEventSubHealth() {
+        _state.value = _state.value.copy(eventSubHealthLoading = true, eventSubHealthError = null)
+        when (val result = api.getEventSubHealth()) {
+            is ApiResult.Ok ->
+                _state.value = _state.value.copy(eventSubHealth = result.value.data, eventSubHealthLoading = false)
+            is ApiResult.Failure ->
+                _state.value = _state.value.copy(eventSubHealthLoading = false, eventSubHealthError = result.error.message)
+        }
+    }
+
+    // ── Outbound webhook delivery log + replay (S-ADMIN-6a) ─────────────────────
+
+    suspend fun loadWebhookDeliveries() {
+        _state.value = _state.value.copy(webhookDeliveriesLoading = true, webhookDeliveriesError = null)
+        when (val result = api.getWebhookDeliveries()) {
+            is ApiResult.Ok ->
+                _state.value = _state.value.copy(webhookDeliveries = result.value.data, webhookDeliveriesLoading = false)
+            is ApiResult.Failure ->
+                _state.value = _state.value.copy(webhookDeliveriesLoading = false, webhookDeliveriesError = result.error.message)
+        }
+    }
+
+    /** Opens the replay confirmation for [deliveryId] — nothing is sent until [confirmWebhookReplay]. */
+    fun stageWebhookReplay(deliveryId: Long) {
+        _state.value = _state.value.copy(replayPendingDeliveryId = deliveryId, replayError = null)
+    }
+
+    fun dismissWebhookReplay() {
+        _state.value = _state.value.copy(replayPendingDeliveryId = null)
+    }
+
+    /** Commits the replay: sends a genuinely NEW delivery attempt (the original stays exactly as it was),
+     * then reloads the log so the new row is visible immediately. */
+    suspend fun confirmWebhookReplay() {
+        val deliveryId: Long = _state.value.replayPendingDeliveryId ?: return
+        when (val result = api.replayWebhookDelivery(deliveryId)) {
+            is ApiResult.Ok -> {
+                _state.value = _state.value.copy(replayPendingDeliveryId = null, replayError = null)
+                loadWebhookDeliveries()
+            }
+            is ApiResult.Failure ->
+                _state.value = _state.value.copy(replayError = result.error.message)
         }
     }
 

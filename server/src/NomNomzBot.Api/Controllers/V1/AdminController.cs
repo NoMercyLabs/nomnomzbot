@@ -16,6 +16,7 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Api.RateLimiting;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
@@ -44,18 +45,21 @@ public class AdminController : BaseController
     private readonly IApplicationDbContext _db;
     private readonly IDekRotationService _dekRotationService;
     private readonly IProviderCredentialService _providerCredentials;
+    private readonly ICurrentUserService _currentUser;
 
     public AdminController(
         IAdminService adminService,
         IApplicationDbContext db,
         IDekRotationService dekRotationService,
-        IProviderCredentialService providerCredentials
+        IProviderCredentialService providerCredentials,
+        ICurrentUserService currentUser
     )
     {
         _adminService = adminService;
         _db = db;
         _dekRotationService = dekRotationService;
         _providerCredentials = providerCredentials;
+        _currentUser = currentUser;
     }
 
     public record ServiceHealthResponseDto(string Name, string Status);
@@ -263,6 +267,70 @@ public class AdminController : BaseController
         Result<DekRotationSummary> result = await _dekRotationService.RotateAllDeksAsync(
             request.PreviousKey,
             request.CurrentKey,
+            ct
+        );
+        return ResultResponse(result);
+    }
+
+    // ── 2am tools: EventSub health + outbound webhook delivery log (S-ADMIN-6a) ─────────────────
+
+    /// <summary>
+    /// Per-tenant EventSub subscription registry health: which topics are subscribed for which broadcaster,
+    /// their REAL state, and when each was last confirmed — reads the exact registry
+    /// <c>TwitchEventSubHostedService</c> re-registers on every reconnect. Never a fabricated list: a topic
+    /// missing from a tenant's rows is simply absent, not padded with a guessed "healthy" entry.
+    /// </summary>
+    [HttpGet("eventsub/health")]
+    [Authorize(Policy = IamPermissionKeys.IamManage)]
+    [ProducesResponseType<PaginatedResponse<AdminEventSubTenantHealthDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetEventSubHealth(
+        [FromQuery] PageRequestDto request,
+        CancellationToken ct
+    )
+    {
+        PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
+        Result<PagedList<AdminEventSubTenantHealthDto>> result =
+            await _adminService.GetEventSubHealthAsync(pagination, ct);
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return GetPaginatedResponse(result.Value, request);
+    }
+
+    /// <summary>Cross-tenant outbound webhook delivery log: every attempt, its status, response code, and
+    /// timestamp — newest first, paged.</summary>
+    [HttpGet("webhooks/deliveries")]
+    [Authorize(Policy = IamPermissionKeys.IamManage)]
+    [ProducesResponseType<PaginatedResponse<AdminWebhookDeliveryDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListWebhookDeliveries(
+        [FromQuery] PageRequestDto request,
+        CancellationToken ct
+    )
+    {
+        PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
+        Result<PagedList<AdminWebhookDeliveryDto>> result =
+            await _adminService.GetWebhookDeliveryLogAsync(pagination, ct);
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return GetPaginatedResponse(result.Value, request);
+    }
+
+    /// <summary>
+    /// Replays one delivery: sends a brand-new attempt with the original's exact rendered body, appended as
+    /// its own row (the original attempt is never mutated). Refused if the endpoint has since been deleted or
+    /// disabled. Always audited, naming the acting operator.
+    /// </summary>
+    [HttpPost("webhooks/deliveries/{deliveryId:long}/replay")]
+    [Authorize(Policy = IamPermissionKeys.IamManage)]
+    [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
+    [ProducesResponseType<StatusResponseDto<AdminWebhookReplayResultDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ReplayWebhookDelivery(long deliveryId, CancellationToken ct)
+    {
+        if (!Guid.TryParse(_currentUser.UserId, out Guid actorUserId))
+            return UnauthenticatedResponse();
+
+        Result<AdminWebhookReplayResultDto> result = await _adminService.ReplayWebhookDeliveryAsync(
+            deliveryId,
+            actorUserId,
             ct
         );
         return ResultResponse(result);

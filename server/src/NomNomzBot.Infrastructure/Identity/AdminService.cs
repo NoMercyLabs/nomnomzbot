@@ -15,9 +15,13 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Contracts.Webhooks;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Platform.Entities;
+using NomNomzBot.Domain.Webhooks.Entities;
 
 namespace NomNomzBot.Infrastructure.Identity;
 
@@ -27,18 +31,21 @@ public sealed class AdminService : IAdminService
     private readonly TimeProvider _timeProvider;
     private readonly HealthCheckService _healthChecks;
     private readonly IPlatformBotReadinessGate _botReadiness;
+    private readonly IOutboundWebhookDispatcher _webhookDispatcher;
 
     public AdminService(
         IApplicationDbContext db,
         TimeProvider timeProvider,
         HealthCheckService healthChecks,
-        IPlatformBotReadinessGate botReadiness
+        IPlatformBotReadinessGate botReadiness,
+        IOutboundWebhookDispatcher webhookDispatcher
     )
     {
         _db = db;
         _timeProvider = timeProvider;
         _healthChecks = healthChecks;
         _botReadiness = botReadiness;
+        _webhookDispatcher = webhookDispatcher;
     }
 
     public async Task<Result<AdminStatsDto>> GetStatsAsync(CancellationToken ct = default)
@@ -237,6 +244,166 @@ public sealed class AdminService : IAdminService
             HealthStatus.Degraded => "degraded",
             _ => "unhealthy",
         };
+
+    public async Task<Result<PagedList<AdminEventSubTenantHealthDto>>> GetEventSubHealthAsync(
+        PaginationParams pagination,
+        CancellationToken ct = default
+    )
+    {
+        // Platform-plane rows (BroadcasterId == Guid.Empty, e.g. the bot's own user.whisper.message) belong to
+        // no tenant, so they are excluded from a PER-TENANT page — grouped elsewhere would misrepresent them
+        // as belonging to "channel zero".
+        List<Guid> tenantIds = await _db
+            .EventSubSubscriptions.Where(s => s.BroadcasterId != Guid.Empty)
+            .Select(s => s.BroadcasterId)
+            .Distinct()
+            .OrderBy(id => id)
+            .ToListAsync(ct);
+
+        int total = tenantIds.Count;
+        List<Guid> pageIds = tenantIds
+            .Skip((pagination.Page - 1) * pagination.PageSize)
+            .Take(pagination.PageSize)
+            .ToList();
+
+        List<EventSubSubscription> rows = await _db
+            .EventSubSubscriptions.Where(s => pageIds.Contains(s.BroadcasterId))
+            .OrderBy(s => s.EventType)
+            .ToListAsync(ct);
+
+        Dictionary<Guid, string> channelNames = await _db
+            .Channels.Where(c => pageIds.Contains(c.Id))
+            .Select(c => new { c.Id, c.User.DisplayName })
+            .ToDictionaryAsync(c => c.Id, c => c.DisplayName, ct);
+
+        List<AdminEventSubTenantHealthDto> items =
+        [
+            .. pageIds.Select(id => new AdminEventSubTenantHealthDto(
+                id,
+                channelNames.GetValueOrDefault(id, id.ToString()),
+                [
+                    .. rows.Where(r => r.BroadcasterId == id)
+                        .Select(r => new AdminEventSubTopicHealthDto(
+                            r.Id,
+                            r.EventType,
+                            r.Version,
+                            r.Status,
+                            r.Enabled,
+                            r.LastError,
+                            r.UpdatedAt
+                        )),
+                ]
+            )),
+        ];
+
+        return Result.Success(
+            new PagedList<AdminEventSubTenantHealthDto>(
+                items,
+                pagination.Page,
+                pagination.PageSize,
+                total
+            )
+        );
+    }
+
+    public async Task<Result<PagedList<AdminWebhookDeliveryDto>>> GetWebhookDeliveryLogAsync(
+        PaginationParams pagination,
+        CancellationToken ct = default
+    )
+    {
+        int total = await _db.OutboundWebhookDeliveries.CountAsync(ct);
+
+        // IgnoreQueryFilters on the endpoint join: a delivery whose endpoint was later soft-deleted must still
+        // show up (labelled, not vanished) — the log is a history, not a live view of current endpoints.
+        List<AdminWebhookDeliveryDto> items = await (
+            from d in _db.OutboundWebhookDeliveries
+            join e in _db.OutboundWebhookEndpoints.IgnoreQueryFilters()
+                on d.EndpointId equals e.Id
+                into endpoints
+            from e in endpoints.DefaultIfEmpty()
+            orderby d.CreatedAt descending, d.Id descending
+            select new AdminWebhookDeliveryDto(
+                d.Id,
+                d.BroadcasterId,
+                d.EndpointId,
+                e != null && e.DeletedAt == null ? e.Name : "(deleted endpoint)",
+                e != null && e.DeletedAt == null && e.IsEnabled,
+                d.EventType,
+                d.Attempt,
+                d.Status.ToString(),
+                d.ResponseCode,
+                d.DurationMs,
+                d.Error,
+                d.CreatedAt
+            )
+        )
+            .Skip((pagination.Page - 1) * pagination.PageSize)
+            .Take(pagination.PageSize)
+            .ToListAsync(ct);
+
+        return Result.Success(
+            new PagedList<AdminWebhookDeliveryDto>(
+                items,
+                pagination.Page,
+                pagination.PageSize,
+                total
+            )
+        );
+    }
+
+    public async Task<Result<AdminWebhookReplayResultDto>> ReplayWebhookDeliveryAsync(
+        long deliveryId,
+        Guid actorUserId,
+        CancellationToken ct = default
+    )
+    {
+        OutboundWebhookDelivery? original = await _db.OutboundWebhookDeliveries.FirstOrDefaultAsync(
+            d => d.Id == deliveryId,
+            ct
+        );
+        if (original is null)
+            return Result.Failure<AdminWebhookReplayResultDto>("Delivery not found.", "NOT_FOUND");
+
+        Result<OutboundWebhookDelivery> replayResult = await _webhookDispatcher.ReplayDeliveryAsync(
+            original,
+            ct
+        );
+        if (replayResult.IsFailure)
+            return Result.Failure<AdminWebhookReplayResultDto>(
+                replayResult.ErrorMessage,
+                replayResult.ErrorCode
+            );
+
+        OutboundWebhookDelivery replay = replayResult.Value;
+
+        // Every replay is an outbound side effect against someone else's endpoint — audited unconditionally,
+        // naming the acting operator (S-CONSEQ).
+        _db.IamAuditLogs.Add(
+            new IamAuditLog
+            {
+                PrincipalId = actorUserId,
+                PrincipalType = IamPrincipalType.Employee,
+                Permission = "webhook:replay",
+                TargetBroadcasterId = original.BroadcasterId,
+                TargetResource = original.EndpointId.ToString(),
+                Justification =
+                    $"actor={actorUserId};originalDeliveryId={original.Id};newDeliveryId={replay.Id};eventType={original.EventType}",
+                BreakGlass = false,
+                Outcome = IamOutcome.Allowed,
+                OccurredAt = _timeProvider.GetUtcNow().UtcDateTime,
+            }
+        );
+        await _db.SaveChangesAsync(ct);
+
+        return Result.Success(
+            new AdminWebhookReplayResultDto(
+                original.Id,
+                replay.Id,
+                replay.Status.ToString(),
+                replay.ResponseCode
+            )
+        );
+    }
 
     /// <summary>
     /// The closed set of orderings the admin lists offer. Deliberately small: every entry here is a

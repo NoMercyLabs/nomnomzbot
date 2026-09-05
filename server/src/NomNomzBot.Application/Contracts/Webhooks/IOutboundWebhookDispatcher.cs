@@ -46,4 +46,16 @@ public interface IOutboundWebhookDispatcher
         OutboundWebhookDelivery delivery,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// Replays <paramref name="original"/>: creates and sends a genuinely NEW delivery row (fresh id, fresh
+    /// <c>WebhookMessageId</c>, attempt #1) carrying the exact <c>RenderedBody</c> the original attempt sent —
+    /// never re-rendered from the current template. <paramref name="original"/> itself is never mutated.
+    /// Refused with NOT_FOUND if the endpoint has been deleted, or ENDPOINT_DISABLED if it is currently
+    /// disabled — a replay must never appear to succeed while sending nowhere.
+    /// </summary>
+    Task<Result<OutboundWebhookDelivery>> ReplayDeliveryAsync(
+        OutboundWebhookDelivery original,
+        CancellationToken ct = default
+    );
 }

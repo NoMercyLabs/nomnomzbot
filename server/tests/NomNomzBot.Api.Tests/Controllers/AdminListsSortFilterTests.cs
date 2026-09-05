@@ -14,7 +14,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Contracts.Webhooks;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Platform.Services;
 using NomNomzBot.Application.Services;
@@ -53,7 +55,8 @@ public sealed class AdminListsSortFilterTests
             db,
             TimeProvider.System,
             provider.GetRequiredService<HealthCheckService>(),
-            Substitute.For<IPlatformBotReadinessGate>()
+            Substitute.For<IPlatformBotReadinessGate>(),
+            Substitute.For<IOutboundWebhookDispatcher>()
         );
 
         return (
@@ -61,7 +64,8 @@ public sealed class AdminListsSortFilterTests
                 adminService,
                 db,
                 Substitute.For<IDekRotationService>(),
-                Substitute.For<IProviderCredentialService>()
+                Substitute.For<IProviderCredentialService>(),
+                Substitute.For<ICurrentUserService>()
             ),
             db
         );

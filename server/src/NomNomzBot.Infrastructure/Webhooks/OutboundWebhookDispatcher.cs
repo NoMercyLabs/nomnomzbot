@@ -101,6 +101,48 @@ public sealed class OutboundWebhookDispatcher(
         return Result.Success(status);
     }
 
+    public async Task<Result<OutboundWebhookDelivery>> ReplayDeliveryAsync(
+        OutboundWebhookDelivery original,
+        CancellationToken ct = default
+    )
+    {
+        // IgnoreQueryFilters: an admin replay must be able to see (and correctly REJECT against) an endpoint
+        // that has since been soft-deleted — the default tenant filter would make it look like NOT_FOUND for
+        // the right reason but the wrong query, and a future tenant-scoped caller here would silently pass.
+        OutboundWebhookEndpoint? endpoint = await db
+            .OutboundWebhookEndpoints.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(e => e.Id == original.EndpointId, ct);
+        if (endpoint is null || endpoint.DeletedAt is not null)
+            return Result.Failure<OutboundWebhookDelivery>("Endpoint not found.", "NOT_FOUND");
+        if (!endpoint.IsEnabled)
+            return Result.Failure<OutboundWebhookDelivery>(
+                "Endpoint is disabled. Re-enable it before replaying a delivery.",
+                "ENDPOINT_DISABLED"
+            );
+
+        // A genuinely NEW row — the original attempt this replays is never touched. Same exact bytes as the
+        // original send (not re-rendered from the current template), fresh WebhookMessageId (a real new send,
+        // not a retry of the same wire message), attempt #1 of its own lineage.
+        OutboundWebhookDelivery replay = new()
+        {
+            BroadcasterId = original.BroadcasterId,
+            EndpointId = original.EndpointId,
+            WebhookMessageId = Guid.CreateVersion7(),
+            JournalEventId = original.JournalEventId,
+            EventType = original.EventType,
+            RenderedBody = original.RenderedBody,
+            Attempt = 1,
+            Status = WebhookDeliveryStatus.Pending,
+            CreatedAt = clock.GetUtcNow().UtcDateTime,
+        };
+        db.OutboundWebhookDeliveries.Add(replay);
+        await db.SaveChangesAsync(ct);
+
+        await AttemptCoreAsync(endpoint, replay, ct);
+        await db.SaveChangesAsync(ct);
+        return Result.Success(replay);
+    }
+
     private async Task<OutboundEnqueueResult> EnqueueOneAsync(
         OutboundWebhookEndpoint endpoint,
         string eventType,

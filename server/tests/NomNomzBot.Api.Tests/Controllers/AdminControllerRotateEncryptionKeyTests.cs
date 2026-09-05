@@ -12,6 +12,7 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Services;
@@ -44,7 +45,8 @@ public sealed class AdminControllerRotateEncryptionKeyTests
             adminService,
             db,
             rotationService,
-            Substitute.For<IProviderCredentialService>()
+            Substitute.For<IProviderCredentialService>(),
+            Substitute.For<ICurrentUserService>()
         );
 
         IActionResult result = await controller.RotateEncryptionKey(

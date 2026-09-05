@@ -446,4 +446,118 @@ public sealed class OutboundWebhookDispatcherTests
         handler.ContentType.Should().Be("text/plain");
         handler.Body.Should().Be("plain body for qtkitte");
     }
+
+    // S-ADMIN-6a: an admin replay must genuinely re-send — a NEW row, a NEW attempt — never mutate the
+    // delivery being replayed. Mutating the old row (as the pre-existing tenant RetryDeliveryAsync did) would
+    // erase the original's history the moment it is "retried".
+    [Fact]
+    public async Task ReplayDelivery_creates_a_new_row_and_leaves_the_original_attempt_untouched()
+    {
+        (OutboundWebhookDispatcher sut, AuthDbContext db, RecordingEventBus bus) = Build();
+        Guid endpointId = await SeedEndpointAsync(db);
+
+        OutboundWebhookDelivery original = new()
+        {
+            BroadcasterId = Channel,
+            EndpointId = endpointId,
+            WebhookMessageId = Guid.CreateVersion7(),
+            EventType = "test.event",
+            RenderedBody = "{\"original\":true}",
+            Attempt = 1,
+            Status = WebhookDeliveryStatus.Failed,
+            ResponseCode = 500,
+            Error = "Non-success status 500.",
+            CreatedAt = Now.UtcDateTime,
+        };
+        db.OutboundWebhookDeliveries.Add(original);
+        await db.SaveChangesAsync();
+
+        Result<OutboundWebhookDelivery> result = await sut.ReplayDeliveryAsync(original);
+
+        result.IsSuccess.Should().BeTrue();
+        OutboundWebhookDelivery replay = result.Value;
+        replay.Id.Should().NotBe(original.Id);
+        replay.WebhookMessageId.Should().NotBe(original.WebhookMessageId);
+        replay.RenderedBody.Should().Be(original.RenderedBody);
+        replay.Attempt.Should().Be(1);
+        replay.Status.Should().Be(WebhookDeliveryStatus.Delivered);
+
+        // The original row's own fields — status, response code, error — are exactly as they were.
+        OutboundWebhookDelivery originalReloaded = await db.OutboundWebhookDeliveries.SingleAsync(
+            d => d.Id == original.Id
+        );
+        originalReloaded.Status.Should().Be(WebhookDeliveryStatus.Failed);
+        originalReloaded.ResponseCode.Should().Be(500);
+        originalReloaded.Error.Should().Be("Non-success status 500.");
+
+        db.OutboundWebhookDeliveries.Count().Should().Be(2);
+        bus.Published.OfType<OutboundWebhookAttemptedEvent>()
+            .Should()
+            .ContainSingle(e => e.WebhookMessageId == replay.WebhookMessageId);
+    }
+
+    [Fact]
+    public async Task ReplayDelivery_is_rejected_when_the_endpoint_has_since_been_deleted()
+    {
+        (OutboundWebhookDispatcher sut, AuthDbContext db, _) = Build();
+        Guid endpointId = await SeedEndpointAsync(db);
+        OutboundWebhookEndpoint endpoint = await db.OutboundWebhookEndpoints.FirstAsync(e =>
+            e.Id == endpointId
+        );
+        endpoint.DeletedAt = Now.UtcDateTime;
+        await db.SaveChangesAsync();
+
+        OutboundWebhookDelivery original = new()
+        {
+            BroadcasterId = Channel,
+            EndpointId = endpointId,
+            WebhookMessageId = Guid.CreateVersion7(),
+            EventType = "test.event",
+            RenderedBody = "{}",
+            Attempt = 1,
+            Status = WebhookDeliveryStatus.Delivered,
+            CreatedAt = Now.UtcDateTime,
+        };
+        db.OutboundWebhookDeliveries.Add(original);
+        await db.SaveChangesAsync();
+
+        Result<OutboundWebhookDelivery> result = await sut.ReplayDeliveryAsync(original);
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("NOT_FOUND");
+        db.OutboundWebhookDeliveries.Count().Should().Be(1); // no new row was appended
+    }
+
+    [Fact]
+    public async Task ReplayDelivery_is_rejected_when_the_endpoint_is_disabled()
+    {
+        (OutboundWebhookDispatcher sut, AuthDbContext db, _) = Build();
+        Guid endpointId = await SeedEndpointAsync(db);
+        OutboundWebhookEndpoint endpoint = await db.OutboundWebhookEndpoints.FirstAsync(e =>
+            e.Id == endpointId
+        );
+        endpoint.IsEnabled = false;
+        endpoint.DisabledAt = Now.UtcDateTime;
+        await db.SaveChangesAsync();
+
+        OutboundWebhookDelivery original = new()
+        {
+            BroadcasterId = Channel,
+            EndpointId = endpointId,
+            WebhookMessageId = Guid.CreateVersion7(),
+            EventType = "test.event",
+            RenderedBody = "{}",
+            Attempt = 1,
+            Status = WebhookDeliveryStatus.DeadLetter,
+            CreatedAt = Now.UtcDateTime,
+        };
+        db.OutboundWebhookDeliveries.Add(original);
+        await db.SaveChangesAsync();
+
+        Result<OutboundWebhookDelivery> result = await sut.ReplayDeliveryAsync(original);
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("ENDPOINT_DISABLED");
+        db.OutboundWebhookDeliveries.Count().Should().Be(1); // no new row was appended
+    }
 }

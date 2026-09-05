@@ -13,6 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Contracts.Webhooks;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Infrastructure.Identity;
 using NSubstitute;
@@ -42,7 +43,8 @@ public sealed class AdminServiceHealthTests
             AuthTestBuilder.NewContext(),
             TimeProvider.System,
             provider.GetRequiredService<HealthCheckService>(),
-            gate
+            gate,
+            Substitute.For<IOutboundWebhookDispatcher>()
         );
     }
 

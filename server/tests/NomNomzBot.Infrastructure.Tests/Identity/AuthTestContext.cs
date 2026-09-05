@@ -469,7 +469,12 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         b.Entity<NomNomzBot.Domain.Sound.Entities.SoundClip>()
             .Ignore(e => e.Channel)
             .Ignore(e => e.CreatedByUser);
-        b.Ignore<NomNomzBot.Domain.Platform.Entities.EventSubSubscription>();
+        // EventSubSubscription: the REAL production configuration (hand-rolled JSON `Condition` column, unique
+        // registry index) so the admin EventSub-health tests (S-ADMIN-6a) can seed and query real registry rows
+        // through this harness rather than a scalar stub.
+        b.ApplyConfiguration(
+            new NomNomzBot.Infrastructure.Platform.Persistence.Configurations.EventSubSubscriptionConfiguration()
+        );
         b.Ignore<NomNomzBot.Domain.Platform.Entities.EventSubConduit>();
         b.Ignore<NomNomzBot.Domain.Platform.Entities.EventSubConduitShard>();
 
@@ -652,7 +657,7 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Widgets.Entities.RenderedAlertCapture> RenderedAlertCaptures =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.EventSubSubscription> EventSubSubscriptions =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Platform.Entities.EventSubSubscription>();
     public DbSet<NomNomzBot.Domain.Platform.Entities.EventSubConduit> EventSubConduits =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.EventSubConduitShard> EventSubConduitShards =>

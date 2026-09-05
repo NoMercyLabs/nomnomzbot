@@ -50,3 +50,57 @@ public sealed record AdminSystemDto(
     long MemoryUsageMb,
     double CpuPercent
 );
+
+// ── EventSub subscription health (S-ADMIN-6a) ──
+
+/// <summary>
+/// One topic in the real EventSub registry <c>TwitchEventSubHostedService</c> maintains — never a fabricated
+/// row. <see cref="LastConfirmedAt"/> is the registry row's own <c>UpdatedAt</c>, the last time this exact
+/// status was persisted (created, re-homed on reconnect, or flipped by a Twitch revocation notice).
+/// </summary>
+public sealed record AdminEventSubTopicHealthDto(
+    Guid SubscriptionId,
+    string EventType,
+    string Version,
+    string Status,
+    bool Enabled,
+    string? LastError,
+    DateTime LastConfirmedAt
+);
+
+/// <summary>One tenant's EventSub registry rows, grouped for the 2am operator console (S-ADMIN-6a).</summary>
+public sealed record AdminEventSubTenantHealthDto(
+    Guid BroadcasterId,
+    string ChannelDisplayName,
+    IReadOnlyList<AdminEventSubTopicHealthDto> Topics
+);
+
+// ── Outbound webhook delivery log + replay (S-ADMIN-6a) ──
+
+/// <summary>One delivery attempt across ALL tenants, for the platform-wide delivery log. <see cref="EndpointName"/>
+/// reads "(deleted endpoint)" when the endpoint has since been soft-deleted — the row is kept, never hidden.</summary>
+public sealed record AdminWebhookDeliveryDto(
+    long Id,
+    Guid BroadcasterId,
+    Guid EndpointId,
+    string EndpointName,
+    bool EndpointCanReplay,
+    string EventType,
+    int Attempt,
+    string Status,
+    int? ResponseCode,
+    int? DurationMs,
+    string? Error,
+    DateTime CreatedAt
+);
+
+/// <summary>
+/// The outcome of an admin-initiated replay: a genuinely NEW delivery row was created and sent — the original
+/// attempt this replays is never mutated.
+/// </summary>
+public sealed record AdminWebhookReplayResultDto(
+    long OriginalDeliveryId,
+    long NewDeliveryId,
+    string Status,
+    int? ResponseCode
+);

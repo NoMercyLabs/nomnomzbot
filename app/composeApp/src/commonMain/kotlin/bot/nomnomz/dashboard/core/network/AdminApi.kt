@@ -303,6 +303,56 @@ data class ImpersonationTokenDto(
 @Serializable
 data class ImpersonateUserRequest(val accessGrantId: String, val justification: String)
 
+// ── EventSub subscription health + outbound webhook delivery log/replay (S-ADMIN-6a) ──
+
+/** One topic in the REAL EventSub registry `TwitchEventSubHostedService` maintains for one tenant. */
+@Serializable
+data class AdminEventSubTopicHealth(
+    val subscriptionId: String,
+    val eventType: String,
+    val version: String,
+    val status: String,
+    val enabled: Boolean,
+    val lastError: String? = null,
+    val lastConfirmedAt: String,
+)
+
+/** One tenant's EventSub registry rows, grouped for the 2am operator console. */
+@Serializable
+data class AdminEventSubTenantHealth(
+    val broadcasterId: String,
+    val channelDisplayName: String,
+    val topics: List<AdminEventSubTopicHealth> = emptyList(),
+)
+
+/** One outbound webhook delivery attempt across ALL tenants. [endpointName] reads "(deleted endpoint)" when
+ * the endpoint has since been soft-deleted; [endpointCanReplay] is false when the endpoint is deleted or
+ * disabled — the row is kept either way, never hidden. */
+@Serializable
+data class AdminWebhookDelivery(
+    val id: Long,
+    val broadcasterId: String,
+    val endpointId: String,
+    val endpointName: String,
+    val endpointCanReplay: Boolean,
+    val eventType: String,
+    val attempt: Int,
+    val status: String,
+    val responseCode: Int? = null,
+    val durationMs: Int? = null,
+    val error: String? = null,
+    val createdAt: String,
+)
+
+/** The outcome of an admin-initiated replay: a genuinely NEW delivery row was created and sent. */
+@Serializable
+data class AdminWebhookReplayResult(
+    val originalDeliveryId: Long,
+    val newDeliveryId: Long,
+    val status: String,
+    val responseCode: Int? = null,
+)
+
 // ─── API interface + implementation ──────────────────────────────────────────
 
 interface AdminApi {
@@ -375,6 +425,23 @@ interface AdminApi {
 
     /** Removes the stored rows so the environment resolves again. Destructive, and deliberately separate. */
     suspend fun clearProviderCredential(provider: String): ApiResult<ProviderCredential>
+
+    // EventSub subscription health + outbound webhook delivery log/replay (S-ADMIN-6a). Defaulted to
+    // NOT_IMPLEMENTED so the many pre-existing fakes across the admin test suite (each built for an
+    // unrelated tab) do not need a mechanical touch just to keep compiling — a fake that DOES need these
+    // for a real assertion overrides them explicitly, same as every other method here.
+
+    /** The real EventSub registry, grouped by tenant. */
+    suspend fun getEventSubHealth(page: Int = 1, pageSize: Int = 25): ApiResult<PaginatedEnvelope<AdminEventSubTenantHealth>> =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+
+    /** Cross-tenant outbound webhook delivery log, newest attempt first. */
+    suspend fun getWebhookDeliveries(page: Int = 1, pageSize: Int = 25): ApiResult<PaginatedEnvelope<AdminWebhookDelivery>> =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+
+    /** Replays one delivery: a genuinely new attempt is sent and appended; the original is untouched. */
+    suspend fun replayWebhookDelivery(deliveryId: Long): ApiResult<AdminWebhookReplayResult> =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
 }
 
 /**
@@ -521,6 +588,15 @@ class AdminApiImpl(private val client: ApiClient) : AdminApi {
 
     override suspend fun clearProviderCredential(provider: String): ApiResult<ProviderCredential> =
         client.deleteEnvelope("api/v1/admin/providers/$provider")
+
+    override suspend fun getEventSubHealth(page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<AdminEventSubTenantHealth>> =
+        client.getDirect("api/v1/admin/eventsub/health?page=$page&pageSize=$pageSize")
+
+    override suspend fun getWebhookDeliveries(page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<AdminWebhookDelivery>> =
+        client.getDirect("api/v1/admin/webhooks/deliveries?page=$page&pageSize=$pageSize")
+
+    override suspend fun replayWebhookDelivery(deliveryId: Long): ApiResult<AdminWebhookReplayResult> =
+        client.postEnvelope("api/v1/admin/webhooks/deliveries/$deliveryId/replay")
 
     private fun searchQuery(search: String?): String =
         search?.takeIf { it.isNotBlank() }?.let { "&search=${it.encodeQuery()}" } ?: ""

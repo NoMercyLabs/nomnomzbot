@@ -36,4 +36,32 @@ public interface IAdminService
     );
 
     Task<Result<AdminSystemDto>> GetSystemHealthAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// The real EventSub registry (S-ADMIN-6a), grouped by tenant — one page of BROADCASTERS, each carrying
+    /// every topic <c>TwitchEventSubHostedService</c> has a row for. Reads <c>EventSubSubscriptions</c>
+    /// directly; never fabricates a topic or a status the registry does not actually hold.
+    /// </summary>
+    Task<Result<PagedList<AdminEventSubTenantHealthDto>>> GetEventSubHealthAsync(
+        PaginationParams pagination,
+        CancellationToken ct = default
+    );
+
+    /// <summary>Cross-tenant outbound webhook delivery log (S-ADMIN-6a), newest attempt first, paged.</summary>
+    Task<Result<PagedList<AdminWebhookDeliveryDto>>> GetWebhookDeliveryLogAsync(
+        PaginationParams pagination,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// Replays one delivery: sends a brand-new attempt carrying the original's exact rendered body, appended
+    /// as its own row — the delivery being replayed is never mutated. Refused (NOT_FOUND/ENDPOINT_DISABLED)
+    /// when the endpoint has since been deleted or disabled. Always written to the platform audit log,
+    /// naming the acting operator.
+    /// </summary>
+    Task<Result<AdminWebhookReplayResultDto>> ReplayWebhookDeliveryAsync(
+        long deliveryId,
+        Guid actorUserId,
+        CancellationToken ct = default
+    );
 }

@@ -260,6 +260,11 @@ class ApiContractTest {
             AdminTenantDetail.serializer() to "AdminTenantDetailDto",
             TenantAccessGrant.serializer() to "TenantAccessGrantDto",
             IamAuditEntry.serializer() to "IamAuditEntryDto",
+            // EventSub subscription health + outbound webhook delivery log/replay (S-ADMIN-6a).
+            AdminEventSubTopicHealth.serializer() to "AdminEventSubTopicHealthDto",
+            AdminEventSubTenantHealth.serializer() to "AdminEventSubTenantHealthDto",
+            AdminWebhookDelivery.serializer() to "AdminWebhookDeliveryDto",
+            AdminWebhookReplayResult.serializer() to "AdminWebhookReplayResultDto",
             // Platform content authoring (platform-admin.md §4, PlatformContentController).
             PlatformContentDefinition.serializer() to "PlatformContentDefinitionDto",
             PlatformContentDefinitionDetail.serializer() to "PlatformContentDefinitionDetailDto",
