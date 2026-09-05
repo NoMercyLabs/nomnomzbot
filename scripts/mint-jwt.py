@@ -47,6 +47,14 @@ def main() -> None:
     parser.add_argument("--audience", default="nomnomzbot")
     parser.add_argument("--username", default="mint-jwt")
     parser.add_argument("--minutes", type=int, default=60)
+    parser.add_argument(
+        "--roles",
+        default="",
+        help="Comma-separated roles -> ClaimTypes.Role claims. SessionService.RolesFor issues "
+        "'user,admin' for a platform principal and 'user' otherwise, and several endpoints gate on "
+        "User.IsInRole(\"admin\") (e.g. the bot device flow once setup is complete), so a token "
+        "without this cannot exercise those paths.",
+    )
     args = parser.parse_args()
 
     # JwtTokenService builds the token from System.Security.Claims.ClaimTypes constants directly
@@ -54,6 +62,7 @@ def main() -> None:
     # so the wire claim keys are these long XML-identity URIs, not "sub"/"name"/"role".
     NAME_IDENTIFIER = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"
     NAME = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"
+    ROLE = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/role"
 
     now = int(time.time())
     header = {"alg": "HS256", "typ": "JWT"}
@@ -69,6 +78,13 @@ def main() -> None:
     }
     if args.tenant:
         claims["tenant"] = args.tenant
+
+    roles = [r.strip() for r in args.roles.split(",") if r.strip()]
+    if roles:
+        # A single role must be a bare string, not a one-element list: JwtSecurityToken writes one claim
+        # per value and ASP.NET reads either shape, but a list of one serialises differently enough to
+        # trip role checks on some stacks. Match what the real issuer emits.
+        claims[ROLE] = roles[0] if len(roles) == 1 else roles
 
     signing_input = f"{b64url(json.dumps(header, separators=(',', ':')).encode())}.{b64url(json.dumps(claims, separators=(',', ':')).encode())}"
     key = args.secret.encode("utf-8")
