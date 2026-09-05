@@ -25,15 +25,18 @@ import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.doubleOrNull
 import bot.nomnomz.dashboard.core.realtime.HubEvent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import bot.nomnomz.dashboard.core.designsystem.component.FieldPair
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
@@ -63,11 +66,13 @@ import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.GlyphButton
@@ -87,6 +92,8 @@ import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalSpacing
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTokens
 import bot.nomnomz.dashboard.core.designsystem.theme.LocalTypography
+import bot.nomnomz.dashboard.core.designsystem.theme.Radii
+import bot.nomnomz.dashboard.core.designsystem.theme.Tokens
 import bot.nomnomz.dashboard.core.i18n.resolveSchemaString
 import bot.nomnomz.dashboard.core.network.BlockField
 import bot.nomnomz.dashboard.core.network.FieldKind
@@ -589,7 +596,7 @@ private fun ListHeader(
 }
 
 @Composable
-private fun PipelineRow(
+internal fun PipelineRow(
     pipeline: PipelineSummary,
     manage: ManageDecision,
     onOpen: () -> Unit,
@@ -630,12 +637,12 @@ private fun PipelineRow(
                 },
             verticalArrangement = Arrangement.spacedBy(spacing.s1),
         ) {
+            // The pipeline's own name must stay identifiable at Compact width (S-PIPE-TREE-VIS #3) — it wraps
+            // to a second line instead of ellipsizing, unlike the description snippet below it.
             Text(
                 text = displayName,
                 style = typography.lg,
                 color = tokens.cardForeground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = snippet,
@@ -679,7 +686,7 @@ private fun PipelineRow(
 // ── The chain editor surface ──────────────────────────────────────────────────
 
 @Composable
-private fun ChainEditor(
+internal fun ChainEditor(
     editing: PipelinesState.Editing,
     manage: ManageDecision,
     controller: PipelinesController,
@@ -875,6 +882,7 @@ private fun ChainEditor(
                             manage = manage,
                             controller = controller,
                             dialogs = dialogs,
+                            depth = 0,
                         )
                     }
                 }
@@ -1067,6 +1075,106 @@ private fun ChainEditor(
     }
 }
 
+// ── Tree containment (S-PIPE-TREE-VIS) ────────────────────────────────────────
+//
+// The tree editor previously read as a flat, indented list: every level's block/step card was the same bare
+// Column with only `padding(start = ...)` marking depth, so a two-level-deep "if -> if -> send message" chain
+// looked identical to three unrelated top-level rows. [TreeNodeContainer] gives every node (leaf step or
+// nested block) a real box — background + border + radius — so nesting reads as CONTAINMENT, not indentation.
+//
+// Sleak's concentric-radius rule drives the radius: it shrinks one step per nesting level (never the same
+// radius as the parent when there's padding between them), floored at the smallest token so it never goes to
+// zero. The neutral surface alternates Card <-> Sidebar by depth parity — deliberately NOT `muted`,
+// `secondary`, or `accent`: in this theme's own token set `muted`/`secondary`/`accent` are literally the SAME
+// achromatic value in the light palette (frontend-design-system.md's shadcn Neutral scale), and `secondary`/
+// `accent` carry the actual brand hue (Ube-800) in the dark palette — using either would spend the accent
+// color on hierarchy at some nesting depth, exactly what sleak's "scarce accent" rule forbids. `sidebar` is
+// the one other achromatic tone that stays genuinely distinct from `card` (and from the accent) in BOTH
+// palettes — borrowed here purely as a second neutral tone, not as "this is the nav rail" — so alternating the
+// two means no nesting level ever shares its surface with the level directly above or below it.
+internal enum class TreeNodeRadiusTier { Xl, Lg, Sm }
+
+internal enum class TreeNodeSurfaceTier { Card, Sidebar }
+
+/** Depth 0 (the root chain) gets the roomiest radius; it shrinks one step per level, floored at [TreeNodeRadiusTier.Sm]. */
+internal fun treeNodeRadiusTier(depth: Int): TreeNodeRadiusTier =
+    when {
+        depth <= 0 -> TreeNodeRadiusTier.Xl
+        depth == 1 -> TreeNodeRadiusTier.Lg
+        else -> TreeNodeRadiusTier.Sm
+    }
+
+/** Alternates two neutral surfaces by depth parity so every level differs from its immediate neighbors. */
+internal fun treeNodeSurfaceTier(depth: Int): TreeNodeSurfaceTier =
+    if (depth % 2 == 0) TreeNodeSurfaceTier.Card else TreeNodeSurfaceTier.Sidebar
+
+internal fun TreeNodeRadiusTier.resolve(radii: Radii): Dp =
+    when (this) {
+        TreeNodeRadiusTier.Xl -> radii.xl
+        TreeNodeRadiusTier.Lg -> radii.lg
+        TreeNodeRadiusTier.Sm -> radii.sm
+    }
+
+internal fun TreeNodeSurfaceTier.resolve(tokens: Tokens): Color =
+    when (this) {
+        TreeNodeSurfaceTier.Card -> tokens.card
+        TreeNodeSurfaceTier.Sidebar -> tokens.sidebar
+    }
+
+/** The per-node containment box every leaf step and block card renders through, at whatever [depth] it sits at. */
+@Composable
+private fun TreeNodeContainer(
+    depth: Int,
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val tokens = LocalTokens.current
+    val spacing = LocalSpacing.current
+    val radius: Dp = treeNodeRadiusTier(depth).resolve(tokens.radius)
+    val surface: Color = treeNodeSurfaceTier(depth).resolve(tokens)
+    val shape = RoundedCornerShape(radius)
+    Column(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .background(surface, shape)
+                .border(width = spacing.s0_5 / 2, color = tokens.border, shape = shape)
+                .padding(horizontal = spacing.s4, vertical = spacing.s3),
+        verticalArrangement = Arrangement.spacedBy(spacing.s3),
+        content = content,
+    )
+}
+
+/**
+ * Whether a destructive control at [depth] needs a persistent tint to stay visible without hover (S-PIPE-TREE-VIS
+ * #2) — measured on the rendered client, a bare ghost-variant delete glyph nested two-plus levels deep read as
+ * near-invisible at rest. Null at the root (the ghost variant's usual hover-only wash is enough there); a fixed
+ * low alpha at any nested depth gives the icon a permanent chip so it never depends on a hover state to exist.
+ */
+internal fun destructiveChipAlphaForDepth(depth: Int): Float? = if (depth > 0) 0.14f else null
+
+/**
+ * The tree's one destructive control (a step/block/case's delete) — every call site below routes through this
+ * so the depth-based visibility fix (S-PIPE-TREE-VIS #2) lives in one place. Still just the destructive ghost
+ * button at the root; nested, it gains a permanent low-alpha destructive chip so it reads before any hover.
+ */
+@Composable
+private fun DestructiveGlyphButton(depth: Int, label: String, onClick: () -> Unit, enabled: Boolean) {
+    val tokens = LocalTokens.current
+    val chipAlpha: Float? = destructiveChipAlphaForDepth(depth)
+    if (chipAlpha == null) {
+        GlyphButton(icon = TrashGlyph, label = label, onClick = onClick, enabled = enabled, tint = tokens.destructive)
+    } else {
+        Box(
+            modifier = Modifier.clip(CircleShape).background(tokens.destructive.copy(alpha = chipAlpha)),
+            contentAlignment = Alignment.Center,
+        ) {
+            GlyphButton(icon = TrashGlyph, label = label, onClick = onClick, enabled = enabled, tint = tokens.destructive)
+        }
+    }
+}
+
 @Composable
 private fun StepCard(
     index: Int,
@@ -1074,6 +1182,7 @@ private fun StepCard(
     step: PipelineStep,
     palette: RuntimePalette,
     manage: ManageDecision,
+    depth: Int,
     onEdit: () -> Unit,
     onRemove: () -> Unit,
     onMoveUp: () -> Unit,
@@ -1097,12 +1206,7 @@ private fun StepCard(
     val upLabel: String = stringResource(Res.string.pipelines_step_move_up, index + 1)
     val downLabel: String = stringResource(Res.string.pipelines_step_move_down, index + 1)
 
-    Column(
-        modifier =
-            Modifier.fillMaxWidth()
-                .padding(horizontal = spacing.s4, vertical = spacing.s3),
-        verticalArrangement = Arrangement.spacedBy(spacing.s2),
-    ) {
+    TreeNodeContainer(depth = depth) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s3)) {
             Text(text = "${index + 1}", style = typography.sm, color = tokens.mutedForeground)
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s0_5)) {
@@ -1140,13 +1244,7 @@ private fun StepCard(
                 GlyphButton(icon = EditGlyph, label = editLabel, onClick = onEdit, enabled = enabled)
             }
             ManageGate(decision = manage) { enabled ->
-                GlyphButton(
-                    icon = TrashGlyph,
-                    label = removeLabel,
-                    onClick = onRemove,
-                    enabled = enabled,
-                    tint = tokens.destructive,
-                )
+                DestructiveGlyphButton(depth = depth, label = removeLabel, onClick = onRemove, enabled = enabled)
             }
         }
     }
@@ -1164,6 +1262,7 @@ private fun IfBlockCard(
     manage: ManageDecision,
     controller: PipelinesController,
     dialogs: LaneDialogs,
+    depth: Int,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -1180,10 +1279,7 @@ private fun IfBlockCard(
     val upLabel: String = stringResource(Res.string.pipelines_step_move_up, index + 1)
     val downLabel: String = stringResource(Res.string.pipelines_step_move_down, index + 1)
 
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
-        verticalArrangement = Arrangement.spacedBy(spacing.s3),
-    ) {
+    TreeNodeContainer(depth = depth) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s3)) {
             Text(text = "${index + 1}", style = typography.sm, color = tokens.mutedForeground)
             Text(
@@ -1208,7 +1304,7 @@ private fun IfBlockCard(
                 GlyphButton(icon = EditGlyph, label = editLabel, onClick = { dialogs.onEditIf(blockId, block.condition) }, enabled = enabled)
             }
             ManageGate(decision = manage) { enabled ->
-                GlyphButton(icon = TrashGlyph, label = removeLabel, onClick = { controller.removeBranchStep(blockId) }, enabled = enabled, tint = tokens.destructive)
+                DestructiveGlyphButton(depth = depth, label = removeLabel, onClick = { controller.removeBranchStep(blockId) }, enabled = enabled)
             }
         }
 
@@ -1222,6 +1318,7 @@ private fun IfBlockCard(
             parentStepId = blockId,
             modelBranch = "then",
             dialogs = dialogs,
+            depth = depth,
         )
         LaneSection(
             label = stringResource(Res.string.pipelines_block_lane_else),
@@ -1233,6 +1330,7 @@ private fun IfBlockCard(
             parentStepId = blockId,
             modelBranch = "else",
             dialogs = dialogs,
+            depth = depth,
         )
     }
 }
@@ -1252,6 +1350,7 @@ private fun TryBlockCard(
     manage: ManageDecision,
     controller: PipelinesController,
     dialogs: LaneDialogs,
+    depth: Int,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -1263,10 +1362,7 @@ private fun TryBlockCard(
     val upLabel: String = stringResource(Res.string.pipelines_step_move_up, index + 1)
     val downLabel: String = stringResource(Res.string.pipelines_step_move_down, index + 1)
 
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
-        verticalArrangement = Arrangement.spacedBy(spacing.s3),
-    ) {
+    TreeNodeContainer(depth = depth) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s3)) {
             Text(text = "${index + 1}", style = typography.sm, color = tokens.mutedForeground)
             Text(
@@ -1288,7 +1384,7 @@ private fun TryBlockCard(
             }
             Box(modifier = Modifier.weight(1f))
             ManageGate(decision = manage) { enabled ->
-                GlyphButton(icon = TrashGlyph, label = removeLabel, onClick = { controller.removeBranchStep(blockId) }, enabled = enabled, tint = tokens.destructive)
+                DestructiveGlyphButton(depth = depth, label = removeLabel, onClick = { controller.removeBranchStep(blockId) }, enabled = enabled)
             }
         }
 
@@ -1302,6 +1398,7 @@ private fun TryBlockCard(
             parentStepId = blockId,
             modelBranch = "then",
             dialogs = dialogs,
+            depth = depth,
         )
         LaneSection(
             label = stringResource(Res.string.pipelines_block_lane_catch),
@@ -1313,6 +1410,7 @@ private fun TryBlockCard(
             parentStepId = blockId,
             modelBranch = "else",
             dialogs = dialogs,
+            depth = depth,
         )
     }
 }
@@ -1340,6 +1438,10 @@ private fun LaneSection(
     parentStepId: String,
     modelBranch: String?,
     dialogs: LaneDialogs,
+    // The depth of the BLOCK that owns this lane — its children render one level deeper (S-PIPE-TREE-VIS), via
+    // [PipelineTreeRow]'s `depth = depth + 1` below, so [TreeNodeContainer] can shrink their radius/surface a
+    // step further than their parent block's own container.
+    depth: Int,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -1349,9 +1451,12 @@ private fun LaneSection(
 
     // Column, never Row, for the lane's own content — the whole point of the "usable at Compact" requirement
     // (S-PIPE-TREE #4) is that a nested lane stacks vertically under its owning block instead of squeezing
-    // sideways; only the per-row action glyphs (fixed-width, not text) sit in a Row.
+    // sideways; only the per-row action glyphs (fixed-width, not text) sit in a Row. The indent is a modest
+    // fixed inset (not compounded per level, S-PIPE-TREE-VIS #2) — [TreeNodeContainer]'s background/radius now
+    // carries most of the depth signal, so a large repeated per-level indent is no longer needed and would only
+    // squeeze the row's own controls (including its delete glyph) toward the edge on a narrow viewport.
     Column(
-        modifier = Modifier.fillMaxWidth().padding(start = spacing.s4),
+        modifier = Modifier.fillMaxWidth().padding(start = spacing.s2),
         verticalArrangement = Arrangement.spacedBy(spacing.s1),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
@@ -1408,6 +1513,7 @@ private fun LaneSection(
                         manage = manage,
                         controller = controller,
                         dialogs = dialogs,
+                        depth = depth + 1,
                     )
                 }
             }
@@ -1434,13 +1540,17 @@ private fun PipelineTreeRow(
     manage: ManageDecision,
     controller: PipelinesController,
     dialogs: LaneDialogs,
+    // How many lanes deep this node sits — 0 at the root chain (S-PIPE-TREE-VIS). Threaded into every card's
+    // [TreeNodeContainer] so nesting reads as containment (shrinking radius + alternating surface) rather than
+    // only indentation, and into the leaf/case delete control so it stays visible without hovering at depth.
+    depth: Int,
 ) {
     when (step.blockKind) {
-        "if" -> IfBlockCard(block = step, allSteps = allSteps, index = index, total = total, palette = palette, manage = manage, controller = controller, dialogs = dialogs)
-        "switch" -> SwitchBlockCard(block = step, allSteps = allSteps, index = index, total = total, palette = palette, manage = manage, controller = controller, dialogs = dialogs)
-        "loop" -> LoopBlockCard(block = step, allSteps = allSteps, index = index, total = total, palette = palette, manage = manage, controller = controller, dialogs = dialogs)
-        "random_branch" -> RandomBranchBlockCard(block = step, allSteps = allSteps, index = index, total = total, palette = palette, manage = manage, controller = controller, dialogs = dialogs)
-        "try" -> TryBlockCard(block = step, allSteps = allSteps, index = index, total = total, palette = palette, manage = manage, controller = controller, dialogs = dialogs)
+        "if" -> IfBlockCard(block = step, allSteps = allSteps, index = index, total = total, palette = palette, manage = manage, controller = controller, dialogs = dialogs, depth = depth)
+        "switch" -> SwitchBlockCard(block = step, allSteps = allSteps, index = index, total = total, palette = palette, manage = manage, controller = controller, dialogs = dialogs, depth = depth)
+        "loop" -> LoopBlockCard(block = step, allSteps = allSteps, index = index, total = total, palette = palette, manage = manage, controller = controller, dialogs = dialogs, depth = depth)
+        "random_branch" -> RandomBranchBlockCard(block = step, allSteps = allSteps, index = index, total = total, palette = palette, manage = manage, controller = controller, dialogs = dialogs, depth = depth)
+        "try" -> TryBlockCard(block = step, allSteps = allSteps, index = index, total = total, palette = palette, manage = manage, controller = controller, dialogs = dialogs, depth = depth)
         else -> {
             val stepId: String? = step.id
             StepCard(
@@ -1449,6 +1559,7 @@ private fun PipelineTreeRow(
                 step = step,
                 palette = palette,
                 manage = manage,
+                depth = depth,
                 onEdit = { dialogs.onEditStep(step) },
                 onRemove = { stepId?.let { controller.removeBranchStep(it) } },
                 onMoveUp = { stepId?.let { controller.moveBranchStepUp(it) } },
@@ -1545,6 +1656,7 @@ private fun SwitchBlockCard(
     manage: ManageDecision,
     controller: PipelinesController,
     dialogs: LaneDialogs,
+    depth: Int,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -1562,10 +1674,7 @@ private fun SwitchBlockCard(
     val cases: List<PipelineStep> =
         allSteps.filter { it.parentStepId == blockId && it.blockKind == "switch_case" }.sortedBy { it.order ?: 0 }
 
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
-        verticalArrangement = Arrangement.spacedBy(spacing.s3),
-    ) {
+    TreeNodeContainer(depth = depth) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s3)) {
             Text(text = "${index + 1}", style = typography.sm, color = tokens.mutedForeground)
             Text(
@@ -1590,7 +1699,7 @@ private fun SwitchBlockCard(
                 GlyphButton(icon = EditGlyph, label = editLabel, onClick = { dialogs.onEditSwitch(blockId, block.blockConfig) }, enabled = enabled)
             }
             ManageGate(decision = manage) { enabled ->
-                GlyphButton(icon = TrashGlyph, label = removeLabel, onClick = { controller.removeBranchStep(blockId) }, enabled = enabled, tint = tokens.destructive)
+                DestructiveGlyphButton(depth = depth, label = removeLabel, onClick = { controller.removeBranchStep(blockId) }, enabled = enabled)
             }
         }
 
@@ -1605,10 +1714,10 @@ private fun SwitchBlockCard(
             val caseUpLabel: String = stringResource(Res.string.pipelines_block_case_move_up, caseIndex + 1)
             val caseDownLabel: String = stringResource(Res.string.pipelines_block_case_move_down, caseIndex + 1)
 
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(start = spacing.s4),
-                verticalArrangement = Arrangement.spacedBy(spacing.s1),
-            ) {
+            // A "switch_case" is one level deeper than its owning "switch" block — its own container and its
+            // body lane's children each shrink one further step (S-PIPE-TREE-VIS), same as an "if" block's
+            // then/else lanes one level down.
+            TreeNodeContainer(depth = depth + 1, modifier = Modifier.padding(start = spacing.s2)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
                     Text(
                         text = caseSummary,
@@ -1640,13 +1749,7 @@ private fun SwitchBlockCard(
                         GlyphButton(icon = EditGlyph, label = caseEditLabel, onClick = { dialogs.onEditSwitchCase(case) }, enabled = enabled)
                     }
                     ManageGate(decision = manage) { enabled ->
-                        GlyphButton(
-                            icon = TrashGlyph,
-                            label = caseRemoveLabel,
-                            onClick = { controller.removeBranchStep(caseId) },
-                            enabled = enabled,
-                            tint = tokens.destructive,
-                        )
+                        DestructiveGlyphButton(depth = depth + 1, label = caseRemoveLabel, onClick = { controller.removeBranchStep(caseId) }, enabled = enabled)
                     }
                 }
 
@@ -1660,11 +1763,12 @@ private fun SwitchBlockCard(
                     parentStepId = caseId,
                     modelBranch = null,
                     dialogs = dialogs,
+                    depth = depth + 1,
                 )
             }
         }
 
-        Row(modifier = Modifier.fillMaxWidth().padding(start = spacing.s4)) {
+        Row(modifier = Modifier.fillMaxWidth().padding(start = spacing.s2)) {
             ManageGate(decision = manage) { enabled ->
                 GlyphButton(icon = AddGlyph, label = addCaseLabel, onClick = { dialogs.onAddSwitchCase(blockId) }, enabled = enabled, tint = tokens.primary)
             }
@@ -1687,6 +1791,7 @@ private fun RandomBranchBlockCard(
     manage: ManageDecision,
     controller: PipelinesController,
     dialogs: LaneDialogs,
+    depth: Int,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -1703,10 +1808,7 @@ private fun RandomBranchBlockCard(
         allSteps.filter { it.parentStepId == blockId && it.blockKind == "random_case" }.sortedBy { it.order ?: 0 }
     val summary: String = stringResource(Res.string.pipelines_block_random_summary, cases.size)
 
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
-        verticalArrangement = Arrangement.spacedBy(spacing.s3),
-    ) {
+    TreeNodeContainer(depth = depth) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s3)) {
             Text(text = "${index + 1}", style = typography.sm, color = tokens.mutedForeground)
             Text(
@@ -1728,7 +1830,7 @@ private fun RandomBranchBlockCard(
             }
             Box(modifier = Modifier.weight(1f))
             ManageGate(decision = manage) { enabled ->
-                GlyphButton(icon = TrashGlyph, label = removeLabel, onClick = { controller.removeBranchStep(blockId) }, enabled = enabled, tint = tokens.destructive)
+                DestructiveGlyphButton(depth = depth, label = removeLabel, onClick = { controller.removeBranchStep(blockId) }, enabled = enabled)
             }
         }
 
@@ -1741,10 +1843,9 @@ private fun RandomBranchBlockCard(
             val caseUpLabel: String = stringResource(Res.string.pipelines_block_case_move_up, caseIndex + 1)
             val caseDownLabel: String = stringResource(Res.string.pipelines_block_case_move_down, caseIndex + 1)
 
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(start = spacing.s4),
-                verticalArrangement = Arrangement.spacedBy(spacing.s1),
-            ) {
+            // A "random_case" is one level deeper than its owning "random_branch" block — see the matching
+            // comment on "switch_case" above (S-PIPE-TREE-VIS).
+            TreeNodeContainer(depth = depth + 1, modifier = Modifier.padding(start = spacing.s2)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
                     Text(
                         text = caseSummary,
@@ -1776,13 +1877,7 @@ private fun RandomBranchBlockCard(
                         GlyphButton(icon = EditGlyph, label = caseEditLabel, onClick = { dialogs.onEditRandomCase(case) }, enabled = enabled)
                     }
                     ManageGate(decision = manage) { enabled ->
-                        GlyphButton(
-                            icon = TrashGlyph,
-                            label = caseRemoveLabel,
-                            onClick = { controller.removeBranchStep(caseId) },
-                            enabled = enabled,
-                            tint = tokens.destructive,
-                        )
+                        DestructiveGlyphButton(depth = depth + 1, label = caseRemoveLabel, onClick = { controller.removeBranchStep(caseId) }, enabled = enabled)
                     }
                 }
 
@@ -1796,11 +1891,12 @@ private fun RandomBranchBlockCard(
                     parentStepId = caseId,
                     modelBranch = null,
                     dialogs = dialogs,
+                    depth = depth + 1,
                 )
             }
         }
 
-        Row(modifier = Modifier.fillMaxWidth().padding(start = spacing.s4)) {
+        Row(modifier = Modifier.fillMaxWidth().padding(start = spacing.s2)) {
             ManageGate(decision = manage) { enabled ->
                 GlyphButton(icon = AddGlyph, label = addCaseLabel, onClick = { dialogs.onAddRandomCase(blockId) }, enabled = enabled, tint = tokens.primary)
             }
@@ -1822,6 +1918,7 @@ private fun LoopBlockCard(
     manage: ManageDecision,
     controller: PipelinesController,
     dialogs: LaneDialogs,
+    depth: Int,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -1845,10 +1942,7 @@ private fun LoopBlockCard(
     val upLabel: String = stringResource(Res.string.pipelines_step_move_up, index + 1)
     val downLabel: String = stringResource(Res.string.pipelines_step_move_down, index + 1)
 
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
-        verticalArrangement = Arrangement.spacedBy(spacing.s3),
-    ) {
+    TreeNodeContainer(depth = depth) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s3)) {
             Text(text = "${index + 1}", style = typography.sm, color = tokens.mutedForeground)
             Text(
@@ -1873,7 +1967,7 @@ private fun LoopBlockCard(
                 GlyphButton(icon = EditGlyph, label = editLabel, onClick = { dialogs.onEditLoop(blockId, block.blockConfig, block.condition) }, enabled = enabled)
             }
             ManageGate(decision = manage) { enabled ->
-                GlyphButton(icon = TrashGlyph, label = removeLabel, onClick = { controller.removeBranchStep(blockId) }, enabled = enabled, tint = tokens.destructive)
+                DestructiveGlyphButton(depth = depth, label = removeLabel, onClick = { controller.removeBranchStep(blockId) }, enabled = enabled)
             }
         }
 
@@ -1887,6 +1981,7 @@ private fun LoopBlockCard(
             parentStepId = blockId,
             modelBranch = null,
             dialogs = dialogs,
+            depth = depth,
         )
     }
 }
