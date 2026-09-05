@@ -217,9 +217,21 @@ only the killed tenant, a tenant lands on the same side of a partial rollout eve
 rollout admits 25–35% of 5000 tenants, and an evaluation failure degrades to disabled instead of
 throwing. The tab renders cohort percentage and per-tenant override state, shows the counted blast
 radius before a kill switch commits, and a cancelled confirm leaves the flag untouched.
-- [ ] **S-ADMIN-6 Operate and diagnose.** Background job queue with retry, EventSub subscription health per
-      tenant, outbound webhook delivery log with replay, per-tenant usage and cost, error budget, and the
-      event store replay tools — the things you reach for at 2am, in one place.
+**S-ADMIN-6a CLOSED (`e8edf91a`, follow-ups `5691cb4c`).** Per-tenant EventSub subscription health read
+from the REAL registry — a test with two tenants, one revoked, distinguishes them and the output moves
+when the underlying subscription state moves — and an outbound webhook delivery log whose replay
+performs a genuine new send, appends a NEW attempt row leaving the original intact, audits the actor,
+and is REJECTED when the endpoint has since been deleted or disabled.
+
+Two defects it exposed, both fixed rather than filed: the tenant-facing `RetryDeliveryAsync` still did
+`delivery.Attempt++` and re-sent the same row, overwriting the failed status and response code the
+operator was looking at when they pressed retry — it now delegates to the same append-only replay, so
+there is one rule and not two; and `EntitlementGrant` (added in `b36f42b3`) was never classified into a
+blast-radius category, which left `ChannelBlastRadiusSourcesCompletenessTests` red on master and would
+have silently dropped that table from the count shown before a channel delete.
+
+- [ ] **S-ADMIN-6b The rest of the 2am tools.** Background job queue with retry, per-tenant usage and
+      cost, error budget, and the event-store replay tools.
 - [ ] **S-ADMIN-7 Support desk.** Find a person across every tenant, see their real state (roles, standing,
       heat, entitlements, connections), and replay what happened to them. This is the tab that closes support
       tickets; today it does not exist.
