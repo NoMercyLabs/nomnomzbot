@@ -83,8 +83,7 @@ public sealed class TemplateSyntaxBackfillSeeder : ISeeder
     private async Task<int> BackfillCommandsAsync(CancellationToken ct)
     {
         List<Domain.Commands.Entities.Command> rows = await _db
-            .Commands.IgnoreQueryFilters()
-            .Where(c =>
+            .Commands.Where(c =>
                 (c.TemplateResponse != null && c.TemplateResponse.Contains(DollarMarker))
                 || c.TemplateResponses!.Any(t => t.Contains(DollarMarker))
             )
@@ -108,8 +107,7 @@ public sealed class TemplateSyntaxBackfillSeeder : ISeeder
     private async Task<int> BackfillTimersAsync(CancellationToken ct)
     {
         List<Domain.Commands.Entities.Timer> rows = await _db
-            .Timers.IgnoreQueryFilters()
-            .Where(t => t.Messages.Any(m => m.Contains(DollarMarker)))
+            .Timers.Where(t => t.Messages.Any(m => m.Contains(DollarMarker)))
             .ToListAsync(ct);
 
         int changed = 0;
@@ -122,8 +120,7 @@ public sealed class TemplateSyntaxBackfillSeeder : ISeeder
     private async Task<int> BackfillEventResponsesAsync(CancellationToken ct)
     {
         List<Domain.Commands.Entities.EventResponse> rows = await _db
-            .EventResponses.IgnoreQueryFilters()
-            .Where(e => e.Message != null && e.Message.Contains(DollarMarker))
+            .EventResponses.Where(e => e.Message != null && e.Message.Contains(DollarMarker))
             .ToListAsync(ct);
 
         int changed = 0;
@@ -142,8 +139,9 @@ public sealed class TemplateSyntaxBackfillSeeder : ISeeder
     private async Task<int> BackfillOutboundWebhooksAsync(CancellationToken ct)
     {
         List<Domain.Webhooks.Entities.OutboundWebhookEndpoint> rows = await _db
-            .OutboundWebhookEndpoints.IgnoreQueryFilters()
-            .Where(w => w.BodyTemplate != null && w.BodyTemplate.Contains(DollarMarker))
+            .OutboundWebhookEndpoints.Where(w =>
+                w.BodyTemplate != null && w.BodyTemplate.Contains(DollarMarker)
+            )
             .ToListAsync(ct);
 
         int changed = 0;
