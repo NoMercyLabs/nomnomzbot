@@ -173,12 +173,22 @@ carrying a stale preview count fails closed rather than fanning out against numb
       (sandboxed, with the same VS Code-web editor and typed SDK the tenant surface gets). Done-when: a
       default command can be fixed, published, and its effect on an untouched tenant AND a customised tenant
       both demonstrated on the rendered client.
-- [ ] **S-ADMIN-4 Plans, billing and entitlements.** Author tiers and prices (today `BillingTierSeeder`),
-      map features to tiers, issue comps and grants, see invoices, dunning state and failed payments, and
-      refund. The limits story stays the one already decided: recover real cost, never upsell for its own sake.
-- [ ] **S-ADMIN-5 Flags and rollout.** Per-tenant and per-cohort flags on top of `FeatureFlagAdminController`,
-      staged rollout with a percentage, and a kill switch per integration that degrades gracefully rather
-      than erroring.
+**S-ADMIN-4a CLOSED (`d191bc3e`, label + contract follow-up `365392eb`).** Tiers and prices are
+authored from the admin plane: the edit persists and writes an audit entry, the blast-radius preview
+returns the real counted number of tenants on the tier, and an apply carrying a stale confirmed count
+fails closed rather than fanning out against numbers the owner never saw — three Api.Tests, plus
+`AdminBillingTierEditorRenderTest` green on the module.
+
+- [ ] **S-ADMIN-4b Comps and grants.** Issue a comp or a per-tenant entitlement grant, with an expiry,
+      a reason, a counted blast radius before it applies, and an audit entry after.
+- [ ] **S-ADMIN-4c Invoices, dunning and refunds.** See invoices, dunning state and failed payments,
+      and refund. Never show a payment state the billing code does not actually act on.
+**S-ADMIN-5 CLOSED (`2bfad340`).** Per-tenant and per-cohort flags, a staged percentage rollout and
+per-integration kill switches — all proven by enforcement, not persistence: a kill switch disables
+only the killed tenant, a tenant lands on the same side of a partial rollout every time, a 30%
+rollout admits 25–35% of 5000 tenants, and an evaluation failure degrades to disabled instead of
+throwing. The tab renders cohort percentage and per-tenant override state, shows the counted blast
+radius before a kill switch commits, and a cancelled confirm leaves the flag untouched.
 - [ ] **S-ADMIN-6 Operate and diagnose.** Background job queue with retry, EventSub subscription health per
       tenant, outbound webhook delivery log with replay, per-tenant usage and cost, error budget, and the
       event store replay tools — the things you reach for at 2am, in one place.
