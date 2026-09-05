@@ -321,6 +321,404 @@
         }
       }
     },
+    "/api/v{version}/admin/billing/tiers": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "List every tier — public and internal — for the admin tier editor.",
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIReadOnlyListOfTierDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Author a brand-new tier. Zero blast radius by construction — no confirmation required.",
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTierRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTierRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTierRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/admin/billing/tiers/{tierId}/preview": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "The counted blast radius of editing this tier — the real number of tenants on it right now. Call this\nbefore Task&lt;IActionResult&gt; AdminBillingController.UpdateTier(Guid tierId, UpdateTierRequest request, CancellationToken ct) and echo its `AffectedTenantCount` back as\n`ConfirmedAffectedTenantCount`.",
+        "parameters": [
+          {
+            "name": "tierId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfTierChangePreviewDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/admin/billing/tiers/{tierId}": {
+      "put": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Edit an existing tier's price, feature flags and limits. Fails closed (`PREVIEW_STALE`, 409) if\nint UpdateTierRequest.ConfirmedAffectedTenantCount no longer matches a freshly recomputed\ncount of tenants on the tier.",
+        "parameters": [
+          {
+            "name": "tierId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTierRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTierRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTierRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/admin/billing/invites": {
       "get": {
         "tags": [
@@ -29887,6 +30285,104 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v{version}/admin/feature-flags/{flagKey}/blast-radius": {
+      "get": {
+        "tags": [
+          "Feature Flags"
+        ],
+        "summary": "Preview the counted blast radius of flipping a flag's global toggle — the active channels with no\nunexpired override, who would actually feel the change. Called by the dashboard before a kill-switch\ncommit so the operator sees the count first (consequences-must-be-visible).",
+        "parameters": [
+          {
+            "name": "flagKey",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfFeatureFlagBlastRadiusDto"
                 }
               }
             }
@@ -84654,6 +85150,63 @@
         },
         "description": "Create Channel Stream Schedule Segment request body. `StartTime` is the RFC3339 segment start,\n`Timezone` is the IANA zone the broadcast airs in, and `Duration` is the length in minutes\n(a string per Twitch). The remaining fields are optional; the transport omits nulls. The broadcaster\nis the Guid method argument, not part of this body."
       },
+      "CreateTierRequest": {
+        "required": [
+          "key",
+          "displayName",
+          "priceCents",
+          "currency",
+          "allowsCustomBotName",
+          "prioritySupport",
+          "isPublic",
+          "sortOrder",
+          "limits"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "priceCents": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "allowsCustomBotName": {
+            "type": "boolean"
+          },
+          "prioritySupport": {
+            "type": "boolean"
+          },
+          "isPublic": {
+            "type": "boolean"
+          },
+          "sortOrder": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "limits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TierLimitDto"
+            }
+          }
+        },
+        "description": "Author a brand-new tier (admin). A new tier has zero tenants on it, so no blast-radius confirmation\n            is required to create one — only editing an IN-USE tier carries that gate."
+      },
       "CreateTimerDto": {
         "required": [
           "name",
@@ -87186,6 +87739,32 @@
           }
         },
         "description": "A consequence a row count cannot express: something OUTSIDE our database stops working. Deleting a channel\nrevokes an overlay token every live OBS browser source is polling, drops EventSub subscriptions registered\nwith Twitch, and orphans channel-point rewards created under our client id — none of which is \"N rows\".\nConsequenceKey is an i18n resource KEY naming the effect (\"N Twitch channel-point\nrewards stop working\"), never a table name and never a sentence."
+      },
+      "FeatureFlagBlastRadiusDto": {
+        "required": [
+          "tenantsAffected",
+          "sampleChannelNames"
+        ],
+        "type": "object",
+        "properties": {
+          "tenantsAffected": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Real, counted number of active channels with no unexpired override for this flag.",
+            "format": "int32"
+          },
+          "sampleChannelNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Up to 5 channel names from that set, so the operator recognises who is affected."
+          }
+        },
+        "description": "The counted blast radius of flipping a flag's GLOBAL toggle — shown to the operator BEFORE the toggle\ncommits (consequences-must-be-visible). int FeatureFlagBlastRadiusDto.TenantsAffected is the number of active channels\nwhose effective state is actually governed by the global toggle right now: an unexpired per-tenant\noverride insulates a channel from the global switch, so an overridden channel is never counted here — it\nwill not change. This is the same reasoning that makes a per-integration kill switch safe to flip: the\noperator sees exactly how many tenants lose the integration, not an estimate."
       },
       "FeatureFlagDto": {
         "required": [
@@ -99867,6 +100446,43 @@
           }
         }
       },
+      "StatusResponseDtoOfFeatureFlagBlastRadiusDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FeatureFlagBlastRadiusDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfFeatureFlagDto": {
         "type": "object",
         "properties": {
@@ -105787,6 +106403,43 @@
           }
         }
       },
+      "StatusResponseDtoOfTierChangePreviewDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TierChangePreviewDto"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseDtoOfTimerDto": {
         "type": "object",
         "properties": {
@@ -107797,6 +108450,30 @@
         },
         "description": "The uniform result of a script or pipeline test-run (custom-code.md / commands-pipelines.md). The logic ran for\nreal; every outward/mutating effect was CAPTURED (see IReadOnlyList&lt;CapturedEffectDto&gt; TestRunResultDto.CapturedEffects) rather than committed, while\nread-only calls (reads, conditions, template resolution, random draws) ran against the live services so the\ndry-run stays realistic."
       },
+      "TierChangePreviewDto": {
+        "required": [
+          "affectedTenantCount",
+          "sampleChannelNames"
+        ],
+        "type": "object",
+        "properties": {
+          "affectedTenantCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sampleChannelNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "The counted blast radius of editing a tier that already has tenants on it (platform-admin.md's\ncounted-preview shape, mirrored from platform content publish). int TierChangePreviewDto.AffectedTenantCount is the\nreal, live count of tenants with an active/trialing subscription on the tier RIGHT NOW — never estimated.\nA save must echo this count back as `ConfirmedAffectedTenantCount`; a save whose confirmed count no\nlonger matches a freshly recomputed one fails closed (`PREVIEW_STALE`), the same rule platform-content\npublish already enforces."
+      },
       "TierDto": {
         "required": [
           "id",
@@ -107852,6 +108529,10 @@
             "items": {
               "$ref": "#/components/schemas/TierLimitDto"
             }
+          },
+          "isPublic": {
+            "type": "boolean",
+            "default": true
           }
         },
         "description": "A public billing plan with its limits."
@@ -110880,6 +111561,68 @@
             }
           }
         }
+      },
+      "UpdateTierRequest": {
+        "required": [
+          "displayName",
+          "priceCents",
+          "currency",
+          "allowsCustomBotName",
+          "prioritySupport",
+          "isPublic",
+          "sortOrder",
+          "limits",
+          "confirmedAffectedTenantCount"
+        ],
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "type": "string"
+          },
+          "priceCents": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "allowsCustomBotName": {
+            "type": "boolean"
+          },
+          "prioritySupport": {
+            "type": "boolean"
+          },
+          "isPublic": {
+            "type": "boolean"
+          },
+          "sortOrder": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "limits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TierLimitDto"
+            }
+          },
+          "confirmedAffectedTenantCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "Edit an existing tier's price, features and limits. int UpdateTierRequest.ConfirmedAffectedTenantCount must equal\nthe count a fresh `GET .../preview` just returned — a stale count is rejected, never silently applied."
       },
       "UpdateTimerDto": {
         "type": "object",

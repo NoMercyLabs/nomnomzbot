@@ -29,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
+import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.designsystem.component.AppTextField
 import bot.nomnomz.dashboard.core.designsystem.component.Badge
 import bot.nomnomz.dashboard.core.designsystem.component.BadgeVariant
@@ -72,6 +73,7 @@ import nomnomzbot.composeapp.generated.resources.admin_tier_price
 import nomnomzbot.composeapp.generated.resources.admin_tier_priority_support_badge
 import nomnomzbot.composeapp.generated.resources.admin_tier_public_badge
 import nomnomzbot.composeapp.generated.resources.admin_tier_save
+import nomnomzbot.composeapp.generated.resources.admin_tier_type_label
 import nomnomzbot.composeapp.generated.resources.admin_tiers_empty
 import nomnomzbot.composeapp.generated.resources.admin_tiers_heading
 import org.jetbrains.compose.resources.stringResource
@@ -141,7 +143,17 @@ private fun TierRow(tier: AdminTier, onEdit: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column {
-                Text(text = tier.displayName, style = typography.sm, color = tokens.cardForeground)
+                Text(
+                    text =
+                        resolveRowLabel(
+                            primary = tier.displayName,
+                            secondary = tier.key,
+                            typeLabel = stringResource(Res.string.admin_tier_type_label),
+                            discriminatorSource = tier.key,
+                        ),
+                    style = typography.sm,
+                    color = tokens.cardForeground,
+                )
                 Text(
                     text = stringResource(
                         Res.string.admin_tier_price,

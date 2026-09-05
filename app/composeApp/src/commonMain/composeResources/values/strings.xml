@@ -3332,6 +3332,7 @@
     <string name="admin_tiers_heading">Plans</string>
     <string name="admin_tiers_empty">No tiers yet.</string>
     <string name="admin_tier_create">Create tier</string>
+    <string name="admin_tier_type_label">Tier</string>
     <string name="admin_tier_edit">Edit</string>
     <string name="admin_tier_price">%1$d.%2$02d %3$s / month</string>
     <string name="admin_tier_public_badge">Public</string>

@@ -3318,6 +3318,7 @@
     <string name="admin_tiers_heading">Abonnementen</string>
     <string name="admin_tiers_empty">Nog geen tiers.</string>
     <string name="admin_tier_create">Tier aanmaken</string>
+    <string name="admin_tier_type_label">Pakket</string>
     <string name="admin_tier_edit">Bewerken</string>
     <string name="admin_tier_price">%1$d,%2$02d %3$s / maand</string>
     <string name="admin_tier_public_badge">Publiek</string>
