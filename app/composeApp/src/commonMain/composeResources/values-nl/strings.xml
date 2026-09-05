@@ -3340,6 +3340,20 @@
     <string name="admin_tier_save">Wijzigingen opslaan</string>
     <string name="admin_grant_tier">Tier toewijzen</string>
     <string name="admin_grant_founder">Oprichtersbadge toewijzen</string>
+    <string name="admin_grants_heading">Compensaties</string>
+    <string name="admin_grants_broadcaster_label">Broadcaster-ID</string>
+    <string name="admin_grants_broadcaster_load">Laden</string>
+    <string name="admin_grants_empty">Geen actieve compensaties voor deze tenant.</string>
+    <string name="admin_grants_type_label">Compensatie</string>
+    <string name="admin_grant_expires_label">Verloopt %1$s</string>
+    <string name="admin_grant_new">Nieuwe compensatie</string>
+    <string name="admin_grant_field_tier">Tier om naar te compenseren</string>
+    <string name="admin_grant_field_reason">Reden (verplicht)</string>
+    <string name="admin_grant_field_expires">Verloopt (UTC, verplicht)</string>
+    <string name="admin_grant_blast_radius_loading">Bezig met controleren wat er verandert voor deze tenant…</string>
+    <string name="admin_grant_blast_radius_none">Deze tier verandert nu niets voor deze tenant.</string>
+    <string name="admin_grant_blast_radius_counted">%1$d limiet(en) zouden veranderen voor deze tenant, waaronder: %2$s.</string>
+    <string name="admin_grant_issue">Compensatie toekennen</string>
     <string name="admin_event_log">Recente gebeurtenissen</string>
     <string name="admin_health_ok">OK</string>
     <string name="admin_health_degraded">Verslechterd</string>
@@ -5084,4 +5098,5 @@
     <string name="spam_follow_indicator_oscillation">Herhaaldelijk gevolgd en ontvolgd</string>
     <string name="admin_tab_spam_defaults">Standaard spambeveiliging</string>
     <string name="spam_defaults_explain">Dit zijn de waarden waarmee elk nieuw kanaal begint. Een kanaal dat nooit een instelling heeft gewijzigd blijft deze volgen, dus hier iets aanpassen verplaatst ze allemaal tegelijk.</string>
+    <string name="pipelines_block_lane_add_menu">Toevoegen aan %1$s</string>
 </resources>

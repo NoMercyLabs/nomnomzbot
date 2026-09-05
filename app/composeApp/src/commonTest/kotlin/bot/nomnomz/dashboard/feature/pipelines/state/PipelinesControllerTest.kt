@@ -966,6 +966,145 @@ class PipelinesControllerTest {
         assertEquals(0, elseChild.order)
     }
 
+    // ── Nested blocks: a block inside another block's own lane (S-PIPE-TREE) ────
+    //
+    // Every add/remove/reorder method above (addBranchStep/removeBranchStep/moveBranchStepUp/Down) already
+    // takes an arbitrary PipelineStep — including a block-kind one — as the lane child, so the MODEL already
+    // supports nesting a block two (or more) levels deep. These three tests prove that generic capacity holds
+    // for the case the editor UI did not yet expose: a whole "if" BLOCK (not just a leaf action) placed inside
+    // another "if" block's own "then" lane.
+
+    @Test
+    fun a_block_added_inside_a_branch_is_nested_under_that_branch_in_the_model() = runTest {
+        val api =
+            RecordingPipelinesApi(
+                listOf(PipelineSummary(id = "0000000e-0000-0000-0000-00000000000e", name = "Nested", isEnabled = true)),
+                graphs = mutableMapOf("0000000e-0000-0000-0000-00000000000e" to PipelineGraph().toJson()),
+            )
+        val controller = pipelinesController(okChannel(), api)
+        controller.load()
+        controller.openEditor(PipelineSummary(id = "0000000e-0000-0000-0000-00000000000e", name = "Nested"))
+
+        val outerId: String = controller.addIfBlock(PipelineNode("user_role", mapOf("role" to "mod")))
+        controller.addBranchStep(outerId, "then", PipelineStep(action = PipelineNode("send_message", mapOf("message" to "outer-then-leaf"))))
+
+        // Nest a SECOND "if" block (not a leaf) inside the outer block's "then" lane.
+        val innerIfStep =
+            PipelineStep(
+                action = PipelineNode(type = "block"),
+                blockKind = "if",
+                condition = PipelineNode("user_role", mapOf("role" to "sub")),
+            )
+        controller.addBranchStep(outerId, "then", innerIfStep)
+
+        fun steps(): List<PipelineStep> = (controller.state.value as PipelinesState.Editing).steps
+        fun thenLane(): List<PipelineStep> = steps().filter { it.parentStepId == outerId && it.branch == "then" }.sortedBy { it.order }
+
+        // The inner "if" block landed as the second child of the outer block's "then" lane, addressable by its
+        // own id, with its own blockKind/condition intact — a real nested block, not a flattened leaf.
+        assertEquals(2, thenLane().size)
+        val innerBlock: PipelineStep = thenLane()[1]
+        assertEquals("if", innerBlock.blockKind)
+        assertEquals(outerId, innerBlock.parentStepId)
+        assertEquals("then", innerBlock.branch)
+        assertEquals(1, innerBlock.order)
+        assertEquals("sub", innerBlock.condition?.params?.get("role"))
+
+        // Now add a leaf INTO the inner block's own "else" lane — two levels of nesting deep.
+        val innerId: String = innerBlock.id!!
+        controller.addBranchStep(innerId, "else", PipelineStep(action = PipelineNode("send_message", mapOf("message" to "inner-else-leaf"))))
+
+        val innerElseLane: List<PipelineStep> = steps().filter { it.parentStepId == innerId && it.branch == "else" }
+        assertEquals(listOf("inner-else-leaf"), innerElseLane.map { it.action.params["message"] })
+
+        // The outer block's other lane and the sibling leaf are untouched by any of this.
+        assertEquals(listOf("outer-then-leaf"), thenLane().map { it.action.params["message"] }.take(1))
+        assertEquals(4, steps().size) // outer-if + outer-then-leaf + inner-if + inner-else-leaf
+    }
+
+    @Test
+    fun removing_a_nested_block_drops_its_own_descendants_but_leaves_its_siblings_and_parent() = runTest {
+        val api =
+            RecordingPipelinesApi(
+                listOf(PipelineSummary(id = "0000000f-0000-0000-0000-00000000000f", name = "Nested", isEnabled = true)),
+                graphs = mutableMapOf("0000000f-0000-0000-0000-00000000000f" to PipelineGraph().toJson()),
+            )
+        val controller = pipelinesController(okChannel(), api)
+        controller.load()
+        controller.openEditor(PipelineSummary(id = "0000000f-0000-0000-0000-00000000000f", name = "Nested"))
+
+        val outerId: String = controller.addIfBlock(PipelineNode("user_role", mapOf("role" to "mod")))
+        controller.addBranchStep(outerId, "then", PipelineStep(action = PipelineNode("send_message", mapOf("message" to "sibling-leaf"))))
+        val innerId: String =
+            controller.addBranchStep(outerId, "then", PipelineStep(action = PipelineNode(type = "block"), blockKind = "if", condition = PipelineNode("user_role", mapOf("role" to "sub"))))
+                .let { (controller.state.value as PipelinesState.Editing).steps.first { s -> s.parentStepId == outerId && s.branch == "then" && s.blockKind == "if" }.id!! }
+        controller.addBranchStep(innerId, "then", PipelineStep(action = PipelineNode("send_message", mapOf("message" to "grandchild-leaf"))))
+
+        fun steps(): List<PipelineStep> = (controller.state.value as PipelinesState.Editing).steps
+        assertEquals(4, steps().size) // outer-if + sibling-leaf + inner-if + grandchild-leaf
+
+        controller.removeBranchStep(innerId)
+
+        // The inner block AND its own grandchild are both gone; the outer block and the sibling leaf survive,
+        // and the "then" lane's order re-compacts to a dense run.
+        val remaining: List<PipelineStep> = steps()
+        assertEquals(2, remaining.size) // outer-if + sibling-leaf only
+        assertTrue(remaining.none { it.id == innerId })
+        assertTrue(remaining.none { it.action.params["message"] == "grandchild-leaf" })
+        val outerBlock: PipelineStep = remaining.single { it.id == outerId }
+        assertEquals("if", outerBlock.blockKind)
+        val thenLane: List<PipelineStep> = remaining.filter { it.parentStepId == outerId && it.branch == "then" }
+        assertEquals(listOf("sibling-leaf"), thenLane.map { it.action.params["message"] })
+        assertEquals(listOf(0), thenLane.map { it.order })
+    }
+
+    @Test
+    fun reordering_a_nested_block_moves_it_within_its_own_branch_only() = runTest {
+        val api =
+            RecordingPipelinesApi(
+                listOf(PipelineSummary(id = "00000010-0000-0000-0000-000000000010", name = "Nested", isEnabled = true)),
+                graphs = mutableMapOf("00000010-0000-0000-0000-000000000010" to PipelineGraph().toJson()),
+            )
+        val controller = pipelinesController(okChannel(), api)
+        controller.load()
+        controller.openEditor(PipelineSummary(id = "00000010-0000-0000-0000-000000000010", name = "Nested"))
+
+        val outerId: String = controller.addIfBlock(PipelineNode("user_role", mapOf("role" to "mod")))
+        controller.addBranchStep(outerId, "then", PipelineStep(action = PipelineNode("send_message", mapOf("message" to "leaf-a"))))
+        controller.addBranchStep(
+            outerId,
+            "then",
+            PipelineStep(action = PipelineNode(type = "block"), blockKind = "loop", blockConfig = encodeLoopConfig("repeat", 2, null, null, null)),
+        )
+        controller.addBranchStep(outerId, "then", PipelineStep(action = PipelineNode("send_message", mapOf("message" to "leaf-c"))))
+
+        fun thenLane(): List<PipelineStep> =
+            (controller.state.value as PipelinesState.Editing).steps
+                .filter { it.parentStepId == outerId && it.branch == "then" }
+                .sortedBy { it.order }
+
+        val nestedLoopId: String = thenLane().single { it.blockKind == "loop" }.id!!
+        assertEquals(1, thenLane().indexOfFirst { it.id == nestedLoopId })
+
+        // Move the nested "loop" block up one slot within the "then" lane — it swaps with "leaf-a" only.
+        controller.moveBranchStepUp(nestedLoopId)
+        assertEquals(0, thenLane().indexOfFirst { it.id == nestedLoopId })
+        assertEquals(listOf("loop", null, null), thenLane().map { it.blockKind })
+        assertEquals(listOf(null, "leaf-a", "leaf-c"), thenLane().map { it.action.params["message"] })
+
+        // Moving it down twice returns it to the bottom of the lane; a third down-move is a no-op.
+        controller.moveBranchStepDown(nestedLoopId)
+        controller.moveBranchStepDown(nestedLoopId)
+        assertEquals(2, thenLane().indexOfFirst { it.id == nestedLoopId })
+        controller.moveBranchStepDown(nestedLoopId)
+        assertEquals(2, thenLane().indexOfFirst { it.id == nestedLoopId })
+
+        // The outer block's own order, and the block's condition, are untouched by any lane-internal reorder.
+        val outerBlock: PipelineStep = (controller.state.value as PipelinesState.Editing).steps.single { it.id == outerId }
+        assertEquals(0, outerBlock.order)
+        assertEquals("mod", outerBlock.condition?.params?.get("role"))
+    }
+
     // ── S047 dry-run (Test button) ──────────────────────────────────────────────
 
     @Test

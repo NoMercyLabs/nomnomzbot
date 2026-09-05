@@ -3354,6 +3354,20 @@
     <string name="admin_tier_save">Save changes</string>
     <string name="admin_grant_tier">Grant tier</string>
     <string name="admin_grant_founder">Grant founder badge</string>
+    <string name="admin_grants_heading">Comps</string>
+    <string name="admin_grants_broadcaster_label">Broadcaster ID</string>
+    <string name="admin_grants_broadcaster_load">Load</string>
+    <string name="admin_grants_empty">No live comps for this tenant.</string>
+    <string name="admin_grants_type_label">Comp</string>
+    <string name="admin_grant_expires_label">Expires %1$s</string>
+    <string name="admin_grant_new">New comp</string>
+    <string name="admin_grant_field_tier">Tier to comp to</string>
+    <string name="admin_grant_field_reason">Reason (required)</string>
+    <string name="admin_grant_field_expires">Expires (UTC, required)</string>
+    <string name="admin_grant_blast_radius_loading">Checking what would change for this tenant…</string>
+    <string name="admin_grant_blast_radius_none">This tier changes nothing for this tenant right now.</string>
+    <string name="admin_grant_blast_radius_counted">%1$d limit(s) would change for this tenant, including: %2$s.</string>
+    <string name="admin_grant_issue">Issue comp</string>
     <string name="admin_event_log">Recent events</string>
     <string name="admin_health_ok">OK</string>
     <string name="admin_health_degraded">Degraded</string>
@@ -5109,4 +5123,5 @@
     <string name="spam_follow_indicator_oscillation">Followed and unfollowed repeatedly</string>
     <string name="admin_tab_spam_defaults">Spam defence defaults</string>
     <string name="spam_defaults_explain">These are the values every new channel starts with. A channel that has never changed a setting keeps following these, so editing one here moves all of them at once.</string>
+    <string name="pipelines_block_lane_add_menu">Add to %1$s</string>
 </resources>

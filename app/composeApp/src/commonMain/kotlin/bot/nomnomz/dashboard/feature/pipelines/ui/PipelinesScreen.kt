@@ -303,15 +303,11 @@ import nomnomzbot.composeapp.generated.resources.pipelines_block_if_summary
 import nomnomzbot.composeapp.generated.resources.pipelines_block_lane_then
 import nomnomzbot.composeapp.generated.resources.pipelines_block_lane_else
 import nomnomzbot.composeapp.generated.resources.pipelines_block_lane_empty
-import nomnomzbot.composeapp.generated.resources.pipelines_block_lane_add
+import nomnomzbot.composeapp.generated.resources.pipelines_block_lane_add_menu
 import nomnomzbot.composeapp.generated.resources.pipelines_block_add_try
 import nomnomzbot.composeapp.generated.resources.pipelines_block_try_summary
 import nomnomzbot.composeapp.generated.resources.pipelines_block_lane_try
 import nomnomzbot.composeapp.generated.resources.pipelines_block_lane_catch
-import nomnomzbot.composeapp.generated.resources.pipelines_block_lane_step_edit
-import nomnomzbot.composeapp.generated.resources.pipelines_block_lane_step_delete
-import nomnomzbot.composeapp.generated.resources.pipelines_block_lane_step_move_up
-import nomnomzbot.composeapp.generated.resources.pipelines_block_lane_step_move_down
 import nomnomzbot.composeapp.generated.resources.pipelines_block_add_switch
 import nomnomzbot.composeapp.generated.resources.pipelines_block_switch_title
 import nomnomzbot.composeapp.generated.resources.pipelines_block_switch_edit_title
@@ -711,6 +707,32 @@ private fun ChainEditor(
     // null = no weight dialog; a value = the add/edit dialog for one "random_case" child.
     var randomCaseDialog: RandomCaseDialogTarget? by remember { mutableStateOf(null) }
 
+    // The shared "add/edit a block into this lane" opener bundle (S-PIPE-TREE) — built once per recomposition
+    // from the SAME dialog-target `remember`s above, so [LaneSection] (and every block card it recurses into,
+    // at any depth) can offer the identical block-adding menu a root-level lane already had, without each
+    // nesting level re-deriving its own wiring. See [LaneDialogs] for why each opener is shaped the way it is.
+    val dialogs: LaneDialogs =
+        LaneDialogs(
+            onAddStep = { parentStepId, branch -> stepDialog = StepDialogTarget(parentStepId = parentStepId, branch = branch, step = null) },
+            onEditStep = { step -> stepDialog = StepDialogTarget(parentStepId = step.parentStepId, branch = step.branch, step = step) },
+            onAddIf = { parentStepId, branch -> ifBlockDialog = IfBlockDialogTarget(blockId = null, condition = null, parentStepId = parentStepId, branch = branch) },
+            onEditIf = { blockId, condition -> ifBlockDialog = IfBlockDialogTarget(blockId = blockId, condition = condition) },
+            onAddSwitch = { parentStepId, branch -> switchBlockDialog = SwitchBlockDialogTarget(blockId = null, value = null, parentStepId = parentStepId, branch = branch) },
+            onEditSwitch = { blockId, value -> switchBlockDialog = SwitchBlockDialogTarget(blockId = blockId, value = value) },
+            onAddSwitchCase = { switchId -> switchCaseDialog = SwitchCaseDialogTarget(switchId = switchId, caseId = null, config = null) },
+            onEditSwitchCase = { caseStep -> switchCaseDialog = SwitchCaseDialogTarget(switchId = caseStep.parentStepId, caseId = caseStep.id, config = caseStep.blockConfig) },
+            onAddLoop = { parentStepId, branch -> loopBlockDialog = LoopBlockDialogTarget(blockId = null, config = null, condition = null, parentStepId = parentStepId, branch = branch) },
+            onEditLoop = { blockId, config, condition -> loopBlockDialog = LoopBlockDialogTarget(blockId = blockId, config = config, condition = condition) },
+            onAddRandomBranch = { parentStepId, branch ->
+                controller.addBranchStep(parentStepId, branch, PipelineStep(action = PipelineNode(type = "block"), blockKind = "random_branch"))
+            },
+            onAddRandomCase = { branchId -> randomCaseDialog = RandomCaseDialogTarget(branchId = branchId, caseId = null, config = null) },
+            onEditRandomCase = { caseStep -> randomCaseDialog = RandomCaseDialogTarget(branchId = caseStep.parentStepId, caseId = caseStep.id, config = caseStep.blockConfig) },
+            onAddTry = { parentStepId, branch ->
+                controller.addBranchStep(parentStepId, branch, PipelineStep(action = PipelineNode(type = "block"), blockKind = "try"))
+            },
+        )
+
     val backLabel: String = stringResource(Res.string.pipelines_editor_back)
     val saveLabel: String = stringResource(Res.string.pipelines_editor_save)
     val testLabel: String = stringResource(Res.string.pipelines_testrun_action)
@@ -841,103 +863,19 @@ private fun ChainEditor(
                         if (index > 0) {
                             Separator()
                         }
-                        if (step.blockKind == "if") {
-                            IfBlockCard(
-                                block = step,
-                                allSteps = editing.steps,
-                                index = index,
-                                total = rootSteps.size,
-                                palette = editing.palette,
-                                manage = manage,
-                                controller = controller,
-                                onEditCondition = { ifBlockDialog = IfBlockDialogTarget(blockId = step.id, condition = step.condition) },
-                                onMoveUp = { step.id?.let { controller.moveBranchStepUp(it) } },
-                                onMoveDown = { step.id?.let { controller.moveBranchStepDown(it) } },
-                                onRemove = { step.id?.let { controller.removeBranchStep(it) } },
-                                onAddToLane = { branch -> stepDialog = StepDialogTarget(parentStepId = step.id, branch = branch, step = null) },
-                                onEditLaneStep = { child -> stepDialog = StepDialogTarget(parentStepId = child.parentStepId, branch = child.branch, step = child) },
-                            )
-                        } else if (step.blockKind == "switch") {
-                            SwitchBlockCard(
-                                block = step,
-                                allSteps = editing.steps,
-                                index = index,
-                                total = rootSteps.size,
-                                palette = editing.palette,
-                                manage = manage,
-                                controller = controller,
-                                onEditValue = { switchBlockDialog = SwitchBlockDialogTarget(blockId = step.id, value = step.blockConfig) },
-                                onMoveUp = { step.id?.let { controller.moveBranchStepUp(it) } },
-                                onMoveDown = { step.id?.let { controller.moveBranchStepDown(it) } },
-                                onRemove = { step.id?.let { controller.removeBranchStep(it) } },
-                                onAddCase = { switchId -> switchCaseDialog = SwitchCaseDialogTarget(switchId = switchId, caseId = null, config = null) },
-                                onEditCase = { caseStep -> switchCaseDialog = SwitchCaseDialogTarget(switchId = caseStep.parentStepId, caseId = caseStep.id, config = caseStep.blockConfig) },
-                                onAddCaseStep = { caseId -> stepDialog = StepDialogTarget(parentStepId = caseId, branch = null, step = null) },
-                                onEditCaseStep = { child -> stepDialog = StepDialogTarget(parentStepId = child.parentStepId, branch = child.branch, step = child) },
-                            )
-                        } else if (step.blockKind == "loop") {
-                            LoopBlockCard(
-                                block = step,
-                                allSteps = editing.steps,
-                                index = index,
-                                total = rootSteps.size,
-                                palette = editing.palette,
-                                manage = manage,
-                                controller = controller,
-                                onEditConfig = {
-                                    loopBlockDialog = LoopBlockDialogTarget(blockId = step.id, config = step.blockConfig, condition = step.condition)
-                                },
-                                onMoveUp = { step.id?.let { controller.moveBranchStepUp(it) } },
-                                onMoveDown = { step.id?.let { controller.moveBranchStepDown(it) } },
-                                onRemove = { step.id?.let { controller.removeBranchStep(it) } },
-                                onAddToLane = { step.id?.let { stepDialog = StepDialogTarget(parentStepId = it, branch = null, step = null) } },
-                                onEditLaneStep = { child -> stepDialog = StepDialogTarget(parentStepId = child.parentStepId, branch = child.branch, step = child) },
-                            )
-                        } else if (step.blockKind == "random_branch") {
-                            RandomBranchBlockCard(
-                                block = step,
-                                allSteps = editing.steps,
-                                index = index,
-                                total = rootSteps.size,
-                                palette = editing.palette,
-                                manage = manage,
-                                controller = controller,
-                                onMoveUp = { step.id?.let { controller.moveBranchStepUp(it) } },
-                                onMoveDown = { step.id?.let { controller.moveBranchStepDown(it) } },
-                                onRemove = { step.id?.let { controller.removeBranchStep(it) } },
-                                onAddCase = { branchId -> randomCaseDialog = RandomCaseDialogTarget(branchId = branchId, caseId = null, config = null) },
-                                onEditCase = { caseStep -> randomCaseDialog = RandomCaseDialogTarget(branchId = caseStep.parentStepId, caseId = caseStep.id, config = caseStep.blockConfig) },
-                                onAddCaseStep = { caseId -> stepDialog = StepDialogTarget(parentStepId = caseId, branch = null, step = null) },
-                                onEditCaseStep = { child -> stepDialog = StepDialogTarget(parentStepId = child.parentStepId, branch = child.branch, step = child) },
-                            )
-                        } else if (step.blockKind == "try") {
-                            TryBlockCard(
-                                block = step,
-                                allSteps = editing.steps,
-                                index = index,
-                                total = rootSteps.size,
-                                palette = editing.palette,
-                                manage = manage,
-                                controller = controller,
-                                onMoveUp = { step.id?.let { controller.moveBranchStepUp(it) } },
-                                onMoveDown = { step.id?.let { controller.moveBranchStepDown(it) } },
-                                onRemove = { step.id?.let { controller.removeBranchStep(it) } },
-                                onAddToLane = { branch -> stepDialog = StepDialogTarget(parentStepId = step.id, branch = branch, step = null) },
-                                onEditLaneStep = { child -> stepDialog = StepDialogTarget(parentStepId = child.parentStepId, branch = child.branch, step = child) },
-                            )
-                        } else {
-                            StepCard(
-                                index = index,
-                                total = rootSteps.size,
-                                step = step,
-                                palette = editing.palette,
-                                manage = manage,
-                                onEdit = { stepDialog = StepDialogTarget(parentStepId = null, branch = null, step = step) },
-                                onRemove = { step.id?.let { controller.removeBranchStep(it) } },
-                                onMoveUp = { step.id?.let { controller.moveBranchStepUp(it) } },
-                                onMoveDown = { step.id?.let { controller.moveBranchStepDown(it) } },
-                            )
-                        }
+                        // The root chain and every nested lane render through the SAME dispatcher (S-PIPE-TREE)
+                        // — see [PipelineTreeRow] for why a block card needs nothing beyond its own step + the
+                        // shared [dialogs] bundle to recurse into its own lanes at any depth.
+                        PipelineTreeRow(
+                            step = step,
+                            allSteps = editing.steps,
+                            index = index,
+                            total = rootSteps.size,
+                            palette = editing.palette,
+                            manage = manage,
+                            controller = controller,
+                            dialogs = dialogs,
+                        )
                     }
                 }
             }
@@ -979,14 +917,24 @@ private fun ChainEditor(
             onDismiss = { ifBlockDialog = null },
             onSubmit = { condition ->
                 val existingBlockId: String? = target.blockId
+                val parentStepId: String? = target.parentStepId
                 ifBlockDialog = null
-                if (existingBlockId != null) {
-                    controller.updateStepById(
-                        existingBlockId,
-                        PipelineStep(action = PipelineNode(type = "block"), blockKind = "if", condition = condition),
-                    )
-                } else {
-                    controller.addIfBlock(condition)
+                when {
+                    existingBlockId != null ->
+                        controller.updateStepById(
+                            existingBlockId,
+                            PipelineStep(action = PipelineNode(type = "block"), blockKind = "if", condition = condition),
+                        )
+                    // Nesting inside another block's lane (S-PIPE-TREE) — the new "if" block lands as an
+                    // ordinary lane child, one level under [parentStepId]/[target.branch], via the SAME generic
+                    // path a leaf step or any other nested block already uses.
+                    parentStepId != null ->
+                        controller.addBranchStep(
+                            parentStepId,
+                            target.branch,
+                            PipelineStep(action = PipelineNode(type = "block"), blockKind = "if", condition = condition),
+                        )
+                    else -> controller.addIfBlock(condition)
                 }
             },
         )
@@ -998,18 +946,26 @@ private fun ChainEditor(
             onDismiss = { switchBlockDialog = null },
             onSubmit = { value ->
                 val existingBlockId: String? = target.blockId
+                val parentStepId: String? = target.parentStepId
                 switchBlockDialog = null
-                if (existingBlockId != null) {
-                    controller.updateStepById(
-                        existingBlockId,
-                        PipelineStep(
-                            action = PipelineNode(type = "block"),
-                            blockKind = "switch",
-                            blockConfig = encodeSwitchValue(value),
-                        ),
-                    )
-                } else {
-                    controller.addSwitchBlock(value)
+                when {
+                    existingBlockId != null ->
+                        controller.updateStepById(
+                            existingBlockId,
+                            PipelineStep(
+                                action = PipelineNode(type = "block"),
+                                blockKind = "switch",
+                                blockConfig = encodeSwitchValue(value),
+                            ),
+                        )
+                    // Nesting inside another block's lane (S-PIPE-TREE) — see the "if" dialog's onSubmit above.
+                    parentStepId != null ->
+                        controller.addBranchStep(
+                            parentStepId,
+                            target.branch,
+                            PipelineStep(action = PipelineNode(type = "block"), blockKind = "switch", blockConfig = encodeSwitchValue(value)),
+                        )
+                    else -> controller.addSwitchBlock(value)
                 }
             },
         )
@@ -1057,6 +1013,7 @@ private fun ChainEditor(
             onDismiss = { loopBlockDialog = null },
             onSubmit = { mode, count, listVar, maxIterations, maxLoopRuntimeSeconds, whileCondition ->
                 val existingBlockId: String? = target.blockId
+                val parentStepId: String? = target.parentStepId
                 loopBlockDialog = null
                 val loopStep =
                     PipelineStep(
@@ -1065,10 +1022,11 @@ private fun ChainEditor(
                         condition = whileCondition,
                         blockConfig = encodeLoopConfig(mode, count, listVar, maxIterations, maxLoopRuntimeSeconds),
                     )
-                if (existingBlockId != null) {
-                    controller.updateStepById(existingBlockId, loopStep)
-                } else {
-                    controller.addLoopBlock(mode, count, listVar, maxIterations, maxLoopRuntimeSeconds, whileCondition)
+                when {
+                    existingBlockId != null -> controller.updateStepById(existingBlockId, loopStep)
+                    // Nesting inside another block's lane (S-PIPE-TREE) — see the "if" dialog's onSubmit above.
+                    parentStepId != null -> controller.addBranchStep(parentStepId, target.branch, loopStep)
+                    else -> controller.addLoopBlock(mode, count, listVar, maxIterations, maxLoopRuntimeSeconds, whileCondition)
                 }
             },
         )
@@ -1205,12 +1163,7 @@ private fun IfBlockCard(
     palette: RuntimePalette,
     manage: ManageDecision,
     controller: PipelinesController,
-    onEditCondition: () -> Unit,
-    onMoveUp: () -> Unit,
-    onMoveDown: () -> Unit,
-    onRemove: () -> Unit,
-    onAddToLane: (branch: String) -> Unit,
-    onEditLaneStep: (PipelineStep) -> Unit,
+    dialogs: LaneDialogs,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -1245,37 +1198,41 @@ private fun IfBlockCard(
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spacing.s1)) {
             ManageGate(decision = manage) { allowed ->
-                GlyphButton(icon = ArrowUpGlyph, label = upLabel, onClick = onMoveUp, enabled = allowed && index > 0, tint = tokens.primary)
+                GlyphButton(icon = ArrowUpGlyph, label = upLabel, onClick = { controller.moveBranchStepUp(blockId) }, enabled = allowed && index > 0, tint = tokens.primary)
             }
             ManageGate(decision = manage) { allowed ->
-                GlyphButton(icon = ArrowDownGlyph, label = downLabel, onClick = onMoveDown, enabled = allowed && index < total - 1, tint = tokens.primary)
+                GlyphButton(icon = ArrowDownGlyph, label = downLabel, onClick = { controller.moveBranchStepDown(blockId) }, enabled = allowed && index < total - 1, tint = tokens.primary)
             }
             Box(modifier = Modifier.weight(1f))
-            ManageGate(decision = manage) { enabled -> GlyphButton(icon = EditGlyph, label = editLabel, onClick = onEditCondition, enabled = enabled) }
             ManageGate(decision = manage) { enabled ->
-                GlyphButton(icon = TrashGlyph, label = removeLabel, onClick = onRemove, enabled = enabled, tint = tokens.destructive)
+                GlyphButton(icon = EditGlyph, label = editLabel, onClick = { dialogs.onEditIf(blockId, block.condition) }, enabled = enabled)
+            }
+            ManageGate(decision = manage) { enabled ->
+                GlyphButton(icon = TrashGlyph, label = removeLabel, onClick = { controller.removeBranchStep(blockId) }, enabled = enabled, tint = tokens.destructive)
             }
         }
 
         LaneSection(
             label = stringResource(Res.string.pipelines_block_lane_then),
-            branch = "then",
             steps = allSteps.filter { it.parentStepId == blockId && it.branch == "then" }.sortedBy { it.order ?: 0 },
+            allSteps = allSteps,
             palette = palette,
             manage = manage,
             controller = controller,
-            onAdd = { onAddToLane("then") },
-            onEditStep = onEditLaneStep,
+            parentStepId = blockId,
+            modelBranch = "then",
+            dialogs = dialogs,
         )
         LaneSection(
             label = stringResource(Res.string.pipelines_block_lane_else),
-            branch = "else",
             steps = allSteps.filter { it.parentStepId == blockId && it.branch == "else" }.sortedBy { it.order ?: 0 },
+            allSteps = allSteps,
             palette = palette,
             manage = manage,
             controller = controller,
-            onAdd = { onAddToLane("else") },
-            onEditStep = onEditLaneStep,
+            parentStepId = blockId,
+            modelBranch = "else",
+            dialogs = dialogs,
         )
     }
 }
@@ -1294,11 +1251,7 @@ private fun TryBlockCard(
     palette: RuntimePalette,
     manage: ManageDecision,
     controller: PipelinesController,
-    onMoveUp: () -> Unit,
-    onMoveDown: () -> Unit,
-    onRemove: () -> Unit,
-    onAddToLane: (branch: String) -> Unit,
-    onEditLaneStep: (PipelineStep) -> Unit,
+    dialogs: LaneDialogs,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -1328,59 +1281,75 @@ private fun TryBlockCard(
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spacing.s1)) {
             ManageGate(decision = manage) { allowed ->
-                GlyphButton(icon = ArrowUpGlyph, label = upLabel, onClick = onMoveUp, enabled = allowed && index > 0, tint = tokens.primary)
+                GlyphButton(icon = ArrowUpGlyph, label = upLabel, onClick = { controller.moveBranchStepUp(blockId) }, enabled = allowed && index > 0, tint = tokens.primary)
             }
             ManageGate(decision = manage) { allowed ->
-                GlyphButton(icon = ArrowDownGlyph, label = downLabel, onClick = onMoveDown, enabled = allowed && index < total - 1, tint = tokens.primary)
+                GlyphButton(icon = ArrowDownGlyph, label = downLabel, onClick = { controller.moveBranchStepDown(blockId) }, enabled = allowed && index < total - 1, tint = tokens.primary)
             }
             Box(modifier = Modifier.weight(1f))
             ManageGate(decision = manage) { enabled ->
-                GlyphButton(icon = TrashGlyph, label = removeLabel, onClick = onRemove, enabled = enabled, tint = tokens.destructive)
+                GlyphButton(icon = TrashGlyph, label = removeLabel, onClick = { controller.removeBranchStep(blockId) }, enabled = enabled, tint = tokens.destructive)
             }
         }
 
         LaneSection(
             label = stringResource(Res.string.pipelines_block_lane_try),
-            branch = "then",
             steps = allSteps.filter { it.parentStepId == blockId && it.branch == "then" }.sortedBy { it.order ?: 0 },
+            allSteps = allSteps,
             palette = palette,
             manage = manage,
             controller = controller,
-            onAdd = { onAddToLane("then") },
-            onEditStep = onEditLaneStep,
+            parentStepId = blockId,
+            modelBranch = "then",
+            dialogs = dialogs,
         )
         LaneSection(
             label = stringResource(Res.string.pipelines_block_lane_catch),
-            branch = "else",
             steps = allSteps.filter { it.parentStepId == blockId && it.branch == "else" }.sortedBy { it.order ?: 0 },
+            allSteps = allSteps,
             palette = palette,
             manage = manage,
             controller = controller,
-            onAdd = { onAddToLane("else") },
-            onEditStep = onEditLaneStep,
+            parentStepId = blockId,
+            modelBranch = "else",
+            dialogs = dialogs,
         )
     }
 }
 
-// One "then"/"else" lane inside an "if" block: an indented, independently-ordered list of [steps], each with
-// its own add/reorder/remove — every write here targets ONLY this lane's steps (by id), never the sibling
-// lane or the block that owns them.
+// One lane inside a block (an "if"'s "then"/"else", a "try"'s try/catch, a "switch_case"'s or "random_case"'s
+// own body, a "loop"'s body): an indented, independently-ordered list of [steps], each with its own
+// add/reorder/remove — every write here targets ONLY this lane's steps (by id), never the sibling lane or the
+// block that owns them.
+//
+// (S-PIPE-TREE) A lane child can itself be a nested block (if/switch/loop/random_branch/try), not just a leaf
+// action — [PipelineTreeRow] dispatches on the child's `blockKind` and renders the matching card, which in
+// turn renders ITS OWN [LaneSection]s the exact same way. That recursion is what makes nesting nest: there is
+// no fixed depth limit, and no separate code path for "a block inside a lane" versus "a block at the root" —
+// [parentStepId]/[modelBranch] are simply THIS lane's own address, so a newly-added block lands one level
+// under it however deep this lane already sits. The lane's own "add" affordance offers every block kind
+// (previously: a leaf step only), so authoring that nesting is possible from the editor, not just the model.
 @Composable
 private fun LaneSection(
     label: String,
-    branch: String,
     steps: List<PipelineStep>,
+    allSteps: List<PipelineStep>,
     palette: RuntimePalette,
     manage: ManageDecision,
     controller: PipelinesController,
-    onAdd: () -> Unit,
-    onEditStep: (PipelineStep) -> Unit,
+    parentStepId: String,
+    modelBranch: String?,
+    dialogs: LaneDialogs,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
-    val addLaneLabel: String = stringResource(Res.string.pipelines_block_lane_add, label)
+    var addMenuExpanded: Boolean by remember { mutableStateOf(false) }
+    val addLaneLabel: String = stringResource(Res.string.pipelines_block_lane_add_menu, label)
 
+    // Column, never Row, for the lane's own content — the whole point of the "usable at Compact" requirement
+    // (S-PIPE-TREE #4) is that a nested lane stacks vertically under its owning block instead of squeezing
+    // sideways; only the per-row action glyphs (fixed-width, not text) sit in a Row.
     Column(
         modifier = Modifier.fillMaxWidth().padding(start = spacing.s4),
         verticalArrangement = Arrangement.spacedBy(spacing.s1),
@@ -1389,7 +1358,35 @@ private fun LaneSection(
             Text(text = label, style = typography.sm, color = tokens.mutedForeground)
             Box(modifier = Modifier.weight(1f))
             ManageGate(decision = manage) { enabled ->
-                GlyphButton(icon = AddGlyph, label = addLaneLabel, onClick = onAdd, enabled = enabled, tint = tokens.primary)
+                Box {
+                    GlyphButton(icon = AddGlyph, label = addLaneLabel, onClick = { addMenuExpanded = true }, enabled = enabled, tint = tokens.primary)
+                    DropdownMenu(expanded = addMenuExpanded, onDismissRequest = { addMenuExpanded = false }) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(Res.string.pipelines_step_add)) },
+                            onClick = { addMenuExpanded = false; dialogs.onAddStep(parentStepId, modelBranch) },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(Res.string.pipelines_block_add_if)) },
+                            onClick = { addMenuExpanded = false; dialogs.onAddIf(parentStepId, modelBranch) },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(Res.string.pipelines_block_add_switch)) },
+                            onClick = { addMenuExpanded = false; dialogs.onAddSwitch(parentStepId, modelBranch) },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(Res.string.pipelines_block_add_loop)) },
+                            onClick = { addMenuExpanded = false; dialogs.onAddLoop(parentStepId, modelBranch) },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(Res.string.pipelines_block_add_random)) },
+                            onClick = { addMenuExpanded = false; dialogs.onAddRandomBranch(parentStepId, modelBranch) },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(Res.string.pipelines_block_add_try)) },
+                            onClick = { addMenuExpanded = false; dialogs.onAddTry(parentStepId, modelBranch) },
+                        )
+                    }
+                }
             }
         }
 
@@ -1402,59 +1399,61 @@ private fun LaneSection(
         } else {
             Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
                 for ((laneIndex, laneStep) in steps.withIndex()) {
-                    val stepId: String = laneStep.id ?: continue
-                    val editLabel: String = stringResource(Res.string.pipelines_block_lane_step_edit, label, laneIndex + 1)
-                    val removeLabel: String = stringResource(Res.string.pipelines_block_lane_step_delete, label, laneIndex + 1)
-                    val upLabel: String = stringResource(Res.string.pipelines_block_lane_step_move_up, label, laneIndex + 1)
-                    val downLabel: String = stringResource(Res.string.pipelines_block_lane_step_move_down, label, laneIndex + 1)
-                    val actionName: String = blockDisplayName(palette.action(laneStep.action.type), laneStep.action.type)
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-                    ) {
-                        Text(
-                            text = actionName,
-                            style = typography.sm,
-                            color = tokens.cardForeground,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f),
-                        )
-                        ManageGate(decision = manage) { allowed ->
-                            GlyphButton(
-                                icon = ArrowUpGlyph,
-                                label = upLabel,
-                                onClick = { controller.moveBranchStepUp(stepId) },
-                                enabled = allowed && laneIndex > 0,
-                                tint = tokens.primary,
-                            )
-                        }
-                        ManageGate(decision = manage) { allowed ->
-                            GlyphButton(
-                                icon = ArrowDownGlyph,
-                                label = downLabel,
-                                onClick = { controller.moveBranchStepDown(stepId) },
-                                enabled = allowed && laneIndex < steps.size - 1,
-                                tint = tokens.primary,
-                            )
-                        }
-                        ManageGate(decision = manage) { enabled ->
-                            GlyphButton(icon = EditGlyph, label = editLabel, onClick = { onEditStep(laneStep) }, enabled = enabled)
-                        }
-                        ManageGate(decision = manage) { enabled ->
-                            GlyphButton(
-                                icon = TrashGlyph,
-                                label = removeLabel,
-                                onClick = { controller.removeBranchStep(stepId) },
-                                enabled = enabled,
-                                tint = tokens.destructive,
-                            )
-                        }
-                    }
+                    PipelineTreeRow(
+                        step = laneStep,
+                        allSteps = allSteps,
+                        index = laneIndex,
+                        total = steps.size,
+                        palette = palette,
+                        manage = manage,
+                        controller = controller,
+                        dialogs = dialogs,
+                    )
                 }
             }
+        }
+    }
+}
+
+/**
+ * Renders one node of the pipeline tree — a leaf action or a nested block — at whatever depth it lives at
+ * (S-PIPE-TREE). The root chain's [LazyColumn][androidx.compose.foundation.lazy.LazyColumn] and every
+ * [LaneSection] call this SAME dispatcher for their children, so a block card never needs to know whether it
+ * sits at the root or three lanes deep — [dialogs] carries the one set of openers every level shares, and each
+ * block card recurses back into [LaneSection] for its own lanes, which calls back into this function. That
+ * mutual recursion is the entire nesting mechanism; there is no separate "nested" rendering path to drift out
+ * of sync with the root one.
+ */
+@Composable
+private fun PipelineTreeRow(
+    step: PipelineStep,
+    allSteps: List<PipelineStep>,
+    index: Int,
+    total: Int,
+    palette: RuntimePalette,
+    manage: ManageDecision,
+    controller: PipelinesController,
+    dialogs: LaneDialogs,
+) {
+    when (step.blockKind) {
+        "if" -> IfBlockCard(block = step, allSteps = allSteps, index = index, total = total, palette = palette, manage = manage, controller = controller, dialogs = dialogs)
+        "switch" -> SwitchBlockCard(block = step, allSteps = allSteps, index = index, total = total, palette = palette, manage = manage, controller = controller, dialogs = dialogs)
+        "loop" -> LoopBlockCard(block = step, allSteps = allSteps, index = index, total = total, palette = palette, manage = manage, controller = controller, dialogs = dialogs)
+        "random_branch" -> RandomBranchBlockCard(block = step, allSteps = allSteps, index = index, total = total, palette = palette, manage = manage, controller = controller, dialogs = dialogs)
+        "try" -> TryBlockCard(block = step, allSteps = allSteps, index = index, total = total, palette = palette, manage = manage, controller = controller, dialogs = dialogs)
+        else -> {
+            val stepId: String? = step.id
+            StepCard(
+                index = index,
+                total = total,
+                step = step,
+                palette = palette,
+                manage = manage,
+                onEdit = { dialogs.onEditStep(step) },
+                onRemove = { stepId?.let { controller.removeBranchStep(it) } },
+                onMoveUp = { stepId?.let { controller.moveBranchStepUp(it) } },
+                onMoveDown = { stepId?.let { controller.moveBranchStepDown(it) } },
+            )
         }
     }
 }
@@ -1545,14 +1544,7 @@ private fun SwitchBlockCard(
     palette: RuntimePalette,
     manage: ManageDecision,
     controller: PipelinesController,
-    onEditValue: () -> Unit,
-    onMoveUp: () -> Unit,
-    onMoveDown: () -> Unit,
-    onRemove: () -> Unit,
-    onAddCase: (switchId: String) -> Unit,
-    onEditCase: (PipelineStep) -> Unit,
-    onAddCaseStep: (caseId: String) -> Unit,
-    onEditCaseStep: (PipelineStep) -> Unit,
+    dialogs: LaneDialogs,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -1588,15 +1580,17 @@ private fun SwitchBlockCard(
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spacing.s1)) {
             ManageGate(decision = manage) { allowed ->
-                GlyphButton(icon = ArrowUpGlyph, label = upLabel, onClick = onMoveUp, enabled = allowed && index > 0, tint = tokens.primary)
+                GlyphButton(icon = ArrowUpGlyph, label = upLabel, onClick = { controller.moveBranchStepUp(blockId) }, enabled = allowed && index > 0, tint = tokens.primary)
             }
             ManageGate(decision = manage) { allowed ->
-                GlyphButton(icon = ArrowDownGlyph, label = downLabel, onClick = onMoveDown, enabled = allowed && index < total - 1, tint = tokens.primary)
+                GlyphButton(icon = ArrowDownGlyph, label = downLabel, onClick = { controller.moveBranchStepDown(blockId) }, enabled = allowed && index < total - 1, tint = tokens.primary)
             }
             Box(modifier = Modifier.weight(1f))
-            ManageGate(decision = manage) { enabled -> GlyphButton(icon = EditGlyph, label = editLabel, onClick = onEditValue, enabled = enabled) }
             ManageGate(decision = manage) { enabled ->
-                GlyphButton(icon = TrashGlyph, label = removeLabel, onClick = onRemove, enabled = enabled, tint = tokens.destructive)
+                GlyphButton(icon = EditGlyph, label = editLabel, onClick = { dialogs.onEditSwitch(blockId, block.blockConfig) }, enabled = enabled)
+            }
+            ManageGate(decision = manage) { enabled ->
+                GlyphButton(icon = TrashGlyph, label = removeLabel, onClick = { controller.removeBranchStep(blockId) }, enabled = enabled, tint = tokens.destructive)
             }
         }
 
@@ -1643,7 +1637,7 @@ private fun SwitchBlockCard(
                         )
                     }
                     ManageGate(decision = manage) { enabled ->
-                        GlyphButton(icon = EditGlyph, label = caseEditLabel, onClick = { onEditCase(case) }, enabled = enabled)
+                        GlyphButton(icon = EditGlyph, label = caseEditLabel, onClick = { dialogs.onEditSwitchCase(case) }, enabled = enabled)
                     }
                     ManageGate(decision = manage) { enabled ->
                         GlyphButton(
@@ -1658,20 +1652,21 @@ private fun SwitchBlockCard(
 
                 LaneSection(
                     label = stringResource(Res.string.pipelines_block_case_lane_label, caseIndex + 1),
-                    branch = "case",
                     steps = allSteps.filter { it.parentStepId == caseId }.sortedBy { it.order ?: 0 },
+                    allSteps = allSteps,
                     palette = palette,
                     manage = manage,
                     controller = controller,
-                    onAdd = { onAddCaseStep(caseId) },
-                    onEditStep = onEditCaseStep,
+                    parentStepId = caseId,
+                    modelBranch = null,
+                    dialogs = dialogs,
                 )
             }
         }
 
         Row(modifier = Modifier.fillMaxWidth().padding(start = spacing.s4)) {
             ManageGate(decision = manage) { enabled ->
-                GlyphButton(icon = AddGlyph, label = addCaseLabel, onClick = { onAddCase(blockId) }, enabled = enabled, tint = tokens.primary)
+                GlyphButton(icon = AddGlyph, label = addCaseLabel, onClick = { dialogs.onAddSwitchCase(blockId) }, enabled = enabled, tint = tokens.primary)
             }
         }
     }
@@ -1691,13 +1686,7 @@ private fun RandomBranchBlockCard(
     palette: RuntimePalette,
     manage: ManageDecision,
     controller: PipelinesController,
-    onMoveUp: () -> Unit,
-    onMoveDown: () -> Unit,
-    onRemove: () -> Unit,
-    onAddCase: (branchId: String) -> Unit,
-    onEditCase: (PipelineStep) -> Unit,
-    onAddCaseStep: (caseId: String) -> Unit,
-    onEditCaseStep: (PipelineStep) -> Unit,
+    dialogs: LaneDialogs,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -1732,14 +1721,14 @@ private fun RandomBranchBlockCard(
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spacing.s1)) {
             ManageGate(decision = manage) { allowed ->
-                GlyphButton(icon = ArrowUpGlyph, label = upLabel, onClick = onMoveUp, enabled = allowed && index > 0, tint = tokens.primary)
+                GlyphButton(icon = ArrowUpGlyph, label = upLabel, onClick = { controller.moveBranchStepUp(blockId) }, enabled = allowed && index > 0, tint = tokens.primary)
             }
             ManageGate(decision = manage) { allowed ->
-                GlyphButton(icon = ArrowDownGlyph, label = downLabel, onClick = onMoveDown, enabled = allowed && index < total - 1, tint = tokens.primary)
+                GlyphButton(icon = ArrowDownGlyph, label = downLabel, onClick = { controller.moveBranchStepDown(blockId) }, enabled = allowed && index < total - 1, tint = tokens.primary)
             }
             Box(modifier = Modifier.weight(1f))
             ManageGate(decision = manage) { enabled ->
-                GlyphButton(icon = TrashGlyph, label = removeLabel, onClick = onRemove, enabled = enabled, tint = tokens.destructive)
+                GlyphButton(icon = TrashGlyph, label = removeLabel, onClick = { controller.removeBranchStep(blockId) }, enabled = enabled, tint = tokens.destructive)
             }
         }
 
@@ -1784,7 +1773,7 @@ private fun RandomBranchBlockCard(
                         )
                     }
                     ManageGate(decision = manage) { enabled ->
-                        GlyphButton(icon = EditGlyph, label = caseEditLabel, onClick = { onEditCase(case) }, enabled = enabled)
+                        GlyphButton(icon = EditGlyph, label = caseEditLabel, onClick = { dialogs.onEditRandomCase(case) }, enabled = enabled)
                     }
                     ManageGate(decision = manage) { enabled ->
                         GlyphButton(
@@ -1799,20 +1788,21 @@ private fun RandomBranchBlockCard(
 
                 LaneSection(
                     label = stringResource(Res.string.pipelines_block_case_lane_label, caseIndex + 1),
-                    branch = "case",
                     steps = allSteps.filter { it.parentStepId == caseId }.sortedBy { it.order ?: 0 },
+                    allSteps = allSteps,
                     palette = palette,
                     manage = manage,
                     controller = controller,
-                    onAdd = { onAddCaseStep(caseId) },
-                    onEditStep = onEditCaseStep,
+                    parentStepId = caseId,
+                    modelBranch = null,
+                    dialogs = dialogs,
                 )
             }
         }
 
         Row(modifier = Modifier.fillMaxWidth().padding(start = spacing.s4)) {
             ManageGate(decision = manage) { enabled ->
-                GlyphButton(icon = AddGlyph, label = addCaseLabel, onClick = { onAddCase(blockId) }, enabled = enabled, tint = tokens.primary)
+                GlyphButton(icon = AddGlyph, label = addCaseLabel, onClick = { dialogs.onAddRandomCase(blockId) }, enabled = enabled, tint = tokens.primary)
             }
         }
     }
@@ -1831,12 +1821,7 @@ private fun LoopBlockCard(
     palette: RuntimePalette,
     manage: ManageDecision,
     controller: PipelinesController,
-    onEditConfig: () -> Unit,
-    onMoveUp: () -> Unit,
-    onMoveDown: () -> Unit,
-    onRemove: () -> Unit,
-    onAddToLane: () -> Unit,
-    onEditLaneStep: (PipelineStep) -> Unit,
+    dialogs: LaneDialogs,
 ) {
     val tokens = LocalTokens.current
     val spacing = LocalSpacing.current
@@ -1878,27 +1863,30 @@ private fun LoopBlockCard(
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spacing.s1)) {
             ManageGate(decision = manage) { allowed ->
-                GlyphButton(icon = ArrowUpGlyph, label = upLabel, onClick = onMoveUp, enabled = allowed && index > 0, tint = tokens.primary)
+                GlyphButton(icon = ArrowUpGlyph, label = upLabel, onClick = { controller.moveBranchStepUp(blockId) }, enabled = allowed && index > 0, tint = tokens.primary)
             }
             ManageGate(decision = manage) { allowed ->
-                GlyphButton(icon = ArrowDownGlyph, label = downLabel, onClick = onMoveDown, enabled = allowed && index < total - 1, tint = tokens.primary)
+                GlyphButton(icon = ArrowDownGlyph, label = downLabel, onClick = { controller.moveBranchStepDown(blockId) }, enabled = allowed && index < total - 1, tint = tokens.primary)
             }
             Box(modifier = Modifier.weight(1f))
-            ManageGate(decision = manage) { enabled -> GlyphButton(icon = EditGlyph, label = editLabel, onClick = onEditConfig, enabled = enabled) }
             ManageGate(decision = manage) { enabled ->
-                GlyphButton(icon = TrashGlyph, label = removeLabel, onClick = onRemove, enabled = enabled, tint = tokens.destructive)
+                GlyphButton(icon = EditGlyph, label = editLabel, onClick = { dialogs.onEditLoop(blockId, block.blockConfig, block.condition) }, enabled = enabled)
+            }
+            ManageGate(decision = manage) { enabled ->
+                GlyphButton(icon = TrashGlyph, label = removeLabel, onClick = { controller.removeBranchStep(blockId) }, enabled = enabled, tint = tokens.destructive)
             }
         }
 
         LaneSection(
             label = stringResource(Res.string.pipelines_block_loop_lane_label),
-            branch = "body",
             steps = allSteps.filter { it.parentStepId == blockId }.sortedBy { it.order ?: 0 },
+            allSteps = allSteps,
             palette = palette,
             manage = manage,
             controller = controller,
-            onAdd = onAddToLane,
-            onEditStep = onEditLaneStep,
+            parentStepId = blockId,
+            modelBranch = null,
+            dialogs = dialogs,
         )
     }
 }
@@ -3364,12 +3352,25 @@ private data class PipelineEditor(val id: String?, val name: String, val descrip
 private data class StepDialogTarget(val parentStepId: String?, val branch: String?, val step: PipelineStep?)
 
 // A null [blockId] is adding a brand-new "if" block; a non-null one is re-editing an existing block's
-// condition (its [condition] pre-fills the dialog).
-private data class IfBlockDialogTarget(val blockId: String?, val condition: PipelineNode?)
+// condition (its [condition] pre-fills the dialog). A brand-new block nests under [parentStepId]/[branch]
+// when set (S-PIPE-TREE: adding a block INSIDE another block's own lane) — both stay null for a root-level add,
+// exactly as before this slice; an edit never uses them (the existing step keeps its own parentage).
+private data class IfBlockDialogTarget(
+    val blockId: String?,
+    val condition: PipelineNode?,
+    val parentStepId: String? = null,
+    val branch: String? = null,
+)
 
 // A null [blockId] is adding a brand-new "switch" block; a non-null one is re-editing an existing block's
-// value (its raw `blockConfig` [value] pre-fills the dialog, decoded by [decodeSwitchValue]).
-private data class SwitchBlockDialogTarget(val blockId: String?, val value: JsonElement?)
+// value (its raw `blockConfig` [value] pre-fills the dialog, decoded by [decodeSwitchValue]). See
+// [IfBlockDialogTarget] for [parentStepId]/[branch] (S-PIPE-TREE nested add).
+private data class SwitchBlockDialogTarget(
+    val blockId: String?,
+    val value: JsonElement?,
+    val parentStepId: String? = null,
+    val branch: String? = null,
+)
 
 // A null [caseId] is adding a brand-new "switch_case" under [switchId]; a non-null [caseId] is re-editing
 // that existing case's match/operator/is_default (its raw `blockConfig` [config] pre-fills the dialog,
@@ -3377,8 +3378,45 @@ private data class SwitchBlockDialogTarget(val blockId: String?, val value: Json
 private data class SwitchCaseDialogTarget(val switchId: String?, val caseId: String?, val config: JsonElement?)
 
 // A null [blockId] is adding a brand-new "loop" block; a non-null one is re-editing an existing block's
-// [config]/[condition] (its raw `blockConfig`/`condition` pre-fill the dialog via [decodeLoopConfig]).
-private data class LoopBlockDialogTarget(val blockId: String?, val config: JsonElement?, val condition: PipelineNode?)
+// [config]/[condition] (its raw `blockConfig`/`condition` pre-fill the dialog via [decodeLoopConfig]). See
+// [IfBlockDialogTarget] for [parentStepId]/[branch] (S-PIPE-TREE nested add).
+private data class LoopBlockDialogTarget(
+    val blockId: String?,
+    val config: JsonElement?,
+    val condition: PipelineNode?,
+    val parentStepId: String? = null,
+    val branch: String? = null,
+)
+
+/**
+ * The chain editor's block-adding/editing openers, bundled so [LaneSection] — and every nested block card it
+ * recurses into — can offer the SAME "add a block into this lane" menu at every depth without each nesting
+ * level re-deriving its own dialog wiring (S-PIPE-TREE). Built once by [ChainEditor] from its own dialog-target
+ * `remember`s; a lane only ever needs to call one of these with ITS OWN (parentStepId, branch) — the resulting
+ * new block/leaf always lands exactly one level under that lane, however deep the lane itself already is.
+ *
+ * [onAddStep]/[onAddIf]/[onAddSwitch]/[onAddLoop] open their existing config dialog scoped to the lane (the
+ * dialog's own onSubmit then calls [PipelinesController.addBranchStep] instead of the root-only
+ * `addIfBlock`/`addSwitchBlock`/`addLoopBlock`); [onAddRandomBranch]/[onAddTry] need no config, so they call
+ * [PipelinesController.addBranchStep] directly with the same sentinel block-kind step
+ * `addRandomBranchBlock`/`addTryBlock` would build at the root.
+ */
+private class LaneDialogs(
+    val onAddStep: (parentStepId: String, branch: String?) -> Unit,
+    val onEditStep: (PipelineStep) -> Unit,
+    val onAddIf: (parentStepId: String, branch: String?) -> Unit,
+    val onEditIf: (blockId: String, condition: PipelineNode?) -> Unit,
+    val onAddSwitch: (parentStepId: String, branch: String?) -> Unit,
+    val onEditSwitch: (blockId: String, value: JsonElement?) -> Unit,
+    val onAddSwitchCase: (switchId: String) -> Unit,
+    val onEditSwitchCase: (PipelineStep) -> Unit,
+    val onAddLoop: (parentStepId: String, branch: String?) -> Unit,
+    val onEditLoop: (blockId: String, config: JsonElement?, condition: PipelineNode?) -> Unit,
+    val onAddRandomBranch: (parentStepId: String, branch: String?) -> Unit,
+    val onAddRandomCase: (branchId: String) -> Unit,
+    val onEditRandomCase: (PipelineStep) -> Unit,
+    val onAddTry: (parentStepId: String, branch: String?) -> Unit,
+)
 
 // The switch operators MatchesCase (PipelineEngine.cs) actually understands — exactly this set, no more, no
 // less, so the operator picker can never offer one the engine would silently treat as "no match".
