@@ -61,6 +61,18 @@ public class TemplateSyntaxInterceptorTests
             }
         }
 
+        // Widget/Vue source is NOT templated user content and must never be marked as such: it is full
+        // of JavaScript template literals (`${count} viewers`), and normalising those would corrupt the
+        // code. Verified against the owner's real database, where the only two rows containing "${" are
+        // WidgetGalleryItems.SourceCode — correctly outside this interceptor's reach.
+        typeof(NomNomzBot.Domain.Widgets.Entities.WidgetGalleryItem)
+            .GetProperty(nameof(NomNomzBot.Domain.Widgets.Entities.WidgetGalleryItem.SourceCode))!
+            .IsDefined(typeof(TemplatedUserContentAttribute), inherit: true)
+            .Should()
+            .BeFalse(
+                "widget source contains JS template literals; marking it templated would rewrite ${x} inside code"
+            );
+
         marked
             .Should()
             .BeGreaterThan(

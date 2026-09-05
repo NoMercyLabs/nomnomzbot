@@ -62,6 +62,24 @@ public class TemplateSyntaxNormalizerTests
         TemplateSyntaxNormalizer.Normalize(Price).Should().Be(Price);
     }
 
+    [Fact]
+    public void A_javascript_template_literal_WOULD_be_rewritten_which_is_why_code_never_reaches_here()
+    {
+        // Documents a real sharp edge rather than pretending it away. `count` IS a registered helper
+        // (TemplateHelperRegistry), so `${count}` in Vue source would be rewritten to `{count}` and the
+        // code would break. This normalizer is not code-aware and should not try to be — a heuristic
+        // guessing "is this JS?" would be wrong in both directions.
+        //
+        // The actual protection is that code-bearing columns are never [TemplatedUserContent], so they
+        // never reach this method. WidgetGalleryItem.SourceCode is the one that matters and
+        // TemplateSyntaxInterceptorTests pins it as unmarked. Verified against the owner's real
+        // database, where the only two rows containing "${" are exactly that column.
+        TemplateSyntaxNormalizer
+            .Normalize("`${count} viewers watching`")
+            .Should()
+            .Be("`{count} viewers watching`");
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]
