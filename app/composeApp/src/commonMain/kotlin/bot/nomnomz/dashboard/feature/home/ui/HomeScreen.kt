@@ -402,25 +402,22 @@ private fun ReadyContent(
             FirstRunChecklistCard(steps = firstRunSteps, onNavigate = onNavigate)
         }
 
-        // Two-column lower section: activity feed (wider) + right sidebar (actions + top commands).
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(spacing.s4),
-            verticalAlignment = Alignment.Top,
-        ) {
-            ActivityFeedCard(
-                events = activity,
-                replayStatus = replayStatus,
-                heldActionKeys = heldActionKeys,
-                onReplay = onReplay,
-                onViewAll = { onNavigate("Analytics") },
-                modifier = Modifier.weight(1.6f),
-            )
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(spacing.s4),
-            ) {
+        // Two-column lower section: activity feed (wider) + right sidebar (actions + top commands). Below
+        // [Breakpoints.Wide] the two columns squeeze too narrow to read (the same problem StatTilesRow solves
+        // above) — the section stacks the sidebar underneath the activity feed instead. Same BoxWithConstraints
+        // idiom as StatTilesRow/ShellScreen.kt/ParticipantShell.kt for their compact/full split.
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            val activityFeed: @Composable () -> Unit = {
+                ActivityFeedCard(
+                    events = activity,
+                    replayStatus = replayStatus,
+                    heldActionKeys = heldActionKeys,
+                    onReplay = onReplay,
+                    onViewAll = { onNavigate("Analytics") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            val sidebar: @Composable () -> Unit = {
                 QuickActionsCard(
                     ready = ready,
                     isLive = stats.isLive,
@@ -484,6 +481,28 @@ private fun ReadyContent(
                 // Bot-run chat poll (item: chat polls) — sits beside the Twitch-native live-ops poll above,
                 // labeled "Chat poll" so the two voting mechanisms read as distinct.
                 ChatPollsCard(controller = chatPollsController)
+            }
+
+            if (maxWidth < Breakpoints.Wide) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(spacing.s4),
+                ) {
+                    activityFeed()
+                    Column(verticalArrangement = Arrangement.spacedBy(spacing.s4)) { sidebar() }
+                }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(spacing.s4),
+                    verticalAlignment = Alignment.Top,
+                ) {
+                    Box(modifier = Modifier.weight(1.6f)) { activityFeed() }
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(spacing.s4),
+                    ) { sidebar() }
+                }
             }
         }
     }
