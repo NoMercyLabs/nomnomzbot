@@ -79,6 +79,7 @@ public static class DependencyInjection
         services.AddScoped<AuditableEntityInterceptor>();
         services.AddScoped<SoftDeleteInterceptor>();
         services.AddScoped<TenantStampInterceptor>();
+        services.AddScoped<TemplateSyntaxInterceptor>();
 
         // ── Deployment profile (platform-conventions §3.3, deployment-distribution §2) ────────
         // Resolve the deployment mode ONCE, here at registration time (before the host is built), so every
@@ -181,7 +182,8 @@ public static class DependencyInjection
                 options.AddInterceptors(
                     serviceProvider.GetRequiredService<AuditableEntityInterceptor>(),
                     serviceProvider.GetRequiredService<SoftDeleteInterceptor>(),
-                    serviceProvider.GetRequiredService<TenantStampInterceptor>()
+                    serviceProvider.GetRequiredService<TenantStampInterceptor>(),
+                    serviceProvider.GetRequiredService<TemplateSyntaxInterceptor>()
                 );
 
                 // All soft-deletable dependents (Command, Reward, Widget, etc.) and their
