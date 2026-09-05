@@ -834,13 +834,20 @@ class AdminController(
         )
     }
 
-    /** Creates a new definition (kind `command` — the only kind the backend implements this slice) with its
+    /** Creates a new definition of the given [kind] (`command` or `widget` — the two kinds this dashboard
+     * offers authoring for, see [bot.nomnomz.dashboard.core.network.PlatformContentAuthoringKinds]) with its
      * first draft version, then reloads the list and opens it. */
-    suspend fun createContentDefinition(key: String, displayName: String, description: String?, payloadJson: String) {
+    suspend fun createContentDefinition(
+        kind: String,
+        key: String,
+        displayName: String,
+        description: String?,
+        payloadJson: String,
+    ) {
         val content: PlatformContentApi = contentApi ?: return
         _state.value = _state.value.copy(contentActionError = null)
         val body = CreateContentDefinitionBody(
-            kind = "command",
+            kind = kind,
             key = key,
             displayName = displayName,
             description = description?.takeIf { it.isNotBlank() },

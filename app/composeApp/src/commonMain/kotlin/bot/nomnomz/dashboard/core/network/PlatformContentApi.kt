@@ -67,7 +67,10 @@ data class PublishPreview(
     val sampleTenantNames: List<String> = emptyList(),
 )
 
-/** One publish attempt (PlatformContentPublishJobDto). */
+/** One publish attempt (PlatformContentPublishJobDto). [rebuildFailedWidgetIds] and
+ * [validationFailedPipelineIds] name the tenant rows a publish could NOT bring current — a non-empty list
+ * here means those tenants are now out of sync with the published version and must be surfaced, never
+ * silently dropped (consequences must be visible). */
 @Serializable
 data class PlatformContentPublishJob(
     val id: String,
@@ -83,6 +86,8 @@ data class PlatformContentPublishJob(
     val status: String,
     val completedAt: String? = null,
     val failureReason: String? = null,
+    val rebuildFailedWidgetIds: List<String> = emptyList(),
+    val validationFailedPipelineIds: List<String> = emptyList(),
 )
 
 /** The three publish modes §2.1 defines — matches the backend's `PlatformContentPublishModes` verbatim. */
@@ -90,6 +95,16 @@ object PlatformContentPublishModes {
     const val PublishAsNew: String = "publish_as_new"
     const val UpdateInPlaceWhereUntouched: String = "update_in_place_where_untouched"
     const val Force: String = "force"
+}
+
+/** The content kinds this dashboard offers authoring for — a subset of the backend's closed
+ * `PlatformContentKinds` (command/widget/pipeline/code_script): `pipeline` and `code_script` have no
+ * authoring UI yet, so they are deliberately absent here rather than offered and silently mishandled. */
+object PlatformContentAuthoringKinds {
+    const val Command: String = "command"
+    const val Widget: String = "widget"
+
+    val All: List<String> = listOf(Command, Widget)
 }
 
 // ─── Request bodies ────────────────────────────────────────────────────────────────────────────
