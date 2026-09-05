@@ -120,6 +120,31 @@ streaming live or does not have one or more viewers" — a genuine precondition,
       the platform bot. The gap this leaves: once setup is done, nothing anywhere can re-connect or
       replace the platform bot account. That surface belongs in the admin plane.
 
+## PIPELINE TREE EDITOR — shipped and proven on the rendered client (2026-09-05)
+
+`d4a7b397` gave the editor nested block authoring (add inside a specific branch, remove without taking
+siblings, reorder within a branch — all asserted against the emitted model). Driving it in a browser
+then found what no model test could: **a nested pipeline could not be SAVED at all.** The server
+rejected it with "Unknown action type 'block'" — `CommandConfigValidator.ToValidatorInput` fed a
+block-kind step's placeholder `Action.Type` into the known-action-type check, even though the engine
+dispatches those on `BlockKind` alone (`PipelineEngine.cs:1312`). Fixed in `934355cb`; a two-level
+`if → if → send message` tree now saves (PUT 200) and round-trips intact through a cold page load.
+
+At 1440x900 both levels render legibly with reorder/edit/delete per row; at 390x844
+`scrollWidth === clientWidth` with no horizontal overflow and the deepest leaf's controls all present.
+
+- [ ] **S-PIPE-TREE-VIS Make the tree LOOK like a tree.** Measured verdict: it reads as a flat list
+      with indentation, not as nesting — `IfBlockCard`/`LaneSection` are plain `Column`s carrying only
+      `padding(start = spacing.s4)` per level, with no card, border or background per block, so depth
+      is legible only from indent amount and the repeating "Als: …" header. Also: the leaf delete
+      glyph is near-invisible in its default state at 2+ levels on a 390px viewport (hover reveals it)
+      — a destructive control the user cannot see; and on the list page pipeline names truncate to
+      "Raid…" / "Pijplij…" at 390px.
+
+- [ ] **Schedule route fails on a channel with no onboarded stream schedule** — "Kon het schema niet
+      laden: Channel is not known locally." Found while driving the client; a missing-schedule state
+      should read as empty, not as a load failure.
+
 ## OWNER REQUEST 2026-09-04 (b) — the admin plane a SaaS owner actually operates from
 
 Owner, verbatim: "add a slice that completely overhauls the admin dashboard and gives me every tool i could
@@ -456,7 +481,7 @@ Cloudflare account access. Verify deploys over the LAN address until then.
 
 | Your words | Slice | State |
 |---|---|---|
-| pipeline page needs love, nested if/and/or, add-remove-reorder | S-PIPE-TREE | engine + named params shipped; nested block-list EDITOR remains |
+| pipeline page needs love, nested if/and/or, add-remove-reorder | S-PIPE-TREE | editor SHIPPED `d4a7b397`, save-path bug fixed `934355cb`, proven round-tripping in a browser; visual hierarchy slice S-PIPE-TREE-VIS open |
 | make effects and repercussions visible | S-CONSEQ | law recorded, applies to every slice |
 | item pickers show a rich list, not opaque ids | S-RICH-PICKERS | backend building - dashboard half after |
 | budget system for payment tiers by resource usage | S-BUDGETS | queued - intent recorded: recover real cost, not upsell |
