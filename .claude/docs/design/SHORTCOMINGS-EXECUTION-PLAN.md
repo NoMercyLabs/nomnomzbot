@@ -220,10 +220,27 @@ the Settings journal button row; twelve screens with a stated reason for needing
 hardened after the fact (`18dd67e7`): the assertion matched a bare substring, so a rename keeping the token
 as a suffix slipped through — now word-boundary anchored, with both mutations proven red.
 
-- [ ] **S-UX-4 Prove it got simpler, do not assert it.** Before/after counts per page (sections,
-      composables, lines), and every moved control re-verified on the rendered client — a control that
-      moved and stopped working is worse than the mess it left. The `DesignSystemStyleGuardTest` Sleak
-      rules apply to every new surface.
+- [ ] **S-UX-4 Prove it got simpler — PARTLY DONE, driven in a browser 2026-09-05.** Against the real
+      database via chrome-attached, authenticated with a minted JWT (`scripts/mint-jwt.py` + the
+      generated `keys/jwt-secret.bin`, which on Linux is PLAINTEXT — not base64-of-the-file).
+
+      **Proven on the rendered client:** the dashboard boots and renders real data (1 channel, 3 users,
+      the seeded commands, realtime "verbinding: actief"). The Moderation split is four real nav entries
+      routing to four distinct URLs — `#/moderation`, `#/moderationqueue`, `#/moderationrules`,
+      `#/moderationhistory`. Compact genuinely collapses the shell to a nav trigger at **390x844 AND at
+      844x390** — the landscape-phone short-viewport case `11b82cd4` added and nothing had ever
+      confirmed — and the sidebar returns at 1440x900, so it transitions both ways. The admin plane
+      renders with real counts and the new **Content** tab is present and correctly role-gated
+      ("Vereist content:read") rather than showing an empty panel.
+
+      **Still NOT proven, and why:** the Content tab's version history, publish flow and counted
+      blast radius were not exercised — a JWT minted by the script carries no IAM permission claims,
+      so the gate refuses it. This is the TOKEN's limitation, not a missing grant: the owner's
+      `platform-super-admin` role does hold `content:read`, `content:author`, `content:publish` and
+      `content:publish:force` in the database. Also unproven: the per-person shoutout/raid round-trip
+      in the Community viewer panel (edit both, reload, confirm independence), and whether the built
+      bundle a phone downloads carries the viewport fixes — the LOCAL `wwwroot` bundle was stale until
+      it was rebuilt this session, so that check must be redone against a deployed build, not this one.
 
 **Not in this slice:** removing capability. Every option that exists today still exists afterwards; this
 is placement and hierarchy, not deletion. If a section turns out to have no owner and no user, that is a
