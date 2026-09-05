@@ -90,9 +90,22 @@ arrangement on a phone, squeezing to unreadable widths and clipping a stat card 
 — `HomeScreen.kt`'s lower `Row` had no breakpoint check, unlike its sibling `StatTilesRow` in the
 same file. Fixed in `59e00b27` with the existing `BoxWithConstraints`/`Breakpoints.Wide` idiom.
 
-- [ ] **Re-shoot Home at 390x844 after the next deploy.** The fix compiles clean for Wasm but is not
-      deployed, so the corrected rendering is proven by BUILD only. Per the standing rule, that is
-      not a render proof until it is seen on screen.
+**Home re-shot on the PRODUCTION bundle, no deploy needed (2026-09-05).** A fresh
+`wasmJsBrowserDistribution` was served same-origin by a throwaway instance and driven in a browser:
+at 390x844 and 844x390 the "Aan de slag" / "Recente activiteit" / "Snelle acties" sections render as
+one stacked full-width column with no horizontal overflow (`scrollWidth == clientWidth`), and at
+1440x900 the two-column desktop layout is intact with all seven stat tiles on one unsqueezed row. The
+stat row's horizontal scroll at phone width is pre-existing intentional behaviour, not the defect.
+
+Two findings that cost real time and are now fixed or recorded: the self-host JWT secret is NOT the
+appsettings value — `Program.cs` treats the bundled dev key as weak and switches to
+`SelfHostSecretStore`, whose per-install secret lives at `<data-dir>/keys/jwt-secret.bin`; the only
+symptom is a 401 "The signature key was not found" (documented in `scripts/mint-jwt.py`, `cfac1ba8`).
+
+- [ ] **Raw-SQL test fixtures must use the lowercase `AuthEnums.*` constants** for `Channels.Status` /
+      `DeploymentMode` / `Provider`, `Users.Platform` and `AuthSessions.ClientType`. A PascalCase value
+      makes `TenantResolutionMiddleware`'s Gate-1 check fail as a bare 403 with no body, which reads
+      like an auth bug and is not one.
 
 Community round-trip proven by side effect, not by a responsive button: raid returned 201 "Raid
 started." with a real timestamp against Twitch and was cleanly reversed with `DELETE` (204, no stray
