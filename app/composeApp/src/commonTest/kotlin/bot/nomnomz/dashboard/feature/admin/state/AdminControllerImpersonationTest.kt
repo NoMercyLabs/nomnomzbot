@@ -402,6 +402,10 @@ private class FakeAdminApi(
         ApiResult.Failure(ApiError(status = 501, code = "NOT_IMPLEMENTED", message = "unused"))
     override suspend fun issueEntitlementGrant(broadcasterId: String, body: bot.nomnomz.dashboard.core.network.AdminIssueEntitlementGrantRequest) =
         ApiResult.Failure(ApiError(status = 501, code = "NOT_IMPLEMENTED", message = "unused"))
+    override suspend fun getInvoices(broadcasterId: String) =
+        ApiResult.Ok(emptyList<bot.nomnomz.dashboard.core.network.AdminInvoice>())
+    override suspend fun refundInvoice(invoiceId: String) =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
 }
 
 private class FakePlatformAdminApi(

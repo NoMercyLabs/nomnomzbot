@@ -1255,12 +1255,112 @@
         }
       }
     },
+    "/api/v{version}/admin/billing/channels/{broadcasterId}/invoices": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Every invoice for a channel, platform-wide, newest first — amounts, currency, status,\n    issued/paid timestamps and the live dunning state.",
+        "parameters": [
+          {
+            "name": "broadcasterId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+              "format": "ulid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIReadOnlyListOfInvoiceDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/admin/billing/invoices/{invoiceId}/refund": {
       "post": {
         "tags": [
           "Admin"
         ],
-        "summary": "Refund a paid invoice in full via Stripe; marks the local invoice `Refunded`.",
+        "summary": "Refund a paid invoice in full via Stripe; marks the local invoice `Refunded`, records\n    the amount refunded, and audits the action. A second refund of an already-refunded invoice is\n    rejected (`VALIDATION_FAILED`) rather than double-refunding.",
         "parameters": [
           {
             "name": "invoiceId",
@@ -90074,7 +90174,11 @@
           "periodEnd",
           "issuedAt",
           "paidAt",
-          "hostedInvoiceUrl"
+          "hostedInvoiceUrl",
+          "dueAt",
+          "dunningStatus",
+          "amountRefundedCents",
+          "refundedAt"
         ],
         "type": "object",
         "properties": {
@@ -90141,9 +90245,34 @@
               "null",
               "string"
             ]
+          },
+          "dueAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "dunningStatus": {
+            "type": "string"
+          },
+          "amountRefundedCents": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "refundedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         },
-        "description": "A billing invoice view."
+        "description": "A billing invoice view. string InvoiceDto.DunningStatus is InvoiceDunningStatus\nrendered as a string — computed by `Invoice.ResolveDunningStatus`, the single place that decides it, so\nwhat this DTO shows is exactly what the rest of the system would compute for the same invoice right now."
       },
       "IpcDevModeKeyDto": {
         "required": [
@@ -102607,6 +102736,42 @@
             ],
             "items": {
               "$ref": "#/components/schemas/IntegrationStatusDto"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfIReadOnlyListOfInvoiceDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/InvoiceDto"
             }
           },
           "message": {

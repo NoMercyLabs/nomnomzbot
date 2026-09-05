@@ -253,6 +253,33 @@ data class AdminIssueEntitlementGrantRequest(
     val confirmedChangedLimitCount: Int,
 )
 
+// ─── Invoices, dunning and refunds (S-ADMIN-4c) ──────────────────────────────
+
+/**
+ * A billing invoice for one tenant (backend `InvoiceDto`). [dunningStatus] is the backend enum name
+ * (`NotDunning` | `Current` | `PastDue`) computed by `Invoice.ResolveDunningStatus` — the SAME rule the rest
+ * of the backend would apply, never a value invented on the client. Amounts are integer minor units
+ * ([currency] says which).
+ */
+@Serializable
+data class AdminInvoice(
+    val id: String,
+    val number: String? = null,
+    val status: String,
+    val amountDueCents: Int,
+    val amountPaidCents: Int,
+    val currency: String,
+    val periodStart: String? = null,
+    val periodEnd: String? = null,
+    val issuedAt: String,
+    val paidAt: String? = null,
+    val hostedInvoiceUrl: String? = null,
+    val dueAt: String? = null,
+    val dunningStatus: String,
+    val amountRefundedCents: Int = 0,
+    val refundedAt: String? = null,
+)
+
 // ─── Impersonation (admin act-as) ────────────────────────────────────────────
 
 /**
@@ -323,6 +350,10 @@ interface AdminApi {
     suspend fun getEntitlementGrants(broadcasterId: String): ApiResult<List<AdminEntitlementGrant>>
     suspend fun previewEntitlementGrant(broadcasterId: String, tierId: String): ApiResult<AdminEntitlementGrantPreview>
     suspend fun issueEntitlementGrant(broadcasterId: String, body: AdminIssueEntitlementGrantRequest): ApiResult<AdminEntitlementGrant>
+
+    // Invoices, dunning and refunds (S-ADMIN-4c)
+    suspend fun getInvoices(broadcasterId: String): ApiResult<List<AdminInvoice>>
+    suspend fun refundInvoice(invoiceId: String): ApiResult<AdminInvoice>
 
     // Impersonation (admin act-as)
     /** Mints an act-as token for [subjectUserId], scoped to the already-open [accessGrantId] support session,
@@ -464,6 +495,12 @@ class AdminApiImpl(private val client: ApiClient) : AdminApi {
 
     override suspend fun issueEntitlementGrant(broadcasterId: String, body: AdminIssueEntitlementGrantRequest): ApiResult<AdminEntitlementGrant> =
         client.postEnvelope("api/v1/admin/billing/channels/$broadcasterId/grants", body)
+
+    override suspend fun getInvoices(broadcasterId: String): ApiResult<List<AdminInvoice>> =
+        client.getEnvelope("api/v1/admin/billing/channels/$broadcasterId/invoices")
+
+    override suspend fun refundInvoice(invoiceId: String): ApiResult<AdminInvoice> =
+        client.postEnvelope("api/v1/admin/billing/invoices/$invoiceId/refund")
 
     override suspend fun impersonate(subjectUserId: String, accessGrantId: String, justification: String): ApiResult<ImpersonationTokenDto> =
         client.postEnvelope(

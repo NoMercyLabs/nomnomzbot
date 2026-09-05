@@ -18,6 +18,7 @@ using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Domain.Billing.Entities;
 using NomNomzBot.Domain.Billing.Enums;
 using NomNomzBot.Domain.Billing.Events;
+using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Billing;
 using NomNomzBot.Infrastructure.Content.Billing;
@@ -641,5 +642,172 @@ public sealed class SubscriptionServiceTests
         Result<InvoiceDto> result = await sut.RefundInvoiceAsync(Guid.NewGuid());
 
         result.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    [Fact]
+    public async Task RefundInvoiceAsync_records_the_refunded_amount_and_writes_an_audit_entry()
+    {
+        IStripeGateway gateway = Substitute.For<IStripeGateway>();
+        gateway.RefundInvoiceAsync("in_1", Arg.Any<CancellationToken>()).Returns(Result.Success());
+        (SubscriptionService sut, AuthDbContext db, _) = Build(gateway);
+        await SeedAsync(db);
+        Invoice invoice = await SeedPaidInvoiceAsync(db);
+        Guid admin = Guid.Parse("0192a000-0000-7000-8000-0000000000ad");
+
+        Result<InvoiceDto> result = await sut.RefundInvoiceAsync(invoice.Id, admin);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.AmountRefundedCents.Should().Be(1_999);
+        result.Value.RefundedAt.Should().Be(Now);
+
+        Invoice persisted = await db.Invoices.FirstAsync(i => i.Id == invoice.Id);
+        persisted.AmountRefundedCents.Should().Be(1_999);
+        persisted.RefundedAt.Should().Be(Now.UtcDateTime);
+
+        IamAuditLog audit = await db.IamAuditLogs.SingleAsync(l =>
+            l.Permission == "invoice:refund"
+        );
+        audit.PrincipalId.Should().Be(admin);
+        audit.TargetBroadcasterId.Should().Be(Channel);
+        audit.TargetResource.Should().Be(invoice.Id.ToString());
+        audit.Justification.Should().Contain("amount_refunded_cents=1999");
+        audit.Outcome.Should().Be(IamOutcome.Allowed);
+    }
+
+    [Fact]
+    public async Task RefundInvoiceAsync_a_second_time_on_the_same_invoice_is_rejected_not_double_refunded()
+    {
+        IStripeGateway gateway = Substitute.For<IStripeGateway>();
+        gateway.RefundInvoiceAsync("in_1", Arg.Any<CancellationToken>()).Returns(Result.Success());
+        (SubscriptionService sut, AuthDbContext db, _) = Build(gateway);
+        await SeedAsync(db);
+        Invoice invoice = await SeedPaidInvoiceAsync(db);
+
+        Result<InvoiceDto> first = await sut.RefundInvoiceAsync(invoice.Id);
+        first.IsSuccess.Should().BeTrue();
+
+        Result<InvoiceDto> second = await sut.RefundInvoiceAsync(invoice.Id);
+
+        second.IsFailure.Should().BeTrue();
+        second.ErrorCode.Should().Be("VALIDATION_FAILED");
+        // Stripe was only ever asked to refund once — the second call never re-hits the gateway.
+        await gateway.Received(1).RefundInvoiceAsync("in_1", Arg.Any<CancellationToken>());
+        (await db.Invoices.FirstAsync(i => i.Id == invoice.Id))
+            .AmountRefundedCents.Should()
+            .Be(1_999);
+    }
+
+    // ── ListInvoicesForAdminAsync (platform-admin billing:read, S-ADMIN-4c) ────────────────────
+
+    [Fact]
+    public async Task ListInvoicesForAdminAsync_returns_the_real_shape_newest_first()
+    {
+        (SubscriptionService sut, AuthDbContext db, _) = Build();
+        await SeedAsync(db);
+        BillingTier pro = await db.BillingTiers.FirstAsync(t => t.Key == "pro");
+        Subscription sub = new()
+        {
+            BroadcasterId = Channel,
+            TierId = pro.Id,
+            Status = SubscriptionStatus.Active,
+        };
+        db.Subscriptions.Add(sub);
+        Invoice older = new()
+        {
+            BroadcasterId = Channel,
+            SubscriptionId = sub.Id,
+            StripeInvoiceId = "in_old",
+            Number = "INV-001",
+            Status = InvoiceStatus.Paid,
+            AmountDueCents = 500,
+            AmountPaidCents = 500,
+            Currency = "usd",
+            IssuedAt = Now.UtcDateTime.AddDays(-30),
+            PaidAt = Now.UtcDateTime.AddDays(-30),
+        };
+        Invoice newer = new()
+        {
+            BroadcasterId = Channel,
+            SubscriptionId = sub.Id,
+            StripeInvoiceId = "in_new",
+            Number = "INV-002",
+            Status = InvoiceStatus.Open,
+            AmountDueCents = 1_500,
+            AmountPaidCents = 0,
+            Currency = "usd",
+            IssuedAt = Now.UtcDateTime,
+            DueAt = Now.UtcDateTime.AddDays(-1), // already past due
+        };
+        db.Invoices.AddRange(older, newer);
+        await db.SaveChangesAsync();
+
+        Result<IReadOnlyList<InvoiceDto>> result = await sut.ListInvoicesForAdminAsync(Channel);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().HaveCount(2);
+        result.Value[0].Id.Should().Be(newer.Id); // newest first
+        result.Value[0].Number.Should().Be("INV-002");
+        result.Value[0].Status.Should().Be("open");
+        result.Value[0].AmountDueCents.Should().Be(1_500);
+        result.Value[0].Currency.Should().Be("usd");
+        result.Value[0].DunningStatus.Should().Be(nameof(InvoiceDunningStatus.PastDue));
+        result.Value[1].Id.Should().Be(older.Id);
+        result.Value[1].Status.Should().Be("paid");
+        result.Value[1].AmountPaidCents.Should().Be(500);
+        result.Value[1].DunningStatus.Should().Be(nameof(InvoiceDunningStatus.NotDunning));
+        result.Value[1].PaidAt.Should().Be(Now.AddDays(-30));
+    }
+
+    [Fact]
+    public async Task ListInvoicesForAdminAsync_on_an_unknown_channel_is_not_found()
+    {
+        (SubscriptionService sut, _, _) = Build();
+
+        Result<IReadOnlyList<InvoiceDto>> result = await sut.ListInvoicesForAdminAsync(
+            Guid.NewGuid()
+        );
+
+        result.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    // ── Invoice.ResolveDunningStatus — real data the system reads (S-ADMIN-4c) ─────────────────
+
+    [Fact]
+    public void ResolveDunningStatus_an_open_invoice_past_its_due_date_is_past_due()
+    {
+        Invoice invoice = new()
+        {
+            Status = InvoiceStatus.Open,
+            Currency = "usd",
+            DueAt = Now.UtcDateTime.AddDays(-1),
+        };
+
+        invoice.ResolveDunningStatus(Now).Should().Be(InvoiceDunningStatus.PastDue);
+    }
+
+    [Fact]
+    public void ResolveDunningStatus_an_open_invoice_not_yet_due_is_current()
+    {
+        Invoice invoice = new()
+        {
+            Status = InvoiceStatus.Open,
+            Currency = "usd",
+            DueAt = Now.UtcDateTime.AddDays(5),
+        };
+
+        invoice.ResolveDunningStatus(Now).Should().Be(InvoiceDunningStatus.Current);
+    }
+
+    [Fact]
+    public void ResolveDunningStatus_a_paid_invoice_past_its_old_due_date_is_never_past_due()
+    {
+        Invoice invoice = new()
+        {
+            Status = InvoiceStatus.Paid,
+            Currency = "usd",
+            DueAt = Now.UtcDateTime.AddYears(-1),
+        };
+
+        invoice.ResolveDunningStatus(Now).Should().Be(InvoiceDunningStatus.NotDunning);
     }
 }

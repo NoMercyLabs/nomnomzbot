@@ -96,12 +96,28 @@ public interface ISubscriptionService
         CancellationToken ct = default
     );
 
-    // ── Platform-admin (Plane-C, billing:refund) ──
+    // ── Platform-admin (Plane-C, billing:refund / billing:read) ──
 
     /// <summary>
-    /// Refunds a paid invoice in full via Stripe and marks it <c>Refunded</c> locally; publishes
-    /// <c>InvoiceRefundedEvent</c>. NOT_FOUND on an unknown invoice; VALIDATION_FAILED when it carries no
-    /// Stripe invoice id (self-host / manually-granted tiers never have Stripe invoices) or is not paid.
+    /// Every invoice for a tenant, platform-wide (not scoped to the caller's own channel), newest first.
+    /// NOT_FOUND on an unknown channel.
     /// </summary>
-    Task<Result<InvoiceDto>> RefundInvoiceAsync(Guid invoiceId, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<InvoiceDto>>> ListInvoicesForAdminAsync(
+        Guid broadcasterId,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// Refunds a paid invoice in full via Stripe and marks it <c>Refunded</c> locally, recording the amount
+    /// refunded and writing an <c>IamAuditLog</c> row attributed to <paramref name="actorAdminId"/>; publishes
+    /// <c>InvoiceRefundedEvent</c>. NOT_FOUND on an unknown invoice; VALIDATION_FAILED when it carries no
+    /// Stripe invoice id (self-host / manually-granted tiers never have Stripe invoices) or is not
+    /// <c>Paid</c> — which also rejects a second refund of the same invoice, since the first already flipped
+    /// it to <c>Refunded</c>.
+    /// </summary>
+    Task<Result<InvoiceDto>> RefundInvoiceAsync(
+        Guid invoiceId,
+        Guid? actorAdminId = null,
+        CancellationToken ct = default
+    );
 }

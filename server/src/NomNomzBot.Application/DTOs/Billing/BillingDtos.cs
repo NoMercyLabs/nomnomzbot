@@ -99,7 +99,11 @@ public sealed record ResourceUsageDto(
     long SafetyBaseline
 );
 
-/// <summary>A billing invoice view.</summary>
+/// <summary>
+/// A billing invoice view. <see cref="DunningStatus"/> is <see cref="NomNomzBot.Domain.Billing.Enums.InvoiceDunningStatus"/>
+/// rendered as a string — computed by <c>Invoice.ResolveDunningStatus</c>, the single place that decides it, so
+/// what this DTO shows is exactly what the rest of the system would compute for the same invoice right now.
+/// </summary>
 public sealed record InvoiceDto(
     Guid Id,
     string? Number,
@@ -111,7 +115,11 @@ public sealed record InvoiceDto(
     DateTimeOffset? PeriodEnd,
     DateTimeOffset IssuedAt,
     DateTimeOffset? PaidAt,
-    string? HostedInvoiceUrl
+    string? HostedInvoiceUrl,
+    DateTimeOffset? DueAt,
+    string DunningStatus,
+    int AmountRefundedCents,
+    DateTimeOffset? RefundedAt
 );
 
 /// <summary>A founders badge view.</summary>
@@ -289,5 +297,6 @@ public sealed record StripeInvoiceEventDto(
     DateTimeOffset? PeriodEnd,
     DateTimeOffset IssuedAt,
     DateTimeOffset? PaidAt,
-    string? HostedInvoiceUrl
+    string? HostedInvoiceUrl,
+    DateTimeOffset? DueAt
 );

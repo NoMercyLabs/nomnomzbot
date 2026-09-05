@@ -33,4 +33,32 @@ public class Invoice : SoftDeletableEntity, ITenantScoped
     public string? HostedInvoiceUrl { get; set; }
     public DateTime IssuedAt { get; set; }
     public DateTime? PaidAt { get; set; }
+
+    /// <summary>When Stripe considers this invoice due; falls back to <see cref="PeriodEnd"/> when Stripe
+    /// sends no explicit <c>due_date</c> (the usual case for subscription invoices). Drives
+    /// <see cref="ResolveDunningStatus"/> — the ONE place past-due is computed, so a displayed dunning
+    /// state is always the state the rest of the system would compute too.</summary>
+    public DateTime? DueAt { get; set; }
+
+    /// <summary>Set by <c>RefundInvoiceAsync</c> alongside <see cref="Status"/> flipping to
+    /// <see cref="InvoiceStatus.Refunded"/> — the persisted record of what was actually refunded, not just
+    /// the event emitted at the time.</summary>
+    public int AmountRefundedCents { get; set; }
+    public DateTime? RefundedAt { get; set; }
+
+    /// <summary>
+    /// The dunning state as the rest of the system would read it: an <see cref="InvoiceStatus.Open"/>
+    /// invoice past its <see cref="DueAt"/> is <see cref="InvoiceDunningStatus.PastDue"/>; any other status
+    /// (paid, refunded, void, uncollectible, draft) is never past-due, however old it is. This is the only
+    /// place that computes the answer — nothing else may re-derive it, so a badge showing "past due" is
+    /// always backed by this exact rule.
+    /// </summary>
+    public InvoiceDunningStatus ResolveDunningStatus(DateTimeOffset utcNow)
+    {
+        if (Status != InvoiceStatus.Open)
+            return InvoiceDunningStatus.NotDunning;
+        return DueAt is { } due && due <= utcNow.UtcDateTime
+            ? InvoiceDunningStatus.PastDue
+            : InvoiceDunningStatus.Current;
+    }
 }

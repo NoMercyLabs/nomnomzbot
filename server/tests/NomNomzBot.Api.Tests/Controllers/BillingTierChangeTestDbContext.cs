@@ -118,6 +118,7 @@ internal sealed class BillingTierChangeTestDbContext : DbContext, IApplicationDb
         b.Entity<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride>(e => e.HasKey(o => o.Id));
         b.Entity<NomNomzBot.Domain.Billing.Entities.EntitlementGrant>(e => e.HasKey(g => g.Id));
         b.Entity<IamAuditLog>(e => e.HasKey(a => a.Id));
+        b.Entity<Invoice>(e => e.HasKey(i => i.Id));
 
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
@@ -139,6 +140,7 @@ internal sealed class BillingTierChangeTestDbContext : DbContext, IApplicationDb
         typeof(NomNomzBot.Domain.Billing.Entities.TenantLimitOverride),
         typeof(NomNomzBot.Domain.Billing.Entities.EntitlementGrant),
         typeof(IamAuditLog),
+        typeof(Invoice),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -339,7 +341,7 @@ internal sealed class BillingTierChangeTestDbContext : DbContext, IApplicationDb
     public DbSet<LeaderboardConfig> LeaderboardConfigs => throw new NotSupportedException();
     public DbSet<LeaderboardOptOut> LeaderboardOptOuts => throw new NotSupportedException();
     public DbSet<LeaderboardSnapshot> LeaderboardSnapshots => throw new NotSupportedException();
-    public DbSet<Invoice> Invoices => throw new NotSupportedException();
+    public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<UsageRecord> UsageRecords => throw new NotSupportedException();
     public DbSet<FoundersBadge> FoundersBadges => throw new NotSupportedException();
     public DbSet<InviteCode> InviteCodes => throw new NotSupportedException();

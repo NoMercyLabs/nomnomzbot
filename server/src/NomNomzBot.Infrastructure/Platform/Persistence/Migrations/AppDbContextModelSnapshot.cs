@@ -681,6 +681,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<int>("AmountPaidCents")
                         .HasColumnType("integer");
 
+                    b.Property<int>("AmountRefundedCents")
+                        .HasColumnType("integer");
+
                     b.Property<Guid>("BroadcasterId")
                         .HasColumnType("uuid");
 
@@ -697,6 +700,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.Property<Guid?>("DeletedBy")
                         .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("DueAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("HostedInvoiceUrl")
                         .HasMaxLength(2048)
@@ -716,6 +722,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("PeriodStart")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("RefundedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Status")

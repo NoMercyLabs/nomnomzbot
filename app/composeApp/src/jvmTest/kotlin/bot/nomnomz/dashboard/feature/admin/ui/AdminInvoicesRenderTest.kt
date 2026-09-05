@@ -14,12 +14,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.hasClickAction
-import androidx.compose.ui.test.hasSetTextAction
-import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.runComposeUiTest
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
 import bot.nomnomz.dashboard.core.i18n.AppEnvironment
@@ -30,6 +26,7 @@ import bot.nomnomz.dashboard.core.network.AdminCreateTierRequest
 import bot.nomnomz.dashboard.core.network.AdminEntitlementGrant
 import bot.nomnomz.dashboard.core.network.AdminEntitlementGrantPreview
 import bot.nomnomz.dashboard.core.network.AdminGrantTierRequest
+import bot.nomnomz.dashboard.core.network.AdminInvoice
 import bot.nomnomz.dashboard.core.network.AdminIssueEntitlementGrantRequest
 import bot.nomnomz.dashboard.core.network.AdminServiceHealth
 import bot.nomnomz.dashboard.core.network.AdminSetFeatureFlagOverrideRequest
@@ -37,7 +34,6 @@ import bot.nomnomz.dashboard.core.network.AdminSetFeatureFlagRequest
 import bot.nomnomz.dashboard.core.network.AdminStats
 import bot.nomnomz.dashboard.core.network.AdminSystem
 import bot.nomnomz.dashboard.core.network.AdminTier
-import bot.nomnomz.dashboard.core.network.AdminTierChangePreview
 import bot.nomnomz.dashboard.core.network.AdminUpdateTierRequest
 import bot.nomnomz.dashboard.core.network.AdminUser
 import bot.nomnomz.dashboard.core.network.ApiError
@@ -57,15 +53,17 @@ import bot.nomnomz.dashboard.core.network.SaveProviderCredentialBody
 import bot.nomnomz.dashboard.feature.admin.state.AdminController
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
+import kotlin.test.assertEquals
 
 /**
- * S-ADMIN-4b: the Billing tab must render a tenant's LIVE comps — reason and expiry, never a raw domain
- * field ([bot.nomnomz.dashboard.core.designsystem.resolveRowLabel]) — and show the COUNTED blast radius
- * (the limit keys that would actually change) BEFORE the operator can issue a new one. Asserts against the
- * rendered semantics tree, mirroring [AdminBillingTierEditorRenderTest]'s pattern for the tier editor.
+ * S-ADMIN-4c: the Billing tab must render a tenant's real invoices — status, amount and the live dunning
+ * state computed by the backend's `Invoice.ResolveDunningStatus` (a "Past due" badge appears ONLY for an
+ * open invoice past its due date, never a decorative guess) — and a refund must show the counted blast
+ * radius (the exact amount and currency about to move) BEFORE the destructive commit button can be pressed.
+ * Asserts against the rendered semantics tree, mirroring [AdminEntitlementGrantRenderTest]'s pattern.
  */
 @OptIn(ExperimentalTestApi::class)
-class AdminEntitlementGrantRenderTest {
+class AdminInvoicesRenderTest {
 
     @Composable
     private fun EnglishContent(content: @Composable () -> Unit) {
@@ -81,30 +79,38 @@ class AdminEntitlementGrantRenderTest {
     }
 
     @Test
-    fun loading_a_tenant_renders_its_live_grants_with_reason_and_expiry() {
-        val existingGrant = AdminEntitlementGrant(
-            id = "grant-1",
-            broadcasterId = "chan-1",
-            grantedTierId = "tier-pro",
-            grantedTierKey = "pro",
-            reason = "Support case #4471 — negotiated 30-day comp",
-            expiresAt = "2026-10-05T00:00:00Z",
+    fun loading_a_tenant_renders_its_invoices_with_amount_status_and_the_real_dunning_state() {
+        val pastDueInvoice = AdminInvoice(
+            id = "inv-1",
+            number = "INV-002",
+            status = "open",
+            amountDueCents = 1_500,
+            amountPaidCents = 0,
+            currency = "usd",
             issuedAt = "2026-09-05T00:00:00Z",
-            issuedByAdminId = "admin-1",
+            dunningStatus = "PastDue",
         )
-        val api = FakeAdminApiForGrantTest(grants = listOf(existingGrant))
+        val paidInvoice = AdminInvoice(
+            id = "inv-2",
+            number = "INV-001",
+            status = "paid",
+            amountDueCents = 1_999,
+            amountPaidCents = 1_999,
+            currency = "usd",
+            issuedAt = "2026-08-01T00:00:00Z",
+            paidAt = "2026-08-01T00:00:00Z",
+            dunningStatus = "NotDunning",
+        )
+        val api = FakeAdminApiForInvoiceTest(invoices = listOf(pastDueInvoice, paidInvoice))
         val controller = AdminController(
             api = api,
-            iamApi = FakeIamApiForGrantTest(),
-            platformAdminApi = FakePlatformAdminApiForGrantTest(),
+            iamApi = FakeIamApiForInvoiceTest(),
+            platformAdminApi = FakePlatformAdminApiForInvoiceTest(),
         )
 
-        // Selecting the tenant (the operator's "Load" action) is driven directly through the controller —
-        // the same call the Load button's onClick makes — so this test asserts against the RENDERED result
-        // of a real state transition rather than the mechanics of typing into a text field.
         runTest {
             controller.load()
-            controller.selectGrantBroadcaster("chan-1")
+            controller.selectInvoiceBroadcaster("chan-1")
         }
 
         runComposeUiTest {
@@ -115,55 +121,40 @@ class AdminEntitlementGrantRenderTest {
             }
             waitForIdle()
 
-            // The existing grant's reason and expiry render — never a raw tier id or a blank row.
-            onNodeWithText("Support case #4471", substring = true).assertExists()
-            onNodeWithText("Expires 2026-10-05T00:00:00Z", substring = true).assertExists()
+            // The open, past-due invoice shows its amount and the "Past due" badge — the state a refund
+            // panel or dunning surface would actually read, never invented in the UI layer.
+            onNodeWithText("15.00 USD", substring = true).assertExists()
+            onNodeWithText("Past due").assertExists()
+
+            // The paid invoice shows its amount too, but never a "Past due" badge — dunning never applies
+            // to a paid invoice, however old.
+            onNodeWithText("19.99 USD", substring = true).assertExists()
         }
     }
 
     @Test
-    fun issuing_a_grant_shows_the_counted_blast_radius_before_the_button_enables() {
-        val tier = AdminTier(
-            id = "tier-pro",
-            key = "pro",
-            displayName = "Pro",
-            priceCents = 1499,
+    fun refunding_a_paid_invoice_shows_the_counted_amount_before_the_destructive_button_commits() {
+        val paidInvoice = AdminInvoice(
+            id = "inv-2",
+            number = "INV-001",
+            status = "paid",
+            amountDueCents = 1_999,
+            amountPaidCents = 1_999,
             currency = "usd",
-            allowsCustomBotName = true,
-            prioritySupport = false,
-            sortOrder = 1,
-            limits = emptyList(),
-            isPublic = true,
+            issuedAt = "2026-08-01T00:00:00Z",
+            paidAt = "2026-08-01T00:00:00Z",
+            dunningStatus = "NotDunning",
         )
-        val preview = AdminEntitlementGrantPreview(
-            currentTierKey = "base",
-            grantedTierKey = "pro",
-            changedLimitCount = 1,
-            changedLimitKeys = listOf("custom_commands"),
-        )
-        val existingGrant = AdminEntitlementGrant(
-            id = "grant-1",
-            broadcasterId = "chan-1",
-            grantedTierId = "tier-pro",
-            grantedTierKey = "pro",
-            reason = "Support case #4471 — negotiated 30-day comp",
-            expiresAt = "2026-10-05T00:00:00Z",
-            issuedAt = "2026-09-05T00:00:00Z",
-            issuedByAdminId = "admin-1",
-        )
-        val api = FakeAdminApiForGrantTest(tiers = listOf(tier), grants = listOf(existingGrant), preview = preview)
+        val api = FakeAdminApiForInvoiceTest(invoices = listOf(paidInvoice))
         val controller = AdminController(
             api = api,
-            iamApi = FakeIamApiForGrantTest(),
-            platformAdminApi = FakePlatformAdminApiForGrantTest(),
+            iamApi = FakeIamApiForInvoiceTest(),
+            platformAdminApi = FakePlatformAdminApiForInvoiceTest(),
         )
 
-        // The tenant lookup itself is covered by the render test above; here the tenant is pre-selected
-        // through the controller (the exact call the Load button's onClick makes) so this test isolates
-        // the part it actually targets — the counted blast radius appearing BEFORE the issue button enables.
         runTest {
             controller.load()
-            controller.selectGrantBroadcaster("chan-1")
+            controller.selectInvoiceBroadcaster("chan-1")
         }
 
         runComposeUiTest {
@@ -174,31 +165,37 @@ class AdminEntitlementGrantRenderTest {
             }
             waitForIdle()
 
-            onNodeWithText("Support case #4471", substring = true).assertExists()
-            onNodeWithText("Expires 2026-10-05T00:00:00Z", substring = true).assertExists()
-
-            // Open the issue dialog and pick the tier — the counted blast radius fetches and renders BEFORE
-            // any issue is possible.
-            onNodeWithText("New comp").performClick()
+            // Clicking the row's quiet outline trigger opens the confirmation — refund has NOT happened yet.
+            onNodeWithText("Refund").performClick()
             waitForIdle()
-            // The existing grant row also renders "pro" as its tier key, so the tier PICKER button is
-            // disambiguated by its click action rather than by text alone.
-            onNode(hasText("pro") and hasClickAction()).performClick()
+            assertEquals(0, api.refundCallCount)
+
+            // The counted blast radius — the exact amount and currency about to move — renders in the
+            // confirmation dialog's own body BEFORE the destructive commit button is pressed (the row
+            // behind the dialog still shows its own "19.99 USD" too, so the assertion targets the dialog's
+            // distinct sentence rather than the bare amount, which now matches twice).
+            onNodeWithText("This refunds 19.99 USD", substring = true).assertExists()
+
+            // The dialog's destructive commit is its own distinctly-labelled button — never the same text as
+            // the row trigger, so a screen reader (and this assertion) never conflates "open the confirm"
+            // with "commit the refund".
+            onNodeWithText("Confirm refund").performClick()
             waitForIdle()
 
-            onNodeWithText(
-                "1 limit(s) would change for this tenant, including: custom_commands.",
-                substring = true,
-            ).assertExists()
+            assertEquals(1, api.refundCallCount)
+            assertEquals("inv-2", api.lastRefundedInvoiceId)
         }
     }
 }
 
-private class FakeAdminApiForGrantTest(
-    private val tiers: List<AdminTier> = emptyList(),
-    private val grants: List<AdminEntitlementGrant> = emptyList(),
-    private val preview: AdminEntitlementGrantPreview? = null,
+private class FakeAdminApiForInvoiceTest(
+    private var invoices: List<AdminInvoice> = emptyList(),
 ) : AdminApi {
+    var refundCallCount: Int = 0
+        private set
+    var lastRefundedInvoiceId: String? = null
+        private set
+
     override suspend fun getStats(): ApiResult<AdminStats> = ApiResult.Ok(AdminStats(0, 0, 0, "ok", 0, 0))
     override suspend fun getChannels(search: String?, page: Int, pageSize: Int, sort: String?, isLive: Boolean?) =
         ApiResult.Ok(PaginatedEnvelope<AdminChannel>(emptyList()))
@@ -231,7 +228,7 @@ private class FakeAdminApiForGrantTest(
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
     override suspend fun clearProviderCredential(provider: String) =
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
-    override suspend fun getTiers(): ApiResult<List<AdminTier>> = ApiResult.Ok(tiers)
+    override suspend fun getTiers(): ApiResult<List<AdminTier>> = ApiResult.Ok(emptyList())
     override suspend fun previewTierChange(tierId: String) =
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
     override suspend fun createTier(body: AdminCreateTierRequest) =
@@ -239,18 +236,29 @@ private class FakeAdminApiForGrantTest(
     override suspend fun updateTier(tierId: String, body: AdminUpdateTierRequest) =
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
     override suspend fun getEntitlementGrants(broadcasterId: String): ApiResult<List<AdminEntitlementGrant>> =
-        ApiResult.Ok(grants)
+        ApiResult.Ok(emptyList())
     override suspend fun previewEntitlementGrant(broadcasterId: String, tierId: String): ApiResult<AdminEntitlementGrantPreview> =
-        preview?.let { ApiResult.Ok(it) } ?: ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
     override suspend fun issueEntitlementGrant(broadcasterId: String, body: AdminIssueEntitlementGrantRequest) =
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
-    override suspend fun getInvoices(broadcasterId: String) =
-        ApiResult.Ok(emptyList<bot.nomnomz.dashboard.core.network.AdminInvoice>())
-    override suspend fun refundInvoice(invoiceId: String) =
-        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    override suspend fun getInvoices(broadcasterId: String): ApiResult<List<AdminInvoice>> = ApiResult.Ok(invoices)
+
+    // Mirrors the real backend: a refund flips the invoice to "refunded" and records the amount, so a
+    // reload after the confirm shows the state actually changed, not merely that the call was made.
+    override suspend fun refundInvoice(invoiceId: String): ApiResult<AdminInvoice> {
+        refundCallCount++
+        lastRefundedInvoiceId = invoiceId
+        val refunded = invoices.first { it.id == invoiceId }.copy(
+            status = "refunded",
+            amountRefundedCents = invoices.first { it.id == invoiceId }.amountPaidCents,
+            refundedAt = "2026-09-05T12:00:00Z",
+        )
+        invoices = invoices.map { if (it.id == invoiceId) refunded else it }
+        return ApiResult.Ok(refunded)
+    }
 }
 
-private class FakeIamApiForGrantTest : PlatformIamApi {
+private class FakeIamApiForInvoiceTest : PlatformIamApi {
     override suspend fun listRoles(): ApiResult<List<IamRole>> = ApiResult.Ok(emptyList())
     override suspend fun listPrincipals(): ApiResult<List<IamPrincipalSummary>> = ApiResult.Ok(emptyList())
     override suspend fun effectivePermissions(principalId: String, scopeChannelId: String?) = ApiResult.Ok(emptyList<String>())
@@ -266,7 +274,7 @@ private class FakeIamApiForGrantTest : PlatformIamApi {
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
 }
 
-private class FakePlatformAdminApiForGrantTest : PlatformAdminApi {
+private class FakePlatformAdminApiForInvoiceTest : PlatformAdminApi {
     override suspend fun listTenants(search: String?, status: String?, isLive: Boolean?, page: Int, pageSize: Int) =
         ApiResult.Ok(PaginatedEnvelope<bot.nomnomz.dashboard.core.network.AdminTenant>(emptyList()))
     override suspend fun getTenant(broadcasterId: String) =

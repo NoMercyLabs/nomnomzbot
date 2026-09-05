@@ -30,3 +30,19 @@ public enum InvoiceStatus
     Uncollectible,
     Refunded,
 }
+
+/// <summary>
+/// The dunning state of an <c>Invoice</c>, computed on demand by <see cref="Entities.Invoice.ResolveDunningStatus"/>
+/// — never persisted, so it can never drift from the rule that produces it (S-ADMIN-4c).
+/// </summary>
+public enum InvoiceDunningStatus
+{
+    /// <summary>Paid, refunded, void, uncollectible, or draft — dunning never applies.</summary>
+    NotDunning,
+
+    /// <summary>Open and not yet past its due date.</summary>
+    Current,
+
+    /// <summary>Open and past its due date.</summary>
+    PastDue,
+}

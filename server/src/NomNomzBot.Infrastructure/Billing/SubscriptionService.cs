@@ -17,6 +17,7 @@ using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Domain.Billing.Entities;
 using NomNomzBot.Domain.Billing.Enums;
 using NomNomzBot.Domain.Billing.Events;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Billing;
@@ -327,6 +328,9 @@ public sealed class SubscriptionService(
                 HostedInvoiceUrl = stripeEvent.HostedInvoiceUrl,
                 IssuedAt = stripeEvent.IssuedAt.UtcDateTime,
                 PaidAt = stripeEvent.PaidAt?.UtcDateTime,
+                // Stripe sends an explicit due_date only on invoices that carry one (e.g. "send invoice"
+                // collection); subscription invoices are due at the end of the period they cover.
+                DueAt = (stripeEvent.DueAt ?? stripeEvent.PeriodEnd)?.UtcDateTime,
             };
             db.Invoices.Add(invoice);
         }
@@ -404,8 +408,29 @@ public sealed class SubscriptionService(
         return Result.Success(await ToDtoAsync(broadcasterId, sub, ct));
     }
 
+    public async Task<Result<IReadOnlyList<InvoiceDto>>> ListInvoicesForAdminAsync(
+        Guid broadcasterId,
+        CancellationToken ct = default
+    )
+    {
+        bool channelExists = await db
+            .Channels.IgnoreQueryFilters()
+            .AnyAsync(c => c.Id == broadcasterId, ct);
+        if (!channelExists)
+            return Result.Failure<IReadOnlyList<InvoiceDto>>("Channel not found.", "NOT_FOUND");
+
+        // Platform-wide admin read — an operator inspects any tenant's invoices, not just their own.
+        List<Invoice> rows = await db
+            .Invoices.IgnoreQueryFilters()
+            .Where(i => i.BroadcasterId == broadcasterId && i.DeletedAt == null)
+            .OrderByDescending(i => i.IssuedAt)
+            .ToListAsync(ct);
+        return Result.Success<IReadOnlyList<InvoiceDto>>([.. rows.Select(ToInvoiceDto)]);
+    }
+
     public async Task<Result<InvoiceDto>> RefundInvoiceAsync(
         Guid invoiceId,
+        Guid? actorAdminId = null,
         CancellationToken ct = default
     )
     {
@@ -416,6 +441,8 @@ public sealed class SubscriptionService(
             .FirstOrDefaultAsync(i => i.Id == invoiceId && i.DeletedAt == null, ct);
         if (invoice is null)
             return Result.Failure<InvoiceDto>("Invoice not found.", "NOT_FOUND");
+        // Guards against a double refund too: once the first refund below flips this to Refunded, a
+        // second call fails here rather than refunding Stripe twice.
         if (invoice.Status != InvoiceStatus.Paid)
             return Result.Failure<InvoiceDto>(
                 "Only a paid invoice can be refunded.",
@@ -431,7 +458,29 @@ public sealed class SubscriptionService(
         if (refunded.IsFailure)
             return refunded.WithValue<InvoiceDto>(null!);
 
+        DateTime now = clock.GetUtcNow().UtcDateTime;
+        int amountRefundedCents = invoice.AmountPaidCents;
         invoice.Status = InvoiceStatus.Refunded;
+        invoice.AmountRefundedCents = amountRefundedCents;
+        invoice.RefundedAt = now;
+
+        db.IamAuditLogs.Add(
+            new()
+            {
+                PrincipalId = actorAdminId ?? Guid.Empty,
+                PrincipalType = IamPrincipalType.Employee,
+                Permission = "invoice:refund",
+                TargetBroadcasterId = invoice.BroadcasterId,
+                TargetResource = invoice.Id.ToString(),
+                Justification =
+                    $"actor={actorAdminId?.ToString() ?? "system"};amount_refunded_cents={amountRefundedCents};currency={invoice.Currency}",
+                BreakGlass = false,
+                Outcome = IamOutcome.Allowed,
+                OccurredAt = now,
+                AffectedTenantCount = 1,
+            }
+        );
+
         await db.SaveChangesAsync(ct);
 
         await eventBus.PublishAsync(
@@ -439,7 +488,7 @@ public sealed class SubscriptionService(
             {
                 BroadcasterId = invoice.BroadcasterId,
                 InvoiceId = invoice.Id,
-                AmountRefundedCents = invoice.AmountPaidCents,
+                AmountRefundedCents = amountRefundedCents,
                 Currency = invoice.Currency,
             },
             ct
@@ -517,7 +566,7 @@ public sealed class SubscriptionService(
         );
     }
 
-    private static InvoiceDto ToInvoiceDto(Invoice i) =>
+    private InvoiceDto ToInvoiceDto(Invoice i) =>
         new(
             i.Id,
             i.Number,
@@ -529,7 +578,11 @@ public sealed class SubscriptionService(
             ToOffset(i.PeriodEnd),
             new(i.IssuedAt, TimeSpan.Zero),
             ToOffset(i.PaidAt),
-            i.HostedInvoiceUrl
+            i.HostedInvoiceUrl,
+            ToOffset(i.DueAt),
+            i.ResolveDunningStatus(clock.GetUtcNow()).ToString(),
+            i.AmountRefundedCents,
+            ToOffset(i.RefundedAt)
         );
 
     private static DateTimeOffset? ToOffset(DateTime? value) =>

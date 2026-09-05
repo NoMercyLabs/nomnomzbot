@@ -141,7 +141,8 @@ public sealed class StripeWebhookHandler(
             Unix(inv["period_end"]),
             Unix(inv["created"]) ?? DateTimeOffset.UnixEpoch,
             Unix(inv["status_transitions"]?["paid_at"]),
-            inv.Value<string>("hosted_invoice_url")
+            inv.Value<string>("hosted_invoice_url"),
+            Unix(inv["due_date"])
         );
     }
 

@@ -146,12 +146,23 @@ public class AdminBillingController(
     public async Task<IActionResult> GrantFounder(Guid broadcasterId, CancellationToken ct) =>
         ResultResponse(await invites.GrantFoundersBadgeAsync(broadcasterId, ct));
 
-    /// <summary>Refund a paid invoice in full via Stripe; marks the local invoice <c>Refunded</c>.</summary>
+    /// <summary>Every invoice for a channel, platform-wide, newest first — amounts, currency, status,
+    /// issued/paid timestamps and the live dunning state.</summary>
+    [HttpGet("channels/{broadcasterId:guid}/invoices")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
+    [Authorize(Policy = IamPermissionKeys.BillingRead)]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<InvoiceDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListInvoices(Guid broadcasterId, CancellationToken ct) =>
+        ResultResponse(await subscriptions.ListInvoicesForAdminAsync(broadcasterId, ct));
+
+    /// <summary>Refund a paid invoice in full via Stripe; marks the local invoice <c>Refunded</c>, records
+    /// the amount refunded, and audits the action. A second refund of an already-refunded invoice is
+    /// rejected (<c>VALIDATION_FAILED</c>) rather than double-refunding.</summary>
     [HttpPost("invoices/{invoiceId:guid}/refund")]
     [Authorize(Policy = IamPermissionKeys.BillingRefund)]
     [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
     public async Task<IActionResult> RefundInvoice(Guid invoiceId, CancellationToken ct) =>
-        ResultResponse(await subscriptions.RefundInvoiceAsync(invoiceId, ct));
+        ResultResponse(await subscriptions.RefundInvoiceAsync(invoiceId, Caller(), ct));
 
     /// <summary>Every LIVE comp/entitlement grant (S-ADMIN-4b) for a channel, newest first.</summary>
     [HttpGet("channels/{broadcasterId:guid}/grants")]

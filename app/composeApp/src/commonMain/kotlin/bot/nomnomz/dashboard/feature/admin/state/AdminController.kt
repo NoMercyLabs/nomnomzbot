@@ -31,6 +31,7 @@ import bot.nomnomz.dashboard.core.network.AdminTenant
 import bot.nomnomz.dashboard.core.network.AdminTenantDetail
 import bot.nomnomz.dashboard.core.network.AdminEntitlementGrant
 import bot.nomnomz.dashboard.core.network.AdminEntitlementGrantPreview
+import bot.nomnomz.dashboard.core.network.AdminInvoice
 import bot.nomnomz.dashboard.core.network.AdminIssueEntitlementGrantRequest
 import bot.nomnomz.dashboard.core.network.AdminTier
 import bot.nomnomz.dashboard.core.network.AdminTierChangePreview
@@ -138,6 +139,15 @@ data class AdminState(
     /** The counted blast radius for the tier currently staged to comp [grantBroadcasterId] to; null while
      * loading, and cleared whenever the staged tier changes so a stale count can never be confirmed against. */
     val entitlementGrantPreview: AdminEntitlementGrantPreview? = null,
+    // ── Invoices, dunning and refunds (S-ADMIN-4c) ──
+    /** The broadcaster the invoices panel is currently looking at, or null before the operator picks one. */
+    val invoiceBroadcasterId: String? = null,
+    /** Every invoice for [invoiceBroadcasterId], newest first, with its live dunning state. */
+    val invoices: List<AdminInvoice> = emptyList(),
+    /** The invoice a refund confirmation is currently open for, or null when no confirm dialog is showing —
+     * the amount and currency shown in that dialog come straight off this row (already the counted blast
+     * radius: a refund touches exactly this one invoice's paid amount, never more). */
+    val refundPendingInvoiceId: String? = null,
     /** Which of the tabs fed by [AdminController.load] are currently (re)fetching — per-tab, not whole-screen, so
      * a slow call on one tab never blocks the others or the tab bar. Empty once the initial load settles. */
     val loadingSections: Set<AdminSection> = emptySet(),
@@ -567,6 +577,46 @@ class AdminController(
 
     suspend fun grantFounderBadge(broadcasterId: String) =
         writeThenReload { api.grantFounderBadge(broadcasterId) }
+
+    // ── Invoices, dunning and refunds (S-ADMIN-4c) ─────────────────────────────
+
+    /** Selects the tenant the invoices panel looks at and loads its invoices. */
+    suspend fun selectInvoiceBroadcaster(broadcasterId: String) {
+        _state.value = _state.value.copy(
+            invoiceBroadcasterId = broadcasterId,
+            invoices = emptyList(),
+            refundPendingInvoiceId = null,
+            actionError = null,
+        )
+        when (val result = api.getInvoices(broadcasterId)) {
+            is ApiResult.Ok -> _state.value = _state.value.copy(invoices = result.value)
+            is ApiResult.Failure -> _state.value = _state.value.copy(actionError = result.error.message)
+        }
+    }
+
+    /** Opens the refund confirmation for [invoiceId] — the dialog reads the amount/currency straight off the
+     * already-loaded row in [AdminState.invoices], so the operator sees exactly what will be refunded before
+     * confirming (consequences must be visible). */
+    fun stageRefund(invoiceId: String) {
+        _state.value = _state.value.copy(refundPendingInvoiceId = invoiceId)
+    }
+
+    /** Closes the refund confirmation without refunding anything. */
+    fun dismissRefund() {
+        _state.value = _state.value.copy(refundPendingInvoiceId = null)
+    }
+
+    /** Refunds [invoiceId] — the server rejects (`VALIDATION_FAILED`) anything but a `Paid` invoice, so an
+     * already-refunded row can never be double-refunded even if the dialog is somehow reopened on it. Reloads
+     * the invoice list either way so the new `refunded` status and amount are visible immediately. */
+    suspend fun confirmRefund(invoiceId: String) {
+        val broadcasterId: String = _state.value.invoiceBroadcasterId ?: return
+        _state.value = _state.value.copy(refundPendingInvoiceId = null, actionError = null)
+        when (val result = api.refundInvoice(invoiceId)) {
+            is ApiResult.Ok -> selectInvoiceBroadcaster(broadcasterId)
+            is ApiResult.Failure -> _state.value = _state.value.copy(actionError = result.error.message)
+        }
+    }
 
     // ── IAM ───────────────────────────────────────────────────────────────────
 
