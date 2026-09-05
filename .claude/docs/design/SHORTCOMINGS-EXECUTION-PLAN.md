@@ -153,19 +153,12 @@ them CLOSED (`6b342371`), **2c** widget kind on the spine CLOSED (`debe2e42`). R
 the widget publish actually reach a viewer, **2d** system pipelines, **2e** code scripts — each reusing
 the real tenant-side editor, never a second worse one.
 
-- [ ] **S-ADMIN-2c-c Widget-kind authoring in the Content tab.** The snapshot half is DONE
-      (`efeb03d2`, regenerated from a running API; `scripts/refresh-openapi.ps1` now makes that one
-      command). What remains: the Content tab is still command-only, with no Vue-source /
-      settings-schema / event-subscription authoring for the widget kind, and a failed tenant rebuild
-      sits unread in `PlatformContentPublishJobDto.RebuildFailedWidgetIds` instead of being surfaced.
-
-- [ ] ~~**S-ADMIN-2c-c Regenerate the contract snapshot.**~~ SUPERSEDED by the line above. `6c8e6dd0` added
-      `RebuildFailedWidgetIds` to `PlatformContentPublishJobDto`, so `server/openapi/v1.json` is
-      stale. Not breaking today — the guards are green because the Kotlin client does not consume
-      the field yet — but it must be regenerated FROM A RUNNING API, never hand-edited, and the
-      admin Content tab should surface a failed tenant rebuild rather than leaving it in the DTO
-      unread. Also owed from 2c: the Content tab is still command-only, with no Vue-source /
-      settings-schema / event-subscription authoring for the widget kind.
+**S-ADMIN-2c-c CLOSED (`b2111281`).** The Content tab now authors the widget kind — editable Vue
+source, settings schema and event subscriptions — and a publish job with failed tenant rebuilds
+renders a visible failure line naming the count instead of leaving `RebuildFailedWidgetIds` unread.
+No backend change was needed: `payloadJson` already carries source/settings/subscriptions end to end
+and `WidgetContentPayload.TryParse` validates it server-side at publish. Verified independently, and
+the failure-surface test asserts the rendered count string, so it fails if the field is dropped.
 
 2a shipped the entities, BOTH migration sets (proven on a POPULATED database via `migration-check.ps1`,
 not an empty one), the publish engine and `PlatformContentController`'s 9 routes. Two guards it added
