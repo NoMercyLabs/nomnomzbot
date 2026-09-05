@@ -28,6 +28,7 @@ import bot.nomnomz.dashboard.core.network.AssignRoleBody
 import bot.nomnomz.dashboard.core.network.BeginTenantAccessBody
 import bot.nomnomz.dashboard.core.network.CreatePrincipalBody
 import bot.nomnomz.dashboard.core.network.FeatureFlag
+import bot.nomnomz.dashboard.core.network.FeatureFlagBlastRadiusDto
 import bot.nomnomz.dashboard.core.network.IamAuditEntry
 import bot.nomnomz.dashboard.core.network.IamPrincipal
 import bot.nomnomz.dashboard.core.network.IamPrincipalSummary
@@ -115,6 +116,9 @@ private class LoadingFakeAdminApi(private val usersGate: CompletableDeferred<Uni
 
     override suspend fun deleteFeatureFlagOverride(flagKey: String, broadcasterId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
 
+    override suspend fun previewFeatureFlagBlastRadius(flagKey: String): ApiResult<FeatureFlagBlastRadiusDto> =
+        ApiResult.Ok(FeatureFlagBlastRadiusDto())
+
     override suspend fun getInviteCodes(page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<InviteCode>> =
         ApiResult.Ok(PaginatedEnvelope(emptyList()))
 
@@ -143,6 +147,25 @@ private class LoadingFakeAdminApi(private val usersGate: CompletableDeferred<Uni
         provider: String
     ): ApiResult<bot.nomnomz.dashboard.core.network.ProviderCredential> =
         ApiResult.Ok(bot.nomnomz.dashboard.core.network.ProviderCredential(provider = provider))
+
+    override suspend fun getTiers(): ApiResult<List<bot.nomnomz.dashboard.core.network.AdminTier>> =
+        ApiResult.Ok(emptyList())
+
+    override suspend fun previewTierChange(
+        tierId: String
+    ): ApiResult<bot.nomnomz.dashboard.core.network.AdminTierChangePreview> =
+        ApiResult.Failure(ApiError(status = 501, code = "NOT_IMPLEMENTED", message = "unused"))
+
+    override suspend fun createTier(
+        body: bot.nomnomz.dashboard.core.network.AdminCreateTierRequest
+    ): ApiResult<bot.nomnomz.dashboard.core.network.AdminTier> =
+        ApiResult.Failure(ApiError(status = 501, code = "NOT_IMPLEMENTED", message = "unused"))
+
+    override suspend fun updateTier(
+        tierId: String,
+        body: bot.nomnomz.dashboard.core.network.AdminUpdateTierRequest,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.AdminTier> =
+        ApiResult.Failure(ApiError(status = 501, code = "NOT_IMPLEMENTED", message = "unused"))
 }
 
 private class LoadingFakePlatformIamApi : PlatformIamApi {

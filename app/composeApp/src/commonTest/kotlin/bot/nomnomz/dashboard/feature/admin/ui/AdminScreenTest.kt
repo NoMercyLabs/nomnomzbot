@@ -37,6 +37,7 @@ import bot.nomnomz.dashboard.core.network.AssignRoleBody
 import bot.nomnomz.dashboard.core.network.BeginTenantAccessBody
 import bot.nomnomz.dashboard.core.network.CreatePrincipalBody
 import bot.nomnomz.dashboard.core.network.FeatureFlag
+import bot.nomnomz.dashboard.core.network.FeatureFlagBlastRadiusDto
 import bot.nomnomz.dashboard.core.network.IamAuditEntry
 import bot.nomnomz.dashboard.core.network.IamPrincipal
 import bot.nomnomz.dashboard.core.network.IamPrincipalSummary
@@ -577,6 +578,8 @@ private class RecordingFeatureFlagAdminApi(
     override suspend fun setFeatureFlagOverride(flagKey: String, broadcasterId: String, body: AdminSetFeatureFlagOverrideRequest): ApiResult<Unit> =
         ApiResult.Ok(Unit)
     override suspend fun deleteFeatureFlagOverride(flagKey: String, broadcasterId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun previewFeatureFlagBlastRadius(flagKey: String): ApiResult<FeatureFlagBlastRadiusDto> =
+        ApiResult.Ok(FeatureFlagBlastRadiusDto())
     override suspend fun getInviteCodes(page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<InviteCode>> =
         ApiResult.Ok(PaginatedEnvelope(emptyList()))
     override suspend fun createInviteCode(body: AdminCreateInviteCodeRequest): ApiResult<InviteCode> =
@@ -584,6 +587,13 @@ private class RecordingFeatureFlagAdminApi(
     override suspend fun revokeInviteCode(inviteCodeId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
     override suspend fun grantTier(broadcasterId: String, body: AdminGrantTierRequest): ApiResult<Unit> = ApiResult.Ok(Unit)
     override suspend fun grantFounderBadge(broadcasterId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun getTiers(): ApiResult<List<bot.nomnomz.dashboard.core.network.AdminTier>> = ApiResult.Ok(emptyList())
+    override suspend fun previewTierChange(tierId: String): ApiResult<bot.nomnomz.dashboard.core.network.AdminTierChangePreview> =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    override suspend fun createTier(body: bot.nomnomz.dashboard.core.network.AdminCreateTierRequest): ApiResult<bot.nomnomz.dashboard.core.network.AdminTier> =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    override suspend fun updateTier(tierId: String, body: bot.nomnomz.dashboard.core.network.AdminUpdateTierRequest): ApiResult<bot.nomnomz.dashboard.core.network.AdminTier> =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
     override suspend fun impersonate(subjectUserId: String, accessGrantId: String, justification: String): ApiResult<ImpersonationTokenDto> =
         ApiResult.Failure(ApiError(500, null, "not stubbed"))
     override suspend fun endImpersonation(accessGrantId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
@@ -601,6 +611,25 @@ private class RecordingFeatureFlagAdminApi(
         provider: String
     ): ApiResult<bot.nomnomz.dashboard.core.network.ProviderCredential> =
         ApiResult.Ok(bot.nomnomz.dashboard.core.network.ProviderCredential(provider = provider))
+
+    override suspend fun getTiers(): ApiResult<List<bot.nomnomz.dashboard.core.network.AdminTier>> =
+        ApiResult.Ok(emptyList())
+
+    override suspend fun previewTierChange(
+        tierId: String
+    ): ApiResult<bot.nomnomz.dashboard.core.network.AdminTierChangePreview> =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+
+    override suspend fun createTier(
+        body: bot.nomnomz.dashboard.core.network.AdminCreateTierRequest
+    ): ApiResult<bot.nomnomz.dashboard.core.network.AdminTier> =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+
+    override suspend fun updateTier(
+        tierId: String,
+        body: bot.nomnomz.dashboard.core.network.AdminUpdateTierRequest,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.AdminTier> =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
 }
 
 /** Records every search value AdminController forwards to [getChannels]/[getUsers] — S-OWN08b. */
@@ -654,6 +683,8 @@ private class RecordingListSearchAdminApi(private val hasMore: Boolean = false) 
     override suspend fun setFeatureFlagOverride(flagKey: String, broadcasterId: String, body: AdminSetFeatureFlagOverrideRequest): ApiResult<Unit> =
         ApiResult.Ok(Unit)
     override suspend fun deleteFeatureFlagOverride(flagKey: String, broadcasterId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun previewFeatureFlagBlastRadius(flagKey: String): ApiResult<FeatureFlagBlastRadiusDto> =
+        ApiResult.Ok(FeatureFlagBlastRadiusDto())
     override suspend fun getInviteCodes(page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<InviteCode>> =
         ApiResult.Ok(PaginatedEnvelope(emptyList()))
     override suspend fun createInviteCode(body: AdminCreateInviteCodeRequest): ApiResult<InviteCode> =
@@ -661,6 +692,13 @@ private class RecordingListSearchAdminApi(private val hasMore: Boolean = false) 
     override suspend fun revokeInviteCode(inviteCodeId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
     override suspend fun grantTier(broadcasterId: String, body: AdminGrantTierRequest): ApiResult<Unit> = ApiResult.Ok(Unit)
     override suspend fun grantFounderBadge(broadcasterId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
+    override suspend fun getTiers(): ApiResult<List<bot.nomnomz.dashboard.core.network.AdminTier>> = ApiResult.Ok(emptyList())
+    override suspend fun previewTierChange(tierId: String): ApiResult<bot.nomnomz.dashboard.core.network.AdminTierChangePreview> =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    override suspend fun createTier(body: bot.nomnomz.dashboard.core.network.AdminCreateTierRequest): ApiResult<bot.nomnomz.dashboard.core.network.AdminTier> =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    override suspend fun updateTier(tierId: String, body: bot.nomnomz.dashboard.core.network.AdminUpdateTierRequest): ApiResult<bot.nomnomz.dashboard.core.network.AdminTier> =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
     override suspend fun impersonate(subjectUserId: String, accessGrantId: String, justification: String): ApiResult<ImpersonationTokenDto> =
         ApiResult.Failure(ApiError(500, null, "not stubbed"))
     override suspend fun endImpersonation(accessGrantId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
@@ -678,6 +716,25 @@ private class RecordingListSearchAdminApi(private val hasMore: Boolean = false) 
         provider: String
     ): ApiResult<bot.nomnomz.dashboard.core.network.ProviderCredential> =
         ApiResult.Ok(bot.nomnomz.dashboard.core.network.ProviderCredential(provider = provider))
+
+    override suspend fun getTiers(): ApiResult<List<bot.nomnomz.dashboard.core.network.AdminTier>> =
+        ApiResult.Ok(emptyList())
+
+    override suspend fun previewTierChange(
+        tierId: String
+    ): ApiResult<bot.nomnomz.dashboard.core.network.AdminTierChangePreview> =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+
+    override suspend fun createTier(
+        body: bot.nomnomz.dashboard.core.network.AdminCreateTierRequest
+    ): ApiResult<bot.nomnomz.dashboard.core.network.AdminTier> =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+
+    override suspend fun updateTier(
+        tierId: String,
+        body: bot.nomnomz.dashboard.core.network.AdminUpdateTierRequest,
+    ): ApiResult<bot.nomnomz.dashboard.core.network.AdminTier> =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
 }
 
 private class NoopPlatformIamApi : PlatformIamApi {

@@ -13,12 +13,16 @@ package bot.nomnomz.dashboard.feature.admin.state
 import bot.nomnomz.dashboard.core.network.AdminApi
 import bot.nomnomz.dashboard.core.network.AdminChannel
 import bot.nomnomz.dashboard.core.network.AdminCreateInviteCodeRequest
+import bot.nomnomz.dashboard.core.network.AdminCreateTierRequest
 import bot.nomnomz.dashboard.core.network.AdminGrantTierRequest
 import bot.nomnomz.dashboard.core.network.AdminServiceHealth
 import bot.nomnomz.dashboard.core.network.AdminSetFeatureFlagOverrideRequest
 import bot.nomnomz.dashboard.core.network.AdminSetFeatureFlagRequest
 import bot.nomnomz.dashboard.core.network.AdminStats
 import bot.nomnomz.dashboard.core.network.AdminSystem
+import bot.nomnomz.dashboard.core.network.AdminTier
+import bot.nomnomz.dashboard.core.network.AdminTierChangePreview
+import bot.nomnomz.dashboard.core.network.AdminUpdateTierRequest
 import bot.nomnomz.dashboard.core.network.AdminUser
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
@@ -27,6 +31,7 @@ import bot.nomnomz.dashboard.core.network.CreateContentDefinitionBody
 import bot.nomnomz.dashboard.core.network.CreatePrincipalBody
 import bot.nomnomz.dashboard.core.network.DraftContentVersionBody
 import bot.nomnomz.dashboard.core.network.FeatureFlag
+import bot.nomnomz.dashboard.core.network.FeatureFlagBlastRadiusDto
 import bot.nomnomz.dashboard.core.network.IamPrincipal
 import bot.nomnomz.dashboard.core.network.IamPrincipalSummary
 import bot.nomnomz.dashboard.core.network.IamRole
@@ -245,6 +250,8 @@ private class StubAdminApi : AdminApi {
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
     override suspend fun deleteFeatureFlagOverride(flagKey: String, broadcasterId: String): ApiResult<Unit> =
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    override suspend fun previewFeatureFlagBlastRadius(flagKey: String): ApiResult<FeatureFlagBlastRadiusDto> =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
     override suspend fun getInviteCodes(page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<InviteCode>> =
         ApiResult.Ok(PaginatedEnvelope(emptyList()))
     override suspend fun createInviteCode(body: AdminCreateInviteCodeRequest): ApiResult<InviteCode> =
@@ -262,6 +269,13 @@ private class StubAdminApi : AdminApi {
     override suspend fun saveProviderCredential(provider: String, body: SaveProviderCredentialBody): ApiResult<ProviderCredential> =
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
     override suspend fun clearProviderCredential(provider: String): ApiResult<ProviderCredential> =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    override suspend fun getTiers(): ApiResult<List<AdminTier>> = ApiResult.Ok(emptyList())
+    override suspend fun previewTierChange(tierId: String): ApiResult<AdminTierChangePreview> =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    override suspend fun createTier(body: AdminCreateTierRequest): ApiResult<AdminTier> =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    override suspend fun updateTier(tierId: String, body: AdminUpdateTierRequest): ApiResult<AdminTier> =
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
 }
 

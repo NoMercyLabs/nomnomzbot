@@ -24,10 +24,14 @@ import bot.nomnomz.dashboard.core.network.AdminSetFeatureFlagOverrideRequest
 import bot.nomnomz.dashboard.core.network.AdminSetFeatureFlagRequest
 import bot.nomnomz.dashboard.core.network.ProviderCredential
 import bot.nomnomz.dashboard.core.network.SaveProviderCredentialBody
+import bot.nomnomz.dashboard.core.network.AdminCreateTierRequest
 import bot.nomnomz.dashboard.core.network.AdminStats
 import bot.nomnomz.dashboard.core.network.AdminSystem
 import bot.nomnomz.dashboard.core.network.AdminTenant
 import bot.nomnomz.dashboard.core.network.AdminTenantDetail
+import bot.nomnomz.dashboard.core.network.AdminTier
+import bot.nomnomz.dashboard.core.network.AdminTierChangePreview
+import bot.nomnomz.dashboard.core.network.AdminUpdateTierRequest
 import bot.nomnomz.dashboard.core.network.AdminUser
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
@@ -37,6 +41,7 @@ import bot.nomnomz.dashboard.core.network.BeginTenantAccessBody
 import bot.nomnomz.dashboard.core.network.CreatePrincipalBody
 import bot.nomnomz.dashboard.core.network.CurrentUser
 import bot.nomnomz.dashboard.core.network.FeatureFlag
+import bot.nomnomz.dashboard.core.network.FeatureFlagBlastRadiusDto
 import bot.nomnomz.dashboard.core.network.IamAuditEntry
 import bot.nomnomz.dashboard.core.network.IamPrincipal
 import bot.nomnomz.dashboard.core.network.IamPrincipalSummary
@@ -109,7 +114,19 @@ data class AdminState(
     val health: List<AdminServiceHealth> = emptyList(),
     val events: List<PlatformEvent> = emptyList(),
     val featureFlags: List<FeatureFlag> = emptyList(),
+    /** The flag key a global-toggle kill-switch confirmation is currently open for, or null when no confirm
+     * dialog is showing. Set as soon as the operator flips a flag from on to off, cleared on confirm/dismiss. */
+    val flagKillSwitchKey: String? = null,
+    /** The counted blast radius for [flagKillSwitchKey], once its preview call returns; null while loading. */
+    val flagKillSwitchPreview: FeatureFlagBlastRadiusDto? = null,
     val inviteCodes: List<InviteCode> = emptyList(),
+    // ── Tier authoring (S-ADMIN-4a) ──
+    val tiers: List<AdminTier> = emptyList(),
+    /** The id of the tier currently open in the edit dialog, or null when it is closed. Set the moment the
+     * operator opens a tier for editing — its counted blast-radius preview is fetched immediately after. */
+    val tierEditId: String? = null,
+    /** The counted blast radius for [tierEditId], once its preview call returns; null while loading. */
+    val tierEditPreview: AdminTierChangePreview? = null,
     /** Which of the tabs fed by [AdminController.load] are currently (re)fetching — per-tab, not whole-screen, so
      * a slow call on one tab never blocks the others or the tab bar. Empty once the initial load settles. */
     val loadingSections: Set<AdminSection> = emptySet(),
@@ -249,6 +266,7 @@ class AdminController(
         val eventsResult = api.getEvents()
         val flagsResult = api.getFeatureFlags()
         val invitesResult = api.getInviteCodes()
+        val tiersResult = api.getTiers()
 
         _state.value = _state.value.copy(
             stats = (statsResult as? ApiResult.Ok)?.value ?: _state.value.stats,
@@ -259,6 +277,7 @@ class AdminController(
             events = (eventsResult as? ApiResult.Ok)?.value ?: emptyList(),
             featureFlags = (flagsResult as? ApiResult.Ok)?.value ?: emptyList(),
             inviteCodes = (invitesResult as? ApiResult.Ok)?.value?.data ?: emptyList(),
+            tiers = (tiersResult as? ApiResult.Ok)?.value ?: emptyList(),
             loadingSections = emptySet(),
             error = listOf(statsResult, channelsResult, usersResult, systemResult)
                 .filterIsInstance<ApiResult.Failure>()
@@ -410,11 +429,80 @@ class AdminController(
     suspend fun deleteFeatureFlagOverride(flagKey: String, broadcasterId: String) =
         writeThenReload { api.deleteFeatureFlagOverride(flagKey, broadcasterId) }
 
+    /**
+     * Opens the kill-switch confirm dialog for [flagKey] and fetches its counted blast radius (consequences
+     * must be visible before a destructive global-toggle flip commits). Called the moment the operator flips
+     * a flag's global switch OFF — [confirmFeatureFlagKillSwitch] / [dismissFeatureFlagKillSwitchPreview]
+     * resolve the dialog afterwards.
+     */
+    suspend fun previewFeatureFlagKillSwitch(flagKey: String) {
+        _state.value = _state.value.copy(
+            flagKillSwitchKey = flagKey,
+            flagKillSwitchPreview = null,
+            actionError = null,
+        )
+        when (val result = api.previewFeatureFlagBlastRadius(flagKey)) {
+            is ApiResult.Ok -> _state.value = _state.value.copy(flagKillSwitchPreview = result.value)
+            is ApiResult.Failure -> _state.value = _state.value.copy(
+                flagKillSwitchKey = null,
+                actionError = result.error.message,
+            )
+        }
+    }
+
+    /** Closes the kill-switch confirm dialog without committing anything. */
+    fun dismissFeatureFlagKillSwitchPreview() {
+        _state.value = _state.value.copy(flagKillSwitchKey = null, flagKillSwitchPreview = null)
+    }
+
+    /** Commits the kill switch the confirm dialog previewed, then closes it. */
+    suspend fun confirmFeatureFlagKillSwitch(body: AdminSetFeatureFlagRequest) {
+        dismissFeatureFlagKillSwitchPreview()
+        setFeatureFlag(body)
+    }
+
     suspend fun createInviteCode(body: AdminCreateInviteCodeRequest) =
         writeThenReload { api.createInviteCode(body) }
 
     suspend fun revokeInviteCode(inviteCodeId: String) =
         writeThenReload { api.revokeInviteCode(inviteCodeId) }
+
+    /**
+     * Opens the tier edit dialog for [tierId] and fetches its counted blast radius — the real number of
+     * tenants on the tier right now — so the owner sees it BEFORE the edit can be saved (consequences must
+     * be visible). [confirmTierEdit] echoes the previewed count back on save.
+     */
+    suspend fun previewTierEdit(tierId: String) {
+        _state.value = _state.value.copy(
+            tierEditId = tierId,
+            tierEditPreview = null,
+            actionError = null,
+        )
+        when (val result = api.previewTierChange(tierId)) {
+            is ApiResult.Ok -> _state.value = _state.value.copy(tierEditPreview = result.value)
+            is ApiResult.Failure -> _state.value = _state.value.copy(
+                tierEditId = null,
+                actionError = result.error.message,
+            )
+        }
+    }
+
+    /** Closes the tier edit dialog without committing anything. */
+    fun dismissTierEditPreview() {
+        _state.value = _state.value.copy(tierEditId = null, tierEditPreview = null)
+    }
+
+    /** Commits the edit the dialog previewed — [body.confirmedAffectedTenantCount] must match
+     * [AdminState.tierEditPreview]'s count or the server rejects it (`PREVIEW_STALE`) rather than
+     * applying against a blast radius the owner never actually saw. Closes the dialog either way. */
+    suspend fun confirmTierEdit(tierId: String, body: AdminUpdateTierRequest) {
+        dismissTierEditPreview()
+        writeThenReload { api.updateTier(tierId, body) }
+    }
+
+    /** Authors a brand-new tier. Zero blast radius by construction — no preview/confirm step. */
+    suspend fun createTier(body: AdminCreateTierRequest) =
+        writeThenReload { api.createTier(body) }
 
     suspend fun grantTier(broadcasterId: String, body: AdminGrantTierRequest) =
         writeThenReload { api.grantTier(broadcasterId, body) }

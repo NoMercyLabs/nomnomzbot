@@ -45,6 +45,7 @@ import bot.nomnomz.dashboard.core.designsystem.icon.TrashGlyph
 import bot.nomnomz.dashboard.core.designsystem.resolveRowLabel
 import bot.nomnomz.dashboard.core.network.AdminSetFeatureFlagOverrideRequest
 import bot.nomnomz.dashboard.core.network.AdminSetFeatureFlagRequest
+import bot.nomnomz.dashboard.core.network.FeatureFlagBlastRadiusDto
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -110,6 +111,12 @@ import nomnomzbot.composeapp.generated.resources.admin_event_log
 import nomnomzbot.composeapp.generated.resources.admin_flag_disabled
 import nomnomzbot.composeapp.generated.resources.admin_flag_enabled
 import nomnomzbot.composeapp.generated.resources.admin_flag_enabled_rollout
+import nomnomzbot.composeapp.generated.resources.admin_flag_kill_switch_cancel
+import nomnomzbot.composeapp.generated.resources.admin_flag_kill_switch_confirm
+import nomnomzbot.composeapp.generated.resources.admin_flag_kill_switch_message_counted
+import nomnomzbot.composeapp.generated.resources.admin_flag_kill_switch_message_loading
+import nomnomzbot.composeapp.generated.resources.admin_flag_kill_switch_message_none
+import nomnomzbot.composeapp.generated.resources.admin_flag_kill_switch_title
 import nomnomzbot.composeapp.generated.resources.admin_flag_override_broadcaster_id
 import nomnomzbot.composeapp.generated.resources.admin_flag_override_clear
 import nomnomzbot.composeapp.generated.resources.admin_flag_override_disable
@@ -1313,25 +1320,71 @@ internal fun FeatureFlagsTab(state: AdminState, controller: AdminController) {
                                 Switch(
                                     checked = flag.isEnabledGlobally,
                                     onCheckedChange = { checked ->
-                                        pendingFlagKey = flag.key
-                                        scope.launch {
-                                            controller.setFeatureFlag(
-                                                AdminSetFeatureFlagRequest(
-                                                    key = flag.key,
-                                                    description = flag.description,
-                                                    isEnabledGlobally = checked,
-                                                    rolloutPercentage = flag.rolloutPercentage,
-                                                    minTierKey = flag.minTierKey,
-                                                    requiresConsent = flag.requiresConsent,
-                                                    deploymentMode = flag.deploymentMode,
-                                                ),
-                                            )
-                                            pendingFlagKey = null
+                                        if (checked) {
+                                            // Turning a flag ON is never destructive — commit immediately.
+                                            pendingFlagKey = flag.key
+                                            scope.launch {
+                                                controller.setFeatureFlag(
+                                                    AdminSetFeatureFlagRequest(
+                                                        key = flag.key,
+                                                        description = flag.description,
+                                                        isEnabledGlobally = true,
+                                                        rolloutPercentage = flag.rolloutPercentage,
+                                                        minTierKey = flag.minTierKey,
+                                                        requiresConsent = flag.requiresConsent,
+                                                        deploymentMode = flag.deploymentMode,
+                                                    ),
+                                                )
+                                                pendingFlagKey = null
+                                            }
+                                        } else {
+                                            // Turning it OFF is the kill switch — every active, non-overridden
+                                            // channel loses it. Show the counted blast radius before it commits
+                                            // (consequences-must-be-visible), rather than flipping it blind.
+                                            scope.launch { controller.previewFeatureFlagKillSwitch(flag.key) }
                                         }
                                     },
                                     enabled = !rowBusy,
                                 )
                             }
+                        }
+
+                        if (state.flagKillSwitchKey == flag.key) {
+                            val preview: FeatureFlagBlastRadiusDto? = state.flagKillSwitchPreview
+                            ConfirmDialog(
+                                title = stringResource(Res.string.admin_flag_kill_switch_title, flag.key),
+                                message = when {
+                                    preview == null -> stringResource(Res.string.admin_flag_kill_switch_message_loading)
+                                    preview.tenantsAffected <= 0 -> stringResource(Res.string.admin_flag_kill_switch_message_none)
+                                    else -> stringResource(
+                                        Res.string.admin_flag_kill_switch_message_counted,
+                                        preview.tenantsAffected,
+                                        preview.sampleChannelNames.joinToString(", "),
+                                    )
+                                },
+                                confirmLabel = stringResource(Res.string.admin_flag_kill_switch_confirm),
+                                dismissLabel = stringResource(Res.string.admin_flag_kill_switch_cancel),
+                                destructive = true,
+                                confirmEnabled = preview != null,
+                                onConfirm = {
+                                    pendingFlagKey = flag.key
+                                    scope.launch {
+                                        controller.confirmFeatureFlagKillSwitch(
+                                            AdminSetFeatureFlagRequest(
+                                                key = flag.key,
+                                                description = flag.description,
+                                                isEnabledGlobally = false,
+                                                rolloutPercentage = flag.rolloutPercentage,
+                                                minTierKey = flag.minTierKey,
+                                                requiresConsent = flag.requiresConsent,
+                                                deploymentMode = flag.deploymentMode,
+                                            ),
+                                        )
+                                        pendingFlagKey = null
+                                    }
+                                },
+                                onDismiss = { controller.dismissFeatureFlagKillSwitchPreview() },
+                            )
                         }
 
                         FeatureFlagOverrideRow(
@@ -1459,6 +1512,10 @@ internal fun BillingTab(state: AdminState, controller: AdminController) {
             .padding(spacing.s4),
         verticalArrangement = Arrangement.spacedBy(spacing.s3),
     ) {
+        TierListSection(state = state, controller = controller)
+
+        Separator()
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,

@@ -96,6 +96,7 @@ internal sealed class BillingTierChangeTestDbContext : DbContext, IApplicationDb
     public DbSet<EventResponse> EventResponses => Set<EventResponse>();
     public DbSet<Domain.Assets.Entities.ChannelAsset> ChannelAssets =>
         Set<Domain.Assets.Entities.ChannelAsset>();
+    public DbSet<IamAuditLog> IamAuditLogs => Set<IamAuditLog>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -113,6 +114,7 @@ internal sealed class BillingTierChangeTestDbContext : DbContext, IApplicationDb
         });
         b.Entity<Domain.Assets.Entities.ChannelAsset>(e => e.HasKey(a => a.Id));
         b.Entity<NomNomzBot.Domain.Billing.Entities.TenantLimitOverride>(e => e.HasKey(o => o.Id));
+        b.Entity<IamAuditLog>(e => e.HasKey(a => a.Id));
 
         foreach (Type entity in UnmappedEntities)
             b.Ignore(entity);
@@ -132,6 +134,7 @@ internal sealed class BillingTierChangeTestDbContext : DbContext, IApplicationDb
         typeof(EventResponse),
         typeof(Domain.Assets.Entities.ChannelAsset),
         typeof(NomNomzBot.Domain.Billing.Entities.TenantLimitOverride),
+        typeof(IamAuditLog),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -308,7 +311,6 @@ internal sealed class BillingTierChangeTestDbContext : DbContext, IApplicationDb
     public DbSet<IamPrincipal> IamPrincipals => throw new NotSupportedException();
     public DbSet<IamRoleAssignment> IamRoleAssignments => throw new NotSupportedException();
     public DbSet<SecurityNotice> SecurityNotices => throw new NotSupportedException();
-    public DbSet<IamAuditLog> IamAuditLogs => throw new NotSupportedException();
     public DbSet<CurrencyConfig> CurrencyConfigs => throw new NotSupportedException();
     public DbSet<EarningRule> EarningRules => throw new NotSupportedException();
     public DbSet<CurrencyAccount> CurrencyAccounts => throw new NotSupportedException();

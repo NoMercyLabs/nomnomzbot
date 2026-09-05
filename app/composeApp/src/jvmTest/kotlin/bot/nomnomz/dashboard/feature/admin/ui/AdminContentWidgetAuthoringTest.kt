@@ -294,6 +294,8 @@ private class NoopAdminApiForWidgetTest : AdminApi {
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
     override suspend fun deleteFeatureFlagOverride(flagKey: String, broadcasterId: String) =
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    override suspend fun previewFeatureFlagBlastRadius(flagKey: String) =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
     override suspend fun getInviteCodes(page: Int, pageSize: Int) = ApiResult.Ok(PaginatedEnvelope<InviteCode>(emptyList()))
     override suspend fun createInviteCode(body: AdminCreateInviteCodeRequest) =
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
@@ -301,6 +303,10 @@ private class NoopAdminApiForWidgetTest : AdminApi {
     override suspend fun grantTier(broadcasterId: String, body: AdminGrantTierRequest) =
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
     override suspend fun grantFounderBadge(broadcasterId: String) = ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    override suspend fun getTiers() = ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    override suspend fun previewTierChange(tierId: String) = ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    override suspend fun createTier(body: bot.nomnomz.dashboard.core.network.AdminCreateTierRequest) = ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    override suspend fun updateTier(tierId: String, body: bot.nomnomz.dashboard.core.network.AdminUpdateTierRequest) = ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
     override suspend fun impersonate(subjectUserId: String, accessGrantId: String, justification: String) =
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
     override suspend fun endImpersonation(accessGrantId: String) = ApiResult.Ok(Unit)
@@ -308,6 +314,13 @@ private class NoopAdminApiForWidgetTest : AdminApi {
     override suspend fun saveProviderCredential(provider: String, body: SaveProviderCredentialBody) =
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
     override suspend fun clearProviderCredential(provider: String) =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    override suspend fun getTiers() = ApiResult.Ok(emptyList<bot.nomnomz.dashboard.core.network.AdminTier>())
+    override suspend fun previewTierChange(tierId: String) =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    override suspend fun createTier(body: bot.nomnomz.dashboard.core.network.AdminCreateTierRequest) =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    override suspend fun updateTier(tierId: String, body: bot.nomnomz.dashboard.core.network.AdminUpdateTierRequest) =
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
 }
 

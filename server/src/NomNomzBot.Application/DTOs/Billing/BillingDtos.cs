@@ -43,7 +43,8 @@ public sealed record TierDto(
     bool AllowsCustomBotName,
     bool PrioritySupport,
     int SortOrder,
-    IReadOnlyList<TierLimitDto> Limits
+    IReadOnlyList<TierLimitDto> Limits,
+    bool IsPublic = true
 );
 
 /// <summary>A tenant's effective entitlement — the single source feature-gating + quota checks read.</summary>
@@ -173,6 +174,51 @@ public sealed record CreateInviteCodeRequest(
     bool GrantsFoundersBadge,
     Guid? GrantsTierId,
     DateTimeOffset? ExpiresAt
+);
+
+// ── Tier authoring (admin — S-ADMIN-4a) ──
+
+/// <summary>
+/// The counted blast radius of editing a tier that already has tenants on it (platform-admin.md's
+/// counted-preview shape, mirrored from platform content publish). <see cref="AffectedTenantCount"/> is the
+/// real, live count of tenants with an active/trialing subscription on the tier RIGHT NOW — never estimated.
+/// A save must echo this count back as <c>ConfirmedAffectedTenantCount</c>; a save whose confirmed count no
+/// longer matches a freshly recomputed one fails closed (<c>PREVIEW_STALE</c>), the same rule platform-content
+/// publish already enforces.
+/// </summary>
+public sealed record TierChangePreviewDto(
+    int AffectedTenantCount,
+    IReadOnlyList<string> SampleChannelNames
+);
+
+/// <summary>Author a brand-new tier (admin). A new tier has zero tenants on it, so no blast-radius confirmation
+/// is required to create one — only editing an IN-USE tier carries that gate.</summary>
+public sealed record CreateTierRequest(
+    string Key,
+    string DisplayName,
+    int PriceCents,
+    string Currency,
+    bool AllowsCustomBotName,
+    bool PrioritySupport,
+    bool IsPublic,
+    int SortOrder,
+    IReadOnlyList<TierLimitDto> Limits
+);
+
+/// <summary>
+/// Edit an existing tier's price, features and limits. <see cref="ConfirmedAffectedTenantCount"/> must equal
+/// the count a fresh <c>GET .../preview</c> just returned — a stale count is rejected, never silently applied.
+/// </summary>
+public sealed record UpdateTierRequest(
+    string DisplayName,
+    int PriceCents,
+    string Currency,
+    bool AllowsCustomBotName,
+    bool PrioritySupport,
+    bool IsPublic,
+    int SortOrder,
+    IReadOnlyList<TierLimitDto> Limits,
+    int ConfirmedAffectedTenantCount
 );
 
 // ── Inbound integration (webhook → service; not an exposed request body) ──

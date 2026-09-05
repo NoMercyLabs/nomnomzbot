@@ -14,7 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
@@ -36,41 +36,29 @@ import bot.nomnomz.dashboard.core.network.AdminUser
 import bot.nomnomz.dashboard.core.network.ApiError
 import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.AssignRoleBody
-import bot.nomnomz.dashboard.core.network.CreateContentDefinitionBody
 import bot.nomnomz.dashboard.core.network.CreatePrincipalBody
-import bot.nomnomz.dashboard.core.network.DraftContentVersionBody
 import bot.nomnomz.dashboard.core.network.FeatureFlag
-import bot.nomnomz.dashboard.core.network.IamPrincipal
 import bot.nomnomz.dashboard.core.network.IamPrincipalSummary
 import bot.nomnomz.dashboard.core.network.IamRole
-import bot.nomnomz.dashboard.core.network.IamRoleAssignment
-import bot.nomnomz.dashboard.core.network.ImpersonationTokenDto
 import bot.nomnomz.dashboard.core.network.InviteCode
 import bot.nomnomz.dashboard.core.network.PaginatedEnvelope
 import bot.nomnomz.dashboard.core.network.PlatformAdminApi
-import bot.nomnomz.dashboard.core.network.PlatformContentApi
-import bot.nomnomz.dashboard.core.network.PlatformContentDefinition
-import bot.nomnomz.dashboard.core.network.PlatformContentDefinitionDetail
-import bot.nomnomz.dashboard.core.network.PlatformContentPublishJob
-import bot.nomnomz.dashboard.core.network.PlatformContentVersion
 import bot.nomnomz.dashboard.core.network.PlatformEvent
 import bot.nomnomz.dashboard.core.network.PlatformIamApi
 import bot.nomnomz.dashboard.core.network.ProviderCredential
-import bot.nomnomz.dashboard.core.network.PublishContentBody
-import bot.nomnomz.dashboard.core.network.PublishPreview
-import bot.nomnomz.dashboard.core.network.PublishPreviewBody
 import bot.nomnomz.dashboard.core.network.SaveProviderCredentialBody
 import bot.nomnomz.dashboard.feature.admin.state.AdminController
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
-import kotlin.test.assertTrue
 
-// S-ADMIN-2b: proves the publish-preview blast radius actually RENDERS the exact counted values the
-// preview endpoint returned — not merely that AdminController.previewContentPublish was called. Opening the
-// publish dialog fires the preview for the default mode; the numbers on screen must be the fake API's
-// configured 42/7, never a placeholder, a zero, or a guess.
+/**
+ * S-ADMIN-4a: the Billing tab must render the tier editor and show the COUNTED blast radius — the real
+ * number of tenants on a tier right now — BEFORE the owner can commit an edit, not merely hold it in
+ * controller state. Asserts against the rendered semantics tree, mirroring
+ * [AdminContentWidgetAuthoringTest]'s pattern for the platform-content publish-preview surface.
+ */
 @OptIn(ExperimentalTestApi::class)
-class AdminContentTabTest {
+class AdminBillingTierEditorRenderTest {
 
     @Composable
     private fun EnglishContent(content: @Composable () -> Unit) {
@@ -79,123 +67,68 @@ class AdminContentTabTest {
         }
     }
 
-    /** Re-collects [controller]'s state on every emission, mirroring how AdminScreen feeds each tab a live
-     * snapshot — ContentTab itself takes a plain [bot.nomnomz.dashboard.feature.admin.state.AdminState],
-     * so a test that needs to observe an async state change (the preview arriving) must do the same. */
     @Composable
-    private fun ObservingContentTab(controller: AdminController, currentUserId: String) {
+    private fun ObservingBillingTab(controller: AdminController) {
         val state by controller.state.collectAsState()
-        ContentTab(state = state, controller = controller, currentUserId = currentUserId)
+        BillingTab(state = state, controller = controller)
     }
 
     @Test
-    fun opening_the_publish_dialog_renders_the_exact_counted_blast_radius() {
-        val definitionId = "def-1"
-        val versionId = "ver-1"
-        val definition = PlatformContentDefinition(
-            id = definitionId,
-            kind = "command",
-            key = "sr",
-            displayName = "Song Request",
-            currentVersion = 1,
-            currentVersionId = versionId,
-            createdAt = "2026-09-01T00:00:00Z",
+    fun editing_a_tier_renders_the_editor_and_the_counted_blast_radius_before_saving() {
+        val tier = AdminTier(
+            id = "tier-pro",
+            key = "pro",
+            displayName = "Pro",
+            priceCents = 1499,
+            currency = "usd",
+            allowsCustomBotName = true,
+            prioritySupport = false,
+            sortOrder = 1,
+            limits = emptyList(),
+            isPublic = true,
         )
-        val version = PlatformContentVersion(
-            id = versionId,
-            definitionId = definitionId,
-            version = 1,
-            contentHash = "abc123",
-            payloadJson = "{}",
-            publishedAt = "2026-09-01T00:00:00Z",
-            draftedAt = "2026-09-01T00:00:00Z",
-            draftedByPrincipalId = "principal-1",
+        val api = FakeAdminApiForTierTest(
+            tiers = listOf(tier),
+            preview = AdminTierChangePreview(
+                affectedTenantCount = 3,
+                sampleChannelNames = listOf("chan-a", "chan-b", "chan-c"),
+            ),
         )
-        val api = FakeContentApiForUi(
-            definitions = listOf(definition),
-            definitionDetail = PlatformContentDefinitionDetail(definition = definition, versions = listOf(version)),
-            preview = PublishPreview(affectedCount = 42, skippedCount = 7, sampleTenantNames = listOf("acme")),
+        val controller = AdminController(
+            api = api,
+            iamApi = FakeIamApiForTierTest(),
+            platformAdminApi = FakePlatformAdminApiForTierTest(),
         )
-        val iamApi = FakeIamApiWithOnePrincipal()
-        val controller = AdminController(api = NoopAdminApi(), iamApi = iamApi, platformAdminApi = NoopPlatformAdminApiForContent(), contentApi = api)
 
-        runTest {
-            controller.loadIam()
-            controller.loadContentDefinitions()
-            controller.openContentDefinition(definitionId)
-        }
+        runTest { controller.load() }
 
         runComposeUiTest {
             setContent {
                 EnglishContent {
-                    ObservingContentTab(controller = controller, currentUserId = "user-1")
+                    ObservingBillingTab(controller = controller)
                 }
             }
-
-            onAllNodesWithText("Publish…")[0].performClick()
             waitForIdle()
 
-            assertTrue(
-                onAllNodesWithText("42 tenant(s) will be updated").fetchSemanticsNodes().isNotEmpty(),
-                "the dialog must render the endpoint's real affected count, not a placeholder",
-            )
+            // The tier row itself renders (not only the invite-code section this tab used to be limited to).
+            onNodeWithText("Pro").assertExists()
+
+            onNodeWithText("Edit").performClick()
+            waitForIdle()
+
+            // The edit dialog opened and fetched the REAL counted blast radius before any save is possible.
+            onNodeWithText(
+                "3 tenant(s) are on this tier right now and will see this change immediately, including: chan-a, chan-b, chan-c.",
+                substring = true,
+            ).assertExists()
         }
     }
 }
 
-private class FakeContentApiForUi(
-    private val definitions: List<PlatformContentDefinition>,
-    private val definitionDetail: PlatformContentDefinitionDetail,
-    private val preview: PublishPreview,
-) : PlatformContentApi {
-    override suspend fun listDefinitions(kind: String?, page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<PlatformContentDefinition>> =
-        ApiResult.Ok(PaginatedEnvelope(definitions))
-
-    override suspend fun getDefinition(definitionId: String): ApiResult<PlatformContentDefinitionDetail> =
-        ApiResult.Ok(definitionDetail)
-
-    override suspend fun createDefinition(body: CreateContentDefinitionBody): ApiResult<PlatformContentDefinition> =
-        ApiResult.Ok(definitions.first())
-
-    override suspend fun draftVersion(definitionId: String, body: DraftContentVersionBody) =
-        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
-
-    override suspend fun getVersion(definitionId: String, versionId: String) =
-        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
-
-    override suspend fun previewPublish(definitionId: String, versionId: String, body: PublishPreviewBody): ApiResult<PublishPreview> =
-        ApiResult.Ok(preview)
-
-    override suspend fun publish(definitionId: String, versionId: String, body: PublishContentBody) =
-        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
-
-    override suspend fun getPublishJob(publishJobId: String) =
-        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
-
-    override suspend fun retireDefinition(definitionId: String): ApiResult<Unit> = ApiResult.Ok(Unit)
-}
-
-/** Returns one active principal for `userId = "user-1"` with no entry in effectivePermissions — ContentTab
- * treats an unresolved lookup as not-yet-denied (see `ownContentKeys`), so every gate in this test renders
- * enabled without needing to fabricate a full permission set. */
-private class FakeIamApiWithOnePrincipal : PlatformIamApi {
-    override suspend fun listRoles(): ApiResult<List<IamRole>> = ApiResult.Ok(emptyList())
-    override suspend fun listPrincipals(): ApiResult<List<IamPrincipalSummary>> =
-        ApiResult.Ok(listOf(IamPrincipalSummary(id = "principal-1", userId = "user-1", name = "Operator")))
-    override suspend fun effectivePermissions(principalId: String, scopeChannelId: String?) = ApiResult.Ok(emptyList<String>())
-    override suspend fun createPrincipal(body: CreatePrincipalBody) =
-        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
-    override suspend fun deactivatePrincipal(principalId: String, reason: String?) =
-        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
-    override suspend fun reactivatePrincipal(principalId: String) =
-        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
-    override suspend fun assignRole(body: AssignRoleBody) =
-        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
-    override suspend fun revokeAssignment(assignmentId: String, reason: String?) =
-        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
-}
-
-private class NoopAdminApi : AdminApi {
+private class FakeAdminApiForTierTest(
+    private val tiers: List<AdminTier>,
+    private val preview: AdminTierChangePreview,
+) : AdminApi {
     override suspend fun getStats(): ApiResult<AdminStats> = ApiResult.Ok(AdminStats(0, 0, 0, "ok", 0, 0))
     override suspend fun getChannels(search: String?, page: Int, pageSize: Int, sort: String?, isLive: Boolean?) =
         ApiResult.Ok(PaginatedEnvelope<AdminChannel>(emptyList()))
@@ -228,16 +161,31 @@ private class NoopAdminApi : AdminApi {
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
     override suspend fun clearProviderCredential(provider: String) =
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
-    override suspend fun getTiers(): ApiResult<List<AdminTier>> = ApiResult.Ok(emptyList())
-    override suspend fun previewTierChange(tierId: String): ApiResult<AdminTierChangePreview> =
+    override suspend fun getTiers(): ApiResult<List<AdminTier>> = ApiResult.Ok(tiers)
+    override suspend fun previewTierChange(tierId: String): ApiResult<AdminTierChangePreview> = ApiResult.Ok(preview)
+    override suspend fun createTier(body: AdminCreateTierRequest) =
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
-    override suspend fun createTier(body: AdminCreateTierRequest): ApiResult<AdminTier> =
-        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
-    override suspend fun updateTier(tierId: String, body: AdminUpdateTierRequest): ApiResult<AdminTier> =
+    override suspend fun updateTier(tierId: String, body: AdminUpdateTierRequest) =
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
 }
 
-private class NoopPlatformAdminApiForContent : PlatformAdminApi {
+private class FakeIamApiForTierTest : PlatformIamApi {
+    override suspend fun listRoles(): ApiResult<List<IamRole>> = ApiResult.Ok(emptyList())
+    override suspend fun listPrincipals(): ApiResult<List<IamPrincipalSummary>> = ApiResult.Ok(emptyList())
+    override suspend fun effectivePermissions(principalId: String, scopeChannelId: String?) = ApiResult.Ok(emptyList<String>())
+    override suspend fun createPrincipal(body: CreatePrincipalBody) =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    override suspend fun deactivatePrincipal(principalId: String, reason: String?) =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    override suspend fun reactivatePrincipal(principalId: String) =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    override suspend fun assignRole(body: AssignRoleBody) =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    override suspend fun revokeAssignment(assignmentId: String, reason: String?) =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+}
+
+private class FakePlatformAdminApiForTierTest : PlatformAdminApi {
     override suspend fun listTenants(search: String?, status: String?, isLive: Boolean?, page: Int, pageSize: Int) =
         ApiResult.Ok(PaginatedEnvelope<bot.nomnomz.dashboard.core.network.AdminTenant>(emptyList()))
     override suspend fun getTenant(broadcasterId: String) =

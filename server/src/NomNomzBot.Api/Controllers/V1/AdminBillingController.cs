@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Api.RateLimiting;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.DTOs.Billing;
@@ -33,9 +34,58 @@ namespace NomNomzBot.Api.Controllers.V1;
 [Authorize]
 [Tags("Admin")]
 [EnableRateLimiting(RateLimitPolicyNames.Admin)]
-public class AdminBillingController(IInviteCodeService invites, ISubscriptionService subscriptions)
-    : BaseController
+public class AdminBillingController(
+    IInviteCodeService invites,
+    ISubscriptionService subscriptions,
+    IBillingTierAdminService tiers,
+    ICurrentUserService currentUser
+) : BaseController
 {
+    /// <summary>List every tier — public and internal — for the admin tier editor.</summary>
+    [HttpGet("tiers")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
+    [Authorize(Policy = IamPermissionKeys.BillingRead)]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<TierDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListTiers(CancellationToken ct) =>
+        ResultResponse(await tiers.ListAllTiersAsync(ct));
+
+    /// <summary>
+    /// The counted blast radius of editing this tier — the real number of tenants on it right now. Call this
+    /// before <see cref="UpdateTier"/> and echo its <c>AffectedTenantCount</c> back as
+    /// <c>ConfirmedAffectedTenantCount</c>.
+    /// </summary>
+    [HttpGet("tiers/{tierId:guid}/preview")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
+    [Authorize(Policy = IamPermissionKeys.BillingRead)]
+    [ProducesResponseType<StatusResponseDto<TierChangePreviewDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> PreviewTierChange(Guid tierId, CancellationToken ct) =>
+        ResultResponse(await tiers.PreviewTierChangeAsync(tierId, ct));
+
+    /// <summary>Author a brand-new tier. Zero blast radius by construction — no confirmation required.</summary>
+    [HttpPost("tiers")]
+    [Authorize(Policy = IamPermissionKeys.BillingWrite)]
+    [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
+    public async Task<IActionResult> CreateTier(
+        [FromBody] CreateTierRequest request,
+        CancellationToken ct
+    ) => ResultResponse(await tiers.CreateTierAsync(request, Caller(), ct));
+
+    /// <summary>
+    /// Edit an existing tier's price, feature flags and limits. Fails closed (<c>PREVIEW_STALE</c>, 409) if
+    /// <see cref="UpdateTierRequest.ConfirmedAffectedTenantCount"/> no longer matches a freshly recomputed
+    /// count of tenants on the tier.
+    /// </summary>
+    [HttpPut("tiers/{tierId:guid}")]
+    [Authorize(Policy = IamPermissionKeys.BillingWrite)]
+    [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
+    public async Task<IActionResult> UpdateTier(
+        Guid tierId,
+        [FromBody] UpdateTierRequest request,
+        CancellationToken ct
+    ) => ResultResponse(await tiers.UpdateTierAsync(tierId, request, Caller(), ct));
+
+    private Guid? Caller() => Guid.TryParse(currentUser.UserId, out Guid id) ? id : null;
+
     /// <summary>List all invite codes platform-wide, paginated.</summary>
     [HttpGet("invites")]
     [EnableRateLimiting(RateLimitPolicyNames.Read)]

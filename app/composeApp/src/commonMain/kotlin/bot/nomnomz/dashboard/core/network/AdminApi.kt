@@ -111,6 +111,17 @@ data class AdminSetFeatureFlagOverrideRequest(
     val expiresAt: String? = null,
 )
 
+/**
+ * The counted blast radius of flipping a flag's GLOBAL toggle (backend `FeatureFlagBlastRadiusDto`) — fetched
+ * BEFORE a kill-switch commits so the operator sees exactly how many active channels it reaches. A per-tenant
+ * override insulates that channel from the global toggle, so overridden channels are never counted here.
+ */
+@Serializable
+data class FeatureFlagBlastRadiusDto(
+    val tenantsAffected: Int = 0,
+    val sampleChannelNames: List<String> = emptyList(),
+)
+
 // ─── Admin Billing ───────────────────────────────────────────────────────────
 
 @Serializable
@@ -137,6 +148,71 @@ data class AdminCreateInviteCodeRequest(
 data class AdminGrantTierRequest(
     @SerialName("tierId") val tierId: String,
     val isInviteOnlyGrant: Boolean,
+)
+
+// ─── Tier authoring (S-ADMIN-4a) ─────────────────────────────────────────────
+
+/** One quota lever a tier carries (backend `TierLimitDto`). `-1` means unlimited. */
+@Serializable
+data class AdminTierLimit(
+    val limitKey: String,
+    val limitValue: Long,
+)
+
+/** A billing plan as seen by the admin tier editor — the backend `TierDto`, listing EVERY tier
+ * (public and internal), not only the public catalogue `IBillingTierService` exposes to pricing. */
+@Serializable
+data class AdminTier(
+    val id: String,
+    val key: String,
+    val displayName: String,
+    val priceCents: Int,
+    val currency: String,
+    val allowsCustomBotName: Boolean,
+    val prioritySupport: Boolean,
+    val sortOrder: Int,
+    val limits: List<AdminTierLimit> = emptyList(),
+    val isPublic: Boolean = true,
+)
+
+/**
+ * The counted blast radius of editing a tier (backend `TierChangePreviewDto`) — the real, live number of
+ * tenants on the tier right now. Fetched BEFORE an edit to an in-use tier commits; [affectedTenantCount]
+ * must be echoed back on [AdminUpdateTierRequest.confirmedAffectedTenantCount] or the save is rejected.
+ */
+@Serializable
+data class AdminTierChangePreview(
+    val affectedTenantCount: Int = 0,
+    val sampleChannelNames: List<String> = emptyList(),
+)
+
+/** Author a brand-new tier. Zero blast radius by construction — no confirmation required. */
+@Serializable
+data class AdminCreateTierRequest(
+    val key: String,
+    val displayName: String,
+    val priceCents: Int,
+    val currency: String,
+    val allowsCustomBotName: Boolean,
+    val prioritySupport: Boolean,
+    val isPublic: Boolean,
+    val sortOrder: Int,
+    val limits: List<AdminTierLimit>,
+)
+
+/** Edit an existing tier. [confirmedAffectedTenantCount] must equal the count a fresh
+ * [AdminApi.previewTierChange] just returned — the server rejects (`PREVIEW_STALE`) a stale count. */
+@Serializable
+data class AdminUpdateTierRequest(
+    val displayName: String,
+    val priceCents: Int,
+    val currency: String,
+    val allowsCustomBotName: Boolean,
+    val prioritySupport: Boolean,
+    val isPublic: Boolean,
+    val sortOrder: Int,
+    val limits: List<AdminTierLimit>,
+    val confirmedAffectedTenantCount: Int,
 )
 
 // ─── Impersonation (admin act-as) ────────────────────────────────────────────
@@ -190,6 +266,7 @@ interface AdminApi {
     suspend fun setFeatureFlag(body: AdminSetFeatureFlagRequest): ApiResult<FeatureFlag>
     suspend fun setFeatureFlagOverride(flagKey: String, broadcasterId: String, body: AdminSetFeatureFlagOverrideRequest): ApiResult<Unit>
     suspend fun deleteFeatureFlagOverride(flagKey: String, broadcasterId: String): ApiResult<Unit>
+    suspend fun previewFeatureFlagBlastRadius(flagKey: String): ApiResult<FeatureFlagBlastRadiusDto>
 
     // Admin billing
     suspend fun getInviteCodes(page: Int = 1, pageSize: Int = 25): ApiResult<PaginatedEnvelope<InviteCode>>
@@ -197,6 +274,12 @@ interface AdminApi {
     suspend fun revokeInviteCode(inviteCodeId: String): ApiResult<Unit>
     suspend fun grantTier(broadcasterId: String, body: AdminGrantTierRequest): ApiResult<Unit>
     suspend fun grantFounderBadge(broadcasterId: String): ApiResult<Unit>
+
+    // Tier authoring (S-ADMIN-4a)
+    suspend fun getTiers(): ApiResult<List<AdminTier>>
+    suspend fun previewTierChange(tierId: String): ApiResult<AdminTierChangePreview>
+    suspend fun createTier(body: AdminCreateTierRequest): ApiResult<AdminTier>
+    suspend fun updateTier(tierId: String, body: AdminUpdateTierRequest): ApiResult<AdminTier>
 
     // Impersonation (admin act-as)
     /** Mints an act-as token for [subjectUserId], scoped to the already-open [accessGrantId] support session,
@@ -300,6 +383,9 @@ class AdminApiImpl(private val client: ApiClient) : AdminApi {
     override suspend fun deleteFeatureFlagOverride(flagKey: String, broadcasterId: String): ApiResult<Unit> =
         client.deleteUnit("api/v1/admin/feature-flags/$flagKey/overrides/$broadcasterId")
 
+    override suspend fun previewFeatureFlagBlastRadius(flagKey: String): ApiResult<FeatureFlagBlastRadiusDto> =
+        client.getEnvelope("api/v1/admin/feature-flags/$flagKey/blast-radius")
+
     override suspend fun getInviteCodes(page: Int, pageSize: Int): ApiResult<PaginatedEnvelope<InviteCode>> =
         client.getDirect("api/v1/admin/billing/invites?page=$page&pageSize=$pageSize")
 
@@ -314,6 +400,18 @@ class AdminApiImpl(private val client: ApiClient) : AdminApi {
 
     override suspend fun grantFounderBadge(broadcasterId: String): ApiResult<Unit> =
         client.postUnit("api/v1/admin/billing/channels/$broadcasterId/grant-founder")
+
+    override suspend fun getTiers(): ApiResult<List<AdminTier>> =
+        client.getEnvelope("api/v1/admin/billing/tiers")
+
+    override suspend fun previewTierChange(tierId: String): ApiResult<AdminTierChangePreview> =
+        client.getEnvelope("api/v1/admin/billing/tiers/$tierId/preview")
+
+    override suspend fun createTier(body: AdminCreateTierRequest): ApiResult<AdminTier> =
+        client.postEnvelope("api/v1/admin/billing/tiers", body)
+
+    override suspend fun updateTier(tierId: String, body: AdminUpdateTierRequest): ApiResult<AdminTier> =
+        client.putEnvelope("api/v1/admin/billing/tiers/$tierId", body)
 
     override suspend fun impersonate(subjectUserId: String, accessGrantId: String, justification: String): ApiResult<ImpersonationTokenDto> =
         client.postEnvelope(
