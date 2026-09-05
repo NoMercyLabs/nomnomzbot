@@ -41,12 +41,17 @@ with no cache; there is no search cache in the provider or the service (`INowPla
 state only). So the stale value is held BETWEEN those, or the request is being answered from a
 per-requester/pending-request path rather than the new resolve.
 
-- [ ] **S-SR-STALE `!sr` must answer the query it was given.** Find the layer holding the previous
-      result — start at `MusicService.RequestTrackAsync`'s fair-queue/pending-request handling
-      (`FairQueue<T>` + trust scoring) and the `SongRequestQueueStore` singleton, since a "user already
-      has a request" branch returning the existing entry fits the evidence. Done-when: two different
-      queries in a row each return their OWN track, proven against a recorded provider, and a test that
-      fails on the one-behind behaviour.
+- [ ] **S-SR-STALE-3 The lag is in the EventSub transport — the last place left.** Two
+      slices eliminated their layers with committed passing tests: the music path
+      (`MusicServiceSequentialRequestsTests` — fresh search per call, no cache, queue keyed by
+      TrackUri) and the chat path (`ChatMessageHandlerSequentialSongRequestArgsTests`, `a12546a4`
+      — args derived fresh per message, context never pooled, handlers all Scoped, proven with a
+      plain chat line interleaved). Remaining suspects, all in `Platform/Eventing/**`: a receive
+      loop handing a REUSED buffer to the translator, fire-and-forget dispatch letting frame N+1
+      overwrite N, a partial-frame accumulator not cleared between messages, or an off-by-one
+      pairing a body with the next frame's metadata. Done-when: two `channel.chat.message` frames
+      delivered back to back through the REAL transport produce events whose text matches their
+      own frame, and the test fails on current code for the one-behind reason.
 
 ## OWNER BUG 2026-09-04 — two chat messages per Twitch event (TOP PRIORITY)
 
@@ -58,13 +63,6 @@ message id resolves to the stored row. A duplicate therefore means TWO DIFFERENT
 real event — duplicate subscriptions for a (topic, broadcaster) accumulating across the ~5-minute
 reconnect, two sessions for one broadcaster, two responders to one trigger, or two running instances.
 
-- [ ] **S-DUPE One event, one response.** Find the specific root cause with file:line evidence and fix
-      it, AND add a structural guard so it cannot return by another of those routes — the owner asked
-      for prevention, not just this instance. A semantic dedup (broadcaster + subscription type +
-      the event's own natural key + a short window) collapses a double delivery whatever caused it.
-      Hard constraint: a LEGITIMATE repeat — the same viewer sending the same text twice on purpose,
-      two separate follows — must still get its own response. Swallowing those is a worse bug than the
-      one being fixed, and the tests must prove both directions.
 
 ## OVERLAY RENDER PROOF — done for the chat overlay, owed for the dashboard
 
@@ -124,7 +122,13 @@ them CLOSED (`6b342371`), **2c** widget kind on the spine CLOSED (`debe2e42`). R
 the widget publish actually reach a viewer, **2d** system pipelines, **2e** code scripts — each reusing
 the real tenant-side editor, never a second worse one.
 
-- [ ] **S-ADMIN-2c-c Regenerate the contract snapshot.** `6c8e6dd0` added
+- [ ] **S-ADMIN-2c-c Widget-kind authoring in the Content tab.** The snapshot half is DONE
+      (`efeb03d2`, regenerated from a running API; `scripts/refresh-openapi.ps1` now makes that one
+      command). What remains: the Content tab is still command-only, with no Vue-source /
+      settings-schema / event-subscription authoring for the widget kind, and a failed tenant rebuild
+      sits unread in `PlatformContentPublishJobDto.RebuildFailedWidgetIds` instead of being surfaced.
+
+- [ ] ~~**S-ADMIN-2c-c Regenerate the contract snapshot.**~~ SUPERSEDED by the line above. `6c8e6dd0` added
       `RebuildFailedWidgetIds` to `PlatformContentPublishJobDto`, so `server/openapi/v1.json` is
       stale. Not breaking today — the guards are green because the Kotlin client does not consume
       the field yet — but it must be regenerated FROM A RUNNING API, never hand-edited, and the
