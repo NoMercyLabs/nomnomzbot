@@ -80,6 +80,33 @@ banding, a radial paint shows real pink-white-purple stops, and an image paint s
 texture rather than a clipped corner. No defect: the `9d6dd1e8` fix already covers this widget.
 
 
+## DASHBOARD RENDER PROOF — 2026-09-05, against the DEPLOYED bundle
+
+Verified on the LAN box (`192.168.2.60:5080`, `/health/version` = `25d27d5a`, one docs-only commit
+behind HEAD). 1440x900 shows the persistent sidebar; 390x844 and 844x390 collapse the sidebar to a
+hamburger correctly. **A real defect was found that no dev-server run had shown:** Home's KPI stat
+row and its two-column "Recente activiteit / Snelle acties" section stayed in the desktop
+arrangement on a phone, squeezing to unreadable widths and clipping a stat card off-screen at 390px
+— `HomeScreen.kt`'s lower `Row` had no breakpoint check, unlike its sibling `StatTilesRow` in the
+same file. Fixed in `59e00b27` with the existing `BoxWithConstraints`/`Breakpoints.Wide` idiom.
+
+- [ ] **Re-shoot Home at 390x844 after the next deploy.** The fix compiles clean for Wasm but is not
+      deployed, so the corrected rendering is proven by BUILD only. Per the standing rule, that is
+      not a render proof until it is seen on screen.
+
+Community round-trip proven by side effect, not by a responsive button: raid returned 201 "Raid
+started." with a real timestamp against Twitch and was cleanly reversed with `DELETE` (204, no stray
+production state); shoutout reached Twitch's real API and came back 400 "The broadcaster is not
+streaming live or does not have one or more viewers" — a genuine precondition, not a wiring fault.
+
+- [ ] **The shared platform bot has no UI after first-run setup.** `a8b897e6` correctly stopped the
+      channel Integrations screen from polling the SHARED bot device endpoint (that is how a channel
+      login took over `nomz_bot` on 2026-09-04) — it now polls the channel-scoped endpoint, so a
+      channel gets its OWN bot and cannot touch the shared slot. `SetupController` keeps the shared
+      endpoint, which is right: the first-run wizard is the one place that legitimately establishes
+      the platform bot. The gap this leaves: once setup is done, nothing anywhere can re-connect or
+      replace the platform bot account. That surface belongs in the admin plane.
+
 ## OWNER REQUEST 2026-09-04 (b) — the admin plane a SaaS owner actually operates from
 
 Owner, verbatim: "add a slice that completely overhauls the admin dashboard and gives me every tool i could
