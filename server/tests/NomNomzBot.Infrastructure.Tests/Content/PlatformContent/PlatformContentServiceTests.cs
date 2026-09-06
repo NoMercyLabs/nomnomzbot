@@ -32,7 +32,7 @@ namespace NomNomzBot.Infrastructure.Tests.Content.PlatformContent;
 /// </summary>
 public sealed class PlatformContentServiceTests : IAsyncDisposable
 {
-    private readonly PlatformContentTestDbContext _db = PlatformContentTestDbContext.New();
+    private PlatformContentTestDbContext _db = PlatformContentTestDbContext.New();
     private readonly IPlatformIamService _iam = Substitute.For<IPlatformIamService>();
     private readonly IVueSfcCompiler _vueCompiler = Substitute.For<IVueSfcCompiler>();
     private readonly IWidgetService _widgetService = Substitute.For<IWidgetService>();
@@ -431,6 +431,73 @@ public sealed class PlatformContentServiceTests : IAsyncDisposable
             .ToListAsync();
         Assert.All(rows, r => Assert.True(r.PlatformSourceVersion is null or 1));
         Assert.Equal(0, await _db.PlatformContentPublishJobs.CountAsync());
+    }
+
+    // ---------------------------------------------------------------------------------------------------
+    // Regression (S-UX-4-FINISH): the blast-radius preview is cross-tenant BY DESIGN — it must count every
+    // affected tenant even when the CALLING platform employee happens to own a channel of their own. Before
+    // PlatformContentService.IgnoreQueryFilters()'d these queries, the ambient CurrentTenantService value
+    // (set from the caller's OWN channel by TenantResolutionMiddleware whenever a request carries no
+    // explicit channelId — every platform/content/* route) silently scoped "every tenant" down to just that
+    // one channel, undercounting (or, as here, entirely missing) every other tenant. Found live: driving the
+    // Content tab as an admin who also owns a channel returned skippedCount 0 when it should have been 1.
+    // ---------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task PreviewPublish_CountsEveryTenant_EvenWhenCallerHasAnAmbientTenantOfTheirOwn()
+    {
+        await _db.DisposeAsync();
+
+        Channel callersOwnChannel = new()
+        {
+            Id = Guid.CreateVersion7(),
+            Name = "callers-own-channel",
+            NameNormalized = "callers-own-channel",
+        };
+
+        // The ambient tenant is set to the CALLER'S OWN channel — exactly what TenantResolutionMiddleware
+        // does for a request with no explicit channelId, which is every request this service's controller
+        // (PlatformContentController) ever receives.
+        _db = PlatformContentTestDbContext.New(ambientTenantId: callersOwnChannel.Id);
+        _db.Channels.Add(callersOwnChannel);
+        await _db.SaveChangesAsync();
+
+        (PlatformContentDefinition definition, PlatformContentVersion v1) =
+            await SeedPublishedDefinitionAsync();
+
+        // Installed on the caller's OWN channel (untouched) ...
+        await AddBuiltinAsync(callersOwnChannel.Id, "sr", null, definition.Id, 1, v1.ContentHash);
+        // ... AND on a completely different tenant the caller does not own (also untouched) — this is the
+        // row the bug hid.
+        Channel otherTenant = await AddChannelAsync("other-tenant");
+        await AddBuiltinAsync(otherTenant.Id, "sr", null, definition.Id, 1, v1.ContentHash);
+
+        PlatformContentVersion v2 = new()
+        {
+            DefinitionId = definition.Id,
+            Version = 2,
+            ContentHash = PlatformContentHash.ComputeHash("{\"a\":1}"),
+            PayloadJson = "{\"a\":1}",
+            DraftedAt = DateTime.UtcNow,
+            DraftedByPrincipalId = _actingPrincipalId,
+        };
+        _db.PlatformContentVersions.Add(v2);
+        await _db.SaveChangesAsync();
+
+        PlatformContentService sut = CreateService();
+
+        Result<PublishPreviewDto> preview = await sut.PreviewPublishAsync(
+            _actingPrincipalId,
+            definition.Id,
+            v2.Id,
+            PlatformContentPublishModes.UpdateInPlaceWhereUntouched
+        );
+
+        Assert.True(preview.IsSuccess, preview.ErrorMessage);
+        // Both tenants, not just the caller's own — this is the line that fails without IgnoreQueryFilters.
+        Assert.Equal(2, preview.Value.AffectedCount);
+        Assert.Contains("other-tenant", preview.Value.SampleTenantNames);
+        Assert.Contains("callers-own-channel", preview.Value.SampleTenantNames);
     }
 
     // ---------------------------------------------------------------------------------------------------

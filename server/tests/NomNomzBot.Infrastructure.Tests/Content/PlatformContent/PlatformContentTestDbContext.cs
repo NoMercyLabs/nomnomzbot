@@ -51,13 +51,23 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
 {
     private readonly SqliteConnection _connection;
 
+    // Null by default (cross-tenant, no ambient tenant) — see the OnModelCreating note below. A test that
+    // needs to prove a query stays cross-tenant even when the CALLER happens to have an ambient tenant of
+    // their own (e.g. a platform employee who also owns a channel) passes a real id via New(ambientTenantId:).
+    private readonly Guid? _ambientTenantId;
+
     private PlatformContentTestDbContext(
         DbContextOptions<PlatformContentTestDbContext> options,
-        SqliteConnection connection
+        SqliteConnection connection,
+        Guid? ambientTenantId
     )
-        : base(options) => _connection = connection;
+        : base(options)
+    {
+        _connection = connection;
+        _ambientTenantId = ambientTenantId;
+    }
 
-    public static PlatformContentTestDbContext New()
+    public static PlatformContentTestDbContext New(Guid? ambientTenantId = null)
     {
         SqliteConnection connection = new("Data Source=:memory:");
         connection.Open();
@@ -65,7 +75,8 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
             new DbContextOptionsBuilder<PlatformContentTestDbContext>()
                 .UseSqlite(connection)
                 .Options,
-            connection
+            connection,
+            ambientTenantId
         );
         db.Database.EnsureCreated();
         return db;
@@ -152,12 +163,13 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
 
         b.ApplySqliteCompatibility();
 
-        // The SAME soft-delete (+ no-op tenant, since these tests query cross-tenant on purpose) global
-        // filter AppDbContext composes in production (Platform/Persistence/AppDbContext.cs) — without it, a
-        // soft-deleted PipelineEntity would silently reappear in a publish's candidate set here even though
-        // production would already have excluded it, making a "deleted tenant is never resurrected" test
-        // pass or fail on this context's own quirk rather than on real behavior.
-        b.ApplyTenantAndSoftDeleteFilters(() => null);
+        // The SAME soft-delete + tenant global filter AppDbContext composes in production
+        // (Platform/Persistence/AppDbContext.cs). Ambient tenant defaults to null (no-op) so these tests
+        // query cross-tenant as before, but a test can pass a real id through New(ambientTenantId:) to prove
+        // a platform-wide query stays cross-tenant even when the calling principal has an ambient tenant of
+        // their own — without this the filter can never be exercised as non-null and a query that
+        // accidentally scopes itself to the ambient tenant would never be caught.
+        b.ApplyTenantAndSoftDeleteFilters(() => _ambientTenantId);
     }
 
     private static readonly HashSet<Type> Mapped =

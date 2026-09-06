@@ -318,25 +318,35 @@ public sealed class PlatformContentService(
 
         PublishSelection selection = await SelectTenantRowsAsync(definition, version, mode, ct);
 
+        // IgnoreQueryFilters + re-apply DeletedAt == null (the established cross-tenant-admin-read
+        // convention, e.g. AdminService.cs): this preview spans EVERY tenant by design, but the
+        // ambient tenant filter is set from the CALLING platform employee's OWN channel (ITenantScoped
+        // has no way to know this read is meant to be platform-wide) — without this, a preview run by
+        // an admin who also owns a channel silently sees only that one channel's row, undercounting
+        // (or entirely missing) every other tenant's blast radius.
         List<string> sampleNames = definition.Kind switch
         {
             PlatformContentKinds.Widget => await db
-                .Widgets.Where(w => selection.AffectedRowIds.Contains(w.Id))
+                .Widgets.IgnoreQueryFilters()
+                .Where(w => w.DeletedAt == null && selection.AffectedRowIds.Contains(w.Id))
                 .Join(db.Channels, w => w.BroadcasterId, c => c.Id, (w, c) => c.Name)
                 .Take(10)
                 .ToListAsync(ct),
             PlatformContentKinds.Pipeline => await db
-                .Pipelines.Where(p => selection.AffectedRowIds.Contains(p.Id))
+                .Pipelines.IgnoreQueryFilters()
+                .Where(p => p.DeletedAt == null && selection.AffectedRowIds.Contains(p.Id))
                 .Join(db.Channels, p => p.BroadcasterId, c => c.Id, (p, c) => c.Name)
                 .Take(10)
                 .ToListAsync(ct),
             PlatformContentKinds.CodeScript => await db
-                .CodeScripts.Where(s => selection.AffectedRowIds.Contains(s.Id))
+                .CodeScripts.IgnoreQueryFilters()
+                .Where(s => s.DeletedAt == null && selection.AffectedRowIds.Contains(s.Id))
                 .Join(db.Channels, s => s.BroadcasterId, c => c.Id, (s, c) => c.Name)
                 .Take(10)
                 .ToListAsync(ct),
             _ => await db
-                .ChannelBuiltinCommands.Where(b => selection.AffectedRowIds.Contains(b.Id))
+                .ChannelBuiltinCommands.IgnoreQueryFilters()
+                .Where(b => b.DeletedAt == null && selection.AffectedRowIds.Contains(b.Id))
                 .Join(db.Channels, b => b.BroadcasterId, c => c.Id, (b, c) => c.Name)
                 .Take(10)
                 .ToListAsync(ct),
@@ -711,8 +721,12 @@ public sealed class PlatformContentService(
         CancellationToken ct
     )
     {
+        // Cross-tenant by design (platform-admin.md §2.1's whole point) — IgnoreQueryFilters + re-apply
+        // DeletedAt == null, same as the sample-name query above, so the caller's own ambient tenant
+        // (if they happen to own a channel) never hides every OTHER tenant's row from the blast radius.
         List<ChannelBuiltinCommand> installed = await db
-            .ChannelBuiltinCommands.Where(b => b.BuiltinKey == definition.Key)
+            .ChannelBuiltinCommands.IgnoreQueryFilters()
+            .Where(b => b.DeletedAt == null && b.BuiltinKey == definition.Key)
             .ToListAsync(ct);
 
         switch (mode)
@@ -760,8 +774,10 @@ public sealed class PlatformContentService(
         CancellationToken ct
     )
     {
+        // Cross-tenant by design — see the IgnoreQueryFilters note on SelectCommandRowsAsync above.
         List<Widget> installed = await db
-            .Widgets.Where(w => w.PlatformSourceDefinitionId == definition.Id)
+            .Widgets.IgnoreQueryFilters()
+            .Where(w => w.DeletedAt == null && w.PlatformSourceDefinitionId == definition.Id)
             .ToListAsync(ct);
 
         switch (mode)
@@ -804,8 +820,10 @@ public sealed class PlatformContentService(
         CancellationToken ct
     )
     {
+        // Cross-tenant by design — see the IgnoreQueryFilters note on SelectCommandRowsAsync above.
         List<PipelineEntity> installed = await db
-            .Pipelines.Where(p => p.PlatformSourceDefinitionId == definition.Id)
+            .Pipelines.IgnoreQueryFilters()
+            .Where(p => p.DeletedAt == null && p.PlatformSourceDefinitionId == definition.Id)
             .ToListAsync(ct);
 
         switch (mode)
@@ -847,8 +865,10 @@ public sealed class PlatformContentService(
         CancellationToken ct
     )
     {
+        // Cross-tenant by design — see the IgnoreQueryFilters note on SelectCommandRowsAsync above.
         List<CodeScript> installed = await db
-            .CodeScripts.Where(s => s.PlatformSourceDefinitionId == definition.Id)
+            .CodeScripts.IgnoreQueryFilters()
+            .Where(s => s.DeletedAt == null && s.PlatformSourceDefinitionId == definition.Id)
             .ToListAsync(ct);
 
         switch (mode)
@@ -867,8 +887,10 @@ public sealed class PlatformContentService(
                         .Where(s => s.CurrentVersionId != null)
                         .Select(s => s.CurrentVersionId!.Value),
                 ];
+                // Cross-tenant by design — see the IgnoreQueryFilters note on SelectCommandRowsAsync above.
                 Dictionary<Guid, string> sourceByVersionId = await db
-                    .CodeScriptVersions.Where(v => currentVersionIds.Contains(v.Id))
+                    .CodeScriptVersions.IgnoreQueryFilters()
+                    .Where(v => v.DeletedAt == null && currentVersionIds.Contains(v.Id))
                     .ToDictionaryAsync(v => v.Id, v => v.SourceCode, ct);
 
                 List<Guid> untouched = [];
@@ -900,8 +922,12 @@ public sealed class PlatformContentService(
         CancellationToken ct
     )
     {
+        // Cross-tenant by design — without IgnoreQueryFilters this fan-out would silently write only the
+        // acting platform employee's OWN channel's row (if any) and drop every other affected tenant, a
+        // publish that reports success while doing far less than the preview promised.
         List<ChannelBuiltinCommand> targets = await db
-            .ChannelBuiltinCommands.Where(b => affectedRowIds.Contains(b.Id))
+            .ChannelBuiltinCommands.IgnoreQueryFilters()
+            .Where(b => b.DeletedAt == null && affectedRowIds.Contains(b.Id))
             .ToListAsync(ct);
 
         foreach (ChannelBuiltinCommand row in targets)
@@ -946,8 +972,10 @@ public sealed class PlatformContentService(
         )
             return new WidgetFanOutResult(0, []);
 
+        // Cross-tenant by design — see the IgnoreQueryFilters note on ApplyCommandFanOutAsync above.
         List<Widget> targets = await db
-            .Widgets.Where(w => affectedRowIds.Contains(w.Id))
+            .Widgets.IgnoreQueryFilters()
+            .Where(w => w.DeletedAt == null && affectedRowIds.Contains(w.Id))
             .ToListAsync(ct);
 
         string settingsHash = payload!.ComputeSettingsHash();
@@ -1028,8 +1056,10 @@ public sealed class PlatformContentService(
     {
         JsonElement graph = JsonSerializer.Deserialize<JsonElement>(version.PayloadJson);
 
+        // Cross-tenant by design — see the IgnoreQueryFilters note on ApplyCommandFanOutAsync above.
         List<PipelineEntity> targets = await db
-            .Pipelines.Where(p => affectedRowIds.Contains(p.Id))
+            .Pipelines.IgnoreQueryFilters()
+            .Where(p => p.DeletedAt == null && affectedRowIds.Contains(p.Id))
             .ToListAsync(ct);
 
         List<Guid> validationFailedPipelineIds = [];
@@ -1102,12 +1132,15 @@ public sealed class PlatformContentService(
         if (compiled.IsFailure)
             return new CodeScriptFanOutResult(0, [.. affectedRowIds]);
 
+        // Cross-tenant by design — see the IgnoreQueryFilters note on ApplyCommandFanOutAsync above.
         List<CodeScript> targets = await db
-            .CodeScripts.Where(s => affectedRowIds.Contains(s.Id))
+            .CodeScripts.IgnoreQueryFilters()
+            .Where(s => s.DeletedAt == null && affectedRowIds.Contains(s.Id))
             .ToListAsync(ct);
 
         Dictionary<Guid, int> maxVersionByScriptId = await db
-            .CodeScriptVersions.Where(v => affectedRowIds.Contains(v.CodeScriptId))
+            .CodeScriptVersions.IgnoreQueryFilters()
+            .Where(v => v.DeletedAt == null && affectedRowIds.Contains(v.CodeScriptId))
             .GroupBy(v => v.CodeScriptId)
             .Select(g => new { g.Key, MaxVersion = g.Max(v => v.Version) })
             .ToDictionaryAsync(x => x.Key, x => x.MaxVersion, ct);

@@ -164,6 +164,16 @@ internal fun ContentTab(state: AdminState, controller: AdminController, currentU
     val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) {
         if (state.contentDefinitions.isEmpty()) controller.loadContentDefinitions()
+        // ownContentKeys needs the caller's OWN principal + effective permissions, but nothing else on
+        // this tab ever fetches them — without this, the read-floor gate below always resolves to
+        // "denied" for a first-time visitor (state.principals starts empty), even for a real
+        // content:read holder, unless they happened to visit the IAM tab first and click "Effective" on
+        // their own row. Mirrors the load-on-first-visit pattern the Users/IAM tabs already use.
+        if (state.principals.isEmpty() && state.roles.isEmpty() && !state.iamLoading) controller.loadIam()
+    }
+    LaunchedEffect(state.principals, currentUserId) {
+        val principal = state.principals.firstOrNull { it.userId == currentUserId } ?: return@LaunchedEffect
+        if (principal.id !in state.effectivePermissions) controller.loadEffectivePermissions(principal.id)
     }
 
     val ownKeys: Set<String>? = ownContentKeys(state, currentUserId)
