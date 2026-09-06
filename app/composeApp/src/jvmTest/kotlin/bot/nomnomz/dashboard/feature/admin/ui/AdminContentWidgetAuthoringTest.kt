@@ -11,14 +11,23 @@
 package bot.nomnomz.dashboard.feature.admin.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.runComposeUiTest
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
+import bot.nomnomz.dashboard.core.editor.CompileFeedback
+import bot.nomnomz.dashboard.core.editor.ProjectEditorIO
 import bot.nomnomz.dashboard.core.i18n.AppEnvironment
 import bot.nomnomz.dashboard.core.network.AdminApi
 import bot.nomnomz.dashboard.core.network.AdminChannel
@@ -57,14 +66,36 @@ import bot.nomnomz.dashboard.core.network.SaveProviderCredentialBody
 import bot.nomnomz.dashboard.feature.admin.state.AdminController
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * S-ADMIN-2c-c: the Content tab must render editable Vue source / settings / event subscriptions for a
- * `widget`-kind definition (never just a raw undifferentiated JSON blob), and a publish job carrying failed
- * tenant widget rebuilds must render a visible failure surface naming the count — not silently drop the
- * field. Both assertions read the rendered semantics tree, not controller state, so a regression that wires
- * the field through state but never paints it on screen still fails this test.
+ * S-ADMIN-2f: the `Kind = "widget"` definition's draft editor must author its Vue SFC `sourceCode` through
+ * the SAME shared multi-file project editor ([ProjectEditorIO]) the tenant-side Widgets page opens for its
+ * own source (`WidgetsController.openEditor`) — the widget kind was the last of the four platform-content
+ * kinds still carrying a raw, undifferentiated JSON text field for its source (S-ADMIN-2e closed the
+ * code-script kind's equivalent gap the same way). The settings-schema JSON field and the event-subscriptions
+ * list editor are untouched by this slice — they must keep working exactly as before.
+ *
+ * The real editor implementation opens a native overlay outside the Compose semantics tree (a non-modal
+ * Swing dialog on desktop, an iframe on web), so three complementary proofs are needed:
+ *
+ *  1. [opening_a_widget_definition_draft_renders_the_shared_editor_entry_point_with_the_seeded_source] —
+ *     mounted through the REAL [ContentTab], proving the widget kind's draft dialog wires
+ *     [WidgetPayloadEditor]'s shared editor entry point (keyed by the SAME "Edit code" string the tenant
+ *     `WidgetsScreen` uses for its own project editor entry point) instead of a raw JSON textarea for the
+ *     source, that the seeded source round-trips onto that entry point, and that the settings/subscriptions
+ *     fields it already had still render alongside it.
+ *  2. [widget_payload_editor_drives_the_shared_project_editor_io_contract_and_captures_the_edited_source] —
+ *     mounts [WidgetPayloadEditor] directly with a fake [ProjectEditorIO], proving a click on that entry
+ *     point calls the EXACT SAME interface method (`editAndCompile`, with `entryPath = "index.vue"` and
+ *     `language = "vue"`) the tenant surface calls, that the compiled result flows back into the fields'
+ *     `sourceCode`, and — the regression this slice must never introduce — that the settings JSON and event
+ *     subscriptions the fields already carried survive a source-only edit untouched.
+ *  3. [widget_settings_and_event_subscriptions_editors_still_capture_edits_next_to_the_shared_source_editor] —
+ *     mounts [WidgetPayloadEditor] directly and drives the settings field and the add-subscription control
+ *     themselves, proving those two fields are still genuinely editable (not merely rendered) after the
+ *     source field moved onto the shared editor.
  */
 @OptIn(ExperimentalTestApi::class)
 class AdminContentWidgetAuthoringTest {
@@ -86,7 +117,7 @@ class AdminContentWidgetAuthoringTest {
         """{"sourceCode":"<template><div>hi</div></template>","defaultSettings":{"title":"Now Playing"},"defaultEventSubscriptions":["song.changed"]}"""
 
     @Test
-    fun opening_a_widget_definition_renders_editable_source_settings_and_event_subscriptions() {
+    fun opening_a_widget_definition_draft_renders_the_shared_editor_entry_point_with_the_seeded_source() {
         val definitionId = "def-widget-1"
         val versionId = "ver-widget-1"
         val definition = PlatformContentDefinition(
@@ -108,7 +139,7 @@ class AdminContentWidgetAuthoringTest {
             draftedAt = "2026-09-01T00:00:00Z",
             draftedByPrincipalId = "principal-1",
         )
-        val api = FakeContentApi(
+        val api = FakeContentApiForWidgetTest(
             definitions = listOf(definition),
             definitionDetail = PlatformContentDefinitionDetail(definition = definition, versions = listOf(version)),
         )
@@ -135,15 +166,132 @@ class AdminContentWidgetAuthoringTest {
             onAllNodesWithText("Draft new version")[0].performClick()
             waitForIdle()
 
-            onNodeWithText("Vue source").assertExists()
+            // "Edit code" is a GlyphButton — its label is a hover tooltip + accessibility contentDescription,
+            // not visible Text — and is the SAME string the tenant `WidgetsScreen` uses for its own project
+            // editor entry point. A raw JSON textarea would never expose this control.
+            onNodeWithContentDescription("Edit code").assertExists()
+
+            // The seeded payload's `sourceCode` must have round-tripped through the real
+            // `{"sourceCode": ...}` decode (WidgetPayloadWire) onto the shared editor's preview, not stayed
+            // inside a raw textarea.
             onNodeWithText("<template><div>hi</div></template>").assertExists()
+
+            // The old raw-JSON field for the source (labelled "Vue source") must be GONE — that label now
+            // only names the editor's title, which the native overlay never renders inline.
+            onAllNodesWithText("Vue source").assertCountEquals(0)
+
+            // The settings schema and event-subscriptions fields this kind already had must still be there,
+            // completely unaffected by moving the source field onto the shared editor.
             onNodeWithText("Default settings (JSON)").assertExists()
             onNodeWithText("Default event subscriptions").assertExists()
             assertTrue(
                 onAllNodesWithText("song.changed").fetchSemanticsNodes().isNotEmpty(),
-                "the parsed defaultEventSubscriptions entry must render as an editable row, not stay unread inside the raw payload",
+                "the parsed defaultEventSubscriptions entry must still render as an editable row",
             )
         }
+    }
+
+    @Test
+    fun widget_payload_editor_drives_the_shared_project_editor_io_contract_and_captures_the_edited_source() {
+        val fakeEditor = FakeProjectEditorIOForWidgetTest()
+        var latestFields: WidgetPayloadFields = WidgetPayloadFields(
+            sourceCode = "<template><div>v1</div></template>",
+            settingsJson = """{"title":"Now Playing"}""",
+            eventSubscriptions = listOf("song.changed"),
+        )
+
+        runComposeUiTest {
+            setContent {
+                EnglishContent {
+                    WidgetPayloadEditor(
+                        fields = latestFields,
+                        onFieldsChange = { latestFields = it },
+                        projectEditor = fakeEditor,
+                    )
+                }
+            }
+
+            onNodeWithContentDescription("Edit code").performClick()
+            waitForIdle()
+        }
+
+        assertTrue(fakeEditor.invoked, "clicking the entry point must open the shared ProjectEditorIO contract")
+        assertEquals("index.vue", fakeEditor.capturedEntryPath)
+        assertEquals("vue", fakeEditor.capturedLanguage)
+        assertEquals(mapOf("index.vue" to "<template><div>v1</div></template>"), fakeEditor.capturedInitialFiles)
+        assertEquals(
+            "<template><div>edited by admin</div></template>",
+            latestFields.sourceCode,
+            "the editor's compiled result must flow back into the fields' sourceCode",
+        )
+
+        // The regression this slice must never introduce: editing the source alone must not clobber the
+        // settings schema or the event subscriptions the fields already carried.
+        assertEquals("""{"title":"Now Playing"}""", latestFields.settingsJson)
+        assertEquals(listOf("song.changed"), latestFields.eventSubscriptions)
+    }
+
+    @Test
+    fun widget_settings_and_event_subscriptions_editors_still_capture_edits_next_to_the_shared_source_editor() {
+        // A real MutableState, not a plain var: `WidgetPayloadEditor`'s settings field is a genuinely
+        // controlled `BasicTextField` — like production's own `remember { mutableStateOf(...) }` in
+        // `AdminContentTab.kt`'s dialogs, the edited value must actually flow back in so the field's next
+        // recomposition sees it, or the field's own controlled-input reconciliation reverts the edit.
+        val fieldsState: MutableState<WidgetPayloadFields> = mutableStateOf(
+            WidgetPayloadFields(
+                sourceCode = "<template><div>hi</div></template>",
+                settingsJson = """{"title":"Now Playing"}""",
+                eventSubscriptions = listOf("song.changed"),
+            ),
+        )
+
+        // The two remaining editable text fields, in composed order: [0] the settings JSON field, [1] the
+        // add-a-subscription field. Selected by their SetText action (`hasSetTextAction`), not by the label
+        // text next to them — an `AppTextField`/raw `BasicTextField`'s visible label is a separate sibling
+        // Text node, never merged into the field's own semantics.
+        runComposeUiTest {
+            setContent {
+                EnglishContent {
+                    WidgetPayloadEditor(
+                        fields = fieldsState.value,
+                        onFieldsChange = { fieldsState.value = it },
+                    )
+                }
+            }
+
+            onAllNodes(hasSetTextAction())[0].performTextReplacement("""{"title":"Edited"}""")
+            waitForIdle()
+        }
+
+        assertEquals(
+            """{"title":"Edited"}""",
+            fieldsState.value.settingsJson,
+            "editing the settings JSON field must still update the fields — it did not move to the shared editor",
+        )
+        // Untouched by the settings edit: the source and the subscriptions the fields already carried.
+        assertEquals("<template><div>hi</div></template>", fieldsState.value.sourceCode)
+        assertEquals(listOf("song.changed"), fieldsState.value.eventSubscriptions)
+
+        runComposeUiTest {
+            setContent {
+                EnglishContent {
+                    WidgetPayloadEditor(
+                        fields = fieldsState.value,
+                        onFieldsChange = { fieldsState.value = it },
+                    )
+                }
+            }
+
+            onAllNodes(hasSetTextAction())[1].performTextInput("chat.message")
+            onNodeWithText("Add").performClick()
+            waitForIdle()
+        }
+
+        assertEquals(
+            listOf("song.changed", "chat.message"),
+            fieldsState.value.eventSubscriptions,
+            "adding an event subscription must still round-trip through the fields",
+        )
     }
 
     @Test
@@ -180,10 +328,10 @@ class AdminContentWidgetAuthoringTest {
             previewSkippedCount = 0,
             confirmedAffectedCount = 10,
             status = "completed",
-            // The field this slice closes: a non-empty rebuildFailedWidgetIds must never sit unread.
+            // The field this surface must never sit unread: a non-empty rebuildFailedWidgetIds.
             rebuildFailedWidgetIds = listOf("tenant-a", "tenant-b", "tenant-c"),
         )
-        val api = FakeContentApi(
+        val api = FakeContentApiForWidgetTest(
             definitions = listOf(definition),
             definitionDetail = PlatformContentDefinitionDetail(definition = definition, versions = listOf(version)),
             preview = PublishPreview(affectedCount = 10, skippedCount = 0),
@@ -225,7 +373,34 @@ class AdminContentWidgetAuthoringTest {
     }
 }
 
-private class FakeContentApi(
+/** Records the exact [ProjectEditorIO] call the admin widget authoring surface makes, then simulates the
+ * operator editing the entry file once and hitting "Save & Compile" before the (never actually opened)
+ * overlay would close — proving the compiled result flows back to the caller exactly like the real
+ * Swing/iframe implementations do. */
+private class FakeProjectEditorIOForWidgetTest : ProjectEditorIO {
+    var invoked: Boolean = false
+    var capturedInitialFiles: Map<String, String>? = null
+    var capturedEntryPath: String? = null
+    var capturedLanguage: String? = null
+
+    override suspend fun editAndCompile(
+        title: String,
+        initialFiles: Map<String, String>,
+        entryPath: String,
+        language: String,
+        sdkTypes: String,
+        eventSubscriptions: List<String>,
+        compile: suspend (Map<String, String>) -> CompileFeedback,
+    ) {
+        invoked = true
+        capturedInitialFiles = initialFiles
+        capturedEntryPath = entryPath
+        capturedLanguage = language
+        compile(mapOf(entryPath to "<template><div>edited by admin</div></template>"))
+    }
+}
+
+private class FakeContentApiForWidgetTest(
     private val definitions: List<PlatformContentDefinition>,
     private val definitionDetail: PlatformContentDefinitionDetail,
     private val preview: PublishPreview = PublishPreview(affectedCount = 0, skippedCount = 0),

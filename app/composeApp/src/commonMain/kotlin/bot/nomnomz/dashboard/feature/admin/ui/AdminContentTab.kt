@@ -82,10 +82,6 @@ import bot.nomnomz.dashboard.core.network.PublishPreview
 import bot.nomnomz.dashboard.feature.admin.state.AdminController
 import bot.nomnomz.dashboard.feature.admin.state.AdminState
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonObject
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.admin_cancel
 import nomnomzbot.composeapp.generated.resources.admin_content_row_type
@@ -141,13 +137,6 @@ import nomnomzbot.composeapp.generated.resources.admin_content_version_label
 import nomnomzbot.composeapp.generated.resources.admin_content_version_published
 import nomnomzbot.composeapp.generated.resources.admin_content_versions_empty
 import nomnomzbot.composeapp.generated.resources.admin_content_versions_title
-import nomnomzbot.composeapp.generated.resources.admin_content_widget_event_add
-import nomnomzbot.composeapp.generated.resources.admin_content_widget_event_add_label
-import nomnomzbot.composeapp.generated.resources.admin_content_widget_event_remove
-import nomnomzbot.composeapp.generated.resources.admin_content_widget_events_empty
-import nomnomzbot.composeapp.generated.resources.admin_content_widget_events_label
-import nomnomzbot.composeapp.generated.resources.admin_content_widget_settings_label
-import nomnomzbot.composeapp.generated.resources.admin_content_widget_source_label
 import org.jetbrains.compose.resources.stringResource
 
 /** The Plane-C `content:*` action keys this tab gates on — resolved from the caller's OWN effective
@@ -741,155 +730,6 @@ private fun PublishJobFailureSurface(job: PlatformContentPublishJob) {
 }
 
 /**
- * The `Kind = "widget"` payload's client-side editable shape (mirrors the backend's `WidgetContentPayload`:
- * `sourceCode` / `defaultSettings` / `defaultEventSubscriptions`, camelCase on the wire — Newtonsoft's default
- * matching is case-insensitive so this round-trips through [PlatformContentController]'s generic
- * `payloadJson` string field without any backend change). [settingsJson] holds `defaultSettings` as raw JSON
- * text (the "settings schema" a widget ships with) since the catalogue has no structured JSON-object editor
- * yet; it degrades to `{}` on invalid JSON rather than losing the rest of the draft.
- */
-private data class WidgetPayloadFields(
-    val sourceCode: String,
-    val settingsJson: String,
-    val eventSubscriptions: List<String>,
-) {
-    fun toPayloadJson(): String {
-        val settings: JsonObject = runCatching { WidgetPayloadJson.parseToJsonElement(settingsJson).jsonObject }
-            .getOrDefault(JsonObject(emptyMap()))
-        val payload = WidgetPayloadWire(
-            sourceCode = sourceCode,
-            defaultSettings = settings,
-            defaultEventSubscriptions = eventSubscriptions,
-        )
-        return WidgetPayloadJson.encodeToString(WidgetPayloadWire.serializer(), payload)
-    }
-
-    companion object {
-        val Empty: WidgetPayloadFields = WidgetPayloadFields(sourceCode = "", settingsJson = "{}", eventSubscriptions = emptyList())
-
-        /** Parses an existing `payloadJson` string back into editable fields. A payload that isn't the
-         * expected widget shape (e.g. a fresh definition with no draft yet) falls back to [Empty] rather
-         * than crashing the dialog. */
-        fun fromPayloadJson(payloadJson: String): WidgetPayloadFields {
-            if (payloadJson.isBlank()) return Empty
-            val wire: WidgetPayloadWire = runCatching {
-                WidgetPayloadJson.decodeFromString(WidgetPayloadWire.serializer(), payloadJson)
-            }.getOrNull() ?: return Empty
-            return WidgetPayloadFields(
-                sourceCode = wire.sourceCode,
-                settingsJson = WidgetPayloadJson.encodeToString(JsonObject.serializer(), wire.defaultSettings),
-                eventSubscriptions = wire.defaultEventSubscriptions,
-            )
-        }
-    }
-}
-
-/** The wire shape of a widget `payloadJson` (backend `WidgetContentPayload`). */
-@Serializable
-private data class WidgetPayloadWire(
-    val sourceCode: String,
-    val defaultSettings: JsonObject = JsonObject(emptyMap()),
-    val defaultEventSubscriptions: List<String> = emptyList(),
-)
-
-private val WidgetPayloadJson: Json = Json {
-    ignoreUnknownKeys = true
-    isLenient = true
-    prettyPrint = true
-}
-
-/**
- * The widget-kind authoring fields (S-ADMIN-2c-c): the single-file Vue SFC source, the default settings a
- * fresh tenant install seeds, and the default event subscriptions — the same three ingredients
- * `WidgetContentPayload` carries server-side, now editable in the Content tab instead of only as raw
- * undifferentiated JSON.
- */
-@Composable
-private fun WidgetPayloadEditor(fields: WidgetPayloadFields, onFieldsChange: (WidgetPayloadFields) -> Unit) {
-    val spacing = LocalSpacing.current
-    Column(verticalArrangement = Arrangement.spacedBy(spacing.s3)) {
-        JsonPayloadField(
-            value = fields.sourceCode,
-            onValueChange = { onFieldsChange(fields.copy(sourceCode = it)) },
-            label = stringResource(Res.string.admin_content_widget_source_label),
-        )
-        JsonPayloadField(
-            value = fields.settingsJson,
-            onValueChange = { onFieldsChange(fields.copy(settingsJson = it)) },
-            label = stringResource(Res.string.admin_content_widget_settings_label),
-        )
-        EventSubscriptionsEditor(
-            subscriptions = fields.eventSubscriptions,
-            onSubscriptionsChange = { onFieldsChange(fields.copy(eventSubscriptions = it)) },
-        )
-    }
-}
-
-/** An add/remove list editor for a widget's default event subscriptions — a flat list of event names, each
- * removable individually, plus a text field + button to add one more. */
-@Composable
-private fun EventSubscriptionsEditor(subscriptions: List<String>, onSubscriptionsChange: (List<String>) -> Unit) {
-    val tokens = LocalTokens.current
-    val spacing = LocalSpacing.current
-    val typography = LocalTypography.current
-    var newSubscription: String by remember { mutableStateOf("") }
-
-    Column(verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-        Text(
-            text = stringResource(Res.string.admin_content_widget_events_label),
-            style = typography.sm,
-            color = tokens.foreground,
-        )
-        if (subscriptions.isEmpty()) {
-            EmptyLine(stringResource(Res.string.admin_content_widget_events_empty))
-        } else {
-            subscriptions.forEachIndexed { index, subscription ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(text = subscription, style = typography.sm, color = tokens.cardForeground)
-                    Button(
-                        onClick = { onSubscriptionsChange(subscriptions.filterIndexed { i, _ -> i != index }) },
-                        variant = ButtonVariant.DestructiveGhost,
-                        size = ButtonSize.Sm,
-                    ) {
-                        Text(text = stringResource(Res.string.admin_content_widget_event_remove), style = typography.xs)
-                    }
-                }
-            }
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(spacing.s2),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            AppTextField(
-                value = newSubscription,
-                onValueChange = { newSubscription = it },
-                label = stringResource(Res.string.admin_content_widget_event_add_label),
-                modifier = Modifier.weight(1f),
-            )
-            Button(
-                onClick = {
-                    val trimmed = newSubscription.trim()
-                    if (trimmed.isNotEmpty() && trimmed !in subscriptions) {
-                        onSubscriptionsChange(subscriptions + trimmed)
-                        newSubscription = ""
-                    }
-                },
-                variant = ButtonVariant.Outline,
-                size = ButtonSize.Sm,
-                enabled = newSubscription.isNotBlank(),
-            ) {
-                Text(text = stringResource(Res.string.admin_content_widget_event_add))
-            }
-        }
-    }
-}
-
-/**
  * The publish flow: pick a mode, see the REAL counted blast radius for that exact mode (never a guess),
  * supply a justification if forcing, and only then may the confirm control enable. Selecting a different
  * mode re-runs the preview — the count shown is always for the mode currently selected, never stale.
@@ -1101,7 +941,7 @@ private fun GatedButton(
  * the text-input mechanics are raw Compose Foundation.
  */
 @Composable
-private fun JsonPayloadField(value: String, onValueChange: (String) -> Unit, label: String) {
+internal fun JsonPayloadField(value: String, onValueChange: (String) -> Unit, label: String) {
     val tokens: Tokens = LocalTokens.current
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
