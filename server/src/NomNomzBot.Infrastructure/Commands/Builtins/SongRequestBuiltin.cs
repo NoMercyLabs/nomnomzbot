@@ -179,6 +179,8 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
                     Description = track.Artist,
                     ImageUrl = track.ImageUrl,
                     Provider = track.Provider,
+                    UserDisplayName = context.TriggeringUserDisplayName,
+                    UserLogin = context.TriggeringUserLogin,
                 },
                 ct
             );

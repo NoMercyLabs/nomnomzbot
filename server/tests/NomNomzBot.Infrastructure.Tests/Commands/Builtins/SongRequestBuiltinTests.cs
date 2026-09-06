@@ -419,6 +419,11 @@ public sealed class SongRequestBuiltinTests
         published.Provider.Should().Be("spotify");
         // Spotify's internal uri is not fetchable or clickable — the card must carry a real web link.
         published.LinkUrl.Should().Be("https://open.spotify.com/track/abc");
+        // The card is shown in the REQUESTER's own bubble, so it has to say whose it is. An overlay that
+        // hides command lines never rendered the "!sr ..." line, so it has no earlier line to read a name
+        // off — without these the card can only appear unattributed.
+        published.UserDisplayName.Should().Be("Viewer");
+        published.UserLogin.Should().Be("viewer");
     }
 
     [Fact]
@@ -502,6 +507,7 @@ public sealed class SongRequestBuiltinTests
             BroadcasterId = Broadcaster,
             TriggeringUserId = "viewer-1",
             TriggeringUserDisplayName = "Viewer",
+            TriggeringUserLogin = "viewer",
             RoleLevel = roleLevel,
             Args = args,
             Personality = personality,

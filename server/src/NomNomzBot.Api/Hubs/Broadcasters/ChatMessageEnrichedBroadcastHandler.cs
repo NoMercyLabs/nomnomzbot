@@ -55,6 +55,8 @@ public sealed class ChatMessageEnrichedBroadcastHandler(
                 description = @event.Description,
                 imageUrl = @event.ImageUrl,
                 provider = @event.Provider,
+                userDisplayName = @event.UserDisplayName,
+                userLogin = @event.UserLogin,
             },
             channelEventId: null,
             cancellationToken

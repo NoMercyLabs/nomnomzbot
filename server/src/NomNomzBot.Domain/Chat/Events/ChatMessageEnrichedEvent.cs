@@ -48,4 +48,15 @@ public sealed class ChatMessageEnrichedEvent : DomainEventBase
 
     /// <summary>Where the source of this card came from (e.g. <c>spotify</c>, <c>youtube</c>).</summary>
     public string? Provider { get; init; }
+
+    // ─── Who this card belongs to ────────────────────────────────────────────
+    // The card renders inside the REQUESTER's own bubble, so it has to name them. An overlay that hides
+    // command lines never rendered the "!sr ..." line and so has no earlier line to read a name off — with
+    // the id alone such an overlay can only show the card unattributed, or not at all.
+
+    /// <summary>Display name of the viewer this card belongs to.</summary>
+    public string? UserDisplayName { get; init; }
+
+    /// <summary>Lowercase login of the viewer this card belongs to.</summary>
+    public string? UserLogin { get; init; }
 }
