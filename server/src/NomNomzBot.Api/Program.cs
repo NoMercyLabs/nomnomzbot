@@ -67,6 +67,20 @@ try
     bool binaryDirectoryHasSettings = File.Exists(
         Path.Combine(binaryDirectory, "appsettings.json")
     );
+    // The web root holds the compiled Wasm dashboard and is GITIGNORED, so a fresh clone has no
+    // wwwroot at all. StaticWebAssetsLoader constructs a PhysicalFileProvider over it during
+    // CreateBuilder and throws DirectoryNotFoundException when it is missing — `dotnet run` on a clean
+    // checkout died before a single line of our own startup ran. Creating it empty is exactly the
+    // documented "no dashboard bundled" case: UseStaticFiles serves nothing and MapFallbackToFile
+    // returns 404, leaving API-only behaviour unchanged.
+    string webRoot = Path.Combine(
+        !currentDirectoryHasSettings && binaryDirectoryHasSettings
+            ? binaryDirectory
+            : Directory.GetCurrentDirectory(),
+        "wwwroot"
+    );
+    Directory.CreateDirectory(webRoot);
+
     WebApplicationBuilder builder = WebApplication.CreateBuilder(
         new WebApplicationOptions
         {
