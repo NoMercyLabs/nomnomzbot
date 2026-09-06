@@ -15,6 +15,15 @@ using NomNomzBot.Domain.Commands.Entities;
 
 namespace NomNomzBot.Infrastructure.Content.Commands;
 
+// S-SEED-GUIDCASE: Microsoft.Data.Sqlite binds Guid parameters as canonical uppercase-hyphenated
+// text; SQLite text comparison is case-sensitive. A Channels.Id row written in any other case (a raw
+// import, a Postgres-to-SQLite migration) is invisible to a parameterized Guid comparison, so the FK
+// check on an insert referencing it fails. Postgres has a native uuid type and never carries this.
+// Fixed here at the seeder boundary (scoped self-heal, see NormalizeChannelGuidCasingAsync below) —
+// the same trap sits under every other Guid equality/Contains predicate SQLite translates to SQL,
+// most notably the tenant global query filter (ModelBuilderExtensions.ApplyTenantAndSoftDeleteFilters).
+// Not fixed there in this slice — tracked as follow-up.
+
 /// <summary>
 /// Seeds the shipped built-in music commands (<c>!sr</c>, <c>!skip</c>, <c>!queue</c>,
 /// <c>!volume</c>, <c>!song</c>) as <see cref="ChannelBuiltinCommand"/> rows for every
@@ -48,6 +57,8 @@ public sealed class DefaultCommandsSeeder : ISeeder
     /// </summary>
     public async Task SeedAsync(Guid? broadcasterId, CancellationToken ct = default)
     {
+        await NormalizeChannelGuidCasingAsync(ct);
+
         List<Guid> channelIds = broadcasterId is { } id
             ? [id]
             : await _db.Channels.Select(c => c.Id).ToListAsync(ct);
@@ -83,5 +94,26 @@ public sealed class DefaultCommandsSeeder : ISeeder
         }
 
         await _db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
+    /// Self-heals a non-canonical Channels.Id (or a ChannelBuiltinCommands.BroadcasterId already written
+    /// to match it) to Microsoft.Data.Sqlite's own canonical uppercase-hyphenated text, so the FK insert
+    /// below never trips a case-only mismatch. A no-op on Postgres (native uuid type, no text casing to
+    /// normalize) and a no-op once every row is already canonical.
+    /// </summary>
+    private async Task NormalizeChannelGuidCasingAsync(CancellationToken ct)
+    {
+        if (_db is not DbContext dbContext || !dbContext.Database.IsSqlite())
+            return;
+
+        await dbContext.Database.ExecuteSqlRawAsync(
+            "UPDATE Channels SET Id = upper(Id) WHERE Id <> upper(Id)",
+            ct
+        );
+        await dbContext.Database.ExecuteSqlRawAsync(
+            "UPDATE ChannelBuiltinCommands SET BroadcasterId = upper(BroadcasterId) WHERE BroadcasterId <> upper(BroadcasterId)",
+            ct
+        );
     }
 }
