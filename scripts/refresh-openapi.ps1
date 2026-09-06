@@ -85,7 +85,11 @@ Write-Host '== starting the API (allow ~3 minutes) =='
 [string]$hostLog = Join-Path ([System.IO.Path]::GetTempPath()) 'nnz-openapi-run.log'
 $hostApi = $null
 if ($inContainer) {
-    docker exec -e ASPNETCORE_ENVIRONMENT=Development -e "Encryption__Key=$key" -d $Container `
+    # DOTNET_gcServer=0: with 24 cores visible, server GC reserves a heap per core and Roslyn dies with
+    # OutOfMemoryException compiling Infrastructure — even with ~11 GB free in the container, so it is heap
+    # RESERVATION, not real pressure. Workstation GC compiles the same tree clean. Verified 2026-09-07:
+    # 83 errors under server GC, 0 errors with this set.
+    docker exec -e ASPNETCORE_ENVIRONMENT=Development -e DOTNET_gcServer=0 -e "Encryption__Key=$key" -d $Container `
         sh -lc 'cd /workspace/server/src/NomNomzBot.Api && dotnet run --no-launch-profile --urls http://0.0.0.0:5080 > /tmp/openapi-run.log 2>&1'
 }
 else {
