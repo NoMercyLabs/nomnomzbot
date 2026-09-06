@@ -3279,6 +3279,11 @@
     <!-- Admin -->
     <string name="shell_nav_admin">Admin</string>
     <string name="admin_title">Platform Admin</string>
+    <string name="admin_group_activity">Live</string>
+    <string name="admin_group_people">Who</string>
+    <string name="admin_group_billing">Money</string>
+    <string name="admin_group_safety">Risk</string>
+    <string name="admin_group_configuration">Setup</string>
     <string name="admin_tab_overview">Overview</string>
     <string name="admin_tab_channels">Channels</string>
     <string name="admin_tab_users">Users</string>

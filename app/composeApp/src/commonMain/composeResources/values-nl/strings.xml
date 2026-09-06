@@ -3265,6 +3265,11 @@
     <!-- Admin -->
     <string name="shell_nav_admin">Beheer</string>
     <string name="admin_title">Platform Beheer</string>
+    <string name="admin_group_activity">Live</string>
+    <string name="admin_group_people">Wie</string>
+    <string name="admin_group_billing">Geld</string>
+    <string name="admin_group_safety">Risico</string>
+    <string name="admin_group_configuration">Setup</string>
     <string name="admin_tab_overview">Overzicht</string>
     <string name="admin_tab_channels">Kanalen</string>
     <string name="admin_tab_users">Gebruikers</string>

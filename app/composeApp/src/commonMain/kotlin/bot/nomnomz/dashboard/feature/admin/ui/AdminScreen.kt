@@ -49,7 +49,6 @@ import bot.nomnomz.dashboard.core.network.FeatureFlagBlastRadiusDto
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -195,7 +194,79 @@ import nomnomzbot.composeapp.generated.resources.admin_user_empty
 import nomnomzbot.composeapp.generated.resources.admin_system_services_empty
 import nomnomzbot.composeapp.generated.resources.admin_health_empty
 import nomnomzbot.composeapp.generated.resources.admin_billing_empty
+import nomnomzbot.composeapp.generated.resources.admin_group_activity
+import nomnomzbot.composeapp.generated.resources.admin_group_people
+import nomnomzbot.composeapp.generated.resources.admin_group_billing
+import nomnomzbot.composeapp.generated.resources.admin_group_safety
+import nomnomzbot.composeapp.generated.resources.admin_group_configuration
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
+
+/**
+ * A job an operator comes to the admin plane to do. Eleven tabs, then more, outgrew a single strip — this
+ * groups the destinations by JOB (not by backend module or the order they were added) so an operator
+ * reaching for this mid-incident, from a phone, finds "what is it doing right now" as one step instead of
+ * scanning eighteen labels.
+ *
+ * Rejected: keeping the flat strip and leaning on [TabsList]'s built-in horizontal scroll to absorb the
+ * overflow — that hides destinations off-screen rather than organizing them, which is the failure mode
+ * this slice exists to fix. Rejected: grouping by the underlying data table / original tab order — that
+ * mirrors the backend's module boundaries, not the question an operator is actually asking when they open
+ * this screen.
+ */
+internal enum class AdminTabGroup(val label: StringResource) {
+    /** "What is it doing right now" — live signals, ops tools, and their history. */
+    Activity(Res.string.admin_group_activity),
+
+    /** "Who is on my platform" — channels, tenants, users, and the cross-tenant support desk. */
+    People(Res.string.admin_group_people),
+
+    /** "Money" — tiers, entitlement grants, invoices, and invite codes all live inside [BillingTab]. */
+    Billing(Res.string.admin_group_billing),
+
+    /** "Safety" — spam defaults and the platform-wide trust & safety desk. */
+    Safety(Res.string.admin_group_safety),
+
+    /** "How it is configured" — system, feature flags, providers, content, and IAM. */
+    Configuration(Res.string.admin_group_configuration),
+}
+
+/**
+ * Every destination the admin plane can render, and which [AdminTabGroup] it belongs to.
+ *
+ * Adding a tab means adding one entry here and one branch in the dispatch `when` in [AdminScreen] —
+ * `AdminTabGroupingReachabilityTest` fails loudly (naming the missing branch) if either is forgotten,
+ * because that `when` is a statement, not an expression, and Kotlin does not error on a non-exhaustive
+ * `when` used as a statement.
+ */
+internal enum class AdminTab(val group: AdminTabGroup, val label: StringResource) {
+    Overview(AdminTabGroup.Activity, Res.string.admin_tab_overview),
+    EventSubHealth(AdminTabGroup.Activity, Res.string.admin_tab_eventsub_health),
+    WebhookDeliveries(AdminTabGroup.Activity, Res.string.admin_tab_webhook_deliveries),
+    ScheduledJobs(AdminTabGroup.Activity, Res.string.admin_tab_scheduled_jobs),
+    TenantUsage(AdminTabGroup.Activity, Res.string.admin_tab_tenant_usage),
+    Audit(AdminTabGroup.Activity, Res.string.admin_tab_audit),
+
+    Channels(AdminTabGroup.People, Res.string.admin_tab_channels),
+    Users(AdminTabGroup.People, Res.string.admin_tab_users),
+    Tenants(AdminTabGroup.People, Res.string.admin_tab_tenants),
+
+    /** Only present when [AdminController.supportDeskAvailable] — the build wired a support-desk client. */
+    Support(AdminTabGroup.People, Res.string.admin_tab_support),
+
+    Billing(AdminTabGroup.Billing, Res.string.admin_tab_billing),
+
+    SpamDefaults(AdminTabGroup.Safety, Res.string.admin_tab_spam_defaults),
+
+    /** Only present when [AdminController.trustSafetyAvailable] — the build wired a client for it. */
+    TrustSafety(AdminTabGroup.Safety, Res.string.admin_tab_trust_safety),
+
+    System(AdminTabGroup.Configuration, Res.string.admin_tab_system),
+    FeatureFlags(AdminTabGroup.Configuration, Res.string.admin_tab_flags),
+    Providers(AdminTabGroup.Configuration, Res.string.admin_tab_providers),
+    Content(AdminTabGroup.Configuration, Res.string.admin_tab_content),
+    Iam(AdminTabGroup.Configuration, Res.string.admin_tab_iam),
+}
 
 @Composable
 fun AdminScreen(controller: AdminController) {
@@ -210,15 +281,30 @@ fun AdminScreen(controller: AdminController) {
     val spacing = LocalSpacing.current
     val typography = LocalTypography.current
 
-    var selectedTab: Int by remember { mutableIntStateOf(0) }
+    // A destination stays hidden below its availability gate exactly as before the regrouping: Support and
+    // Trust & Safety only enter this list when the build actually wired a client for them.
+    val availableTabs: List<AdminTab> =
+        remember(controller.supportDeskAvailable, controller.trustSafetyAvailable) {
+            AdminTab.entries.filter { tab ->
+                when (tab) {
+                    AdminTab.Support -> controller.supportDeskAvailable
+                    AdminTab.TrustSafety -> controller.trustSafetyAvailable
+                    else -> true
+                }
+            }
+        }
+
+    var selectedTab: AdminTab by remember { mutableStateOf(AdminTab.Overview) }
+    var selectedGroup: AdminTabGroup by remember { mutableStateOf(AdminTab.Overview.group) }
+
     // Lazy-load the heavier Plane-C management slices only when their tab is first opened.
     LaunchedEffect(selectedTab) {
         when (selectedTab) {
             // The Users tab reads the IAM principal list too — it is what tells an operator whether the
             // person they are looking at has platform access at all. Without it every row would read
             // "no platform access", which is a lie told confidently.
-            2 -> if (state.principals.isEmpty() && state.roles.isEmpty()) controller.loadIam()
-            TAB_CONTENT -> {
+            AdminTab.Users -> if (state.principals.isEmpty() && state.roles.isEmpty()) controller.loadIam()
+            AdminTab.Content -> {
                 // Own-permission gating (ContentTab's ManageGate calls) reads state.principals/
                 // effectivePermissions, same as the Users tab's UserPlatformAccess — load IAM alongside the
                 // content list so the tab never renders every write control as denied just because the
@@ -226,53 +312,58 @@ fun AdminScreen(controller: AdminController) {
                 if (state.principals.isEmpty() && state.roles.isEmpty()) controller.loadIam()
                 if (state.contentDefinitions.isEmpty()) controller.loadContentDefinitions()
             }
-            TAB_IAM -> if (state.principals.isEmpty() && state.roles.isEmpty()) controller.loadIam()
-            TAB_TENANTS -> if (state.tenants.isEmpty()) controller.loadTenants()
-            TAB_AUDIT -> if (state.auditEntries.isEmpty()) controller.loadAudit()
-            TAB_SPAM_DEFAULTS -> if (state.spamDefaults == null) controller.loadSpamDefaults()
-            TAB_PROVIDERS -> if (state.providerCredentials.isEmpty()) controller.loadProviders()
-            TAB_EVENTSUB_HEALTH -> if (state.eventSubHealth.isEmpty()) controller.loadEventSubHealth()
-            TAB_WEBHOOK_DELIVERIES -> if (state.webhookDeliveries.isEmpty()) controller.loadWebhookDeliveries()
-            TAB_SCHEDULED_JOBS -> if (state.scheduledJobs.isEmpty()) controller.loadScheduledJobs()
-            TAB_TENANT_USAGE -> if (state.tenantUsage.isEmpty()) controller.loadTenantUsage()
-            TAB_TRUST_SAFETY -> if (!state.crossTenantSignalsLoaded && state.trustSafetyJustification.isNotBlank()) {
-                controller.loadCrossTenantSignals()
-                controller.loadReviewQueue()
-            }
+            AdminTab.Iam -> if (state.principals.isEmpty() && state.roles.isEmpty()) controller.loadIam()
+            AdminTab.Tenants -> if (state.tenants.isEmpty()) controller.loadTenants()
+            AdminTab.Audit -> if (state.auditEntries.isEmpty()) controller.loadAudit()
+            AdminTab.SpamDefaults -> if (state.spamDefaults == null) controller.loadSpamDefaults()
+            AdminTab.Providers -> if (state.providerCredentials.isEmpty()) controller.loadProviders()
+            AdminTab.EventSubHealth -> if (state.eventSubHealth.isEmpty()) controller.loadEventSubHealth()
+            AdminTab.WebhookDeliveries -> if (state.webhookDeliveries.isEmpty()) controller.loadWebhookDeliveries()
+            AdminTab.ScheduledJobs -> if (state.scheduledJobs.isEmpty()) controller.loadScheduledJobs()
+            AdminTab.TenantUsage -> if (state.tenantUsage.isEmpty()) controller.loadTenantUsage()
+            AdminTab.TrustSafety ->
+                if (!state.crossTenantSignalsLoaded && state.trustSafetyJustification.isNotBlank()) {
+                    controller.loadCrossTenantSignals()
+                    controller.loadReviewQueue()
+                }
+            else -> {}
         }
     }
-    val tabs: List<String> = listOf(
-        stringResource(Res.string.admin_tab_overview),
-        stringResource(Res.string.admin_tab_channels),
-        stringResource(Res.string.admin_tab_users),
-        stringResource(Res.string.admin_tab_system),
-        stringResource(Res.string.admin_tab_flags),
-        stringResource(Res.string.admin_tab_billing),
-        stringResource(Res.string.admin_tab_content),
-        stringResource(Res.string.admin_tab_iam),
-        stringResource(Res.string.admin_tab_tenants),
-        stringResource(Res.string.admin_tab_audit),
-        stringResource(Res.string.admin_tab_spam_defaults),
-        stringResource(Res.string.admin_tab_providers),
-        stringResource(Res.string.admin_tab_eventsub_health),
-        stringResource(Res.string.admin_tab_webhook_deliveries),
-        stringResource(Res.string.admin_tab_scheduled_jobs),
-        stringResource(Res.string.admin_tab_tenant_usage),
-    ) + (if (controller.supportDeskAvailable) listOf(stringResource(Res.string.admin_tab_support)) else emptyList()) +
-        (if (controller.trustSafetyAvailable) listOf(stringResource(Res.string.admin_tab_trust_safety)) else emptyList())
 
     Column(modifier = Modifier.fillMaxSize().background(tokens.background)) {
         PageHeader(
             title = stringResource(Res.string.shell_nav_admin),
             modifier = Modifier.padding(horizontal = spacing.s6, vertical = spacing.s4),
         )
+
+        // Level 1 — which JOB. Five groups, short enough to read at a glance even at Compact width
+        // (AdminTabGroupingCompactWidthTest pins this: the group strip itself never needs to scroll).
         TabsList(modifier = Modifier.padding(horizontal = spacing.s6)) {
-            tabs.forEachIndexed { index, label ->
+            AdminTabGroup.entries.forEach { group ->
                 TabsTrigger(
-                    selected = selectedTab == index,
-                    onClick = { selectedTab = index },
+                    selected = selectedGroup == group,
+                    onClick = {
+                        selectedGroup = group
+                        if (selectedTab.group != group) {
+                            selectedTab = availableTabs.first { it.group == group }
+                        }
+                    },
                 ) {
-                    Text(text = label, style = typography.sm)
+                    Text(text = stringResource(group.label), style = typography.sm)
+                }
+            }
+        }
+
+        // Level 2 — which destination inside that job. Only the selected group's own destinations ever
+        // show here, so the strip that decides WHAT you are looking at never carries all eighteen at once.
+        val groupTabs: List<AdminTab> = availableTabs.filter { it.group == selectedGroup }
+        TabsList(modifier = Modifier.padding(horizontal = spacing.s6, vertical = spacing.s2)) {
+            groupTabs.forEach { tab ->
+                TabsTrigger(
+                    selected = selectedTab == tab,
+                    onClick = { selectedTab = tab },
+                ) {
+                    Text(text = stringResource(tab.label), style = typography.sm)
                 }
             }
         }
@@ -283,61 +374,57 @@ fun AdminScreen(controller: AdminController) {
         AdminLoadErrorBanner(error = state.error)
 
         // Per-tab loading: only the tab whose data is (re)fetching shows a spinner — the tab bar and every
-        // other tab stay interactive. TAB_IAM/TAB_TENANTS/TAB_AUDIT already render their own loading flag
+        // other tab stay interactive. Iam/Tenants/Audit already render their own loading flag
         // (iamLoading/tenantsLoading/auditLoading) inside their own composables.
         when (selectedTab) {
-            0 -> TabContentOrSpinner(isLoading = AdminSection.Overview in state.loadingSections, tokens = tokens) {
-                OverviewTab(state = state)
+            AdminTab.Overview -> TabContentOrSpinner(
+                isLoading = AdminSection.Overview in state.loadingSections,
+                tokens = tokens,
+            ) { OverviewTab(state = state) }
+            AdminTab.Channels -> TabContentOrSpinner(
+                isLoading = AdminSection.Channels in state.loadingSections,
+                tokens = tokens,
+            ) { ChannelsTab(state = state, controller = controller) }
+            AdminTab.Users -> TabContentOrSpinner(
+                isLoading = AdminSection.Users in state.loadingSections,
+                tokens = tokens,
+            ) {
+                UsersTab(
+                    state = state,
+                    controller = controller,
+                    onOpenIam = {
+                        selectedGroup = AdminTabGroup.Configuration
+                        selectedTab = AdminTab.Iam
+                    },
+                )
             }
-            1 -> TabContentOrSpinner(isLoading = AdminSection.Channels in state.loadingSections, tokens = tokens) {
-                ChannelsTab(state = state, controller = controller)
-            }
-            2 -> TabContentOrSpinner(isLoading = AdminSection.Users in state.loadingSections, tokens = tokens) {
-                UsersTab(state = state, controller = controller, onOpenIam = { selectedTab = TAB_IAM })
-            }
-            3 -> TabContentOrSpinner(isLoading = AdminSection.System in state.loadingSections, tokens = tokens) {
-                SystemTab(state = state)
-            }
-            4 -> TabContentOrSpinner(isLoading = AdminSection.FeatureFlags in state.loadingSections, tokens = tokens) {
-                FeatureFlagsTab(state = state, controller = controller)
-            }
-            5 -> TabContentOrSpinner(isLoading = AdminSection.Billing in state.loadingSections, tokens = tokens) {
-                BillingTab(state = state, controller = controller)
-            }
-            TAB_CONTENT -> ContentTab(state = state, controller = controller, currentUserId = controller.currentUserId)
-            TAB_IAM -> IamTab(state = state, controller = controller)
-            TAB_TENANTS -> TenantsTab(state = state, controller = controller)
-            TAB_AUDIT -> AuditTab(state = state, controller = controller)
-            TAB_SPAM_DEFAULTS -> SpamDefaultsTab(state = state, controller = controller)
-            TAB_PROVIDERS -> ProvidersTab(state = state, controller = controller)
-            TAB_EVENTSUB_HEALTH -> EventSubHealthTab(state = state, controller = controller)
-            TAB_WEBHOOK_DELIVERIES -> WebhookDeliveriesTab(state = state, controller = controller)
-            TAB_SCHEDULED_JOBS -> ScheduledJobsTab(state = state, controller = controller)
-            TAB_TENANT_USAGE -> TenantUsageTab(state = state, controller = controller)
-            TAB_SUPPORT -> SupportTab(state = state, controller = controller)
-            TAB_TRUST_SAFETY -> TrustSafetyTab(state = state, controller = controller)
+            AdminTab.System -> TabContentOrSpinner(
+                isLoading = AdminSection.System in state.loadingSections,
+                tokens = tokens,
+            ) { SystemTab(state = state) }
+            AdminTab.FeatureFlags -> TabContentOrSpinner(
+                isLoading = AdminSection.FeatureFlags in state.loadingSections,
+                tokens = tokens,
+            ) { FeatureFlagsTab(state = state, controller = controller) }
+            AdminTab.Billing -> TabContentOrSpinner(
+                isLoading = AdminSection.Billing in state.loadingSections,
+                tokens = tokens,
+            ) { BillingTab(state = state, controller = controller) }
+            AdminTab.Content -> ContentTab(state = state, controller = controller, currentUserId = controller.currentUserId)
+            AdminTab.Iam -> IamTab(state = state, controller = controller)
+            AdminTab.Tenants -> TenantsTab(state = state, controller = controller)
+            AdminTab.Audit -> AuditTab(state = state, controller = controller)
+            AdminTab.SpamDefaults -> SpamDefaultsTab(state = state, controller = controller)
+            AdminTab.Providers -> ProvidersTab(state = state, controller = controller)
+            AdminTab.EventSubHealth -> EventSubHealthTab(state = state, controller = controller)
+            AdminTab.WebhookDeliveries -> WebhookDeliveriesTab(state = state, controller = controller)
+            AdminTab.ScheduledJobs -> ScheduledJobsTab(state = state, controller = controller)
+            AdminTab.TenantUsage -> TenantUsageTab(state = state, controller = controller)
+            AdminTab.Support -> SupportTab(state = state, controller = controller)
+            AdminTab.TrustSafety -> TrustSafetyTab(state = state, controller = controller)
         }
     }
 }
-
-private const val TAB_CONTENT: Int = 6
-private const val TAB_IAM: Int = 7
-private const val TAB_TENANTS: Int = 8
-private const val TAB_AUDIT: Int = 9
-private const val TAB_SPAM_DEFAULTS: Int = 10
-private const val TAB_PROVIDERS: Int = 11
-private const val TAB_EVENTSUB_HEALTH: Int = 12
-private const val TAB_WEBHOOK_DELIVERIES: Int = 13
-
-/** The background job queue with retry, and per-tenant usage (S-ADMIN-6b). */
-private const val TAB_SCHEDULED_JOBS: Int = 14
-private const val TAB_TENANT_USAGE: Int = 15
-
-/** The cross-tenant support desk (S-ADMIN-7a). Only present when the build wired a support-desk client. */
-private const val TAB_SUPPORT: Int = 16
-
-/** The platform-wide trust & safety desk (S-ADMIN-8a). Only present when the build wired a client for it. */
-private const val TAB_TRUST_SAFETY: Int = 17
 
 /** Renders [content] normally, or a centered [Spinner] in its place while [isLoading] — scoped to the current
  * tab's content area only, so a sibling tab's fetch never blocks this one. */
