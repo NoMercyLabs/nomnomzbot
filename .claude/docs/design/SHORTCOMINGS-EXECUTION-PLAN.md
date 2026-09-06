@@ -353,10 +353,24 @@ The rest of the class was traced, not assumed: `AgeConsentService`, `LiveGameEng
 `ModerationQueueService`, `ViewerReportService` and `TrustSafetyReviewService` all stamp only after
 their real action. Search: `ReversedAt =|OverturnedAt =|ConfirmedAt =|ResolvedAt =` then trace consumers.
 
-- [ ] **S-ADMIN-8b Network-wide blocks.** The most dangerous control in the product — it acts across
-      every tenant at once, so it needs a counted blast radius before it applies, reversibility, a
-      justification, an audit entry, and ownership by a named user rather than a role. Cross-INSTANCE
-      signature sharing stays blocked (needs a NoMercy service that does not exist).
+**S-ADMIN-8b CLOSED (`5e227dea`), verified against its safety properties, not just its tests.**
+Network-wide blocks ship with: a counted preview naming the real tenants; an apply carrying a STALE
+count failing closed with zero bans issued and zero rows written (verified — a refusal that had
+already fanned out half the bans is the dangerous case); enforcement in `RoleResolver.HasCapabilityAsync`
+itself, so the block is consulted on the real production path in a tenant the actor was never
+individually blocked in, not merely visible to the admin surface; a lift that unbans every tenant the
+apply touched and, on a failing leg, leaves `Status` non-Lifted with `LiftedAt` null and the failed
+tenant named, still enforced; a required justification; and ownership proven in BOTH directions —
+platform-super-admin is explicitly excluded, only the narrow named role grants it.
+The two blast-radius edits were checked separately: the `RoleResolver` diff is a strict early
+deny-return that cannot widen any permission, and all 52 fake-DbContext edits are additive
+`NetworkBlocks` stubs, not assertions bent to pass.
+
+Cross-INSTANCE signature sharing stays blocked (needs a NoMercy service that does not exist).
+
+**S-MOD-REVERSAL-VISIBLE CLOSED (`b165fe50`).** A campaign's reversal outcome is now legible: three
+states render distinguishably — "Reversal incomplete - N accounts still actioned", "Undone: <reason>",
+and nothing when never reversed — so a partially-restored cohort can no longer look clean.
 - [ ] **S-ADMIN-9 Make it navigable.** Eleven tabs is already past what one tab strip carries, and the work
       above adds more. Same discipline as the Moderation split (S-UX-1/3): group by JOB, one primary action
       per surface, Sleak loaded before any of it is drawn, and breakpoints honoured — an owner does reach for
