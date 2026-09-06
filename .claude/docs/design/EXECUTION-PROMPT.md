@@ -67,6 +67,14 @@ and committing. Binding context: `PRODUCT-ALIGNMENT.md` (D1–D12), `CLAUDE.md` 
 > conventional message; NO push. Touch only the listed files; anything else → OUT-OF-SCOPE FOUND. Do
 > not read the audit docs or the plan — everything you need is in this brief. Return ONLY the report
 > shape. Do not narrate. If blocked, say so in one line and stop.
+>
+> Run every build and test in the FOREGROUND with a long timeout and wait for the exit code. Do NOT
+> start a background build or a monitor and end your turn: a background job's completion notification
+> goes to the parent session, never back into your own loop, so the slice stalls until someone resumes
+> you by hand. A full `:composeApp:jvmTest` takes ~9 minutes and a Wasm distribution build much longer —
+> wait for them. Before writing ANY test file, check its class name and every fake/stub name against
+> the existing test projects: duplicate JVM class names break `compileTestKotlinJvm` for the WHOLE
+> module, which blocks every other agent, and it has happened repeatedly.
 
 ## Sizing and efficiency
 - Prefer many small slices over one big: if a slice's brief would exceed ~40 lines or touch > 8 files,
