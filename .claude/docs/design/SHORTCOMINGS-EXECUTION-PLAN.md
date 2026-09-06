@@ -1452,8 +1452,18 @@ later.)
   channel/template/embed/ping; Event Responses Discord preset (U·A6 i2/3/6).
 - **S057** Discord live-role sync — roles added on online, removed on offline, role picker, spec
   section in `discord.md` (U·A6 i4). Done-when: go live → roles on; offline → roles off.
-- **S059** Alert system surface — one alert queue across platforms, not a gallery item (spec
-  `widgets-overlays.md` §1.2). Done-when: supporter alert renders without an install.
+- **S059** Alert system surface — **CLOSED (`8ce5fcab`)**. A supporter event now produces a queued,
+  dispatchable alert with NO widget ever installed, which was the plan's Done-when. Two providers land
+  in ONE ordered queue with per-entry provider attribution rather than separate per-platform lists.
+  Delivery is presence-checked, the law this project has paid for twice: with no overlay connected the
+  alert reports queued and never pushes, and only a genuinely connected overlay marks it delivered.
+  Both migration sets; `AlertQueueEntry` classified in `ChannelBlastRadiusSources`; ~52 fake contexts.
+  - [ ] **S059b Platform-native alerts still bypass the queue.** Follow / sub / cheer / raid / gift /
+        resub go direct-push through `WidgetAlertDispatch` and never write an `AlertQueueEntries` row,
+        so "one queue across platforms" is true for supporter events and NOT yet for Twitch's own. Also
+        owed: moderation retraction (§2a) cancelling a queued-but-undelivered entry, and regenerating
+        `server/openapi/v1.json` for the new `alert-queue` route (port 5080 was held by another agent;
+        `ApiContractTest` passes without it because the Kotlin client does not consume it yet).
 - **S071** Notification centre + Home — action-required inbox (dead tokens, missing scopes, failed
   timers, held messages, pending unbans) with click-through; Home hero tile + collapsed activity feed
   + first-run next steps (U·B6, K). Done-when: a dead Spotify token is visible on Home within a minute.
