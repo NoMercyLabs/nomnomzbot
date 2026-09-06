@@ -120,6 +120,28 @@ streaming live or does not have one or more viewers" — a genuine precondition,
       the platform bot. The gap this leaves: once setup is done, nothing anywhere can re-connect or
       replace the platform bot account. That surface belongs in the admin plane.
 
+## ROW NAMES TRUNCATED AT NARROW WIDTH — swept, 50 of 50 screens (2026-09-06, `4bc04949`)
+
+Found on the rendered client: at 390px a pipeline's name showed as "Raid…", identifying nothing. A
+structural scan then found the same `maxLines = 1` + `TextOverflow.Ellipsis` shape in **50 files**.
+All 50 swept, **113 primary labels fixed**, 74 secondary clips deliberately kept (bylines, status
+lines, URLs, event-type summaries, section headings — never a row's own name), spot-verified across
+Economy, Music, Moderation, Webhooks, Discord, Rewards, Chat, Admin and Quotes.
+
+**What "fixed" actually means here, stated because the two are not the same claim:** most of the 113
+became `maxLines = 2` with Ellipsis kept as a fallback — they clip past two lines rather than never
+clipping. A minority (Discord guildName, Moderation rule/filter displayName, Webhooks' resolveRowLabel
+name) now carry no cap at all.
+
+`TruncatedPrimaryLabelGuardTest` keeps it closed: a balanced-paren scan over every `Text(`/`EmojiText(`
+call, tracking a shrinking baseline of 74, verified red by injecting a second occurrence into
+AdminScreen.kt. The render test asserts a long name's rendered HEIGHT exceeds a short one's at Compact
+width — semantics text alone cannot tell a wrap from an ellipsis.
+
+- [ ] **Webhooks rows have no Compact layout.** `OutboundRow`/`InboundRow` are not `windowSize`-gated,
+      so at true Compact width the whole action-button row is crowded, not just the name — a
+      `CompactMultiColumnRowGuardTest`-class problem the ellipsis sweep did not address.
+
 ## SQLITE GUID CASING — a defect that bit three times, closed at the root (2026-09-06)
 
 Microsoft.Data.Sqlite binds, stores and compares Guids as UPPERCASE hyphenated text, and SQLite text
