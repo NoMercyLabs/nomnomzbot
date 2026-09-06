@@ -7435,6 +7435,12 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<int>("Confidence")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime?>("ConfirmedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ConfirmedByUserId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -7462,6 +7468,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.Property<DateTime?>("OverturnedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("OverturnedByUserId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Provider")
                         .IsRequired()

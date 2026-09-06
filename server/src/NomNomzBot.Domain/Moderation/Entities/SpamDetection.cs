@@ -76,5 +76,20 @@ public class SpamDetection : SoftDeletableEntity, ITenantScoped
     /// <summary>Set when a moderator reviewed this and disagreed — the false-positive signal.</summary>
     public DateTime? OverturnedAt { get; set; }
 
+    /// <summary>
+    /// The operator who overturned this (S-ADMIN-8a) — <see cref="OverturnedAt"/> alone says WHEN, this
+    /// says WHO, so the audit trail names an accountable person for every reversal.
+    /// </summary>
+    public Guid? OverturnedByUserId { get; set; }
+
+    /// <summary>
+    /// Set when a platform reviewer looked at an automatic account action and agreed with it
+    /// (S-ADMIN-8a's review queue). Distinct from <see cref="OverturnedAt"/>: confirming closes the
+    /// review without touching the action; only an overturn reverses it.
+    /// </summary>
+    public DateTime? ConfirmedAt { get; set; }
+
+    public Guid? ConfirmedByUserId { get; set; }
+
     public DateTime DetectedAt { get; set; }
 }

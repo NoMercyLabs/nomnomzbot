@@ -63,6 +63,9 @@ import bot.nomnomz.dashboard.core.network.PlatformAdminApi
 import bot.nomnomz.dashboard.core.network.SupportPersonHistoryEntry
 import bot.nomnomz.dashboard.core.network.SupportPersonSearchResult
 import bot.nomnomz.dashboard.core.network.SupportPersonView
+import bot.nomnomz.dashboard.core.network.CrossTenantAbuseSignal
+import bot.nomnomz.dashboard.core.network.TrustSafetyApi
+import bot.nomnomz.dashboard.core.network.TrustSafetyReviewItem
 import bot.nomnomz.dashboard.core.network.PlatformContentApi
 import bot.nomnomz.dashboard.core.network.PlatformContentDefinition
 import bot.nomnomz.dashboard.core.network.PlatformContentDefinitionDetail
@@ -267,6 +270,23 @@ data class AdminState(
     val supportHistoryLoaded: Boolean = false,
     val supportHistoryLoading: Boolean = false,
     val supportHistoryError: String? = null,
+    // ── Platform-wide trust & safety desk (S-ADMIN-8a) ──
+    /** The mandatory, audited reason for a cross-tenant read or an overturn. Never blank when a call is made. */
+    val trustSafetyJustification: String = "",
+    val crossTenantSignals: List<CrossTenantAbuseSignal> = emptyList(),
+    /** True once the correlation has actually run, so an empty list reads as "none found" not "not run". */
+    val crossTenantSignalsLoaded: Boolean = false,
+    val crossTenantSignalsLoading: Boolean = false,
+    val crossTenantSignalsError: String? = null,
+    val reviewQueue: List<TrustSafetyReviewItem> = emptyList(),
+    val reviewQueueLoaded: Boolean = false,
+    val reviewQueueLoading: Boolean = false,
+    val reviewQueueError: String? = null,
+    /** The row an overturn confirm dialog is open for — its [TrustSafetyReviewItem.reversalPreview] is the
+     * message the dialog shows, so the operator sees the blast radius before it commits. */
+    val reviewItemPendingOverturn: TrustSafetyReviewItem? = null,
+    val reviewActionInFlight: String? = null,
+    val reviewActionError: String? = null,
 )
 
 /** One tab whose data comes from [AdminController.load]/[AdminController.loadChannels]/[AdminController.loadUsers]
@@ -304,6 +324,9 @@ class AdminController(
     // The cross-tenant support desk. Nullable like the other optional collaborators so a bare test
     // controller still builds; the tab stays hidden when the build has no client for it.
     private val supportApi: AdminSupportApi? = null,
+    // The platform-wide trust & safety desk (S-ADMIN-8a). Nullable for the same reason: a bare test
+    // controller still builds, and the tab stays hidden when the build has no client for it.
+    private val trustSafetyApi: TrustSafetyApi? = null,
     private val contentApi: PlatformContentApi? = null,
     private val hubClient: AdminHubClient? = null,
     private val baseUrl: () -> String? = { null },
@@ -990,6 +1013,115 @@ class AdminController(
                 _state.value = _state.value.copy(
                     supportHistoryLoading = false,
                     supportHistoryError = result.error.message,
+                )
+        }
+    }
+
+    // ── Platform-wide trust & safety desk (S-ADMIN-8a) ───────────────────────
+
+    /** True when this build wired a trust-safety client — the tab is hidden rather than dead without one. */
+    val trustSafetyAvailable: Boolean get() = trustSafetyApi != null
+
+    fun setTrustSafetyJustification(value: String) {
+        _state.value = _state.value.copy(trustSafetyJustification = value)
+    }
+
+    /** Every actor whose spam-defence detections were recorded in two or more tenants, with the real
+     * detections that back the correlation. The backend refuses a blank justification and audits the call. */
+    suspend fun loadCrossTenantSignals() {
+        val api: TrustSafetyApi = trustSafetyApi ?: return
+        val justification: String = _state.value.trustSafetyJustification.trim()
+        if (justification.isBlank()) return
+
+        _state.value = _state.value.copy(crossTenantSignalsLoading = true, crossTenantSignalsError = null)
+        when (val result = api.getCrossTenantSignals(justification = justification)) {
+            is ApiResult.Ok ->
+                _state.value = _state.value.copy(
+                    crossTenantSignals = result.value,
+                    crossTenantSignalsLoaded = true,
+                    crossTenantSignalsLoading = false,
+                )
+            is ApiResult.Failure ->
+                _state.value = _state.value.copy(
+                    crossTenantSignalsLoading = false,
+                    crossTenantSignalsError = result.error.message,
+                )
+        }
+    }
+
+    /** The queue of automatic account actions awaiting review, each carrying the evidence that caused it. */
+    suspend fun loadReviewQueue() {
+        val api: TrustSafetyApi = trustSafetyApi ?: return
+        val justification: String = _state.value.trustSafetyJustification.trim()
+        if (justification.isBlank()) return
+
+        _state.value = _state.value.copy(reviewQueueLoading = true, reviewQueueError = null)
+        when (val result = api.getReviewQueue(justification = justification)) {
+            is ApiResult.Ok ->
+                _state.value = _state.value.copy(
+                    reviewQueue = result.value.data,
+                    reviewQueueLoaded = true,
+                    reviewQueueLoading = false,
+                )
+            is ApiResult.Failure ->
+                _state.value = _state.value.copy(
+                    reviewQueueLoading = false,
+                    reviewQueueError = result.error.message,
+                )
+        }
+    }
+
+    /** Opens the destructive confirm dialog for [item] — its [TrustSafetyReviewItem.reversalPreview] is
+     * shown as the dialog's message, so the operator sees the blast radius before committing to it. */
+    fun requestOverturn(item: TrustSafetyReviewItem) {
+        _state.value = _state.value.copy(reviewItemPendingOverturn = item, reviewActionError = null)
+    }
+
+    fun dismissOverturnRequest() {
+        _state.value = _state.value.copy(reviewItemPendingOverturn = null)
+    }
+
+    /** The operator agrees with an automatic action: closes the review, the action itself is untouched. */
+    suspend fun confirmReviewItem(detectionId: String) {
+        val api: TrustSafetyApi = trustSafetyApi ?: return
+        val justification: String = _state.value.trustSafetyJustification.trim()
+        if (justification.isBlank()) return
+
+        _state.value = _state.value.copy(reviewActionInFlight = detectionId, reviewActionError = null)
+        when (val result = api.confirm(detectionId = detectionId, justification = justification)) {
+            is ApiResult.Ok -> {
+                _state.value = _state.value.copy(reviewActionInFlight = null)
+                loadReviewQueue()
+            }
+            is ApiResult.Failure ->
+                _state.value = _state.value.copy(
+                    reviewActionInFlight = null,
+                    reviewActionError = result.error.message,
+                )
+        }
+    }
+
+    /** The operator disagrees: the backend REVERSES the real account action before marking the detection
+     * overturned — a failed reversal leaves the queue row exactly as it was. */
+    suspend fun overturnReviewItem(detectionId: String) {
+        val api: TrustSafetyApi = trustSafetyApi ?: return
+        val justification: String = _state.value.trustSafetyJustification.trim()
+        if (justification.isBlank()) return
+
+        _state.value = _state.value.copy(
+            reviewActionInFlight = detectionId,
+            reviewActionError = null,
+            reviewItemPendingOverturn = null,
+        )
+        when (val result = api.overturn(detectionId = detectionId, justification = justification)) {
+            is ApiResult.Ok -> {
+                _state.value = _state.value.copy(reviewActionInFlight = null)
+                loadReviewQueue()
+            }
+            is ApiResult.Failure ->
+                _state.value = _state.value.copy(
+                    reviewActionInFlight = null,
+                    reviewActionError = result.error.message,
                 )
         }
     }

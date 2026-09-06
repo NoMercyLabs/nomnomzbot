@@ -73,6 +73,9 @@ public sealed class IamCatalogSeeder : ISeeder
         // Cross-tenant person lookup (S-ADMIN-7a) — reads one subject's real state in EVERY tenant, so it
         // crosses the tenant boundary by design and is always audited against the subject.
         (IamPermissionKeys.UserSupportView, IamCategory.Iam, true),
+        // Cross-tenant abuse correlation + automatic-action review queue (S-ADMIN-8a) — crosses the
+        // tenant boundary to correlate an actor and can reverse an automatic account action.
+        (IamPermissionKeys.TrustSafetyReview, IamCategory.Tenant, true),
     ];
 
     /// <summary>C.2 + C.3 rows: system role → its bundled permission keys, verbatim from §C.2.</summary>
@@ -104,6 +107,7 @@ public sealed class IamCatalogSeeder : ISeeder
                 IamPermissionKeys.TenantRemigrate,
                 IamPermissionKeys.TenantErase,
                 IamPermissionKeys.UserSupportView,
+                IamPermissionKeys.TrustSafetyReview,
             ]
         ),
         (
@@ -137,6 +141,9 @@ public sealed class IamCatalogSeeder : ISeeder
                 IamPermissionKeys.AuditRead,
                 IamPermissionKeys.GalleryReview,
                 IamPermissionKeys.ComplianceErasure,
+                // The trust & safety team's own reason to exist: correlate an actor across tenants and
+                // review the platform's own automatic spam-defence account actions.
+                IamPermissionKeys.TrustSafetyReview,
             ]
         ),
         (

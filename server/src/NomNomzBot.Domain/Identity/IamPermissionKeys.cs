@@ -83,6 +83,14 @@ public static class IamPermissionKeys
     // ticket needs to see the state, never to become the subject.
     public const string UserSupportView = "user:support:view";
 
+    // Cross-tenant trust & safety desk (S-ADMIN-8a): see the same actor's spam-defence detections across
+    // EVERY tenant of this deployment, and review/confirm/overturn the account actions the spam-defence
+    // engine took automatically (spam-defense.md §L5, SpamOutcome.DeleteAndEscalate). Distinct from
+    // user:support:view (reads one PERSON's state) and from tenant:access (visits one tenant): this key
+    // crosses the tenant boundary specifically to correlate abuse and to reverse the platform's own
+    // automatic calls, so it is its own grant, always audited against the detection/actor it touches.
+    public const string TrustSafetyReview = "trust-safety:review";
+
     /// <summary>Every seeded Plane-C key (§C.1). The legacy alias <c>iam:audit:read</c> collapses to <c>audit:read</c>.</summary>
     public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -109,5 +117,6 @@ public static class IamPermissionKeys
         TenantRemigrate,
         TenantErase,
         UserSupportView,
+        TrustSafetyReview,
     };
 }

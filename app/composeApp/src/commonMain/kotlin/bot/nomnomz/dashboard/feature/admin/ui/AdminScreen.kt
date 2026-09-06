@@ -173,6 +173,7 @@ import nomnomzbot.composeapp.generated.resources.admin_tab_webhook_deliveries
 import nomnomzbot.composeapp.generated.resources.admin_tab_scheduled_jobs
 import nomnomzbot.composeapp.generated.resources.admin_tab_tenant_usage
 import nomnomzbot.composeapp.generated.resources.admin_tab_support
+import nomnomzbot.composeapp.generated.resources.admin_tab_trust_safety
 import nomnomzbot.composeapp.generated.resources.admin_providers_explain
 import nomnomzbot.composeapp.generated.resources.admin_providers_empty
 import nomnomzbot.composeapp.generated.resources.admin_providers_no_client_id
@@ -234,6 +235,10 @@ fun AdminScreen(controller: AdminController) {
             TAB_WEBHOOK_DELIVERIES -> if (state.webhookDeliveries.isEmpty()) controller.loadWebhookDeliveries()
             TAB_SCHEDULED_JOBS -> if (state.scheduledJobs.isEmpty()) controller.loadScheduledJobs()
             TAB_TENANT_USAGE -> if (state.tenantUsage.isEmpty()) controller.loadTenantUsage()
+            TAB_TRUST_SAFETY -> if (!state.crossTenantSignalsLoaded && state.trustSafetyJustification.isNotBlank()) {
+                controller.loadCrossTenantSignals()
+                controller.loadReviewQueue()
+            }
         }
     }
     val tabs: List<String> = listOf(
@@ -253,7 +258,8 @@ fun AdminScreen(controller: AdminController) {
         stringResource(Res.string.admin_tab_webhook_deliveries),
         stringResource(Res.string.admin_tab_scheduled_jobs),
         stringResource(Res.string.admin_tab_tenant_usage),
-    ) + if (controller.supportDeskAvailable) listOf(stringResource(Res.string.admin_tab_support)) else emptyList()
+    ) + (if (controller.supportDeskAvailable) listOf(stringResource(Res.string.admin_tab_support)) else emptyList()) +
+        (if (controller.trustSafetyAvailable) listOf(stringResource(Res.string.admin_tab_trust_safety)) else emptyList())
 
     Column(modifier = Modifier.fillMaxSize().background(tokens.background)) {
         PageHeader(
@@ -309,6 +315,7 @@ fun AdminScreen(controller: AdminController) {
             TAB_SCHEDULED_JOBS -> ScheduledJobsTab(state = state, controller = controller)
             TAB_TENANT_USAGE -> TenantUsageTab(state = state, controller = controller)
             TAB_SUPPORT -> SupportTab(state = state, controller = controller)
+            TAB_TRUST_SAFETY -> TrustSafetyTab(state = state, controller = controller)
         }
     }
 }
@@ -328,6 +335,9 @@ private const val TAB_TENANT_USAGE: Int = 15
 
 /** The cross-tenant support desk (S-ADMIN-7a). Only present when the build wired a support-desk client. */
 private const val TAB_SUPPORT: Int = 16
+
+/** The platform-wide trust & safety desk (S-ADMIN-8a). Only present when the build wired a client for it. */
+private const val TAB_TRUST_SAFETY: Int = 17
 
 /** Renders [content] normally, or a centered [Spinner] in its place while [isLoading] — scoped to the current
  * tab's content area only, so a sibling tab's fetch never blocks this one. */
