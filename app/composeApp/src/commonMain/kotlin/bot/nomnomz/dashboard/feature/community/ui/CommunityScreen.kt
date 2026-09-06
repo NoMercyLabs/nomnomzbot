@@ -485,7 +485,7 @@ private fun MemberList(
                                     text = chatterDisplayName,
                                     style = typography.sm,
                                     color = tokens.foreground,
-                                    maxLines = 1,
+                                    maxLines = 2,
                                     overflow = TextOverflow.Ellipsis,
                                 )
                             }
@@ -678,7 +678,7 @@ private fun MemberRow(
             text = name,
             style = typography.base,
             color = tokens.cardForeground,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             // The identity reads as one node; the controls below carry their own action labels.
             modifier = Modifier
@@ -1326,7 +1326,7 @@ private fun ViewerDataSection(
                         text = entry.key,
                         style = typography.sm,
                         color = tokens.foreground,
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(

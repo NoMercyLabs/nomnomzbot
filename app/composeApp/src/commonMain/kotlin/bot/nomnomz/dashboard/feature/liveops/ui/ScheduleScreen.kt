@@ -316,7 +316,7 @@ private fun SegmentRow(
                 ),
             style = typography.base,
             color = tokens.cardForeground,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
         Text(

@@ -428,7 +428,7 @@ private fun ActiveSessionCard(session: GameSession, liveManage: ManageDecision, 
                     text = stringResource(Res.string.games_live_active_title, session.gameType),
                     style = typography.base,
                     color = tokens.cardForeground,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
@@ -488,7 +488,7 @@ private fun LiveGameRow(
                 text = displayName,
                 style = typography.base,
                 color = tokens.cardForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             if (keywords.isNotBlank()) {
@@ -568,7 +568,7 @@ private fun GameRow(
                 text = game.gameType,
                 style = typography.base,
                 color = tokens.cardForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             if (game.category.isNotBlank()) {

@@ -175,7 +175,7 @@ private fun RankRow(entry: LeaderboardEntry) {
             text = displayName,
             style = typography.sm,
             color = tokens.cardForeground,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )

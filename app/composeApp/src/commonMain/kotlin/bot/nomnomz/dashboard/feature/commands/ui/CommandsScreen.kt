@@ -503,7 +503,7 @@ private fun CommandTableRow(
                 text = displayName,
                 style = typography.sm.copy(fontFamily = FontFamily.Monospace),
                 color = tokens.primary,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
@@ -575,7 +575,7 @@ private fun BuiltinTableRow(
             style = typography.sm.copy(fontFamily = FontFamily.Monospace),
             color = tokens.primary,
             modifier = Modifier.weight(1f),
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
         if (!builtin.responseOverride.isNullOrBlank()) {

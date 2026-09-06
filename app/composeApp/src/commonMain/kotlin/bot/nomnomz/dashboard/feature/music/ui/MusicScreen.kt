@@ -519,7 +519,7 @@ private fun NowPlayingCard(
                     text = title,
                     style = typography.base,
                     color = tokens.cardForeground,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 if (artist.isNotBlank()) {
@@ -774,7 +774,7 @@ private fun QueueRow(track: MusicTrack, manage: ManageDecision, onRemove: () -> 
                 text = title,
                 style = typography.base,
                 color = tokens.cardForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             if (track.artist.isNotBlank()) {
@@ -1031,7 +1031,7 @@ private fun RemoteControlsSection(
                             text = stringResource(Res.string.music_device_transfer, device.name),
                             style = typography.sm,
                             color = if (device.isActive) tokens.accent else tokens.foreground,
-                            maxLines = 1,
+                            maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
@@ -1054,7 +1054,7 @@ private fun RemoteControlsSection(
                             text = stringResource(Res.string.music_playlist_play, playlist.name),
                             style = typography.sm,
                             color = tokens.foreground,
-                            maxLines = 1,
+                            maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
@@ -1170,7 +1170,7 @@ private fun BlockedTrackRow(track: BlockedTrack, manage: ManageDecision, onUnblo
                 text = title,
                 style = typography.base,
                 color = tokens.cardForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(

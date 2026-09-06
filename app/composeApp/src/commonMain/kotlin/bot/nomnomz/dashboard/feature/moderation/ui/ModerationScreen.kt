@@ -1826,7 +1826,7 @@ private fun BanRow(
                 text = name,
                 style = typography.base,
                 color = tokens.cardForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
@@ -1915,7 +1915,7 @@ private fun UnbanRequestRow(
             text = name,
             style = typography.base,
             color = tokens.cardForeground,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
         if (request.text.isNotBlank()) {
@@ -1967,7 +1967,7 @@ private fun ViewerReportRow(
             text = report.reportedUsername.takeIf { it.isNotBlank() } ?: report.reportedTwitchUserId,
             style = typography.base,
             color = tokens.cardForeground,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
         if (report.reason.isNotBlank()) {
@@ -2029,7 +2029,7 @@ private fun AutomodQueueRow(
                 ?: "",
             style = typography.base,
             color = tokens.cardForeground,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
         item.messageContentSnapshot?.takeIf { it.isNotBlank() }?.let { text ->
@@ -2538,7 +2538,7 @@ private fun UserModerationContextBody(context: UserModerationContext, heatThresh
             text = name,
             style = typography.base,
             color = tokens.cardForeground,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
         context.trust?.let { trust -> TrustHeatBadges(trust = trust, heatThreshold = heatThreshold) }
@@ -2591,7 +2591,7 @@ private fun UserContextActionRow(action: ModerationActionLog) {
             text = head,
             style = typography.sm,
             color = tokens.cardForeground,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
         action.reason?.takeIf { it.isNotBlank() }?.let { r ->
@@ -2670,7 +2670,7 @@ private fun RuleRow(
                 text = displayName,
                 style = typography.base,
                 color = tokens.cardForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
@@ -2755,7 +2755,7 @@ private fun ChatFilterRow(
                 text = displayName,
                 style = typography.base,
                 color = tokens.cardForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
@@ -2840,7 +2840,7 @@ private fun AutomodRow(
                 text = name,
                 style = typography.base,
                 color = tokens.cardForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
@@ -3043,7 +3043,7 @@ private fun ModeratorRow(moderator: Moderator, manage: ManageDecision, onRemove:
             text = moderator.username,
             style = typography.base,
             color = tokens.cardForeground,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
@@ -3080,7 +3080,7 @@ private fun BlockedTermRow(term: String, manage: ManageDecision, onRemove: () ->
             text = term,
             style = typography.base,
             color = tokens.cardForeground,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
@@ -3231,7 +3231,7 @@ private fun ModLogRow(entry: ModLogEntry) {
                 text = primary,
                 style = typography.base,
                 color = tokens.cardForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
@@ -3885,7 +3885,7 @@ private fun AutomodListEditor(
                         text = item,
                         style = typography.sm,
                         color = tokens.cardForeground,
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f),
                     )
@@ -4269,7 +4269,7 @@ private fun TrustedChannelRow(
             text = channel.trustedChannelName.takeIf { it.isNotBlank() } ?: channel.trustedChannelId,
             style = typography.sm,
             color = tokens.cardForeground,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
@@ -4315,7 +4315,7 @@ private fun NukeBatchRow(batch: NetworkNukeBatch, manage: ManageDecision, onReve
                 text = stringResource(Res.string.moderation_nuke_target, target),
                 style = typography.sm,
                 color = tokens.cardForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(

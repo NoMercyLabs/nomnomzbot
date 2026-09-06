@@ -615,7 +615,7 @@ private fun RedemptionTimerRow(
                 text = timer.rewardTitle,
                 style = typography.base,
                 color = tokens.cardForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
@@ -730,7 +730,7 @@ private fun RedemptionRow(
                 text = redemption.rewardTitle,
                 style = typography.base,
                 color = tokens.cardForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
@@ -836,7 +836,7 @@ private fun RewardRow(
                 text = displayTitle,
                 style = typography.lg,
                 color = tokens.cardForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(

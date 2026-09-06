@@ -314,7 +314,7 @@ private fun ClipRow(
                     text = displayName,
                     style = typography.sm,
                     color = tokens.foreground,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 if (!clip.isEnabled) {

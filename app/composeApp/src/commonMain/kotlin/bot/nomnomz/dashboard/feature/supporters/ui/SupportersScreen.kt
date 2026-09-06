@@ -320,7 +320,7 @@ private fun ProviderTile(
                 text = name,
                 style = typography.base,
                 color = tokens.cardForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
@@ -545,7 +545,7 @@ private fun EventRow(event: SupporterEvent) {
                 text = event.supporterDisplayName,
                 style = typography.base,
                 color = tokens.cardForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )

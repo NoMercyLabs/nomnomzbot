@@ -180,7 +180,7 @@ private fun AttentionRow(
                     style = typography.sm,
                     fontWeight = FontWeight.SemiBold,
                     color = tokens.cardForeground,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 if (item.count > 1) {
@@ -325,7 +325,7 @@ private fun HeldReviewBody(
             text = chatterName,
             style = typography.base,
             color = tokens.cardForeground,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
     }

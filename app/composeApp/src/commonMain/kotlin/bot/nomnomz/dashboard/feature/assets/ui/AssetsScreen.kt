@@ -254,7 +254,7 @@ private fun AssetRow(
                     text = assetDisplayName,
                     style = typography.sm,
                     color = tokens.foreground,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 // Kind badge — subtle, pill-shaped (same treatment as the sound "disabled" badge).

@@ -1095,7 +1095,7 @@ private fun ActivityRow(
                     text = label,
                     style = typography.sm,
                     color = tokens.cardForeground,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 // A distinct, truthful confirmation per outcome — never the same generic line for "replayed" and
@@ -1467,7 +1467,7 @@ private fun TopCommandsCard(commands: List<CommandSummary>) {
                             style = typography.sm,
                             fontWeight = FontWeight.Medium,
                             color = tokens.cardForeground,
-                            maxLines = 1,
+                            maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                         )
                     }

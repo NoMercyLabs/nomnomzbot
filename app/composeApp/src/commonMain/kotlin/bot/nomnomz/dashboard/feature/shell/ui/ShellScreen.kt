@@ -899,7 +899,7 @@ internal fun SidebarHeader(switcher: ChannelSwitcherController) {
                 style = typography.sm,
                 fontWeight = FontWeight.SemiBold,
                 color = tokens.sidebarForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
@@ -1113,7 +1113,7 @@ private fun NavItem(route: ShellRoute, selected: Boolean, onClick: () -> Unit) {
             text = routeLabel,
             style = typography.sm,
             color = content,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
@@ -1164,7 +1164,7 @@ private fun ProfileBlock(
                     text = name,
                     style = typography.sm,
                     color = tokens.sidebarForeground,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
@@ -1286,7 +1286,7 @@ private fun ChannelSwitchRow(channel: ChannelSummary, isActive: Boolean) {
                 style = typography.sm,
                 fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal,
                 color = tokens.popoverForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             ChannelRoleBadge(role = channel.role)
@@ -1406,7 +1406,7 @@ private fun ChannelChip(name: String) {
             text = name,
             style = typography.sm,
             color = tokens.mutedForeground,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
     }

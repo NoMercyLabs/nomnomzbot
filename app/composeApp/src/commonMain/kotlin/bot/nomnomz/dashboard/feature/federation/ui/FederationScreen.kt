@@ -290,7 +290,7 @@ private fun PeerRow(
             horizontalArrangement = Arrangement.spacedBy(spacing.s3),
         ) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-                Text(text = displayName, style = typography.base, color = tokens.cardForeground, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(text = displayName, style = typography.base, color = tokens.cardForeground, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(text = peer.baseUrl, style = typography.xs, color = tokens.mutedForeground, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Text(
@@ -353,7 +353,7 @@ private fun OptInRow(
             horizontalArrangement = Arrangement.spacedBy(spacing.s3),
         ) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-                Text(text = optIn.capability, style = typography.base, color = tokens.cardForeground, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(text = optIn.capability, style = typography.base, color = tokens.cardForeground, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(text = optIn.peerName, style = typography.xs, color = tokens.mutedForeground, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             ManageGate(manage) { enabled ->

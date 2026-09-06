@@ -443,7 +443,7 @@ private fun SelectControl(
                     text = selectedLabel,
                     style = typography.sm,
                     color = tokens.foreground,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(text = "▾", style = typography.sm, color = tokens.mutedForeground)

@@ -157,7 +157,7 @@ private fun GameRow(game: GameSummary, onPlay: (String, Long) -> Unit) {
                 text = game.gameType,
                 style = typography.sm,
                 color = tokens.cardForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )

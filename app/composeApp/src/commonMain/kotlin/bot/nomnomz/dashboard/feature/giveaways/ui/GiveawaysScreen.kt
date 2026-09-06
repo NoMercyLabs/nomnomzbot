@@ -641,7 +641,7 @@ private fun GiveawayRow(
                 text = displayTitle,
                 style = typography.base,
                 color = tokens.cardForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
@@ -837,7 +837,7 @@ private fun CodePoolRow(pool: CodePool, onManage: () -> Unit, onDelete: () -> Un
                 text = displayName,
                 style = typography.base,
                 color = tokens.cardForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(text = counts, style = typography.xs, color = tokens.mutedForeground, maxLines = 1)
@@ -1469,7 +1469,7 @@ private fun WinnerRow(
                 text = winner.viewerDisplayName,
                 style = typography.base,
                 color = tokens.cardForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
@@ -1620,7 +1620,7 @@ private fun EntryRow(entry: GiveawayEntry) {
             text = entry.viewerDisplayName,
             style = typography.base,
             color = tokens.cardForeground,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
@@ -1793,7 +1793,7 @@ private fun MaskedCodeRow(code: MaskedCode) {
             text = codeLabel,
             style = typography.sm,
             color = tokens.cardForeground,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )

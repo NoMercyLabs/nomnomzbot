@@ -31,7 +31,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
@@ -294,8 +293,6 @@ private fun TokenRow(
                     text = tokenDisplayName,
                     style = typography.base,
                     color = if (revoked) tokens.mutedForeground else tokens.cardForeground,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
                 )
                 if (revoked) {
                     Badge(variant = BadgeVariant.Destructive) { Text(text = stringResource(Res.string.automation_revoked)) }

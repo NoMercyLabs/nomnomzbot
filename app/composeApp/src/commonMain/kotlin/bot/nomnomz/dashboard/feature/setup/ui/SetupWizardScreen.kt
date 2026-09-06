@@ -463,7 +463,7 @@ private fun ReviewRow(step: SetupStep) {
             text = resolveRowLabel(step.title, typeLabel = "Step", discriminatorSource = step.key),
             style = typography.sm,
             color = tokens.cardForeground,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f).padding(end = spacing.s2),
         )

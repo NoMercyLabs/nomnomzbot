@@ -889,7 +889,7 @@ private fun SwitchRow(
             text = label,
             style = typography.sm,
             color = tokens.cardForeground,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
@@ -1080,7 +1080,7 @@ private fun LeaderboardRow(entry: LeaderboardEntry) {
             text = displayName,
             style = typography.base,
             color = tokens.cardForeground,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
@@ -1292,7 +1292,7 @@ private fun LeaderboardConfigRow(
                 text = displayName,
                 style = typography.base,
                 color = tokens.cardForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
@@ -1751,7 +1751,7 @@ private fun AccountRow(
                 text = account.viewerDisplayName,
                 style = typography.base,
                 color = tokens.cardForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
@@ -1945,7 +1945,7 @@ private fun LedgerDialog(
                                     text = entry.entryType,
                                     style = typography.sm,
                                     color = tokens.cardForeground,
-                                    maxLines = 1,
+                                    maxLines = 2,
                                     overflow = TextOverflow.Ellipsis,
                                 )
                                 entry.reason?.let { r ->
@@ -2183,7 +2183,7 @@ private fun EarningRuleRow(
                 text = rule.source,
                 style = typography.base,
                 color = tokens.cardForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             if (!rule.isEnabled) {
@@ -2702,7 +2702,7 @@ private fun CatalogItemRow(
                 text = displayName,
                 style = typography.base,
                 color = tokens.cardForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
@@ -3130,7 +3130,7 @@ private fun SavingsJarRow(
                 text = displayName,
                 style = typography.base,
                 color = tokens.cardForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             val goal: Long? = jar.goalAmount
@@ -3278,7 +3278,7 @@ private fun JarManageDialog(
                                         text = m.memberBroadcasterId,
                                         style = typography.sm,
                                         color = tokens.cardForeground,
-                                        maxLines = 1,
+                                        maxLines = 2,
                                         overflow = TextOverflow.Ellipsis,
                                     )
                                     val statusLabel: String =
@@ -3626,7 +3626,7 @@ private fun JarHistoryDialog(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                             ) {
-                                Text(entry.movementType, style = typography.sm, color = tokens.cardForeground, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(entry.movementType, style = typography.sm, color = tokens.cardForeground, modifier = Modifier.weight(1f), maxLines = 2, overflow = TextOverflow.Ellipsis)
                                 Text("${if (entry.amount >= 0) "+" else ""}${entry.amount}", style = typography.sm, color = if (entry.amount >= 0) tokens.primary else tokens.destructive)
                             }
                         }
@@ -3834,7 +3834,7 @@ private fun CatalogPurchasesSection(
                         horizontalArrangement = Arrangement.spacedBy(spacing.s3),
                     ) {
                         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-                            Text(text = purchase.itemNameSnapshot, style = typography.base, color = tokens.cardForeground, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(text = purchase.itemNameSnapshot, style = typography.base, color = tokens.cardForeground, maxLines = 2, overflow = TextOverflow.Ellipsis)
                             Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
                                 Text(text = stringResource(Res.string.economy_purchases_buyer, purchase.buyerUserId), style = typography.xs, color = tokens.mutedForeground)
                                 Text(text = stringResource(Res.string.economy_purchases_status, purchase.status), style = typography.xs, color = tokens.mutedForeground)

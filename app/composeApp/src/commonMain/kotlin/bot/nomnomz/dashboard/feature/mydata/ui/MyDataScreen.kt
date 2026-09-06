@@ -30,7 +30,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import bot.nomnomz.dashboard.core.designsystem.component.ActionErrorBanner
 import bot.nomnomz.dashboard.core.designsystem.component.AlertDialog
@@ -306,8 +305,6 @@ private fun RequestRow(request: ErasureRequest) {
                 text = request.requestType,
                 style = typography.base,
                 color = tokens.cardForeground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = stringResource(Res.string.mydata_request_scope, request.scope),
@@ -388,8 +385,6 @@ private fun ConsentRow(record: ConsentRecord, onWithdraw: () -> Unit) {
                     text = record.consentType,
                     style = typography.base,
                     color = if (withdrawn) tokens.mutedForeground else tokens.cardForeground,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
                 )
                 if (withdrawn) {
                     Badge(variant = BadgeVariant.Destructive) {

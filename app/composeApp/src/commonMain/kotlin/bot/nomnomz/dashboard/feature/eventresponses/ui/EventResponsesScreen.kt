@@ -279,7 +279,7 @@ private fun EventResponseRow(
                 text = eventLabel,
                 style = typography.sm,
                 color = tokens.cardForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(

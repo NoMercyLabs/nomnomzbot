@@ -546,7 +546,7 @@ private fun InboundRow(
                     text = resolveRowLabel(ep.name, typeLabel = "Webhook", discriminatorSource = ep.id),
                     style = typography.base,
                     color = tokens.cardForeground,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
@@ -603,7 +603,7 @@ private fun InboundRow(
 }
 
 @Composable
-private fun OutboundRow(
+internal fun OutboundRow(
     ep: OutboundWebhook,
     manage: ManageDecision,
     onToggle: () -> Unit,
@@ -634,7 +634,7 @@ private fun OutboundRow(
                     text = resolveRowLabel(ep.name, typeLabel = "Webhook", discriminatorSource = ep.id),
                     style = typography.base,
                     color = tokens.cardForeground,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
@@ -1264,7 +1264,7 @@ private fun EventChecklist(
                                     style = typography.sm,
                                     color = tokens.foreground,
                                     modifier = Modifier.weight(1f),
-                                    maxLines = 1,
+                                    maxLines = 2,
                                     overflow = TextOverflow.Ellipsis,
                                 )
                             }
@@ -1384,7 +1384,7 @@ internal fun DeliveryRow(
 
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(spacing.s0_5)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text(text = delivery.eventType, style = typography.sm, color = tokens.cardForeground, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            Text(text = delivery.eventType, style = typography.sm, color = tokens.cardForeground, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             Text(text = delivery.status, style = typography.xs, color = statusColor)
             if (canRetry) {
                 TextButton(onClick = { onRetry?.invoke() }, enabled = !retrying) {

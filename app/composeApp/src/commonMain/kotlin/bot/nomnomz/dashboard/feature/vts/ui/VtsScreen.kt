@@ -490,7 +490,7 @@ private fun PickerField(
             Text(
                 text = selectedLabel ?: placeholder,
                 color = if (selectedLabel != null) tokens.cardForeground else tokens.mutedForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
         }

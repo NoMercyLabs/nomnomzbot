@@ -176,7 +176,7 @@ fun CodeScriptsScreen(controller: CodeScriptsController, role: ManagementRole?) 
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-                        Text(text = editingDisplayName, style = typography.xl2, color = tokens.foreground, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(text = editingDisplayName, style = typography.xl2, color = tokens.foreground)
                         current.detail.description?.let {
                             Text(text = it, style = typography.sm, color = tokens.mutedForeground, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         }
@@ -322,7 +322,7 @@ private fun ScriptRow(
                         typeLabel = stringResource(Res.string.scripts_row_type),
                         discriminatorSource = script.id,
                     )
-                Text(text = rowDisplayName, style = typography.base, color = tokens.cardForeground, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(text = rowDisplayName, style = typography.base, color = tokens.cardForeground)
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2)) {
                     script.currentVersion?.let {
                         Text(

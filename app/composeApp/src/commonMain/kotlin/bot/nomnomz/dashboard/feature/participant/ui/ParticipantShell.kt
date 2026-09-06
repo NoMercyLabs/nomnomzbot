@@ -377,7 +377,7 @@ private fun ProfileBlock(
                     text = name,
                     style = typography.sm,
                     color = tokens.sidebarForeground,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
@@ -467,7 +467,7 @@ private fun TopBar(title: String, channelName: String?, onMenu: (() -> Unit)?) {
                     text = title,
                     style = typography.xl,
                     color = tokens.foreground,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
@@ -524,7 +524,7 @@ private fun ChannelChip(name: String) {
             text = name,
             style = typography.sm,
             color = tokens.mutedForeground,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
     }

@@ -2175,7 +2175,7 @@ private fun TierRow(
                 text = resolveRowLabel(tier.displayName, typeLabel = "Tier", discriminatorSource = tier.id),
                 style = typography.sm.copy(fontWeight = FontWeight.SemiBold),
                 color = tokens.cardForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
@@ -2225,7 +2225,7 @@ private fun InvoiceRow(invoice: BillingInvoice, onView: (String) -> Unit) {
                 text = invoice.number ?: invoice.id,
                 style = typography.xs,
                 color = tokens.cardForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(

@@ -333,8 +333,6 @@ private fun AlertRow(
                 text = alert.eventType,
                 style = typography.lg,
                 color = tokens.cardForeground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = snippet,

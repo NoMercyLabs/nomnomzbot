@@ -354,8 +354,6 @@ private fun TriggerRow(
                 text = trigger.pattern,
                 style = typography.base,
                 color = tokens.cardForeground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = "$matchLabel · $cooldownLabel",

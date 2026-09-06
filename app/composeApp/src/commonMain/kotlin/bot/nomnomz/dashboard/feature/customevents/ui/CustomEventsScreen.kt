@@ -537,7 +537,7 @@ private fun SourceRow(
                         text = displayName,
                         style = typography.base,
                         color = tokens.cardForeground,
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
                     SourceKindBadge(kind = source.sourceKind)

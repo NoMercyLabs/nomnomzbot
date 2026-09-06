@@ -624,7 +624,7 @@ private fun WidgetRow(
                     text = widgetDisplayName,
                     style = typography.lg,
                     color = tokens.cardForeground,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
@@ -1169,7 +1169,7 @@ private fun WidgetVersionRow(
                 text = stringResource(Res.string.widgets_versions_row, version.versionNumber.toString()),
                 style = typography.sm,
                 color = tokens.cardForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
@@ -1365,7 +1365,7 @@ private fun GalleryItemCard(
                 text = itemDisplayName,
                 style = typography.base,
                 color = tokens.cardForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             item.description?.takeIf { it.isNotBlank() }?.let { description ->

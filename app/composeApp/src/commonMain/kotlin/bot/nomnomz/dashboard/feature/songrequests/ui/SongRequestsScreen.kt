@@ -681,7 +681,7 @@ private fun QueueRow(
                 text = title,
                 style = typography.base,
                 color = tokens.cardForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             if (song.artist.isNotBlank()) {

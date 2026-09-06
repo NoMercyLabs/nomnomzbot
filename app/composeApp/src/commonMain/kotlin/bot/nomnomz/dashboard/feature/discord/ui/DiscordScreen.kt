@@ -751,8 +751,6 @@ private fun GuildHeader(
                     text = guildName,
                     style = typography.lg,
                     color = tokens.cardForeground,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = statusLabel,
@@ -876,8 +874,6 @@ private fun RuleRow(
                 text = rule.triggerType,
                 style = typography.base,
                 color = tokens.cardForeground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = channelLine,
@@ -1393,7 +1389,7 @@ private fun RoleRow(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(spacing.s1),
         ) {
-            Text(text = displayName, style = typography.base, color = tokens.cardForeground, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(text = displayName, style = typography.base, color = tokens.cardForeground, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Row(horizontalArrangement = Arrangement.spacedBy(spacing.s2), verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = stringResource(Res.string.discord_roles_opt_in_count, role.optInCount),
@@ -1521,7 +1517,7 @@ private fun DispatchLogRow(entry: DiscordDispatchLogEntry) {
         verticalAlignment = Alignment.Top,
     ) {
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s1)) {
-            Text(text = entry.triggerType, style = typography.sm, color = tokens.cardForeground, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(text = entry.triggerType, style = typography.sm, color = tokens.cardForeground, maxLines = 2, overflow = TextOverflow.Ellipsis)
             entry.error?.let { Text(text = it, style = typography.xs, color = tokens.destructiveForeground, maxLines = 2, overflow = TextOverflow.Ellipsis) }
         }
         Text(

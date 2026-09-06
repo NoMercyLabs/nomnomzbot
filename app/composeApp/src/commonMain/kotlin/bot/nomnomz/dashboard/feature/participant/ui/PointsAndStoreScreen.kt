@@ -229,7 +229,7 @@ private fun CatalogRow(item: CatalogItem, frozen: Boolean, onPurchase: (String) 
                 text = displayName,
                 style = typography.sm,
                 color = tokens.cardForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
@@ -298,7 +298,7 @@ private fun JarRow(jar: SavingsJar, frozen: Boolean, onContribute: (String, Long
             text = displayName,
             style = typography.sm,
             color = tokens.cardForeground,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
         Text(

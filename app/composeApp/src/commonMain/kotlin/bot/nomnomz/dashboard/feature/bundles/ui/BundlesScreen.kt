@@ -372,7 +372,7 @@ private fun ExportGroup(
                     ),
                     style = typography.sm,
                     color = tokens.cardForeground,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
@@ -470,8 +470,6 @@ private fun ImportTab(
                                     text = manifestItemDisplayName,
                                     style = typography.sm,
                                     color = tokens.cardForeground,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
                                 )
                             }
                         }
@@ -622,8 +620,6 @@ private fun InstalledRow(bundle: InstalledBundle, manage: ManageDecision, onUnin
                     text = bundleDisplayName,
                     style = typography.base,
                     color = tokens.cardForeground,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
                 )
                 Badge(variant = if (fromMarketplace) BadgeVariant.Default else BadgeVariant.Secondary) {
                     Text(
@@ -765,7 +761,7 @@ private fun MarketplaceRow(
                 text = marketplaceDisplayName,
                 style = typography.base,
                 color = tokens.cardForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )

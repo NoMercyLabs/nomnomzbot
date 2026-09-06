@@ -191,7 +191,7 @@ private fun PollOptionBar(option: ChatPollOption, maxVotes: Int) {
                 text = "${option.index}. ${option.label}",
                 style = typography.sm,
                 color = tokens.cardForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
@@ -247,8 +247,6 @@ private fun HistorySection(history: List<ChatPoll>) {
                     text = poll.question,
                     style = typography.sm,
                     color = tokens.cardForeground,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
                 )
                 if (winner != null) {
                     Text(

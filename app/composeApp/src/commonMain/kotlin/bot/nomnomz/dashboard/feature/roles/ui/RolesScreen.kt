@@ -428,7 +428,7 @@ private fun MemberRow(
             text = name,
             style = typography.base,
             color = tokens.cardForeground,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             // The identity + current role reads as one node; the controls below carry their own action labels.
             modifier = Modifier
@@ -558,7 +558,7 @@ private fun PermitRow(permit: PermitGrant, manage: ManageDecision, onRevoke: () 
                 text = name,
                 style = typography.base,
                 color = tokens.cardForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
@@ -1194,7 +1194,7 @@ private fun ActionPermissionRow(
                 text = action.actionKey,
                 style = typography.sm,
                 color = tokens.cardForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(

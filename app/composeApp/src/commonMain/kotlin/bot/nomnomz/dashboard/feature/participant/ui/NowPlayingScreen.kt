@@ -207,7 +207,7 @@ private fun QueueRow(track: MusicTrack) {
                     ?: stringResource(Res.string.participant_sr_unknown_track),
                 style = typography.sm,
                 color = tokens.cardForeground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             RequestedBy(track.requestedBy)
