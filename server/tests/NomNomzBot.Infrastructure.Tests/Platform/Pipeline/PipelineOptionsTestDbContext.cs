@@ -370,6 +370,7 @@ internal sealed class PipelineOptionsTestDbContext : DbContext, IApplicationDbCo
     public DbSet<LeaderboardSnapshot> LeaderboardSnapshots => Set<LeaderboardSnapshot>();
     public DbSet<BillingTier> BillingTiers => Set<BillingTier>();
     public DbSet<TierLimit> TierLimits => Set<TierLimit>();
+    public DbSet<PricedUnit> PricedUnits => Set<PricedUnit>();
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<UsageRecord> UsageRecords => Set<UsageRecord>();

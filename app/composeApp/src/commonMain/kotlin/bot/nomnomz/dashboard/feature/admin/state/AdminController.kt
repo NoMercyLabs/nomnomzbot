@@ -18,7 +18,9 @@ import bot.nomnomz.dashboard.core.network.SpamDefenseSettings
 import bot.nomnomz.dashboard.core.network.AdminApi
 import bot.nomnomz.dashboard.core.network.AdminChannel
 import bot.nomnomz.dashboard.core.network.AdminCreateInviteCodeRequest
+import bot.nomnomz.dashboard.core.network.AdminAuthorPricedUnitRequest
 import bot.nomnomz.dashboard.core.network.AdminGrantTierRequest
+import bot.nomnomz.dashboard.core.network.AdminPricedUnit
 import bot.nomnomz.dashboard.core.network.AdminServiceHealth
 import bot.nomnomz.dashboard.core.network.AdminSetFeatureFlagOverrideRequest
 import bot.nomnomz.dashboard.core.network.AdminSetFeatureFlagRequest
@@ -148,6 +150,12 @@ data class AdminState(
     val tierEditId: String? = null,
     /** The counted blast radius for [tierEditId], once its preview call returns; null while loading. */
     val tierEditPreview: AdminTierChangePreview? = null,
+    // ── Priced-unit authoring (S-ADMIN-4d) ──
+    val pricedUnits: List<AdminPricedUnit> = emptyList(),
+    /** True while the author-a-price dialog is open (create or reprice); false when closed. */
+    val pricedUnitFormOpen: Boolean = false,
+    /** The unit key the form was opened to REPRICE, or null when it is authoring a brand-new unit key. */
+    val pricedUnitFormEditingKey: String? = null,
     // ── Comps and entitlement grants (S-ADMIN-4b) ──
     /** The broadcaster the grant panel is currently looking at, or null before the operator picks one. */
     val grantBroadcasterId: String? = null,
@@ -418,6 +426,7 @@ class AdminController(
         val flagsResult = api.getFeatureFlags()
         val invitesResult = api.getInviteCodes()
         val tiersResult = api.getTiers()
+        val pricedUnitsResult = api.getPricedUnits()
 
         _state.value = _state.value.copy(
             stats = (statsResult as? ApiResult.Ok)?.value ?: _state.value.stats,
@@ -429,6 +438,7 @@ class AdminController(
             featureFlags = (flagsResult as? ApiResult.Ok)?.value ?: emptyList(),
             inviteCodes = (invitesResult as? ApiResult.Ok)?.value?.data ?: emptyList(),
             tiers = (tiersResult as? ApiResult.Ok)?.value ?: emptyList(),
+            pricedUnits = (pricedUnitsResult as? ApiResult.Ok)?.value ?: emptyList(),
             loadingSections = emptySet(),
             error = listOf(statsResult, channelsResult, usersResult, systemResult)
                 .filterIsInstance<ApiResult.Failure>()
@@ -701,6 +711,30 @@ class AdminController(
     /** Authors a brand-new tier. Zero blast radius by construction — no preview/confirm step. */
     suspend fun createTier(body: AdminCreateTierRequest) =
         writeThenReload { api.createTier(body) }
+
+    // ── Priced-unit authoring (S-ADMIN-4d) ─────────────────────────────────────
+
+    /** Opens the author-a-price dialog. [editingUnitKey] set = reprice that existing row; null = a
+     * brand-new unit key. */
+    fun openPricedUnitForm(editingUnitKey: String?) {
+        _state.value = _state.value.copy(
+            pricedUnitFormOpen = true,
+            pricedUnitFormEditingKey = editingUnitKey,
+            actionError = null,
+        )
+    }
+
+    /** Closes the author-a-price dialog without committing anything. */
+    fun dismissPricedUnitForm() {
+        _state.value = _state.value.copy(pricedUnitFormOpen = false, pricedUnitFormEditingKey = null)
+    }
+
+    /** Authors (creates or reprices) one usage unit's price. Upsert by unit key — ships EMPTY, so a unit
+     * with no row stays unpriced until the owner does this. Closes the dialog on success. */
+    suspend fun authorPricedUnit(body: AdminAuthorPricedUnitRequest) {
+        dismissPricedUnitForm()
+        writeThenReload { api.authorPricedUnit(body) }
+    }
 
     suspend fun grantTier(broadcasterId: String, body: AdminGrantTierRequest) =
         writeThenReload { api.grantTier(broadcasterId, body) }

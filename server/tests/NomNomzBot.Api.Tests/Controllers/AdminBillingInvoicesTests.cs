@@ -65,6 +65,7 @@ public sealed class AdminBillingInvoicesTests
             subscriptions,
             Substitute.For<IBillingTierAdminService>(),
             Substitute.For<IEntitlementGrantService>(),
+            Substitute.For<IPricedUnitAdminService>(),
             currentUser
         );
     }

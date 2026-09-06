@@ -59,7 +59,9 @@ public sealed class WidgetTestEventController : BaseController
         CancellationToken ct
     )
     {
-        if (request is null || string.IsNullOrWhiteSpace(request.EventType))
+        // No null guard: [ApiController] on BaseController rejects a null or unbindable body with a 400 before
+        // this runs, so the check was unreachable and only made the annotation look like it could lie.
+        if (string.IsNullOrWhiteSpace(request.EventType))
             return BadRequestResponse("An eventType is required.");
 
         if (
@@ -412,7 +414,7 @@ internal static class WidgetTestSamples
                 displayName = "TestChatter",
                 color = "#9146ff",
                 message = "Hey chat! Kappa this stream is amazing LUL 4Head",
-                fragments = new object[]
+                fragments = new[]
                 {
                     new { type = "text", text = "Hey chat! " },
                     Emote("Kappa", "25"),
@@ -420,6 +422,10 @@ internal static class WidgetTestSamples
                     Emote("LUL", "425618"),
                     new { type = "text", text = " " },
                     Emote("4Head", "354"),
+                    // A native chat GIF too, so pressing Test rehearses the branch a Tier 2+ viewer's GIF takes
+                    // rather than only the emote branch — a chat box that renders emotes correctly can still
+                    // print a GIF as its caption text, and a sample without one reports success either way.
+                    Gif("[Excited Dance GIF by Giphy]", "l0HlKrB02QY0f1mbm"),
                 },
                 badges = new object[]
                 {
@@ -440,6 +446,17 @@ internal static class WidgetTestSamples
                 pronouns = "they/them",
             },
             _ => new { user = "TestUser" },
+        };
+
+    // A native chat GIF fragment — the shape a renderer's gif branch reads (fr.gif.url, fetched as-is). Twitch
+    // resolves these against GIPHY and hands over the finished url, so the sample carries a real one; [text] is
+    // the caption Twitch sends alongside it, which is what a renderer falls back to when the url is missing.
+    private static object Gif(string caption, string id) =>
+        new
+        {
+            type = "gif",
+            text = caption,
+            gif = new { gifId = id, url = $"https://media.giphy.com/media/{id}/giphy.gif" },
         };
 
     // A resolved Twitch emote fragment — the shape the chat box and emote wall read (fr.emote.urls keyed by pixel

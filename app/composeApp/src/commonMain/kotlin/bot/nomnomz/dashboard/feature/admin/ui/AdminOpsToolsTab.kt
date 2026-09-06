@@ -95,10 +95,14 @@ import nomnomzbot.composeapp.generated.resources.admin_replay_subscribed_types_a
 import nomnomzbot.composeapp.generated.resources.admin_replay_tenant_label
 import nomnomzbot.composeapp.generated.resources.admin_replay_to_label
 import nomnomzbot.composeapp.generated.resources.admin_scheduled_jobs_empty
+import nomnomzbot.composeapp.generated.resources.admin_tenant_usage_cost
 import nomnomzbot.composeapp.generated.resources.admin_tenant_usage_empty
 import nomnomzbot.composeapp.generated.resources.admin_tenant_usage_label
 import nomnomzbot.composeapp.generated.resources.admin_tenant_usage_period
+import nomnomzbot.composeapp.generated.resources.admin_tenant_usage_total_cost
 import nomnomzbot.composeapp.generated.resources.admin_tenant_usage_tts_characters
+import nomnomzbot.composeapp.generated.resources.admin_tenant_usage_unpriced
+import nomnomzbot.composeapp.generated.resources.admin_tenant_usage_unpriced_keys
 import nomnomzbot.composeapp.generated.resources.admin_webhook_delivery_attempt
 import nomnomzbot.composeapp.generated.resources.admin_webhook_delivery_label
 import nomnomzbot.composeapp.generated.resources.admin_webhook_delivery_response_code
@@ -549,15 +553,62 @@ private fun TenantUsageCard(usage: AdminTenantUsage) {
                         style = typography.sm,
                         color = tokens.cardForeground,
                     )
+                    UsageCostLine(costMinorUnits = metric.costMinorUnits, currency = metric.currency)
                 }
                 Text(
                     text = stringResource(Res.string.admin_tenant_usage_tts_characters, usage.ttsCharacterCount),
                     style = typography.sm,
                     color = tokens.cardForeground,
                 )
+                if (usage.ttsCharacterCount > 0) {
+                    UsageCostLine(costMinorUnits = usage.ttsCostMinorUnits, currency = usage.ttsCurrency)
+                }
+                usage.totalCostsByCurrency.forEach { cost ->
+                    Text(
+                        text = stringResource(
+                            Res.string.admin_tenant_usage_total_cost,
+                            cost.minorUnits.toString(),
+                            cost.currency.uppercase(),
+                        ),
+                        style = typography.sm,
+                        color = tokens.cardForeground,
+                    )
+                }
+                if (usage.unpricedUnitKeys.isNotEmpty()) {
+                    Text(
+                        text = stringResource(
+                            Res.string.admin_tenant_usage_unpriced_keys,
+                            usage.unpricedUnitKeys.joinToString(", "),
+                        ),
+                        style = typography.xs,
+                        color = tokens.mutedForeground,
+                    )
+                }
             }
         }
     }
+}
+
+/**
+ * A metric's cost (S-ADMIN-4d) — [costMinorUnits] and [currency] are both non-null only when the owner has
+ * actually priced this unit; renders a real amount then, and the "not priced yet" line otherwise. Never
+ * falls back to showing a zero — that would claim the unit costs nothing, which is a different fact from
+ * "nobody has priced it yet".
+ */
+@Composable
+private fun UsageCostLine(costMinorUnits: Long?, currency: String?) {
+    val typography = LocalTypography.current
+    val tokens = LocalTokens.current
+
+    Text(
+        text = if (costMinorUnits != null && currency != null) {
+            stringResource(Res.string.admin_tenant_usage_cost, costMinorUnits.toString(), currency.uppercase())
+        } else {
+            stringResource(Res.string.admin_tenant_usage_unpriced)
+        },
+        style = typography.xs,
+        color = tokens.mutedForeground,
+    )
 }
 
 /**

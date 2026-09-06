@@ -51,6 +51,7 @@ public sealed class AdminBillingTierEditingTests
             Substitute.For<ISubscriptionService>(),
             tierAdmin,
             Substitute.For<IEntitlementGrantService>(),
+            Substitute.For<IPricedUnitAdminService>(),
             currentUser
         );
     }

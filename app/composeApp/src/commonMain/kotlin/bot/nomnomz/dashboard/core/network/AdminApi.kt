@@ -215,6 +215,33 @@ data class AdminUpdateTierRequest(
     val confirmedAffectedTenantCount: Int,
 )
 
+// ─── Priced-unit authoring (S-ADMIN-4d) ──────────────────────────────────────
+
+/**
+ * The owner-authored real-world price of one usage unit (backend `PricedUnitDto`). Money is integer minor
+ * units, never a float or a bare number without its currency: [priceMinorUnitsPerBatch] is charged per
+ * [batchSize] raw units of [unitKey] — a batch greater than 1 lets a real fraction-of-a-cent cost per raw
+ * unit (a TTS character, a millisecond of sandbox CPU) be represented exactly in integers.
+ */
+@Serializable
+data class AdminPricedUnit(
+    val id: String,
+    val unitKey: String,
+    val currency: String,
+    val priceMinorUnitsPerBatch: Long,
+    val batchSize: Long,
+)
+
+/** Author (create or reprice) one usage unit. Upsert by [unitKey] — a key with no existing row is created,
+ * an already-priced key has its price overwritten. */
+@Serializable
+data class AdminAuthorPricedUnitRequest(
+    val unitKey: String,
+    val currency: String,
+    val priceMinorUnitsPerBatch: Long,
+    val batchSize: Long,
+)
+
 // ─── Comps and entitlement grants (S-ADMIN-4b) ───────────────────────────────
 
 /** A live comp (backend `EntitlementGrantDto`) — a time-boxed elevation of one tenant's effective tier. */
@@ -390,16 +417,33 @@ data class AdminScheduledJobRetryResult(
     val newDueAt: String,
 )
 
-/** One metered quantity for a tenant's usage period, straight off the real recorded rows. */
+/**
+ * One metered quantity for a tenant's usage period, straight off the real recorded rows, joined against the
+ * owner-authored priced-unit catalogue (S-ADMIN-4d). [costMinorUnits] and [currency] are both `null` when
+ * [metricKey] has no priced-unit row — UNPRICED, never reported as a zero cost.
+ */
 @Serializable
 data class AdminTenantUsageMetric(
     val metricKey: String,
     val quantity: Long,
+    val costMinorUnits: Long? = null,
+    val currency: String? = null,
 )
 
-/** One tenant's usage for its most recent metering period — computed purely from recorded usage, never a
- * fabricated currency figure (there is no per-unit price table). [periodStart]/[periodEnd] state exactly
- * which window the figures cover. */
+/** One currency's worth of a tenant's total priced usage cost for the period (backend `AdminTenantUsageCostDto`). */
+@Serializable
+data class AdminTenantUsageCost(
+    val currency: String,
+    val minorUnits: Long,
+)
+
+/**
+ * One tenant's usage for its most recent metering period — computed purely from recorded usage.
+ * [periodStart]/[periodEnd] state exactly which window the figures cover. Cost (S-ADMIN-4d) is reported ONLY
+ * for units the owner has actually priced: [ttsCostMinorUnits] is `null` when TTS characters are unpriced,
+ * [totalCostsByCurrency] sums every priced figure, and [unpricedUnitKeys] names every unit this tenant
+ * actually used that still has no price — so an unpriced unit is never silently shown as costing nothing.
+ */
 @Serializable
 data class AdminTenantUsage(
     val broadcasterId: String,
@@ -408,6 +452,10 @@ data class AdminTenantUsage(
     val periodEnd: String,
     val metrics: List<AdminTenantUsageMetric> = emptyList(),
     val ttsCharacterCount: Long = 0,
+    val ttsCostMinorUnits: Long? = null,
+    val ttsCurrency: String? = null,
+    val totalCostsByCurrency: List<AdminTenantUsageCost> = emptyList(),
+    val unpricedUnitKeys: List<String> = emptyList(),
 )
 
 // ── Error budget + event-store replay (S-ADMIN-6c) ──
@@ -525,6 +573,13 @@ interface AdminApi {
     suspend fun previewTierChange(tierId: String): ApiResult<AdminTierChangePreview>
     suspend fun createTier(body: AdminCreateTierRequest): ApiResult<AdminTier>
     suspend fun updateTier(tierId: String, body: AdminUpdateTierRequest): ApiResult<AdminTier>
+
+    // Priced-unit authoring (S-ADMIN-4d). Same NOT_IMPLEMENTED default as the S-ADMIN-6a/6b/6c methods
+    // above — a fake AdminApi written before this surface existed should not have to grow overrides for it.
+    suspend fun getPricedUnits(): ApiResult<List<AdminPricedUnit>> =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    suspend fun authorPricedUnit(body: AdminAuthorPricedUnitRequest): ApiResult<AdminPricedUnit> =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
 
     // Comps and entitlement grants (S-ADMIN-4b)
     suspend fun getEntitlementGrants(broadcasterId: String): ApiResult<List<AdminEntitlementGrant>>
@@ -729,6 +784,12 @@ class AdminApiImpl(private val client: ApiClient) : AdminApi {
 
     override suspend fun updateTier(tierId: String, body: AdminUpdateTierRequest): ApiResult<AdminTier> =
         client.putEnvelope("api/v1/admin/billing/tiers/$tierId", body)
+
+    override suspend fun getPricedUnits(): ApiResult<List<AdminPricedUnit>> =
+        client.getEnvelope("api/v1/admin/billing/priced-units")
+
+    override suspend fun authorPricedUnit(body: AdminAuthorPricedUnitRequest): ApiResult<AdminPricedUnit> =
+        client.postEnvelope("api/v1/admin/billing/priced-units", body)
 
     override suspend fun getEntitlementGrants(broadcasterId: String): ApiResult<List<AdminEntitlementGrant>> =
         client.getEnvelope("api/v1/admin/billing/channels/$broadcasterId/grants")

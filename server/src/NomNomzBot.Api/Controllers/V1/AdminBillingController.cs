@@ -39,6 +39,7 @@ public class AdminBillingController(
     ISubscriptionService subscriptions,
     IBillingTierAdminService tiers,
     IEntitlementGrantService grants,
+    IPricedUnitAdminService pricedUnits,
     ICurrentUserService currentUser
 ) : BaseController
 {
@@ -202,4 +203,27 @@ public class AdminBillingController(
         [FromBody] IssueEntitlementGrantRequest request,
         CancellationToken ct
     ) => ResultResponse(await grants.IssueGrantAsync(broadcasterId, request, Caller(), ct));
+
+    /// <summary>
+    /// Every priced unit (S-ADMIN-4d), ordered by unit key. Ships EMPTY until the owner authors a price — a
+    /// unit key with no row here is UNPRICED, never reported at a fabricated zero cost.
+    /// </summary>
+    [HttpGet("priced-units")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
+    [Authorize(Policy = IamPermissionKeys.BillingRead)]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<PricedUnitDto>>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListPricedUnits(CancellationToken ct) =>
+        ResultResponse(await pricedUnits.ListPricedUnitsAsync(ct));
+
+    /// <summary>
+    /// Author (create or reprice) one usage unit's real-world price. Upsert by unit key — a key with no
+    /// existing row is created, an already-priced key has its price overwritten. Always audited.
+    /// </summary>
+    [HttpPost("priced-units")]
+    [Authorize(Policy = IamPermissionKeys.BillingWrite)]
+    [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
+    public async Task<IActionResult> AuthorPricedUnit(
+        [FromBody] AuthorPricedUnitRequest request,
+        CancellationToken ct
+    ) => ResultResponse(await pricedUnits.AuthorPricedUnitAsync(request, Caller(), ct));
 }

@@ -853,6 +853,8 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Billing.Entities.BillingTier>();
     public DbSet<NomNomzBot.Domain.Billing.Entities.TierLimit> TierLimits =>
         Set<NomNomzBot.Domain.Billing.Entities.TierLimit>();
+    public DbSet<NomNomzBot.Domain.Billing.Entities.PricedUnit> PricedUnits =>
+        Set<NomNomzBot.Domain.Billing.Entities.PricedUnit>();
     public DbSet<NomNomzBot.Domain.Billing.Entities.Subscription> Subscriptions =>
         Set<NomNomzBot.Domain.Billing.Entities.Subscription>();
     public DbSet<NomNomzBot.Domain.Billing.Entities.Invoice> Invoices =>

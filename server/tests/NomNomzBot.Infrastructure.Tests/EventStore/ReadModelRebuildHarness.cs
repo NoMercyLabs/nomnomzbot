@@ -451,6 +451,8 @@ internal sealed class ReadModelRebuildDbContext : DbContext, IApplicationDbConte
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Billing.Entities.TierLimit> TierLimits =>
         throw new NotSupportedException();
+    public DbSet<NomNomzBot.Domain.Billing.Entities.PricedUnit> PricedUnits =>
+        throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Billing.Entities.Subscription> Subscriptions =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Billing.Entities.Invoice> Invoices =>

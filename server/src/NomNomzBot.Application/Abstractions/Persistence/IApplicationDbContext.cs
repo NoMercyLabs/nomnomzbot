@@ -203,6 +203,7 @@ public interface IApplicationDbContext
     DbSet<LeaderboardSnapshot> LeaderboardSnapshots { get; }
     DbSet<BillingTier> BillingTiers { get; }
     DbSet<TierLimit> TierLimits { get; }
+    DbSet<PricedUnit> PricedUnits { get; }
     DbSet<TenantLimitOverride> TenantLimitOverrides { get; }
     DbSet<EntitlementGrant> EntitlementGrants { get; }
     DbSet<Subscription> Subscriptions { get; }

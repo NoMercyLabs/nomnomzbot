@@ -339,6 +339,7 @@ internal sealed class ChatControllerTestDbContext : DbContext, IApplicationDbCon
     public DbSet<LeaderboardSnapshot> LeaderboardSnapshots => throw new NotSupportedException();
     public DbSet<BillingTier> BillingTiers => throw new NotSupportedException();
     public DbSet<TierLimit> TierLimits => throw new NotSupportedException();
+    public DbSet<PricedUnit> PricedUnits => throw new NotSupportedException();
     public DbSet<Subscription> Subscriptions => throw new NotSupportedException();
     public DbSet<Invoice> Invoices => throw new NotSupportedException();
     public DbSet<UsageRecord> UsageRecords => throw new NotSupportedException();

@@ -30,6 +30,7 @@ using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Webhooks.Enums;
+using NomNomzBot.Infrastructure.Billing;
 using NomNomzBot.Infrastructure.EventStore;
 
 namespace NomNomzBot.Infrastructure.Identity;
@@ -633,6 +634,13 @@ public sealed class AdminService : IAdminService
             .Select(c => new { c.Id, c.User.DisplayName })
             .ToDictionaryAsync(c => c.Id, c => c.DisplayName, ct);
 
+        // The owner-authored price catalogue (S-ADMIN-4d), loaded once for the whole page. A unit key with
+        // no entry here is UNPRICED — every join below treats "missing from this dictionary" as "no cost
+        // figure exists", never as "costs zero".
+        Dictionary<string, PricedUnit> pricesByUnitKey = await _db
+            .PricedUnits.Where(p => p.DeletedAt == null)
+            .ToDictionaryAsync(p => p.UnitKey, ct);
+
         List<AdminTenantUsageDto> items = [];
         foreach (Guid tenantId in pageIds)
         {
@@ -647,12 +655,36 @@ public sealed class AdminService : IAdminService
             DateTime periodStart = records.Max(r => r.PeriodStart);
             DateTime periodEnd = records.First(r => r.PeriodStart == periodStart).PeriodEnd;
 
+            List<string> unpricedUnitKeys = [];
+            Dictionary<string, long> costsByCurrency = [];
+
             List<AdminTenantUsageMetricDto> metrics =
             [
                 .. records
                     .Where(r => r.PeriodStart == periodStart)
                     .GroupBy(r => r.MetricKey)
-                    .Select(g => new AdminTenantUsageMetricDto(g.Key, g.Sum(r => r.Quantity))),
+                    .Select(g => (MetricKey: g.Key, Quantity: g.Sum(r => r.Quantity)))
+                    .Select(m =>
+                    {
+                        if (!pricesByUnitKey.TryGetValue(m.MetricKey, out PricedUnit? price))
+                        {
+                            unpricedUnitKeys.Add(m.MetricKey);
+                            return new AdminTenantUsageMetricDto(m.MetricKey, m.Quantity);
+                        }
+
+                        long cost = PricedUnitCostCalculator.ComputeCostMinorUnits(
+                            m.Quantity,
+                            price
+                        );
+                        costsByCurrency[price.Currency] =
+                            costsByCurrency.GetValueOrDefault(price.Currency) + cost;
+                        return new AdminTenantUsageMetricDto(
+                            m.MetricKey,
+                            m.Quantity,
+                            cost,
+                            price.Currency
+                        );
+                    }),
             ];
 
             long ttsCharacters = await _db
@@ -663,6 +695,32 @@ public sealed class AdminService : IAdminService
                 )
                 .SumAsync(t => (long)t.CharacterCount, ct);
 
+            long? ttsCostMinorUnits = null;
+            string? ttsCurrency = null;
+            if (ttsCharacters > 0)
+            {
+                if (
+                    pricesByUnitKey.TryGetValue(
+                        PricedUnitKeys.TtsCharacters,
+                        out PricedUnit? ttsPrice
+                    )
+                )
+                {
+                    ttsCostMinorUnits = PricedUnitCostCalculator.ComputeCostMinorUnits(
+                        ttsCharacters,
+                        ttsPrice
+                    );
+                    ttsCurrency = ttsPrice.Currency;
+                    costsByCurrency[ttsPrice.Currency] =
+                        costsByCurrency.GetValueOrDefault(ttsPrice.Currency)
+                        + ttsCostMinorUnits.Value;
+                }
+                else
+                {
+                    unpricedUnitKeys.Add(PricedUnitKeys.TtsCharacters);
+                }
+            }
+
             items.Add(
                 new AdminTenantUsageDto(
                     tenantId,
@@ -670,7 +728,11 @@ public sealed class AdminService : IAdminService
                     periodStart,
                     periodEnd,
                     metrics,
-                    ttsCharacters
+                    ttsCharacters,
+                    ttsCostMinorUnits,
+                    ttsCurrency,
+                    [.. costsByCurrency.Select(c => new AdminTenantUsageCostDto(c.Key, c.Value))],
+                    unpricedUnitKeys
                 )
             );
         }

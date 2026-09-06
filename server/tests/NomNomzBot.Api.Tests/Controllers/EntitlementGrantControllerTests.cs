@@ -54,6 +54,7 @@ public sealed class EntitlementGrantControllerTests
             Substitute.For<ISubscriptionService>(),
             Substitute.For<IBillingTierAdminService>(),
             grantService,
+            Substitute.For<IPricedUnitAdminService>(),
             currentUser
         );
     }

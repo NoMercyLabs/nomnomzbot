@@ -1762,6 +1762,194 @@
         }
       }
     },
+    "/api/v{version}/admin/billing/priced-units": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Every priced unit (S-ADMIN-4d), ordered by unit key. Ships EMPTY until the owner authors a price — a\r\nunit key with no row here is UNPRICED, never reported at a fabricated zero cost.",
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfIReadOnlyListOfPricedUnitDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Author (create or reprice) one usage unit's real-world price. Upsert by unit key — a key with no\r\nexisting row is created, an already-priced key has its price overwritten. Always audited.",
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthorPricedUnitRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthorPricedUnitRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthorPricedUnitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseDtoOfObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/admin/stats": {
       "get": {
         "tags": [
@@ -84255,6 +84443,27 @@
         },
         "description": "One tenant's error budget for the trailing 24-hour window, computed purely from real\r\n`OutboundWebhookDelivery` outcomes (`Delivered` = success, `Failed`/`DeadLetter` = error;\r\n`Pending` attempts are excluded — they have not resolved yet). There is no platform-wide blended figure:\r\none tenant's failures never count toward another's, because the entire point of a 2am tool is finding WHICH\r\ntenant's integration is actually broken. A tenant with no resolved delivery attempts in the window is simply\r\nabsent from the page — never padded with a fabricated 0%. double? AdminTenantErrorBudgetDto.ErrorRate and\r\ndouble? AdminTenantErrorBudgetDto.BudgetRemainingFraction are `null` when long AdminTenantErrorBudgetDto.Attempts is 0.\r\ndouble AdminTenantErrorBudgetDto.TargetSuccessRate is a stated policy threshold (99%), not a measured quantity — the allowed\r\nerror rate it implies is the denominator double? AdminTenantErrorBudgetDto.BudgetRemainingFraction is computed against."
       },
+      "AdminTenantUsageCostDto": {
+        "required": [
+          "currency",
+          "minorUnits"
+        ],
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "minorUnits": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        },
+        "description": "One currency's worth of a tenant's total priced usage cost for the period."
+      },
       "AdminTenantUsageDto": {
         "required": [
           "broadcasterId",
@@ -84295,9 +84504,42 @@
               "string"
             ],
             "format": "int64"
+          },
+          "ttsCostMinorUnits": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "ttsCurrency": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "totalCostsByCurrency": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AdminTenantUsageCostDto"
+            }
+          },
+          "unpricedUnitKeys": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
           }
         },
-        "description": "One tenant's usage for its most recent metering period, computed purely from recorded rows\r\n(`UsageRecord` + `TtsUsageRecord`) — never a placeholder figure. There is no per-unit price table\r\nin this codebase, so this reports measured usage, not a fabricated currency cost; DateTime AdminTenantUsageDto.PeriodStart/\r\nDateTime AdminTenantUsageDto.PeriodEnd state exactly which window the figures cover."
+        "description": "            One tenant's usage for its most recent metering period, computed purely from recorded rows\r\n            (`UsageRecord` + `TtsUsageRecord`) — never a placeholder figure. DateTime AdminTenantUsageDto.PeriodStart/\r\n            DateTime AdminTenantUsageDto.PeriodEnd state exactly which window the figures cover.\r\n            Cost (S-ADMIN-4d) is reported ONLY for units the owner has actually priced via the PricedUnit\r\ncatalogue: each priced metric in IReadOnlyList&lt;AdminTenantUsageMetricDto&gt; AdminTenantUsageDto.Metrics carries its own cost, long? AdminTenantUsageDto.TtsCostMinorUnits\r\nis the TTS character cost (or null if unpriced), IReadOnlyList&lt;AdminTenantUsageCostDto&gt;? AdminTenantUsageDto.TotalCostsByCurrency sums every\r\npriced figure grouped by currency, and IReadOnlyList&lt;string&gt;? AdminTenantUsageDto.UnpricedUnitKeys names every unit this tenant\r\nactually used that has no price yet — so an unpriced unit is never silently read as costing nothing."
       },
       "AdminTenantUsageMetricDto": {
         "required": [
@@ -84316,9 +84558,24 @@
               "string"
             ],
             "format": "int64"
+          },
+          "costMinorUnits": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "currency": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
-        "description": "One metered quantity for a tenant's usage period, straight off the real `UsageRecord` rows."
+        "description": "One metered quantity for a tenant's usage period, straight off the real `UsageRecord` rows, joined\r\nagainst the owner-authored `PricedUnit` catalogue (S-ADMIN-4d). long? AdminTenantUsageMetricDto.CostMinorUnits and\r\nstring? AdminTenantUsageMetricDto.Currency are both `null` when string AdminTenantUsageMetricDto.MetricKey has no `PricedUnit` row —\r\nUNPRICED, never reported as a zero cost."
       },
       "AdminUserDto": {
         "required": [
@@ -84623,6 +84880,40 @@
           }
         },
         "description": "Request to assign a platform-IAM role to a principal (roles-permissions §5.4)."
+      },
+      "AuthorPricedUnitRequest": {
+        "required": [
+          "unitKey",
+          "currency",
+          "priceMinorUnitsPerBatch",
+          "batchSize"
+        ],
+        "type": "object",
+        "properties": {
+          "unitKey": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "priceMinorUnitsPerBatch": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "batchSize": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        },
+        "description": "Author (create or reprice) one unit. Upsert by string AuthorPricedUnitRequest.UnitKey: a key with no existing row is\r\ncreated; an existing key has its price overwritten. There is no per-period price history — see\r\n`PricedUnit`'s doc comment for the deliberate current-rate-only semantics this implies."
       },
       "AuthResultDto": {
         "required": [
@@ -99902,6 +100193,46 @@
           }
         }
       },
+      "PricedUnitDto": {
+        "required": [
+          "id",
+          "unitKey",
+          "currency",
+          "priceMinorUnitsPerBatch",
+          "batchSize"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "unitKey": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "priceMinorUnitsPerBatch": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "batchSize": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        },
+        "description": "The owner-authored price of one usage unit. long PricedUnitDto.PriceMinorUnitsPerBatch is charged per\r\nlong PricedUnitDto.BatchSize raw units of string PricedUnitDto.UnitKey — a real cost of a fraction of a minor unit\r\nper raw unit (e.g. TTS characters, sandbox milliseconds) is represented exactly by pricing a batch of\r\nthem, never by a float."
+      },
       "ProblemDetails": {
         "type": "object",
         "properties": {
@@ -107146,6 +107477,42 @@
             ],
             "items": {
               "$ref": "#/components/schemas/OutboundWebhookEventCatalogueEntry"
+            }
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
+      "StatusResponseDtoOfIReadOnlyListOfPricedUnitDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/PricedUnitDto"
             }
           },
           "message": {

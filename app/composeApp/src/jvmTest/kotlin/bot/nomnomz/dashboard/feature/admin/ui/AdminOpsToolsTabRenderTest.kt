@@ -16,6 +16,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
@@ -41,6 +43,7 @@ import bot.nomnomz.dashboard.core.network.AdminScheduledJobRetryResult
 import bot.nomnomz.dashboard.core.network.AdminServiceHealth
 import bot.nomnomz.dashboard.core.network.AdminTenantErrorBudget
 import bot.nomnomz.dashboard.core.network.AdminTenantUsage
+import bot.nomnomz.dashboard.core.network.AdminTenantUsageCost
 import bot.nomnomz.dashboard.core.network.AdminTenantUsageMetric
 import bot.nomnomz.dashboard.core.network.AdminSetFeatureFlagOverrideRequest
 import bot.nomnomz.dashboard.core.network.AdminSetFeatureFlagRequest
@@ -336,6 +339,64 @@ class AdminOpsToolsTabRenderTest {
             onNodeWithText("qtkitte", substring = true).assertExists()
             onNodeWithText("chat_messages: 500", substring = true).assertExists()
             onNodeWithText("TTS characters: 42", substring = true).assertExists()
+        }
+    }
+
+    /**
+     * S-ADMIN-4d. Usage reports money ONLY for units the owner has actually priced. The failure this
+     * guards is the tempting one: rendering an unpriced unit as "Cost: 0" would read as free, when the
+     * truth is that nobody has priced it yet. Those are different claims and only one is true, so the
+     * unpriced unit must say so by name and the zero must never appear.
+     */
+    @Test
+    fun usage_shows_cost_only_where_a_price_exists_and_names_the_unpriced_units() {
+        val usage = AdminTenantUsage(
+            broadcasterId = "chan-1",
+            channelDisplayName = "qtkitte",
+            periodStart = "2026-09-01T00:00:00Z",
+            periodEnd = "2026-10-01T00:00:00Z",
+            metrics = listOf(
+                AdminTenantUsageMetric(
+                    metricKey = "sandbox_exec_ms",
+                    quantity = 1_000,
+                    costMinorUnits = 250,
+                    currency = "eur",
+                ),
+                AdminTenantUsageMetric(metricKey = "chat_messages", quantity = 500),
+            ),
+            ttsCharacterCount = 42,
+            totalCostsByCurrency = listOf(AdminTenantUsageCost(currency = "eur", minorUnits = 250)),
+            unpricedUnitKeys = listOf("chat_messages", "tts_characters"),
+        )
+        val api = FakeAdminApiForOpsToolsTest(tenantUsage = listOf(usage))
+        val controller = AdminController(
+            api = api,
+            iamApi = FakeIamApiForOpsToolsTest(),
+            platformAdminApi = FakePlatformAdminApiForOpsToolsTest(),
+        )
+
+        runTest { controller.loadTenantUsage() }
+
+        runComposeUiTest {
+            setContent {
+                EnglishContent {
+                    ObservingTenantUsageTab(controller = controller)
+                }
+            }
+            waitForIdle()
+
+            // The priced unit reports real money, and the total is stated in its own currency.
+            onNodeWithText("Cost: 250 EUR", substring = true).assertExists()
+            onNodeWithText("Total: 250 EUR", substring = true).assertExists()
+
+            // The unpriced ones say so, by name, instead of reading as free. BOTH of them: the unpriced
+            // metric and the unpriced TTS line each carry their own "not priced yet", so neither can
+            // quietly fall back to a zero while the other is checked.
+            onAllNodesWithText("Not priced yet", substring = true).assertCountEquals(2)
+            onNodeWithText("Unpriced: chat_messages, tts_characters", substring = true).assertExists()
+
+            // The quantities are still reported for the unpriced unit - measurement never depends on price.
+            onNodeWithText("chat_messages: 500", substring = true).assertExists()
         }
     }
 

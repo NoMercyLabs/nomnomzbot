@@ -8,10 +8,12 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.Hubs;
+using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Widgets.Entities;
@@ -54,6 +56,54 @@ public sealed class WidgetTestEventReachTests
         db.Widgets.Add(widget);
         await db.SaveChangesAsync();
         return widget;
+    }
+
+    [Fact]
+    public async Task The_chat_sample_carries_a_native_gif_fragment_so_Test_exercises_that_path()
+    {
+        // The Test button is the only way to drive an overlay without waiting for a real viewer. A sample made
+        // only of text and emotes can rehearse a chat box that would still print a GIF as its caption text —
+        // exactly the defect reported on 2026-09-06 — and report success while doing it. Serialize the pushed
+        // payload the way the hub does, and assert the fragment a GIF actually needs is in there.
+        using ApiTestDbContext db = ApiTestDbContext.New();
+        Widget widget = new()
+        {
+            BroadcasterId = Broadcaster,
+            Name = "Chat Box",
+            EventSubscriptions = ["ChatMessage"],
+        };
+        db.Widgets.Add(widget);
+        await db.SaveChangesAsync();
+
+        IWidgetNotifier notifier = Substitute.For<IWidgetNotifier>();
+        WidgetTestEventController controller = new(
+            db,
+            notifier,
+            Substitute.For<IOverlayPresenceRegistry>()
+        );
+
+        await controller.Fire(
+            Broadcaster.ToString(),
+            new WidgetTestEventRequest("ChatMessage", null),
+            CancellationToken.None
+        );
+
+        WidgetEventDto pushed = (WidgetEventDto)
+            notifier.ReceivedCalls().Single().GetArguments()[2]!;
+        JsonElement payload = JsonSerializer.SerializeToElement(
+            pushed.Data,
+            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }
+        );
+
+        JsonElement gif = payload
+            .GetProperty("fragments")
+            .EnumerateArray()
+            .Single(fragment => fragment.GetProperty("type").GetString() == "gif");
+
+        // A url is what every renderer keys its gif branch on; the caption text alone is what it falls back to.
+        gif.GetProperty("gif").GetProperty("url").GetString().Should().StartWith("https://");
+        gif.GetProperty("gif").GetProperty("gifId").GetString().Should().NotBeNullOrEmpty();
+        gif.GetProperty("text").GetString().Should().NotBeNullOrEmpty();
     }
 
     [Fact]

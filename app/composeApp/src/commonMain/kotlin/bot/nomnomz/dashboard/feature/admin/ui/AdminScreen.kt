@@ -1648,6 +1648,10 @@ internal fun BillingTab(state: AdminState, controller: AdminController) {
 
         Separator()
 
+        PricedUnitSection(state = state, controller = controller)
+
+        Separator()
+
         EntitlementGrantSection(state = state, controller = controller)
 
         Separator()

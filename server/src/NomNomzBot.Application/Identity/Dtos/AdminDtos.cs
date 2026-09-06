@@ -144,16 +144,32 @@ public sealed record AdminScheduledJobRetryResultDto(
     DateTime NewDueAt
 );
 
-// ── Per-tenant usage (S-ADMIN-6b) ──
+// ── Per-tenant usage (S-ADMIN-6b) + cost (S-ADMIN-4d) ──
 
-/// <summary>One metered quantity for a tenant's usage period, straight off the real <c>UsageRecord</c> rows.</summary>
-public sealed record AdminTenantUsageMetricDto(string MetricKey, long Quantity);
+/// <summary>
+/// One metered quantity for a tenant's usage period, straight off the real <c>UsageRecord</c> rows, joined
+/// against the owner-authored <c>PricedUnit</c> catalogue (S-ADMIN-4d). <see cref="CostMinorUnits"/> and
+/// <see cref="Currency"/> are both <c>null</c> when <see cref="MetricKey"/> has no <c>PricedUnit</c> row —
+/// UNPRICED, never reported as a zero cost.
+/// </summary>
+public sealed record AdminTenantUsageMetricDto(
+    string MetricKey,
+    long Quantity,
+    long? CostMinorUnits = null,
+    string? Currency = null
+);
 
 /// <summary>
 /// One tenant's usage for its most recent metering period, computed purely from recorded rows
-/// (<c>UsageRecord</c> + <c>TtsUsageRecord</c>) — never a placeholder figure. There is no per-unit price table
-/// in this codebase, so this reports measured usage, not a fabricated currency cost; <see cref="PeriodStart"/>/
+/// (<c>UsageRecord</c> + <c>TtsUsageRecord</c>) — never a placeholder figure. <see cref="PeriodStart"/>/
 /// <see cref="PeriodEnd"/> state exactly which window the figures cover.
+/// <para>
+/// Cost (S-ADMIN-4d) is reported ONLY for units the owner has actually priced via the <c>PricedUnit</c>
+/// catalogue: each priced metric in <see cref="Metrics"/> carries its own cost, <see cref="TtsCostMinorUnits"/>
+/// is the TTS character cost (or <c>null</c> if unpriced), <see cref="TotalCostsByCurrency"/> sums every
+/// priced figure grouped by currency, and <see cref="UnpricedUnitKeys"/> names every unit this tenant
+/// actually used that has no price yet — so an unpriced unit is never silently read as costing nothing.
+/// </para>
 /// </summary>
 public sealed record AdminTenantUsageDto(
     Guid BroadcasterId,
@@ -161,8 +177,15 @@ public sealed record AdminTenantUsageDto(
     DateTime PeriodStart,
     DateTime PeriodEnd,
     IReadOnlyList<AdminTenantUsageMetricDto> Metrics,
-    long TtsCharacterCount
+    long TtsCharacterCount,
+    long? TtsCostMinorUnits = null,
+    string? TtsCurrency = null,
+    IReadOnlyList<AdminTenantUsageCostDto>? TotalCostsByCurrency = null,
+    IReadOnlyList<string>? UnpricedUnitKeys = null
 );
+
+/// <summary>One currency's worth of a tenant's total priced usage cost for the period.</summary>
+public sealed record AdminTenantUsageCostDto(string Currency, long MinorUnits);
 
 // ── Error budget (S-ADMIN-6c) ──
 

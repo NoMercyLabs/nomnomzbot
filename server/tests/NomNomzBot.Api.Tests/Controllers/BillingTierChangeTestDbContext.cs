@@ -91,6 +91,7 @@ internal sealed class BillingTierChangeTestDbContext : DbContext, IApplicationDb
     public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
     public DbSet<BillingTier> BillingTiers => Set<BillingTier>();
     public DbSet<TierLimit> TierLimits => Set<TierLimit>();
+    public DbSet<PricedUnit> PricedUnits => Set<PricedUnit>();
     public DbSet<Subscription> Subscriptions => Set<Subscription>();
     public DbSet<Command> Commands => Set<Command>();
     public DbSet<SoundClip> SoundClips => Set<SoundClip>();
