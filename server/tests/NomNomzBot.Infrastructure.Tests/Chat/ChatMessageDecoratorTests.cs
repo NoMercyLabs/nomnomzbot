@@ -77,24 +77,49 @@ public sealed class ChatMessageDecoratorTests
         FakeCache cache = new();
         ChatMessageDecorator decorator = Decorator(cache, EmoteChain(cache));
 
+        // Two GIFs and a text run in one message: a single-fragment case cannot tell a faithful copy apart from
+        // one that copies the first fragment over the rest, reorders them, or hands the same instance to every
+        // slot — each of which shows two identical GIFs on stream and passes a "the url survived" check.
         ChatMessageReceivedEvent evt = Event(
-            "[Umaru-Chan Ramen GIF by HIDIVE]",
+            "[Umaru-Chan Ramen GIF by HIDIVE] and [Cat Festival GIF by W&W]",
             new ChatMessageFragment
             {
                 Type = "gif",
                 Text = "[Umaru-Chan Ramen GIF by HIDIVE]",
                 GifId = "U6kGxfqszGeUBFnOT8",
                 GifUrl = "https://media2.giphy.com/media/U6kGxfqszGeUBFnOT8/giphy.gif",
+            },
+            new ChatMessageFragment { Type = "text", Text = " and " },
+            new ChatMessageFragment
+            {
+                Type = "gif",
+                Text = "[Cat Festival GIF by W&W]",
+                GifId = "cKsXjwNQxtVncNBTey",
+                GifUrl = "https://media3.giphy.com/media/cKsXjwNQxtVncNBTey/giphy.gif",
             }
         );
 
         DecoratedChatMessage result = await decorator.DecorateAsync(evt);
 
-        ChatMessageFragment gif = result.Fragments.Should().ContainSingle().Subject;
-        gif.Type.Should().Be("gif");
-        gif.Text.Should().Be("[Umaru-Chan Ramen GIF by HIDIVE]");
-        gif.GifUrl.Should().Be("https://media2.giphy.com/media/U6kGxfqszGeUBFnOT8/giphy.gif");
-        gif.GifId.Should().Be("U6kGxfqszGeUBFnOT8");
+        result
+            .Fragments.Select(fragment => (fragment.Type, fragment.Text, fragment.GifId))
+            .Should()
+            .Equal(
+                ("gif", "[Umaru-Chan Ramen GIF by HIDIVE]", "U6kGxfqszGeUBFnOT8"),
+                ("text", " and ", null),
+                ("gif", "[Cat Festival GIF by W&W]", "cKsXjwNQxtVncNBTey")
+            );
+        result
+            .Fragments[0]
+            .GifUrl.Should()
+            .Be("https://media2.giphy.com/media/U6kGxfqszGeUBFnOT8/giphy.gif");
+        result
+            .Fragments[2]
+            .GifUrl.Should()
+            .Be("https://media3.giphy.com/media/cKsXjwNQxtVncNBTey/giphy.gif");
+        // The text run between them must stay a plain run — a copy that smears gif data across fragments would
+        // render an image where the word "and" belongs.
+        result.Fragments[1].GifUrl.Should().BeNull();
     }
 
     [Fact]
@@ -184,7 +209,10 @@ public sealed class ChatMessageDecoratorTests
     private static ChatMessageReceivedEvent Event(string text) =>
         Event(text, new ChatMessageFragment { Type = "text", Text = text });
 
-    private static ChatMessageReceivedEvent Event(string text, ChatMessageFragment fragment) =>
+    private static ChatMessageReceivedEvent Event(
+        string text,
+        params ChatMessageFragment[] fragments
+    ) =>
         new()
         {
             MessageId = "m1",
@@ -193,7 +221,7 @@ public sealed class ChatMessageDecoratorTests
             UserDisplayName = "Stoney",
             UserLogin = "stoney_eagle",
             Message = text,
-            Fragments = [fragment],
+            Fragments = fragments,
             Badges = [],
             IsSubscriber = false,
             IsVip = false,
