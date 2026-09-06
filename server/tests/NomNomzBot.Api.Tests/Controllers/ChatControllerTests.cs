@@ -11,6 +11,7 @@
 using System.Text.Json;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Dtos;
@@ -836,6 +837,52 @@ public sealed class ChatControllerTests
                 ChatEmoteSender.Operator,
                 Arg.Any<CancellationToken>()
             );
+    }
+
+    [Fact]
+    public async Task A_native_gif_fragment_survives_the_stored_fragment_column()
+    {
+        // Scrollback re-renders every line from this column, so a fragment field the column cannot carry comes
+        // back missing however correct the live path is — and a GIF with no url renders as its caption text.
+        // The read clears the change tracker first, so it sees what the column stored rather than the instance
+        // that was written to it.
+        using ChatControllerTestDbContext db = ChatControllerTestDbContext.New();
+        db.ChatMessages.Add(
+            new()
+            {
+                Id = "msg-gif",
+                BroadcasterId = Broadcaster,
+                UserId = "u1",
+                Username = "kanawanagasaki",
+                DisplayName = "Kanawanagasaki",
+                UserType = "subscriber",
+                Message = "[Umaru-Chan Ramen GIF by HIDIVE]",
+                Fragments =
+                [
+                    new()
+                    {
+                        Type = "gif",
+                        Text = "[Umaru-Chan Ramen GIF by HIDIVE]",
+                        GifId = "U6kGxfqszGeUBFnOT8",
+                        GifUrl = "https://media2.giphy.com/media/U6kGxfqszGeUBFnOT8/giphy.gif",
+                    },
+                ],
+                Badges = [],
+                CreatedAt = new(2026, 9, 6, 12, 59, 16, DateTimeKind.Utc),
+            }
+        );
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        ChatMessage row = await db.ChatMessages.SingleAsync();
+
+        ChatMessageFragment stored = row.Fragments.Should().ContainSingle().Subject;
+        stored.Type.Should().Be("gif");
+        stored.GifUrl.Should().Be("https://media2.giphy.com/media/U6kGxfqszGeUBFnOT8/giphy.gif");
+        // The id is what tells two GIFs apart; a row that kept the url and lost the id still looks right on
+        // screen and is useless to anything that has to identify which GIF was sent.
+        stored.GifId.Should().Be("U6kGxfqszGeUBFnOT8");
+        stored.Text.Should().Be("[Umaru-Chan Ramen GIF by HIDIVE]");
     }
 
     private static List<DashboardChatMessageDto> Data(IActionResult result)
