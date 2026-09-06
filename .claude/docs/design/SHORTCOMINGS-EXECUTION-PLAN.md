@@ -102,10 +102,14 @@ appsettings value — `Program.cs` treats the bundled dev key as weak and switch
 `SelfHostSecretStore`, whose per-install secret lives at `<data-dir>/keys/jwt-secret.bin`; the only
 symptom is a 401 "The signature key was not found" (documented in `scripts/mint-jwt.py`, `cfac1ba8`).
 
-- [ ] **Raw-SQL test fixtures must use the lowercase `AuthEnums.*` constants** for `Channels.Status` /
-      `DeploymentMode` / `Provider`, `Users.Platform` and `AuthSessions.ClientType`. A PascalCase value
-      makes `TenantResolutionMiddleware`'s Gate-1 check fail as a bare 403 with no body, which reads
-      like an auth bug and is not one.
+**Not a work item — a standing fact, now in the aitm brain** (`authenums-lowercase-in-raw-sql-fixtures`,
+alongside `sqlite-guid-text-is-uppercase-hyphenated`). Raw-SQL fixtures must write the LOWERCASE
+`AuthEnums.*` constants for `Channels.Status` / `DeploymentMode` / `Provider`, `Users.Platform` and
+`AuthSessions.ClientType`; a PascalCase value makes `TenantResolutionMiddleware`'s Gate-1 check fail as
+a bare 403 with no body, which reads like an auth bug and is not one. Deliberately NOT given a guard
+test: the repo contains no raw `INSERT INTO Channels` at all, so the guard's population would be empty
+and it could never go red — the exact toothless-guard shape this project keeps deleting. The trap only
+bites fixtures hand-written against a live instance, which is where the brain entry reaches.
 
 Community round-trip proven by side effect, not by a responsive button: raid returned 201 "Raid
 started." with a real timestamp against Twitch and was cleanly reversed with `DELETE` (204, no stray
