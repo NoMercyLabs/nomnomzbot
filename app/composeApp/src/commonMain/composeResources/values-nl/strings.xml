@@ -3396,6 +3396,7 @@
     <string name="admin_health_empty">Geen statuscontroles gerapporteerd.</string>
     <!-- Live operator hub -->
     <string name="admin_tab_iam">IAM</string>
+    <string name="admin_tab_platform_bot">Platformbot</string>
     <string name="admin_tab_tenants">Tenants</string>
     <string name="admin_tab_audit">Audit</string>
     <string name="admin_live_indicator">Live</string>
@@ -3521,6 +3522,23 @@
     <string name="admin_network_block_applied_by">Toegepast %1$s: %2$s</string>
     <string name="admin_network_block_lift_button">Opheffen</string>
     <string name="admin_network_block_lift_partial_notice">Na opheffen zijn %1$s kanalen nog steeds verbannen — probeer opnieuw.</string>
+    <string name="admin_platform_bot_section_title">Gedeelde platformbot</string>
+    <string name="admin_platform_bot_notice">Elk kanaal zonder eigen bot spreekt via dit account. Bekijk het echte effect voordat je opnieuw verbindt — het aantal dat je zag is wat de server controleert.</string>
+    <string name="admin_platform_bot_never_connected">Nog geen platformbot verbonden — doorloop de eerste installatie, of verbind hieronder een bot.</string>
+    <string name="admin_platform_bot_status_connected">Verbonden en werkend: %1$s</string>
+    <string name="admin_platform_bot_status_unusable">%1$s is verbonden, maar het token kan niet meer worden gelezen</string>
+    <string name="admin_platform_bot_status_unusable_notice">Dit gebeurt meestal na een wijziging van de ENCRYPTION_KEY. Autoriseer het account hieronder opnieuw om het te herstellen.</string>
+    <string name="admin_platform_bot_justification_label">Reden (vastgelegd in het auditlog)</string>
+    <string name="admin_platform_bot_preview_button">Bekijk effect</string>
+    <string name="admin_platform_bot_preview_summary">Raakt %1$s kanalen</string>
+    <string name="admin_platform_bot_reconnect_button">Opnieuw verbinden / vervangen</string>
+    <string name="admin_platform_bot_confirm_title">Gedeelde platformbot vervangen?</string>
+    <string name="admin_platform_bot_confirm_message">%1$s kanalen zonder eigen bot gaan zodra dit klaar is via het nieuwe account spreken.</string>
+    <string name="admin_platform_bot_confirm_confirm">Opnieuw verbinden</string>
+    <string name="admin_platform_bot_confirm_cancel">Annuleren</string>
+    <string name="admin_platform_bot_device_notice">Autoriseer op %1$s met de onderstaande code.</string>
+    <string name="admin_platform_bot_device_user_code">%1$s</string>
+    <string name="admin_platform_bot_device_cancel">Annuleren</string>
     <string name="admin_webhook_deliveries_empty">Geen webhook-afleveringen geregistreerd.</string>
     <string name="admin_webhook_delivery_label">Aflevering</string>
     <string name="admin_webhook_delivery_attempt">Poging %1$d</string>

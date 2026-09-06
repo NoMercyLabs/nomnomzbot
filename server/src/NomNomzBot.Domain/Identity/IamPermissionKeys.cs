@@ -99,6 +99,13 @@ public static class IamPermissionKeys
     // system role (<c>platform-network-block</c>), assigned per principal.
     public const string NetworkBlockManage = "network:block:manage";
 
+    // Re-connecting or replacing the shared platform bot (S-BOT-PLATFORM-UI): the one Twitch identity every
+    // channel without its own custom bot speaks through. Distinct from a channel's own integration:write
+    // (that key only ever reaches the per-channel custom-bot path — EstablishChannelBotAsync — and can never
+    // touch this slot). A swap here is platform-wide by nature — it changes what every dependent channel
+    // resolves to — so it carries its own key, always audited, always preview-before-execute.
+    public const string PlatformBotManage = "platform:bot:manage";
+
     /// <summary>Every seeded Plane-C key (§C.1). The legacy alias <c>iam:audit:read</c> collapses to <c>audit:read</c>.</summary>
     public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -127,5 +134,6 @@ public static class IamPermissionKeys
         UserSupportView,
         TrustSafetyReview,
         NetworkBlockManage,
+        PlatformBotManage,
     };
 }

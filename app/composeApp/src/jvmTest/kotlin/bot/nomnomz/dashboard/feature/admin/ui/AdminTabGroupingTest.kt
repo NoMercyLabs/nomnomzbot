@@ -74,6 +74,11 @@ import bot.nomnomz.dashboard.core.network.NetworkBlock
 import bot.nomnomz.dashboard.core.network.NetworkBlockPreview
 import bot.nomnomz.dashboard.core.network.PaginatedEnvelope
 import bot.nomnomz.dashboard.core.network.PlatformAdminApi
+import bot.nomnomz.dashboard.core.network.PlatformBotAdminApi
+import bot.nomnomz.dashboard.core.network.PlatformBotAdminStatus
+import bot.nomnomz.dashboard.core.network.PlatformBotReconnectPreview
+import bot.nomnomz.dashboard.core.network.DeviceBotPoll
+import bot.nomnomz.dashboard.core.network.DeviceCodeStart
 import bot.nomnomz.dashboard.core.network.PlatformEvent
 import bot.nomnomz.dashboard.core.network.PlatformIamApi
 import bot.nomnomz.dashboard.core.network.ProviderCredential
@@ -158,6 +163,7 @@ class AdminTabGroupingTest {
             platformAdminApi = FakePlatformAdminApiForGroupingTest(),
             supportApi = FakeAdminSupportApiForGroupingTest(),
             trustSafetyApi = FakeTrustSafetyApiForGroupingTest(),
+            platformBotAdminApi = FakePlatformBotAdminApiForGroupingTest(),
         )
 
         runComposeUiTest {
@@ -288,6 +294,7 @@ class AdminTabGroupingTest {
             AdminTab.Providers to "Providers",
             AdminTab.Content to "Content",
             AdminTab.Iam to "IAM",
+            AdminTab.PlatformBot to "Platform bot",
         )
 
         // Text that renders unconditionally once each tab is open, with default (empty) fake-API data —
@@ -316,6 +323,7 @@ class AdminTabGroupingTest {
             // operator would see, and just as unique a marker for "the Content tab is open" as an empty list.
             AdminTab.Content to "Requires content:read",
             AdminTab.Iam to "No principals yet.",
+            AdminTab.PlatformBot to "speaks through this account",
         )
     }
 }
@@ -477,4 +485,20 @@ private class FakeTrustSafetyApiForGroupingTest : TrustSafetyApi {
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
     override suspend fun liftNetworkBlock(blockId: String, justification: String): ApiResult<NetworkBlock> =
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+}
+
+/** Only present to flip [AdminController.platformBotAdminAvailable] on — [PlatformBotTab]'s own notice
+ * copy is the reachability marker, so none of these methods need to succeed for this slice's navigation. */
+private class FakePlatformBotAdminApiForGroupingTest : PlatformBotAdminApi {
+    override suspend fun status(): ApiResult<PlatformBotAdminStatus> =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    override suspend fun previewReconnect(justification: String): ApiResult<PlatformBotReconnectPreview> =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    override suspend fun startReconnect(justification: String, confirmedAffectedChannelCount: Int): ApiResult<DeviceCodeStart> =
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    override suspend fun pollReconnect(
+        deviceCode: String,
+        justification: String,
+        confirmedAffectedChannelCount: Int,
+    ): ApiResult<DeviceBotPoll> = ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
 }

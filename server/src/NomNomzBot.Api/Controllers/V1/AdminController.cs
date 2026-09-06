@@ -19,6 +19,7 @@ using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Platform.Dtos;
@@ -46,13 +47,17 @@ public class AdminController : BaseController
     private readonly IDekRotationService _dekRotationService;
     private readonly IProviderCredentialService _providerCredentials;
     private readonly ICurrentUserService _currentUser;
+    private readonly IPlatformBotAdminService _platformBotAdmin;
+    private readonly IIamCallerPrincipalResolverService _actingPrincipalResolver;
 
     public AdminController(
         IAdminService adminService,
         IApplicationDbContext db,
         IDekRotationService dekRotationService,
         IProviderCredentialService providerCredentials,
-        ICurrentUserService currentUser
+        ICurrentUserService currentUser,
+        IPlatformBotAdminService platformBotAdmin,
+        IIamCallerPrincipalResolverService actingPrincipalResolver
     )
     {
         _adminService = adminService;
@@ -60,6 +65,8 @@ public class AdminController : BaseController
         _dekRotationService = dekRotationService;
         _providerCredentials = providerCredentials;
         _currentUser = currentUser;
+        _platformBotAdmin = platformBotAdmin;
+        _actingPrincipalResolver = actingPrincipalResolver;
     }
 
     public record ServiceHealthResponseDto(string Name, string Status);
@@ -77,6 +84,108 @@ public class AdminController : BaseController
         Result<AdminStatsDto> result = await _adminService.GetStatsAsync(ct);
         return ResultResponse(result);
     }
+
+    // ── Shared platform bot (Setup) ──────────────────────────────────────────
+    // S-BOT-PLATFORM-UI: once first-run setup is done, this is the only surface left to re-connect or
+    // replace the shared platform bot — the channel Integrations screen deliberately polls the
+    // channel-scoped endpoint instead (the a8b897e6 fix for the 2026-09-04 takeover), and must stay that
+    // way. A swap here is platform-wide, so it carries its own key and a rendered, re-verified blast radius.
+
+    /// <summary>The real current state of the shared platform bot — never a hardcoded or assumed value.</summary>
+    [HttpGet("platform-bot")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
+    [Authorize(Policy = IamPermissionKeys.PlatformBotManage)]
+    [ProducesResponseType<StatusResponseDto<PlatformBotAdminStatusDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetPlatformBotStatus(CancellationToken ct)
+    {
+        Result<Guid> acting = await ActingPrincipalIdAsync(ct);
+        if (acting.IsFailure)
+            return ResultResponse(acting.WithValue<PlatformBotAdminStatusDto>(null!));
+        return ResultResponse(await _platformBotAdmin.GetStatusAsync(acting.Value, ct));
+    }
+
+    /// <summary>
+    /// The counted blast radius a platform-bot reconnect would touch — every channel that would resolve to
+    /// the new account. Must be rendered before <see cref="StartPlatformBotReconnect"/> will accept a
+    /// confirmation.
+    /// </summary>
+    [HttpGet("platform-bot/reconnect/preview")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
+    [Authorize(Policy = IamPermissionKeys.PlatformBotManage)]
+    [ProducesResponseType<StatusResponseDto<PlatformBotReconnectPreviewDto>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> PreviewPlatformBotReconnect(
+        [FromQuery] string justification,
+        CancellationToken ct
+    )
+    {
+        Result<Guid> acting = await ActingPrincipalIdAsync(ct);
+        if (acting.IsFailure)
+            return ResultResponse(acting.WithValue<PlatformBotReconnectPreviewDto>(null!));
+        return ResultResponse(
+            await _platformBotAdmin.PreviewReconnectAsync(acting.Value, justification, ct)
+        );
+    }
+
+    /// <summary>
+    /// Begins the reconnect device login. Rejects <c>PREVIEW_STALE</c> if the affected-channel count no
+    /// longer matches <see cref="PreviewPlatformBotReconnect"/>'s most recent count.
+    /// </summary>
+    [DestructiveAction(HasCountedBlastRadius = true)]
+    [HttpPost("platform-bot/reconnect/device")]
+    [Authorize(Policy = IamPermissionKeys.PlatformBotManage)]
+    [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
+    [ProducesResponseType<StatusResponseDto<DeviceCodeStartDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> StartPlatformBotReconnect(
+        [FromBody] PlatformBotReconnectRequest request,
+        CancellationToken ct
+    )
+    {
+        Result<Guid> acting = await ActingPrincipalIdAsync(ct);
+        if (acting.IsFailure)
+            return ResultResponse(acting.WithValue<DeviceCodeStartDto>(null!));
+        return ResultResponse(
+            await _platformBotAdmin.StartReconnectAsync(
+                acting.Value,
+                request.Justification,
+                request.ConfirmedAffectedChannelCount,
+                ct
+            )
+        );
+    }
+
+    /// <summary>
+    /// Polls the reconnect device login once; on <c>authorized</c> the shared platform bot credential is
+    /// REPLACED. Re-verifies the affected-channel count fresh before applying the swap.
+    /// </summary>
+    [DestructiveAction(HasCountedBlastRadius = true)]
+    [HttpPost("platform-bot/reconnect/device/poll")]
+    [Authorize(Policy = IamPermissionKeys.PlatformBotManage)]
+    [EnableRateLimiting("device-poll")]
+    [ProducesResponseType<StatusResponseDto<DeviceBotPollDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> PollPlatformBotReconnect(
+        [FromBody] PlatformBotReconnectPollRequest request,
+        CancellationToken ct
+    )
+    {
+        Result<Guid> acting = await ActingPrincipalIdAsync(ct);
+        if (acting.IsFailure)
+            return ResultResponse(acting.WithValue<DeviceBotPollDto>(null!));
+        return ResultResponse(
+            await _platformBotAdmin.PollReconnectAsync(
+                acting.Value,
+                request.DeviceCode,
+                request.Justification,
+                request.ConfirmedAffectedChannelCount,
+                ct
+            )
+        );
+    }
+
+    /// <summary>The caller's IAM principal id for the service's audited re-check — a resolve failure DENIES.</summary>
+    private Task<Result<Guid>> ActingPrincipalIdAsync(CancellationToken ct) =>
+        _actingPrincipalResolver.ResolveActingPrincipalIdAsync(_currentUser.UserId, ct);
 
     // ── Provider app credentials ─────────────────────────────────────────────
 
@@ -517,3 +626,16 @@ public class AdminController : BaseController
         return ResultResponse(result);
     }
 }
+
+/// <summary>Body for starting a platform-bot reconnect — the confirmed count MUST match a fresh preview.</summary>
+public sealed record PlatformBotReconnectRequest(
+    string Justification,
+    int ConfirmedAffectedChannelCount
+);
+
+/// <summary>Body for polling a platform-bot reconnect — carries the same confirmation as the start call.</summary>
+public sealed record PlatformBotReconnectPollRequest(
+    string DeviceCode,
+    string Justification,
+    int ConfirmedAffectedChannelCount
+);

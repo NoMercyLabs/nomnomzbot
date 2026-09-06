@@ -70,8 +70,14 @@ import bot.nomnomz.dashboard.core.network.SupportPersonHistoryEntry
 import bot.nomnomz.dashboard.core.network.SupportPersonSearchResult
 import bot.nomnomz.dashboard.core.network.SupportPersonView
 import bot.nomnomz.dashboard.core.network.CrossTenantAbuseSignal
+import bot.nomnomz.dashboard.core.network.DeviceBotPoll
+import bot.nomnomz.dashboard.core.network.DeviceCodeStart
 import bot.nomnomz.dashboard.core.network.NetworkBlock
 import bot.nomnomz.dashboard.core.network.NetworkBlockPreview
+import bot.nomnomz.dashboard.core.network.PlatformBotAdminApi
+import bot.nomnomz.dashboard.core.network.PlatformBotAdminState
+import bot.nomnomz.dashboard.core.network.PlatformBotAdminStatus
+import bot.nomnomz.dashboard.core.network.PlatformBotReconnectPreview
 import bot.nomnomz.dashboard.core.network.TrustSafetyApi
 import bot.nomnomz.dashboard.core.network.TrustSafetyReviewItem
 import bot.nomnomz.dashboard.core.network.PlatformContentApi
@@ -93,6 +99,7 @@ import bot.nomnomz.dashboard.core.realtime.AdminLogEntry
 import bot.nomnomz.dashboard.core.realtime.AdminRegistryUpdate
 import bot.nomnomz.dashboard.feature.shell.state.ChannelSwitcherController
 import bot.nomnomz.dashboard.feature.shell.state.ShellAccessController
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -345,7 +352,27 @@ data class AdminState(
     val networkBlocksError: String? = null,
     val networkBlockLiftInFlight: String? = null,
     val networkBlockLiftError: String? = null,
+
+    // ── Shared platform bot (S-BOT-PLATFORM-UI, Setup) ──
+    val platformBotStatus: PlatformBotAdminStatus? = null,
+    val platformBotStatusLoading: Boolean = false,
+    val platformBotStatusError: String? = null,
+    val platformBotJustification: String = "",
+    /** The real, freshly-computed blast radius — required before [AdminController.requestPlatformBotReconnect]
+     * will open the confirm dialog. Cleared whenever the justification changes, so a stale preview can
+     * never be applied against a number the operator did not just see. */
+    val platformBotReconnectPreview: PlatformBotReconnectPreview? = null,
+    val platformBotReconnectPreviewLoading: Boolean = false,
+    val platformBotReconnectPreviewError: String? = null,
+    /** True while the destructive confirm dialog (showing the counted blast radius) is open. */
+    val platformBotReconnectConfirmOpen: Boolean = false,
+    /** The device code the operator is approving at twitch.tv/activate, once the reconnect has started. */
+    val platformBotReconnectDevice: PlatformBotReconnectDeviceState? = null,
+    val platformBotReconnectError: String? = null,
 )
+
+/** The device-code panel shown while a platform-bot reconnect awaits the operator's twitch.tv approval. */
+data class PlatformBotReconnectDeviceState(val userCode: String, val verificationUri: String)
 
 /** One tab whose data comes from [AdminController.load]/[AdminController.loadChannels]/[AdminController.loadUsers]
  * — tracked per-tab in [AdminState.loadingSections] so a slow fetch on one tab never spinners the others. */
@@ -385,6 +412,10 @@ class AdminController(
     // The platform-wide trust & safety desk (S-ADMIN-8a). Nullable for the same reason: a bare test
     // controller still builds, and the tab stays hidden when the build has no client for it.
     private val trustSafetyApi: TrustSafetyApi? = null,
+    // The shared platform bot's admin surface (S-BOT-PLATFORM-UI). Nullable like the other optional
+    // collaborators so a bare test controller still builds; the tab stays hidden when the build has no
+    // client for it.
+    private val platformBotAdminApi: PlatformBotAdminApi? = null,
     private val contentApi: PlatformContentApi? = null,
     private val hubClient: AdminHubClient? = null,
     private val baseUrl: () -> String? = { null },
@@ -1339,6 +1370,171 @@ class AdminController(
                     networkBlockLiftInFlight = null,
                     networkBlockLiftError = result.error.message,
                 )
+        }
+    }
+
+    // ── Shared platform bot (S-BOT-PLATFORM-UI) ──────────────────────────────
+    // Once first-run setup is done, this is the ONLY surface left to re-connect or replace the shared
+    // platform bot — the channel Integrations screen deliberately polls the channel-scoped endpoint
+    // instead. A swap is platform-wide, so a real, freshly-counted blast radius is mandatory before the
+    // destructive reconnect is even offered, exactly like the network-wide block above.
+
+    /** True when this build wired a platform-bot-admin client — the tab is hidden rather than dead without one. */
+    val platformBotAdminAvailable: Boolean get() = platformBotAdminApi != null
+
+    fun setPlatformBotJustification(value: String) {
+        _state.value = _state.value.copy(
+            platformBotJustification = value,
+            // A changed justification invalidates any preview already on screen.
+            platformBotReconnectPreview = null,
+            platformBotReconnectPreviewError = null,
+        )
+    }
+
+    /** The real current state — never-connected / working / token-unusable (an ENCRYPTION_KEY rotation). */
+    suspend fun loadPlatformBotStatus() {
+        val api: PlatformBotAdminApi = platformBotAdminApi ?: return
+        _state.value = _state.value.copy(platformBotStatusLoading = true, platformBotStatusError = null)
+        when (val result = api.status()) {
+            is ApiResult.Ok ->
+                _state.value = _state.value.copy(
+                    platformBotStatus = result.value,
+                    platformBotStatusLoading = false,
+                )
+            is ApiResult.Failure ->
+                _state.value = _state.value.copy(
+                    platformBotStatusLoading = false,
+                    platformBotStatusError = result.error.message,
+                )
+        }
+    }
+
+    /** The real, freshly-computed blast radius a reconnect would touch. */
+    suspend fun previewPlatformBotReconnect() {
+        val api: PlatformBotAdminApi = platformBotAdminApi ?: return
+        val justification: String = _state.value.platformBotJustification.trim()
+        if (justification.isBlank()) return
+
+        _state.value = _state.value.copy(
+            platformBotReconnectPreviewLoading = true,
+            platformBotReconnectPreviewError = null,
+            platformBotReconnectPreview = null,
+        )
+        when (val result = api.previewReconnect(justification = justification)) {
+            is ApiResult.Ok ->
+                _state.value = _state.value.copy(
+                    platformBotReconnectPreview = result.value,
+                    platformBotReconnectPreviewLoading = false,
+                )
+            is ApiResult.Failure ->
+                _state.value = _state.value.copy(
+                    platformBotReconnectPreviewLoading = false,
+                    platformBotReconnectPreviewError = result.error.message,
+                )
+        }
+    }
+
+    /** Opens the destructive confirm dialog — only reachable once a real preview is on screen. */
+    fun requestPlatformBotReconnect() {
+        if (_state.value.platformBotReconnectPreview == null) return
+        _state.value = _state.value.copy(
+            platformBotReconnectConfirmOpen = true,
+            platformBotReconnectError = null,
+        )
+    }
+
+    fun dismissPlatformBotReconnectRequest() {
+        _state.value = _state.value.copy(platformBotReconnectConfirmOpen = false)
+    }
+
+    /** Abandon an in-flight reconnect device login (the operator closed the panel) without waiting further. */
+    fun cancelPlatformBotReconnect() {
+        _state.value = _state.value.copy(platformBotReconnectDevice = null)
+    }
+
+    /** Begins the reconnect device login, echoing back the exact count the operator was just shown — a
+     * stale count (the blast radius moved since the preview) is refused server-side rather than acted on. */
+    suspend fun confirmPlatformBotReconnect() {
+        val api: PlatformBotAdminApi = platformBotAdminApi ?: return
+        val preview: PlatformBotReconnectPreview = _state.value.platformBotReconnectPreview ?: return
+        val justification: String = _state.value.platformBotJustification.trim()
+        if (justification.isBlank()) return
+
+        _state.value = _state.value.copy(platformBotReconnectConfirmOpen = false, platformBotReconnectError = null)
+        when (
+            val start = api.startReconnect(
+                justification = justification,
+                confirmedAffectedChannelCount = preview.affectedChannelCount,
+            )
+        ) {
+            is ApiResult.Failure ->
+                _state.value = _state.value.copy(platformBotReconnectError = start.error.message)
+            is ApiResult.Ok -> {
+                _state.value = _state.value.copy(
+                    platformBotReconnectDevice = PlatformBotReconnectDeviceState(
+                        userCode = start.value.userCode,
+                        verificationUri = start.value.verificationUri,
+                    ),
+                )
+                pollPlatformBotReconnect(start.value, justification, preview.affectedChannelCount)
+            }
+        }
+    }
+
+    // Poll the reconnect device endpoint on its own interval until the operator approves (→ reload the
+    // real status, never an optimistic flip), declines, or the code expires. A transient poll failure is
+    // tolerated until the deadline so a blip mid-approval doesn't abort the reconnect. The loop bails
+    // immediately if [cancelPlatformBotReconnect] cleared the device panel out from under it.
+    private suspend fun pollPlatformBotReconnect(
+        start: DeviceCodeStart,
+        justification: String,
+        confirmedAffectedChannelCount: Int,
+    ) {
+        val api: PlatformBotAdminApi = platformBotAdminApi ?: return
+        val intervalMs: Long = start.interval.coerceAtLeast(1).toLong() * 1000L
+        val deadlineMs: Long = start.expiresIn.coerceAtLeast(1).toLong() * 1000L
+        var elapsedMs: Long = 0
+
+        while (elapsedMs < deadlineMs && _state.value.platformBotReconnectDevice != null) {
+            delay(intervalMs)
+            elapsedMs += intervalMs
+
+            when (
+                val poll: ApiResult<DeviceBotPoll> = api.pollReconnect(
+                    deviceCode = start.deviceCode,
+                    justification = justification,
+                    confirmedAffectedChannelCount = confirmedAffectedChannelCount,
+                )
+            ) {
+                is ApiResult.Failure -> Unit // tolerate transient failures until the code's deadline.
+                is ApiResult.Ok ->
+                    when (poll.value.status) {
+                        "authorized" -> {
+                            // The credential is replaced server-side; re-read the authoritative status.
+                            _state.value = _state.value.copy(
+                                platformBotReconnectDevice = null,
+                                platformBotReconnectPreview = null,
+                                platformBotJustification = "",
+                            )
+                            loadPlatformBotStatus()
+                            return
+                        }
+                        "expired", "denied", "error" -> {
+                            _state.value = _state.value.copy(
+                                platformBotReconnectDevice = null,
+                                platformBotReconnectError = poll.value.status,
+                            )
+                            return
+                        }
+                        else -> Unit // pending / slow_down — keep polling.
+                    }
+            }
+        }
+        if (_state.value.platformBotReconnectDevice != null) {
+            _state.value = _state.value.copy(
+                platformBotReconnectDevice = null,
+                platformBotReconnectError = "expired",
+            )
         }
     }
 

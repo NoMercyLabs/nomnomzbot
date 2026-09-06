@@ -116,6 +116,8 @@ import bot.nomnomz.dashboard.core.network.AdminApi
 import bot.nomnomz.dashboard.core.network.AdminApiImpl
 import bot.nomnomz.dashboard.core.network.AdminSupportApi
 import bot.nomnomz.dashboard.core.network.AdminSupportApiImpl
+import bot.nomnomz.dashboard.core.network.PlatformBotAdminApi
+import bot.nomnomz.dashboard.core.network.RestPlatformBotAdminApi
 import bot.nomnomz.dashboard.core.network.TrustSafetyApi
 import bot.nomnomz.dashboard.core.network.TrustSafetyApiImpl
 import bot.nomnomz.dashboard.core.network.PlatformAdminApi
@@ -384,6 +386,9 @@ class AppGraph {
 
     /** The platform-wide trust & safety desk (S-ADMIN-8a) — gated server-side on `trust-safety:review`. */
     val trustSafetyApi: TrustSafetyApi = TrustSafetyApiImpl(apiClient)
+
+    // The shared platform bot's admin surface (S-BOT-PLATFORM-UI).
+    val platformBotAdminApi: PlatformBotAdminApi = RestPlatformBotAdminApi(apiClient)
     val platformContentApi: PlatformContentApi = PlatformContentApiImpl(apiClient)
     val pronounsApi: PronounsApi = PronounsApiImpl(apiClient)
     val obsApi: ObsApi = RestObsApi(apiClient)
@@ -711,6 +716,7 @@ class AppGraph {
             platformAdminApi = platformAdminApi,
             supportApi = adminSupportApi,
             trustSafetyApi = trustSafetyApi,
+            platformBotAdminApi = platformBotAdminApi,
             contentApi = platformContentApi,
             hubClient = adminHubClient,
             baseUrl = sessionStore::baseUrl,

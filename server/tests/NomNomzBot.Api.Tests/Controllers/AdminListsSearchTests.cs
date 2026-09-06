@@ -16,9 +16,11 @@ using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Commands.Services;
+using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Contracts.Webhooks;
 using NomNomzBot.Application.Identity.Dtos;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Platform.Services;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Domain.Identity.Entities;
@@ -62,7 +64,9 @@ public sealed class AdminListsSearchTests
             db,
             Substitute.For<IDekRotationService>(),
             Substitute.For<IProviderCredentialService>(),
-            Substitute.For<ICurrentUserService>()
+            Substitute.For<ICurrentUserService>(),
+            Substitute.For<IPlatformBotAdminService>(),
+            Substitute.For<IIamCallerPrincipalResolverService>()
         );
         return (controller, db);
     }

@@ -54,7 +54,7 @@ public sealed class IamCatalogSeederTests
     }
 
     [Fact]
-    public async Task Seeds_the_eight_system_roles_with_super_admin_holding_every_permission_except_the_named_operator_only_ones()
+    public async Task Seeds_the_nine_system_roles_with_super_admin_holding_every_permission_except_the_named_operator_only_ones()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         await SeedAsync(db);
@@ -68,6 +68,7 @@ public sealed class IamCatalogSeederTests
                 "platform-support",
                 "platform-trust-safety",
                 "platform-network-block",
+                "platform-bot-admin",
                 "platform-billing",
                 "platform-iam-admin",
                 "platform-analyst",
@@ -75,8 +76,9 @@ public sealed class IamCatalogSeederTests
             ]);
         roles.Should().OnlyContain(r => r.IsSystem, "§C.2: all seeded roles are IsSystem");
 
-        // network:block:manage (S-ADMIN-8b) is the one deliberately-carved-out dangerous capability: a
-        // named operator's own role, never inherited wholesale through super-admin.
+        // network:block:manage (S-ADMIN-8b) and platform:bot:manage (S-BOT-PLATFORM-UI) are the
+        // deliberately-carved-out dangerous capabilities: each a named operator's own role, never
+        // inherited wholesale through super-admin.
         IamRole superAdmin = roles.Single(r => r.Name == "platform-super-admin");
         List<string> superAdminKeys = await db
             .IamRolePermissions.Where(j => j.RoleId == superAdmin.Id)
@@ -85,7 +87,10 @@ public sealed class IamCatalogSeederTests
         superAdminKeys
             .Should()
             .BeEquivalentTo(
-                IamPermissionKeys.All.Except([IamPermissionKeys.NetworkBlockManage]),
+                IamPermissionKeys.All.Except([
+                    IamPermissionKeys.NetworkBlockManage,
+                    IamPermissionKeys.PlatformBotManage,
+                ]),
                 "super-admin = ALL except the capabilities reserved for a named operator's own role"
             );
 
@@ -99,6 +104,18 @@ public sealed class IamCatalogSeederTests
             .BeEquivalentTo(
                 [IamPermissionKeys.NetworkBlockManage],
                 "the dangerous capability is bundled ONLY into its own narrow role"
+            );
+
+        IamRole botAdmin = roles.Single(r => r.Name == "platform-bot-admin");
+        List<string> botAdminKeys = await db
+            .IamRolePermissions.Where(j => j.RoleId == botAdmin.Id)
+            .Join(db.IamPermissions, j => j.PermissionId, p => p.Id, (j, p) => p.Key)
+            .ToListAsync();
+        botAdminKeys
+            .Should()
+            .BeEquivalentTo(
+                [IamPermissionKeys.PlatformBotManage],
+                "the platform bot swap is bundled ONLY into its own narrow role"
             );
 
         IamRole billing = roles.Single(r => r.Name == "platform-billing");

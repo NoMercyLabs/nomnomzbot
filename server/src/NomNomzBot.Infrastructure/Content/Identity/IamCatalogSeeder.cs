@@ -80,6 +80,9 @@ public sealed class IamCatalogSeeder : ISeeder
         // durable deny flag. Deliberately excluded from platform-super-admin's bundle below: a dangerous
         // capability like this is assigned to a NAMED operator via its own role, never inherited wholesale.
         (IamPermissionKeys.NetworkBlockManage, IamCategory.Tenant, true),
+        // Re-connecting/replacing the shared platform bot (S-BOT-PLATFORM-UI) — platform-wide by nature
+        // (every channel without its own custom bot resolves through this identity), so its own key.
+        (IamPermissionKeys.PlatformBotManage, IamCategory.Iam, true),
     ];
 
     /// <summary>C.2 + C.3 rows: system role → its bundled permission keys, verbatim from §C.2.</summary>
@@ -156,6 +159,13 @@ public sealed class IamCatalogSeeder : ISeeder
             // Assigning it is how the capability reaches a NAMED operator instead of an entire team.
             "platform-network-block",
             [IamPermissionKeys.NetworkBlockManage]
+        ),
+        (
+            // The shared platform bot's own, deliberately narrow role — carries ONLY platform:bot:manage,
+            // never bundled into platform-super-admin. A swap here changes what every dependent channel
+            // resolves to, so it reaches a NAMED operator via its own role, same law as network-block.
+            "platform-bot-admin",
+            [IamPermissionKeys.PlatformBotManage]
         ),
         (
             "platform-billing",

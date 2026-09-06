@@ -3410,6 +3410,7 @@
     <string name="admin_health_empty">No health checks reported.</string>
     <!-- Live operator hub -->
     <string name="admin_tab_iam">IAM</string>
+    <string name="admin_tab_platform_bot">Platform bot</string>
     <string name="admin_tab_tenants">Tenants</string>
     <string name="admin_tab_audit">Audit</string>
     <string name="admin_live_indicator">Live</string>
@@ -3535,6 +3536,23 @@
     <string name="admin_network_block_applied_by">Applied %1$s: %2$s</string>
     <string name="admin_network_block_lift_button">Lift</string>
     <string name="admin_network_block_lift_partial_notice">Lift left %1$s channel(s) still banned — try again.</string>
+    <string name="admin_platform_bot_section_title">Shared platform bot</string>
+    <string name="admin_platform_bot_notice">Every channel with no bot of its own speaks through this account. Preview the real blast radius before reconnecting — the count you saw is what the server checks against.</string>
+    <string name="admin_platform_bot_never_connected">No platform bot connected yet — run first-run setup, or connect one below.</string>
+    <string name="admin_platform_bot_status_connected">Connected and working: %1$s</string>
+    <string name="admin_platform_bot_status_unusable">%1$s is connected, but its token can no longer be read</string>
+    <string name="admin_platform_bot_status_unusable_notice">This usually follows an ENCRYPTION_KEY rotation. Re-authorize the account below to restore it.</string>
+    <string name="admin_platform_bot_justification_label">Justification (recorded on the audit log)</string>
+    <string name="admin_platform_bot_preview_button">Preview blast radius</string>
+    <string name="admin_platform_bot_preview_summary">Touches %1$s channel(s)</string>
+    <string name="admin_platform_bot_reconnect_button">Reconnect / replace</string>
+    <string name="admin_platform_bot_confirm_title">Replace the shared platform bot?</string>
+    <string name="admin_platform_bot_confirm_message">%1$s channel(s) with no bot of their own will start speaking through the new account the moment this completes.</string>
+    <string name="admin_platform_bot_confirm_confirm">Reconnect</string>
+    <string name="admin_platform_bot_confirm_cancel">Cancel</string>
+    <string name="admin_platform_bot_device_notice">Approve at %1$s using the code below.</string>
+    <string name="admin_platform_bot_device_user_code">%1$s</string>
+    <string name="admin_platform_bot_device_cancel">Cancel</string>
     <string name="admin_webhook_deliveries_empty">No webhook deliveries recorded.</string>
     <string name="admin_webhook_delivery_label">Delivery</string>
     <string name="admin_webhook_delivery_attempt">Attempt %1$d</string>

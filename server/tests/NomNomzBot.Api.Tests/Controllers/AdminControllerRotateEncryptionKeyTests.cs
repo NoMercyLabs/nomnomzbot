@@ -15,6 +15,7 @@ using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Platform.Services;
 using NomNomzBot.Application.Services;
@@ -46,7 +47,9 @@ public sealed class AdminControllerRotateEncryptionKeyTests
             db,
             rotationService,
             Substitute.For<IProviderCredentialService>(),
-            Substitute.For<ICurrentUserService>()
+            Substitute.For<ICurrentUserService>(),
+            Substitute.For<IPlatformBotAdminService>(),
+            Substitute.For<IIamCallerPrincipalResolverService>()
         );
 
         IActionResult result = await controller.RotateEncryptionKey(

@@ -83,6 +83,7 @@ import bot.nomnomz.dashboard.feature.admin.state.AdminState
 import nomnomzbot.composeapp.generated.resources.Res
 import nomnomzbot.composeapp.generated.resources.shell_nav_admin
 import nomnomzbot.composeapp.generated.resources.admin_tab_iam
+import nomnomzbot.composeapp.generated.resources.admin_tab_platform_bot
 import nomnomzbot.composeapp.generated.resources.admin_tab_tenants
 import nomnomzbot.composeapp.generated.resources.admin_tab_audit
 import nomnomzbot.composeapp.generated.resources.admin_tab_spam_defaults
@@ -270,6 +271,9 @@ internal enum class AdminTab(val group: AdminTabGroup, val label: StringResource
     Providers(AdminTabGroup.Configuration, Res.string.admin_tab_providers),
     Content(AdminTabGroup.Configuration, Res.string.admin_tab_content),
     Iam(AdminTabGroup.Configuration, Res.string.admin_tab_iam),
+
+    /** Only present when [AdminController.platformBotAdminAvailable] — the build wired a client for it. */
+    PlatformBot(AdminTabGroup.Configuration, Res.string.admin_tab_platform_bot),
 }
 
 @Composable
@@ -288,11 +292,16 @@ fun AdminScreen(controller: AdminController) {
     // A destination stays hidden below its availability gate exactly as before the regrouping: Support and
     // Trust & Safety only enter this list when the build actually wired a client for them.
     val availableTabs: List<AdminTab> =
-        remember(controller.supportDeskAvailable, controller.trustSafetyAvailable) {
+        remember(
+            controller.supportDeskAvailable,
+            controller.trustSafetyAvailable,
+            controller.platformBotAdminAvailable,
+        ) {
             AdminTab.entries.filter { tab ->
                 when (tab) {
                     AdminTab.Support -> controller.supportDeskAvailable
                     AdminTab.TrustSafety -> controller.trustSafetyAvailable
+                    AdminTab.PlatformBot -> controller.platformBotAdminAvailable
                     else -> true
                 }
             }
@@ -321,6 +330,7 @@ fun AdminScreen(controller: AdminController) {
             AdminTab.Audit -> if (state.auditEntries.isEmpty()) controller.loadAudit()
             AdminTab.SpamDefaults -> if (state.spamDefaults == null) controller.loadSpamDefaults()
             AdminTab.Providers -> if (state.providerCredentials.isEmpty()) controller.loadProviders()
+            AdminTab.PlatformBot -> if (state.platformBotStatus == null) controller.loadPlatformBotStatus()
             AdminTab.EventSubHealth -> if (state.eventSubHealth.isEmpty()) controller.loadEventSubHealth()
             AdminTab.WebhookDeliveries -> if (state.webhookDeliveries.isEmpty()) controller.loadWebhookDeliveries()
             AdminTab.ScheduledJobs -> if (state.scheduledJobs.isEmpty()) controller.loadScheduledJobs()
@@ -422,6 +432,7 @@ fun AdminScreen(controller: AdminController) {
             AdminTab.Audit -> AuditTab(state = state, controller = controller)
             AdminTab.SpamDefaults -> SpamDefaultsTab(state = state, controller = controller)
             AdminTab.Providers -> ProvidersTab(state = state, controller = controller)
+            AdminTab.PlatformBot -> PlatformBotTab(state = state, controller = controller)
             AdminTab.EventSubHealth -> EventSubHealthTab(state = state, controller = controller)
             AdminTab.WebhookDeliveries -> WebhookDeliveriesTab(state = state, controller = controller)
             AdminTab.ScheduledJobs -> ScheduledJobsTab(state = state, controller = controller)
