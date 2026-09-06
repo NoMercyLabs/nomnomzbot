@@ -120,6 +120,29 @@ streaming live or does not have one or more viewers" — a genuine precondition,
       the platform bot. The gap this leaves: once setup is done, nothing anywhere can re-connect or
       replace the platform bot account. That surface belongs in the admin plane.
 
+## SQLITE GUID CASING — a defect that bit three times, closed at the root (2026-09-06)
+
+Microsoft.Data.Sqlite binds, stores and compares Guids as UPPERCASE hyphenated text, and SQLite text
+comparison is case-sensitive. So a row holding a non-canonical Guid was invisible to every query that
+compared it. Three symptoms already paid for: an `UPDATE ... WHERE Id` matching 0 rows
+(`DbUpdateConcurrencyException`, 2026-09-04, which I misdiagnosed as a seeder bug at the time), the
+`DefaultCommandsSeeder` crashing self-host boot with `FOREIGN KEY constraint failed`, and — the real
+blast radius — the GLOBAL tenant query filter in `ApplyTenantAndSoftDeleteFilters`, applied to every
+`ITenantScoped` entity, which would silently drop such a row from EVERY tenant-scoped query.
+
+Closed at the root in `c4d42869`: NOCASE collation on every Guid column, applied only when
+`Database.IsSqlite()`. Chosen over write-side normalisation because it also protects READS of data
+that is already corrupted (raw imports, restores) and is call-site agnostic — it covers `=` and
+`IN (...)` uniformly, all 8 `.Contains(...)` sites included, rather than each call site as it burns us.
+Proven red-then-green; tenant isolation asserted separately (NOCASE folds letter case only, it never
+fuzzes two different Guids); Postgres proven untouched (native uuid, no collation, zero pending model
+changes), so the migration is SQLite-only by construction. `276eade3` (seeder self-heal) came first and
+is now the narrower half of the same story.
+
+**The trap this fix creates, and the reason it is written down:** any raw SQL that DEPENDS on
+case-sensitive Guid comparison must now say `COLLATE BINARY` explicitly. The seeder's own
+`Id <> upper(Id)` self-heal check silently stopped matching until it was given that override.
+
 ## PIPELINE TREE EDITOR — shipped and proven on the rendered client (2026-09-05)
 
 `d4a7b397` gave the editor nested block authoring (add inside a specific branch, remove without taking
