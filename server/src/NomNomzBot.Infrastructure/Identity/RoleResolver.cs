@@ -14,6 +14,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Moderation.Entities;
 
 namespace NomNomzBot.Infrastructure.Identity;
 
@@ -72,6 +73,16 @@ public sealed class RoleResolver(IApplicationDbContext db, TimeProvider clock) :
         CancellationToken cancellationToken = default
     )
     {
+        // The network-wide block (S-ADMIN-8b) is read here — a single, NON-tenant-filtered flag — so it
+        // denies every Gate-2 action in EVERY tenant for as long as it is active/partial, including a
+        // tenant that never carried a per-tenant deny row for this actor at all.
+        bool networkBlocked = await db.NetworkBlocks.AnyAsync(
+            b => b.TargetUserId == userId && b.Status != NetworkBlockStatus.Lifted,
+            cancellationToken
+        );
+        if (networkBlocked)
+            return Result.Success(false);
+
         ActionDefinition? action = await db
             .ActionDefinitions.Where(a => a.ActionKey == actionKey)
             .FirstOrDefaultAsync(cancellationToken);

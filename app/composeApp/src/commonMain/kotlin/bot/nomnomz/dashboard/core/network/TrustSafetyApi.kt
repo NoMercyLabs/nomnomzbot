@@ -65,6 +65,50 @@ data class TrustSafetyReviewItem(
     val reversalPreview: String,
 )
 
+/** One tenant a prospective network-wide block would touch — real, freshly-computed presence. */
+@Serializable
+data class NetworkBlockAffectedTenant(val broadcasterId: String, val channelName: String)
+
+/**
+ * The counted blast radius of a network-wide block (S-ADMIN-8b), computed fresh — required reading
+ * BEFORE the operator can commit to applying one. [tenantCount] is echoed back on apply and re-verified
+ * fresh server-side; a stale count fails closed rather than acting on numbers the operator never saw.
+ */
+@Serializable
+data class NetworkBlockPreview(
+    val targetUserId: String,
+    val targetTwitchUserId: String,
+    val targetDisplayName: String? = null,
+    val tenantCount: Int,
+    val tenants: List<NetworkBlockAffectedTenant> = emptyList(),
+)
+
+/**
+ * One network-wide block: who applied it, when, why, the blast radius it actually touched, and — once a
+ * lift has been attempted — who lifted it, when, why, and whether the lift was actually clean
+ * ([liftedAt] is null on a partial outcome; [liftFailedChannelIds] then names what is still actioned).
+ */
+@Serializable
+data class NetworkBlock(
+    val id: String,
+    val targetUserId: String,
+    val targetTwitchUserId: String,
+    val targetDisplayName: String? = null,
+    val reason: String? = null,
+    val justification: String,
+    val appliedByPrincipalId: String,
+    val appliedAt: String,
+    val tenantCount: Int,
+    val channelCount: Int,
+    val status: String,
+    val liftedByPrincipalId: String? = null,
+    val liftJustification: String? = null,
+    val liftAttemptedAt: String? = null,
+    val liftedAt: String? = null,
+    val restoredChannelCount: Int = 0,
+    val liftFailedChannelIds: List<String> = emptyList(),
+)
+
 interface TrustSafetyApi {
     suspend fun getCrossTenantSignals(justification: String): ApiResult<List<CrossTenantAbuseSignal>>
 
@@ -77,7 +121,36 @@ interface TrustSafetyApi {
     suspend fun confirm(detectionId: String, justification: String): ApiResult<Unit>
 
     suspend fun overturn(detectionId: String, justification: String): ApiResult<Unit>
+
+    /** The real blast radius a network-wide block against [targetTwitchUserId] would touch. */
+    suspend fun previewNetworkBlock(
+        targetTwitchUserId: String,
+        justification: String,
+    ): ApiResult<NetworkBlockPreview>
+
+    /** Applies the block — [confirmedTenantCount] must match a freshly recomputed one or this fails closed. */
+    suspend fun applyNetworkBlock(
+        targetTwitchUserId: String,
+        reason: String?,
+        justification: String,
+        confirmedTenantCount: Int,
+    ): ApiResult<NetworkBlock>
+
+    /** Every network block, newest first. */
+    suspend fun listNetworkBlocks(justification: String): ApiResult<List<NetworkBlock>>
+
+    /** Lifts a network block — fully lifted only when every tenant leg actually restores. */
+    suspend fun liftNetworkBlock(blockId: String, justification: String): ApiResult<NetworkBlock>
 }
+
+/** The wire shape of `POST /admin/trust-safety/network-blocks`. */
+@Serializable
+private data class ApplyNetworkBlockBody(
+    val targetTwitchUserId: String,
+    val reason: String?,
+    val justification: String,
+    val confirmedTenantCount: Int,
+)
 
 class TrustSafetyApiImpl(private val client: ApiClient) : TrustSafetyApi {
     override suspend fun getCrossTenantSignals(
@@ -106,6 +179,41 @@ class TrustSafetyApiImpl(private val client: ApiClient) : TrustSafetyApi {
     override suspend fun overturn(detectionId: String, justification: String): ApiResult<Unit> =
         client.postUnit(
             "api/v1/admin/trust-safety/review-queue/$detectionId/overturn" +
+                "?justification=${justification.encodeQuery()}",
+        )
+
+    override suspend fun previewNetworkBlock(
+        targetTwitchUserId: String,
+        justification: String,
+    ): ApiResult<NetworkBlockPreview> =
+        client.getEnvelope(
+            "api/v1/admin/trust-safety/network-blocks/preview" +
+                "?targetTwitchUserId=${targetTwitchUserId.encodeQuery()}" +
+                "&justification=${justification.encodeQuery()}",
+        )
+
+    override suspend fun applyNetworkBlock(
+        targetTwitchUserId: String,
+        reason: String?,
+        justification: String,
+        confirmedTenantCount: Int,
+    ): ApiResult<NetworkBlock> =
+        client.postEnvelope(
+            "api/v1/admin/trust-safety/network-blocks",
+            ApplyNetworkBlockBody(targetTwitchUserId, reason, justification, confirmedTenantCount),
+        )
+
+    override suspend fun listNetworkBlocks(justification: String): ApiResult<List<NetworkBlock>> =
+        client.getEnvelope(
+            "api/v1/admin/trust-safety/network-blocks?justification=${justification.encodeQuery()}",
+        )
+
+    override suspend fun liftNetworkBlock(
+        blockId: String,
+        justification: String,
+    ): ApiResult<NetworkBlock> =
+        client.postEnvelope(
+            "api/v1/admin/trust-safety/network-blocks/$blockId/lift" +
                 "?justification=${justification.encodeQuery()}",
         )
 }

@@ -91,6 +91,14 @@ public static class IamPermissionKeys
     // automatic calls, so it is its own grant, always audited against the detection/actor it touches.
     public const string TrustSafetyReview = "trust-safety:review";
 
+    // The network-wide block (S-ADMIN-8b): the most dangerous control in the product — it bans an actor
+    // on EVERY tenant of this deployment at once and installs a durable network-wide deny flag every
+    // Gate-2 check reads, rather than acting on one tenant. Deliberately kept OUT of every broad system
+    // role (including platform-super-admin): a dangerous capability like this belongs to a NAMED operator,
+    // never granted wholesale by holding some other role — it is bundled ONLY into its own dedicated
+    // system role (<c>platform-network-block</c>), assigned per principal.
+    public const string NetworkBlockManage = "network:block:manage";
+
     /// <summary>Every seeded Plane-C key (§C.1). The legacy alias <c>iam:audit:read</c> collapses to <c>audit:read</c>.</summary>
     public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -118,5 +126,6 @@ public static class IamPermissionKeys
         TenantErase,
         UserSupportView,
         TrustSafetyReview,
+        NetworkBlockManage,
     };
 }

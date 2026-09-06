@@ -291,6 +291,8 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         Set<NomNomzBot.Domain.Moderation.Entities.SharedBanTrustedChannel>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.NetworkNukeBatch> NetworkNukeBatches =>
         Set<NomNomzBot.Domain.Moderation.Entities.NetworkNukeBatch>();
+    public DbSet<NomNomzBot.Domain.Moderation.Entities.NetworkBlock> NetworkBlocks =>
+        Set<NomNomzBot.Domain.Moderation.Entities.NetworkBlock>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.UserModerationHistory> UserModerationHistories =>
         Set<NomNomzBot.Domain.Moderation.Entities.UserModerationHistory>();
     public DbSet<NomNomzBot.Domain.Moderation.Entities.UserTrustScore> UserTrustScores =>

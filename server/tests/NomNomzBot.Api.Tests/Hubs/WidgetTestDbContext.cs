@@ -169,6 +169,8 @@ internal sealed class WidgetTestDbContext : DbContext, IApplicationDbContext
         throw new NotSupportedException();
     public DbSet<Domain.Moderation.Entities.NetworkNukeBatch> NetworkNukeBatches =>
         throw new NotSupportedException();
+    public DbSet<Domain.Moderation.Entities.NetworkBlock> NetworkBlocks =>
+        throw new NotSupportedException();
     public DbSet<Domain.Moderation.Entities.UserModerationHistory> UserModerationHistories =>
         throw new NotSupportedException();
     public DbSet<Domain.Moderation.Entities.UserTrustScore> UserTrustScores =>

@@ -76,6 +76,10 @@ public sealed class IamCatalogSeeder : ISeeder
         // Cross-tenant abuse correlation + automatic-action review queue (S-ADMIN-8a) — crosses the
         // tenant boundary to correlate an actor and can reverse an automatic account action.
         (IamPermissionKeys.TrustSafetyReview, IamCategory.Tenant, true),
+        // The network-wide block (S-ADMIN-8b) — bans an actor across EVERY tenant at once and installs a
+        // durable deny flag. Deliberately excluded from platform-super-admin's bundle below: a dangerous
+        // capability like this is assigned to a NAMED operator via its own role, never inherited wholesale.
+        (IamPermissionKeys.NetworkBlockManage, IamCategory.Tenant, true),
     ];
 
     /// <summary>C.2 + C.3 rows: system role → its bundled permission keys, verbatim from §C.2.</summary>
@@ -145,6 +149,13 @@ public sealed class IamCatalogSeeder : ISeeder
                 // review the platform's own automatic spam-defence account actions.
                 IamPermissionKeys.TrustSafetyReview,
             ]
+        ),
+        (
+            // The network-wide block's own, deliberately narrow role (S-ADMIN-8b) — carries ONLY
+            // network:block:manage, never bundled into platform-trust-safety or platform-super-admin.
+            // Assigning it is how the capability reaches a NAMED operator instead of an entire team.
+            "platform-network-block",
+            [IamPermissionKeys.NetworkBlockManage]
         ),
         (
             "platform-billing",

@@ -39,6 +39,7 @@ namespace NomNomzBot.Api.Controllers.V1;
 [EnableRateLimiting(RateLimitPolicyNames.Admin)]
 public class AdminTrustSafetyController(
     ITrustSafetyReviewService trustSafety,
+    INetworkBlockService networkBlocks,
     ICurrentUserService currentUser,
     IIamCallerPrincipalResolverService actingPrincipalResolver
 ) : BaseController
@@ -130,6 +131,86 @@ public class AdminTrustSafetyController(
             return ResultResponse(acting);
         return ResultResponse(
             await trustSafety.OverturnAsync(acting.Value, detectionId, justification, ct)
+        );
+    }
+
+    /// <summary>
+    /// The real, freshly-computed blast radius a network-wide block against this actor would touch —
+    /// the operator must see this BEFORE <see cref="ApplyNetworkBlock"/> will accept a confirmation.
+    /// </summary>
+    [HttpGet("network-blocks/preview")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
+    [Authorize(Policy = IamPermissionKeys.NetworkBlockManage)]
+    [ProducesResponseType<StatusResponseDto<NetworkBlockPreviewDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> PreviewNetworkBlock(
+        [FromQuery] string targetTwitchUserId,
+        [FromQuery] string justification,
+        CancellationToken ct
+    )
+    {
+        Result<Guid> acting = await ActingPrincipalIdAsync(ct);
+        if (acting.IsFailure)
+            return ResultResponse(acting.WithValue<NetworkBlockPreviewDto>(null!));
+        return ResultResponse(
+            await networkBlocks.PreviewAsync(acting.Value, targetTwitchUserId, justification, ct)
+        );
+    }
+
+    /// <summary>
+    /// Applies a network-wide block: bans the actor on every live tenant channel and installs the
+    /// durable deny flag every Gate-2 check reads. Rejects <c>PREVIEW_STALE</c> if the confirmed count no
+    /// longer matches a freshly recomputed one.
+    /// </summary>
+    [HttpPost("network-blocks")]
+    [Authorize(Policy = IamPermissionKeys.NetworkBlockManage)]
+    [ProducesResponseType<StatusResponseDto<NetworkBlockDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ApplyNetworkBlock(
+        [FromBody] ApplyNetworkBlockRequest request,
+        CancellationToken ct
+    )
+    {
+        Result<Guid> acting = await ActingPrincipalIdAsync(ct);
+        if (acting.IsFailure)
+            return ResultResponse(acting.WithValue<NetworkBlockDto>(null!));
+        return ResultResponse(await networkBlocks.ApplyAsync(acting.Value, request, ct));
+    }
+
+    /// <summary>Every network block, newest first — active/partial ones are still enforced.</summary>
+    [HttpGet("network-blocks")]
+    [EnableRateLimiting(RateLimitPolicyNames.Read)]
+    [Authorize(Policy = IamPermissionKeys.NetworkBlockManage)]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<NetworkBlockDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> ListNetworkBlocks(
+        [FromQuery] string justification,
+        CancellationToken ct
+    )
+    {
+        Result<Guid> acting = await ActingPrincipalIdAsync(ct);
+        if (acting.IsFailure)
+            return ResultResponse(acting.WithValue<IReadOnlyList<NetworkBlockDto>>(null!));
+        return ResultResponse(await networkBlocks.ListAsync(acting.Value, justification, ct));
+    }
+
+    /// <summary>
+    /// Lifts a network block: unbans the actor on every tenant the apply actually touched. Stamped fully
+    /// lifted only when every leg restores — a partial outcome is returned honestly.
+    /// </summary>
+    [HttpPost("network-blocks/{blockId:guid}/lift")]
+    [Authorize(Policy = IamPermissionKeys.NetworkBlockManage)]
+    [ProducesResponseType<StatusResponseDto<NetworkBlockDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> LiftNetworkBlock(
+        Guid blockId,
+        [FromQuery] string justification,
+        CancellationToken ct
+    )
+    {
+        Result<Guid> acting = await ActingPrincipalIdAsync(ct);
+        if (acting.IsFailure)
+            return ResultResponse(acting.WithValue<NetworkBlockDto>(null!));
+        return ResultResponse(
+            await networkBlocks.LiftAsync(acting.Value, blockId, justification, ct)
         );
     }
 

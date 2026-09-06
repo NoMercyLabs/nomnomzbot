@@ -64,6 +64,8 @@ import bot.nomnomz.dashboard.core.network.SupportPersonHistoryEntry
 import bot.nomnomz.dashboard.core.network.SupportPersonSearchResult
 import bot.nomnomz.dashboard.core.network.SupportPersonView
 import bot.nomnomz.dashboard.core.network.CrossTenantAbuseSignal
+import bot.nomnomz.dashboard.core.network.NetworkBlock
+import bot.nomnomz.dashboard.core.network.NetworkBlockPreview
 import bot.nomnomz.dashboard.core.network.TrustSafetyApi
 import bot.nomnomz.dashboard.core.network.TrustSafetyReviewItem
 import bot.nomnomz.dashboard.core.network.PlatformContentApi
@@ -287,6 +289,26 @@ data class AdminState(
     val reviewItemPendingOverturn: TrustSafetyReviewItem? = null,
     val reviewActionInFlight: String? = null,
     val reviewActionError: String? = null,
+    // ── Network-wide block (S-ADMIN-8b) ──
+    /** The Twitch user id the operator is about to preview/block — free text, not resolved until preview. */
+    val networkBlockTargetTwitchUserId: String = "",
+    val networkBlockReason: String = "",
+    /** The real, freshly-computed blast radius — required before [AdminController.requestApplyNetworkBlock]
+     * will open the confirm dialog. Cleared whenever the target or justification changes, so a stale
+     * preview can never be applied against a number the operator did not just see. */
+    val networkBlockPreview: NetworkBlockPreview? = null,
+    val networkBlockPreviewLoading: Boolean = false,
+    val networkBlockPreviewError: String? = null,
+    /** True while the destructive confirm dialog (showing the counted blast radius) is open. */
+    val networkBlockApplyConfirmOpen: Boolean = false,
+    val networkBlockApplyInFlight: Boolean = false,
+    val networkBlockApplyError: String? = null,
+    val networkBlocks: List<NetworkBlock> = emptyList(),
+    val networkBlocksLoaded: Boolean = false,
+    val networkBlocksLoading: Boolean = false,
+    val networkBlocksError: String? = null,
+    val networkBlockLiftInFlight: String? = null,
+    val networkBlockLiftError: String? = null,
 )
 
 /** One tab whose data comes from [AdminController.load]/[AdminController.loadChannels]/[AdminController.loadUsers]
@@ -1122,6 +1144,138 @@ class AdminController(
                 _state.value = _state.value.copy(
                     reviewActionInFlight = null,
                     reviewActionError = result.error.message,
+                )
+        }
+    }
+
+    // ── Network-wide block (S-ADMIN-8b) ──────────────────────────────────────
+    // The most dangerous control in the product: it acts across EVERY tenant of this deployment at
+    // once. A preview showing the REAL counted blast radius is mandatory before apply is even offered,
+    // and the confirmed count travelling with the apply call is what the server fails closed against.
+
+    fun setNetworkBlockTargetTwitchUserId(value: String) {
+        _state.value = _state.value.copy(
+            networkBlockTargetTwitchUserId = value,
+            // A changed target invalidates any preview already on screen — never let a stale blast
+            // radius linger next to a different target.
+            networkBlockPreview = null,
+            networkBlockPreviewError = null,
+        )
+    }
+
+    fun setNetworkBlockReason(value: String) {
+        _state.value = _state.value.copy(networkBlockReason = value)
+    }
+
+    /** The real, freshly-computed blast radius a block against this target would touch. */
+    suspend fun previewNetworkBlock() {
+        val api: TrustSafetyApi = trustSafetyApi ?: return
+        val target: String = _state.value.networkBlockTargetTwitchUserId.trim()
+        val justification: String = _state.value.trustSafetyJustification.trim()
+        if (target.isBlank() || justification.isBlank()) return
+
+        _state.value = _state.value.copy(
+            networkBlockPreviewLoading = true,
+            networkBlockPreviewError = null,
+            networkBlockPreview = null,
+        )
+        when (val result = api.previewNetworkBlock(targetTwitchUserId = target, justification = justification)) {
+            is ApiResult.Ok ->
+                _state.value = _state.value.copy(
+                    networkBlockPreview = result.value,
+                    networkBlockPreviewLoading = false,
+                )
+            is ApiResult.Failure ->
+                _state.value = _state.value.copy(
+                    networkBlockPreviewLoading = false,
+                    networkBlockPreviewError = result.error.message,
+                )
+        }
+    }
+
+    /** Opens the destructive confirm dialog — only reachable once a real preview is on screen. */
+    fun requestApplyNetworkBlock() {
+        if (_state.value.networkBlockPreview == null) return
+        _state.value = _state.value.copy(networkBlockApplyConfirmOpen = true, networkBlockApplyError = null)
+    }
+
+    fun dismissApplyNetworkBlockRequest() {
+        _state.value = _state.value.copy(networkBlockApplyConfirmOpen = false)
+    }
+
+    /** Applies the block, echoing back the exact count the operator was just shown — a stale count (the
+     * blast radius moved since the preview) is refused server-side rather than silently acted on. */
+    suspend fun applyNetworkBlock() {
+        val api: TrustSafetyApi = trustSafetyApi ?: return
+        val preview: NetworkBlockPreview = _state.value.networkBlockPreview ?: return
+        val justification: String = _state.value.trustSafetyJustification.trim()
+        if (justification.isBlank()) return
+
+        _state.value = _state.value.copy(networkBlockApplyInFlight = true, networkBlockApplyError = null)
+        val result = api.applyNetworkBlock(
+            targetTwitchUserId = preview.targetTwitchUserId,
+            reason = _state.value.networkBlockReason.trim().ifBlank { null },
+            justification = justification,
+            confirmedTenantCount = preview.tenantCount,
+        )
+        when (result) {
+            is ApiResult.Ok -> {
+                _state.value = _state.value.copy(
+                    networkBlockApplyInFlight = false,
+                    networkBlockApplyConfirmOpen = false,
+                    networkBlockPreview = null,
+                    networkBlockTargetTwitchUserId = "",
+                    networkBlockReason = "",
+                )
+                loadNetworkBlocks()
+            }
+            is ApiResult.Failure ->
+                _state.value = _state.value.copy(
+                    networkBlockApplyInFlight = false,
+                    networkBlockApplyError = result.error.message,
+                )
+        }
+    }
+
+    /** Every network block, newest first — active/partial ones are still enforced. */
+    suspend fun loadNetworkBlocks() {
+        val api: TrustSafetyApi = trustSafetyApi ?: return
+        val justification: String = _state.value.trustSafetyJustification.trim()
+        if (justification.isBlank()) return
+
+        _state.value = _state.value.copy(networkBlocksLoading = true, networkBlocksError = null)
+        when (val result = api.listNetworkBlocks(justification = justification)) {
+            is ApiResult.Ok ->
+                _state.value = _state.value.copy(
+                    networkBlocks = result.value,
+                    networkBlocksLoaded = true,
+                    networkBlocksLoading = false,
+                )
+            is ApiResult.Failure ->
+                _state.value = _state.value.copy(
+                    networkBlocksLoading = false,
+                    networkBlocksError = result.error.message,
+                )
+        }
+    }
+
+    /** Lifts a network block — the backend stamps it fully lifted only when every tenant leg actually
+     * restores; a partial outcome comes back honestly and this reloads the list to show it. */
+    suspend fun liftNetworkBlock(blockId: String) {
+        val api: TrustSafetyApi = trustSafetyApi ?: return
+        val justification: String = _state.value.trustSafetyJustification.trim()
+        if (justification.isBlank()) return
+
+        _state.value = _state.value.copy(networkBlockLiftInFlight = blockId, networkBlockLiftError = null)
+        when (val result = api.liftNetworkBlock(blockId = blockId, justification = justification)) {
+            is ApiResult.Ok -> {
+                _state.value = _state.value.copy(networkBlockLiftInFlight = null)
+                loadNetworkBlocks()
+            }
+            is ApiResult.Failure ->
+                _state.value = _state.value.copy(
+                    networkBlockLiftInFlight = null,
+                    networkBlockLiftError = result.error.message,
                 )
         }
     }

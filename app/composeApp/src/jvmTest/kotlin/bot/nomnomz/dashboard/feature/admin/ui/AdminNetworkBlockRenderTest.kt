@@ -40,7 +40,6 @@ import bot.nomnomz.dashboard.core.network.ApiResult
 import bot.nomnomz.dashboard.core.network.AssignRoleBody
 import bot.nomnomz.dashboard.core.network.BeginTenantAccessBody
 import bot.nomnomz.dashboard.core.network.CreatePrincipalBody
-import bot.nomnomz.dashboard.core.network.CrossTenantAbuseHit
 import bot.nomnomz.dashboard.core.network.CrossTenantAbuseSignal
 import bot.nomnomz.dashboard.core.network.FeatureFlag
 import bot.nomnomz.dashboard.core.network.IamAuditEntry
@@ -48,6 +47,7 @@ import bot.nomnomz.dashboard.core.network.IamPrincipalSummary
 import bot.nomnomz.dashboard.core.network.IamRole
 import bot.nomnomz.dashboard.core.network.InviteCode
 import bot.nomnomz.dashboard.core.network.NetworkBlock
+import bot.nomnomz.dashboard.core.network.NetworkBlockAffectedTenant
 import bot.nomnomz.dashboard.core.network.NetworkBlockPreview
 import bot.nomnomz.dashboard.core.network.PaginatedEnvelope
 import bot.nomnomz.dashboard.core.network.PlatformAdminApi
@@ -64,55 +64,37 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 
 /**
- * S-ADMIN-8a: the trust & safety tab must render REAL queued automatic actions with the evidence that
- * caused them, and overturning one must show the exact real effect it will reverse — the server-computed
- * [TrustSafetyReviewItem.reversalPreview] — BEFORE the operator commits to it, never after.
+ * S-ADMIN-8b: the network-wide block is the most dangerous control in the product, so the surface must
+ * show the operator the REAL counted blast radius before they can even reach the apply action, and once
+ * applied must render an active block naming who applied it, when, and why.
  */
 @OptIn(ExperimentalTestApi::class)
-class AdminTrustSafetyRenderTest {
+class AdminNetworkBlockRenderTest {
 
-    private val queuedItem = TrustSafetyReviewItem(
-        detectionId = "det-1",
-        broadcasterId = "chan-1",
-        channelName = "streamer_a",
-        subjectPlatformUserId = "bot-99",
-        subjectDisplayName = "SuspiciousBot99",
-        provider = "twitch",
-        messageText = "free f0ll0ws check bio",
-        signals = "CosmeticAbuse",
-        confidence = "High",
-        outcome = "DeleteAndEscalate",
-        reason = "High confidence — message removed and routed to the escalation ladder.",
-        detectedAt = "2026-09-06T10:00:00Z",
-        reversalPreview = "Removes the automatic Twitch timeout issued against SuspiciousBot99 in streamer_a.",
+    private val preview = NetworkBlockPreview(
+        targetUserId = "user-99",
+        targetTwitchUserId = "troll-99",
+        targetDisplayName = "Troll99",
+        tenantCount = 3,
+        tenants = listOf(
+            NetworkBlockAffectedTenant(broadcasterId = "chan-1", channelName = "streamer_a"),
+            NetworkBlockAffectedTenant(broadcasterId = "chan-2", channelName = "streamer_b"),
+            NetworkBlockAffectedTenant(broadcasterId = "chan-3", channelName = "streamer_c"),
+        ),
     )
 
-    private val crossTenantSignal = CrossTenantAbuseSignal(
-        provider = "twitch",
-        subjectPlatformUserId = "raider-1",
-        subjectDisplayName = "RaidBot1",
-        tenantCount = 2,
-        detectionCount = 2,
-        hits = listOf(
-            CrossTenantAbuseHit(
-                broadcasterId = "chan-1",
-                channelName = "streamer_a",
-                detectionId = "det-2",
-                confidence = "High",
-                outcome = "Flag",
-                reason = "High confidence — flagged for review, no action taken.",
-                detectedAt = "2026-09-06T09:00:00Z",
-            ),
-            CrossTenantAbuseHit(
-                broadcasterId = "chan-2",
-                channelName = "streamer_b",
-                detectionId = "det-3",
-                confidence = "High",
-                outcome = "Flag",
-                reason = "High confidence — flagged for review, no action taken.",
-                detectedAt = "2026-09-06T09:05:00Z",
-            ),
-        ),
+    private val activeBlock = NetworkBlock(
+        id = "block-1",
+        targetUserId = "user-99",
+        targetTwitchUserId = "troll-99",
+        targetDisplayName = "Troll99",
+        reason = "cross-channel raid",
+        justification = "Ticket #9001 — coordinated raid harassment.",
+        appliedByPrincipalId = "operator-1",
+        appliedAt = "2026-09-06T12:00:00Z",
+        tenantCount = 3,
+        channelCount = 3,
+        status = "active",
     )
 
     @Composable
@@ -129,127 +111,114 @@ class AdminTrustSafetyRenderTest {
     }
 
     private fun controllerFor(
-        signals: List<CrossTenantAbuseSignal> = emptyList(),
-        queue: List<TrustSafetyReviewItem> = emptyList(),
-        fakeApi: FakeTrustSafetyApi = FakeTrustSafetyApi(signals = signals, queue = queue),
-    ): Pair<AdminController, FakeTrustSafetyApi> {
+        fakeApi: FakeNetworkBlockTrustSafetyApi,
+    ): AdminController {
         val controller = AdminController(
-            api = FakeAdminApiForTrustSafetyTest(),
-            iamApi = FakeIamApiForTrustSafetyTest(),
-            platformAdminApi = FakePlatformAdminApiForTrustSafetyTest(),
+            api = FakeAdminApiForNetworkBlockTest(),
+            iamApi = FakeIamApiForNetworkBlockTest(),
+            platformAdminApi = FakePlatformAdminApiForNetworkBlockTest(),
             trustSafetyApi = fakeApi,
         )
         runTest {
-            controller.setTrustSafetyJustification("Ticket #4471 — cross-channel raid-chat spam.")
-            controller.loadCrossTenantSignals()
-            controller.loadReviewQueue()
+            controller.setTrustSafetyJustification("Ticket #9001 — coordinated raid harassment.")
         }
-        return controller to fakeApi
+        return controller
     }
 
     @Test
-    fun the_review_queue_renders_the_real_queued_action_with_its_evidence() {
-        val (controller, _) = controllerFor(queue = listOf(queuedItem))
+    fun preview_shows_the_real_counted_blast_radius_before_apply_can_be_reached() {
+        val fakeApi = FakeNetworkBlockTrustSafetyApi(preview = preview)
+        val controller = controllerFor(fakeApi)
 
         runComposeUiTest {
             setContent { EnglishContent { ObservingTrustSafetyTab(controller = controller) } }
             waitForIdle()
 
-            onNodeWithText("Automatic actions awaiting review").assertExists()
-            onNodeWithText("SuspiciousBot99", substring = true).assertExists()
-            onNodeWithText("free f0ll0ws check bio", substring = true).assertExists()
-            onNodeWithText(
-                "High confidence — message removed and routed to the escalation ladder.",
-                substring = true,
-            ).assertExists()
-        }
-    }
-
-    @Test
-    fun cross_tenant_signals_render_with_the_real_tenants_and_detections_that_back_them() {
-        val (controller, _) = controllerFor(signals = listOf(crossTenantSignal))
-
-        runComposeUiTest {
-            setContent { EnglishContent { ObservingTrustSafetyTab(controller = controller) } }
+            controller.setNetworkBlockTargetTwitchUserId("troll-99")
             waitForIdle()
 
-            onNodeWithText("Actors seen in more than one channel").assertExists()
-            onNodeWithText("RaidBot1", substring = true).assertExists()
-            onNodeWithText("Seen in 2 channels", substring = true).assertExists()
-            onNodeWithText("streamer_a", substring = true).assertExists()
-            onNodeWithText("streamer_b", substring = true).assertExists()
-        }
-    }
-
-    @Test
-    fun overturn_shows_the_real_reversal_preview_before_it_commits() {
-        val (controller, fakeApi) = controllerFor(queue = listOf(queuedItem))
-
-        runComposeUiTest {
-            setContent { EnglishContent { ObservingTrustSafetyTab(controller = controller) } }
+            onNodeWithText("Preview blast radius").performClick()
             waitForIdle()
 
-            onNodeWithText("Overturn").performClick()
-            waitForIdle()
-
-            // The confirm dialog shows the SERVER-COMPUTED blast radius before anything is sent.
-            onNodeWithText(
-                "Removes the automatic Twitch timeout issued against SuspiciousBot99 in streamer_a.",
-                substring = true,
-            ).assertExists()
-            onNodeWithText("Overturn this automatic action?").assertExists()
-            assert(fakeApi.overturnCalls.isEmpty()) {
-                "the overturn must not be sent until the operator confirms the dialog"
+            // The real, server-computed count is on screen before apply is reachable.
+            onNodeWithText("Touches 3 channel(s)", substring = true).assertExists()
+            assert(fakeApi.applyCalls.isEmpty()) {
+                "apply must not be reachable before a real preview is shown"
             }
+
+            onNodeWithText("Apply network-wide block").performClick()
+            waitForIdle()
+
+            // The destructive confirm dialog repeats the exact count the operator was just shown.
+            onNodeWithText("Block across every channel?").assertExists()
+            onNodeWithText(
+                "This bans the account in 3 channel(s) right now",
+                substring = true,
+            ).assertExists()
+            assert(fakeApi.applyCalls.isEmpty()) {
+                "the block must not be applied until the confirm dialog is accepted"
+            }
+        }
+    }
+
+    @Test
+    fun an_active_block_renders_who_applied_it_when_and_why() {
+        val fakeApi = FakeNetworkBlockTrustSafetyApi(blocks = listOf(activeBlock))
+        val controller = controllerFor(fakeApi)
+
+        runComposeUiTest {
+            setContent { EnglishContent { ObservingTrustSafetyTab(controller = controller) } }
+            waitForIdle()
+
+            onNodeWithText("Active network blocks").assertExists()
+            onNodeWithText("Troll99", substring = true).assertExists()
+            onNodeWithText("operator-1", substring = true).assertExists()
+            onNodeWithText("2026-09-06T12:00:00Z", substring = true).assertExists()
+            onNodeWithText("Active — enforced across 3 channel(s)", substring = true).assertExists()
+            onNodeWithText("Lift").assertExists()
         }
     }
 }
 
-private class FakeTrustSafetyApi(
-    private val signals: List<CrossTenantAbuseSignal> = emptyList(),
-    private val queue: List<TrustSafetyReviewItem> = emptyList(),
+private class FakeNetworkBlockTrustSafetyApi(
+    private val preview: NetworkBlockPreview? = null,
+    private val blocks: List<NetworkBlock> = emptyList(),
 ) : TrustSafetyApi {
-    val overturnCalls: MutableList<String> = mutableListOf()
-    val confirmCalls: MutableList<String> = mutableListOf()
+    val applyCalls: MutableList<String> = mutableListOf()
 
-    override suspend fun getCrossTenantSignals(
+    override suspend fun getCrossTenantSignals(justification: String) = ApiResult.Ok(emptyList<CrossTenantAbuseSignal>())
+
+    override suspend fun getReviewQueue(justification: String, page: Int, pageSize: Int) =
+        ApiResult.Ok(PaginatedEnvelope(emptyList<TrustSafetyReviewItem>()))
+
+    override suspend fun confirm(detectionId: String, justification: String) = ApiResult.Ok(Unit)
+
+    override suspend fun overturn(detectionId: String, justification: String) = ApiResult.Ok(Unit)
+
+    override suspend fun previewNetworkBlock(
+        targetTwitchUserId: String,
         justification: String,
-    ): ApiResult<List<CrossTenantAbuseSignal>> = ApiResult.Ok(signals)
-
-    override suspend fun getReviewQueue(
-        justification: String,
-        page: Int,
-        pageSize: Int,
-    ): ApiResult<PaginatedEnvelope<TrustSafetyReviewItem>> = ApiResult.Ok(PaginatedEnvelope(queue))
-
-    override suspend fun confirm(detectionId: String, justification: String): ApiResult<Unit> {
-        confirmCalls += detectionId
-        return ApiResult.Ok(Unit)
-    }
-
-    override suspend fun overturn(detectionId: String, justification: String): ApiResult<Unit> {
-        overturnCalls += detectionId
-        return ApiResult.Ok(Unit)
-    }
-
-    override suspend fun previewNetworkBlock(targetTwitchUserId: String, justification: String) =
-        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    ): ApiResult<NetworkBlockPreview> =
+        preview?.let { ApiResult.Ok(it) } ?: ApiResult.Failure(ApiError(404, "NOT_FOUND", "unknown target"))
 
     override suspend fun applyNetworkBlock(
         targetTwitchUserId: String,
         reason: String?,
         justification: String,
         confirmedTenantCount: Int,
-    ) = ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+    ): ApiResult<NetworkBlock> {
+        applyCalls += targetTwitchUserId
+        return ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused in this test"))
+    }
 
     override suspend fun listNetworkBlocks(justification: String): ApiResult<List<NetworkBlock>> =
-        ApiResult.Ok(emptyList())
+        ApiResult.Ok(blocks)
 
     override suspend fun liftNetworkBlock(blockId: String, justification: String) =
-        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
+        ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused in this test"))
 }
 
-private class FakeAdminApiForTrustSafetyTest : AdminApi {
+private class FakeAdminApiForNetworkBlockTest : AdminApi {
     override suspend fun getStats(): ApiResult<AdminStats> = ApiResult.Ok(AdminStats(0, 0, 0, "ok", 0, 0))
     override suspend fun getChannels(search: String?, page: Int, pageSize: Int, sort: String?, isLive: Boolean?) =
         ApiResult.Ok(PaginatedEnvelope<AdminChannel>(emptyList()))
@@ -300,7 +269,7 @@ private class FakeAdminApiForTrustSafetyTest : AdminApi {
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
 }
 
-private class FakeIamApiForTrustSafetyTest : PlatformIamApi {
+private class FakeIamApiForNetworkBlockTest : PlatformIamApi {
     override suspend fun listRoles(): ApiResult<List<IamRole>> = ApiResult.Ok(emptyList())
     override suspend fun listPrincipals(): ApiResult<List<IamPrincipalSummary>> = ApiResult.Ok(emptyList())
     override suspend fun effectivePermissions(principalId: String, scopeChannelId: String?) = ApiResult.Ok(emptyList<String>())
@@ -316,7 +285,7 @@ private class FakeIamApiForTrustSafetyTest : PlatformIamApi {
         ApiResult.Failure(ApiError(501, "NOT_IMPLEMENTED", "unused"))
 }
 
-private class FakePlatformAdminApiForTrustSafetyTest : PlatformAdminApi {
+private class FakePlatformAdminApiForNetworkBlockTest : PlatformAdminApi {
     override suspend fun listTenants(search: String?, status: String?, isLive: Boolean?, page: Int, pageSize: Int) =
         ApiResult.Ok(PaginatedEnvelope<AdminTenant>(emptyList()))
     override suspend fun getTenant(broadcasterId: String) =

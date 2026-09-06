@@ -19,9 +19,11 @@ namespace NomNomzBot.Infrastructure.Tests.Identity;
 
 /// <summary>
 /// Proves the Plane-C IAM catalog seed (roles-permissions.md §C): every §C.1 permission lands with its
-/// specced category/sensitivity, the six §C.2 system roles land with their §C.3 bundles (super-admin = ALL),
-/// re-running adds nothing, and — the self-host safety property — the seeder creates NO principals, so
-/// <c>PlatformIamService</c> still short-circuits to owner-is-full after seeding.
+/// specced category/sensitivity, the §C.2 system roles land with their §C.3 bundles (super-admin = ALL
+/// EXCEPT the capabilities deliberately carved out for a NAMED operator's own role — currently
+/// <c>network:block:manage</c>, S-ADMIN-8b), re-running adds nothing, and — the self-host safety property —
+/// the seeder creates NO principals, so <c>PlatformIamService</c> still short-circuits to owner-is-full
+/// after seeding.
 /// </summary>
 public sealed class IamCatalogSeederTests
 {
@@ -52,7 +54,7 @@ public sealed class IamCatalogSeederTests
     }
 
     [Fact]
-    public async Task Seeds_the_seven_system_roles_with_super_admin_holding_every_permission()
+    public async Task Seeds_the_eight_system_roles_with_super_admin_holding_every_permission_except_the_named_operator_only_ones()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         await SeedAsync(db);
@@ -65,6 +67,7 @@ public sealed class IamCatalogSeederTests
                 "platform-super-admin",
                 "platform-support",
                 "platform-trust-safety",
+                "platform-network-block",
                 "platform-billing",
                 "platform-iam-admin",
                 "platform-analyst",
@@ -72,14 +75,31 @@ public sealed class IamCatalogSeederTests
             ]);
         roles.Should().OnlyContain(r => r.IsSystem, "§C.2: all seeded roles are IsSystem");
 
+        // network:block:manage (S-ADMIN-8b) is the one deliberately-carved-out dangerous capability: a
+        // named operator's own role, never inherited wholesale through super-admin.
         IamRole superAdmin = roles.Single(r => r.Name == "platform-super-admin");
-        List<Guid> superAdminPermissionIds = await db
+        List<string> superAdminKeys = await db
             .IamRolePermissions.Where(j => j.RoleId == superAdmin.Id)
-            .Select(j => j.PermissionId)
+            .Join(db.IamPermissions, j => j.PermissionId, p => p.Id, (j, p) => p.Key)
             .ToListAsync();
-        superAdminPermissionIds
+        superAdminKeys
             .Should()
-            .HaveCount(IamPermissionKeys.All.Count, "super-admin = ALL");
+            .BeEquivalentTo(
+                IamPermissionKeys.All.Except([IamPermissionKeys.NetworkBlockManage]),
+                "super-admin = ALL except the capabilities reserved for a named operator's own role"
+            );
+
+        IamRole networkBlock = roles.Single(r => r.Name == "platform-network-block");
+        List<string> networkBlockKeys = await db
+            .IamRolePermissions.Where(j => j.RoleId == networkBlock.Id)
+            .Join(db.IamPermissions, j => j.PermissionId, p => p.Id, (j, p) => p.Key)
+            .ToListAsync();
+        networkBlockKeys
+            .Should()
+            .BeEquivalentTo(
+                [IamPermissionKeys.NetworkBlockManage],
+                "the dangerous capability is bundled ONLY into its own narrow role"
+            );
 
         IamRole billing = roles.Single(r => r.Name == "platform-billing");
         List<string> billingKeys = await db
