@@ -14,6 +14,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRowScope
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -92,10 +93,17 @@ internal fun FlowRowScope.ChatMessageFragments(
                 // alt-text/caption for the GIF, so it doubles as the accessibility description.
                 val url: String? = fragment.gif?.url
                 if (url != null) {
+                    // Bounded, NOT squared: a GIF is wide (the ones Twitch serves run to about 4:1), so a
+                    // square box shrank it to a quarter of the height it was given and padded the rest with
+                    // empty space. Cap both edges and let the image pick its own size inside them, the same
+                    // rule the overlay widgets use (max-height with width:auto).
                     AnimatedNetworkImage(
                         url = url,
                         contentDescription = fragment.text,
-                        modifier = Modifier.size(emoteSize * 4).align(Alignment.CenterVertically),
+                        modifier =
+                            Modifier
+                                .sizeIn(maxWidth = emoteSize * 14, maxHeight = emoteSize * 4)
+                                .align(Alignment.CenterVertically),
                     )
                 } else {
                     PlainRun(text = fragment.text)
