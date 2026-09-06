@@ -101,6 +101,7 @@ import nomnomzbot.composeapp.generated.resources.admin_content_force_denied
 import nomnomzbot.composeapp.generated.resources.admin_content_key_label
 import nomnomzbot.composeapp.generated.resources.admin_content_kind_command
 import nomnomzbot.composeapp.generated.resources.admin_content_kind_label
+import nomnomzbot.composeapp.generated.resources.admin_content_kind_pipeline
 import nomnomzbot.composeapp.generated.resources.admin_content_kind_widget
 import nomnomzbot.composeapp.generated.resources.admin_content_name_label
 import nomnomzbot.composeapp.generated.resources.admin_content_new
@@ -335,8 +336,14 @@ private fun CreateDefinitionDialog(
     var description: String by remember { mutableStateOf("") }
     var payloadJson: String by remember { mutableStateOf("") }
     var widgetFields: WidgetPayloadFields by remember { mutableStateOf(WidgetPayloadFields.Empty) }
+    var pipelinePayloadJson: String by remember { mutableStateOf("") }
 
-    val payloadValid: Boolean = kind != PlatformContentAuthoringKinds.Widget || widgetFields.sourceCode.isNotBlank()
+    val payloadValid: Boolean =
+        when (kind) {
+            PlatformContentAuthoringKinds.Widget -> widgetFields.sourceCode.isNotBlank()
+            PlatformContentAuthoringKinds.Pipeline -> pipelinePayloadJson.isNotBlank()
+            else -> true
+        }
 
     Dialog(onDismissRequest = onDismiss) {
         DialogTitle(text = stringResource(Res.string.admin_content_new))
@@ -345,12 +352,17 @@ private fun CreateDefinitionDialog(
         // string resolver inside it does not compile.
         val widgetLabel: String = kindWidgetLabel()
         val commandLabel: String = kindCommandLabel()
+        val pipelineLabel: String = kindPipelineLabel()
         RadioGroup(
             options = PlatformContentAuthoringKinds.All,
             selected = kind,
             onSelectedChange = { kind = it },
             label = { option ->
-                if (option == PlatformContentAuthoringKinds.Widget) widgetLabel else commandLabel
+                when (option) {
+                    PlatformContentAuthoringKinds.Widget -> widgetLabel
+                    PlatformContentAuthoringKinds.Pipeline -> pipelineLabel
+                    else -> commandLabel
+                }
             },
         )
         Spacer(modifier = Modifier.height(spacing.s2))
@@ -372,14 +384,17 @@ private fun CreateDefinitionDialog(
             label = stringResource(Res.string.admin_content_description_label),
             modifier = Modifier.fillMaxWidth(),
         )
-        if (kind == PlatformContentAuthoringKinds.Widget) {
-            WidgetPayloadEditor(fields = widgetFields, onFieldsChange = { widgetFields = it })
-        } else {
-            JsonPayloadField(
-                value = payloadJson,
-                onValueChange = { payloadJson = it },
-                label = stringResource(Res.string.admin_content_payload_label),
-            )
+        when (kind) {
+            PlatformContentAuthoringKinds.Widget ->
+                WidgetPayloadEditor(fields = widgetFields, onFieldsChange = { widgetFields = it })
+            PlatformContentAuthoringKinds.Pipeline ->
+                PipelinePayloadEditor(payloadJson = pipelinePayloadJson, onPayloadJsonChange = { pipelinePayloadJson = it })
+            else ->
+                JsonPayloadField(
+                    value = payloadJson,
+                    onValueChange = { payloadJson = it },
+                    label = stringResource(Res.string.admin_content_payload_label),
+                )
         }
         DialogFooter {
             Button(onClick = onDismiss, variant = ButtonVariant.Ghost) {
@@ -388,7 +403,11 @@ private fun CreateDefinitionDialog(
             Button(
                 onClick = {
                     val resolvedPayload: String =
-                        if (kind == PlatformContentAuthoringKinds.Widget) widgetFields.toPayloadJson() else payloadJson
+                        when (kind) {
+                            PlatformContentAuthoringKinds.Widget -> widgetFields.toPayloadJson()
+                            PlatformContentAuthoringKinds.Pipeline -> pipelinePayloadJson
+                            else -> payloadJson
+                        }
                     onCreate(kind, key.trim(), displayName.trim(), description, resolvedPayload)
                 },
                 enabled = key.isNotBlank() && displayName.isNotBlank() && payloadValid,
@@ -404,6 +423,9 @@ private fun kindCommandLabel(): String = stringResource(Res.string.admin_content
 
 @Composable
 private fun kindWidgetLabel(): String = stringResource(Res.string.admin_content_kind_widget)
+
+@Composable
+private fun kindPipelineLabel(): String = stringResource(Res.string.admin_content_kind_pipeline)
 
 @Composable
 private fun ContentDefinitionDetail(
@@ -589,29 +611,46 @@ private fun DraftVersionDialog(
     onDraft: (payloadJson: String) -> Unit,
 ) {
     val isWidget: Boolean = kind == PlatformContentAuthoringKinds.Widget
+    val isPipeline: Boolean = kind == PlatformContentAuthoringKinds.Pipeline
     var payloadJson: String by remember { mutableStateOf(initialPayload) }
+    var pipelinePayloadJson: String by remember { mutableStateOf(if (isPipeline) initialPayload else "") }
     var widgetFields: WidgetPayloadFields by remember {
         mutableStateOf(if (isWidget) WidgetPayloadFields.fromPayloadJson(initialPayload) else WidgetPayloadFields.Empty)
     }
-    val payloadValid: Boolean = if (isWidget) widgetFields.sourceCode.isNotBlank() else payloadJson.isNotBlank()
+    val payloadValid: Boolean =
+        when {
+            isWidget -> widgetFields.sourceCode.isNotBlank()
+            isPipeline -> pipelinePayloadJson.isNotBlank()
+            else -> payloadJson.isNotBlank()
+        }
 
     Dialog(onDismissRequest = onDismiss) {
         DialogTitle(text = stringResource(Res.string.admin_content_draft_new_version))
-        if (isWidget) {
-            WidgetPayloadEditor(fields = widgetFields, onFieldsChange = { widgetFields = it })
-        } else {
-            JsonPayloadField(
-                value = payloadJson,
-                onValueChange = { payloadJson = it },
-                label = stringResource(Res.string.admin_content_payload_label),
-            )
+        when {
+            isWidget -> WidgetPayloadEditor(fields = widgetFields, onFieldsChange = { widgetFields = it })
+            isPipeline ->
+                PipelinePayloadEditor(payloadJson = pipelinePayloadJson, onPayloadJsonChange = { pipelinePayloadJson = it })
+            else ->
+                JsonPayloadField(
+                    value = payloadJson,
+                    onValueChange = { payloadJson = it },
+                    label = stringResource(Res.string.admin_content_payload_label),
+                )
         }
         DialogFooter {
             Button(onClick = onDismiss, variant = ButtonVariant.Ghost) {
                 Text(text = stringResource(Res.string.admin_cancel))
             }
             Button(
-                onClick = { onDraft(if (isWidget) widgetFields.toPayloadJson() else payloadJson) },
+                onClick = {
+                    val resolvedPayload: String =
+                        when {
+                            isWidget -> widgetFields.toPayloadJson()
+                            isPipeline -> pipelinePayloadJson
+                            else -> payloadJson
+                        }
+                    onDraft(resolvedPayload)
+                },
                 enabled = payloadValid,
             ) {
                 Text(text = stringResource(Res.string.admin_content_draft_new_version))

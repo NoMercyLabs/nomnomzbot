@@ -3555,7 +3555,9 @@
     <string name="admin_content_create">Create draft</string>
     <string name="admin_content_kind_command">Command</string>
     <string name="admin_content_kind_widget">Widget</string>
+    <string name="admin_content_kind_pipeline">Pipeline</string>
     <string name="admin_content_kind_label">Content kind</string>
+    <string name="admin_content_pipeline_editor_loading">Could not open the pipeline editor.</string>
     <string name="admin_content_widget_source_label">Vue source</string>
     <string name="admin_content_widget_settings_label">Default settings (JSON)</string>
     <string name="admin_content_widget_events_label">Default event subscriptions</string>

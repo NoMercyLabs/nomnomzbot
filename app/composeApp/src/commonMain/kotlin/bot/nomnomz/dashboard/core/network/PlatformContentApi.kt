@@ -11,10 +11,10 @@
 package bot.nomnomz.dashboard.core.network
 
 // Plane-C platform content authoring + propagation (platform-admin.md §2-§5,
-// PlatformContentController — 9 routes). Draft/publish versioned platform content (this slice: `command`
-// kind only, server-side) and fan it out to installed tenant rows under one of the three publish modes
-// (§2.1). `saas`-only platform-employee surface (§0 marker) — the whole controller is gated behind Plane-C
-// `content:*` action keys and never reachable on a self-host profile.
+// PlatformContentController — 9 routes). Draft/publish versioned platform content (server-side kinds:
+// command/widget/pipeline/code_script) and fan it out to installed tenant rows under one of the three
+// publish modes (§2.1). `saas`-only platform-employee surface (§0 marker) — the whole controller is gated
+// behind Plane-C `content:*` action keys and never reachable on a self-host profile.
 
 import kotlinx.serialization.Serializable
 
@@ -98,13 +98,16 @@ object PlatformContentPublishModes {
 }
 
 /** The content kinds this dashboard offers authoring for — a subset of the backend's closed
- * `PlatformContentKinds` (command/widget/pipeline/code_script): `pipeline` and `code_script` have no
- * authoring UI yet, so they are deliberately absent here rather than offered and silently mishandled. */
+ * `PlatformContentKinds` (command/widget/pipeline/code_script): `code_script` has no authoring UI yet, so it
+ * is deliberately absent here rather than offered and silently mishandled. `pipeline` authors through the
+ * SAME tree editor (`ChainEditor`) the tenant-side Pipelines page uses (`AdminContentPipelineAuthoring.kt`)
+ * — no second, worse pipeline editor. */
 object PlatformContentAuthoringKinds {
     const val Command: String = "command"
     const val Widget: String = "widget"
+    const val Pipeline: String = "pipeline"
 
-    val All: List<String> = listOf(Command, Widget)
+    val All: List<String> = listOf(Command, Widget, Pipeline)
 }
 
 // ─── Request bodies ────────────────────────────────────────────────────────────────────────────

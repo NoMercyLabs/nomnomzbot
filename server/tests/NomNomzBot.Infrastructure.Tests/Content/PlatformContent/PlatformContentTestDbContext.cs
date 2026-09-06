@@ -147,6 +147,13 @@ internal sealed class PlatformContentTestDbContext : DbContext, IApplicationDbCo
             b.Ignore(entity);
 
         b.ApplySqliteCompatibility();
+
+        // The SAME soft-delete (+ no-op tenant, since these tests query cross-tenant on purpose) global
+        // filter AppDbContext composes in production (Platform/Persistence/AppDbContext.cs) — without it, a
+        // soft-deleted PipelineEntity would silently reappear in a publish's candidate set here even though
+        // production would already have excluded it, making a "deleted tenant is never resurrected" test
+        // pass or fail on this context's own quirk rather than on real behavior.
+        b.ApplyTenantAndSoftDeleteFilters(() => null);
     }
 
     private static readonly HashSet<Type> Mapped =

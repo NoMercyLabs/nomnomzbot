@@ -3541,7 +3541,9 @@
     <string name="admin_content_create">Concept aanmaken</string>
     <string name="admin_content_kind_command">Commando</string>
     <string name="admin_content_kind_widget">Widget</string>
+    <string name="admin_content_kind_pipeline">Pijplijn</string>
     <string name="admin_content_kind_label">Soort inhoud</string>
+    <string name="admin_content_pipeline_editor_loading">Kan de pijplijneditor niet openen.</string>
     <string name="admin_content_widget_source_label">Vue-broncode</string>
     <string name="admin_content_widget_settings_label">Standaardinstellingen (JSON)</string>
     <string name="admin_content_widget_events_label">Standaard gebeurtenisabonnementen</string>

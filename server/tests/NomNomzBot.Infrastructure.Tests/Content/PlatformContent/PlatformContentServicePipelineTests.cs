@@ -536,5 +536,244 @@ public sealed class PlatformContentServicePipelineTests : IAsyncDisposable
         Assert.Equal(_actingPrincipalId, auditRow.PrincipalId);
     }
 
+    // ---------------------------------------------------------------------------------------------------
+    // DONE-WHEN (S-ADMIN-2d follow-up 1): the blast-radius preview returns the REAL counted number of
+    // affected tenants — seed exactly 3, assert exactly 3 (the wording of the slice's own done-when).
+    // ---------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task PreviewPublish_SeedingThreeUntouchedTenants_ReturnsExactlyThree()
+    {
+        (PlatformContentDefinition definition, PlatformContentVersion v1) =
+            await SeedPublishedPipelineDefinitionAsync();
+
+        await SeedInstalledPipelineAsync(
+            (await AddChannelAsync("tenant-1")).Id,
+            definition,
+            v1,
+            "v1"
+        );
+        await SeedInstalledPipelineAsync(
+            (await AddChannelAsync("tenant-2")).Id,
+            definition,
+            v1,
+            "v1"
+        );
+        await SeedInstalledPipelineAsync(
+            (await AddChannelAsync("tenant-3")).Id,
+            definition,
+            v1,
+            "v1"
+        );
+
+        PlatformContentVersion v2 = await DraftVersionAsync(definition, 2, GraphPayload("v2"));
+
+        PlatformContentService sut = CreateService();
+        Result<PublishPreviewDto> preview = await sut.PreviewPublishAsync(
+            _actingPrincipalId,
+            definition.Id,
+            v2.Id,
+            PlatformContentPublishModes.UpdateInPlaceWhereUntouched
+        );
+
+        Assert.True(preview.IsSuccess, preview.ErrorMessage);
+        Assert.Equal(3, preview.Value.AffectedCount);
+        Assert.Equal(0, preview.Value.SkippedCount);
+
+        // A stale confirmed count (from a preview run before this one, or simply the wrong number) must
+        // fail closed rather than silently publish to a different set of tenants than what was shown.
+        Result<PlatformContentPublishJobDto> stalePublish = await sut.PublishAsync(
+            _actingPrincipalId,
+            definition.Id,
+            v2.Id,
+            new PublishContentRequest(
+                PlatformContentPublishModes.UpdateInPlaceWhereUntouched,
+                PublishNote: null,
+                ConfirmedPreviewAffectedCount: 2
+            )
+        );
+        Assert.True(stalePublish.IsFailure);
+        Assert.Equal("PREVIEW_STALE", stalePublish.ErrorCode);
+        Assert.Equal(0, await _db.PlatformContentPublishJobs.CountAsync());
+    }
+
+    // ---------------------------------------------------------------------------------------------------
+    // DONE-WHEN (S-ADMIN-2d follow-up 2): the seeder-law's third case for the pipeline kind — a tenant who
+    // DELETED their pipeline must never have it resurrected by a publish. "Untouched receives" and
+    // "customised is skipped" are already proven above; this closes the third case the slice named
+    // explicitly. Relies on PlatformContentTestDbContext now composing the SAME soft-delete global query
+    // filter production's AppDbContext applies (see that file) — without it this failed by finding and
+    // reviving the deleted row.
+    // ---------------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task Publish_DoesNotResurrectATenantsDeletedPipeline()
+    {
+        (PlatformContentDefinition definition, PlatformContentVersion v1) =
+            await SeedPublishedPipelineDefinitionAsync();
+
+        Channel channel = await AddChannelAsync("deleted-streamer");
+        PipelineEntity deletedPipeline = await SeedInstalledPipelineAsync(
+            channel.Id,
+            definition,
+            v1,
+            "v1"
+        );
+        string graphBeforeDelete = deletedPipeline.GraphJsonCache!;
+        deletedPipeline.DeletedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        PlatformContentVersion v2 = await DraftVersionAsync(definition, 2, GraphPayload("v2"));
+
+        PlatformContentService sut = CreateService();
+        Result<PublishPreviewDto> preview = await sut.PreviewPublishAsync(
+            _actingPrincipalId,
+            definition.Id,
+            v2.Id,
+            PlatformContentPublishModes.UpdateInPlaceWhereUntouched
+        );
+        Assert.True(preview.IsSuccess, preview.ErrorMessage);
+        Assert.Equal(0, preview.Value.AffectedCount); // the deleted tenant must never be counted
+
+        Result<PlatformContentPublishJobDto> publishResult = await sut.PublishAsync(
+            _actingPrincipalId,
+            definition.Id,
+            v2.Id,
+            new PublishContentRequest(
+                PlatformContentPublishModes.UpdateInPlaceWhereUntouched,
+                PublishNote: null,
+                ConfirmedPreviewAffectedCount: 0
+            )
+        );
+        Assert.True(publishResult.IsSuccess, publishResult.ErrorMessage);
+        Assert.Equal(0, publishResult.Value.ConfirmedAffectedCount);
+
+        // Assert the RESULTING PER-TENANT STATE directly against the row (bypassing the query filter, since
+        // the row is SUPPOSED to be excluded from ordinary reads) — it must still read as deleted, and its
+        // graph must be exactly what it was before the delete: never touched, never resurrected.
+        PipelineEntity afterPublish = await _db
+            .Pipelines.IgnoreQueryFilters()
+            .AsNoTracking()
+            .SingleAsync(p => p.Id == deletedPipeline.Id);
+        Assert.NotNull(afterPublish.DeletedAt);
+        Assert.Equal(graphBeforeDelete, afterPublish.GraphJsonCache);
+        Assert.Equal(1, afterPublish.PlatformSourceVersion);
+    }
+
+    // ---------------------------------------------------------------------------------------------------
+    // DONE-WHEN (S-ADMIN-2d follow-up 3): a published pipeline with NESTED blocks survives save + reload
+    // with its tree intact — the exact case 934355cb's CommandConfigValidator fix protects (a block-kind
+    // step's placeholder Action.Type must never be validated as a known action type, or every nested
+    // pipeline is rejected on save). Proven through the platform-content publish path specifically, not
+    // just the tenant editor's own save, since the fan-out is what this slice adds.
+    // ---------------------------------------------------------------------------------------------------
+
+    private static string NestedIfGraphPayload(string thenMarker) =>
+        JsonSerializer.Serialize(
+            new
+            {
+                steps = new object[]
+                {
+                    // A block-kind step with NO condition rows: PipelineEngine treats a conditionless "if"
+                    // as unconditionally true, so this exercises real nested dispatch without needing any
+                    // ICommandCondition registered in this test's minimal engine.
+                    new
+                    {
+                        id = "if1",
+                        block_kind = "if",
+                        order = 0,
+                        action = new { type = "block" },
+                    },
+                    new
+                    {
+                        id = "leaf1",
+                        parent_step_id = "if1",
+                        branch = "then",
+                        order = 0,
+                        action = new { type = "record_marker", marker = thenMarker },
+                    },
+                },
+            }
+        );
+
+    [Fact]
+    public async Task Publish_NestedIfBlockPipeline_SurvivesSaveAndReload_WithItsTreeIntact()
+    {
+        (PlatformContentDefinition definition, PlatformContentVersion v1) =
+            await SeedPublishedPipelineDefinitionAsync();
+
+        Channel channel = await AddChannelAsync("nested-streamer");
+        PipelineEntity pipeline = await SeedInstalledPipelineAsync(
+            channel.Id,
+            definition,
+            v1,
+            "v1"
+        );
+
+        PlatformContentVersion nestedVersion = await DraftVersionAsync(
+            definition,
+            2,
+            NestedIfGraphPayload("nested-then")
+        );
+
+        PlatformContentService sut = CreateService();
+        Result<PlatformContentPublishJobDto> publishResult = await sut.PublishAsync(
+            _actingPrincipalId,
+            definition.Id,
+            nestedVersion.Id,
+            new PublishContentRequest(
+                PlatformContentPublishModes.UpdateInPlaceWhereUntouched,
+                PublishNote: null,
+                ConfirmedPreviewAffectedCount: 1
+            )
+        );
+
+        // This is exactly the regression 934355cb fixed: a block-kind step's placeholder Action.Type used
+        // to get validated as a real action type, rejecting the save with "Unknown action type 'block'".
+        Assert.True(publishResult.IsSuccess, publishResult.ErrorMessage);
+        Assert.Equal(1, publishResult.Value.ConfirmedAffectedCount);
+        Assert.Empty(publishResult.Value.ValidationFailedPipelineIds);
+
+        // Reload through the SAME PipelineService.GetAsync the dashboard's own editor uses — not the raw
+        // GraphJsonCache column read directly — so the round trip is proven through real persistence.
+        PipelineService pipelines = CreatePipelineService();
+        Result<PipelineDto> reloaded = await pipelines.GetAsync(channel.Id.ToString(), pipeline.Id);
+        Assert.True(reloaded.IsSuccess, reloaded.ErrorMessage);
+
+        JsonElement graph = reloaded.Value.GraphJsonCache!.Value;
+        List<JsonElement> steps = [.. graph.GetProperty("steps").EnumerateArray()];
+        Assert.Equal(2, steps.Count);
+
+        JsonElement ifStep = steps.Single(s =>
+            s.TryGetProperty("block_kind", out JsonElement bk) && bk.GetString() == "if"
+        );
+        JsonElement leafStep = steps.Single(s =>
+            s.TryGetProperty("action", out JsonElement a)
+            && a.TryGetProperty("type", out JsonElement t)
+            && t.GetString() == "record_marker"
+        );
+        Assert.Equal(
+            ifStep.GetProperty("id").GetString(),
+            leafStep.GetProperty("parent_step_id").GetString()
+        );
+        Assert.Equal("then", leafStep.GetProperty("branch").GetString());
+
+        // The nested tree does not merely round-trip in storage — it actually EXECUTES: the leaf inside
+        // the "then" lane runs through the real engine.
+        _recordedMarkers.Clear();
+        IPipelineEngine engine = CreateEngine();
+        PipelineExecutionResult execution = await engine.ExecuteAsync(
+            new PipelineRequest
+            {
+                BroadcasterId = channel.Id,
+                PipelineId = pipeline.Id,
+                TriggeredByUserId = Guid.NewGuid().ToString(),
+                TriggeredByDisplayName = "tester",
+            }
+        );
+        Assert.Equal(PipelineOutcome.Completed, execution.Outcome);
+        Assert.Equal(["nested-then"], _recordedMarkers);
+    }
+
     public async ValueTask DisposeAsync() => await _db.DisposeAsync();
 }
