@@ -371,10 +371,22 @@ Cross-INSTANCE signature sharing stays blocked (needs a NoMercy service that doe
 **S-MOD-REVERSAL-VISIBLE CLOSED (`b165fe50`).** A campaign's reversal outcome is now legible: three
 states render distinguishably — "Reversal incomplete - N accounts still actioned", "Undone: <reason>",
 and nothing when never reversed — so a partially-restored cohort can no longer look clean.
-- [ ] **S-ADMIN-9 Make it navigable.** Eleven tabs is already past what one tab strip carries, and the work
-      above adds more. Same discipline as the Moderation split (S-UX-1/3): group by JOB, one primary action
-      per surface, Sleak loaded before any of it is drawn, and breakpoints honoured — an owner does reach for
-      this from a phone during an incident.
+**S-ADMIN-9 CLOSED (`cdca15cf`).** The plane had grown to 18 surfaces; it is now five job groups —
+**Live** (Overview, EventSub health, Webhook deliveries, Job queue, Usage, Audit) · **Who** (Channels,
+Users, Tenants, Support) · **Money** (Billing) · **Risk** (Spam defence defaults, Trust & safety) ·
+**Setup** (System, Feature flags, Providers, Content, IAM). Rejected: keeping the flat strip on
+`TabsList`'s horizontal-scroll fallback (that hides overflow rather than organising it), and grouping
+by backend module (mirrors implementation boundaries, not the operator's question).
+
+Proven structurally rather than by inspection: `every_admin_tab_is_reachable_through_its_own_group`
+walks `AdminTab.entries` by reflection and fails BY NAME if a surface has no reachability marker, so a
+regrouping cannot quietly drop a tab; `the_job_group_strip_fits_a_390dp_phone_width_without_scrolling`
+measures real rendered node positions; `support_and_trust_safety_stay_hidden_when_their_clients_are_not
+_wired` proves the availability gate survived the move.
+
+It also removed a latent bug: the old flat strip appended Support and Trust & Safety at fixed indices
+16/17, which would have MISDISPATCHED had only one of the two clients ever been wired. The per-tab
+enum identity makes that unrepresentable.
 
 **Bar for the whole slice, non-negotiable:** every control does the real thing against the real backend and
 is verified on the rendered client; no read-only panels pretending to be tools; no fabricated numbers; every
