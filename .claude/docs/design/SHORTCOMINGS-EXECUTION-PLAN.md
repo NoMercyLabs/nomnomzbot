@@ -260,9 +260,10 @@ Jint statement-limit wall identically for a platform-published and a tenant-auth
 publishing from the platform grants no wider powers. The Content tab's kind header now names each
 row's actual kind instead of always saying "Command".
 
-- [ ] **Widget payload editor is the odd one out.** `AdminContentTab.kt`'s `WidgetPayloadEditor` still
-      edits widget source through a plain JSON/text field while code scripts and pipelines now use the
-      shared `ProjectEditorIO` overlay. Same-editor-everywhere is the rule this slice established.
+**CLOSED (`f04bf82c`).** The widget kind now opens its Vue source through the same `ProjectEditorIO`
+overlay (entry `index.vue`, language `vue`), so all four content kinds author through the real tenant
+editor. Settings schema and event subscriptions were asserted to still round-trip beside it — a silent
+regression there would have broken widget publishing.
 
 ~~- [ ] **S-ADMIN-2 Platform content authoring — the owner's explicit ask.**~~ Author and edit, at platform
       level, with versioning and a stated propagation outcome per publish: **system commands** (the
