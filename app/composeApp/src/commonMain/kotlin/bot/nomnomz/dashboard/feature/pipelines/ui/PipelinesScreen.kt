@@ -30,6 +30,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.FlowRowScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -52,6 +54,7 @@ import bot.nomnomz.dashboard.core.designsystem.component.Switch
 import androidx.compose.material3.Text
 import bot.nomnomz.dashboard.core.designsystem.component.TemplateHelpersLink
 import bot.nomnomz.dashboard.core.designsystem.component.TextButton
+import bot.nomnomz.dashboard.core.designsystem.theme.windowSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -623,16 +626,10 @@ internal fun PipelineRow(
     val renameLabel: String = stringResource(Res.string.pipelines_rename_action, displayName)
     val deleteLabel: String = stringResource(Res.string.pipelines_delete_action, displayName)
 
-    Row(
-        modifier =
-            Modifier.fillMaxWidth()
-                .padding(horizontal = spacing.s4, vertical = spacing.s3),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(spacing.s3),
-    ) {
+    val info: @Composable (Modifier) -> Unit = { infoModifier ->
         Column(
             modifier =
-                Modifier.weight(1f).clearAndSetSemantics {
+                infoModifier.clearAndSetSemantics {
                     contentDescription = "$displayName, $stateLabel. $snippet"
                 },
             verticalArrangement = Arrangement.spacedBy(spacing.s1),
@@ -652,7 +649,9 @@ internal fun PipelineRow(
                 overflow = TextOverflow.Ellipsis,
             )
         }
+    }
 
+    val actions: @Composable () -> Unit = {
         // Opening the chain editor is navigation/read, not a write — stays enabled for everyone.
         GlyphButton(
             icon = EditLineGlyph,
@@ -679,6 +678,39 @@ internal fun PipelineRow(
                 enabled = enabled,
                 modifier = Modifier.semantics { contentDescription = toggleLabel },
             )
+        }
+    }
+
+    // Four action controls beside the name+description column leave that column a sliver once the icons and
+    // switch claim their fixed width on a narrow pane — Text still wraps, but with almost no width per line it
+    // degrades to one character per line instead of a readable two-line wrap (S-PIPE-TREE-VIS #4). At Compact
+    // the info column takes its own full-width line and the actions wrap in a FlowRow beneath it, the same
+    // "stack it" split AdminScreen's flag-override row uses for the identical squeeze.
+    if (windowSize.isCompact) {
+        Column(
+            modifier =
+                Modifier.fillMaxWidth().padding(horizontal = spacing.s4, vertical = spacing.s3),
+            verticalArrangement = Arrangement.spacedBy(spacing.s2),
+        ) {
+            info(Modifier.fillMaxWidth())
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+                verticalArrangement = Arrangement.spacedBy(spacing.s1),
+            ) {
+                actions()
+            }
+        }
+    } else {
+        Row(
+            modifier =
+                Modifier.fillMaxWidth()
+                    .padding(horizontal = spacing.s4, vertical = spacing.s3),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing.s3),
+        ) {
+            info(Modifier.weight(1f))
+            actions()
         }
     }
 }
@@ -1147,6 +1179,27 @@ private fun TreeNodeContainer(
 }
 
 /**
+ * The reorder/edit/delete glyph row every leaf step and block card ends its header with (S-PIPE-TREE-VIS #3).
+ * [TreeNodeContainer] clips its content to the node's rounded shape — up to four fixed-width glyphs (move up,
+ * move down, edit, delete) in a plain `Row` fit at the root, but the per-level padding and indent that make
+ * nesting read as containment also shrink the row's own width at each level, and on a narrow (Compact) viewport
+ * three levels deep that total can exceed what is left, silently clipping the LAST glyph — the delete control —
+ * against that same clip shape with no visual sign anything is missing. `FlowRow` wraps the glyphs onto a second
+ * line instead, so every control the row is given stays visible without ever depending on the pane being wide
+ * enough to fit them all on one line.
+ */
+@Composable
+private fun NodeActionRow(content: @Composable FlowRowScope.() -> Unit) {
+    val spacing = LocalSpacing.current
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(spacing.s1),
+        verticalArrangement = Arrangement.spacedBy(spacing.s1),
+        content = content,
+    )
+}
+
+/**
  * Whether a destructive control at [depth] needs a persistent tint to stay visible without hover (S-PIPE-TREE-VIS
  * #2) — measured on the rendered client, a bare ghost-variant delete glyph nested two-plus levels deep read as
  * near-invisible at rest. Null at the root (the ghost variant's usual hover-only wash is enough there); a fixed
@@ -1217,7 +1270,7 @@ private fun StepCard(
         // Param summary: each configured param as "label: value", so a card shows what the block will do.
         ParamSummary(step.action, palette)
 
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spacing.s1)) {
+        NodeActionRow {
             // Reorder is a write AND bounded by position: the gate's `enabled` and the bound both must hold.
             ManageGate(decision = manage) { allowed ->
                 val canMoveUp: Boolean = allowed && index > 0
@@ -1239,7 +1292,6 @@ private fun StepCard(
                     tint = tokens.primary,
                 )
             }
-            Box(modifier = Modifier.weight(1f))
             ManageGate(decision = manage) { enabled ->
                 GlyphButton(icon = EditGlyph, label = editLabel, onClick = onEdit, enabled = enabled)
             }
@@ -1292,14 +1344,13 @@ private fun IfBlockCard(
             )
         }
 
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spacing.s1)) {
+        NodeActionRow {
             ManageGate(decision = manage) { allowed ->
                 GlyphButton(icon = ArrowUpGlyph, label = upLabel, onClick = { controller.moveBranchStepUp(blockId) }, enabled = allowed && index > 0, tint = tokens.primary)
             }
             ManageGate(decision = manage) { allowed ->
                 GlyphButton(icon = ArrowDownGlyph, label = downLabel, onClick = { controller.moveBranchStepDown(blockId) }, enabled = allowed && index < total - 1, tint = tokens.primary)
             }
-            Box(modifier = Modifier.weight(1f))
             ManageGate(decision = manage) { enabled ->
                 GlyphButton(icon = EditGlyph, label = editLabel, onClick = { dialogs.onEditIf(blockId, block.condition) }, enabled = enabled)
             }
@@ -1375,14 +1426,13 @@ private fun TryBlockCard(
             )
         }
 
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spacing.s1)) {
+        NodeActionRow {
             ManageGate(decision = manage) { allowed ->
                 GlyphButton(icon = ArrowUpGlyph, label = upLabel, onClick = { controller.moveBranchStepUp(blockId) }, enabled = allowed && index > 0, tint = tokens.primary)
             }
             ManageGate(decision = manage) { allowed ->
                 GlyphButton(icon = ArrowDownGlyph, label = downLabel, onClick = { controller.moveBranchStepDown(blockId) }, enabled = allowed && index < total - 1, tint = tokens.primary)
             }
-            Box(modifier = Modifier.weight(1f))
             ManageGate(decision = manage) { enabled ->
                 DestructiveGlyphButton(depth = depth, label = removeLabel, onClick = { controller.removeBranchStep(blockId) }, enabled = enabled)
             }
@@ -1687,14 +1737,13 @@ private fun SwitchBlockCard(
             )
         }
 
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spacing.s1)) {
+        NodeActionRow {
             ManageGate(decision = manage) { allowed ->
                 GlyphButton(icon = ArrowUpGlyph, label = upLabel, onClick = { controller.moveBranchStepUp(blockId) }, enabled = allowed && index > 0, tint = tokens.primary)
             }
             ManageGate(decision = manage) { allowed ->
                 GlyphButton(icon = ArrowDownGlyph, label = downLabel, onClick = { controller.moveBranchStepDown(blockId) }, enabled = allowed && index < total - 1, tint = tokens.primary)
             }
-            Box(modifier = Modifier.weight(1f))
             ManageGate(decision = manage) { enabled ->
                 GlyphButton(icon = EditGlyph, label = editLabel, onClick = { dialogs.onEditSwitch(blockId, block.blockConfig) }, enabled = enabled)
             }
@@ -1821,14 +1870,13 @@ private fun RandomBranchBlockCard(
             )
         }
 
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spacing.s1)) {
+        NodeActionRow {
             ManageGate(decision = manage) { allowed ->
                 GlyphButton(icon = ArrowUpGlyph, label = upLabel, onClick = { controller.moveBranchStepUp(blockId) }, enabled = allowed && index > 0, tint = tokens.primary)
             }
             ManageGate(decision = manage) { allowed ->
                 GlyphButton(icon = ArrowDownGlyph, label = downLabel, onClick = { controller.moveBranchStepDown(blockId) }, enabled = allowed && index < total - 1, tint = tokens.primary)
             }
-            Box(modifier = Modifier.weight(1f))
             ManageGate(decision = manage) { enabled ->
                 DestructiveGlyphButton(depth = depth, label = removeLabel, onClick = { controller.removeBranchStep(blockId) }, enabled = enabled)
             }
@@ -1955,14 +2003,13 @@ private fun LoopBlockCard(
             )
         }
 
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spacing.s1)) {
+        NodeActionRow {
             ManageGate(decision = manage) { allowed ->
                 GlyphButton(icon = ArrowUpGlyph, label = upLabel, onClick = { controller.moveBranchStepUp(blockId) }, enabled = allowed && index > 0, tint = tokens.primary)
             }
             ManageGate(decision = manage) { allowed ->
                 GlyphButton(icon = ArrowDownGlyph, label = downLabel, onClick = { controller.moveBranchStepDown(blockId) }, enabled = allowed && index < total - 1, tint = tokens.primary)
             }
-            Box(modifier = Modifier.weight(1f))
             ManageGate(decision = manage) { enabled ->
                 GlyphButton(icon = EditGlyph, label = editLabel, onClick = { dialogs.onEditLoop(blockId, block.blockConfig, block.condition) }, enabled = enabled)
             }
