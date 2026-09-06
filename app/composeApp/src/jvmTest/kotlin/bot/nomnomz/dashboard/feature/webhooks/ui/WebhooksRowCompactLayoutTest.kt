@@ -23,6 +23,7 @@ import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
+import bot.nomnomz.dashboard.core.i18n.AppEnvironment
 import bot.nomnomz.dashboard.core.network.InboundWebhook
 import bot.nomnomz.dashboard.core.network.OutboundWebhook
 import kotlin.test.Test
@@ -72,7 +73,7 @@ class WebhooksRowCompactLayoutTest {
         runComposeUiTest {
             var deleteClicked = false
             setContent {
-                NomNomzTheme {
+                AppEnvironment(tag = "en") { NomNomzTheme {
                     Box(modifier = Modifier.width(compactWidth).testTag(containerTag)) {
                         OutboundRow(
                             ep = outbound(),
@@ -86,7 +87,7 @@ class WebhooksRowCompactLayoutTest {
                             onDelete = { deleteClicked = true },
                         )
                     }
-                }
+                } }
             }
             waitForIdle()
 
@@ -106,7 +107,7 @@ class WebhooksRowCompactLayoutTest {
     fun outbound_row_stays_a_single_line_at_wide_width() =
         runComposeUiTest {
             setContent {
-                NomNomzTheme {
+                AppEnvironment(tag = "en") { NomNomzTheme {
                     Box(modifier = Modifier.width(wideWidth).testTag(containerTag)) {
                         OutboundRow(
                             ep = outbound(),
@@ -120,7 +121,7 @@ class WebhooksRowCompactLayoutTest {
                             onDelete = {},
                         )
                     }
-                }
+                } }
             }
             waitForIdle()
 
@@ -140,7 +141,7 @@ class WebhooksRowCompactLayoutTest {
         runComposeUiTest {
             var deleteClicked = false
             setContent {
-                NomNomzTheme {
+                AppEnvironment(tag = "en") { NomNomzTheme {
                     Box(modifier = Modifier.width(compactWidth).testTag(containerTag)) {
                         InboundRow(
                             ep = inbound(),
@@ -152,7 +153,7 @@ class WebhooksRowCompactLayoutTest {
                             onDelete = { deleteClicked = true },
                         )
                     }
-                }
+                } }
             }
             waitForIdle()
 
@@ -171,7 +172,7 @@ class WebhooksRowCompactLayoutTest {
     fun inbound_row_stays_a_single_line_at_wide_width() =
         runComposeUiTest {
             setContent {
-                NomNomzTheme {
+                AppEnvironment(tag = "en") { NomNomzTheme {
                     Box(modifier = Modifier.width(wideWidth).testTag(containerTag)) {
                         InboundRow(
                             ep = inbound(),
@@ -183,7 +184,7 @@ class WebhooksRowCompactLayoutTest {
                             onDelete = {},
                         )
                     }
-                }
+                } }
             }
             waitForIdle()
 

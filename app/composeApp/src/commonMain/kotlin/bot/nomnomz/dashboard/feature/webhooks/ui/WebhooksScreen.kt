@@ -693,7 +693,6 @@ internal fun OutboundRow(
                     label = stringResource(Res.string.webhooks_outbound_reenable),
                     onClick = onReenable,
                     enabled = enabled,
-                    tint = tokens.primary,
                 )
             }
         }
@@ -703,7 +702,6 @@ internal fun OutboundRow(
                 label = stringResource(Res.string.webhooks_outbound_test),
                 onClick = onTest,
                 enabled = enabled,
-                tint = tokens.primary,
             )
         }
         ManageGate(manage) { enabled ->

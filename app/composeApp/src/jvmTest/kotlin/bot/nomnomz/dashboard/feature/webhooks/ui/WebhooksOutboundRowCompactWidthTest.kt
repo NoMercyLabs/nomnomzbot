@@ -20,6 +20,7 @@ import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import bot.nomnomz.dashboard.core.designsystem.component.ManageDecision
 import bot.nomnomz.dashboard.core.designsystem.theme.NomNomzTheme
+import bot.nomnomz.dashboard.core.i18n.AppEnvironment
 import bot.nomnomz.dashboard.core.network.OutboundWebhook
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -63,7 +64,7 @@ class WebhooksOutboundRowCompactWidthTest {
     fun long_webhook_name_wraps_instead_of_clipping_to_one_line_at_compact_width() =
         runComposeUiTest {
             setContent {
-                NomNomzTheme {
+                AppEnvironment(tag = "en") { NomNomzTheme {
                     // 320 dp is a true phone width — narrow enough that the long name needs two lines on its
                     // own, independent of the action-button row (which now stacks underneath, not beside it).
                     // Each row gets its own identically-sized Box so neither name's wrap affects the other's.
@@ -95,7 +96,7 @@ class WebhooksOutboundRowCompactWidthTest {
                             )
                         }
                     }
-                }
+                } }
             }
             waitForIdle()
 
