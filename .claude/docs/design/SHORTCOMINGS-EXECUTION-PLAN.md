@@ -302,9 +302,21 @@ have silently dropped that table from the count shown before a channel delete.
 
 - [ ] **S-ADMIN-6b The rest of the 2am tools.** Background job queue with retry, per-tenant usage and
       cost, error budget, and the event-store replay tools.
-- [ ] **S-ADMIN-7 Support desk.** Find a person across every tenant, see their real state (roles, standing,
-      heat, entitlements, connections), and replay what happened to them. This is the tab that closes support
-      tickets; today it does not exist.
+**S-ADMIN-7 CLOSED — 7a `0c6d017f`, 7b `922073d7`, both verified.** Cross-tenant person search and a
+person view of real state (roles, standings, trust, entitlements, connections, each labelled with the
+tenant it belongs to), plus history replayed from the real event journal. Gated on the new
+`user:support:view` key threaded through all five places a key lives; every lookup requires a
+justification and is audited naming operator and subject — denials audited too, and proven to read no
+subject data.
+
+The tests were checked for teeth, not just for green: the two-tenant history test asserts
+EventType/BroadcasterId/ChannelName per index in a fixed newest-first order (it fails on a swap or a
+reversed order) and seeds a THIRD person's event to prove no cross-person leak; the refusal test
+asserts `FORBIDDEN` plus a real Denied audit row, so it would not pass against an endpoint that merely
+returned an empty list; a fact the system does not hold renders absent, never as a zero row. The
+shared `AuthTestContext` change was inspected separately because a loosened harness can manufacture
+green: it only maps the previously-ignored `EventJournal` DbSet to its real production configuration —
+strictly additive — and the full 5119-test suite across ~150 files sharing that context stayed green.
 - [ ] **S-ADMIN-8 Trust and safety, platform-wide.** Beyond the existing spam defaults: cross-tenant abuse
       signals, network-wide blocks, and a review queue for the calls the platform made automatically.
 - [ ] **S-ADMIN-9 Make it navigable.** Eleven tabs is already past what one tab strip carries, and the work
